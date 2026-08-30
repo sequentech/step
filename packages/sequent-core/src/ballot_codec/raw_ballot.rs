@@ -5,7 +5,7 @@ use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
-use crate::validation::policy_emissions;
+use crate::validation::ContestValidator;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 
@@ -375,9 +375,9 @@ impl RawBallotCodec for Contest {
         }
 
         // Policy-driven errors and alerts — the validation rules, evaluated
-        // from the contest configuration and the decoded selections
-        // (validation_provider). Encoding errors are recorded above.
-        match policy_emissions(self, &decoded_contest) {
+        // from the contest configuration and the decoded selections.
+        // Encoding errors are recorded above.
+        match ContestValidator::for_contest(self).messages(&decoded_contest) {
             Ok(policy_checks) => decoded_contest.update(policy_checks),
             // min_votes/max_votes cannot be interpreted as counts: keep the
             // per-bound checks — each runs with only the bounds it needs,

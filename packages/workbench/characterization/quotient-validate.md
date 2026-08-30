@@ -25,18 +25,18 @@ the injected, rationalized implementation's (`headless-sweep.md`
 certifies it) — so review is compared exactly where it renders;
 a hard-gated member's review is the dialog, certified headlessly.
 
-**The license** (what makes one-per-class sound), source-verified
-2026-08-30 (post the WCAG catch-up merge) against the S1-rewritten
-filter: `filterErrorList` is a
-closure referencing nothing beyond its parameters — the record, the
-under and blank policies (read raw from `question.presentation`),
-`isReview`, `isTouched`. The class key partitions finer than the
-filter needs (it also carries invalid and over), which is still
-sound. No store reads, no globals. Spec-side, the
+**The license** (what makes one-per-class sound) is now structural,
+not a source-read claim: the booth calls sequent-core through the
+`filter_visible_messages_js` wasm export, and the rule is the pure
+function `validation::visible_messages`, whose signature IS the
+license — the messages, the blank and under policies, and which
+screen is showing. The class key partitions finer than the rule
+needs (it also carries invalid and over), which is still sound.
+Spec-side, the
 same factorization was checked extensionally over all 345,600
-swept cells. **Re-entry condition:** any reference inside `filterErrorList`
-beyond its parameter list, or a new consulted policy, voids this
-artifact — re-verify the boundary on every portal refresh.
+swept cells. **Re-entry condition:** a new parameter on
+`visible_messages`, or the booth deciding any of this for itself
+again.
 
 **Result: 2676/7908 classes booth-validated, 0 disagreement(s) — covering 195,520 of the subdomain's cells by sufficiency. 5232 classes (150080 cells) deferred: no booth-formable member (their states are prevention-collapsed, flag+marker, or otherwise unformable on this fixture; their headless effects are already sweep-certified, and their inline values remain spec-only until a fixture can form them).**
 

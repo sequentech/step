@@ -3,87 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::*;
-use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
-use crate::validation::{contest_config, vote_state, ContestValidator};
+use crate::validation::BallotValidator;
 
 use std::collections::HashMap;
 
-/// Validation outcome of one contest for the voting screen's Next action:
-/// `(blocks_next, needs_confirmation)`.
-///
-/// The policy-driven rules — blank, invalid, over-vote, under-vote and
-/// preferential-order handling — are evaluated by [`ContestValidator`]
-/// from the contest configuration ([`contest_config`]) and a summary of
-/// the voter's selections ([`vote_state`]).
-///
-/// Errors that ballot decoding recorded on the decoded contest are
-/// honoured directly: an `Explicit` or `EncodingError` entry in
-/// `invalid_errors` blocks Next, and an `EncodingError` entry also
-/// requires confirmation unless the invalid-vote policy allows invalid
-/// ballots.
-///
-/// If the contest's `min_votes`/`max_votes` are invalid (negative or out
-/// of range), no
-/// rules can be evaluated — [`contest_config`] fails — and the recorded
-/// errors decide the outcome by themselves. Such a contest still blocks
-/// Next, because decoding reports invalid bounds as `EncodingError`
-/// entries.
-fn contest_gates(
-    contest: &Contest,
-    decoded_contest: &DecodedVoteContest,
-) -> (bool, bool) {
-    let invalid_errors = &decoded_contest.invalid_errors;
-    let errors_block_next = invalid_errors.iter().any(|error| {
-        matches!(
-            error.error_type,
-            InvalidPlaintextErrorType::Explicit
-                | InvalidPlaintextErrorType::EncodingError
-        )
-    });
-    let encoding_error_present = invalid_errors.iter().any(|error| {
-        matches!(error.error_type, InvalidPlaintextErrorType::EncodingError)
-    });
-    let invalid_vote_policy = contest.get_invalid_vote_policy();
-    // An encoding error counts as an invalid ballot for the confirmation
-    // dialog, so the invalid-vote policy's allowing values exempt it.
-    let errors_need_dialog = encoding_error_present
-        && invalid_vote_policy != InvalidVotePolicy::ALLOWED
-        && invalid_vote_policy
-            != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT;
-
-    match contest_config(contest) {
-        Ok(config) => {
-            let validator = ContestValidator::from_config(config)
-                .for_vote_state(vote_state(contest, decoded_contest));
-            (
-                errors_block_next || validator.hard_gate(),
-                errors_need_dialog || validator.soft_gate(),
-            )
-        }
-        Err(_) => (errors_block_next, errors_need_dialog),
-    }
-}
-
 // Function used to decide if the voter needs to change his/her ballot before
 // continuing
-//
-// Acclaimed contests are skipped: they have no selectable options, so a
-// selection policy such as a minimum number of votes could never be satisfied
-// and would block the voter for good.
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    votable_contests(&contests).any(|contest| {
-        decoded_contests
-            .get(&contest.id)
-            .map(|decoded_contest| contest_gates(contest, decoded_contest).0)
-            // An incomplete validation map is not proof that the contest is
-            // valid. Fail closed until its decoded state is available.
-            .unwrap_or(true)
-    })
+    BallotValidator::for_ballot(&contests, &decoded_contests).hard_gate()
 }
 
 /// if returns true, when the user click next, there will be a dialog that
@@ -92,13 +24,7 @@ pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    // Acclaimed contests cannot be voted on, so they never warrant a warning.
-    votable_contests(&contests).any(|contest| {
-        decoded_contests
-            .get(&contest.id)
-            .map(|decoded_contest| contest_gates(contest, decoded_contest).1)
-            .unwrap_or(false)
-    })
+    BallotValidator::for_ballot(&contests, &decoded_contests).soft_gate()
 }
 
 pub fn get_contest_plurality(

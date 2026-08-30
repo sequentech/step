@@ -78,24 +78,24 @@ fn native_vote_state(vs: &spec::VoteState) -> native::VoteState {
 /// them as two runs of boxes, errors above alerts — so flattening in that
 /// order is this crate modelling the render, not a rule of its own.
 fn shown(validator: &native::VoteValidator, is_review: bool, is_touched: bool) -> Vec<String> {
-    let (errors, alerts) = native::visible_messages(
+    let shown = native::visible_messages(
         &validator.config().policies,
-        &validator.emissions().errors,
-        &validator.emissions().alerts,
+        validator.messages(),
         is_review,
         is_touched,
     );
-    errors.into_iter().chain(alerts).collect()
+    shown.errors.into_iter().chain(shown.alerts).collect()
 }
 
 /// Computes the fixed mapping — the exact analog of the oracle's `f`, from
 /// production's own rules.
 pub fn f_fixed(config: &spec::Config, vs: &spec::VoteState) -> Effects {
     let validator = native::ContestValidator::from_config(native_config(config))
-        .for_vote_state(native_vote_state(vs));
+        .for_vote_state(native_vote_state(vs))
+        .expect("the spec's cells always carry representable bounds");
     let em = Emissions {
-        errors: validator.emissions().errors.clone(),
-        alerts: validator.emissions().alerts.clone(),
+        errors: validator.messages().errors.clone(),
+        alerts: validator.messages().alerts.clone(),
     };
     let hard = validator.hard_gate();
     let soft = validator.soft_gate();
@@ -129,7 +129,8 @@ pub fn f_fixed(config: &spec::Config, vs: &spec::VoteState) -> Effects {
 /// Returns the spec-typed shape of a production contest's configuration —
 /// for evaluating `f_fixed` on real fixture contests.
 pub fn spec_config(contest: &Contest) -> Result<spec::Config, native::ValidationError> {
-    let c = native::contest_config(contest)?;
+    let v = native::ContestValidator::for_contest(contest);
+    let c = v.config()?;
     Ok(spec::Config {
         min: c.min,
         max: c.max,
@@ -149,7 +150,7 @@ pub fn spec_config(contest: &Contest) -> Result<spec::Config, native::Validation
 /// `first_preferences` is left absent (it defaults to `regulars`, which is
 /// exact for plurality; `f_fixed` never reads it).
 pub fn spec_vote_state(contest: &Contest, decoded: &DecodedVoteContest) -> spec::VoteState {
-    let v = native::vote_state(contest, decoded);
+    let v = native::ContestValidator::for_contest(contest).vote_state(decoded);
     spec::VoteState {
         regulars: v.regulars,
         blank_marker: v.blank_marker,

@@ -9,14 +9,15 @@
 //! disagreeing about the same ballot:
 //!
 //! - ballot decoding evaluates the policy rules and records the resulting
-//!   errors and alerts on the decoded contest ([`policy_emissions`] —
-//!   `ballot_codec/raw_ballot.rs`);
+//!   errors and alerts on the decoded contest
+//!   ([`ContestValidator::messages`] — `ballot_codec/raw_ballot.rs`);
 //! - the voting screen's Next gates evaluate the same rules, from the
 //!   contest and the selections rather than from the record, to decide
 //!   whether to block or ask for confirmation (`util/voting_screen.rs`);
 //! - the booth evaluates the display rules over the recorded messages to
 //!   decide which of them the voter sees on the screen being rendered
-//!   ([`filter_visible_messages`], reached from TypeScript through the
+//!   ([`ContestValidator::filter_visible_messages`], reached from
+//!   TypeScript through the
 //!   `filter_visible_messages_js` wasm export);
 //! - the tally evaluates nothing of its own: it classifies from the
 //!   decoded record's fields, so it follows decoding.
@@ -38,9 +39,10 @@
 //! selections ([`visible_messages`]), which is why the booth can
 //! apply them to a decoded record it did not derive.
 //!
-//! Conversion from the ballot types is part of the module:
-//! [`contest_config`] and [`vote_state`] are the only places validation
-//! facts are read off a `Contest` / `DecodedVoteContest`:
+//! Reading the ballot types is part of the module:
+//! [`ContestValidator::for_contest`] and
+//! [`ContestValidator::vote_state`] are the only places validation facts
+//! are read off a `Contest` / `DecodedVoteContest`:
 //!
 //! - an unset policy resolves to the enum's default;
 //! - `regulars` counts selected choices (`selected > -1`), excluding the
@@ -59,12 +61,13 @@
 //! `DecodedVoteContest::is_blank_ballot` is not consulted: the rules
 //! derive blankness from the selections themselves.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::ballot::{
     Contest, EBlankVotePolicy, EDuplicatedRankPolicy, EOverVotePolicy,
     EPreferenceGapsPolicy, EUnderVotePolicy, InvalidVotePolicy,
 };
+use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::ballot_codec::CheckerResult;
 use crate::plaintext::{
     DecodedVoteContest, InvalidPlaintextError, InvalidPlaintextErrorType,
@@ -156,111 +159,79 @@ impl std::fmt::Display for ValidationError {
 impl std::error::Error for ValidationError {}
 
 /// The messages one contest's rules produce, as message keys: the errors
-/// and alerts ballot decoding records (see [`policy_emissions`] for the
-/// full `InvalidPlaintextError` form each becomes).
+/// and alerts ballot decoding records (see [`ContestValidator::messages`]
+/// for the full `InvalidPlaintextError` form each becomes).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Emissions {
     pub errors: Vec<String>,
     pub alerts: Vec<String>,
 }
 
-/// Converts a `Contest`'s bounds and policies to a [`Config`].
-pub fn contest_config(contest: &Contest) -> Result<Config, ValidationError> {
-    let (Ok(min), Ok(max)) = (
-        u32::try_from(contest.min_votes),
-        u32::try_from(contest.max_votes),
-    ) else {
-        return Err(ValidationError::UnrepresentableBounds {
-            min_votes: contest.min_votes,
-            max_votes: contest.max_votes,
-        });
-    };
-    let p = contest.presentation.as_ref();
-    Ok(Config {
-        min,
-        max,
-        policies: Policies {
-            invalid: p
-                .and_then(|p| p.invalid_vote_policy.clone())
-                .unwrap_or_default(),
-            blank: p
-                .and_then(|p| p.blank_vote_policy.clone())
-                .unwrap_or_default(),
-            over: p.and_then(|p| p.over_vote_policy).unwrap_or_default(),
-            under: p.and_then(|p| p.under_vote_policy).unwrap_or_default(),
-            dup: p
-                .and_then(|p| p.duplicated_rank_policy.clone())
-                .unwrap_or_default(),
-            gap: p
-                .and_then(|p| p.preference_gaps_policy.clone())
-                .unwrap_or_default(),
-        },
-    })
+/// What a contest's candidates mean when reading a ballot: which ids are
+/// the two marker kinds, and whether the selections carry ranks.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct ContestShape {
+    blank_markers: HashSet<String>,
+    invalid_markers: HashSet<String>,
+    preferential: bool,
 }
 
-/// Summarizes the voter's selections on one decoded contest as a
-/// [`VoteState`]; see the module doc for the field-by-field rules.
-pub fn vote_state(
-    contest: &Contest,
-    decoded: &DecodedVoteContest,
-) -> VoteState {
-    let is_blank_marker = |id: &str| {
-        contest
-            .candidates
-            .iter()
-            .any(|c| c.id == id && c.is_explicit_blank())
-    };
-    let is_invalid_marker = |id: &str| {
-        contest
-            .candidates
-            .iter()
-            .any(|c| c.id == id && c.is_explicit_invalid())
-    };
-
-    let selected = |sel: i64| sel > -1;
-    let regulars = decoded
-        .choices
-        .iter()
-        .filter(|ch| {
-            selected(ch.selected)
-                && !is_blank_marker(&ch.id)
-                && !is_invalid_marker(&ch.id)
-        })
-        .count() as u32;
-    let blank_marker = decoded
-        .choices
-        .iter()
-        .any(|ch| selected(ch.selected) && is_blank_marker(&ch.id));
-    let explicit_invalid = decoded.is_explicit_invalid
-        || decoded
-            .choices
-            .iter()
-            .any(|ch| selected(ch.selected) && is_invalid_marker(&ch.id));
-
-    let (duplicate_ranks, rank_gaps) =
-        if contest.get_counting_algorithm().is_preferential() {
-            match decoded.validate_preferencial_order() {
-                Ok(()) => (false, false),
-                Err(errors) => (
-                    errors.contains(
-                        &PreferencialOrderErrorType::DuplicatedPosition,
-                    ),
-                    errors.contains(
-                        &PreferencialOrderErrorType::PreferenceOrderWithGaps,
-                    ),
-                ),
-            }
-        } else {
-            (false, false)
+impl ContestShape {
+    fn of(contest: &Contest) -> Self {
+        let ids = |explicit_blank: bool| {
+            contest
+                .candidates
+                .iter()
+                .filter(|c| {
+                    if explicit_blank {
+                        c.is_explicit_blank()
+                    } else {
+                        c.is_explicit_invalid()
+                    }
+                })
+                .map(|c| c.id.clone())
+                .collect()
         };
+        ContestShape {
+            blank_markers: ids(true),
+            invalid_markers: ids(false),
+            preferential: contest.get_counting_algorithm().is_preferential(),
+        }
+    }
+}
 
-    VoteState {
-        regulars,
-        blank_marker,
-        explicit_invalid,
-        decline: decoded.is_decline_to_vote,
-        duplicate_ranks,
-        rank_gaps,
+/// Reads a contest's policies, resolving each unset one to its default.
+fn contest_policies(contest: &Contest) -> Policies {
+    let p = contest.presentation.as_ref();
+    Policies {
+        invalid: p
+            .and_then(|p| p.invalid_vote_policy.clone())
+            .unwrap_or_default(),
+        blank: p
+            .and_then(|p| p.blank_vote_policy.clone())
+            .unwrap_or_default(),
+        over: p.and_then(|p| p.over_vote_policy).unwrap_or_default(),
+        under: p.and_then(|p| p.under_vote_policy).unwrap_or_default(),
+        dup: p
+            .and_then(|p| p.duplicated_rank_policy.clone())
+            .unwrap_or_default(),
+        gap: p
+            .and_then(|p| p.preference_gaps_policy.clone())
+            .unwrap_or_default(),
+    }
+}
+
+/// Reads a contest's bounds as counts, or says why they cannot be used.
+fn contest_bounds(contest: &Contest) -> Result<(u32, u32), ValidationError> {
+    match (
+        u32::try_from(contest.min_votes),
+        u32::try_from(contest.max_votes),
+    ) {
+        (Ok(min), Ok(max)) => Ok((min, max)),
+        _ => Err(ValidationError::UnrepresentableBounds {
+            min_votes: contest.min_votes,
+            max_votes: contest.max_votes,
+        }),
     }
 }
 
@@ -387,28 +358,133 @@ fn derive_soft_gate(
             && em.errors.iter().any(|m| m == PREFERENCE_ORDER_WITH_GAPS))
 }
 
-/// Stage 0 — the configuration is known.
+/// Stage 0 — what is known before the voter has done anything: the
+/// contest's policies, its bounds, and what its candidates mean.
+///
+/// Building one never fails. A contest whose `min_votes` / `max_votes`
+/// cannot be read as counts can still say what the voter sees on screen;
+/// it is the questions that compare a selection count against those
+/// bounds — the messages and the gates — that cannot be answered, and
+/// those return [`ValidationError::UnrepresentableBounds`].
 pub struct ContestValidator {
-    config: Config,
+    policies: Policies,
+    bounds: Result<(u32, u32), ValidationError>,
+    shape: ContestShape,
 }
 
 impl ContestValidator {
+    /// Reads a contest.
+    pub fn for_contest(contest: &Contest) -> Self {
+        ContestValidator {
+            policies: contest_policies(contest),
+            bounds: contest_bounds(contest),
+            shape: ContestShape::of(contest),
+        }
+    }
+
+    /// Takes the policies and bounds directly, for callers that have them
+    /// abstractly and supply the [`VoteState`] themselves (this module's
+    /// tests, and the workbench's cell-by-cell evaluation). A validator
+    /// built this way knows nothing of the contest's candidates, so it
+    /// cannot summarize a decoded record — use [`Self::for_contest`] for
+    /// that.
     pub fn from_config(config: Config) -> Self {
-        ContestValidator { config }
+        ContestValidator {
+            policies: config.policies,
+            bounds: Ok((config.min, config.max)),
+            shape: ContestShape::default(),
+        }
+    }
+
+    /// Returns the contest's policies — what the display rules read
+    /// ([`visible_messages`]) alongside a ballot's messages.
+    pub fn policies(&self) -> &Policies {
+        &self.policies
+    }
+
+    /// Returns the bounds and policies together, or says why the bounds
+    /// cannot be used.
+    pub fn config(&self) -> Result<Config, ValidationError> {
+        let (min, max) = self.bounds.clone()?;
+        Ok(Config {
+            min,
+            max,
+            policies: self.policies.clone(),
+        })
+    }
+
+    /// Summarizes the voter's selections on one decoded contest; see the
+    /// module doc for the field-by-field rules.
+    pub fn vote_state(&self, decoded: &DecodedVoteContest) -> VoteState {
+        let selected = |sel: i64| sel > -1;
+        let is_marker = |id: &String| {
+            self.shape.blank_markers.contains(id)
+                || self.shape.invalid_markers.contains(id)
+        };
+        let regulars = decoded
+            .choices
+            .iter()
+            .filter(|ch| selected(ch.selected) && !is_marker(&ch.id))
+            .count() as u32;
+        let blank_marker = decoded.choices.iter().any(|ch| {
+            selected(ch.selected) && self.shape.blank_markers.contains(&ch.id)
+        });
+        let explicit_invalid = decoded.is_explicit_invalid
+            || decoded.choices.iter().any(|ch| {
+                selected(ch.selected)
+                    && self.shape.invalid_markers.contains(&ch.id)
+            });
+
+        let (duplicate_ranks, rank_gaps) = if self.shape.preferential {
+            match decoded.validate_preferencial_order() {
+                Ok(()) => (false, false),
+                Err(errors) => (
+                    errors.contains(
+                        &PreferencialOrderErrorType::DuplicatedPosition,
+                    ),
+                    errors.contains(
+                        &PreferencialOrderErrorType::PreferenceOrderWithGaps,
+                    ),
+                ),
+            }
+        } else {
+            (false, false)
+        };
+
+        VoteState {
+            regulars,
+            blank_marker,
+            explicit_invalid,
+            decline: decoded.is_decline_to_vote,
+            duplicate_ranks,
+            rank_gaps,
+        }
     }
 
     /// Fixes the vote-state facts once — the single selection count and the
-    /// messages — and hand back the stage-1 validator. Everything
+    /// messages — and hands back the stage-1 validator. Everything
     /// downstream reads this one derivation.
-    pub fn for_vote_state(&self, vs: VoteState) -> VoteValidator {
+    pub fn for_vote_state(
+        &self,
+        vs: VoteState,
+    ) -> Result<VoteValidator, ValidationError> {
+        let (min, max) = self.bounds.clone()?;
+        let config = Config {
+            min,
+            max,
+            policies: self.policies.clone(),
+        };
         let n = selections(&vs);
-        let em = derive_emissions(&self.config, &vs, n);
-        VoteValidator {
-            config: self.config.clone(),
-            vs,
-            n,
-            em,
-        }
+        let em = derive_emissions(&config, &vs, n);
+        Ok(VoteValidator { config, vs, n, em })
+    }
+
+    /// The same, starting from a decoded record rather than a summary.
+    pub fn for_decoded(
+        &self,
+        decoded: &DecodedVoteContest,
+    ) -> Result<VoteValidator, ValidationError> {
+        self.for_vote_state(self.vote_state(decoded))
     }
 }
 
@@ -423,7 +499,7 @@ pub struct VoteValidator {
 
 impl VoteValidator {
     /// Returns the messages this ballot produces, as message keys.
-    pub fn emissions(&self) -> &Emissions {
+    pub fn messages(&self) -> &Emissions {
         &self.em
     }
 
@@ -504,45 +580,83 @@ fn visible_alert_keys(
 /// the same thing.
 pub fn visible_messages(
     policies: &Policies,
-    errors: &[String],
-    alerts: &[String],
+    messages: &Emissions,
     is_review: bool,
     is_touched: bool,
-) -> (Vec<String>, Vec<String>) {
+) -> Emissions {
     if !is_review && !is_touched {
-        return (Vec::new(), Vec::new());
+        return Emissions::default();
     }
-    let error_keys: Vec<&str> = errors.iter().map(String::as_str).collect();
-    let alert_keys: Vec<&str> = alerts.iter().map(String::as_str).collect();
-    (
-        errors.to_vec(),
-        visible_alert_keys(policies, &error_keys, &alert_keys, is_review),
-    )
+    let error_keys: Vec<&str> =
+        messages.errors.iter().map(String::as_str).collect();
+    let alert_keys: Vec<&str> =
+        messages.alerts.iter().map(String::as_str).collect();
+    Emissions {
+        errors: messages.errors.clone(),
+        alerts: visible_alert_keys(
+            policies,
+            &error_keys,
+            &alert_keys,
+            is_review,
+        ),
+    }
 }
 
 /// The composition axis: the gates OR across every contest on the ballot.
 pub struct BallotValidator {
-    contests: Vec<VoteValidator>,
+    gates: Vec<(bool, bool)>,
 }
 
 impl BallotValidator {
-    pub fn from_votes(contests: Vec<VoteValidator>) -> Self {
-        BallotValidator { contests }
+    /// Reads every contest of a ballot against its decoded record.
+    ///
+    /// Acclaimed contests are skipped: they have no selectable options, so
+    /// a selection policy such as a minimum number of votes could never be
+    /// satisfied and would block the voter for good. A contest with no
+    /// decoded record blocks Next — an incomplete validation map is not
+    /// proof that a contest is valid — but raises no dialog, since there is
+    /// nothing to describe to the voter.
+    pub fn for_ballot(
+        contests: &[Contest],
+        decoded: &HashMap<String, DecodedVoteContest>,
+    ) -> Self {
+        BallotValidator {
+            gates: votable_contests(contests)
+                .map(|contest| match decoded.get(&contest.id) {
+                    Some(record) => {
+                        ContestValidator::for_contest(contest).gates(record)
+                    }
+                    None => (true, false),
+                })
+                .collect(),
+        }
+    }
+
+    /// Takes per-contest validators directly, for callers that built them
+    /// from vote states rather than records.
+    pub fn from_votes(votes: Vec<VoteValidator>) -> Self {
+        BallotValidator {
+            gates: votes
+                .iter()
+                .map(|vote| (vote.hard_gate(), vote.soft_gate()))
+                .collect(),
+        }
     }
 
     /// Reports whether ANY contest blocks Next.
     pub fn hard_gate(&self) -> bool {
-        self.contests.iter().any(VoteValidator::hard_gate)
+        self.gates.iter().any(|(hard, _)| *hard)
     }
 
     /// Reports whether ANY contest asks for confirmation.
     pub fn soft_gate(&self) -> bool {
-        self.contests.iter().any(VoteValidator::soft_gate)
+        self.gates.iter().any(|(_, soft)| *soft)
     }
 }
 
 /// Computes one message for the `invalid_errors` / `invalid_alerts` that
-/// [`policy_emissions`] produces, returned as an [`InvalidPlaintextError`].
+/// [`ContestValidator::messages`] produces, returned as an
+/// [`InvalidPlaintextError`].
 /// Besides the message key it carries the parameters the message's
 /// translation interpolates — `numSelected` is the marker-inclusive
 /// selection count, `min` / `max` the contest bounds — and `type: "alert"`
@@ -611,83 +725,114 @@ fn plaintext_error(
     }
 }
 
-/// Computes the policy-driven messages for one contest — the errors and
-/// alerts the validation rules produce from the contest configuration and the
-/// decoded selections, in the order ballot decoding appends them. Encoding
-/// and configuration errors are not produced here; decoding stamps those on
-/// the record itself. Fails when `min_votes`/`max_votes` cannot be
-/// interpreted as counts — the caller keeps the per-bound checks for that
-/// case (each check runs with only the bounds it needs).
-pub fn policy_emissions(
-    contest: &Contest,
-    decoded: &DecodedVoteContest,
-) -> Result<CheckerResult, ValidationError> {
-    let config = contest_config(contest)?;
-    let (min, max) = (config.min, config.max);
-    let vs = vote_state(contest, decoded);
-    let n = selections(&vs);
-    let validator = ContestValidator::from_config(config).for_vote_state(vs);
-    let emissions = validator.emissions();
-    Ok(CheckerResult {
-        invalid_errors: emissions
-            .errors
-            .iter()
-            .map(|key| plaintext_error(key, n, min, max))
-            .collect(),
-        invalid_alerts: emissions
-            .alerts
-            .iter()
-            .map(|key| plaintext_error(key, n, min, max))
-            .collect(),
-    })
-}
+impl ContestValidator {
+    /// Computes the policy-driven messages for one decoded contest — the
+    /// errors and alerts the validation rules produce, in the order ballot
+    /// decoding records them, as the `InvalidPlaintextError` entries it
+    /// appends. Encoding and configuration errors are not produced here;
+    /// decoding stamps those on the record itself.
+    ///
+    /// Fails when the contest's bounds cannot be read as counts: the
+    /// min/over/under rules have nothing to compare against. The caller
+    /// keeps the per-bound checks for that case (each runs with only the
+    /// bounds it needs).
+    pub fn messages(
+        &self,
+        decoded: &DecodedVoteContest,
+    ) -> Result<CheckerResult, ValidationError> {
+        let (min, max) = self.bounds.clone()?;
+        let vs = self.vote_state(decoded);
+        let n = selections(&vs);
+        let validator = self.for_vote_state(vs)?;
+        let messages = validator.messages();
+        Ok(CheckerResult {
+            invalid_errors: messages
+                .errors
+                .iter()
+                .map(|key| plaintext_error(key, n, min, max))
+                .collect(),
+            invalid_alerts: messages
+                .alerts
+                .iter()
+                .map(|key| plaintext_error(key, n, min, max))
+                .collect(),
+        })
+    }
 
-/// Returns the decoded contest reduced to the messages the voter should
-/// see on one screen: the same record with `invalid_errors` and
-/// `invalid_alerts` filtered. `is_review` selects the review screen over the voting screen;
-/// `is_touched` is whether the voter has selected anything in this contest
-/// yet (an untouched contest shows nothing until they have).
-///
-/// This reads only the record and the contest's blank and under-vote
-/// policies — no bounds, no selection count — so it cannot fail on a
-/// misconfigured contest, and encoding errors recorded by decoding are
-/// shown like any other error.
-pub fn filter_visible_messages(
-    contest: &Contest,
-    decoded: &DecodedVoteContest,
-    is_review: bool,
-    is_touched: bool,
-) -> DecodedVoteContest {
-    let p = contest.presentation.as_ref();
-    let policies = Policies {
-        blank: p
-            .and_then(|p| p.blank_vote_policy.clone())
-            .unwrap_or_default(),
-        under: p.and_then(|p| p.under_vote_policy).unwrap_or_default(),
-        ..Policies::default()
-    };
-    let key_of =
-        |e: &InvalidPlaintextError| e.message.clone().unwrap_or_default();
-    let error_keys: Vec<String> =
-        decoded.invalid_errors.iter().map(key_of).collect();
-    let alert_keys: Vec<String> =
-        decoded.invalid_alerts.iter().map(key_of).collect();
-    let (kept_errors, kept_alerts) = visible_messages(
-        &policies,
-        &error_keys,
-        &alert_keys,
-        is_review,
-        is_touched,
-    );
+    /// Returns both gates for one decoded contest:
+    /// `(blocks_next, needs_confirmation)`.
+    ///
+    /// Two things decide. The policy rules read the contest and the
+    /// voter's selections. Errors that ballot decoding recorded are
+    /// honoured directly, because the vote state cannot express them: an
+    /// `Explicit` or `EncodingError` entry blocks Next, and an
+    /// `EncodingError` entry also asks for confirmation unless the
+    /// invalid-vote policy allows invalid ballots. When the contest's
+    /// bounds cannot be read as counts the policy rules have nothing to
+    /// compare against, and those recorded errors decide alone — which
+    /// still blocks, since decoding records unusable bounds as encoding
+    /// errors.
+    pub fn gates(&self, decoded: &DecodedVoteContest) -> (bool, bool) {
+        let recorded = &decoded.invalid_errors;
+        let recorded_blocks = recorded.iter().any(|error| {
+            matches!(
+                error.error_type,
+                InvalidPlaintextErrorType::Explicit
+                    | InvalidPlaintextErrorType::EncodingError
+            )
+        });
+        let encoding_error = recorded.iter().any(|error| {
+            matches!(error.error_type, InvalidPlaintextErrorType::EncodingError)
+        });
+        let recorded_asks = encoding_error
+            && self.policies.invalid != InvalidVotePolicy::ALLOWED
+            && self.policies.invalid
+                != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT;
 
-    let mut visible = decoded.clone();
-    visible
-        .invalid_errors
-        .retain(|error| kept_errors.contains(&key_of(error)));
-    visible
-        .invalid_alerts
-        .retain(|alert| kept_alerts.contains(&key_of(alert)));
-    visible
+        match self.for_decoded(decoded) {
+            Ok(validator) => (
+                recorded_blocks || validator.hard_gate(),
+                recorded_asks || validator.soft_gate(),
+            ),
+            Err(_) => (recorded_blocks, recorded_asks),
+        }
+    }
+
+    /// Returns the decoded contest reduced to the messages the voter should
+    /// see on one screen: the same record with `invalid_errors` and
+    /// `invalid_alerts` filtered. `is_review` selects the review screen over
+    /// the voting screen; `is_touched` is whether the voter has selected
+    /// anything in this contest yet (an untouched contest shows nothing
+    /// until they have).
+    ///
+    /// This needs no bounds and no selection count — only the recorded
+    /// messages and two policies — so it answers even for a contest whose
+    /// bounds are unusable, which is exactly when the voter most needs to
+    /// see the encoding errors decoding recorded.
+    pub fn filter_visible_messages(
+        &self,
+        decoded: &DecodedVoteContest,
+        is_review: bool,
+        is_touched: bool,
+    ) -> DecodedVoteContest {
+        let key_of =
+            |e: &InvalidPlaintextError| e.message.clone().unwrap_or_default();
+        let recorded = Emissions {
+            errors: decoded.invalid_errors.iter().map(key_of).collect(),
+            alerts: decoded.invalid_alerts.iter().map(key_of).collect(),
+        };
+        let kept =
+            visible_messages(&self.policies, &recorded, is_review, is_touched);
+
+        let mut visible = decoded.clone();
+        visible
+            .invalid_errors
+            .retain(|error| kept.errors.contains(&key_of(error)));
+        visible
+            .invalid_alerts
+            .retain(|alert| kept.alerts.contains(&key_of(alert)));
+        visible
+    }
 }
 
 #[cfg(test)]
@@ -703,7 +848,9 @@ mod tests {
     }
 
     fn vote(vs: VoteState, min: u32, max: u32) -> VoteValidator {
-        ContestValidator::from_config(config(min, max)).for_vote_state(vs)
+        ContestValidator::from_config(config(min, max))
+            .for_vote_state(vs)
+            .expect("representable bounds")
     }
 
     /// Returns what the voter sees on one screen: the display rules read
@@ -713,14 +860,13 @@ mod tests {
         is_review: bool,
         is_touched: bool,
     ) -> Vec<String> {
-        let (errors, alerts) = visible_messages(
+        let shown = visible_messages(
             &v.config().policies,
-            &v.emissions().errors,
-            &v.emissions().alerts,
+            v.messages(),
             is_review,
             is_touched,
         );
-        errors.into_iter().chain(alerts).collect()
+        shown.errors.into_iter().chain(shown.alerts).collect()
     }
 
     #[test]
@@ -730,7 +876,7 @@ mod tests {
             ..VoteState::default()
         };
         let v = vote(blank, 2, 3);
-        assert!(v.emissions().errors.is_empty());
+        assert!(v.messages().errors.is_empty());
         assert!(!v.hard_gate() && !v.soft_gate());
 
         // A null vote (explicitly invalid) is not a blank: the min-vote
@@ -740,7 +886,7 @@ mod tests {
             ..VoteState::default()
         };
         let v = vote(null, 2, 3);
-        assert!(v.emissions().errors.iter().any(|m| m == SELECTED_MIN));
+        assert!(v.messages().errors.iter().any(|m| m == SELECTED_MIN));
     }
 
     #[test]
@@ -748,8 +894,9 @@ mod tests {
         let mut c = config(0, 2);
         c.policies.under = EUnderVotePolicy::WARN_AND_ALERT;
         let v = ContestValidator::from_config(c)
-            .for_vote_state(VoteState::default());
-        assert!(!v.emissions().alerts.iter().any(|m| m == UNDER_VOTE));
+            .for_vote_state(VoteState::default())
+            .expect("representable bounds");
+        assert!(!v.messages().alerts.iter().any(|m| m == UNDER_VOTE));
         assert!(!v.soft_gate());
     }
 
@@ -759,11 +906,13 @@ mod tests {
         // over-vote error and the gate blocks from the same count.
         let mut c = config(0, 1);
         c.policies.over = EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT;
-        let v = ContestValidator::from_config(c).for_vote_state(VoteState {
-            regulars: 2,
-            ..VoteState::default()
-        });
-        assert!(v.emissions().errors.iter().any(|m| m == SELECTED_MAX));
+        let v = ContestValidator::from_config(c)
+            .for_vote_state(VoteState {
+                regulars: 2,
+                ..VoteState::default()
+            })
+            .expect("representable bounds");
+        assert!(v.messages().errors.iter().any(|m| m == SELECTED_MAX));
         assert!(v.hard_gate());
     }
 
@@ -789,11 +938,13 @@ mod tests {
     fn warn_only_in_review_holds_the_alert_back_until_review() {
         let mut c = config(0, 2);
         c.policies.under = EUnderVotePolicy::WARN_ONLY_IN_REVIEW;
-        let v = ContestValidator::from_config(c).for_vote_state(VoteState {
-            regulars: 1,
-            ..VoteState::default()
-        });
-        assert!(v.emissions().alerts.iter().any(|m| m == UNDER_VOTE));
+        let v = ContestValidator::from_config(c)
+            .for_vote_state(VoteState {
+                regulars: 1,
+                ..VoteState::default()
+            })
+            .expect("representable bounds");
+        assert!(v.messages().alerts.iter().any(|m| m == UNDER_VOTE));
         assert!(!shown(&v, false, true).iter().any(|m| m == UNDER_VOTE));
         assert!(shown(&v, true, true).iter().any(|m| m == UNDER_VOTE));
     }
@@ -804,12 +955,14 @@ mod tests {
         // and an alert; the voter sees it once.
         let mut c = config(0, 1);
         c.policies.over = EOverVotePolicy::ALLOWED_WITH_MSG;
-        let v = ContestValidator::from_config(c).for_vote_state(VoteState {
-            regulars: 2,
-            ..VoteState::default()
-        });
-        assert!(v.emissions().errors.iter().any(|m| m == SELECTED_MAX));
-        assert!(v.emissions().alerts.iter().any(|m| m == SELECTED_MAX));
+        let v = ContestValidator::from_config(c)
+            .for_vote_state(VoteState {
+                regulars: 2,
+                ..VoteState::default()
+            })
+            .expect("representable bounds");
+        assert!(v.messages().errors.iter().any(|m| m == SELECTED_MAX));
+        assert!(v.messages().alerts.iter().any(|m| m == SELECTED_MAX));
         let visible = shown(&v, false, true);
         assert_eq!(visible.iter().filter(|m| *m == SELECTED_MAX).count(), 1);
     }
@@ -831,11 +984,12 @@ mod tests {
             invalid_alerts: vec![],
             choices: vec![],
         };
-        let visible = filter_visible_messages(&contest, &decoded, false, true);
+        let validator = ContestValidator::for_contest(&contest);
+        let visible = validator.filter_visible_messages(&decoded, false, true);
         assert_eq!(visible.invalid_errors.len(), 1);
         // Untouched, the voting screen shows nothing at all.
         let untouched =
-            filter_visible_messages(&contest, &decoded, false, false);
+            validator.filter_visible_messages(&decoded, false, false);
         assert!(untouched.invalid_errors.is_empty());
     }
 
@@ -852,7 +1006,8 @@ mod tests {
         let mut blocking_config = config(0, 2);
         blocking_config.policies.blank = EBlankVotePolicy::NOT_ALLOWED;
         let blocking = ContestValidator::from_config(blocking_config)
-            .for_vote_state(VoteState::default());
+            .for_vote_state(VoteState::default())
+            .expect("representable bounds");
         assert!(!clean.hard_gate());
         assert!(blocking.hard_gate());
         assert!(BallotValidator::from_votes(vec![clean, blocking]).hard_gate());

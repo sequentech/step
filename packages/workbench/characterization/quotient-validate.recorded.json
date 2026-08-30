@@ -1,5 +1,5 @@
 {
-  "license": "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the class key partitions finer than needed, still sound. Source-verified 2026-08-30 (post the WCAG catch-up merge). Re-verify on portal refresh.",
+  "license": "validation::visible_messages reads only (messages, blank, under, isReview, isTouched) — its signature is the license, structural since the booth started calling sequent-core for this; the class key partitions finer than needed, still sound. 2026-08-30.",
   "classes_total": 7908,
   "retried": [],
   "checked": [

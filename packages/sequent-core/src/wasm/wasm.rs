@@ -31,7 +31,7 @@ extern crate console_error_panic_hook;
 use crate::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
-use crate::validation::filter_visible_messages;
+use crate::validation::ContestValidator;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use schemars::JsonSchema;
@@ -972,12 +972,8 @@ pub fn filter_visible_messages_js(
             .map_err(|err| format!("Error parsing decoded contest: {}", err))
             .into_json()?;
 
-    let visible = filter_visible_messages(
-        &contest,
-        &decoded_contest,
-        is_review,
-        is_touched,
-    );
+    let visible = ContestValidator::for_contest(&contest)
+        .filter_visible_messages(&decoded_contest, is_review, is_touched);
 
     let serializer = Serializer::json_compatible();
     visible

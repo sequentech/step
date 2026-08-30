@@ -6,7 +6,7 @@
 //! adapters in the loop. Decode and the gates are both injected
 //! (raw_ballot.rs and voting_screen.rs route through the query-provider),
 //! so production's emissions AND gates must match the RATIONALIZED
-//! `f_fixed` ∘ (contest_config, vote_state).
+//! `f_fixed` evaluated over the same cell.
 //!
 //! For every cell of a policy × vote-state matrix mirroring the seven
 //! characterization grids (on the real bundled-fixture contests), the wire
@@ -24,7 +24,8 @@
 //!     [`legacy_policy_checks`]), transformed by EXACTLY the fix ledger's
 //!     two decode movements (S2S3: no `selectedMin` for a deliberate
 //!     blank; S4: no `underVote` alert on the empty ballot), equals the
-//!     provider's `policy_emissions` record for record — `error_type`,
+//!     provider's `ContestValidator::messages` record for record —
+//!     `error_type`,
 //!     message key, `message_map`, order. The behaviour change at the
 //!     decode site is those two movements and nothing else.
 
@@ -46,8 +47,7 @@ use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
 use validation_adapters::{
-    contest_config, f_fixed, for_ballot, policy_emissions, spec_config, spec_vote_state,
-    vote_state, AdapterError,
+    f_fixed, for_ballot, spec_config, spec_vote_state, AdapterError, ContestValidator,
 };
 use validation_spec::{selections_with_markers, SELECTED_MIN, UNDER_VOTE};
 
@@ -255,12 +255,12 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
         HashMap::from([(contest.id.clone(), decoded.clone())]),
     );
 
-    let vs = vote_state(contest, &decoded);
+    let validator = ContestValidator::for_contest(contest);
     // Route convergence: the pre-decode wire selection derives the same
     // VoteState as the canonical decoded record.
     assert_eq!(
-        vote_state(contest, input),
-        vs,
+        validator.vote_state(input),
+        validator.vote_state(&decoded),
         "{label}: pre-decode and post-decode derivations disagree"
     );
 
@@ -286,6 +286,7 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
     // error_type, key, message_map and order included.
     let mut expected = legacy_policy_checks(contest, &decoded);
     let n = selections_with_markers(&spec_vs);
+    let vs = validator.vote_state(&decoded);
     let deliberate_blank = vs.blank_marker && vs.regulars == 0 && !vs.explicit_invalid;
     if deliberate_blank {
         // S2S3: a deliberate blank is not subject to the min-vote rule.
@@ -299,7 +300,8 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
             .invalid_alerts
             .retain(|a| a.message.as_deref() != Some(UNDER_VOTE));
     }
-    let provider = policy_emissions(contest, &decoded)
+    let provider = validator
+        .messages(&decoded)
         .unwrap_or_else(|e| panic!("{label}: provider rejected the config: {e}"));
     assert_eq!(
         expected, provider,
@@ -616,7 +618,7 @@ fn unrepresentable_bounds_are_a_config_rejection() {
     let mut c = contests[0].clone();
     c.min_votes = -1;
     assert_eq!(
-        contest_config(&c),
+        ContestValidator::for_contest(&c).config(),
         Err(AdapterError::UnrepresentableBounds {
             min_votes: -1,
             max_votes: c.max_votes

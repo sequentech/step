@@ -31,25 +31,19 @@ pub use fixed::{f_fixed, spec_config, spec_vote_state};
 use sequent_core::ballot::Contest;
 use sequent_core::plaintext::DecodedVoteContest;
 pub use sequent_core::validation::{
-    contest_config, policy_emissions, vote_state, BallotValidator, ContestValidator,
-    ValidationError, VoteValidator,
+    BallotValidator, ContestValidator, ValidationError, VoteValidator,
 };
 
 /// The name this crate's API established before the derivations moved into
 /// production.
 pub type AdapterError = ValidationError;
 
-/// Stage 0 from a production contest (config known).
-pub fn for_contest(contest: &Contest) -> Result<ContestValidator, AdapterError> {
-    Ok(ContestValidator::from_config(contest_config(contest)?))
-}
-
 /// Stage 1 from a production contest + decoded record (per edit / per decode).
 pub fn for_vote(
     contest: &Contest,
     decoded: &DecodedVoteContest,
 ) -> Result<VoteValidator, AdapterError> {
-    Ok(for_contest(contest)?.for_vote_state(vote_state(contest, decoded)))
+    ContestValidator::for_contest(contest).for_decoded(decoded)
 }
 
 /// The whole-ballot composition (the Next/review transition): one

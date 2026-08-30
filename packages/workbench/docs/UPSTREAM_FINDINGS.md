@@ -392,7 +392,7 @@ rejects the rule.
 **Injected (2026-08-29).** The rule is live in production on this
 branch: the decode site routes through the query-provider
 (`sequent-core/src/ballot_codec/raw_ballot.rs` →
-`validation::policy_emissions`), and the tally moved with it
+`validation::ContestValidator::messages`), and the tally moved with it
 (velvet classifies from the decoded record). Confirmed booth-to-tally
 through real crypto: `characterization/minvote-e2e-pipeline.mjs` casts
 the marker-only ballot at `min_votes = 2` and the contest result books
