@@ -42,7 +42,10 @@ impl Tally {
     /// `Tally::new(... ballots_files: Vec<(PathBuf, Weight)> ...)`
     /// constructor lives in `velvet` (it does file I/O); call this
     /// in-memory variant from pure-computation contexts (workbench, tests).
-    #[instrument(skip(contest, ballots, tally_sheet_results, tally_results), name = "Tally::from_ballots")]
+    #[instrument(
+        skip(contest, ballots, tally_sheet_results, tally_results),
+        name = "Tally::from_ballots"
+    )]
     pub fn from_ballots(
         contest: &Contest,
         scope_operation: ScopeOperation,
@@ -53,9 +56,9 @@ impl Tally {
         tally_results: Vec<ContestResult>,
     ) -> Result<Self> {
         let contest = contest.clone();
-        let id = contest
-            .counting_algorithm
-            .ok_or_else(|| Error::UnexpectedError("contest is missing counting_algorithm".into()))?;
+        let id = contest.counting_algorithm.ok_or_else(|| {
+            Error::UnexpectedError("contest is missing counting_algorithm".into())
+        })?;
 
         Ok(Self {
             id,

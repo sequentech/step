@@ -235,6 +235,77 @@ fn contest_bounds(contest: &Contest) -> Result<(u32, u32), ValidationError> {
     }
 }
 
+/// What a ballot's selections look like to the tally: the explicit-blank
+/// marker is the one candidate the classifier treats apart, so what
+/// matters is whether it is selected, whether anything else is, or both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionClass {
+    /// Nothing selected.
+    None,
+    /// Only ordinary candidates.
+    Regular,
+    /// Only the explicit-blank marker.
+    Marker,
+    /// The marker together with ordinary candidates.
+    Mixed,
+}
+
+/// How a cast ballot counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BallotClass {
+    ExplicitInvalid,
+    ImplicitInvalid,
+    ExplicitBlank,
+    ImplicitBlank,
+    Declined,
+    Valid,
+}
+
+/// Classifies a cast ballot, by a strict precedence.
+///
+/// A decline is intentionally empty, so it outranks everything — but a
+/// declined ballot carrying content is not a decline at all. Invalidity
+/// comes next, and this is where the messages reach the count: a ballot is
+/// invalid if it was marked so or if it carries ANY error, whatever the
+/// error was about. Only then do the selections speak for themselves: the
+/// blank marker alongside real selections contradicts itself, the marker
+/// alone is a declared blank, nothing selected is an undeclared one, and
+/// anything else is a valid vote.
+///
+/// Note what the second step means for the rules above: whether a ballot
+/// counts turns on whether the rules emitted an error, not on which one.
+/// A rule that stops emitting for a case — as the min-vote rule does for a
+/// deliberate blank — moves that ballot from invalid to whatever its
+/// selections say it is.
+pub fn classify(
+    decline: bool,
+    explicit_invalid: bool,
+    has_errors: bool,
+    selection: SelectionClass,
+) -> BallotClass {
+    let invalid = explicit_invalid || has_errors;
+    if decline {
+        if !invalid && selection == SelectionClass::None {
+            BallotClass::Declined
+        } else {
+            BallotClass::ImplicitInvalid
+        }
+    } else if invalid {
+        if explicit_invalid {
+            BallotClass::ExplicitInvalid
+        } else {
+            BallotClass::ImplicitInvalid
+        }
+    } else {
+        match selection {
+            SelectionClass::Mixed => BallotClass::ImplicitInvalid,
+            SelectionClass::Marker => BallotClass::ExplicitBlank,
+            SelectionClass::None => BallotClass::ImplicitBlank,
+            SelectionClass::Regular => BallotClass::Valid,
+        }
+    }
+}
+
 /// Counts the selections every count-based rule reads — regulars plus
 /// each marker: a selected blank marker and a set invalid flag each count as
 /// one selection. There is exactly one count, shared by the message rules
@@ -759,6 +830,38 @@ impl ContestValidator {
         })
     }
 
+    /// Classifies one decoded contest's ballot for the tally
+    /// ([`classify`]), reading how it counts from the record: the decline
+    /// bit, the explicit-invalid flag, whether decoding recorded any
+    /// error, and which of this contest's candidates are selected.
+    pub fn classify(&self, decoded: &DecodedVoteContest) -> BallotClass {
+        let mut marker = false;
+        let mut regular = false;
+        for choice in &decoded.choices {
+            if choice.selected > -1 {
+                if self.shape.blank_markers.contains(&choice.id) {
+                    marker = true;
+                } else {
+                    regular = true;
+                }
+                if marker && regular {
+                    break;
+                }
+            }
+        }
+        classify(
+            decoded.is_decline_to_vote,
+            decoded.is_explicit_invalid,
+            !decoded.invalid_errors.is_empty(),
+            match (marker, regular) {
+                (true, true) => SelectionClass::Mixed,
+                (true, false) => SelectionClass::Marker,
+                (false, true) => SelectionClass::Regular,
+                (false, false) => SelectionClass::None,
+            },
+        )
+    }
+
     /// Returns both gates for one decoded contest:
     /// `(blocks_next, needs_confirmation)`.
     ///
@@ -838,6 +941,8 @@ impl ContestValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ballot::{Candidate, CandidatePresentation};
+    use crate::plaintext::DecodedVoteChoice;
 
     fn config(min: u32, max: u32) -> Config {
         Config {
@@ -991,6 +1096,91 @@ mod tests {
         let untouched =
             validator.filter_visible_messages(&decoded, false, false);
         assert!(untouched.invalid_errors.is_empty());
+    }
+
+    /// A contest with one ordinary candidate and one explicit-blank marker.
+    fn marker_contest() -> Contest {
+        let candidate = |id: &str, blank: bool| Candidate {
+            id: id.to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(blank),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        };
+        Contest {
+            candidates: vec![
+                candidate("normal", false),
+                candidate("blank", true),
+            ],
+            ..Contest::default()
+        }
+    }
+
+    fn ballot(normal: bool, blank: bool) -> DecodedVoteContest {
+        let choice = |id: &str, selected: bool| DecodedVoteChoice {
+            id: id.to_string(),
+            selected: if selected { 0 } else { -1 },
+            write_in_text: None,
+        };
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![choice("normal", normal), choice("blank", blank)],
+        }
+    }
+
+    fn class(decoded: &DecodedVoteContest) -> BallotClass {
+        ContestValidator::for_contest(&marker_contest()).classify(decoded)
+    }
+
+    #[test]
+    fn classifies_selections_that_speak_for_themselves() {
+        assert_eq!(class(&ballot(true, false)), BallotClass::Valid);
+        assert_eq!(class(&ballot(false, true)), BallotClass::ExplicitBlank);
+        assert_eq!(class(&ballot(false, false)), BallotClass::ImplicitBlank);
+        // The marker alongside a real selection contradicts itself.
+        assert_eq!(class(&ballot(true, true)), BallotClass::ImplicitInvalid);
+    }
+
+    #[test]
+    fn classifies_invalidity_by_how_it_arose() {
+        let mut explicit = ballot(false, false);
+        explicit.is_explicit_invalid = true;
+        assert_eq!(class(&explicit), BallotClass::ExplicitInvalid);
+
+        // ANY recorded error makes a ballot invalid, whatever it was about.
+        let mut from_error = ballot(false, false);
+        from_error.invalid_errors = vec![InvalidPlaintextError {
+            error_type: InvalidPlaintextErrorType::Implicit,
+            candidate_id: None,
+            message: None,
+            message_map: HashMap::new(),
+        }];
+        assert_eq!(class(&from_error), BallotClass::ImplicitInvalid);
+    }
+
+    #[test]
+    fn a_decline_outranks_everything_but_must_be_empty() {
+        let mut declined = ballot(false, false);
+        declined.is_decline_to_vote = true;
+        assert_eq!(class(&declined), BallotClass::Declined);
+
+        // A declined ballot carrying content is not a decline at all.
+        let mut with_selection = ballot(true, false);
+        with_selection.is_decline_to_vote = true;
+        assert_eq!(class(&with_selection), BallotClass::ImplicitInvalid);
+
+        // Nor is one marked invalid — and the decline branch answers first,
+        // so it is implicit, never explicit, invalid.
+        let mut declined_invalid = ballot(false, false);
+        declined_invalid.is_decline_to_vote = true;
+        declined_invalid.is_explicit_invalid = true;
+        assert_eq!(class(&declined_invalid), BallotClass::ImplicitInvalid);
     }
 
     #[test]

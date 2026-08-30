@@ -16,6 +16,8 @@ use rand_core::RngCore;
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
 use tracing::{info, instrument};
 
+use sequent_core::validation::{BallotClass, ContestValidator};
+
 use crate::counting::algorithm::CountingAlgorithm;
 use crate::counting::error::{Error, Result};
 use crate::counting::extended_metrics::*;
@@ -38,6 +40,7 @@ impl PluralityAtLarge {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
+        let validator = ContestValidator::for_contest(contest);
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
         let mut count_invalid_votes = InvalidVotes::default();
@@ -67,7 +70,7 @@ impl PluralityAtLarge {
                 &explicit_blank_candidate_ids,
             );
 
-            match classify_ballot(vote, &explicit_blank_candidate_ids) {
+            match validator.classify(vote) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
                     count_invalid += 1;

@@ -22,6 +22,8 @@ use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use tracing::{info, instrument};
 
+use sequent_core::validation::{BallotClass, ContestValidator};
+
 use crate::counting::algorithm::CountingAlgorithm;
 use crate::counting::error::{Error, Result};
 use crate::counting::extended_metrics::*;
@@ -72,6 +74,7 @@ impl BallotsStatus<'_> {
         contest: &Contest,
     ) -> BallotsStatus<'a> {
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
+        let validator = ContestValidator::for_contest(contest);
         let mut count_invalid_votes = InvalidVotes::default();
         let mut blank_votes = BlankVotes::default();
         let mut count_declined_to_vote: u64 = 0;
@@ -84,7 +87,7 @@ impl BallotsStatus<'_> {
                 count_blank_ballots = count_blank_ballots.saturating_add(1);
             }
 
-            let status = match classify_ballot(vote, &explicit_blank_candidate_ids) {
+            let status = match validator.classify(vote) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
                     BallotStatus::Invalid
@@ -609,9 +612,11 @@ impl RunoffStatus {
                     round.eliminated_candidates = Some(eliminated_candidates);
                 } else {
                     let tie_resolution = match self.tie_breaking_policy {
-                        TieBreakingPolicy::RANDOM => {
-                            self.determine_winner_by_lot(rng, &candidates_to_eliminate, &candidates_wins)
-                        }
+                        TieBreakingPolicy::RANDOM => self.determine_winner_by_lot(
+                            rng,
+                            &candidates_to_eliminate,
+                            &candidates_wins,
+                        ),
                         TieBreakingPolicy::EXTERNAL_PROCEDURE => self
                             .determine_winner_by_external_procedure(
                                 &candidates_to_eliminate,
