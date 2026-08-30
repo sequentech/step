@@ -4,9 +4,9 @@
 
 // Per-rule tables — DOCUMENTATION, not evidence.
 //
-// This renders what the certified spec (`../validation-spec`'s `f_fixed`,
-// via `emit-grid` — production's implementation, now that the injection
-// is complete) says each rule does across its grid. Nothing here observes
+// This renders what `f_fixed` — production's own validation rules
+// (`sequent-core/src/validation.rs`), served through `emit-grid` — says
+// each rule does across its grid. Nothing here observes
 // production, compares anything, or can fail: it is a reading aid, the
 // per-rule view of a mapping whose fidelity is established elsewhere.
 //
@@ -79,7 +79,9 @@ const LEGENDS = {
 // infer what the numbers are.
 const PROVENANCE = [
     "**What this is.** A rendering of the *specification*",
-    "(`../validation-spec`) across this rule's grid — documentation, not",
+    "(`f_fixed`: production's rules in `sequent-core/src/validation.rs`,",
+    "composed by `../validation-adapters`) across this rule's grid —",
+    "documentation, not",
     "evidence. No column here is a separate observation of production.",
     "",
     "**Why it describes production anyway.** `headless-sweep.md` compares",

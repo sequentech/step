@@ -11,8 +11,6 @@ import {
     IDecodedVoteContest,
     IInvalidPlaintextError,
     IContest,
-    EBlankVotePolicy,
-    EUnderVotePolicy,
     EElectionEventContestEncryptionPolicy,
     BallotSelection,
 } from "@sequentech/ui-core"
@@ -62,79 +60,21 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
 }) => {
     const {t} = useTranslation()
     // Note that if we have reviewed, then we can asume we have touched
-    const {
-        interpretContestSelection,
-        interpretMultiContestSelection,
-        getWriteInAvailableCharacters,
-    } = provideBallotService()
-
-    let under_vote_policy: EUnderVotePolicy | undefined =
-        question?.presentation?.under_vote_policy ?? undefined
-    let blank_vote_policy: EBlankVotePolicy | undefined =
-        question?.presentation?.blank_vote_policy ?? undefined
+    const {getWriteInAvailableCharacters, filterVisibleMessages} = provideBallotService()
 
     const decodedContestSelection = errorSelectionState.find(
         (selection) => selection.contest_id === question.id
     )
 
-    const filterErrorList = (
-        state: IDecodedVoteContest | undefined,
-        isTouched: boolean,
-        isReview: boolean,
-        under_vote_policy?: EUnderVotePolicy,
-        blank_vote_policy?: EBlankVotePolicy
-    ) => {
-        if (!state) return undefined
-        // An untouched contest shows nothing on the voting screen.
-        if (!isReview && !isTouched) {
-            return {...state, invalid_alerts: [], invalid_errors: []}
-        }
-        // Alert visibility — the only rules that depend on which screen is
-        // showing: the warn-only-in-review policies hold their message back
-        // until review, and the "maximum reached" hint is a voting-screen
-        // aid only.
-        let invalid_alerts = state.invalid_alerts.filter(
-            (error) =>
-                !(
-                    ("errors.implicit.underVote" === error.message &&
-                        !isReview &&
-                        under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
-                    ("errors.implicit.blankVote" === error.message &&
-                        !isReview &&
-                        blank_vote_policy === EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
-                    (error.message === "errors.implicit.overVoteDisabled" && isReview)
-                )
-        )
-        // Remove duplicates: an empty ballot shows the blank message rather
-        // than the under-vote hint, and an alert whose message already
-        // renders as an error is redundant (errors render first).
-        const blankVotePresent =
-            invalid_alerts.some((error) => error.message === "errors.implicit.blankVote") ||
-            state.invalid_errors.some((error) => error.message === "errors.implicit.blankVote")
-        invalid_alerts = invalid_alerts.filter(
-            (error) =>
-                !(
-                    ("errors.implicit.underVote" === error.message && blankVotePresent) ||
-                    state.invalid_errors.some((e) => e.message === error.message)
-                )
-        )
-        // Errors always render: whatever the invalid-vote policy, the voter
-        // is told about anything that affects how the ballot will be
-        // counted. The policy's role is the dialog/gate ladder, not
-        // information hiding.
-        return {...state, invalid_alerts}
-    }
-
+    // Which of this contest's messages the voter sees on the screen being
+    // rendered is decided by the validation rules in sequent-core, the same
+    // ones that produced the messages.
     const filteredSelection = useMemo(
         () =>
-            filterErrorList(
-                decodedContestSelection,
-                isTouched,
-                isReview,
-                under_vote_policy,
-                blank_vote_policy
-            ),
-        [decodedContestSelection, isTouched, isReview, under_vote_policy, blank_vote_policy]
+            decodedContestSelection
+                ? filterVisibleMessages(question, decodedContestSelection, isReview, isTouched)
+                : undefined,
+        [decodedContestSelection, question, isTouched, isReview]
     )
 
     useEffect(() => {

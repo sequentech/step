@@ -38,8 +38,11 @@
 //!     checked against the real WASM cell by cell over the certified domain
 //!     by `characterization/headless-sweep.mjs` — production ≡ oracle, and it
 //!     stays that way.
-//!   * the **rationalized implementation** — the query-provider (`f_fixed`,
-//!     [`queries`]), written as if the accidents had never existed. It is
+//!   * the **rationalized implementation** — the query-provider, written as
+//!     if the accidents had never existed. It LIVES IN PRODUCTION
+//!     (`sequent-core/src/validation.rs` — the fold-in that completed the
+//!     injection); the workbench evaluates its full effect record through
+//!     `../validation-adapters` (`f_fixed`, served by its `emit-grid`). It is
 //!     MEANT to diverge from the oracle; `characterization/fix-diff.md` shows
 //!     where and attributes every difference to one intended fix. Which
 //!     quirks it fixes versus preserves is the fix ledger — the `disposition`
@@ -67,8 +70,6 @@ pub const PREFERENCE_ORDER_WITH_GAPS: &str = "errors.implicit.preferenceOrderWit
 pub const EXPLICIT_NOT_ALLOWED: &str = "errors.explicit.notAllowed";
 pub const EXPLICIT_ALERT: &str = "errors.explicit.alert";
 
-mod queries;
-pub use queries::{f_fixed, BallotValidator, ContestValidator, ObservationPoint, VoteValidator};
 
 /// Messages whose `error_type` is Explicit or EncodingError — the hard
 /// gate's fast path fires on any of them. The encoding/configuration keys
@@ -664,7 +665,7 @@ pub fn f(config: &Config, vs: &VoteState) -> Effects {
     // must be free to diverge. (Phase 1 briefly routed `f` through the
     // provider to prove the decomposition faithful; that proof is banked in
     // the byte-identical sweep, and the wiring is intentionally reverted here
-    // — see queries.rs and characterization/README.md, "the frozen oracle".)
+    // — see characterization/README.md, "the frozen oracle".)
     let em = emissions(config, vs);
     let hard = hard_gate(config, vs, &em);
     let soft = soft_gate(config, vs, &em);
@@ -750,7 +751,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
             disposition: QuirkDisposition::FixedByJudgment,
             finding: "S1 (and INVALID_VOTE_POLICY_INTENT.md §5)",
             site: "rendered_keys (master keep-list); fixed in \
-                   queries::derive_rendered_keys (no mute)",
+                   the production filter rewrite \n                   (InvalidErrorsList.tsx; modelled in validation-adapters)",
             description: "under invalid ∈ {allowed, allowed-with-exclusive-\
                           explicit} every error is hidden except selectedMax \
                           (iff over≠allowed) and blankVote (iff \
@@ -778,7 +779,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
             disposition: QuirkDisposition::FixedByJudgment,
             finding: "S2",
             site: "classify (invalid guard precedes marker guard); resolved \
-                   upstream of it by queries::is_deliberate_blank exempting \
+                   upstream of it by sequent-core validation::is_deliberate_blank exempting \
                    the deliberate blank from the min-vote rule",
             description: "a marker-only ballot with any error classifies \
                           ImplicitInvalid, never ExplicitBlank — a deliberate \
@@ -800,8 +801,8 @@ pub fn quirks() -> &'static [QuirkInfo] {
             id: "S3_MARKER_COUNTS_AS_SELECTION",
             disposition: QuirkDisposition::FixedByJudgment,
             finding: "S3",
-            site: "selections_with_markers; queries::selections + \
-                   queries::is_deliberate_blank",
+            site: "selections_with_markers; sequent-core validation::selections + \
+                   sequent-core validation::is_deliberate_blank",
             description: "the blank marker and the invalid flag each count as \
                           one selection in the min/over/under/blank rules. \
                           JUDGMENT (2026-08-28): explicit blank votes are not \
@@ -809,7 +810,7 @@ pub fn quirks() -> &'static [QuirkInfo] {
                           question (facet i) for the min-vote rule. Scope, \
                           precisely: the exemption is the min-vote rule only, \
                           for a ballot whose content is the blank marker \
-                          alone (queries::is_deliberate_blank). The marker \
+                          alone (sequent-core validation::is_deliberate_blank). The marker \
                           still counts as a selection elsewhere — in the \
                           blank rule (a marker-only ballot is deliberately \
                           NOT blank, so blankVote never fires on it) and the \

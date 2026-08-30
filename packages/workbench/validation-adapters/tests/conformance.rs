@@ -45,9 +45,11 @@ use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, Preferencia
 use sequent_core::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
-use sequent_core::validation_provider::policy_emissions;
-use validation_adapters::{contest_config, for_ballot, vote_state, AdapterError};
-use validation_spec::{f_fixed, selections_with_markers, SELECTED_MIN, UNDER_VOTE};
+use validation_adapters::{
+    contest_config, f_fixed, for_ballot, policy_emissions, spec_config, spec_vote_state,
+    vote_state, AdapterError,
+};
+use validation_spec::{selections_with_markers, SELECTED_MIN, UNDER_VOTE};
 
 // ---------------------------------------------------------------------------
 // Fixture loading — the same bundled snapshots the characterization uses
@@ -253,7 +255,6 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
         HashMap::from([(contest.id.clone(), decoded.clone())]),
     );
 
-    let config = contest_config(contest).unwrap_or_else(|e| panic!("{label}: {e}"));
     let vs = vote_state(contest, &decoded);
     // Route convergence: the pre-decode wire selection derives the same
     // VoteState as the canonical decoded record.
@@ -264,7 +265,9 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
     );
 
     // Decode and the gates are injected: production matches f_fixed.
-    let fixed = f_fixed(&config, &vs);
+    let spec_cfg = spec_config(contest).unwrap_or_else(|e| panic!("{label}: {e}"));
+    let spec_vs = spec_vote_state(contest, &decoded);
+    let fixed = f_fixed(&spec_cfg, &spec_vs);
     assert_eq!(
         fixed.emissions.errors,
         keys(&decoded.invalid_errors),
@@ -282,7 +285,7 @@ fn assert_cell(contest: &Contest, input: &DecodedVoteContest, label: &str) {
     // the fix ledger's two decode movements, equals the provider's record —
     // error_type, key, message_map and order included.
     let mut expected = legacy_policy_checks(contest, &decoded);
-    let n = selections_with_markers(&vs);
+    let n = selections_with_markers(&spec_vs);
     let deliberate_blank = vs.blank_marker && vs.regulars == 0 && !vs.explicit_invalid;
     if deliberate_blank {
         // S2S3: a deliberate blank is not subject to the min-vote rule.

@@ -64,10 +64,12 @@ const FIXTURES = {
 
 const uniq = (xs) => [...new Set(xs)].sort()
 
-// Every prediction in this runner comes from the TYPED RUST SPEC
-// (`../validation-spec` via `emit-grid`) — inline views at both observation
-// points, the dialog, and reachability. Cells are evaluated in one batch
-// before the browser work starts and looked up by the runner as it goes.
+// Every prediction in this runner comes from `f_fixed` via `emit-grid` —
+// production's own validation rules (`sequent-core/src/validation.rs`)
+// composed into a full effect record by `../validation-adapters`: inline
+// views at both observation points, the dialog, and reachability. Cells are
+// evaluated in one batch before the browser work starts and looked up by
+// the runner as it goes.
 //
 // INJECTION STATUS: COMPLETE (mirrors headless-sweep.mjs) — the gates,
 // decode, and the booth's message filter all run the rationalized

@@ -9125,7 +9125,6 @@ dependencies = [
  "tracing-tree",
  "urlencoding",
  "uuid",
- "validation-spec",
  "warp",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -11050,6 +11049,7 @@ name = "validation-adapters"
 version = "0.1.0"
 dependencies = [
  "sequent-core",
+ "serde",
  "serde_json",
  "validation-spec",
 ]

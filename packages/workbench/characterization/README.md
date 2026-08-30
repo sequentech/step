@@ -48,8 +48,10 @@ Each names a concrete piece of code or a recorded column.
   here without being effects themselves. Namely, the errors/alerts
   `checker.rs` records, and the two submission gates (hard = blocking,
   soft = dismissible dialog — the dialog effect is their projection). The
-  **inline filter** is the TypeScript that turns emissions into what
-  actually renders (`filterErrorList`, `InvalidErrorsList.tsx`).
+  **inline filter** turns emissions into what actually renders —
+  `validation::visible_messages` in sequent-core, which the booth reaches
+  through a wasm export (it was TypeScript, in `InvalidErrorsList.tsx`,
+  until the rules were unified into production).
 - **observation point** — where an inline effect is read: the untouched
   voting screen, the touched voting screen, or the review screen.
   Production factors this as two screens × the `isTouched` flag; the
@@ -195,21 +197,31 @@ runs. (Which production *roles* this covers is the table in
   yields raw message keys — no i18n ambiguity. The third, the untouched
   view, is asserted empty on every cell instead of recorded.
 
-Every prediction comes from **the spec** —
-[`../validation-spec/`](../validation-spec/), a typed Rust crate exposing
-one function `f(config, voteState)` that covers all four effect categories
-plus both checkable intermediates: emissions, gate pair, inline visibility
-at each observation point, reachability, and the tally class. Runners
-reach it through [`rust-spec.mjs`](rust-spec.mjs), which batches cells
-through the crate's `emit-grid` binary; the cell definitions live in
+Every prediction comes from **the spec** — one function
+`f(config, voteState)` covering all four effect categories plus both
+checkable intermediates: emissions, gate pair, inline visibility at each
+observation point, reachability, and the tally class. Two implementations
+answer it: the frozen oracle in
+[`../validation-spec/`](../validation-spec/), and `f_fixed`, whose rules
+live in production ([`sequent-core/src/validation.rs`](../../sequent-core/src/validation.rs))
+and are composed into a full effect record by
+[`../validation-adapters/`](../validation-adapters/). Runners reach both
+through [`rust-spec.mjs`](rust-spec.mjs), which batches cells through the
+`emit-grid` binary (in validation-adapters, since it links production);
+the cell definitions live in
 [`rule-specs.mjs`](rule-specs.mjs) (`specConfig` / `voteState` / `RULE_ROWS`
 — what each row means in spec terms). `f` is **bug-compatible** — the frozen oracle — with
 every surprising behaviour carried as a named **quirk** (`quirks()` in its
-`lib.rs`, each tied to its UPSTREAM_FINDINGS.md suspect). Alongside it the
-crate carries a **rationalized** implementation, `f_fixed` (the query-provider),
-that fixes or preserves each quirk per its `disposition` — the fix ledger — with
-every deliberate divergence recorded in `fix-diff.md`. The predictions the
-evidence and analysis layers compare against are always the oracle's.
+`lib.rs`, each tied to its UPSTREAM_FINDINGS.md suspect). Facing it is the
+**rationalized** implementation, `f_fixed`, which fixes or preserves each
+quirk per its `disposition` — the fix ledger — with every deliberate
+divergence recorded in `fix-diff.md`. Since the injection completed,
+`f_fixed`'s rules ARE production's
+([`sequent-core/src/validation.rs`](../../sequent-core/src/validation.rs));
+[`../validation-adapters/`](../validation-adapters/) composes their full
+effect record and serves both implementations to the runners. The evidence
+layer therefore compares production against `f_fixed`; the oracle is what
+the findings' derivations read — the record of pre-fix behaviour.
 
 ### Three kinds of tool: evidence, analysis, documentation
 
@@ -344,7 +356,7 @@ These consume the certified spec. None of them observes production.
 | `effect-map.mjs` | `effect-map.md` — the human projection of the dependency ledger: the mapping as a causal diagram (Mermaid; topology checked against the ledger on every run), the functional-cancellations table, and per-knob cards. Pure JSON → markdown; instant |
 | `no-silent-discount.mjs` | `no-silent-discount.md` + `.report.json` — the no-silent-discount property, evaluated over the FROZEN ORACLE across every certified cell: the derivation of the escalated S1/S2 findings, i.e. the pre-fix behaviour. Fails if a violation already escalated as S1/S2 stops being found. (On this branch the injection removed every silent discount from production — the S2 cell via the S2/S3 decode fix, the S1 family via the display fix; `fix-diff.md` asserts silent discounting is unrepresentable in `f_fixed`, and the e2e pipelines confirm the informed posture in the real booth) |
 | `gate-count-agreement.mjs` | `gate-count-agreement.md` + `.report.json` — the gate/checker count-agreement property (quirk S6), evaluated over the FROZEN ORACLE: the S6 derivation, i.e. the pre-fix behaviour (production's injected gates now share the checker's one count). For every cell where the two counts differ it evaluates the mapping twice — as the oracle behaves, and with the gates handed the checker's count — so the consequence is the *difference* in what the voter meets, derived rather than asserted. Reports its own domain limit |
-| `fix-diff.mjs` | `fix-diff.md` + `.report.json` — the rationalized implementation (`f_fixed`, the query-provider) against the frozen oracle (`f`) over the certified domain, every differing cell attributed to one intended fix (S6, S4 by construction; S1 and S2S3 by judgment — a deliberate blank is not subject to the min-vote rule; D3 is latent). Signatures may overlap, so attribution is a cover check (every moved field covered by a matching fix). This is the fork's acceptance check and the review artifact — **it fails on any unexplained difference**, if a known fix stops biting, or if `f_fixed` has even one silent-discount cell (the property the S1 fix establishes: silent discounting is unrepresentable in the rewrite) |
+| `fix-diff.mjs` | `fix-diff.md` + `.report.json` — the rationalized implementation (`f_fixed` — production's rules, composed by `../validation-adapters`) against the frozen oracle (`f`) over the certified domain, every differing cell attributed to one intended fix (S6, S4 by construction; S1 and S2S3 by judgment — a deliberate blank is not subject to the min-vote rule; D3 is latent). Signatures may overlap, so attribution is a cover check (every moved field covered by a matching fix). This is the fork's acceptance check and the review artifact — **it fails on any unexplained difference**, if a known fix stops biting, or if `f_fixed` has even one silent-discount cell (the property the S1 fix establishes: silent discounting is unrepresentable in the rewrite) |
 
 ### Documentation
 

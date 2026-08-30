@@ -7,11 +7,14 @@ name = "validation-adapters"
 version = "0.1.0"
 edition = "2021"
 license = "AGPL-3.0-only"
-description = "Production-type adapters for the rationalized vote-validation query-provider (the injection layer)"
+description = "The workbench's bridge to production's validation rules: f_fixed evaluation and the native conformance suite"
+
+[[bin]]
+name = "emit-grid"
+path = "src/bin/emit_grid.rs"
 
 [dependencies]
 validation-spec = { path = "../validation-spec" }
 sequent-core = { path = "../../sequent-core", default-features = false, features = ["default_features"] }
-
-[dev-dependencies]
+serde = { workspace = true }
 serde_json = { workspace = true }

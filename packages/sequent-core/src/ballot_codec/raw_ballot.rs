@@ -5,7 +5,7 @@ use crate::ballot::*;
 use crate::ballot_codec::*;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
-use crate::validation_provider::policy_emissions;
+use crate::validation::policy_emissions;
 use num_traits::ToPrimitive;
 use std::collections::HashMap;
 

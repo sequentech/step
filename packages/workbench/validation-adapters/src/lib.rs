@@ -2,33 +2,42 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The injection layer's workbench-facing API and conformance home.
+//! The workbench's bridge to production's validation rules.
 //!
-//! The wire-type derivations (`Contest` → `Config`,
-//! `DecodedVoteContest` → `VoteState`) originated here and MOVED INTO
-//! production when the gates were injected — they live in
-//! `sequent_core::validation_provider`, the single source both production
-//! call sites and this crate consume; this crate re-exports them and adds
-//! the validator constructors. `validation-spec` itself remains free of
-//! production types (the independence that makes the sweep meaningful).
+//! The rationalized implementation lives IN PRODUCTION
+//! (`sequent_core::validation` — the fold-in that completed the injection);
+//! this crate is what the evidence apparatus links to evaluate it:
 //!
-//! The conformance test (`tests/conformance.rs`) is the acceptance for the
-//! whole injection layer: production's own codec and gate functions, run
-//! natively over the bundled fixtures and a policy × vote-state matrix,
-//! compared against the spec through these adapters — emissions against the
-//! FROZEN ORACLE (decode is not injected), gates against the RATIONALIZED
-//! `f_fixed` (the gates are injected, so production now carries the
-//! ledger's gate fixes).
+//! - [`f_fixed`] evaluates the full effect record of the rationalized
+//!   system over the spec's abstract cell types (`Config` × `VoteState` →
+//!   `Effects`), composing production's own rules with the workbench
+//!   models of the effects production computes elsewhere (the booth's
+//!   rewritten inline filter, velvet's field-driven tally classifier,
+//!   the booth's reachability). Served to the runners by this crate's
+//!   `emit-grid` binary (the `fixed` kind; the oracle kinds read
+//!   `validation-spec` directly).
+//! - The conformance suite (`tests/conformance.rs`) is the native
+//!   acceptance: production's own codec and gate functions over the real
+//!   bundled fixtures, compared against `f_fixed`.
+//!
+//! `validation-spec` itself remains free of production types — it is the
+//! FROZEN ORACLE's home, and the oracle stays independent of the code it
+//! measures. The dependency arrow here runs workbench → production, which
+//! is the sound direction.
+
+mod fixed;
+pub use fixed::{f_fixed, spec_config, spec_vote_state};
 
 use sequent_core::ballot::Contest;
 use sequent_core::plaintext::DecodedVoteContest;
-use validation_spec::{BallotValidator, ContestValidator, VoteValidator};
-
-pub use sequent_core::validation_provider::{contest_config, vote_state, ValidationProviderError};
+pub use sequent_core::validation::{
+    contest_config, policy_emissions, vote_state, BallotValidator, ContestValidator,
+    ValidationError, VoteValidator,
+};
 
 /// The name this crate's API established before the derivations moved into
-/// `sequent_core::validation_provider`.
-pub type AdapterError = ValidationProviderError;
+/// production.
+pub type AdapterError = ValidationError;
 
 /// Stage 0 from a production contest (config known).
 pub fn for_contest(contest: &Contest) -> Result<ContestValidator, AdapterError> {

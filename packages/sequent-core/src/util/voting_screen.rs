@@ -6,8 +6,7 @@ use crate::ballot::*;
 use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
-use crate::validation_provider::{contest_config, vote_state};
-use validation_spec::ContestValidator;
+use crate::validation::{contest_config, vote_state, ContestValidator};
 
 use std::collections::HashMap;
 

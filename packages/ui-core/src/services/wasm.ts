@@ -40,6 +40,7 @@ import {
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
+    filter_visible_messages_js,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
     get_default_duplicated_rank_policy_js,
@@ -375,6 +376,27 @@ export const verifyMultiBallotSignature = (
     try {
         let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
         return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * The decoded contest reduced to the messages the voter should see on the
+ * screen being rendered: the same record with invalid_errors and
+ * invalid_alerts filtered by the validation rules in sequent-core.
+ * isReview selects the review screen over the voting screen; isTouched is
+ * whether the voter has selected anything in this contest yet.
+ */
+export const filterVisibleMessages = (
+    contest: IContest,
+    decodedContest: IDecodedVoteContest,
+    isReview: boolean,
+    isTouched: boolean
+): IDecodedVoteContest => {
+    try {
+        return filter_visible_messages_js(contest, decodedContest, isReview, isTouched)
     } catch (error) {
         console.log(error)
         throw error

@@ -184,15 +184,20 @@ workbench/
 │                        NOT workbench-only — `packages/velvet` depends
 │                        on it and re-exports it; see Known gaps.
 ├── velvet-wasm/         wasm-bindgen wrapper exposing velvet-core to JS
-├── validation-spec/     THE executable spec — one typed Rust crate, bug-
-│                        compatible, its accidental complexity enumerated as
-│                        a quirk registry. Production is checked against it
-│                        exhaustively by characterization/headless-sweep.mjs
-├── validation-adapters/ The injection layer: adapters from production's
-│                        Contest / DecodedVoteContest to the rationalized
-│                        query-provider, with a native conformance test
-│                        (production codec + gates ≡ oracle ∘ adapters,
-│                        cargo test -p validation-adapters)
+├── validation-spec/     THE FROZEN ORACLE — one typed Rust crate holding
+│                        PRE-fix production behaviour bug-compatibly, its
+│                        accidental complexity enumerated as a quirk
+│                        registry (the fix ledger). Free of production
+│                        types, so the findings it derives stay independent
+│                        of the code they measure
+├── validation-adapters/ The bridge to production's own validation rules
+│                        (sequent-core/src/validation.rs, where the
+│                        injection folded them): composes their full effect
+│                        record as f_fixed, serves both implementations to
+│                        the runners through its emit-grid binary, and
+│                        carries the native conformance suite (production
+│                        codec + gates ≡ f_fixed, cargo test -p
+│                        validation-adapters)
 ├── docs/                Vote-validation deep dives (VOTE_VALIDATION.md,
 │                        VALIDATION_LOGIC_DISTILLATION.md, FIXTURE_VARIANCE.md);
 │                        findings (UPSTREAM_FINDINGS.md), reviewer
@@ -448,12 +453,14 @@ which artifact ships, roughly by payoff:
    cell. Blocked on adding a `multi_ballot` encrypt/decrypt path (the
    decline bit does not exist in `raw_ballot`; see Known gaps above), so
    it is a feature lift, not a rule extension.
-4. **Distillation step 5 — the rationalized implementation: phases 1–3
-   are done.** [validation-spec/](validation-spec/) carries it alongside
-   the frozen oracle: the query-provider (one derivation of the
-   vote-state facts, every production site answered as a projection —
-   the six-place duplication collapsed), forked from the oracle and
-   measured against it by `characterization/fix-diff.md` — 86,304 of
+4. **Distillation step 5 — the rationalized implementation: done, and
+   it now lives in production.** The query-provider (one derivation of
+   the vote-state facts, every site answered as a projection — the
+   six-place duplication collapsed) is
+   [`sequent-core/src/validation.rs`](../sequent-core/src/validation.rs);
+   [validation-spec/](validation-spec/) keeps the frozen oracle it was
+   forked from, and `characterization/fix-diff.md` measures the two
+   against each other — 86,304 of
    345,600 cells differ, every one attributed to a named fix, zero
    unexplained. The fix ledger (the `disposition` on each `quirks()`
    entry) is settled: **fixed by construction** S6, S4 (both halves),
@@ -476,15 +483,14 @@ which artifact ships, roughly by payoff:
    `for_vote(&DecodedVoteContest)` / `for_ballot(…)`), kept out of the
    spec crate to preserve its independence, with a native conformance
    test proving production's own codec and gate functions ≡ the frozen
-   oracle through the adapters across the seven grids' matrices (~310
-   cells, `cargo test -p validation-adapters`). **The injection is
-   COMPLETE — production runs `f_fixed` at every validation site**:
-   `sequent-core`'s submission gates (`util/voting_screen.rs`) and the
-   decode-time policy checks (`ballot_codec/raw_ballot.rs`) route
-   through the query-provider via `sequent_core::validation_provider`
-   (the derivations moved into production; `validation-adapters`
-   delegates to them), keeping only the encoding/configuration handling
-   the vote state cannot express; the tally moved with decode for free
+   `f_fixed` across the seven grids' matrices (~310 cells,
+   `cargo test -p validation-adapters`). **The injection is COMPLETE —
+   production runs the rationalized rules at every validation site, and
+   they LIVE there**: `sequent-core/src/validation.rs` holds them, and
+   `sequent-core`'s submission gates (`util/voting_screen.rs`) and
+   decode-time policy checks (`ballot_codec/raw_ballot.rs`) call
+   straight into that module, keeping only the encoding/configuration
+   handling the vote state cannot express; the tally moved with decode for free
    (velvet classifies from the decoded record's fields); and the
    booth's message filter (`InvalidErrorsList.tsx`) is rewritten to the
    rationalized semantics — the S1 mute is gone, so every emitted error

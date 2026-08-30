@@ -35,7 +35,7 @@ pub mod mixed_radix;
 #[cfg(feature = "default_features")]
 pub mod plaintext;
 #[cfg(feature = "default_features")]
-pub mod validation_provider;
+pub mod validation;
 
 #[cfg(feature = "plugins_wit")]
 pub mod plugins_wit;

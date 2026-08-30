@@ -7,24 +7,20 @@
 // representable subdomain by sufficiency (conditional independence given a
 // computed mediator) instead of by brute force.
 //
-// THE LICENSE (re-verified by source read, 2026-08-30 — post the WCAG
-// catch-up merge, whose additions are all render-side — of
-// voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx —
-// the filter rewritten by the S1 injection): `filterErrorList` is a
-// closure whose body references NOTHING beyond its explicit parameters —
-// the decoded record (checker errors/alerts), the under and blank
-// policies (read raw from `question.presentation`, no default
-// resolution), `isReview` and `isTouched`. The rewrite REMOVED the
-// invalid/over policy reads (they served only the S1 mute) and the dead
-// `isVotedState` (Defect 4). No store reads, no globals. The inline
-// effect therefore depends on the inputs only through
-// (emissions, blank, under, point) — the class key
-// (emissions, invalid, blank, over, under) partitions FINER than the
-// filter needs, which is still sound for sufficiency: one booth run per
-// class covers every cell in it. RE-ENTRY CONDITION: any future
-// reference inside filterErrorList beyond its parameter list, or a new
-// consulted policy/prop, breaks this license — re-verify it on every
-// portal refresh (LIFTING.md runbook) before trusting this artifact.
+// THE LICENSE (2026-08-30). The booth no longer decides this in
+// TypeScript: InvalidErrorsList.tsx calls sequent-core through the
+// `filter_visible_messages_js` wasm export, and the rule is the pure
+// function `validation::visible_messages`, whose SIGNATURE is the
+// license — it takes the messages, the blank and under policies, and
+// which screen is showing, and nothing else. The inline effect therefore
+// depends on the inputs only through (emissions, blank, under, point);
+// the class key (emissions, invalid, blank, over, under) partitions FINER
+// than the rule needs, which is still sound for sufficiency: one booth
+// run per class covers every cell in it. This used to be a source-read
+// claim about a TypeScript closure, re-verified on every portal refresh;
+// it is now structural. RE-ENTRY CONDITION: a new parameter on
+// `visible_messages`, or the booth deciding any of this for itself
+// again.
 //
 // Spec-side, the same factorization was checked extensionally: the
 // headless sweep asserted inline is constant within every class across
@@ -233,10 +229,10 @@ writeFileSync(
     JSON.stringify(
         {
             license:
-                "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 " +
-                "rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the " +
-                "class key partitions finer than needed, still sound. Source-verified 2026-08-30 (post the WCAG catch-up merge). " +
-                "Re-verify on portal refresh.",
+                "validation::visible_messages reads only (messages, blank, under, isReview, " +
+                "isTouched) — its signature is the license, structural since the booth started " +
+                "calling sequent-core for this; the class key partitions finer than needed, still " +
+                "sound. 2026-08-30.",
             classes_total: classes.length,
             retried,
             checked,
@@ -276,18 +272,18 @@ const md = [
     "certifies it) — so review is compared exactly where it renders;",
     "a hard-gated member's review is the dialog, certified headlessly.",
     "",
-    "**The license** (what makes one-per-class sound), source-verified",
-    "2026-08-30 (post the WCAG catch-up merge) against the S1-rewritten",
-    "filter: `filterErrorList` is a",
-    "closure referencing nothing beyond its parameters — the record, the",
-    "under and blank policies (read raw from `question.presentation`),",
-    "`isReview`, `isTouched`. The class key partitions finer than the",
-    "filter needs (it also carries invalid and over), which is still",
-    "sound. No store reads, no globals. Spec-side, the",
+    "**The license** (what makes one-per-class sound) is now structural,",
+    "not a source-read claim: the booth calls sequent-core through the",
+    "`filter_visible_messages_js` wasm export, and the rule is the pure",
+    "function `validation::visible_messages`, whose signature IS the",
+    "license — the messages, the blank and under policies, and which",
+    "screen is showing. The class key partitions finer than the rule",
+    "needs (it also carries invalid and over), which is still sound.",
+    "Spec-side, the",
     `same factorization was checked extensionally over all ${sweptCells}`,
-    "swept cells. **Re-entry condition:** any reference inside `filterErrorList`",
-    "beyond its parameter list, or a new consulted policy, voids this",
-    "artifact — re-verify the boundary on every portal refresh.",
+    "swept cells. **Re-entry condition:** a new parameter on",
+    "`visible_messages`, or the booth deciding any of this for itself",
+    "again.",
     "",
 ]
 const okCells = checked.filter((r) => r.ok).reduce((n, r) => n + r.cells, 0)

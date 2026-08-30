@@ -31,6 +31,7 @@ extern crate console_error_panic_hook;
 use crate::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
+use crate::validation::filter_visible_messages;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use schemars::JsonSchema;
@@ -946,6 +947,43 @@ pub fn check_is_blank_js(
     serde_wasm_bindgen::to_value(&is_blank)
         .map_err(|err| {
             format!("Error converting boolean is_blank to json {:?}", err)
+        })
+        .into_json()
+}
+
+/// Returns the decoded contest reduced to the messages the voter should
+/// see on the screen being rendered: the same record with `invalid_errors` and
+/// `invalid_alerts` filtered by the validation rules (see
+/// `validation::filter_visible_messages`). `is_review` selects the review
+/// screen over the voting screen; `is_touched` is whether the voter has
+/// selected anything in this contest yet.
+#[wasm_bindgen]
+pub fn filter_visible_messages_js(
+    contest_json: JsValue,
+    decoded_contest_json: JsValue,
+    is_review: bool,
+    is_touched: bool,
+) -> Result<JsValue, JsValue> {
+    let contest: Contest = serde_wasm_bindgen::from_value(contest_json)
+        .map_err(|err| format!("Error parsing contest: {}", err))
+        .into_json()?;
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+
+    let visible = filter_visible_messages(
+        &contest,
+        &decoded_contest,
+        is_review,
+        is_touched,
+    );
+
+    let serializer = Serializer::json_compatible();
+    visible
+        .serialize(&serializer)
+        .map_err(|err| {
+            format!("Error converting decoded contest to json {:?}", err)
         })
         .into_json()
 }

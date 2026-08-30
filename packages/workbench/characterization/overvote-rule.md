@@ -15,7 +15,9 @@ under one (over-vote policy × invalid policy) configuration. States:
 *over_max* = Ada + Bruno (one over). Blank/under policies at defaults.
 
 **What this is.** A rendering of the *specification*
-(`../validation-spec`) across this rule's grid — documentation, not
+(`f_fixed`: production's rules in `sequent-core/src/validation.rs`,
+composed by `../validation-adapters`) across this rule's grid —
+documentation, not
 evidence. No column here is a separate observation of production.
 
 **Why it describes production anyway.** `headless-sweep.md` compares

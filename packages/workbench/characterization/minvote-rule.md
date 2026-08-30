@@ -16,7 +16,9 @@ States: *none* = 0 selections; *one* = 1 regular candidate;
 min_votes — the marker-inclusive count).
 
 **What this is.** A rendering of the *specification*
-(`../validation-spec`) across this rule's grid — documentation, not
+(`f_fixed`: production's rules in `sequent-core/src/validation.rs`,
+composed by `../validation-adapters`) across this rule's grid —
+documentation, not
 evidence. No column here is a separate observation of production.
 
 **Why it describes production anyway.** `headless-sweep.md` compares

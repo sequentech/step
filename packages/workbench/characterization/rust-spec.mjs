@@ -2,15 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Batch evaluator for the Rust spec crate (`../validation-spec`) — the
-// shared entry point every runner uses to ask the spec what a cell should
-// produce (docs/EVIDENCE_RESTRUCTURE.md, step 0).
+// Batch evaluator for the Rust spec — the shared entry point every runner
+// uses to ask what a cell should produce (docs/EVIDENCE_RESTRUCTURE.md,
+// step 0). Two implementations answer, through one binary:
+//   the FROZEN ORACLE (`f`) from `../validation-spec`, and
+//   the RATIONALIZED implementation (`f_fixed`), which lives in production
+//   (`sequent-core/src/validation.rs`) and is composed into a full effect
+//   record by `../validation-adapters`.
+// `emit-grid` therefore lives in validation-adapters (it links production);
+// validation-spec stays free of production types.
 //
-// The crate's `emit-grid` binary reads a JSON array of cells from stdin and
-// writes the corresponding array of outputs to stdout, so evaluation is one
-// process per batch rather than one per cell. Callers therefore collect
-// their cells first and evaluate once; at sweep scale (10^5 cells) the
-// per-process cost is irrelevant and the per-cell cost would not be.
+// The binary reads a JSON array of cells from stdin and writes the
+// corresponding array of outputs to stdout, so evaluation is one process
+// per batch rather than one per cell. Callers therefore collect their cells
+// first and evaluate once; at sweep scale (10^5 cells) the per-process cost
+// is irrelevant and the per-cell cost would not be.
 //
 // Batches are chunked because stdout has to be buffered whole: an Effects
 // record serializes to a few hundred bytes, so a six-figure sweep would
@@ -41,7 +47,7 @@ let built = false
 /** Build `emit-grid` once per process; returns its path. */
 export function buildEmitGrid() {
     if (built) return exe
-    execSync("cargo build --release -p validation-spec --quiet", {
+    execSync("cargo build --release -p validation-adapters --quiet", {
         cwd: packagesDir,
         stdio: ["ignore", "inherit", "inherit"],
     })

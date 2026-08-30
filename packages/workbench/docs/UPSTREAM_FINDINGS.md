@@ -292,7 +292,8 @@ so both discount silently. The consultation question stands for both.
 
 **Rationalized reference (phase 3, 2026-08-28): fixed by judgment.**
 The workbench's rationalized implementation
-(`validation-spec/src/queries.rs`) removes the mute — every emitted
+(now `sequent-core/src/validation.rs`, with the booth filter rewritten
+to match) removes the mute — every emitted
 error renders inline; gates, dialogs and tally are unchanged, so the
 allowed family still never interrupts ("informed but uninterrupted",
 the documented pre-2025-09 posture). Consequence, asserted per cell in
@@ -391,7 +392,7 @@ rejects the rule.
 **Injected (2026-08-29).** The rule is live in production on this
 branch: the decode site routes through the query-provider
 (`sequent-core/src/ballot_codec/raw_ballot.rs` →
-`validation_provider::policy_emissions`), and the tally moved with it
+`validation::policy_emissions`), and the tally moved with it
 (velvet classifies from the decoded record). Confirmed booth-to-tally
 through real crypto: `characterization/minvote-e2e-pipeline.mjs` casts
 the marker-only ballot at `min_votes = 2` and the contest result books

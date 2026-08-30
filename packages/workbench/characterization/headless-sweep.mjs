@@ -7,8 +7,9 @@
 // decomposition; plan settled with the operator 2026-08-17).
 //
 // Runs PRODUCTION (the real WASM checker → gates → tally, exactly what the
-// rule runners record) against the TYPED RUST SPEC (`../validation-spec`,
-// via `emit-grid`) on EVERY cell of the representable
+// rule runners record) against `f_fixed` via `emit-grid` — production's own
+// rules (`sequent-core/src/validation.rs`) composed into a full effect
+// record by `../validation-adapters` — on EVERY cell of the representable
 // headless subdomain:
 //
 //   all 6 policies × all values   (incl. dup/gap — their claimed inertness
@@ -229,8 +230,9 @@ const md = [
     "**Experiment.** Every cell — one concrete (contest-configuration ×",
     "vote-state) combination — of the representable headless subdomain is",
     "driven through the REAL WASM (checker → gates → tally, the same entry",
-    "points the rule runners record) and compared against the typed Rust",
-    "spec (`../validation-spec`) on every",
+    "points the rule runners record) and compared against `f_fixed` — the",
+    "rationalized rules, which since the fold-in live in production",
+    "(`sequent-core/src/validation.rs`) — on every",
     "headless effect: checker errors and alerts (as key sets), both gates,",
     "the dialog projection, and the tally class.",
     "",

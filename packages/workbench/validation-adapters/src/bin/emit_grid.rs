@@ -11,8 +11,13 @@
 //!         bug-compatible behaviour); the "before" leg of the diff report
 //!   {"kind": "fixed", "config": {...}, "voteState": {...}}
 //!       → the full Effects record from `f_fixed` — the RATIONALIZED
-//!         implementation (the query-provider); the "after" leg, for
-//!         fix-diff.mjs
+//!         implementation, which lives in production
+//!         (`sequent_core::validation`; this crate composes its full
+//!         effect record — see `validation_adapters::fixed`). The
+//!         "after" leg for fix-diff.mjs, and post-injection the
+//!         expectation for production itself. The binary lives in
+//!         validation-adapters (not validation-spec) because this kind
+//!         links production; the oracle kinds read only validation-spec
 //!
 //! (A transitional "hybrid" kind existed while the injection proceeded
 //! site by site — f_fixed's effects with the then-uninjected inline filter
@@ -31,8 +36,9 @@
 
 use serde::Deserialize;
 use std::io::Read;
+use validation_adapters::f_fixed;
 use validation_spec::{
-    classify, emissions, f, f_fixed, hard_gate, soft_gate, Config, SelectionClass, VoteState,
+    classify, emissions, f, hard_gate, soft_gate, Config, SelectionClass, VoteState,
 };
 
 #[derive(Deserialize)]
