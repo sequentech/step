@@ -161,14 +161,68 @@ reads, which is the subject of the next section.
 ## 6. What each policy actually controls
 
 Applying section 5's technique to the question "which inputs does this
-effect read?" yields a dependency map: for each effect, the inputs that
-change it and — more usefully — the inputs that provably cannot. Such a map
-earns its keep because policies do not always do what their names suggest.
-The over-vote policy, for instance, governs alerts and one gate clause, but
-never whether the over-vote error is recorded, which is unconditional.
+effect read?" yields a dependency map. `src/validation.rs` carries it as
+the test `which_inputs_move_which_effects`: it evaluates every
+configuration in a domain — the six policies in every combination,
+minimums `0..=2` against maximums `1..=3` (skipping the impossible
+`min > max`), and eight ballots spanning both
+contest kinds, each with and without the ballot marked invalid — then
+varies one input at a time and records which effects move.
 
-No such map exists for these rules yet. Producing one is an application
-of the technique above rather than a separate tool: hold every input fixed
-but one, vary that one across the enumeration, and record for each effect
-whether it ever moves. The result is a table of effect against input,
-whose useful half is the entries that never move.
+| input | messages | dialog | inline | reachability | tally |
+|---|:-:|:-:|:-:|:-:|:-:|
+| `invalid_vote_policy` | • | • | • | • | |
+| `blank_vote_policy` | • | • | • | | • |
+| `over_vote_policy` | • | • | • | • | |
+| `under_vote_policy` | • | • | • | | |
+| `duplicated_rank_policy` | | • | | | |
+| `preference_gaps_policy` | | • | | | |
+| `min_votes` | • | • | • | | • |
+| `max_votes` | • | • | • | • | • |
+| selections | • | • | • | • | • |
+| blank marker | • | • | • | • | • |
+| explicit invalid | • | • | • | • | • |
+
+The blanks are the point, and they are stronger claims than the dots: an
+input that moves an effect somewhere is a fact about one case, while an
+input that moves it nowhere in an exhaustive domain is a fact about the
+rules. Four are worth stating outright, because the names do not suggest
+them.
+
+**The two rank policies reach nothing but the dialog.** Both values of
+each emit the same error; the policy decides only which gate reacts. A
+duplicated rank is therefore recorded, displayed and counted identically
+whichever way the contest is configured — the setting is purely about
+whether the voter is blocked or merely asked to confirm.
+
+**`under_vote_policy` cannot make a ballot invalid.** It raises an alert
+and never an error, and the tally reads errors. Changing the setting never
+changes whether a ballot counts.
+
+**`invalid_vote_policy` cannot reach the tally either**, for a different
+reason: it speaks only when the ballot is already explicitly invalid, and
+that flag settles how the ballot counts on its own. It does reach
+reachability, which `selection_capped` gives no sign of — that query never
+reads the policy. The path runs through `apply`: under
+`ALLOWED_WITH_EXCLUSIVE_EXPLICIT`, marking a ballot invalid clears the
+selections, and the selection count is what the cap compares. A dependency
+can arrive by changing the ballot rather than by reading the input.
+
+**`over_vote_policy` cannot reach the tally, but `max_votes` can.** The
+over-vote error is unconditional; the policy governs only the alert and
+the "maximum reached" hint. Relaxing the policy never makes an
+over-voted ballot count — raising the maximum does.
+
+That asymmetry is the shape of the whole tally column. What a ballot
+counts as turns on whether *any* error was emitted, so among the
+configuration inputs the ones that decide an emission reach the tally and
+the ones that only decorate an emission do not. `min_votes` is in the
+first group, which is what makes the deliberate-blank correction in
+section 4 a change to how ballots count rather than only to what the voter
+is told. The ballot's own three inputs reach the tally by a second route
+besides: with no error anywhere, what is selected still decides between
+valid, blank and declined.
+
+The map is asserted rather than printed, so it cannot quietly go stale: a
+rule that starts or stops reading an input fails the test. This table is a
+copy of the one the test asserts — update it when that assertion changes.

@@ -1618,6 +1618,15 @@ mod tests {
                                                     SelectionEdit::ExplicitInvalid(true),
                                                 );
                                             }
+                                            // Decoding stamps the messages
+                                            // onto the record, and the tally
+                                            // reads the record — so classify
+                                            // a decoded ballot, not a bare
+                                            // selection.
+                                            let recorded = validator
+                                                .messages(&ballot)
+                                                .expect("bounds are counts");
+                                            ballot.update(recorded);
                                             examined += 1;
 
                                             let vote = validator
@@ -1663,6 +1672,382 @@ mod tests {
         }
         // Guard against the enumeration silently collapsing to nothing.
         assert!(examined > 10_000, "examined only {examined} combinations");
+    }
+
+    /// The second worked analysis: a dependency map, saying which inputs
+    /// can move which effects.
+    ///
+    /// Same three steps as the test above, asked of the rules rather than
+    /// of a property. Evaluate every configuration in the domain, then
+    /// walk each input in turn and record, per effect, whether varying
+    /// that input alone ever changes it.
+    ///
+    /// The useful half of the answer is the absences. That a policy
+    /// happens not to reach an effect on the cases someone thought to try
+    /// says nothing; that it reaches it nowhere in an exhaustive domain
+    /// is a fact about the rules. That is also why the map is asserted
+    /// rather than printed — change what a rule reads and this test says
+    /// so. Run it with `--nocapture` to see the table.
+    ///
+    /// The domain is every combination of the six policies, minimums
+    /// `0..=2` against maximums `1..=3`, and eight ballots spanning both
+    /// contest kinds — nothing selected through all three candidates
+    /// selected, the blank marker alone, and three rankings (in order,
+    /// two candidates sharing a rank, one rank skipped) — each with and
+    /// without the ballot marked invalid. Ballots are built through
+    /// [`ContestValidator::apply`], for the reason the test above gives.
+    #[test]
+    fn which_inputs_move_which_effects() {
+        use crate::types::ceremonies::CountingAlgType;
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        /// Two effects are the same iff their digests are.
+        fn digest(value: &impl std::fmt::Debug) -> u64 {
+            let mut hasher = DefaultHasher::new();
+            format!("{value:?}").hash(&mut hasher);
+            hasher.finish()
+        }
+
+        const REGULARS: [&str; 3] = ["a", "b", "c"];
+        const EFFECTS: [&str; 5] =
+            ["messages", "dialog", "inline", "reachability", "tally"];
+
+        #[derive(Clone, Copy)]
+        enum Shape {
+            /// Ordinary selections on a plurality contest, optionally
+            /// with the blank marker.
+            Plain { regulars: usize, marker: bool },
+            /// A ranking on a preferential contest.
+            Ranked(&'static [i64]),
+        }
+
+        let invalids = [
+            InvalidVotePolicy::ALLOWED,
+            InvalidVotePolicy::WARN,
+            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+            InvalidVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
+        ];
+        let blanks = [
+            EBlankVotePolicy::ALLOWED,
+            EBlankVotePolicy::WARN,
+            EBlankVotePolicy::WARN_ONLY_IN_REVIEW,
+            EBlankVotePolicy::NOT_ALLOWED,
+        ];
+        let overs = [
+            EOverVotePolicy::ALLOWED,
+            EOverVotePolicy::ALLOWED_WITH_MSG,
+            EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT,
+            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT,
+            EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE,
+        ];
+        let unders = [
+            EUnderVotePolicy::ALLOWED,
+            EUnderVotePolicy::WARN,
+            EUnderVotePolicy::WARN_ONLY_IN_REVIEW,
+            EUnderVotePolicy::WARN_AND_ALERT,
+        ];
+        let dups = [
+            EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG,
+            EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG,
+        ];
+        let gaps = [
+            EPreferenceGapsPolicy::ALLOWED_WARN_AND_DIALOG,
+            EPreferenceGapsPolicy::NOT_ALLOWED_WARN_AND_DIALOG,
+        ];
+        let mins: [i64; 3] = [0, 1, 2];
+        let maxes: [i64; 3] = [1, 2, 3];
+        let shapes = [
+            Shape::Plain {
+                regulars: 0,
+                marker: false,
+            },
+            Shape::Plain {
+                regulars: 1,
+                marker: false,
+            },
+            Shape::Plain {
+                regulars: 2,
+                marker: false,
+            },
+            Shape::Plain {
+                regulars: 3,
+                marker: false,
+            },
+            Shape::Plain {
+                regulars: 0,
+                marker: true,
+            },
+            Shape::Ranked(&[0, 1, 2]),
+            Shape::Ranked(&[0, 0]),
+            Shape::Ranked(&[0, 2]),
+        ];
+
+        // The domain as a grid: one axis per input, a cell per
+        // combination, addressed in mixed radix so that varying one input
+        // is arithmetic on one coordinate.
+        let axes: [usize; 10] = [
+            invalids.len(),
+            blanks.len(),
+            overs.len(),
+            unders.len(),
+            dups.len(),
+            gaps.len(),
+            mins.len(),
+            maxes.len(),
+            shapes.len(),
+            2,
+        ];
+        let cells: usize = axes.iter().product();
+        let address_of = |cell: &[usize; 10]| {
+            cell.iter()
+                .zip(axes)
+                .fold(0usize, |address, (coord, len)| address * len + coord)
+        };
+        let cell_at = |address: usize| {
+            let mut rest = address;
+            let mut cell = [0usize; 10];
+            for axis in (0..axes.len()).rev() {
+                cell[axis] = rest % axes[axis];
+                rest /= axes[axis];
+            }
+            cell
+        };
+
+        // The five effects of one cell, digested. `None` where a minimum
+        // exceeds its maximum, which is not a contest anyone can build.
+        let effects_of = |cell: &[usize; 10]| -> Option<[u64; 5]> {
+            let (min, max) = (mins[cell[6]], maxes[cell[7]]);
+            if min > max {
+                return None;
+            }
+            let shape = shapes[cell[8]];
+
+            let candidate =
+                |id: &str, blank_marker: bool, invalid_marker: bool| {
+                    Candidate {
+                        id: id.to_string(),
+                        presentation: Some(CandidatePresentation {
+                            is_explicit_blank: Some(blank_marker),
+                            is_explicit_invalid: Some(invalid_marker),
+                            ..CandidatePresentation::default()
+                        }),
+                        ..Candidate::default()
+                    }
+                };
+            let mut candidates: Vec<Candidate> = REGULARS
+                .iter()
+                .map(|id| candidate(id, false, false))
+                .collect();
+            candidates.push(candidate("blank", true, false));
+            candidates.push(candidate("null", false, true));
+            let contest = Contest {
+                min_votes: min,
+                max_votes: max,
+                counting_algorithm: Some(match shape {
+                    Shape::Ranked(_) => CountingAlgType::InstantRunoff,
+                    Shape::Plain { .. } => CountingAlgType::PluralityAtLarge,
+                }),
+                presentation: Some(ContestPresentation {
+                    invalid_vote_policy: Some(invalids[cell[0]].clone()),
+                    blank_vote_policy: Some(blanks[cell[1]]),
+                    over_vote_policy: Some(overs[cell[2]]),
+                    under_vote_policy: Some(unders[cell[3]]),
+                    duplicated_rank_policy: Some(dups[cell[4]]),
+                    preference_gaps_policy: Some(gaps[cell[5]]),
+                    ..ContestPresentation::default()
+                }),
+                candidates,
+                ..Contest::default()
+            };
+            let validator = ContestValidator::for_contest(&contest);
+
+            let mut ballot = DecodedVoteContest {
+                contest_id: contest.id.clone(),
+                is_explicit_invalid: false,
+                is_decline_to_vote: false,
+                is_blank_ballot: false,
+                invalid_errors: vec![],
+                invalid_alerts: vec![],
+                choices: contest
+                    .candidates
+                    .iter()
+                    .map(|c| DecodedVoteChoice {
+                        id: c.id.clone(),
+                        selected: -1,
+                        write_in_text: None,
+                    })
+                    .collect(),
+            };
+            let select = |id: &str, rank: i64| {
+                SelectionEdit::Choice(DecodedVoteChoice {
+                    id: id.to_string(),
+                    selected: rank,
+                    write_in_text: None,
+                })
+            };
+            match shape {
+                Shape::Plain { regulars, marker } => {
+                    for id in REGULARS.iter().take(regulars) {
+                        ballot = validator.apply(&ballot, select(id, 0));
+                    }
+                    if marker {
+                        ballot = validator.apply(&ballot, select("blank", 0));
+                    }
+                }
+                Shape::Ranked(ranks) => {
+                    for (id, rank) in REGULARS.iter().zip(ranks) {
+                        ballot = validator.apply(&ballot, select(id, *rank));
+                    }
+                }
+            }
+            if cell[9] == 1 {
+                ballot = validator
+                    .apply(&ballot, SelectionEdit::ExplicitInvalid(true));
+            }
+            // Decoding stamps the messages onto the record, and the tally
+            // reads the record.
+            let recorded =
+                validator.messages(&ballot).expect("bounds are counts");
+            ballot.update(recorded);
+
+            let vote =
+                validator.for_decoded(&ballot).expect("bounds are counts");
+            let seen = |is_review: bool| {
+                visible_messages(
+                    validator.policies(),
+                    vote.messages(),
+                    is_review,
+                    true,
+                )
+            };
+            Some([
+                digest(vote.messages()),
+                digest(&(vote.hard_gate(), vote.soft_gate())),
+                digest(&(seen(false), seen(true))),
+                digest(&validator.selection_capped(&ballot)),
+                digest(&validator.classify(&ballot)),
+            ])
+        };
+
+        let observed: Vec<Option<[u64; 5]>> = (0..cells)
+            .map(|address| effects_of(&cell_at(address)))
+            .collect();
+
+        // Which pairs of values on an axis count as varying one input
+        // alone. The ballot axis carries two inputs, so it needs both.
+        type Varies = fn(usize, usize) -> bool;
+        let freely: Varies = |_, _| true;
+        // Selections: same contest kind, and the marker left as it was.
+        let same_kind: Varies =
+            |from, to| matches!((from, to), (0..=3, 0..=3) | (5..=7, 5..=7));
+        // The marker: only against the empty ballot, because setting it
+        // clears whatever stood beside it — so no other pair differs in
+        // the marker alone.
+        let marker_only: Varies =
+            |from, to| matches!((from, to), (0, 4) | (4, 0));
+
+        let inputs: [(&str, usize, Varies); 11] = [
+            ("invalid_vote_policy", 0, freely),
+            ("blank_vote_policy", 1, freely),
+            ("over_vote_policy", 2, freely),
+            ("under_vote_policy", 3, freely),
+            ("duplicated_rank_policy", 4, freely),
+            ("preference_gaps_policy", 5, freely),
+            ("min_votes", 6, freely),
+            ("max_votes", 7, freely),
+            ("selections", 8, same_kind),
+            ("blank marker", 8, marker_only),
+            ("explicit invalid", 9, freely),
+        ];
+
+        let mut map: Vec<(&str, Vec<&str>)> = Vec::new();
+        for (input, axis, varies) in inputs {
+            let mut moves = [false; 5];
+            for address in 0..cells {
+                let Some(here) = observed[address] else {
+                    continue;
+                };
+                let cell = cell_at(address);
+                for value in 0..axes[axis] {
+                    if value == cell[axis] || !varies(cell[axis], value) {
+                        continue;
+                    }
+                    let mut elsewhere = cell;
+                    elsewhere[axis] = value;
+                    let Some(there) = observed[address_of(&elsewhere)] else {
+                        continue;
+                    };
+                    for (moved, (a, b)) in
+                        moves.iter_mut().zip(here.iter().zip(there.iter()))
+                    {
+                        *moved |= a != b;
+                    }
+                }
+            }
+            map.push((
+                input,
+                EFFECTS
+                    .iter()
+                    .zip(moves)
+                    .filter(|(_, moved)| *moved)
+                    .map(|(effect, _)| *effect)
+                    .collect(),
+            ));
+        }
+
+        for (input, effects) in &map {
+            println!("{input:24} {}", effects.join(", "));
+        }
+
+        // Read the absences. Under-vote and invalid-vote policy cannot
+        // reach the tally: the first only ever raises an alert, and the
+        // second only speaks when the ballot is already explicitly
+        // invalid, which decides how it counts on its own. The rank
+        // policies reach nothing but the dialog, because both of their
+        // values emit the same error and differ only in which gate reacts.
+        // Over-vote policy cannot reach the tally either, the over-vote
+        // error being unconditional — while `max_votes`, which decides
+        // whether that error is emitted at all, can.
+        //
+        // docs/VALIDATION.md section 6 reproduces this table; keep the
+        // two in step.
+        let expected: Vec<(&str, Vec<&str>)> = vec![
+            (
+                "invalid_vote_policy",
+                vec!["messages", "dialog", "inline", "reachability"],
+            ),
+            (
+                "blank_vote_policy",
+                vec!["messages", "dialog", "inline", "tally"],
+            ),
+            (
+                "over_vote_policy",
+                vec!["messages", "dialog", "inline", "reachability"],
+            ),
+            ("under_vote_policy", vec!["messages", "dialog", "inline"]),
+            ("duplicated_rank_policy", vec!["dialog"]),
+            ("preference_gaps_policy", vec!["dialog"]),
+            ("min_votes", vec!["messages", "dialog", "inline", "tally"]),
+            (
+                "max_votes",
+                vec!["messages", "dialog", "inline", "reachability", "tally"],
+            ),
+            (
+                "selections",
+                vec!["messages", "dialog", "inline", "reachability", "tally"],
+            ),
+            (
+                "blank marker",
+                vec!["messages", "dialog", "inline", "reachability", "tally"],
+            ),
+            (
+                "explicit invalid",
+                vec!["messages", "dialog", "inline", "reachability", "tally"],
+            ),
+        ];
+        assert_eq!(map, expected, "a rule started or stopped reading an input");
     }
 
     #[test]
