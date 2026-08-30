@@ -7,7 +7,8 @@
 // representable subdomain by sufficiency (conditional independence given a
 // computed mediator) instead of by brute force.
 //
-// THE LICENSE (re-verified by source read, 2026-08-29, of
+// THE LICENSE (re-verified by source read, 2026-08-30 — post the WCAG
+// catch-up merge, whose additions are all render-side — of
 // voting-portal/src/components/InvalidErrorsList/InvalidErrorsList.tsx —
 // the filter rewritten by the S1 injection): `filterErrorList` is a
 // closure whose body references NOTHING beyond its explicit parameters —
@@ -131,7 +132,7 @@ console.log(
 /** Find a booth-formable, booth-reachable member of a class, or null.
  *  Both the emission matching (the class key is production's emissions,
  *  i.e. the injected decode's) and the returned `hard` (the injected
- *  gate) read the hybrid evaluation. */
+ *  gate) read the one f_fixed evaluation. */
 function formableMember(ci, cls) {
     const [errors, alerts] = cls.key
     for (const {cell, e} of byClass.get(ci) ?? []) {
@@ -234,7 +235,7 @@ writeFileSync(
             license:
                 "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 " +
                 "rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the " +
-                "class key partitions finer than needed, still sound. Source-verified 2026-08-29. " +
+                "class key partitions finer than needed, still sound. Source-verified 2026-08-30 (post the WCAG catch-up merge). " +
                 "Re-verify on portal refresh.",
             classes_total: classes.length,
             retried,
@@ -276,7 +277,8 @@ const md = [
     "a hard-gated member's review is the dialog, certified headlessly.",
     "",
     "**The license** (what makes one-per-class sound), source-verified",
-    "2026-08-29 against the S1-rewritten filter: `filterErrorList` is a",
+    "2026-08-30 (post the WCAG catch-up merge) against the S1-rewritten",
+    "filter: `filterErrorList` is a",
     "closure referencing nothing beyond its parameters — the record, the",
     "under and blank policies (read raw from `question.presentation`),",
     "`isReview`, `isTouched`. The class key partitions finer than the",

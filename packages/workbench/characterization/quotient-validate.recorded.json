@@ -1,5 +1,5 @@
 {
-  "license": "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the class key partitions finer than needed, still sound. Source-verified 2026-08-29. Re-verify on portal refresh.",
+  "license": "filterErrorList reads only (record, blank, under, isReview, isTouched) — the S1 rewrite removed the invalid/over reads and the dead isVotedState (Defect 4); the class key partitions finer than needed, still sound. Source-verified 2026-08-30 (post the WCAG catch-up merge). Re-verify on portal refresh.",
   "classes_total": 7908,
   "retried": [],
   "checked": [

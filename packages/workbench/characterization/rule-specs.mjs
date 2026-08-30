@@ -139,9 +139,17 @@ export const RULE_SPECS = {
         // cannot form. Probe the second Council candidate's checkbox `disabled`
         // attribute — a second signal beyond behavioural non-reachability.
         // null = not applicable (only the disable policy at `over_max` applies).
+        // Located by ACCESSIBLE NAME: the 2026-08 WCAG pass replaced the
+        // checkbox's aria-label with aria-labelledby, so an attribute
+        // selector no longer matches — the computed name does, whatever
+        // labelling mechanism the markup uses.
         probeDisabled: async (page, c) =>
             c.over_vote_policy === "not-allowed-with-msg-and-disable" && c.state === "over_max"
-                ? page.locator('input.candidate-input[aria-label="Bruno"]').isDisabled().catch(() => null)
+                ? page
+                      .getByRole("checkbox", {name: /Bruno/})
+                      .first()
+                      .isDisabled()
+                      .catch(() => null)
                 : null,
     },
     "minvote-rule": {

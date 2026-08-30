@@ -26,7 +26,8 @@ certifies it) — so review is compared exactly where it renders;
 a hard-gated member's review is the dialog, certified headlessly.
 
 **The license** (what makes one-per-class sound), source-verified
-2026-08-29 against the S1-rewritten filter: `filterErrorList` is a
+2026-08-30 (post the WCAG catch-up merge) against the S1-rewritten
+filter: `filterErrorList` is a
 closure referencing nothing beyond its parameters — the record, the
 under and blank policies (read raw from `question.presentation`),
 `isReview`, `isTouched`. The class key partitions finer than the
