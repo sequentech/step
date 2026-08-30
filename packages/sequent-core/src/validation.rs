@@ -2,7 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Vote-validation rules, evaluated from a contest's configuration and a
+//! Vote validation. See docs/VALIDATION.md for what these rules
+//! produce, where the rest of the system asks for them, and how to
+//! analyse them.
+//!
+//! The rules themselves, evaluated from a contest's configuration and a
 //! summary of the voter's selections.
 //!
 //! Defining them once is what keeps the places that evaluate them from
@@ -1457,6 +1461,208 @@ mod tests {
         let marker_only = ballot(false, true);
         assert!(ContestValidator::for_contest(&disabling)
             .selection_capped(&marker_only));
+    }
+
+    /// A worked analysis, and the property the display fix establishes: no
+    /// ballot a voter can actually produce is excluded from the count
+    /// while they were shown nothing about it.
+    ///
+    /// It is written to be copied. The rules are pure functions over small
+    /// types, so a question about EVERY ballot is answered by enumerating,
+    /// asking a validator for the effects, and asserting over the results
+    /// — no reasoning about which cases matter, and no case left out.
+    ///
+    /// Note how the ballots are built: by applying the edits a voter makes
+    /// ([`ContestValidator::apply`]), not by assembling vote states
+    /// directly. That matters, because the marker rules make some states
+    /// unreachable — a blank marker beside a real selection, for one — and
+    /// those states DO classify as invalid without any message. They are
+    /// not a defect, because no voter can produce them; enumerating states
+    /// rather than edits would report them as if they were.
+    #[test]
+    fn no_ballot_is_discarded_without_telling_the_voter() {
+        const REGULARS: [&str; 3] = ["a", "b", "c"];
+
+        let contest = |invalid: InvalidVotePolicy,
+                       blank: EBlankVotePolicy,
+                       over: EOverVotePolicy,
+                       under: EUnderVotePolicy,
+                       min: i64,
+                       max: i64| {
+            let candidate =
+                |id: &str, blank_marker: bool, invalid_marker: bool| {
+                    Candidate {
+                        id: id.to_string(),
+                        presentation: Some(CandidatePresentation {
+                            is_explicit_blank: Some(blank_marker),
+                            is_explicit_invalid: Some(invalid_marker),
+                            ..CandidatePresentation::default()
+                        }),
+                        ..Candidate::default()
+                    }
+                };
+            let mut candidates: Vec<Candidate> = REGULARS
+                .iter()
+                .map(|id| candidate(id, false, false))
+                .collect();
+            candidates.push(candidate("blank", true, false));
+            candidates.push(candidate("null", false, true));
+            Contest {
+                min_votes: min,
+                max_votes: max,
+                presentation: Some(ContestPresentation {
+                    invalid_vote_policy: Some(invalid),
+                    blank_vote_policy: Some(blank),
+                    over_vote_policy: Some(over),
+                    under_vote_policy: Some(under),
+                    ..ContestPresentation::default()
+                }),
+                candidates,
+                ..Contest::default()
+            }
+        };
+
+        let untouched = |contest: &Contest| DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|c| DecodedVoteChoice {
+                    id: c.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let select = |id: &str| {
+            SelectionEdit::Choice(DecodedVoteChoice {
+                id: id.to_string(),
+                selected: 0,
+                write_in_text: None,
+            })
+        };
+
+        let mut examined = 0usize;
+        for invalid in [
+            InvalidVotePolicy::ALLOWED,
+            InvalidVotePolicy::WARN,
+            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+            InvalidVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
+        ] {
+            for blank in [
+                EBlankVotePolicy::ALLOWED,
+                EBlankVotePolicy::WARN,
+                EBlankVotePolicy::WARN_ONLY_IN_REVIEW,
+                EBlankVotePolicy::NOT_ALLOWED,
+            ] {
+                for over in [
+                    EOverVotePolicy::ALLOWED,
+                    EOverVotePolicy::ALLOWED_WITH_MSG,
+                    EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT,
+                    EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT,
+                    EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE,
+                ] {
+                    for under in [
+                        EUnderVotePolicy::ALLOWED,
+                        EUnderVotePolicy::WARN,
+                        EUnderVotePolicy::WARN_ONLY_IN_REVIEW,
+                        EUnderVotePolicy::WARN_AND_ALERT,
+                    ] {
+                        for min in 0..=3i64 {
+                            for max in 1..=3i64 {
+                                if min > max {
+                                    continue;
+                                }
+                                let contest = contest(
+                                    invalid.clone(),
+                                    blank.clone(),
+                                    over.clone(),
+                                    under.clone(),
+                                    min,
+                                    max,
+                                );
+                                let validator =
+                                    ContestValidator::for_contest(&contest);
+
+                                // Every ballot a voter can reach: some
+                                // number of ordinary selections, then
+                                // optionally the blank marker, then
+                                // optionally marking the ballot invalid.
+                                // Each step goes through the marker rules.
+                                for regulars in 0..=REGULARS.len() {
+                                    for marker in [false, true] {
+                                        for mark_invalid in [false, true] {
+                                            let mut ballot =
+                                                untouched(&contest);
+                                            for id in
+                                                REGULARS.iter().take(regulars)
+                                            {
+                                                ballot = validator
+                                                    .apply(&ballot, select(id));
+                                            }
+                                            if marker {
+                                                ballot = validator.apply(
+                                                    &ballot,
+                                                    select("blank"),
+                                                );
+                                            }
+                                            if mark_invalid {
+                                                ballot = validator.apply(
+                                                    &ballot,
+                                                    SelectionEdit::ExplicitInvalid(true),
+                                                );
+                                            }
+                                            examined += 1;
+
+                                            let vote = validator
+                                                .for_decoded(&ballot)
+                                                .expect("bounds are counts");
+                                            let messages = vote.messages();
+
+                                            // Was the voter told anything,
+                                            // at either point they can act?
+                                            let shown = |is_review: bool| {
+                                                let seen = visible_messages(
+                                                    validator.policies(),
+                                                    messages,
+                                                    is_review,
+                                                    true,
+                                                );
+                                                !seen.errors.is_empty()
+                                                    || !seen.alerts.is_empty()
+                                            };
+                                            let told = shown(false)
+                                                || shown(true)
+                                                || vote.hard_gate()
+                                                || vote.soft_gate();
+
+                                            let discarded = matches!(
+                                                validator.classify(&ballot),
+                                                BallotClass::ImplicitInvalid
+                                            );
+
+                                            assert!(
+                                                told || !discarded,
+                                                "discarded in silence: {regulars} selected, blank marker {marker}, marked invalid {mark_invalid}, {:?}",
+                                                validator.policies()
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Guard against the enumeration silently collapsing to nothing.
+        assert!(examined > 10_000, "examined only {examined} combinations");
     }
 
     #[test]
