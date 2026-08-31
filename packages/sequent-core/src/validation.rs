@@ -206,22 +206,20 @@ impl ContestShape {
 
 /// Reads a contest's policies, resolving each unset one to its default.
 fn contest_policies(contest: &Contest) -> Policies {
-    let p = contest.presentation.as_ref();
+    // A contest with no presentation is read as the default presentation,
+    // which names its own value for four of these policies rather than
+    // leaving them to the enums' defaults. The two disagree about the
+    // over-vote policy, so going through `ContestPresentation` matters:
+    // without it, a contest that configures no presentation would start
+    // raising over-vote alerts it never raised.
+    let p = contest.presentation.clone().unwrap_or_default();
     Policies {
-        invalid: p
-            .and_then(|p| p.invalid_vote_policy.clone())
-            .unwrap_or_default(),
-        blank: p
-            .and_then(|p| p.blank_vote_policy.clone())
-            .unwrap_or_default(),
-        over: p.and_then(|p| p.over_vote_policy).unwrap_or_default(),
-        under: p.and_then(|p| p.under_vote_policy).unwrap_or_default(),
-        dup: p
-            .and_then(|p| p.duplicated_rank_policy.clone())
-            .unwrap_or_default(),
-        gap: p
-            .and_then(|p| p.preference_gaps_policy.clone())
-            .unwrap_or_default(),
+        invalid: p.invalid_vote_policy.unwrap_or_default(),
+        blank: p.blank_vote_policy.unwrap_or_default(),
+        over: p.over_vote_policy.unwrap_or_default(),
+        under: p.under_vote_policy.unwrap_or_default(),
+        dup: p.duplicated_rank_policy.unwrap_or_default(),
+        gap: p.preference_gaps_policy.unwrap_or_default(),
     }
 }
 
@@ -336,6 +334,16 @@ fn is_undervote(config: &Config, n: u32) -> bool {
     n > 0 && n >= config.min && n < config.max
 }
 
+/// Reports whether the selection rules apply to this ballot. A decline
+/// is intentionally empty in every contest — it says the voter is not
+/// choosing, rather than choosing badly — so the over-, min-, under- and
+/// blank-vote rules have nothing to judge. The explicit-invalid and
+/// encoding rules still apply, and a decline carrying content is caught
+/// by the tally classifier rather than by these.
+fn selection_rules_apply(vs: &VoteState) -> bool {
+    !vs.decline
+}
+
 /// Reports whether the ballot is a deliberate blank — its content is the
 /// explicit-blank marker and nothing else. Explicit blank votes are not subject to the min-vote
 /// rule — the voter's declared blank stands at any `min_votes`. The marker
@@ -361,33 +369,40 @@ fn derive_emissions(config: &Config, vs: &VoteState, n: u32) -> Emissions {
             alerts.push(EXPLICIT_ALERT.into());
         }
     }
-    // Over-vote: the error is unconditional; the policy governs the alert
-    // and, at exactly max under the disable policy, the "maximum reached"
-    // hint.
-    if n > config.max {
-        errors.push(SELECTED_MAX.into());
-        if p.over != EOverVotePolicy::ALLOWED {
-            alerts.push(SELECTED_MAX.into());
+    // The preferential rules below sit outside this guard because they
+    // cannot fire on an empty ballot.
+    if selection_rules_apply(vs) {
+        // Over-vote: the error is unconditional; the policy governs the alert
+        // and, at exactly max under the disable policy, the "maximum reached"
+        // hint.
+        if n > config.max {
+            errors.push(SELECTED_MAX.into());
+            if p.over != EOverVotePolicy::ALLOWED {
+                alerts.push(SELECTED_MAX.into());
+            }
+        } else if n == config.max
+            && p.over == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE
+        {
+            alerts.push(OVER_VOTE_DISABLED.into());
         }
-    } else if n == config.max
-        && p.over == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE
-    {
-        alerts.push(OVER_VOTE_DISABLED.into());
-    }
-    // Min-vote: a fixed rule with no policy of its own — always an error,
-    // except that a deliberate blank is not subject to it.
-    if n < config.min && !is_deliberate_blank(vs) {
-        errors.push(SELECTED_MIN.into());
-    }
-    if is_undervote(config, n) && p.under != EUnderVotePolicy::ALLOWED {
-        alerts.push(UNDER_VOTE.into());
-    }
-    // Blank: skipped entirely for an explicitly-invalid ballot.
-    if n == 0 && !vs.explicit_invalid && p.blank != EBlankVotePolicy::ALLOWED {
-        if p.blank == EBlankVotePolicy::NOT_ALLOWED {
-            errors.push(BLANK_VOTE.into());
-        } else {
-            alerts.push(BLANK_VOTE.into());
+        // Min-vote: a fixed rule with no policy of its own — always an error,
+        // except that a deliberate blank is not subject to it.
+        if n < config.min && !is_deliberate_blank(vs) {
+            errors.push(SELECTED_MIN.into());
+        }
+        if is_undervote(config, n) && p.under != EUnderVotePolicy::ALLOWED {
+            alerts.push(UNDER_VOTE.into());
+        }
+        // Blank: skipped entirely for an explicitly-invalid ballot.
+        if n == 0
+            && !vs.explicit_invalid
+            && p.blank != EBlankVotePolicy::ALLOWED
+        {
+            if p.blank == EBlankVotePolicy::NOT_ALLOWED {
+                errors.push(BLANK_VOTE.into());
+            } else {
+                alerts.push(BLANK_VOTE.into());
+            }
         }
     }
     // Preferential rules — both policy variants emit identically; the
@@ -403,15 +418,22 @@ fn derive_emissions(config: &Config, vs: &VoteState, n: u32) -> Emissions {
 }
 
 /// Reports whether the ballot must change before Next proceeds.
-fn derive_hard_gate(config: &Config, n: u32, em: &Emissions) -> bool {
+fn derive_hard_gate(
+    config: &Config,
+    vs: &VoteState,
+    n: u32,
+    em: &Emissions,
+) -> bool {
     let p = &config.policies;
+    let selections = selection_rules_apply(vs);
     em.errors
         .iter()
         .any(|m| EXPLICIT_OR_ENCODING.contains(&m.as_str()))
         || (!em.errors.is_empty()
             && p.invalid == InvalidVotePolicy::NOT_ALLOWED)
-        || (n == 0 && p.blank == EBlankVotePolicy::NOT_ALLOWED)
-        || (n > config.max
+        || (selections && n == 0 && p.blank == EBlankVotePolicy::NOT_ALLOWED)
+        || (selections
+            && n > config.max
             && p.over == EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT)
         || (p.dup == EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG
             && em.errors.iter().any(|m| m == DUPLICATED_POSITION))
@@ -427,15 +449,18 @@ fn derive_soft_gate(
     em: &Emissions,
 ) -> bool {
     let p = &config.policies;
+    let selections = selection_rules_apply(vs);
     (!em.errors.is_empty()
         && p.invalid != InvalidVotePolicy::ALLOWED
         && p.invalid != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
         || (p.invalid == InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT
             && vs.explicit_invalid)
-        || (p.blank == EBlankVotePolicy::WARN && n == 0)
-        || (n > config.max
+        || (selections && p.blank == EBlankVotePolicy::WARN && n == 0)
+        || (selections
+            && n > config.max
             && p.over == EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT)
-        || (is_undervote(config, n)
+        || (selections
+            && is_undervote(config, n)
             && p.under == EUnderVotePolicy::WARN_AND_ALERT)
         || (p.dup == EDuplicatedRankPolicy::ALLOWED_WARN_AND_DIALOG
             && em.errors.iter().any(|m| m == DUPLICATED_POSITION))
@@ -593,9 +618,31 @@ impl VoteValidator {
         &self.em
     }
 
+    /// Returns the same messages in the form ballot decoding records on a
+    /// contest: each key as an `InvalidPlaintextError` carrying the
+    /// parameters its translation needs.
+    pub fn recorded(&self) -> CheckerResult {
+        let records = |keys: &[String]| {
+            keys.iter()
+                .map(|key| {
+                    plaintext_error(
+                        key,
+                        self.n,
+                        self.config.min,
+                        self.config.max,
+                    )
+                })
+                .collect()
+        };
+        CheckerResult {
+            invalid_errors: records(&self.em.errors),
+            invalid_alerts: records(&self.em.alerts),
+        }
+    }
+
     /// Reports whether this contest blocks Next.
     pub fn hard_gate(&self) -> bool {
-        derive_hard_gate(&self.config, self.n, &self.em)
+        derive_hard_gate(&self.config, &self.vs, self.n, &self.em)
     }
 
     /// Reports whether this contest asks for confirmation at Next.
@@ -830,23 +877,7 @@ impl ContestValidator {
         &self,
         decoded: &DecodedVoteContest,
     ) -> Result<CheckerResult, ValidationError> {
-        let (min, max) = self.bounds.clone()?;
-        let vs = self.vote_state(decoded);
-        let n = selections(&vs);
-        let validator = self.for_vote_state(vs)?;
-        let messages = validator.messages();
-        Ok(CheckerResult {
-            invalid_errors: messages
-                .errors
-                .iter()
-                .map(|key| plaintext_error(key, n, min, max))
-                .collect(),
-            invalid_alerts: messages
-                .alerts
-                .iter()
-                .map(|key| plaintext_error(key, n, min, max))
-                .collect(),
-        })
+        Ok(self.for_decoded(decoded)?.recorded())
     }
 
     /// Classifies one decoded contest's ballot for the tally
@@ -1106,6 +1137,39 @@ mod tests {
         };
         let v = vote(null, 2, 3);
         assert!(v.messages().errors.iter().any(|m| m == SELECTED_MIN));
+    }
+
+    /// A decline says the voter is not choosing, so the selection rules
+    /// have nothing to judge — at the count and at the Next button alike.
+    /// Both halves need saying, because the gates read some of those rules
+    /// from the vote state directly rather than through the messages.
+    #[test]
+    fn a_decline_is_not_held_to_the_selection_rules() {
+        let mut c = config(2, 2);
+        c.policies.blank = EBlankVotePolicy::NOT_ALLOWED;
+
+        // The same empty ballot, declined and not.
+        let declined = VoteState {
+            decline: true,
+            ..VoteState::default()
+        };
+        let v = ContestValidator::from_config(c.clone())
+            .for_vote_state(declined)
+            .expect("representable bounds");
+        assert!(v.messages().errors.is_empty());
+        assert!(v.messages().alerts.is_empty());
+        assert!(!v.hard_gate(), "a decline is not blocked at Next");
+        assert!(!v.soft_gate());
+
+        // Without the decline the same ballot is stopped twice over, so
+        // the assertions above are not passing for want of a rule to
+        // break.
+        let voting = ContestValidator::from_config(c)
+            .for_vote_state(VoteState::default())
+            .expect("representable bounds");
+        assert!(voting.messages().errors.iter().any(|m| m == SELECTED_MIN));
+        assert!(voting.messages().errors.iter().any(|m| m == BLANK_VOTE));
+        assert!(voting.hard_gate());
     }
 
     #[test]

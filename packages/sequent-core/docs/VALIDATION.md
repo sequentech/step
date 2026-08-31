@@ -43,7 +43,7 @@ full.
 
 | effect | the query | asked by |
 |---|---|---|
-| messages | `ContestValidator::messages` | ballot decoding, in [`ballot_codec/raw_ballot.rs`](../src/ballot_codec/raw_ballot.rs) |
+| messages | `ContestValidator::messages` | ballot decoding, in [`ballot_codec/raw_ballot.rs`](../src/ballot_codec/raw_ballot.rs) and [`ballot_codec/multi_ballot.rs`](../src/ballot_codec/multi_ballot.rs) — one contest at a time, and every contest packed into one ciphertext |
 | dialog | `BallotValidator::for_ballot(…)`, then `hard_gate()` / `soft_gate()` | [`util/voting_screen.rs`](../src/util/voting_screen.rs), reached from the booth's Next button through the `check_voting_not_allowed_next` and `check_voting_error_dialog` wasm exports |
 | inline | `ContestValidator::filter_visible_messages` | the booth's `InvalidErrorsList.tsx`, through `filter_visible_messages_js` |
 | reachability | `ContestValidator::selection_capped` | the booth's `Question.tsx`, deciding whether to disable the remaining controls, through `selection_capped_js` |
@@ -79,7 +79,7 @@ them, each deriving its own facts from the ballot:
 
 | effect | before | now |
 |---|---|---|
-| messages | seven checker calls sequenced inside decoding | one call |
+| messages | seven checker calls sequenced inside decoding, written once per encoding | one call, shared by both encodings |
 | dialog | some sixty lines re-deriving counts and policies, written twice — once per gate | two delegating lines |
 | inline | a filter in TypeScript carrying its own copy of the policy rules | one call through wasm |
 | reachability | a selection count in one React effect, a disable flag in a second, and marker clearing spread across three reducers | two calls |
@@ -90,8 +90,8 @@ twice, the two expressions drifted, and section 4 is largely that drift.
 
 ## 4. Corrections to behaviour
 
-Five behaviours change. Four follow from writing each rule once; the fifth
-is a deliberate judgment about what a rule should mean.
+Six behaviours change. Five follow from writing each rule once; the
+remaining one is a deliberate judgment about what a rule should mean.
 
 **One selection count.** The submission gates counted only candidates at
 first preference while every other rule counted all selections. On a ranked
@@ -124,6 +124,19 @@ rather than the repair of an inconsistency.
 de-duplication compared an alert against itself, so it always fired — which
 happened to give the right answer only because the error is always present
 when the alert is.
+
+**A decline is not held to the selection rules.** Declining says the voter
+is not choosing, rather than choosing badly, so the over-, min-, under-
+and blank-vote rules have nothing to judge. The rule existed, but in one
+place only: the decoder that packs every contest into one ciphertext
+skipped those rules for a decline, while everything else applied them. So
+a ballot that recorded no error at all at the count still told the voter
+it fell short of the minimum, and under a policy that reacts to that
+message, stopped them at Next or asked them to confirm. One predicate,
+`selection_rules_apply`, now answers for both, and for the gates as well
+as the messages: five clauses across the two gates read the selection
+rules directly rather than through the messages, so skipping only the
+messages would have left the same split one level down.
 
 One behaviour was examined and deliberately **kept**: marking a ballot
 invalid does not clear the voter's selections, which are recorded but not

@@ -23,6 +23,7 @@ use crate::plaintext::{
     InvalidPlaintextError, InvalidPlaintextErrorType,
 };
 use crate::types::ceremonies::CountingAlgType;
+use crate::validation::{ContestValidator, VoteState};
 use num_bigint::BigUint;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -993,57 +994,84 @@ impl BallotChoices {
             // they lead to fewer than min_votes values
         }
 
-        let presentation = contest.presentation.clone().unwrap_or_default();
+        // Policy-driven errors and alerts — the validation rules,
+        // evaluated from the contest configuration and the decoded
+        // selections. The compact encoding only carries plurality
+        // contests, so no ranking can be out of order here.
+        let vote_state = VoteState {
+            regulars: u32::try_from(num_selected_candidates)
+                .unwrap_or(u32::MAX),
+            blank_marker: is_explicit_blank,
+            explicit_invalid: is_explicit_invalid,
+            decline: is_ballot_declined,
+            duplicate_ranks: false,
+            rank_gaps: false,
+        };
+        match ContestValidator::for_contest(contest).for_vote_state(vote_state)
+        {
+            Ok(validator) => decoded_contest.update(validator.recorded()),
+            // min_votes/max_votes cannot be interpreted as counts: keep the
+            // per-bound checks — each runs with only the bounds it needs,
+            // and the invalid bounds are reported as encoding errors.
+            Err(_) => {
+                let presentation =
+                    contest.presentation.clone().unwrap_or_default();
 
-        let invalid_vote_policy_check =
-            check_invalid_vote_policy(&presentation, is_explicit_invalid);
-        decoded_contest.update(invalid_vote_policy_check);
-
-        let (max_votes_opt, min_votes_opt, maxmin_errors) =
-            check_max_min_votes_policy(contest.max_votes, contest.min_votes);
-        decoded_contest.update(maxmin_errors);
-
-        // A declined ballot is intentionally empty in every contest, so the
-        // per-contest selection policies (over/min/under/blank vote) do not
-        // apply to it. Without this, a declined ballot in a contest with
-        // min_votes >= 1 or a NOT_ALLOWED blank vote policy would collect
-        // implicit invalid errors and be tallied as invalid instead of
-        // declined.
-        if !is_ballot_declined {
-            if let Some(max_votes_val) = max_votes_opt.clone() {
-                let overvote_check = check_over_vote_policy(
+                let invalid_vote_policy_check = check_invalid_vote_policy(
                     &presentation,
-                    num_selected_with_markers,
-                    max_votes_val,
+                    is_explicit_invalid,
                 );
-                decoded_contest.update(overvote_check);
-            }
-            if let Some(min_votes_val) = min_votes_opt.clone() {
-                let min_check = check_min_vote_policy(
-                    num_selected_with_markers,
-                    min_votes_val,
-                );
-                decoded_contest.update(min_check);
-            }
+                decoded_contest.update(invalid_vote_policy_check);
 
-            let under_vote_check = check_under_vote_policy(
-                &presentation,
-                num_selected_with_markers,
-                max_votes_opt.clone(),
-                min_votes_opt.clone(),
-            );
-            decoded_contest.update(under_vote_check);
+                let (max_votes_opt, min_votes_opt, maxmin_errors) =
+                    check_max_min_votes_policy(
+                        contest.max_votes,
+                        contest.min_votes,
+                    );
+                decoded_contest.update(maxmin_errors);
 
-            // handle blank vote policy. A selected explicit blank or explicit
-            // invalid marker counts as a selection, so it is not a blank vote.
-            let blank_vote_check = check_blank_vote_policy(
-                &presentation,
-                num_selected_with_markers,
-                is_explicit_invalid,
-            );
-            decoded_contest.update(blank_vote_check);
+                // A declined ballot is intentionally empty in every contest, so the
+                // per-contest selection policies (over/min/under/blank vote) do not
+                // apply to it. Without this, a declined ballot in a contest with
+                // min_votes >= 1 or a NOT_ALLOWED blank vote policy would collect
+                // implicit invalid errors and be tallied as invalid instead of
+                // declined.
+                if !is_ballot_declined {
+                    if let Some(max_votes_val) = max_votes_opt.clone() {
+                        let overvote_check = check_over_vote_policy(
+                            &presentation,
+                            num_selected_with_markers,
+                            max_votes_val,
+                        );
+                        decoded_contest.update(overvote_check);
+                    }
+                    if let Some(min_votes_val) = min_votes_opt.clone() {
+                        let min_check = check_min_vote_policy(
+                            num_selected_with_markers,
+                            min_votes_val,
+                        );
+                        decoded_contest.update(min_check);
+                    }
+
+                    let under_vote_check = check_under_vote_policy(
+                        &presentation,
+                        num_selected_with_markers,
+                        max_votes_opt.clone(),
+                        min_votes_opt.clone(),
+                    );
+                    decoded_contest.update(under_vote_check);
+
+                    // handle blank vote policy. A selected explicit blank or explicit
+                    // invalid marker counts as a selection, so it is not a blank vote.
+                    let blank_vote_check = check_blank_vote_policy(
+                        &presentation,
+                        num_selected_with_markers,
+                        is_explicit_invalid,
+                    );
+                    decoded_contest.update(blank_vote_check);
+                }
+            }
         }
-
         Ok(decoded_contest)
     }
 
@@ -3667,6 +3695,8 @@ mod tests {
     };
     use crate::validation::ContestValidator;
 
+    const LANE_REGULARS: [&str; 3] = ["a", "b", "c"];
+
     /// The message keys one lane recorded, errors then alerts, in order.
     fn recorded_keys(
         errors: &[InvalidPlaintextError],
@@ -3683,10 +3713,7 @@ mod tests {
 
     /// A contest with three ordinary candidates and both markers.
     fn lane_contest(
-        invalid: &InvalidVotePolicy,
-        blank: EBlankVotePolicy,
-        over: EOverVotePolicy,
-        under: EUnderVotePolicy,
+        presentation: Option<ContestPresentation>,
         min: i64,
         max: i64,
     ) -> Contest {
@@ -3710,13 +3737,7 @@ mod tests {
             min_votes: min,
             max_votes: max,
             counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
-            presentation: Some(ContestPresentation {
-                invalid_vote_policy: Some(invalid.clone()),
-                blank_vote_policy: Some(blank),
-                over_vote_policy: Some(over),
-                under_vote_policy: Some(under),
-                ..ContestPresentation::default()
-            }),
+            presentation,
             candidates,
             ..Contest::default()
         }
@@ -3764,30 +3785,82 @@ mod tests {
         selection
     }
 
-    const LANE_REGULARS: [&str; 3] = ["a", "b", "c"];
+    /// Runs every ballot of one contest through both lanes, recording each
+    /// kind of disagreement against the first cell that produced it.
+    fn compare_lanes(
+        contest: &Contest,
+        declined: bool,
+        label: &str,
+        found: &mut std::collections::BTreeMap<String, (String, usize)>,
+    ) {
+        let context = ContestCodecContext::new_unchecked(contest);
+        let validator = ContestValidator::for_contest(contest);
+        for regulars in 0..=LANE_REGULARS.len() {
+            for explicit_blank in [false, true] {
+                for explicit_invalid in [false, true] {
+                    // One slot per selectable candidate, each carrying a
+                    // candidate's position offset by one.
+                    let slots: Vec<u64> = (0..LANE_REGULARS.len())
+                        .map(|i| if i < regulars { (i + 1) as u64 } else { 0 })
+                        .collect();
+                    let multi = BallotChoices::decode_contest(
+                        &context,
+                        LANE_REGULARS.len(),
+                        &slots,
+                        explicit_invalid,
+                        explicit_blank,
+                        declined,
+                    )
+                    .expect("slots are in range");
+                    let selection = lane_selection(
+                        contest,
+                        regulars,
+                        explicit_blank,
+                        explicit_invalid,
+                        declined,
+                    );
+                    let unified = validator
+                        .messages(&selection)
+                        .expect("bounds are counts");
 
-    /// Where the multi-contest lane and the unified rules disagree.
+                    let a = recorded_keys(
+                        &multi.invalid_errors,
+                        &multi.invalid_alerts,
+                    );
+                    let b = recorded_keys(
+                        &unified.invalid_errors,
+                        &unified.invalid_alerts,
+                    );
+                    if a == b {
+                        continue;
+                    }
+                    let cell = format!(
+                        "{label}: {regulars} selected, blank marker {explicit_blank}, marked invalid {explicit_invalid}, declined {declined}"
+                    );
+                    let entry = found
+                        .entry(format!("multi {a} | unified {b}"))
+                        .or_insert((cell, 0));
+                    entry.1 += 1;
+                }
+            }
+        }
+    }
+
+    /// The multi-contest lane and the single-contest lane evaluate the same
+    /// policy rules, and this holds them to it.
     ///
-    /// The policy rules are written twice. `ContestValidator::messages`
-    /// evaluates them for single-contest decoding, the voting screen and
-    /// the booth; `decode_contest` above evaluates its own sequence of
-    /// `checker.rs` calls for multi-contest decoding. This test runs both
-    /// over the domain the compact encoding supports — plurality only —
-    /// and pins every disagreement.
-    ///
-    /// Declined ballots are excluded here and covered by the test below,
-    /// because their difference is structural rather than a drift between
-    /// two copies of one rule.
-    ///
-    /// The expected list is an inventory, not an endorsement: a new entry
-    /// means the copies have drifted further apart, and an empty list
-    /// means there is only one copy left.
+    /// Both now go through `ContestValidator`, so the test is a regression
+    /// guard rather than an inventory: it fails the moment one lane grows
+    /// a rule the other does not have. It runs over the domain the compact
+    /// encoding supports — plurality only — including contests that
+    /// configure no presentation at all, whose policy defaults do not come
+    /// from the policy enums.
     #[test]
     fn the_two_lanes_agree_on_the_policy_rules() {
         use std::collections::BTreeMap;
 
-        // Kind of disagreement -> the first cell showing it, and how many do.
         let mut found: BTreeMap<String, (String, usize)> = BTreeMap::new();
+        let mut contests: Vec<(String, Contest)> = Vec::new();
 
         for invalid in [
             InvalidVotePolicy::ALLOWED,
@@ -3820,77 +3893,17 @@ mod tests {
                                 if min > max {
                                     continue;
                                 }
-                                let contest = lane_contest(
-                                    &invalid, blank, over, under, min, max,
-                                );
-                                let context =
-                                    ContestCodecContext::new_unchecked(
-                                        &contest,
-                                    );
-                                let validator =
-                                    ContestValidator::for_contest(&contest);
-
-                                for regulars in 0..=LANE_REGULARS.len() {
-                                    for explicit_blank in [false, true] {
-                                        for explicit_invalid in [false, true] {
-                                            // One slot per selectable
-                                            // candidate, each carrying a
-                                            // candidate's position offset
-                                            // by one.
-                                            let slots: Vec<u64> = (0
-                                                ..LANE_REGULARS.len())
-                                                .map(|i| {
-                                                    if i < regulars {
-                                                        (i + 1) as u64
-                                                    } else {
-                                                        0
-                                                    }
-                                                })
-                                                .collect();
-                                            let multi =
-                                                BallotChoices::decode_contest(
-                                                    &context,
-                                                    LANE_REGULARS.len(),
-                                                    &slots,
-                                                    explicit_invalid,
-                                                    explicit_blank,
-                                                    false,
-                                                )
-                                                .expect("slots are in range");
-                                            let selection = lane_selection(
-                                                &contest,
-                                                regulars,
-                                                explicit_blank,
-                                                explicit_invalid,
-                                                false,
-                                            );
-                                            let unified = validator
-                                                .messages(&selection)
-                                                .expect("bounds are counts");
-
-                                            let a = recorded_keys(
-                                                &multi.invalid_errors,
-                                                &multi.invalid_alerts,
-                                            );
-                                            let b = recorded_keys(
-                                                &unified.invalid_errors,
-                                                &unified.invalid_alerts,
-                                            );
-                                            if a == b {
-                                                continue;
-                                            }
-                                            let cell = format!(
-                                                "{regulars} selected, blank marker {explicit_blank}, marked invalid {explicit_invalid}, min {min}, max {max}, {invalid} / {blank} / {over} / {under}"
-                                            );
-                                            let entry = found
-                                                .entry(format!(
-                                                    "multi {a} | unified {b}"
-                                                ))
-                                                .or_insert((cell, 0));
-                                            entry.1 += 1;
-                                        }
-                                    }
-                                }
+                                let presentation = ContestPresentation {
+                                    invalid_vote_policy: Some(invalid.clone()),
+                                    blank_vote_policy: Some(blank),
+                                    over_vote_policy: Some(over),
+                                    under_vote_policy: Some(under),
+                                    ..ContestPresentation::default()
+                                };
+                                contests.push((
+                                    format!("{invalid} / {blank} / {over} / {under}, min {min}, max {max}"),
+                                    lane_contest(Some(presentation), min, max),
+                                ));
                             }
                         }
                     }
@@ -3898,48 +3911,53 @@ mod tests {
             }
         }
 
+        // A contest that configures no presentation at all reads its
+        // policies from `ContestPresentation::default()`, which names them
+        // itself rather than leaving them to the policy enums — and the two
+        // disagree about the over-vote policy.
+        for min in 0..=2i64 {
+            for max in 1..=3i64 {
+                if min > max {
+                    continue;
+                }
+                contests.push((
+                    format!("no presentation, min {min}, max {max}"),
+                    lane_contest(None, min, max),
+                ));
+            }
+        }
+
+        for (label, contest) in &contests {
+            for declined in [false, true] {
+                compare_lanes(contest, declined, label, &mut found);
+            }
+        }
+
         for (kind, (cell, count)) in &found {
             println!("{kind}\n    first at {cell}\n    {count} cells\n");
         }
-
-        // Two rules differ, each showing up in more than one surrounding
-        // context. Both are corrections that were made in the unified
-        // copy and not here:
-        //
-        // - the empty ballot is not an under-vote (it is the blank rule's
-        //   domain), so the unified copy drops the alert this one raises;
-        // - a deliberate blank is not subject to `min_votes`, so the
-        //   unified copy drops the `selectedMin` error this one records,
-        //   which is what decides whether such a ballot counts.
-        let expected: Vec<&str> = vec![
-            "multi errors[] alerts[errors.implicit.underVote errors.implicit.blankVote] | unified errors[] alerts[errors.implicit.blankVote]",
-            "multi errors[] alerts[errors.implicit.underVote] | unified errors[] alerts[]",
-            "multi errors[errors.implicit.blankVote] alerts[errors.implicit.underVote] | unified errors[errors.implicit.blankVote] alerts[]",
-            "multi errors[errors.implicit.selectedMin] alerts[] | unified errors[] alerts[]",
-        ];
         let actual: Vec<&str> = found.keys().map(|k| k.as_str()).collect();
-        assert_eq!(actual, expected, "the two lanes drifted further apart");
+        assert_eq!(actual, Vec::<&str>::new(), "the two lanes disagree");
     }
 
-    /// A declined ballot reaches the two lanes differently, and unifying
-    /// them has to carry this across.
+    /// A declined ballot collects nothing from the selection policies.
     ///
-    /// The multi-contest lane skips the selection policies for a decline,
-    /// because a declined ballot is intentionally empty everywhere and
-    /// would otherwise collect errors and tally as invalid rather than
-    /// declined. The unified rules have no such skip: `VoteState` carries
-    /// the decline bit but only the tally classifier reads it, the
-    /// single-contest lane never seeing a declined ballot.
+    /// A decline is intentionally empty in every contest, so the
+    /// over/min/under/blank rules do not apply to it; without that, a
+    /// decline in a contest with a minimum, or with a blank-vote policy of
+    /// NOT_ALLOWED, would collect errors and be tallied as invalid rather
+    /// than declined. The rule lived only in this lane until the two were
+    /// unified, and this pins it in both.
     #[test]
-    fn a_decline_skips_the_selection_rules_only_in_the_multi_contest_lane() {
-        let contest = lane_contest(
-            &InvalidVotePolicy::ALLOWED,
-            EBlankVotePolicy::NOT_ALLOWED,
-            EOverVotePolicy::ALLOWED,
-            EUnderVotePolicy::ALLOWED,
-            2,
-            2,
-        );
+    fn a_decline_collects_nothing_from_the_selection_policies() {
+        let presentation = ContestPresentation {
+            invalid_vote_policy: Some(InvalidVotePolicy::ALLOWED),
+            blank_vote_policy: Some(EBlankVotePolicy::NOT_ALLOWED),
+            over_vote_policy: Some(EOverVotePolicy::ALLOWED),
+            under_vote_policy: Some(EUnderVotePolicy::ALLOWED),
+            ..ContestPresentation::default()
+        };
+        let contest = lane_contest(Some(presentation), 2, 2);
         let context = ContestCodecContext::new_unchecked(&contest);
 
         let multi = BallotChoices::decode_contest(
@@ -3956,12 +3974,21 @@ mod tests {
             "errors[] alerts[]"
         );
 
-        let selection = lane_selection(&contest, 0, false, false, true);
         let unified = ContestValidator::for_contest(&contest)
-            .messages(&selection)
+            .messages(&lane_selection(&contest, 0, false, false, true))
             .expect("bounds are counts");
         assert_eq!(
             recorded_keys(&unified.invalid_errors, &unified.invalid_alerts),
+            "errors[] alerts[]"
+        );
+
+        // The same ballot without the decline is invalid twice over, so the
+        // assertions above are not passing for want of a rule to break.
+        let voting = ContestValidator::for_contest(&contest)
+            .messages(&lane_selection(&contest, 0, false, false, false))
+            .expect("bounds are counts");
+        assert_eq!(
+            recorded_keys(&voting.invalid_errors, &voting.invalid_alerts),
             "errors[errors.implicit.selectedMin errors.implicit.blankVote] alerts[]"
         );
     }
