@@ -490,17 +490,27 @@ const ElectionSelectionScreen: React.FC = () => {
     })
 
     // Whether we have a definitive answer yet. On a fresh page load the Apollo
-    // cache starts empty, so this query is genuinely loading for a moment -
+    // cache starts empty, so these queries are genuinely loading for a moment -
     // default to "not yet known" rather than "not acknowledged" so voting
     // stays blocked (safe) without flashing the gate banner (misleading) for a
     // voter who has, in fact, already acknowledged.
     const hasAcknowledgmentLoaded =
-        !isMaterialsMandatory || dataMaterialsAcknowledgment !== undefined
+        !isMaterialsMandatory ||
+        (dataMaterialsAcknowledgment !== undefined && dataMaterials !== undefined)
 
+    const acknowledgedDocumentIds = new Set(
+        dataMaterialsAcknowledgment?.get_support_materials_acknowledgment?.document_ids ?? []
+    )
+
+    // Acknowledging is per-document, so a material published after the
+    // voter's last acknowledgment must gate voting again - checking the
+    // acknowledged count alone would let that new material slip through.
     const hasAcknowledgedSupportMaterials =
         !isMaterialsMandatory ||
-        (dataMaterialsAcknowledgment?.get_support_materials_acknowledgment?.document_ids.length ??
-            0) > 0
+        (dataMaterials?.sequent_backend_support_material.every(
+            (material) => !material.document_id || acknowledgedDocumentIds.has(material.document_id)
+        ) ??
+            false)
 
     const {
         data: castVotes,
