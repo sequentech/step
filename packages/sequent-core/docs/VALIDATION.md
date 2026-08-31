@@ -254,15 +254,22 @@ is told. The ballot's own three inputs reach the tally by a second route
 besides: with no error anywhere, what is selected still decides between
 valid, blank and declined.
 
-The map is asserted rather than printed, so it cannot quietly go stale: a
-rule that starts or stops reading an input fails the test. The table above
-is that test's own output, so refreshing it is a copy and paste rather than
-a transcription:
+The test that produces this map also asserts it, but is marked `#[ignore]`:
+enumerating the domain takes about three seconds, several times the rest of
+the crate's tests together, and that is too surprising a toll to put on
+everyone who runs them. So the table can drift from the rules, and the date
+below is the guard against reading a stale one:
+
+**Last verified: 2026-08-31.**
 
     cargo test -p sequent-core --features default_features --lib \
         validation::tests::which_inputs_move_which_effects \
-        -- --nocapture
+        -- --ignored --nocapture
 
-The test prints those rows and asserts the same map, so a pass means the
-table is already current, and a failure prints what this section should
-say.
+That prints the rows above and asserts the same map. A pass means this
+section is current, and the date should be moved to today. A failure prints
+the map as it now stands, which is what this section should then say — and
+means some rule started or stopped reading an input, which is worth
+understanding before the table is updated to match.
+
+Run it whenever the rules change. Nothing else will notice if you do not.

@@ -1774,16 +1774,50 @@ mod tests {
     /// without the ballot marked invalid. Ballots are built through
     /// [`ContestValidator::apply`], for the reason the test above gives.
     #[test]
+    // Ignored by default: enumerating the domain takes about 3s, which is
+    // several times the rest of this crate's tests put together, and that
+    // is a surprising toll to put on everyone who runs them. The cost is
+    // the domain itself — a contest is built for each of its 153,600
+    // reachable cells — so it does not reduce without giving up the
+    // exhaustiveness that makes the "provably cannot" half of the map worth
+    // having. Run it when the rules change; see docs/VALIDATION.md §6.
+    #[ignore = "enumerates 153,600 cells; run explicitly, see docs/VALIDATION.md section 6"]
     fn which_inputs_move_which_effects() {
         use crate::types::ceremonies::CountingAlgType;
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
-        /// Two effects are the same iff their digests are.
-        fn digest(value: &impl std::fmt::Debug) -> u64 {
+        /// Two message sets are the same iff their digests are. Hashed
+        /// rather than compared so that a whole domain's worth of
+        /// observations stays small, and hashed field by field rather than
+        /// through `Debug` so that enumerating the domain costs no string
+        /// formatting.
+        fn digest(sets: [&Emissions; 2]) -> u64 {
             let mut hasher = DefaultHasher::new();
-            format!("{value:?}").hash(&mut hasher);
+            for set in sets {
+                set.errors.len().hash(&mut hasher);
+                for key in &set.errors {
+                    key.hash(&mut hasher);
+                }
+                set.alerts.len().hash(&mut hasher);
+                for key in &set.alerts {
+                    key.hash(&mut hasher);
+                }
+            }
             hasher.finish()
+        }
+
+        /// The remaining three effects are a handful of bits each, so they
+        /// are their own fingerprint.
+        fn bits(class: BallotClass) -> u64 {
+            match class {
+                BallotClass::Valid => 0,
+                BallotClass::ExplicitBlank => 1,
+                BallotClass::ImplicitBlank => 2,
+                BallotClass::ExplicitInvalid => 3,
+                BallotClass::ImplicitInvalid => 4,
+                BallotClass::Declined => 5,
+            }
         }
 
         const REGULARS: [&str; 3] = ["a", "b", "c"];
@@ -1999,12 +2033,13 @@ mod tests {
                     true,
                 )
             };
+            let empty = Emissions::default();
             Some([
-                digest(vote.messages()),
-                digest(&(vote.hard_gate(), vote.soft_gate())),
-                digest(&(seen(false), seen(true))),
-                digest(&validator.selection_capped(&ballot)),
-                digest(&validator.classify(&ballot)),
+                digest([vote.messages(), &empty]),
+                u64::from(vote.hard_gate()) | u64::from(vote.soft_gate()) << 1,
+                digest([&seen(false), &seen(true)]),
+                u64::from(validator.selection_capped(&ballot)),
+                bits(validator.classify(&ballot)),
             ])
         };
 
