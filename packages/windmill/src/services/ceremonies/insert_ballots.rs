@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 // use crate::hasura::trustee::get_trustees_by_name;
+use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
@@ -33,8 +34,8 @@ use chrono::{DateTime, Utc};
 use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
-    ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
-    WeightedVotingPolicy,
+    BallotStyle, ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation,
+    HashableBallot, WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
@@ -47,7 +48,7 @@ use sequent_core::types::keycloak::{
     MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
 };
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -132,6 +133,44 @@ pub async fn insert_ballots_messages(
             .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
             .collect();
 
+    // A single-contest ballot deliberately has no ciphertext for an acclaimed
+    // contest. Keep its tally row so Velvet can generate the acclaimed result,
+    // but identify it from the published snapshot that defined the cast ballot
+    // rather than from editable live contest data.
+    let election_ids: Vec<String> = tally_session_contests
+        .iter()
+        .map(|contest| contest.election_id.clone())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    let published_ballot_styles = get_ballot_styles_by_elections(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        &election_ids,
+    )
+    .await?;
+    let mut acclaimed_contests = HashSet::new();
+    for ballot_style in published_ballot_styles {
+        let ballot_style_id = ballot_style.id;
+        let ballot_eml = ballot_style
+            .ballot_eml
+            .ok_or_else(|| anyhow!("Published ballot style {ballot_style_id} has no ballot EML"))?;
+        let ballot_style: BallotStyle = deserialize_str(&ballot_eml)
+            .with_context(|| format!("Could not read published ballot style {ballot_style_id}"))?;
+        for contest in ballot_style
+            .contests
+            .iter()
+            .filter(|contest| contest.is_acclaimed())
+        {
+            acclaimed_contests.insert((
+                ballot_style.election_id.clone(),
+                ballot_style.area_id.clone(),
+                contest.id.clone(),
+            ));
+        }
+    }
+
     // Collect all futures for parallel execution
     let mut tally_session_contests_updated = Vec::with_capacity(tally_session_contests.len());
 
@@ -140,6 +179,17 @@ pub async fn insert_ballots_messages(
         let tally_session_contest_batch = tally_session_contest_batch.to_vec();
 
         for tally_session_contest in tally_session_contest_batch {
+            let is_acclaimed =
+                tally_session_contest
+                    .contest_id
+                    .as_ref()
+                    .is_some_and(|contest_id| {
+                        acclaimed_contests.contains(&(
+                            tally_session_contest.election_id.clone(),
+                            tally_session_contest.area_id.clone(),
+                            contest_id.clone(),
+                        ))
+                    });
             // Clone necessary variables for each task. Arc::clone increments the ref count.
             let tenant_id_clone = tenant_id.to_string();
             let election_event_id_clone = election_event_id.to_string();
@@ -285,7 +335,7 @@ pub async fn insert_ballots_messages(
                         VoterMultiplicityColumn::None => None,
                     };
 
-                    let merge_result = merge_join_csv(
+                    let mut merge_result = merge_join_csv(
                         &ballots_temp_file,
                         &users_temp_file,
                         ballots_join_indexes,
@@ -294,6 +344,15 @@ pub async fn insert_ballots_messages(
                         Some(ballots_channel_index),
                         multiplicity_source,
                     )?;
+
+                    // Acclaimed contests are represented in the result
+                    // configuration but intentionally absent from every cast
+                    // ballot. Keep the row and its census annotations, but make
+                    // its ceremony batch empty rather than looking for a
+                    // ciphertext that cannot exist.
+                    if is_acclaimed {
+                        merge_result.ballot_contents.clear();
+                    }
 
                     // Checked before anything is posted, so a run that would
                     // be refused does not leave batches on an append-only
