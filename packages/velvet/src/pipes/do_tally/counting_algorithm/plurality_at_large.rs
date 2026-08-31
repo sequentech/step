@@ -57,7 +57,7 @@ impl PluralityAtLarge {
                 total_blank_ballots = total_blank_ballots.saturating_add(1);
             }
 
-            match classify_ballot(vote, &explicit_blank_candidate_ids) {
+            match classify_ballot(vote, contest) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
                     count_invalid += 1;

@@ -81,7 +81,7 @@ impl BallotsStatus<'_> {
                 count_blank_ballots = count_blank_ballots.saturating_add(1);
             }
 
-            let status = match classify_ballot(vote, &explicit_blank_candidate_ids) {
+            let status = match classify_ballot(vote, contest) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
                     BallotStatus::Invalid
