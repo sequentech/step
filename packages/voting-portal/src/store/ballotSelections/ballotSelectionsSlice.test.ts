@@ -44,6 +44,11 @@ const initState = (ballotStyle: IBallotStyle): BallotSelectionsState =>
 const getContestState = (state: BallotSelectionsState, ballotStyle: IBallotStyle) =>
     state[ballotStyle.election_id]?.find((c) => c.contest_id === CONTEST_ID)
 
+// jest.config.cjs maps `@sequentech/ui-core` to src/__mocks__/uiCoreTestEntry.ts,
+// where `applySelection` is a `jest.fn`. `tsc` resolves the real module instead,
+// where it is an ordinary function, so the mock's own API has to be named here.
+const applySelectionMock = applySelection as jest.MockedFunction<typeof applySelection>
+
 // The marker rules — when the explicit-invalid marker clears the voter's
 // selections and when it stands beside them — are decided by sequent-core
 // and tested there, exhaustively and against every policy
@@ -54,7 +59,7 @@ const getContestState = (state: BallotSelectionsState, ballotStyle: IBallotStyle
 // of the rules themselves.
 describe("ballotSelectionsSlice delegates selection edits to the validation rules", () => {
     beforeEach(() => {
-        applySelection.mockClear()
+        applySelectionMock.mockClear()
     })
 
     it("asks about this contest, with the voter's choice and the current invalid flag", () => {
@@ -77,9 +82,9 @@ describe("ballotSelectionsSlice delegates selection edits to the validation rule
             })
         )
 
-        expect(applySelection).toHaveBeenCalledTimes(2)
+        expect(applySelectionMock).toHaveBeenCalledTimes(2)
 
-        const [markedContest, , markedChoice, markedFlag] = applySelection.mock.calls[0]
+        const [markedContest, , markedChoice, markedFlag] = applySelectionMock.mock.calls[0]
         expect(markedContest.id).toBe(CONTEST_ID)
         expect(markedContest.presentation?.invalid_vote_policy).toBe(
             EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
@@ -88,7 +93,7 @@ describe("ballotSelectionsSlice delegates selection edits to the validation rule
         expect(markedFlag).toBe(true)
 
         const [chosenContest, chosenSelection, chosenChoice, chosenFlag] =
-            applySelection.mock.calls[1]
+            applySelectionMock.mock.calls[1]
         expect(chosenContest.id).toBe(CONTEST_ID)
         expect(chosenChoice).toEqual({id: REGULAR_CANDIDATE_ID, selected: 0})
         // The flag as it stood before this edit, so the rules can decide
@@ -105,7 +110,7 @@ describe("ballotSelectionsSlice delegates selection edits to the validation rule
 
         // A verdict the reducer cannot have produced on its own: the flag
         // turned off and every choice cleared.
-        applySelection.mockReturnValueOnce({
+        applySelectionMock.mockReturnValueOnce({
             ...before!,
             is_explicit_invalid: false,
             choices: before!.choices.map((choice) => ({...choice, selected: 7})),
@@ -139,7 +144,7 @@ describe("ballotSelectionsSlice delegates selection edits to the validation rule
             })
         )
 
-        expect(applySelection).toHaveBeenCalledTimes(1)
+        expect(applySelectionMock).toHaveBeenCalledTimes(1)
         expect(next[ballotStyle.election_id]?.filter((c) => c.contest_id !== CONTEST_ID)).toEqual(
             others
         )
