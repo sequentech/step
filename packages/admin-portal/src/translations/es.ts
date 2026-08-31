@@ -559,6 +559,16 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
                 materialActivated: "Materiales de Soporte activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiales de Soporte",
+                    helperText:
+                        "La opción Obligatorio para Votar requiere que los votantes abran cada Material de Soporte y confirmen que lo han leído antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obligatorio para Votar",
+                    },
+                },
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "Logo URL",
@@ -1116,6 +1126,7 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",

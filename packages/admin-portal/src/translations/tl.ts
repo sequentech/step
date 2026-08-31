@@ -561,6 +561,16 @@ const tagalogTranslation: TranslationType = {
                 language: "Wika",
                 votingChannels: "Mga Channel ng Pagboto",
                 materialActivated: "Mga Karagdagang Materyales na Gumagana",
+                supportMaterialsPolicy: {
+                    label: "Patakaran sa Mga Pangsuportang Materyales",
+                    helperText:
+                        "Ang Kinakailangan para Bumoto ay nangangailangan sa mga botante na buksan ang bawat Pangsuportang Materyal at kumpirmahin na nabasa na nila ito bago sila makaboto.",
+                    options: {
+                        off: "Naka-off",
+                        optional: "Opsyonal",
+                        mandatory_for_voting: "Kinakailangan para Bumoto",
+                    },
+                },
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
@@ -1115,6 +1125,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",

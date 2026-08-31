@@ -556,6 +556,16 @@ const basqueTranslation: TranslationType = {
                 language: "Hizkuntza",
                 votingChannels: "Bozketa Kanalak",
                 materialActivated: "Laguntza Materialak Aktibatuta",
+                supportMaterialsPolicy: {
+                    label: "Laguntza Materialen Politika",
+                    helperText:
+                        "Bozkatzeko Derrigorrezkoa aukeratzen bada, bozkatzaileek boto bat eman ahal izan aurretik Laguntza Material bakoitza ireki eta irakurri dutela berretsi beharko dute.",
+                    options: {
+                        off: "Desaktibatuta",
+                        optional: "Aukerakoa",
+                        mandatory_for_voting: "Bozkatzeko Derrigorrezkoa",
+                    },
+                },
                 materialTitle: "Izenburua",
                 materialSubTitle: "Azpititulua",
                 logoUrl: "Logo URLa",
@@ -1112,6 +1122,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",

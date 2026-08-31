@@ -559,6 +559,16 @@ const frenchTranslation: TranslationType = {
                 language: "Langue",
                 votingChannels: "Canaux de Vote",
                 materialActivated: "Matériaux de Support activés",
+                supportMaterialsPolicy: {
+                    label: "Politique des Matériaux de Support",
+                    helperText:
+                        "L'option Obligatoire pour Voter exige que les électeurs ouvrent chaque Matériau de Support et confirment qu'ils l'ont lu avant de pouvoir voter.",
+                    options: {
+                        off: "Désactivé",
+                        optional: "Facultatif",
+                        mandatory_for_voting: "Obligatoire pour Voter",
+                    },
+                },
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
@@ -1118,6 +1128,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",

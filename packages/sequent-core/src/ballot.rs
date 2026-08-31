@@ -987,10 +987,40 @@ pub enum KeysCeremonyPolicy {
     Eq,
     Debug,
     Clone,
+    Copy,
+    Default,
+    EnumString,
+    Display,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SupportMaterialsPolicy {
+    #[default]
+    Off,
+    Optional,
+    MandatoryForVoting,
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    PartialEq,
+    Eq,
+    Debug,
+    Clone,
     Default,
 )]
 pub struct ElectionEventMaterials {
-    pub activated: Option<bool>,
+    pub policy: Option<SupportMaterialsPolicy>,
+}
+
+impl ElectionEventMaterials {
+    pub fn effective_policy(&self) -> SupportMaterialsPolicy {
+        self.policy.unwrap_or_default()
+    }
 }
 
 #[derive(
@@ -3137,5 +3167,56 @@ mod presentation_borsh_compat_tests {
             ..election_presentation
         };
         assert_eq!(borsh::to_vec(&election_with_css).unwrap(), election_bytes);
+    }
+}
+
+#[cfg(test)]
+mod support_materials_policy_tests {
+    use super::*;
+
+    #[test]
+    fn test_default_is_off() {
+        assert_eq!(
+            SupportMaterialsPolicy::default(),
+            SupportMaterialsPolicy::Off
+        );
+    }
+
+    // Pins the serialized values: admin-portal and voting-portal hand-mirror
+    // this enum in TypeScript and must stay in sync with these strings.
+    #[test]
+    fn test_serialized_values() {
+        assert_eq!(
+            serde_json::to_string(&SupportMaterialsPolicy::Off).unwrap(),
+            "\"off\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SupportMaterialsPolicy::Optional).unwrap(),
+            "\"optional\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SupportMaterialsPolicy::MandatoryForVoting)
+                .unwrap(),
+            "\"mandatory_for_voting\""
+        );
+    }
+
+    #[test]
+    fn test_materials_without_policy_defaults_to_off() {
+        let materials: ElectionEventMaterials =
+            serde_json::from_str("{}").unwrap();
+        assert_eq!(materials.policy, None);
+        assert_eq!(materials.effective_policy(), SupportMaterialsPolicy::Off);
+    }
+
+    #[test]
+    fn test_effective_policy_returns_explicit_policy() {
+        let materials = ElectionEventMaterials {
+            policy: Some(SupportMaterialsPolicy::MandatoryForVoting),
+        };
+        assert_eq!(
+            materials.effective_policy(),
+            SupportMaterialsPolicy::MandatoryForVoting
+        );
     }
 }
