@@ -900,7 +900,11 @@ impl ContestValidator {
         }
         classify(
             decoded.is_decline_to_vote,
-            decoded.is_explicit_invalid,
+            // Derived, not read off the record: a contest may present the
+            // explicit-invalid marker as a candidate, and the rules that
+            // decide what the voter is told count that as marking the
+            // ballot invalid. The tally has to mean the same thing by it.
+            self.vote_state(decoded).explicit_invalid,
             !decoded.invalid_errors.is_empty(),
             match (marker, regular) {
                 (true, true) => SelectionClass::Mixed,
@@ -2232,5 +2236,261 @@ mod tests {
         assert!(!clean.hard_gate());
         assert!(blocking.hard_gate());
         assert!(BallotValidator::from_votes(vec![clean, blocking]).hard_gate());
+    }
+
+    /// The third worked analysis, and the one that covers the code the other
+    /// two cannot reach.
+    ///
+    /// Both analyses above reason about a ballot already reduced to a
+    /// [`VoteState`] — a count and some flags. [`ContestValidator::apply`]
+    /// sits upstream of that reduction: it takes real candidates with real
+    /// ids, so nothing expressible as a count and a flag can describe its
+    /// input. Enumerating vote states therefore certifies everything
+    /// downstream of `apply` and nothing about `apply` itself.
+    ///
+    /// So this enumerates `apply`'s own domain — candidate lists, the
+    /// selections reachable on them, and every edit that can be made — and
+    /// asserts properties stated without reference to any particular
+    /// candidate. That matters more than the breadth: an assertion phrased
+    /// as "the edit lands" catches a contest shape nobody thought to put in
+    /// the enumeration, whereas one phrased about "the blank marker" only
+    /// catches shapes with exactly one.
+    #[test]
+    fn apply_obeys_the_marker_rules_on_any_candidate_list() {
+        use crate::types::ceremonies::CountingAlgType;
+
+        const REGULARS: [&str; 2] = ["r0", "r1"];
+        const BLANKS: [&str; 2] = ["b0", "b1"];
+        const INVALIDS: [&str; 2] = ["i0", "i1"];
+        const DUAL: &str = "d";
+
+        let contest_of =
+            |regulars: usize,
+             blanks: usize,
+             invalids: usize,
+             dual: bool,
+             invalid: &InvalidVotePolicy| {
+                let candidate = |id: &str, blank: bool, inv: bool| Candidate {
+                    id: id.to_string(),
+                    presentation: Some(CandidatePresentation {
+                        is_explicit_blank: Some(blank),
+                        is_explicit_invalid: Some(inv),
+                        ..CandidatePresentation::default()
+                    }),
+                    ..Candidate::default()
+                };
+                let mut candidates = Vec::new();
+                for id in REGULARS.iter().take(regulars) {
+                    candidates.push(candidate(id, false, false));
+                }
+                for id in BLANKS.iter().take(blanks) {
+                    candidates.push(candidate(id, true, false));
+                }
+                for id in INVALIDS.iter().take(invalids) {
+                    candidates.push(candidate(id, false, true));
+                }
+                if dual {
+                    // A candidate a configuration could flag both ways. The
+                    // rules must do something coherent with it either way.
+                    candidates.push(candidate(DUAL, true, true));
+                }
+                Contest {
+                    min_votes: 0,
+                    max_votes: 2,
+                    counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+                    presentation: Some(ContestPresentation {
+                        invalid_vote_policy: Some(invalid.clone()),
+                        ..ContestPresentation::default()
+                    }),
+                    candidates,
+                    ..Contest::default()
+                }
+            };
+
+        let untouched = |contest: &Contest| DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|c| DecodedVoteChoice {
+                    id: c.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let is_selected = |s: &DecodedVoteContest, id: &str| {
+            s.choices.iter().any(|c| c.id == id && c.selected > -1)
+        };
+        let is_blank_marker = |contest: &Contest, id: &str| {
+            contest
+                .candidates
+                .iter()
+                .any(|c| c.id == id && c.is_explicit_blank())
+        };
+
+        let mut examined = 0usize;
+        for invalid in [
+            InvalidVotePolicy::ALLOWED,
+            InvalidVotePolicy::WARN,
+            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+            InvalidVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
+        ] {
+            let exclusive =
+                invalid == InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT;
+            for regulars in 0..=REGULARS.len() {
+                for blanks in 0..=BLANKS.len() {
+                    for invalids in 0..=INVALIDS.len() {
+                        for dual in [false, true] {
+                            let contest = contest_of(
+                                regulars, blanks, invalids, dual, &invalid,
+                            );
+                            let validator =
+                                ContestValidator::for_contest(&contest);
+                            let ids: Vec<String> = contest
+                                .candidates
+                                .iter()
+                                .map(|c| c.id.clone())
+                                .collect();
+
+                            // Every edit a voter can make on this contest.
+                            let mut edits: Vec<SelectionEdit> = Vec::new();
+                            for id in &ids {
+                                for selected in [0i64, -1] {
+                                    edits.push(SelectionEdit::Choice(
+                                        DecodedVoteChoice {
+                                            id: id.clone(),
+                                            selected,
+                                            write_in_text: None,
+                                        },
+                                    ));
+                                }
+                            }
+                            edits.push(SelectionEdit::ExplicitInvalid(true));
+                            edits.push(SelectionEdit::ExplicitInvalid(false));
+
+                            // Reachable states: untouched, and whatever one
+                            // edit produces from it.
+                            let mut states = vec![untouched(&contest)];
+                            for edit in &edits {
+                                states.push(
+                                    validator.apply(&states[0], edit.clone()),
+                                );
+                            }
+
+                            for before in &states {
+                                for edit in &edits {
+                                    let after =
+                                        validator.apply(before, edit.clone());
+                                    examined += 1;
+                                    let shape = format!(
+                                        "{regulars} regular, {blanks} blank, {invalids} invalid, dual {dual}, {invalid}"
+                                    );
+
+                                    // 1. The edit lands. Whatever else the
+                                    //    rules clear, the thing the voter
+                                    //    just did must have happened.
+                                    match edit {
+                                        SelectionEdit::Choice(choice) => {
+                                            assert_eq!(
+                                                is_selected(&after, &choice.id),
+                                                choice.selected > -1,
+                                                "edit did not land: {} on {shape}",
+                                                choice.id
+                                            );
+                                        }
+                                        SelectionEdit::ExplicitInvalid(
+                                            marked,
+                                        ) => {
+                                            assert_eq!(
+                                                after.is_explicit_invalid,
+                                                *marked,
+                                                "invalid flag did not land on {shape}"
+                                            );
+                                        }
+                                    }
+
+                                    // 2. Nothing else becomes selected. The
+                                    //    rules may clear, never choose.
+                                    for id in &ids {
+                                        let edited = matches!(
+                                            edit,
+                                            SelectionEdit::Choice(c) if &c.id == id
+                                        );
+                                        assert!(
+                                            edited
+                                                || is_selected(before, id)
+                                                || !is_selected(&after, id),
+                                            "{id} became selected without being chosen, on {shape}"
+                                        );
+                                    }
+
+                                    // 3. A declared blank stands alone: if a
+                                    //    blank marker is selected, nothing
+                                    //    that is not a blank marker is.
+                                    let blank_ids: Vec<&String> = ids
+                                        .iter()
+                                        .filter(|id| {
+                                            is_blank_marker(&contest, id)
+                                        })
+                                        .collect();
+                                    if blank_ids
+                                        .iter()
+                                        .any(|id| is_selected(&after, id))
+                                    {
+                                        for id in &ids {
+                                            assert!(
+                                                is_blank_marker(&contest, id)
+                                                    || !is_selected(&after, id),
+                                                "{id} stands beside a declared blank, on {shape}"
+                                            );
+                                        }
+                                    }
+
+                                    // 4. The rules and the tally agree on
+                                    //    whether this ballot is explicitly
+                                    //    invalid. They read it from
+                                    //    different places, so they can
+                                    //    disagree — and a ballot the rules
+                                    //    call invalid while the count calls
+                                    //    it valid is the whole failure this
+                                    //    module exists to prevent.
+                                    if validator
+                                        .vote_state(&after)
+                                        .explicit_invalid
+                                        && !after.is_decline_to_vote
+                                    {
+                                        assert_eq!(
+                                            validator.classify(&after),
+                                            BallotClass::ExplicitInvalid,
+                                            "the rules call this ballot explicitly invalid and the tally does not, on {shape}"
+                                        );
+                                    }
+
+                                    // 5. Under the exclusive policy an
+                                    //    explicitly invalid ballot carries
+                                    //    no selections at all.
+                                    if exclusive && after.is_explicit_invalid {
+                                        for id in &ids {
+                                            assert!(
+                                                !is_selected(&after, id),
+                                                "{id} survives an exclusive invalid marking, on {shape}"
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(examined > 20_000, "examined only {examined} combinations");
     }
 }
