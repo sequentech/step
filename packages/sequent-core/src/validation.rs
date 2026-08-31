@@ -493,8 +493,7 @@ impl ContestValidator {
     }
 
     /// Takes the policies and bounds directly, for callers that have them
-    /// abstractly and supply the [`VoteState`] themselves (this module's
-    /// tests, and the workbench's cell-by-cell evaluation). A validator
+    /// abstractly and supply the [`VoteState`] themselves. A validator
     /// built this way knows nothing of the contest's candidates, so it
     /// cannot summarize a decoded record — use [`Self::for_contest`] for
     /// that.
