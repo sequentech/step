@@ -379,6 +379,10 @@ const frenchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
+            materialsGate: {
+                instructions:
+                    "Vous devez lire <MaterialsLink>{{materialsTitle}}</MaterialsLink> avant de pouvoir voter.",
+            },
         },
         errors: {
             encoding: {
@@ -424,6 +428,11 @@ const frenchTranslation: TranslationType = {
                 close: "Fermer",
                 preview: "Aperçu",
                 download: "Télécharger",
+            },
+            mandatory: {
+                checkboxLabel: "J'ai lu la documentation et le support",
+                continueButton: "Continuer",
+                error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
         ballotLocator: {

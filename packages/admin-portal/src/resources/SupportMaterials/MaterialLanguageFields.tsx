@@ -26,12 +26,15 @@ export const MaterialLanguageFields: React.FC<MaterialLanguageFieldsProps> = ({
         <TextField
             label={titleLabel}
             size="small"
+            fullWidth
             value={titleValue}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onTitleChange(e.target.value)}
         />
         <TextField
             label={subtitleLabel}
             size="small"
+            fullWidth
+            sx={{marginTop: "1rem"}}
             value={subtitleValue}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSubtitleChange(e.target.value)}
         />
