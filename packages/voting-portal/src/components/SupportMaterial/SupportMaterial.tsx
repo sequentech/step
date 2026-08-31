@@ -83,6 +83,7 @@ export interface SupportMaterialProps {
     kind: string
     tenantId: string
     documentId: string
+    onViewed?: () => void
 }
 
 export const SupportMaterial: React.FC<SupportMaterialProps> = ({
@@ -91,6 +92,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
     kind,
     tenantId,
     documentId,
+    onViewed,
 }) => {
     const {t} = useTranslation()
     const [openPreview, openPreviewSet] = React.useState<boolean>(false)
@@ -158,6 +160,7 @@ export const SupportMaterial: React.FC<SupportMaterialProps> = ({
                 title={t("materials.common.preview")}
                 handleClose={(result: boolean) => {
                     openPreviewSet(false)
+                    onViewed?.()
                 }}
                 fullWidth
                 maxWidth="lg"

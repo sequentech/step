@@ -383,6 +383,10 @@ const catalanTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
+            materialsGate: {
+                instructions:
+                    "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
+            },
         },
         errors: {
             page: {
@@ -401,6 +405,11 @@ const catalanTranslation: TranslationType = {
                 close: "Tancar",
                 preview: "Vista prèvia",
                 download: "Descarregar",
+            },
+            mandatory: {
+                checkboxLabel: "He llegit els Materials de Suport",
+                continueButton: "Continua",
+                error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
             },
         },
         ballotLocator: {

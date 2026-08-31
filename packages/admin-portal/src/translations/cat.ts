@@ -560,6 +560,16 @@ const catalanTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canals de Vot",
                 materialActivated: "Materials de Suport activats",
+                supportMaterialsPolicy: {
+                    label: "Política de Materials de Suport",
+                    helperText:
+                        "L'opció Obligatòria per Votar requereix que els votants obrin cada Material de Suport i confirmin que l'han llegit abans de poder votar.",
+                    options: {
+                        off: "Desactivada",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obligatòria per Votar",
+                    },
+                },
                 materialTitle: "Títol",
                 materialSubTitle: "Subtítol",
                 logoUrl: "URL del Logotip",
@@ -1118,6 +1128,7 @@ const catalanTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Ha votat",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Pes del vot",
                     "voted-channel": "Canal de vot",
                     "disable-comment": "Comentari de desactivació",

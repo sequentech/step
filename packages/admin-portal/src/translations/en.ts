@@ -553,6 +553,16 @@ const englishTranslation = {
                 language: "Language",
                 votingChannels: "Voting Channels",
                 materialActivated: "Support Materials Activated",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
@@ -1105,6 +1115,7 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Vote Weight",
                     "voted-channel": "Voted Channel",
                     "disable-comment": "Disable Comment",

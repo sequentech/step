@@ -559,6 +559,16 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canles de Votación",
                 materialActivated: "Materiais de Soporte Activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiais de Soporte",
+                    helperText:
+                        "A opción Obrigatorio para Votar require que os votantes abran cada Material de Soporte e confirmen que o leron antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obrigatorio para Votar",
+                    },
+                },
                 materialTitle: "Título",
                 materialSubTitle: "Subtítulo",
                 logoUrl: "URL do Logo",
@@ -1115,6 +1125,7 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Peso do voto",
                     "voted-channel": "Canle de voto",
                     "disable-comment": "Comentario de desactivación",
