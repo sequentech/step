@@ -9,10 +9,7 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
-use sha2::{Digest, Sha256};
 use std::{
-    fs::File,
-    io::Read,
     thread::sleep,
     time::{Duration, Instant},
 };
@@ -56,22 +53,6 @@ impl ImportVoters {
     }
 }
 
-fn sha256_file(path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let mut file = File::open(path)?;
-    let mut hasher = Sha256::new();
-    let mut buffer = [0_u8; 8192];
-
-    loop {
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        hasher.update(&buffer[..read]);
-    }
-
-    Ok(hex::encode(hasher.finalize()))
-}
-
 pub fn import_voters(
     election_event_id: &str,
     file_path: &str,
@@ -80,7 +61,6 @@ pub fn import_voters(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let sha256 = sha256_file(file_path)?;
     let document_id = GetUploadUrl::upload_for_election_event(
         file_path.to_string(),
         is_local,
@@ -91,7 +71,7 @@ pub fn import_voters(
         tenant_id: config.tenant_id.clone(),
         document_id,
         election_event_id: Some(election_event_id.to_string()),
-        sha256: Some(sha256),
+        sha256: None,
     };
 
     let request_body = ImportUsers::build_query(variables);
