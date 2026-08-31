@@ -2074,8 +2074,26 @@ mod tests {
             ));
         }
 
+        // Printed as the markdown table docs/VALIDATION.md section 6
+        // carries, so that section can be replaced with this output rather
+        // than transcribed a cell at a time.
+        println!("| input | {} |", EFFECTS.join(" | "));
+        let mut rule = String::from("|---|");
+        for _ in EFFECTS {
+            rule.push_str(":-:|");
+        }
+        println!("{rule}");
         for (input, effects) in &map {
-            println!("{input:24} {}", effects.join(", "));
+            let label = if input.contains('_') {
+                format!("`{input}`")
+            } else {
+                input.to_string()
+            };
+            let cells: Vec<&str> = EFFECTS
+                .iter()
+                .map(|effect| if effects.contains(effect) { "•" } else { "" })
+                .collect();
+            println!("| {label} | {} |", cells.join(" | "));
         }
 
         // Read the absences. Under-vote and invalid-vote policy cannot

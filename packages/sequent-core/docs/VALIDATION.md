@@ -184,13 +184,13 @@ varies one input at a time and records which effects move.
 
 | input | messages | dialog | inline | reachability | tally |
 |---|:-:|:-:|:-:|:-:|:-:|
-| `invalid_vote_policy` | • | • | • | • | |
-| `blank_vote_policy` | • | • | • | | • |
-| `over_vote_policy` | • | • | • | • | |
-| `under_vote_policy` | • | • | • | | |
-| `duplicated_rank_policy` | | • | | | |
-| `preference_gaps_policy` | | • | | | |
-| `min_votes` | • | • | • | | • |
+| `invalid_vote_policy` | • | • | • | • |  |
+| `blank_vote_policy` | • | • | • |  | • |
+| `over_vote_policy` | • | • | • | • |  |
+| `under_vote_policy` | • | • | • |  |  |
+| `duplicated_rank_policy` |  | • |  |  |  |
+| `preference_gaps_policy` |  | • |  |  |  |
+| `min_votes` | • | • | • |  | • |
 | `max_votes` | • | • | • | • | • |
 | selections | • | • | • | • | • |
 | blank marker | • | • | • | • | • |
@@ -255,5 +255,14 @@ besides: with no error anywhere, what is selected still decides between
 valid, blank and declined.
 
 The map is asserted rather than printed, so it cannot quietly go stale: a
-rule that starts or stops reading an input fails the test. This table is a
-copy of the one the test asserts — update it when that assertion changes.
+rule that starts or stops reading an input fails the test. The table above
+is that test's own output, so refreshing it is a copy and paste rather than
+a transcription:
+
+    cargo test -p sequent-core --features default_features --lib \
+        validation::tests::which_inputs_move_which_effects \
+        -- --nocapture
+
+The test prints those rows and asserts the same map, so a pass means the
+table is already current, and a failure prints what this section should
+say.
