@@ -12,6 +12,11 @@ directive @cached(
   refresh: Boolean! = false
 ) on QUERY
 
+type AcknowledgeSupportMaterialsOutput {
+  document_ids: [String!]!
+  election_event_id: uuid!
+}
+
 type Aggregate {
   count: Int!
 }
@@ -469,6 +474,10 @@ input GetRolesInput {
 type GetRolesOutput {
   items: [KeycloakRole!]!
   total: TotalAggregate!
+}
+
+type GetSupportMaterialsAcknowledgmentOutput {
+  document_ids: [String!]!
 }
 
 input GetTopCastVotesByIpInput {
@@ -1211,6 +1220,8 @@ type mutation_root {
   ApplicationChangeStatus(body: ApplicationChangeStatusBody!): ApplicationChangeStatusOutput
   """Verify User Registration Application"""
   VerifyApplication(body: ApplicationVerifyBody!): String!
+  """acknowledge_support_materials"""
+  acknowledge_support_materials(document_ids: [String!]!, election_event_id: uuid!): AcknowledgeSupportMaterialsOutput
   """
   applies the Sequent-side reconciliation diff for an already-computed import
   """
@@ -5014,6 +5025,8 @@ type query_root {
   get_realm_attributes(election_event_id: String!): GetRealmAttributesOutput!
   get_realm_password_policy(election_event_id: String!): RealmPasswordPolicy!
   get_roles(body: GetRolesInput!): GetRolesOutput!
+  """get_support_materials_acknowledgment"""
+  get_support_materials_acknowledgment(election_event_id: uuid!): GetSupportMaterialsAcknowledgmentOutput!
   get_top_votes_by_ip(body: GetTopCastVotesByIpInput!): GetTopCastVotesByIpOutput
   get_user_profile_attributes(election_event_id: String, tenant_id: String!): [UserProfileAttribute!]!
   get_user_profile_configuration(election_event_id: String, tenant_id: String!): UserProfileConfiguration!
