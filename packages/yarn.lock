@@ -17692,15 +17692,15 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#b966e445575ca5300353a84896414d50bbac9328"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#c1d193b5172c8c46bd1048b165f3f40c845433a1"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#b966e445575ca5300353a84896414d50bbac9328"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#c1d193b5172c8c46bd1048b165f3f40c845433a1"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#b966e445575ca5300353a84896414d50bbac9328"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#c1d193b5172c8c46bd1048b165f3f40c845433a1"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"
