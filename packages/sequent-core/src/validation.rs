@@ -938,6 +938,7 @@ impl ContestValidator {
         match edit {
             SelectionEdit::Choice(choice) => {
                 let selecting = choice.selected > -1;
+                let edited_id = choice.id.clone();
                 let is_blank_marker =
                     self.shape.blank_markers.contains(&choice.id);
                 if let Some(existing) =
@@ -949,14 +950,12 @@ impl ContestValidator {
                 }
                 if selecting {
                     if is_blank_marker {
-                        // The declared blank stands alone.
-                        let marker = edited
-                            .choices
-                            .iter()
-                            .find(|c| self.shape.blank_markers.contains(&c.id))
-                            .map(|c| c.id.clone());
+                        // The declared blank stands alone. What survives is
+                        // the marker the voter just chose — a contest may
+                        // define more than one, and clearing "everything but
+                        // the first blank marker" would clear this very edit.
                         for other in edited.choices.iter_mut() {
-                            if Some(&other.id) != marker.as_ref() {
+                            if other.id != edited_id {
                                 other.selected = -1;
                             }
                         }
@@ -1421,6 +1420,41 @@ mod tests {
             selected: if selected { 0 } else { -1 },
             write_in_text: None,
         })
+    }
+
+    /// A contest may define more than one "leave this blank" option. The
+    /// marker the voter chose is the one that survives — clearing
+    /// everything but the *first* blank marker would clear the very edit
+    /// being applied.
+    #[test]
+    fn the_blank_marker_that_survives_is_the_one_chosen() {
+        let mut contest = both_markers_contest(InvalidVotePolicy::ALLOWED);
+        contest.candidates.push(Candidate {
+            id: "blank2".to_string(),
+            presentation: Some(CandidatePresentation {
+                is_explicit_blank: Some(true),
+                is_explicit_invalid: Some(false),
+                ..CandidatePresentation::default()
+            }),
+            ..Candidate::default()
+        });
+        let validator = ContestValidator::for_contest(&contest);
+
+        let mut before = selections(&["normal"]);
+        before.choices.push(DecodedVoteChoice {
+            id: "blank2".to_string(),
+            selected: -1,
+            write_in_text: None,
+        });
+
+        // Choosing the second blank marker leaves that one selected, not
+        // the first, and clears the ordinary selection beside it.
+        let after = validator.apply(&before, choose("blank2", true));
+        assert_eq!(picked(&after), vec!["blank2"]);
+
+        // And the first still works the same way.
+        let after = validator.apply(&before, choose("blank", true));
+        assert_eq!(picked(&after), vec!["blank"]);
     }
 
     #[test]

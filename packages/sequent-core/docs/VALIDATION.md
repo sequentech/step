@@ -48,7 +48,7 @@ full.
 | inline | `ContestValidator::filter_visible_messages` | the booth's `InvalidErrorsList.tsx`, through `filter_visible_messages_js` |
 | reachability | `ContestValidator::selection_capped` | the booth's `Question.tsx`, deciding whether to disable the remaining controls, through `selection_capped_js` |
 | reachability | `ContestValidator::apply` | the booth's selection reducer `ballotSelectionsSlice.ts`, applying what a marker clears, through `apply_selection_js` |
-| tally | `ContestValidator::classify` | the counting algorithms in `velvet-core` |
+| tally | `ContestValidator::classify` | velvet's `classify_ballot`, in [`counting_algorithm/utils.rs`](../../velvet/src/pipes/do_tally/counting_algorithm/utils.rs), which the plurality and instant-runoff algorithms call for every cast ballot |
 
 Two shapes recur, and the difference between them matters:
 
