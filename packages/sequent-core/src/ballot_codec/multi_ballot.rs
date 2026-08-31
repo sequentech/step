@@ -3660,4 +3660,309 @@ mod tests {
             write!(f, "{}", s)
         }
     }
+
+    use crate::ballot::{
+        CandidatePresentation, ContestPresentation, EBlankVotePolicy,
+        EOverVotePolicy, InvalidVotePolicy,
+    };
+    use crate::validation::ContestValidator;
+
+    /// The message keys one lane recorded, errors then alerts, in order.
+    fn recorded_keys(
+        errors: &[InvalidPlaintextError],
+        alerts: &[InvalidPlaintextError],
+    ) -> String {
+        let of = |list: &[InvalidPlaintextError]| {
+            list.iter()
+                .map(|e| e.message.clone().unwrap_or_default())
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        format!("errors[{}] alerts[{}]", of(errors), of(alerts))
+    }
+
+    /// A contest with three ordinary candidates and both markers.
+    fn lane_contest(
+        invalid: &InvalidVotePolicy,
+        blank: EBlankVotePolicy,
+        over: EOverVotePolicy,
+        under: EUnderVotePolicy,
+        min: i64,
+        max: i64,
+    ) -> Contest {
+        let candidate =
+            |id: &str, is_blank: bool, is_invalid: bool| Candidate {
+                id: id.to_string(),
+                presentation: Some(CandidatePresentation {
+                    is_explicit_blank: Some(is_blank),
+                    is_explicit_invalid: Some(is_invalid),
+                    ..CandidatePresentation::default()
+                }),
+                ..Candidate::default()
+            };
+        let mut candidates: Vec<Candidate> = LANE_REGULARS
+            .iter()
+            .map(|id| candidate(id, false, false))
+            .collect();
+        candidates.push(candidate("blank", true, false));
+        candidates.push(candidate("null", false, true));
+        Contest {
+            min_votes: min,
+            max_votes: max,
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+            presentation: Some(ContestPresentation {
+                invalid_vote_policy: Some(invalid.clone()),
+                blank_vote_policy: Some(blank),
+                over_vote_policy: Some(over),
+                under_vote_policy: Some(under),
+                ..ContestPresentation::default()
+            }),
+            candidates,
+            ..Contest::default()
+        }
+    }
+
+    /// The same ballot the compact encoding's slots describe, in the form
+    /// the unified rules read.
+    fn lane_selection(
+        contest: &Contest,
+        regulars: usize,
+        explicit_blank: bool,
+        explicit_invalid: bool,
+        declined: bool,
+    ) -> DecodedVoteContest {
+        let mut selection = DecodedVoteContest {
+            contest_id: contest.id.clone(),
+            is_explicit_invalid: explicit_invalid,
+            is_decline_to_vote: declined,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: contest
+                .candidates
+                .iter()
+                .map(|c| DecodedVoteChoice {
+                    id: c.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let mut select = |id: &str| {
+            if let Some(choice) =
+                selection.choices.iter_mut().find(|c| c.id == id)
+            {
+                choice.selected = 0;
+            }
+        };
+        for id in LANE_REGULARS.iter().take(regulars) {
+            select(id);
+        }
+        if explicit_blank {
+            select("blank");
+        }
+        selection
+    }
+
+    const LANE_REGULARS: [&str; 3] = ["a", "b", "c"];
+
+    /// Where the multi-contest lane and the unified rules disagree.
+    ///
+    /// The policy rules are written twice. `ContestValidator::messages`
+    /// evaluates them for single-contest decoding, the voting screen and
+    /// the booth; `decode_contest` above evaluates its own sequence of
+    /// `checker.rs` calls for multi-contest decoding. This test runs both
+    /// over the domain the compact encoding supports — plurality only —
+    /// and pins every disagreement.
+    ///
+    /// Declined ballots are excluded here and covered by the test below,
+    /// because their difference is structural rather than a drift between
+    /// two copies of one rule.
+    ///
+    /// The expected list is an inventory, not an endorsement: a new entry
+    /// means the copies have drifted further apart, and an empty list
+    /// means there is only one copy left.
+    #[test]
+    fn the_two_lanes_agree_on_the_policy_rules() {
+        use std::collections::BTreeMap;
+
+        // Kind of disagreement -> the first cell showing it, and how many do.
+        let mut found: BTreeMap<String, (String, usize)> = BTreeMap::new();
+
+        for invalid in [
+            InvalidVotePolicy::ALLOWED,
+            InvalidVotePolicy::WARN,
+            InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT,
+            InvalidVotePolicy::NOT_ALLOWED,
+            InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT,
+        ] {
+            for blank in [
+                EBlankVotePolicy::ALLOWED,
+                EBlankVotePolicy::WARN,
+                EBlankVotePolicy::WARN_ONLY_IN_REVIEW,
+                EBlankVotePolicy::NOT_ALLOWED,
+            ] {
+                for over in [
+                    EOverVotePolicy::ALLOWED,
+                    EOverVotePolicy::ALLOWED_WITH_MSG,
+                    EOverVotePolicy::ALLOWED_WITH_MSG_AND_ALERT,
+                    EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT,
+                    EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_DISABLE,
+                ] {
+                    for under in [
+                        EUnderVotePolicy::ALLOWED,
+                        EUnderVotePolicy::WARN,
+                        EUnderVotePolicy::WARN_ONLY_IN_REVIEW,
+                        EUnderVotePolicy::WARN_AND_ALERT,
+                    ] {
+                        for min in 0..=2i64 {
+                            for max in 1..=3i64 {
+                                if min > max {
+                                    continue;
+                                }
+                                let contest = lane_contest(
+                                    &invalid, blank, over, under, min, max,
+                                );
+                                let context =
+                                    ContestCodecContext::new_unchecked(
+                                        &contest,
+                                    );
+                                let validator =
+                                    ContestValidator::for_contest(&contest);
+
+                                for regulars in 0..=LANE_REGULARS.len() {
+                                    for explicit_blank in [false, true] {
+                                        for explicit_invalid in [false, true] {
+                                            // One slot per selectable
+                                            // candidate, each carrying a
+                                            // candidate's position offset
+                                            // by one.
+                                            let slots: Vec<u64> = (0
+                                                ..LANE_REGULARS.len())
+                                                .map(|i| {
+                                                    if i < regulars {
+                                                        (i + 1) as u64
+                                                    } else {
+                                                        0
+                                                    }
+                                                })
+                                                .collect();
+                                            let multi =
+                                                BallotChoices::decode_contest(
+                                                    &context,
+                                                    LANE_REGULARS.len(),
+                                                    &slots,
+                                                    explicit_invalid,
+                                                    explicit_blank,
+                                                    false,
+                                                )
+                                                .expect("slots are in range");
+                                            let selection = lane_selection(
+                                                &contest,
+                                                regulars,
+                                                explicit_blank,
+                                                explicit_invalid,
+                                                false,
+                                            );
+                                            let unified = validator
+                                                .messages(&selection)
+                                                .expect("bounds are counts");
+
+                                            let a = recorded_keys(
+                                                &multi.invalid_errors,
+                                                &multi.invalid_alerts,
+                                            );
+                                            let b = recorded_keys(
+                                                &unified.invalid_errors,
+                                                &unified.invalid_alerts,
+                                            );
+                                            if a == b {
+                                                continue;
+                                            }
+                                            let cell = format!(
+                                                "{regulars} selected, blank marker {explicit_blank}, marked invalid {explicit_invalid}, min {min}, max {max}, {invalid} / {blank} / {over} / {under}"
+                                            );
+                                            let entry = found
+                                                .entry(format!(
+                                                    "multi {a} | unified {b}"
+                                                ))
+                                                .or_insert((cell, 0));
+                                            entry.1 += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for (kind, (cell, count)) in &found {
+            println!("{kind}\n    first at {cell}\n    {count} cells\n");
+        }
+
+        // Two rules differ, each showing up in more than one surrounding
+        // context. Both are corrections that were made in the unified
+        // copy and not here:
+        //
+        // - the empty ballot is not an under-vote (it is the blank rule's
+        //   domain), so the unified copy drops the alert this one raises;
+        // - a deliberate blank is not subject to `min_votes`, so the
+        //   unified copy drops the `selectedMin` error this one records,
+        //   which is what decides whether such a ballot counts.
+        let expected: Vec<&str> = vec![
+            "multi errors[] alerts[errors.implicit.underVote errors.implicit.blankVote] | unified errors[] alerts[errors.implicit.blankVote]",
+            "multi errors[] alerts[errors.implicit.underVote] | unified errors[] alerts[]",
+            "multi errors[errors.implicit.blankVote] alerts[errors.implicit.underVote] | unified errors[errors.implicit.blankVote] alerts[]",
+            "multi errors[errors.implicit.selectedMin] alerts[] | unified errors[] alerts[]",
+        ];
+        let actual: Vec<&str> = found.keys().map(|k| k.as_str()).collect();
+        assert_eq!(actual, expected, "the two lanes drifted further apart");
+    }
+
+    /// A declined ballot reaches the two lanes differently, and unifying
+    /// them has to carry this across.
+    ///
+    /// The multi-contest lane skips the selection policies for a decline,
+    /// because a declined ballot is intentionally empty everywhere and
+    /// would otherwise collect errors and tally as invalid rather than
+    /// declined. The unified rules have no such skip: `VoteState` carries
+    /// the decline bit but only the tally classifier reads it, the
+    /// single-contest lane never seeing a declined ballot.
+    #[test]
+    fn a_decline_skips_the_selection_rules_only_in_the_multi_contest_lane() {
+        let contest = lane_contest(
+            &InvalidVotePolicy::ALLOWED,
+            EBlankVotePolicy::NOT_ALLOWED,
+            EOverVotePolicy::ALLOWED,
+            EUnderVotePolicy::ALLOWED,
+            2,
+            2,
+        );
+        let context = ContestCodecContext::new_unchecked(&contest);
+
+        let multi = BallotChoices::decode_contest(
+            &context,
+            LANE_REGULARS.len(),
+            &[0, 0, 0],
+            false,
+            false,
+            true,
+        )
+        .expect("slots are in range");
+        assert_eq!(
+            recorded_keys(&multi.invalid_errors, &multi.invalid_alerts),
+            "errors[] alerts[]"
+        );
+
+        let selection = lane_selection(&contest, 0, false, false, true);
+        let unified = ContestValidator::for_contest(&contest)
+            .messages(&selection)
+            .expect("bounds are counts");
+        assert_eq!(
+            recorded_keys(&unified.invalid_errors, &unified.invalid_alerts),
+            "errors[errors.implicit.selectedMin errors.implicit.blankVote] alerts[]"
+        );
+    }
 }
