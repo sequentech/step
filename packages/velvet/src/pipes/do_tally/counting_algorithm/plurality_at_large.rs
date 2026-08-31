@@ -8,6 +8,7 @@ use crate::pipes::do_tally::{
     ExtendedMetricsContest, InvalidVotes,
 };
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
+use sequent_core::validation::ContestValidator;
 use std::cmp;
 use std::collections::HashMap;
 use tracing::{info, instrument};
@@ -28,6 +29,9 @@ impl PluralityAtLarge {
         let contest = &self.tally.contest;
         let votes = &self.tally.ballots;
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
+        // Built once per contest: the marker-id sets it derives do not
+        // change from ballot to ballot.
+        let validator = ContestValidator::for_contest(contest);
 
         let mut vote_count: HashMap<String, u64> = HashMap::new();
         let mut count_invalid_votes = InvalidVotes::default();
@@ -57,7 +61,7 @@ impl PluralityAtLarge {
                 total_blank_ballots = total_blank_ballots.saturating_add(1);
             }
 
-            match classify_ballot(vote, contest) {
+            match classify_ballot(vote, &validator) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
                     count_invalid += 1;
