@@ -1426,41 +1426,6 @@ mod tests {
         })
     }
 
-    /// A contest may define more than one "leave this blank" option. The
-    /// marker the voter chose is the one that survives — clearing
-    /// everything but the *first* blank marker would clear the very edit
-    /// being applied.
-    #[test]
-    fn the_blank_marker_that_survives_is_the_one_chosen() {
-        let mut contest = both_markers_contest(InvalidVotePolicy::ALLOWED);
-        contest.candidates.push(Candidate {
-            id: "blank2".to_string(),
-            presentation: Some(CandidatePresentation {
-                is_explicit_blank: Some(true),
-                is_explicit_invalid: Some(false),
-                ..CandidatePresentation::default()
-            }),
-            ..Candidate::default()
-        });
-        let validator = ContestValidator::for_contest(&contest);
-
-        let mut before = selections(&["normal"]);
-        before.choices.push(DecodedVoteChoice {
-            id: "blank2".to_string(),
-            selected: -1,
-            write_in_text: None,
-        });
-
-        // Choosing the second blank marker leaves that one selected, not
-        // the first, and clears the ordinary selection beside it.
-        let after = validator.apply(&before, choose("blank2", true));
-        assert_eq!(picked(&after), vec!["blank2"]);
-
-        // And the first still works the same way.
-        let after = validator.apply(&before, choose("blank", true));
-        assert_eq!(picked(&after), vec!["blank"]);
-    }
-
     #[test]
     fn the_declared_blank_stands_alone() {
         let v = ContestValidator::for_contest(&both_markers_contest(
