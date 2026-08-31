@@ -40,6 +40,9 @@ import {
     IDecodedVoteContest,
     check_voting_not_allowed_next,
     check_voting_error_dialog,
+    filter_visible_messages_js,
+    selection_capped_js,
+    apply_selection_js,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
     get_default_duplicated_rank_policy_js,
@@ -375,6 +378,64 @@ export const verifyMultiBallotSignature = (
     try {
         let isVerified: boolean = verify_multi_ballot_signature_js(ballot_id, election_id, content)
         return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * The decoded contest reduced to the messages the voter should see on the
+ * screen being rendered: the same record with invalid_errors and
+ * invalid_alerts filtered by the validation rules in sequent-core.
+ * isReview selects the review screen over the voting screen; isTouched is
+ * whether the voter has selected anything in this contest yet.
+ */
+export const filterVisibleMessages = (
+    contest: IContest,
+    decodedContest: IDecodedVoteContest,
+    isReview: boolean,
+    isTouched: boolean
+): IDecodedVoteContest => {
+    try {
+        return filter_visible_messages_js(contest, decodedContest, isReview, isTouched)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * Whether the contest has taken all the selections it will accept, so the
+ * booth should stop offering more. Decided by the validation rules in
+ * sequent-core, from the same selection count they use.
+ */
+export const selectionCapped = (
+    contest: IContest,
+    contestSelection: IDecodedVoteContest
+): boolean => {
+    try {
+        return selection_capped_js(contest, contestSelection)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/*
+ * Applies one edit to a contest's selections, enforcing the marker rules
+ * in sequent-core: pass a vote choice to select/deselect/rank a candidate,
+ * or null plus explicitInvalid to mark the contest invalid. Returns the
+ * edited selections; ballot-level flags are untouched.
+ */
+export const applySelection = (
+    contest: IContest,
+    selection: IDecodedVoteContest,
+    choice: IDecodedVoteChoice | null,
+    explicitInvalid: boolean
+): IDecodedVoteContest => {
+    try {
+        return apply_selection_js(contest, selection, choice, explicitInvalid)
     } catch (error) {
         console.log(error)
         throw error

@@ -31,6 +31,7 @@ extern crate console_error_panic_hook;
 use crate::util::voting_screen::{
     check_voting_error_dialog_util, check_voting_not_allowed_next_util,
 };
+use crate::validation::{ContestValidator, SelectionEdit};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use schemars::JsonSchema;
@@ -946,6 +947,98 @@ pub fn check_is_blank_js(
     serde_wasm_bindgen::to_value(&is_blank)
         .map_err(|err| {
             format!("Error converting boolean is_blank to json {:?}", err)
+        })
+        .into_json()
+}
+
+/// Applies one edit to a contest's selections, enforcing the marker rules
+/// (see `validation::ContestValidator::apply`). `choice` is a decoded vote
+/// choice to write, or null to mark/unmark the contest explicitly invalid
+/// with `explicit_invalid`.
+#[wasm_bindgen]
+pub fn apply_selection_js(
+    contest_json: JsValue,
+    selection_json: JsValue,
+    choice_json: JsValue,
+    explicit_invalid: bool,
+) -> Result<JsValue, JsValue> {
+    let contest: Contest = serde_wasm_bindgen::from_value(contest_json)
+        .map_err(|err| format!("Error parsing contest: {}", err))
+        .into_json()?;
+    let selection: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(selection_json)
+            .map_err(|err| format!("Error parsing selection: {}", err))
+            .into_json()?;
+    let choice: Option<DecodedVoteChoice> =
+        serde_wasm_bindgen::from_value(choice_json)
+            .map_err(|err| format!("Error parsing vote choice: {}", err))
+            .into_json()?;
+
+    let edit = match choice {
+        Some(choice) => SelectionEdit::Choice(choice),
+        None => SelectionEdit::ExplicitInvalid(explicit_invalid),
+    };
+    let edited =
+        ContestValidator::for_contest(&contest).apply(&selection, edit);
+
+    let serializer = Serializer::json_compatible();
+    edited
+        .serialize(&serializer)
+        .map_err(|err| format!("Error converting selection to json {:?}", err))
+        .into_json()
+}
+
+/// Reports whether the contest has taken all the selections it will
+/// accept, so the booth should stop offering more (see
+/// `validation::ContestValidator::selection_capped`).
+#[wasm_bindgen]
+pub fn selection_capped_js(
+    contest_json: JsValue,
+    decoded_contest_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let contest: Contest = serde_wasm_bindgen::from_value(contest_json)
+        .map_err(|err| format!("Error parsing contest: {}", err))
+        .into_json()?;
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+
+    Ok(JsValue::from_bool(
+        ContestValidator::for_contest(&contest)
+            .selection_capped(&decoded_contest),
+    ))
+}
+
+/// Returns the decoded contest reduced to the messages the voter should
+/// see on the screen being rendered: the same record with `invalid_errors` and
+/// `invalid_alerts` filtered by the validation rules (see
+/// `validation::filter_visible_messages`). `is_review` selects the review
+/// screen over the voting screen; `is_touched` is whether the voter has
+/// selected anything in this contest yet.
+#[wasm_bindgen]
+pub fn filter_visible_messages_js(
+    contest_json: JsValue,
+    decoded_contest_json: JsValue,
+    is_review: bool,
+    is_touched: bool,
+) -> Result<JsValue, JsValue> {
+    let contest: Contest = serde_wasm_bindgen::from_value(contest_json)
+        .map_err(|err| format!("Error parsing contest: {}", err))
+        .into_json()?;
+    let decoded_contest: DecodedVoteContest =
+        serde_wasm_bindgen::from_value(decoded_contest_json)
+            .map_err(|err| format!("Error parsing decoded contest: {}", err))
+            .into_json()?;
+
+    let visible = ContestValidator::for_contest(&contest)
+        .filter_visible_messages(&decoded_contest, is_review, is_touched);
+
+    let serializer = Serializer::json_compatible();
+    visible
+        .serialize(&serializer)
+        .map_err(|err| {
+            format!("Error converting decoded contest to json {:?}", err)
         })
         .into_json()
 }
