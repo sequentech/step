@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {EInvalidVotePolicy} from "@sequentech/ui-core"
+import {applySelection, EInvalidVotePolicy} from "@sequentech/ui-core"
 import type {BallotSelection, ICandidate, IContest} from "@sequentech/ui-core"
 import {ELECTION_WITH_INVALID} from "../../fixtures/election"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
@@ -44,25 +44,20 @@ const initState = (ballotStyle: IBallotStyle): BallotSelectionsState =>
 const getContestState = (state: BallotSelectionsState, ballotStyle: IBallotStyle) =>
     state[ballotStyle.election_id]?.find((c) => c.contest_id === CONTEST_ID)
 
-describe("ballotSelectionsSlice mutual exclusion between explicit-invalid and other choices", () => {
-    it.each([EInvalidVotePolicy.ALLOWED, EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT])(
-        "selecting explicit invalid alone sets is_explicit_invalid under %s",
-        (policy) => {
-            const ballotStyle = buildBallotStyle(policy)
-            let state = initState(ballotStyle)
-            state = ballotSelectionsSlice.reducer(
-                state,
-                setBallotSelectionInvalidVote({
-                    ballotStyle,
-                    contestId: CONTEST_ID,
-                    isExplicitInvalid: true,
-                })
-            )
-            expect(getContestState(state, ballotStyle)?.is_explicit_invalid).toBe(true)
-        }
-    )
+// The marker rules — when the explicit-invalid marker clears the voter's
+// selections and when it stands beside them — are decided by sequent-core
+// and tested there, exhaustively and against every policy
+// (`the_invalid_marker_keeps_company_unless_the_policy_forbids_it`). What
+// remains this suite's business is the wiring: that the reducer asks about
+// the right contest, hands over the edit the voter made, and writes the whole
+// answer back into state. A mistake there would survive any number of tests
+// of the rules themselves.
+describe("ballotSelectionsSlice delegates selection edits to the validation rules", () => {
+    beforeEach(() => {
+        applySelection.mockClear()
+    })
 
-    it("selecting a regular candidate clears a previously selected explicit invalid under ALLOWED_WITH_EXCLUSIVE_EXPLICIT", () => {
+    it("asks about this contest, with the voter's choice and the current invalid flag", () => {
         const ballotStyle = buildBallotStyle(EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
         let state = initState(ballotStyle)
         state = ballotSelectionsSlice.reducer(
@@ -73,7 +68,6 @@ describe("ballotSelectionsSlice mutual exclusion between explicit-invalid and ot
                 isExplicitInvalid: true,
             })
         )
-
         state = ballotSelectionsSlice.reducer(
             state,
             setBallotSelectionVoteChoice({
@@ -83,24 +77,60 @@ describe("ballotSelectionsSlice mutual exclusion between explicit-invalid and ot
             })
         )
 
-        const contestState = getContestState(state, ballotStyle)
+        expect(applySelection).toHaveBeenCalledTimes(2)
+
+        const [markedContest, , markedChoice, markedFlag] = applySelection.mock.calls[0]
+        expect(markedContest.id).toBe(CONTEST_ID)
+        expect(markedContest.presentation?.invalid_vote_policy).toBe(
+            EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+        )
+        expect(markedChoice).toBeNull()
+        expect(markedFlag).toBe(true)
+
+        const [chosenContest, chosenSelection, chosenChoice, chosenFlag] =
+            applySelection.mock.calls[1]
+        expect(chosenContest.id).toBe(CONTEST_ID)
+        expect(chosenChoice).toEqual({id: REGULAR_CANDIDATE_ID, selected: 0})
+        // The flag as it stood before this edit, so the rules can decide
+        // whether the marker and the selection may stand together.
+        expect(chosenFlag).toBe(true)
+        expect(chosenSelection.contest_id).toBe(CONTEST_ID)
+    })
+
+    it("writes back both the choices and the invalid flag the rules return", () => {
+        const ballotStyle = buildBallotStyle(EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
+        const state = initState(ballotStyle)
+        const before = getContestState(state, ballotStyle)
+        expect(before).toBeDefined()
+
+        // A verdict the reducer cannot have produced on its own: the flag
+        // turned off and every choice cleared.
+        applySelection.mockReturnValueOnce({
+            ...before!,
+            is_explicit_invalid: false,
+            choices: before!.choices.map((choice) => ({...choice, selected: 7})),
+        })
+
+        const next = ballotSelectionsSlice.reducer(
+            state,
+            setBallotSelectionInvalidVote({
+                ballotStyle,
+                contestId: CONTEST_ID,
+                isExplicitInvalid: true,
+            })
+        )
+
+        const contestState = getContestState(next, ballotStyle)
         expect(contestState?.is_explicit_invalid).toBe(false)
-        expect(contestState?.choices.find((c) => c.id === REGULAR_CANDIDATE_ID)?.selected).toBe(0)
+        expect(contestState?.choices.every((choice) => choice.selected === 7)).toBe(true)
     })
 
-    it("selecting a regular candidate does NOT clear a previously selected explicit invalid under ALLOWED (bundling preserved)", () => {
+    it("leaves the other contests on the ballot untouched", () => {
         const ballotStyle = buildBallotStyle(EInvalidVotePolicy.ALLOWED)
-        let state = initState(ballotStyle)
-        state = ballotSelectionsSlice.reducer(
-            state,
-            setBallotSelectionInvalidVote({
-                ballotStyle,
-                contestId: CONTEST_ID,
-                isExplicitInvalid: true,
-            })
-        )
+        const state = initState(ballotStyle)
+        const others = state[ballotStyle.election_id]?.filter((c) => c.contest_id !== CONTEST_ID)
 
-        state = ballotSelectionsSlice.reducer(
+        const next = ballotSelectionsSlice.reducer(
             state,
             setBallotSelectionVoteChoice({
                 ballotStyle,
@@ -109,61 +139,10 @@ describe("ballotSelectionsSlice mutual exclusion between explicit-invalid and ot
             })
         )
 
-        const contestState = getContestState(state, ballotStyle)
-        expect(contestState?.is_explicit_invalid).toBe(true)
-        expect(contestState?.choices.find((c) => c.id === REGULAR_CANDIDATE_ID)?.selected).toBe(0)
-    })
-
-    it("selecting explicit invalid clears a previously selected regular candidate under ALLOWED_WITH_EXCLUSIVE_EXPLICIT", () => {
-        const ballotStyle = buildBallotStyle(EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
-        let state = initState(ballotStyle)
-        state = ballotSelectionsSlice.reducer(
-            state,
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId: CONTEST_ID,
-                voteChoice: {id: REGULAR_CANDIDATE_ID, selected: 0},
-            })
-        )
-
-        state = ballotSelectionsSlice.reducer(
-            state,
-            setBallotSelectionInvalidVote({
-                ballotStyle,
-                contestId: CONTEST_ID,
-                isExplicitInvalid: true,
-            })
-        )
-
-        const contestState = getContestState(state, ballotStyle)
-        expect(contestState?.is_explicit_invalid).toBe(true)
-        expect(contestState?.choices.every((c) => c.selected === -1)).toBe(true)
-    })
-
-    it("selecting explicit invalid does NOT clear a previously selected regular candidate under ALLOWED (bundling preserved)", () => {
-        const ballotStyle = buildBallotStyle(EInvalidVotePolicy.ALLOWED)
-        let state = initState(ballotStyle)
-        state = ballotSelectionsSlice.reducer(
-            state,
-            setBallotSelectionVoteChoice({
-                ballotStyle,
-                contestId: CONTEST_ID,
-                voteChoice: {id: REGULAR_CANDIDATE_ID, selected: 0},
-            })
-        )
-
-        state = ballotSelectionsSlice.reducer(
-            state,
-            setBallotSelectionInvalidVote({
-                ballotStyle,
-                contestId: CONTEST_ID,
-                isExplicitInvalid: true,
-            })
-        )
-
-        const contestState = getContestState(state, ballotStyle)
-        expect(contestState?.is_explicit_invalid).toBe(true)
-        expect(contestState?.choices.find((c) => c.id === REGULAR_CANDIDATE_ID)?.selected).toBe(0)
+        expect(applySelection).toHaveBeenCalledTimes(1)
+        expect(
+            next[ballotStyle.election_id]?.filter((c) => c.contest_id !== CONTEST_ID)
+        ).toEqual(others)
     })
 })
 

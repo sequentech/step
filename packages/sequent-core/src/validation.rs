@@ -1475,6 +1475,15 @@ mod tests {
         let after = exclusive.apply(&marked, choose("normal", true));
         assert!(!after.is_explicit_invalid);
         assert_eq!(picked(&after), vec!["normal"]);
+
+        // Marking an untouched contest invalid sets the flag and nothing
+        // else, whichever policy is in force — there is nothing to clear.
+        for validator in [&permissive, &exclusive] {
+            let after = validator
+                .apply(&selections(&[]), SelectionEdit::ExplicitInvalid(true));
+            assert!(after.is_explicit_invalid);
+            assert!(picked(&after).is_empty());
+        }
     }
 
     #[test]
