@@ -56,12 +56,12 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_ivremulatordriver_free: (a: number, b: number) => void;
+    readonly init: (a: any) => void;
     readonly ivremulatordriver_attributes: (a: number) => [number, number, number];
     readonly ivremulatordriver_execute: (a: number, b: number) => any;
     readonly ivremulatordriver_new: (a: any) => [number, number, number];
     readonly ivremulatordriver_send_input: (a: number, b: number, c: number) => void;
     readonly ivremulatordriver_send_timeout: (a: number) => void;
-    readonly init: (a: any) => void;
     readonly wasm_bindgen__closure__destroy__h7baa5a84311a3b04: (a: number, b: number) => void;
     readonly wasm_bindgen__convert__closures_____invoke__h5fed3dcc0d3dcd7b: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h331bfc0ec3639989: (a: number, b: number, c: any, d: any) => void;
