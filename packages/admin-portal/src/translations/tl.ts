@@ -562,13 +562,13 @@ const tagalogTranslation: TranslationType = {
                 votingChannels: "Mga Channel ng Pagboto",
                 materialActivated: "Mga Karagdagang Materyales na Gumagana",
                 supportMaterialsPolicy: {
-                    label: "Support Materials Policy",
+                    label: "Patakaran sa Mga Pangsuportang Materyales",
                     helperText:
-                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                        "Ang Kinakailangan para Bumoto ay nangangailangan sa mga botante na buksan ang bawat Pangsuportang Materyal at kumpirmahin na nabasa na nila ito bago sila makaboto.",
                     options: {
-                        off: "Off",
-                        optional: "Optional",
-                        mandatory_for_voting: "Mandatory for Voting",
+                        off: "Naka-off",
+                        optional: "Opsyonal",
+                        mandatory_for_voting: "Kinakailangan para Bumoto",
                     },
                 },
                 materialTitle: "Pamagat",

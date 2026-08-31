@@ -561,13 +561,13 @@ const catalanTranslation: TranslationType = {
                 votingChannels: "Canals de Vot",
                 materialActivated: "Materials de Suport activats",
                 supportMaterialsPolicy: {
-                    label: "Support Materials Policy",
+                    label: "Política de Materials de Suport",
                     helperText:
-                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                        "L'opció Obligatòria per Votar requereix que els votants obrin cada Material de Suport i confirmin que l'han llegit abans de poder votar.",
                     options: {
-                        off: "Off",
-                        optional: "Optional",
-                        mandatory_for_voting: "Mandatory for Voting",
+                        off: "Desactivada",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obligatòria per Votar",
                     },
                 },
                 materialTitle: "Títol",

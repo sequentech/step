@@ -562,13 +562,13 @@ const dutchTranslation: TranslationType = {
                 votingChannels: "Stemkanalen",
                 materialActivated: "Ondersteunend materiaal geactiveerd",
                 supportMaterialsPolicy: {
-                    label: "Support Materials Policy",
+                    label: "Beleid voor Ondersteunend Materiaal",
                     helperText:
-                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                        "Verplicht voor Stemmen vereist dat kiezers elk Ondersteunend Materiaal openen en bevestigen dat ze het hebben gelezen voordat ze kunnen stemmen.",
                     options: {
-                        off: "Off",
-                        optional: "Optional",
-                        mandatory_for_voting: "Mandatory for Voting",
+                        off: "Uit",
+                        optional: "Optioneel",
+                        mandatory_for_voting: "Verplicht voor Stemmen",
                     },
                 },
                 materialTitle: "Titel",

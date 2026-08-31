@@ -557,13 +557,13 @@ const basqueTranslation: TranslationType = {
                 votingChannels: "Bozketa Kanalak",
                 materialActivated: "Laguntza Materialak Aktibatuta",
                 supportMaterialsPolicy: {
-                    label: "Support Materials Policy",
+                    label: "Laguntza Materialen Politika",
                     helperText:
-                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                        "Bozkatzeko Derrigorrezkoa aukeratzen bada, bozkatzaileek boto bat eman ahal izan aurretik Laguntza Material bakoitza ireki eta irakurri dutela berretsi beharko dute.",
                     options: {
-                        off: "Off",
-                        optional: "Optional",
-                        mandatory_for_voting: "Mandatory for Voting",
+                        off: "Desaktibatuta",
+                        optional: "Aukerakoa",
+                        mandatory_for_voting: "Bozkatzeko Derrigorrezkoa",
                     },
                 },
                 materialTitle: "Izenburua",

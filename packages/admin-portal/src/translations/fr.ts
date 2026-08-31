@@ -560,13 +560,13 @@ const frenchTranslation: TranslationType = {
                 votingChannels: "Canaux de Vote",
                 materialActivated: "Matériaux de Support activés",
                 supportMaterialsPolicy: {
-                    label: "Support Materials Policy",
+                    label: "Politique des Matériaux de Support",
                     helperText:
-                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                        "L'option Obligatoire pour Voter exige que les électeurs ouvrent chaque Matériau de Support et confirment qu'ils l'ont lu avant de pouvoir voter.",
                     options: {
-                        off: "Off",
-                        optional: "Optional",
-                        mandatory_for_voting: "Mandatory for Voting",
+                        off: "Désactivé",
+                        optional: "Facultatif",
+                        mandatory_for_voting: "Obligatoire pour Voter",
                     },
                 },
                 materialTitle: "Titre",
