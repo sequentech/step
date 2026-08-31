@@ -1,0 +1,41 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Example DTMF input template for run-telephone-load-test.sh (Stage 2 of
+// IVR_LOAD_TEST_DESIGN.md). One line per DTMF input the IVR asks for; blank
+// lines and lines starting with `//` are ignored by ivr-cli, so comments
+// survive into the rendered per-voter files.
+//
+// The call flow past authentication (language selection, contest numbering,
+// confirm/clear/submit keys) is defined by the realm's ivr-config and this
+// election's contests, so it CANNOT be written down a priori — capture it
+// empirically against your freshly-provisioned Stage 1 event:
+//
+//   export PHONE_CONFIG_PATH=<out-dir>/phone_config.json   # or let the load
+//       # test script generate it once, then reuse it for this manual call
+//   ivr-cli --bundle dev --system-number +111111111111 \
+//       --number +15550000000 --show-internal-state
+//
+// Log in as any voter from the Stage 1 CSV, complete one full call by hand,
+// and copy each keystroke you entered as one line below — then replace the
+// voter-id line with {{VOTER_ID}} and the PIN line with {{PIN}}. The load
+// test script substitutes those per voter; everything else is identical for
+// every call.
+
+// --- Authentication (default realm flow: voter_id then pin, both numeric,
+// --- max 8 digits — auth.rs::default_flow) ---
+{{VOTER_ID}}
+{{PIN}}
+
+// --- Everything below is election-specific: replace with your captured
+// --- keystrokes. Typical shape (ballot_loop.rs): pick the election, one
+// --- numbered selection per contest with a confirm (1) after each, then 0
+// --- to confirm the summary and cast, e.g.:
+//
+// 1    // select the (only) election
+// 1    // contest 1: candidate 1
+// 1    // confirm selection
+// ...  // remaining contests
+// 0    // election summary: confirm and cast
+// 1    // continue past the ballot receipt ("Your ballot locator is ...")
