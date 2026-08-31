@@ -140,9 +140,9 @@ describe("ballotSelectionsSlice delegates selection edits to the validation rule
         )
 
         expect(applySelection).toHaveBeenCalledTimes(1)
-        expect(
-            next[ballotStyle.election_id]?.filter((c) => c.contest_id !== CONTEST_ID)
-        ).toEqual(others)
+        expect(next[ballotStyle.election_id]?.filter((c) => c.contest_id !== CONTEST_ID)).toEqual(
+            others
+        )
     })
 })
 
