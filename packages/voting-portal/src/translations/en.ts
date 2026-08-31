@@ -372,6 +372,10 @@ const englishTranslation = {
                 electionEventNotPublished:
                     "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             encoding: {
@@ -420,6 +424,11 @@ const englishTranslation = {
                 close: "Close",
                 preview: "Preview",
                 download: "Download",
+            },
+            mandatory: {
+                checkboxLabel: "I have read the Support Materials",
+                continueButton: "Continue",
+                error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
         ballotLocator: {

@@ -71,8 +71,9 @@ import IconTooltip from "@/components/IconTooltip"
 import {faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {CustomAutocompleteArrayInput, ReviewChangesTable} from "@sequentech/ui-essentials"
+import {useCustomNotify} from "@/hooks/useCustomNotify"
 import {getSaveUserErrorMessage} from "./saveUserError"
-import {VOTED_CHANNEL} from "./ListUsers"
+import {SUPPORT_MATERIALS_ACKNOWLEDGED, VOTED_CHANNEL} from "./ListUsers"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {computeRoleDiff, computeUserDiff, UserBaseline} from "@/services/UserEditReviewChanges"
 import {
@@ -976,6 +977,9 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const renderFormInput = useCallback(
         (attr: UserProfileAttribute, index: number) => {
             if (attr.name === VOTED_CHANNEL) {
+                return
+            }
+            if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
                 return
             }
             if (attr.name) {

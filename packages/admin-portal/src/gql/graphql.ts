@@ -2,7 +2,7 @@
 import { VotingStatusChannel } from '@sequentech/ui-core';
 import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
 export type Maybe<T> = T | null;
-export type InputMaybe<T> = T | null | undefined;
+export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
@@ -23,6 +23,12 @@ export type Scalars = {
   numeric: { input: any; output: any; }
   timestamptz: { input: any; output: any; }
   uuid: { input: any; output: any; }
+};
+
+export type AcknowledgeSupportMaterialsOutput = {
+  __typename?: 'AcknowledgeSupportMaterialsOutput';
+  document_ids: Array<Scalars['String']['output']>;
+  election_event_id: Scalars['uuid']['output'];
 };
 
 export type Aggregate = {
@@ -529,6 +535,11 @@ export type GetRolesOutput = {
   __typename?: 'GetRolesOutput';
   items: Array<KeycloakRole>;
   total: TotalAggregate;
+};
+
+export type GetSupportMaterialsAcknowledgmentOutput = {
+  __typename?: 'GetSupportMaterialsAcknowledgmentOutput';
+  document_ids: Array<Scalars['String']['output']>;
 };
 
 export type GetTopCastVotesByIpInput = {
@@ -1293,6 +1304,8 @@ export type Mutation_Root = {
   ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>;
   /** Verify User Registration Application */
   VerifyApplication: Scalars['String']['output'];
+  /** acknowledge_support_materials */
+  acknowledge_support_materials?: Maybe<AcknowledgeSupportMaterialsOutput>;
   /** applies the Sequent-side reconciliation diff for an already-computed import */
   apply_external_reconciliation_changes?: Maybe<TaskOutput>;
   call_plugin_route: PluginsRouteOutput;
@@ -2026,6 +2039,13 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
   body: ApplicationVerifyBody;
+};
+
+
+/** mutation root */
+export type Mutation_RootAcknowledge_Support_MaterialsArgs = {
+  document_ids: Array<Scalars['String']['input']>;
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
@@ -5290,6 +5310,8 @@ export type Query_Root = {
   get_realm_attributes: GetRealmAttributesOutput;
   get_realm_password_policy: RealmPasswordPolicy;
   get_roles: GetRolesOutput;
+  /** get_support_materials_acknowledgment */
+  get_support_materials_acknowledgment: GetSupportMaterialsAcknowledgmentOutput;
   get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>;
   get_user_profile_attributes: Array<UserProfileAttribute>;
   get_user_profile_configuration: UserProfileConfiguration;
@@ -5617,6 +5639,11 @@ export type Query_RootGet_Realm_Password_PolicyArgs = {
 
 export type Query_RootGet_RolesArgs = {
   body: GetRolesInput;
+};
+
+
+export type Query_RootGet_Support_Materials_AcknowledgmentArgs = {
+  election_event_id: Scalars['uuid']['input'];
 };
 
 
