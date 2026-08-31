@@ -812,7 +812,10 @@ const ElectionSelectionScreen: React.FC = () => {
                     />
                 </Alert>
             ) : null}
-            <ElectionContainer className="elections-list">
+            <ElectionContainer
+                className="elections-list"
+                role={hasNoElections ? undefined : "list"}
+            >
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper
