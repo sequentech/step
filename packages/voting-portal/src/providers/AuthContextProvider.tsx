@@ -11,6 +11,7 @@ import {getLanguageFromURL} from "../utils/queryParams"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../types/keycloak"
 import {appendLoginHints, enrollmentRedirectUrl, LoginHints} from "../utils/loginHints"
+import {getLogoutRedirectUrl, isKioskClientId} from "../utils/logoutRedirect"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -236,7 +237,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     newKeycloak.logout()
                 }*/
                 newKeycloak.logout({
-                    redirectUri: `/tenant/${tenantId}/event/${eventId}/`,
+                    redirectUri: getLogoutRedirectUrl({
+                        origin: window.location.origin,
+                        pathname: window.location.pathname,
+                        tenantId,
+                        eventId,
+                        clientId: newKeycloak.clientId,
+                        defaultClientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+                        hasKioskQuery: new URLSearchParams(window.location.search).has("kiosk"),
+                    }),
                 })
             }
 
@@ -431,22 +440,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const getRedirectUrl = (redirectUrl?: string) => {
-        if (redirectUrl) {
-            return redirectUrl
-        } else {
-            const origin = window.location.origin
-            const searchParams = new URLSearchParams(window.location.search)
-            const isKiosk = searchParams.has("kiosk")
-            if (isKiosk) {
-                return `${origin}/tenant/${tenantId}/event/${eventId}/?kiosk`
-            }
-            const currentPath = window.location.pathname
-            const pathSegments = currentPath.split("/")
-            while (pathSegments.length > 5) {
-                pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
-            }
-            return origin + pathSegments.join("/")
-        }
+        return getLogoutRedirectUrl({
+            redirectUrl,
+            origin: window.location.origin,
+            pathname: window.location.pathname,
+            tenantId,
+            eventId,
+            clientId: keycloak?.clientId,
+            defaultClientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+            hasKioskQuery: new URLSearchParams(window.location.search).has("kiosk"),
+        })
     }
 
     const logout = (redirectUrl?: string) => {
@@ -486,11 +489,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
      * @returns whether or not the user in kiosk mode
      */
     const isKiosk = () => {
-        if (!keycloak?.tokenParsed?.azp) {
-            return false
-        }
-
-        return keycloak.tokenParsed.azp.endsWith("-kiosk")
+        const clientId = keycloak?.clientId ?? keycloak?.tokenParsed?.azp
+        return isKioskClientId(clientId, globalSettings.ONLINE_VOTING_CLIENT_ID)
     }
 
     const openProfileLink = async () => {

@@ -45,6 +45,7 @@ pub enum ErrorCode {
     VoterInformationLetterUnavailable,
     ConfirmPolicyShowCastVoteLogsFailed,
     BallotIdMismatch,
+    BallotPublicationValidation,
     // Add any other needed error codes
 }
 

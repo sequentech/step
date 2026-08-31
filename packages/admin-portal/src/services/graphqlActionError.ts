@@ -9,6 +9,7 @@ import {IGraphQLActionError} from "@sequentech/ui-core"
 // first line is offered to a form, and only as much of it as a notification
 // can reasonably show.
 const MAX_REASON_LENGTH = 200
+const MAX_MESSAGE_LENGTH = 4000
 
 export const parseActionResponseBody = (body: string | null | undefined): unknown => {
     if (!body) {
@@ -33,6 +34,20 @@ const readableReason = (value: unknown): string | undefined => {
     return firstLine.length > MAX_REASON_LENGTH
         ? `${firstLine.slice(0, MAX_REASON_LENGTH)}...`
         : firstLine
+}
+
+const readableMessage = (value: unknown): string | undefined => {
+    if (typeof value !== "string") {
+        return undefined
+    }
+    const message = value.trim()
+    if (message.length === 0) {
+        return undefined
+    }
+
+    return message.length > MAX_MESSAGE_LENGTH
+        ? `${message.slice(0, MAX_MESSAGE_LENGTH)}...`
+        : message
 }
 
 /**
@@ -65,4 +80,30 @@ export const getGraphQLActionErrorReason = (error: unknown): string | undefined 
     }
 
     return readableReason(actionError?.message)
+}
+
+/**
+ * Extracts the complete action message for an inline error panel. Unlike the
+ * compact notification reason above, this preserves line breaks and multiple
+ * validation reasons while still bounding untrusted webhook output.
+ */
+export const getGraphQLActionErrorMessage = (error: unknown): string | undefined => {
+    const actionError = error as IGraphQLActionError | undefined
+    const graphQLErrors = Array.isArray(actionError?.graphQLErrors) ? actionError.graphQLErrors : []
+
+    for (const graphQLError of graphQLErrors) {
+        const responseBody = parseActionResponseBody(
+            graphQLError.extensions?.internal?.response?.body
+        ) as {message?: unknown} | undefined
+
+        const message =
+            readableMessage(responseBody?.message) ??
+            readableMessage(graphQLError.extensions?.internal?.error?.message) ??
+            readableMessage(graphQLError.message)
+        if (message) {
+            return message
+        }
+    }
+
+    return readableMessage(actionError?.message)
 }

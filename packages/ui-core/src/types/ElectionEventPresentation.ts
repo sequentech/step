@@ -208,6 +208,7 @@ export interface IElectionEventPresentation {
     language_conf?: ILanguageConf
     logo_url?: string
     redirect_finish_url?: string
+    kiosk_redirect_finish_url?: string
     css?: string
     skip_election_list?: boolean
     show_user_profile?: boolean

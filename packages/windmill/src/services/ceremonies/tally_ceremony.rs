@@ -35,6 +35,7 @@ use sequent_core::ballot::{
     AllowTallyStatus, BallotStyle as SequentBallotStyle, ContestEncryptionPolicy,
     DecodedBallotsInclusionPolicy, DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
 };
+use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
@@ -403,7 +404,9 @@ pub async fn create_tally_ceremony(
             // accept repeated ballots with untested quota and elimination
             // behaviour. An unset algorithm resolves to plurality-at-large, and
             // could not have been published otherwise.
-            for contest in &ballot_style.contests {
+            // An acclaimed contest is never tallied, so its counting
+            // algorithm cannot make a ballot style unsupported.
+            for contest in votable_contests(&ballot_style.contests) {
                 if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
                     && !unsupported_contests.contains(&contest.id)
                 {

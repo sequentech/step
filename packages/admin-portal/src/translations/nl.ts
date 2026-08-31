@@ -255,6 +255,7 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
@@ -576,6 +577,7 @@ const dutchTranslation: TranslationType = {
                 userVerification:
                     "U kunt een aangepast sjabloon invoeren dat zal worden gebruikt om kiezers handmatig te verifiëren",
                 redirectFinishUrl: "Doorschakel-URL na voltooiing",
+                kioskRedirectFinishUrl: "Doorstuur-URL na afronding van kioskstemmen",
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
@@ -1921,6 +1923,11 @@ const dutchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Paginanaam",
             },
+            isAcclaimed: {
+                label: "Bij acclamatie beslist",
+                helperText:
+                    "Kiezers zien deze stemming maar kunnen niets selecteren, er wordt niets geregistreerd en alle kandidaten worden als winnaar met nul stemmen gerapporteerd. Stel dit in voordat stembiljetten worden gepubliceerd: het later wijzigen maakt reeds uitgebrachte stemmen ongeldig.",
+            },
             allowWriteins: {
                 label: "Handgeschreven kandidaten toestaan",
             },
@@ -2297,6 +2304,8 @@ const dutchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Post",
                 channel_in_person: "Persoonlijk",
+                acclamation_note:
+                    "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",

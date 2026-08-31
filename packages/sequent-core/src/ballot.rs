@@ -552,6 +552,17 @@ impl Candidate {
             .unwrap_or(false)
     }
 
+    /// Whether this entry represents a candidate elected by acclamation.
+    ///
+    /// Blank/invalid markers, withdrawn candidates, and empty write-in slots
+    /// are ballot configuration artefacts rather than elected candidates.
+    pub fn is_acclamation_eligible(&self) -> bool {
+        !self.is_explicit_blank()
+            && !self.is_explicit_invalid()
+            && !self.is_disabled()
+            && !self.is_write_in()
+    }
+
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
         let mut presentation =
             self.presentation.clone().unwrap_or(Default::default());
@@ -1151,6 +1162,7 @@ pub struct ElectionEventPresentation {
     pub language_conf: Option<ElectionEventLanguageConf>,
     pub logo_url: Option<String>,
     pub redirect_finish_url: Option<String>,
+    pub kiosk_redirect_finish_url: Option<String>,
     pub css: Option<String>,
     pub skip_election_list: Option<bool>,
     pub show_user_profile: Option<bool>, // default is true
@@ -1701,6 +1713,27 @@ pub struct Contest {
     pub voting_type: Option<String>,
     pub counting_algorithm: Option<CountingAlgType>, /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
     pub is_encrypted: bool,
+    /// Whether this contest was decided by acclamation. `None` on ballot
+    /// styles published before the field existed, which is why every read
+    /// goes through [`Contest::is_acclaimed`].
+    ///
+    /// Skipped by Borsh, which is positional: serializing it would add a
+    /// byte to every contest and so change `ballot_style_hash` for every
+    /// election, including ones with no acclaimed contest. That hash is part
+    /// of what the voter's key signs, so previously cast ballots would stop
+    /// verifying in the ballot verifier.
+    ///
+    /// The cost is that no signature or hash notices if a ballot style's
+    /// acclaimed set changes after ballots were cast, even though that
+    /// changes which contests are encoded. What catches it instead is
+    /// `check_ballot_contests_match_style`, which compares the contests a
+    /// ballot names against the ones its style encodes. That covers ballots
+    /// carrying their own config - the verifier and the portal - but not the
+    /// tally, which decodes bare plaintexts against the ballot style it is
+    /// handed. Changing this flag after publication has to stay an
+    /// administrative prohibition.
+    #[borsh(skip)]
+    pub is_acclaimed: Option<bool>,
     pub candidates: Vec<Candidate>,
     pub presentation: Option<ContestPresentation>,
     pub created_at: Option<String>,
@@ -1709,6 +1742,12 @@ pub struct Contest {
 }
 
 impl Contest {
+    /// An acclaimed contest is displayed to the voter but never encoded into
+    /// the ballot: it has no selectable options and no recorded votes.
+    pub fn is_acclaimed(&self) -> bool {
+        self.is_acclaimed.unwrap_or(false)
+    }
+
     pub fn allow_writeins(&self) -> bool {
         self.presentation
             .as_ref()
@@ -3042,8 +3081,74 @@ mod voting_screen_back_policy_tests {
 }
 
 #[cfg(test)]
+mod acclaimed_candidate_tests {
+    use super::*;
+
+    fn candidate(
+        configure: impl FnOnce(&mut CandidatePresentation),
+    ) -> Candidate {
+        let mut presentation = CandidatePresentation::new();
+        configure(&mut presentation);
+        Candidate {
+            presentation: Some(presentation),
+            ..Candidate::default()
+        }
+    }
+
+    #[test]
+    fn eligibility_excludes_only_non_candidate_configuration_entries() {
+        assert!(candidate(|_| {}).is_acclamation_eligible());
+        assert!(!candidate(|presentation| {
+            presentation.is_explicit_blank = Some(true);
+        })
+        .is_acclamation_eligible());
+        assert!(!candidate(|presentation| {
+            presentation.is_explicit_invalid = Some(true);
+        })
+        .is_acclamation_eligible());
+        assert!(!candidate(|presentation| {
+            presentation.is_disabled = Some(true);
+        })
+        .is_acclamation_eligible());
+        assert!(!candidate(|presentation| {
+            presentation.is_write_in = Some(true);
+        })
+        .is_acclamation_eligible());
+    }
+
+    #[test]
+    fn category_lists_remain_eligible_candidates() {
+        assert!(candidate(|presentation| {
+            presentation.is_category_list = Some(true);
+        })
+        .is_acclamation_eligible());
+    }
+}
+
+#[cfg(test)]
 mod presentation_borsh_compat_tests {
     use super::*;
+
+    /// `ballot_style_hash` is part of what the voter's key signs, so a
+    /// field that changes `Contest`'s Borsh bytes would invalidate the
+    /// signature of every ballot cast before it was added.
+    #[test]
+    fn acclaimed_flag_does_not_change_contest_borsh_bytes() {
+        let contest = Contest::default();
+        let contest_bytes = borsh::to_vec(&contest).unwrap();
+
+        for is_acclaimed in [None, Some(false), Some(true)] {
+            let contest_with_flag = Contest {
+                is_acclaimed,
+                ..contest.clone()
+            };
+            assert_eq!(
+                borsh::to_vec(&contest_with_flag).unwrap(),
+                contest_bytes,
+                "is_acclaimed = {is_acclaimed:?} changed the Borsh bytes"
+            );
+        }
+    }
 
     #[test]
     fn json_only_results_fields_do_not_change_borsh_bytes() {
