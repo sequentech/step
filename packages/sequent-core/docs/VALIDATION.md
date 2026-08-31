@@ -27,9 +27,17 @@ carries one of them somewhere.
 
 That is five rows for four effects because **messages are not an effect the
 voter perceives** — they are the intermediate the other three read. Nothing
-renders a message key directly: the inline rules choose which are shown, the
-gates ask only whether any error exists and of what kind, and the tally asks
-only whether the list is empty.
+renders a message key directly: of the messages, the inline rules choose
+which are shown, the gates ask whether any error exists and of what kind,
+and the tally asks only whether the list is empty.
+
+Those are statements about the messages, not about each effect's whole
+input. The tally in particular reads the ballot as well: `classify` takes
+four things, of which the messages supply one. The decline and
+explicit-invalid flags come straight from the record, and where no error was
+recorded it is the selections that decide between valid, blank and declined
+— which is why section 6's map shows the tally moving with the ballot as
+well as with the rules.
 
 The list is closed by construction rather than by luck. Every consumer of
 validation state in the platform reads one of these, and the module has no
