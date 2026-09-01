@@ -113,3 +113,23 @@ path = "packages/admin-portal/src/services/generated/ivr_emulator_wasm.d.ts"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2026 Sequent Tech Inc <legal@sequentech.io>"]
 SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = [
+	"packages/wbraid/Cargo.lock",
+	"packages/wbraid/s3-cors.json",
+	"packages/wbraid/crates/braid/LICENSE",
+	"packages/wbraid/crates/braid/LICENSES/**"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
+[[annotations]]
+path = [
+	"packages/wbraid/crates/vsc/**",
+	"packages/wbraid/crates/macros/custom_warning_macro/**"
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["", "2025 Free & Fair"]
+SPDX-License-Identifier = "Apache-2.0"

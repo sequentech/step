@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Database file
+b4.db
+b4.db-shm
+b4.db-wal
+b5.db
+b5.db-shm
+b5.db-wal
+
+# misc
+browser_trustee_config.json
+demo/
+
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+
+# WASM build output
+crates/client/pkg/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
