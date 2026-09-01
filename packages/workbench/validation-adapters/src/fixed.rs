@@ -13,11 +13,15 @@
 //!
 //! - the CONVERSIONS between the spec's abstract types and production's
 //!   ([`wire`] — through the shared serde wire strings, loud on mismatch);
-//! - `reachability`, reused from the oracle because production decides it
-//!   in the booth's React layer — the one effect Rust cannot ask
-//!   production for. Everything else here, the tally class included, is
-//!   production's own rule; what remains is converting between the
-//!   oracle's frozen enums and production's.
+//! - the CONSTRUCTION reachability needs. Production decides reachability
+//!   in `selection_capped` and `apply`, which read a contest and a decoded
+//!   record rather than the spec's abstract cell, so
+//!   [`reachability_from_production`] builds the contest a cell describes
+//!   and tries to reach its state through those two — deriving the answer
+//!   from production's rules instead of restating them here.
+//!
+//! Every effect is therefore production's own; what remains is converting
+//! between the oracle's frozen enums and production's.
 //!
 //! `f` (the oracle) and `f_fixed` share their composition shape and differ
 //! ONLY by the fix ledger's changes; that difference, swept over the
@@ -30,9 +34,7 @@ use sequent_core::ballot::Contest;
 use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::validation as native;
 use validation_spec as spec;
-use validation_spec::{
-    reachability, selection_class, Dialog, Effects, Emissions, Gate, InlineViews, Policies,
-};
+use validation_spec::{selection_class, Dialog, Effects, Emissions, Gate, InlineViews, Policies};
 
 /// Converts a policy enum between the spec's and production's types through
 /// their shared serde wire strings. A mismatch (a variant one side lacks)
@@ -112,6 +114,124 @@ fn tally_class(class: native::BallotClass) -> spec::BallotClass {
     }
 }
 
+/// Derives reachability from production's own rules instead of modelling it.
+///
+/// Reachability asks whether the booth can form a given vote state at all.
+/// Production answers that in two functions — `selection_capped`, which
+/// decides when a control stops accepting selections, and `apply`, which
+/// decides what a marker clears — so the honest derivation is to build the
+/// contest the cell describes and try to reach the state through them, in
+/// the order a voter would: the candidates, then the blank marker, then the
+/// invalid flag. A state those edits cannot produce is not reachable, and
+/// the way they fail says why.
+///
+/// The alternative, re-stating the predicate here, would make the sweep
+/// compare production against a transcription of production.
+fn reachability_from_production(config: &spec::Config, vs: &spec::VoteState) -> spec::Reachability {
+    let contest = cell_contest(config, vs);
+    let validator = native::ContestValidator::for_contest(&contest);
+    let mut selection = untouched(&contest);
+
+    let choose = |id: &str| {
+        native::SelectionEdit::Choice(sequent_core::plaintext::DecodedVoteChoice {
+            id: id.to_string(),
+            selected: 0,
+            write_in_text: None,
+        })
+    };
+
+    // Each selection the voter would make, refused if the controls have
+    // already stopped accepting them.
+    for index in 0..vs.regulars {
+        if validator.selection_capped(&selection) {
+            return spec::Reachability::InputsDisabled;
+        }
+        selection = validator.apply(&selection, choose(&format!("r{index}")));
+    }
+    if vs.blank_marker {
+        if validator.selection_capped(&selection) {
+            return spec::Reachability::InputsDisabled;
+        }
+        selection = validator.apply(&selection, choose(BLANK_ID));
+    }
+    if vs.explicit_invalid {
+        if validator.selection_capped(&selection) {
+            return spec::Reachability::InputsDisabled;
+        }
+        selection = validator.apply(&selection, native::SelectionEdit::ExplicitInvalid(true));
+    }
+
+    // Whatever the edits produced, is it the state the cell asked for? If a
+    // marker cleared something on the way, it is not.
+    let reached = validator.vote_state(&selection);
+    if reached.regulars == vs.regulars
+        && reached.blank_marker == vs.blank_marker
+        && reached.explicit_invalid == vs.explicit_invalid
+    {
+        spec::Reachability::Yes
+    } else {
+        spec::Reachability::MarkerCleared
+    }
+}
+
+const BLANK_ID: &str = "blank";
+const INVALID_ID: &str = "null";
+
+/// The contest a cell describes: its bounds and policies, enough ordinary
+/// candidates to hold the state's selections, and one of each marker.
+fn cell_contest(config: &spec::Config, vs: &spec::VoteState) -> Contest {
+    use sequent_core::ballot::{Candidate, CandidatePresentation, ContestPresentation};
+    let candidate = |id: String, blank: bool, invalid: bool| Candidate {
+        id,
+        presentation: Some(CandidatePresentation {
+            is_explicit_blank: Some(blank),
+            is_explicit_invalid: Some(invalid),
+            ..CandidatePresentation::default()
+        }),
+        ..Candidate::default()
+    };
+    let mut candidates: Vec<Candidate> = (0..vs.regulars)
+        .map(|index| candidate(format!("r{index}"), false, false))
+        .collect();
+    candidates.push(candidate(BLANK_ID.to_string(), true, false));
+    candidates.push(candidate(INVALID_ID.to_string(), false, true));
+    Contest {
+        min_votes: i64::from(config.min),
+        max_votes: i64::from(config.max),
+        presentation: Some(ContestPresentation {
+            invalid_vote_policy: Some(wire(&config.policies.invalid)),
+            blank_vote_policy: Some(wire(&config.policies.blank)),
+            over_vote_policy: Some(wire(&config.policies.over)),
+            under_vote_policy: Some(wire(&config.policies.under)),
+            duplicated_rank_policy: Some(wire(&config.policies.dup)),
+            preference_gaps_policy: Some(wire(&config.policies.gap)),
+            ..ContestPresentation::default()
+        }),
+        candidates,
+        ..Contest::default()
+    }
+}
+
+fn untouched(contest: &Contest) -> DecodedVoteContest {
+    DecodedVoteContest {
+        contest_id: contest.id.clone(),
+        is_explicit_invalid: false,
+        is_decline_to_vote: false,
+        is_blank_ballot: false,
+        invalid_errors: vec![],
+        invalid_alerts: vec![],
+        choices: contest
+            .candidates
+            .iter()
+            .map(|c| sequent_core::plaintext::DecodedVoteChoice {
+                id: c.id.clone(),
+                selected: -1,
+                write_in_text: None,
+            })
+            .collect(),
+    }
+}
+
 /// Computes the fixed mapping — the exact analog of the oracle's `f`, from
 /// production's own rules.
 pub fn f_fixed(config: &spec::Config, vs: &spec::VoteState) -> Effects {
@@ -140,9 +260,7 @@ pub fn f_fixed(config: &spec::Config, vs: &spec::VoteState) -> Effects {
         } else {
             Dialog::None
         },
-        // Reachability is the one leg still modelled: production decides
-        // it in the booth's React layer, which Rust cannot call.
-        reachability: reachability(config, vs),
+        reachability: reachability_from_production(config, vs),
         tally: tally_class(native::classify(
             vs.decline,
             vs.explicit_invalid,
