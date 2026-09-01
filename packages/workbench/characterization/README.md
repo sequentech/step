@@ -117,7 +117,7 @@ oversight. Review it alongside the census when upstream merges land.
 | **gate composition across contests / pages** — production's gates iterate all contests and fire if ANY matches (VOTE_VALIDATION.md, "Interaction with pagination"); the spec and every grid are per-contest | **validated** (2026-08-21): `ballot-gate-composition.md` checks the real wasm gate functions' OR over every combination of two contests in {no-gate, hard, soft} against `BallotValidator`, 9/9. The gates read only per-contest data (no ballot-level flag), so the OR is contest-shape-agnostic and two contests exercise it fully | a browser multi-contest run (distinct real contests, navigated) if the composition's *UI* manifestation — as opposed to the gate function's OR — is ever in doubt |
 | **message parameters** — every checker warning is an `InvalidPlaintextError` carrying a `message` (the i18n key identifying the warning, e.g. `errors.implicit.selectedMax` — what the tables' *errors*/*alerts* cells show and what `data-warn-id` exposes in the DOM) and a `message_map` (the values interpolated into the translated text, e.g. numSelected/min/max — the booth renders `t(message, message_map)`, `InvalidErrorsList.tsx`) | comparisons are over the `message` keys only — in the checker record, at the gates, and in the rendered DOM alike; the interpolated `message_map` values are never checked | a finding that turns on a wrong interpolated value (say, the wrong maximum printed in an otherwise-correct warning) rather than a wrong message key |
 | **marker preconditions as fixture choice** — `has_explicit_blank/invalid_candidate` | not spec inputs: they gate which vote-states are REACHABLE (a marker state needs a marker candidate), not what the mapping says about a state that exists. Each grid picks a fixture carrying its rule's preconditions | a rule whose EFFECTS (not merely reachability) turn out to depend on marker presence |
-| **untouched voting view** — the voting screen before the voter's first selection in the contest (`isTouched`, Question.tsx state, armed when a selection appears). While untouched, `filterErrorList` unconditionally empties BOTH warning lists, so nothing renders inline even when the checker has already emitted warnings (e.g. `selectedMin` on a just-opened screen with `min_votes: 1`); the spec carries the view as the constant `votingUntouched: []` | validated as a constant, per cell: before arming the touch, `dom-validate.mjs` asserts the untouched view renders NOTHING on every one of its 229 cells — whatever the checker emitted — and fails the run otherwise | any code path that renders inline content on an untouched contest (a warning exempted from the clear, or the clear gaining a condition) — the constant would stop being one, and the view would need per-cell treatment like the other two |
+| **untouched voting view** — the voting screen before the voter's first selection in the contest (`isTouched`, Question.tsx state, armed when a selection appears). While untouched, `visible_messages` unconditionally empties BOTH warning lists, so nothing renders inline even when the checker has already emitted warnings (e.g. `selectedMin` on a just-opened screen with `min_votes: 1`); the spec carries the view as the constant `votingUntouched: []` | validated as a constant, per cell: before arming the touch, `dom-validate.mjs` asserts the untouched view renders NOTHING on every one of its 229 cells — whatever the checker emitted — and fails the run otherwise | any code path that renders inline content on an untouched contest (a warning exempted from the clear, or the clear gaining a condition) — the constant would stop being one, and the view would need per-cell treatment like the other two |
 
 ## Conventions
 
@@ -260,15 +260,29 @@ bought — two independent transcriptions agreeing — was corroboration
 between specs, never production evidence, and it was traded deliberately
 (`../docs/EVIDENCE_RESTRUCTURE.md`).
 
-**What can validate each part of the spec.** The halves are unequally
-served, because production splits them. The spec's emissions, gates and
-classifier describe Rust that IS compiled to wasm, so they are
-**wasm-checkable** against the real wasm on every cell of the swept domain.
-Its inline views and reachability describe TypeScript that is NOT callable
-headlessly (`filterErrorList`; the input disable; the blank-marker
-clearing), so they are **browser-only** — validated against the real DOM by
-a browser runner, and never against a re-computation of themselves (that
-check would be tautological). The per-cell DOM validator is
+**What can validate each part of the spec.** Every rule now lives in one
+Rust module compiled to wasm, so the split this section used to describe —
+emissions and gates in Rust, inline views and reachability in TypeScript
+(`filterErrorList`, the input disable, the blank-marker clearing) — is gone,
+and so are those three functions. What remains unequal is not callability
+but what an independent check can be made *of*.
+
+The spec's emissions, gates and classifier are **wasm-checkable**: the sweep
+asks production through the wasm and compares against `f_fixed` natively, so
+a disagreement means the boundary or a call site is wrong. The inline views
+are checkable the same way now that the booth asks
+`filter_visible_messages_js`, though the sweep currently uses them only to
+build the quotient inventory rather than as a compared column.
+
+Reachability stays **browser-only**, for a reason that survived the move.
+`f_fixed` derives it from production's own `selection_capped` and `apply`
+(`../validation-adapters/src/fixed.rs`), which is why it is no longer a
+model — but that leaves nothing headless to compare it against except the
+same functions, and a runner comparing a Rust file with itself proves
+nothing. The real DOM is the only independent witness to whether the booth's
+controls behave as those functions say, so the browser runner remains the
+evidence and now checks the DOM against production's rule rather than
+against a transcription of it. The per-cell DOM validator is
 [`dom-validate.mjs`](dom-validate.mjs), which drives every cell of **all seven
 rules** through the real booth reload-free — the five plurality rules
 (over-vote, min-vote, blank, under-vote, invalid) on the explicit-blank-
@@ -523,7 +537,7 @@ unblock.
   8 witnesses defer and **4,288 quotient classes** stay unformable. Those
   classes' emissions, gates, dialog and tally are already
   production-certified by the sweep; what is spec-only is how
-  `filterErrorList` renders the two ranked message keys
+  the booth renders the two ranked message keys
   (`duplicatedPosition`, `preferenceOrderWithGaps`) across the full
   policy cross-product — `dom-validate` observes them in a slice today.
   Honest cost: roughly doubles `quotient-validate`'s runtime.

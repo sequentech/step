@@ -6,9 +6,12 @@
 //
 // The headless runners predict inline visibility (`spec.inlineViews` — the
 // touched voting screen AND the review screen) and reachability
-// (`spec.reachability`) but cannot observe them — `filterErrorList`, the
-// input disable and the marker clearing are TypeScript/React. This validates
-// those predictions against the REAL DOM, reload-free, by:
+// (`spec.reachability`), and cannot independently check either: both now
+// come from production's own rules in `sequent-core/src/validation.rs`, so a
+// headless comparison would set that module against itself. What the booth
+// does with those answers — which warnings it renders, whether the control
+// it disables is the one the rule capped — is only observable in the DOM.
+// This validates the predictions against the REAL DOM, reload-free, by:
 //   - reading each rule's recorded JSON for the per-cell prediction
 //     (the Rust spec's inline views, dialog and reachability), and
 //   - driving the booth (panel config → cast state → observe) via

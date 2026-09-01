@@ -13,6 +13,20 @@ alternative implementations that reduce accidental complexity.
 This document emerges from [VOTE_VALIDATION.md](./VOTE_VALIDATION.md) but
 focuses on the *specification* layer rather than the *implementation* layer.
 
+> **The implementation it argues for now exists.** Every rule described here
+> is stated once in `sequent-core/src/validation.rs`, and
+> `sequent-core/docs/VALIDATION.md` is the reference for it — what it
+> decides, where the rest of the system asks, and how to analyse it. Read
+> that for the code as it stands.
+>
+> This document is kept for the decomposition itself, which is what made
+> that implementation possible: the effect taxonomy, the input dimensions,
+> the totality claim, and the per-rule mapping are independent of where the
+> code lives. But where it names files — the component inventory in §3 and
+> the "today:" parentheticals in §5.1 — it is describing the arrangement
+> that preceded the unification, not the present one. Nothing here should be
+> read as a claim about where a rule is implemented now.
+
 ---
 
 ## 1. Observable Effects Taxonomy
@@ -288,9 +302,9 @@ every grid rather than counted as a per-rule dimension.
 What is deliberately **not** a rule: the master filter and the gates'
 generic conditions (shared machinery consuming every rule's output); the
 tally classifier (its own 32-cell decision table,
-`../characterization/classifier-table.md`); the booth reducers' marker
-exclusivity (reachability's `marker_cleared` — reducer behaviour, no
-checker); and the eighth decode-time checker,
+`../characterization/classifier-table.md`); the marker exclusivity behind
+reachability's `marker_cleared` (`ContestValidator::apply` decides what a
+marker clears, which is not an emission and so not one of the seven); and the eighth decode-time checker,
 `check_max_min_votes_policy`, which validates the *configuration's*
 bounds rather than a vote (its emissions are encoding errors — a named
 scope boundary, `../characterization/README.md`).
@@ -365,8 +379,10 @@ f(config, vote_state) → ( emissions,      // checkable intermediate (checker r
 Six components in the struct's field order — the four effect categories
 plus the two checkable intermediates (§1, "The effect categories",
 states each role). The observation point appears inside the inline
-component of the output, not as an input to the mapping. Today this function is *implicitly* encoded across
-multiple production code paths:
+component of the output, not as an input to the mapping. This function was
+*implicitly* encoded across the production code paths below — the
+arrangement that motivated the decomposition, and which
+`sequent-core/src/validation.rs` replaced:
 
 - `checker.rs` (9 checker functions producing errors/alerts — 8 decode-time
   plus the config-level `check_contest_configuration`)

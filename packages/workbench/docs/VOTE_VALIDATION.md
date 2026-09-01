@@ -23,29 +23,33 @@ output** — the `invalid_errors` / `invalid_alerts` a given selection produces.
 They are *not* the whole truth about what a ballot ultimately is. Three other
 sites carry validation semantics of their own:
 
-- **Tally classification** lives in
-  `velvet-core/src/counting/extended_metrics.rs::classify_ballot` (upstream:
-  inline in velvet's `do_tally`), which consumes checker output via
-  `is_invalid()` but adds rules checker.rs knows nothing about — the
-  decline-to-vote precedence, the explicit/implicit blank split, and the
-  marker-mix rule (see "Tally-Time Classification" below).
-- **The marker exclusivity rule** lives in the booth's `ballotSelections`
-  reducer (TypeScript) — and applies **only to the blank marker**:
-  selecting a regular candidate clears an explicit-blank marker selection
-  and vice versa, so *that* mixed state is prevented in the booth rather
-  than validated. The **invalid (null) marker is exempt**: its reducer
-  sets only the `is_explicit_invalid` flag and never touches `choices`,
-  so {regular + null marker} forms and is cast — finding S5 in
-  [UPSTREAM_FINDINGS.md](UPSTREAM_FINDINGS.md); both directions observed
-  in `characterization/dom-validate.md`.
-- **Error visibility** is decided in `InvalidErrorsList.tsx`'s
-  `filterErrorList` (TypeScript) — what the voter *sees* is a UI-layer
-  decision on top of checker output.
+- **Tally classification** is `ContestValidator::classify`, which velvet's
+  `classify_ballot` calls for every cast ballot. It reads the messages only
+  to ask whether any error was recorded, and decides the rest from the
+  ballot: the decline-to-vote precedence, the explicit/implicit blank split,
+  and the marker-mix rule (see "Tally-Time Classification" below).
+- **The marker exclusivity rule** is `ContestValidator::apply`, which the
+  booth's `ballotSelections` reducer asks on every edit. It applies in full
+  to the blank marker: selecting a regular candidate clears a selected
+  explicit-blank marker and vice versa, so that mixed state is prevented
+  rather than validated. The **invalid (null) marker is exempt under every
+  policy but one** — marking a ballot invalid sets the flag and leaves the
+  selections standing, so {regular + null marker} forms and is cast (finding
+  S5 in [UPSTREAM_FINDINGS.md](UPSTREAM_FINDINGS.md); both directions
+  observed in `characterization/dom-validate.md`). The exception is
+  `ALLOWED_WITH_EXCLUSIVE_EXPLICIT`, under which the invalid marker behaves
+  like the blank one in both directions.
+- **Error visibility** is decided by `ContestValidator::filter_visible_messages`,
+  which `InvalidErrorsList.tsx` asks through the `filter_visible_messages_js`
+  wasm export. Which of a ballot's messages the voter sees is a validation
+  rule like the rest, not a UI-layer decision on top of them.
 
-For validation proper the booth does not re-implement logic in TypeScript:
-it performs an encode→decode round-trip through the same WASM codec that
-will later process the ballot during tally, and the decode step invokes the
-checkers and returns structured error/alert lists that the UI renders.
+The booth re-implements no validation in TypeScript. It performs an
+encode→decode round-trip through the same WASM codec that will later
+process the ballot during tally, the decode step returns the structured
+error and alert lists, and the three questions the booth used to answer
+itself — which messages to show, whether to accept another selection, and
+what a marker clears — it now asks that same module.
 
 ---
 
