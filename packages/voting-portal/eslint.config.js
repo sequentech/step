@@ -72,7 +72,7 @@ export default [
         },
     },
     {
-        files: ["**/*.test.*", "**/test/**/*", "**/nightwatch/**/*"],
+        files: ["**/*.test.*", "**/test/**/*", "**/__mocks__/**/*", "**/nightwatch/**/*"],
         languageOptions: {
             globals: {
                 ...globals.jest,

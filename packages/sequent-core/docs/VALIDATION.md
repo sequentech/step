@@ -27,9 +27,17 @@ carries one of them somewhere.
 
 That is five rows for four effects because **messages are not an effect the
 voter perceives** — they are the intermediate the other three read. Nothing
-renders a message key directly: the inline rules choose which are shown, the
-gates ask only whether any error exists and of what kind, and the tally asks
-only whether the list is empty.
+renders a message key directly: of the messages, the inline rules choose
+which are shown, the gates ask whether any error exists and of what kind,
+and the tally asks only whether the list is empty.
+
+Those are statements about the messages, not about each effect's whole
+input. The tally in particular reads the ballot as well: `classify` takes
+four things, of which the messages supply one. The decline and
+explicit-invalid flags come straight from the record, and where no error was
+recorded it is the selections that decide between valid, blank and declined
+— which is why section 6's map shows the tally moving with the ballot as
+well as with the rules.
 
 The list is closed by construction rather than by luck. Every consumer of
 validation state in the platform reads one of these, and the module has no
@@ -48,7 +56,7 @@ full.
 | inline | `ContestValidator::filter_visible_messages` | the booth's `InvalidErrorsList.tsx`, through `filter_visible_messages_js` |
 | reachability | `ContestValidator::selection_capped` | the booth's `Question.tsx`, deciding whether to disable the remaining controls, through `selection_capped_js` |
 | reachability | `ContestValidator::apply` | the booth's selection reducer `ballotSelectionsSlice.ts`, applying what a marker clears, through `apply_selection_js` |
-| tally | `ContestValidator::classify` | the counting algorithms in `velvet-core` |
+| tally | `ContestValidator::classify` | velvet's `classify_ballot`, in [`counting_algorithm/utils.rs`](../../velvet/src/pipes/do_tally/counting_algorithm/utils.rs), which the plurality and instant-runoff algorithms call for every cast ballot |
 
 Two shapes recur, and the difference between them matters:
 
@@ -184,13 +192,13 @@ varies one input at a time and records which effects move.
 
 | input | messages | dialog | inline | reachability | tally |
 |---|:-:|:-:|:-:|:-:|:-:|
-| `invalid_vote_policy` | • | • | • | • | |
-| `blank_vote_policy` | • | • | • | | • |
-| `over_vote_policy` | • | • | • | • | |
-| `under_vote_policy` | • | • | • | | |
-| `duplicated_rank_policy` | | • | | | |
-| `preference_gaps_policy` | | • | | | |
-| `min_votes` | • | • | • | | • |
+| `invalid_vote_policy` | • | • | • | • |  |
+| `blank_vote_policy` | • | • | • |  | • |
+| `over_vote_policy` | • | • | • | • |  |
+| `under_vote_policy` | • | • | • |  |  |
+| `duplicated_rank_policy` |  | • |  |  |  |
+| `preference_gaps_policy` |  | • |  |  |  |
+| `min_votes` | • | • | • |  | • |
 | `max_votes` | • | • | • | • | • |
 | selections | • | • | • | • | • |
 | blank marker | • | • | • | • | • |
@@ -254,6 +262,22 @@ is told. The ballot's own three inputs reach the tally by a second route
 besides: with no error anywhere, what is selected still decides between
 valid, blank and declined.
 
-The map is asserted rather than printed, so it cannot quietly go stale: a
-rule that starts or stops reading an input fails the test. This table is a
-copy of the one the test asserts — update it when that assertion changes.
+The test that produces this map also asserts it, but is marked `#[ignore]`:
+enumerating the domain takes about three seconds, several times the rest of
+the crate's tests together, and that is too surprising a toll to put on
+everyone who runs them. So the table can drift from the rules, and the date
+below is the guard against reading a stale one:
+
+**Last verified: 2026-08-31.**
+
+    cargo test -p sequent-core --features default_features --lib \
+        validation::tests::which_inputs_move_which_effects \
+        -- --ignored --nocapture
+
+That prints the rows above and asserts the same map. A pass means this
+section is current, and the date should be moved to today. A failure prints
+the map as it now stands, which is what this section should then say — and
+means some rule started or stopped reading an input, which is worth
+understanding before the table is updated to match.
+
+Run it whenever the rules change. Nothing else will notice if you do not.
