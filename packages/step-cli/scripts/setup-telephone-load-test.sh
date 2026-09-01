@@ -3,12 +3,15 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Stage 1 of the telephone (IVR) load test: provisions an election event for
-# a tenant, bulk-creates DTMF-safe voters, runs the keys ceremony, publishes,
-# and opens the TELEPHONE voting channel. Writes a summary.json + voters CSV
-# that Stage 2 (driving `ivr-cli` calls) consumes. See
+# Stage 1 of the load tests: provisions an election event for a tenant,
+# bulk-creates DTMF-safe voters, runs the keys ceremony, publishes, and opens
+# the requested voting channel (TELEPHONE by default; ONLINE via
+# --voting-channel). Writes a summary.json + voters CSV that Stage 2 consumes
+# — run-telephone-load-test.sh (driving `ivr-cli` calls) for TELEPHONE,
+# run-online-load-test.sh (driving Playwright browsers) for ONLINE. See
 # docs/docusaurus/docs/07-developers/12-ivr/telephone-load-testing-design.md
-# for the full design and telephone-load-testing-guide.md for a walkthrough.
+# and docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md
+# for the full designs, and the guide next to each for a walkthrough.
 #
 # Requires the `step-cli` binary on PATH (cd packages/step-cli && cargo build
 # --release).
@@ -23,6 +26,13 @@ Required:
   --election-event-json <path>   Election event JSON to import
 
 Options (default to this repo's devcontainer dev tenant/Keycloak):
+  --voting-channel <channel>      Voting channel to open at the end: TELEPHONE
+                                  or ONLINE. Default: TELEPHONE
+  --voting-portal-url <url>       Voting portal base URL, recorded in
+                                  summary.json for ONLINE Stage 2. For a
+                                  distributed run, pass the publicly reachable
+                                  URL here. Default: $VOTING_PORTAL_URL, else
+                                  http://127.0.0.1:3000
   --tenant-id <id>                Default: $SUPER_ADMIN_TENANT_ID
   --num-voters <n>                Default: 20
   --voter-pin-digits <n>          Numeric PIN length, max 8 (DTMF limit). Default: 6
@@ -54,6 +64,8 @@ USAGE
 }
 
 TENANT_ID="${SUPER_ADMIN_TENANT_ID:-}"
+VOTING_CHANNEL="TELEPHONE"
+VOTING_PORTAL_URL="${VOTING_PORTAL_URL:-http://127.0.0.1:3000}"
 ELECTION_EVENT_JSON=""
 NUM_VOTERS=20
 VOTER_PIN_DIGITS=6
@@ -85,6 +97,8 @@ OUT_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tenant-id) TENANT_ID="$2"; shift 2 ;;
+    --voting-channel) VOTING_CHANNEL="$2"; shift 2 ;;
+    --voting-portal-url) VOTING_PORTAL_URL="$2"; shift 2 ;;
     --election-event-json) ELECTION_EVENT_JSON="$2"; shift 2 ;;
     --num-voters) NUM_VOTERS="$2"; shift 2 ;;
     --voter-pin-digits) VOTER_PIN_DIGITS="$2"; shift 2 ;;
@@ -115,6 +129,7 @@ done
 [[ -n "$KEYCLOAK_ADMIN_USER" ]] || { echo "Error: --keycloak-admin-user is required (or set \$KEYCLOAK_ADMIN)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_ADMIN_PASSWORD" ]] || { echo "Error: --keycloak-admin-password is required (or set \$KEYCLOAK_ADMIN_PASSWORD)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_CLIENT_ID" ]] || { echo "Error: --keycloak-client-id is required" >&2; exit 1; }
+[[ "$VOTING_CHANNEL" == "TELEPHONE" || "$VOTING_CHANNEL" == "ONLINE" ]] || { echo "Error: --voting-channel must be TELEPHONE or ONLINE" >&2; exit 1; }
 (( VOTER_PIN_DIGITS >= 1 && VOTER_PIN_DIGITS <= 8 )) || { echo "Error: --voter-pin-digits must be between 1 and 8 (DTMF voter auth limit)" >&2; exit 1; }
 (( VOTER_USERNAME_START >= 0 )) || { echo "Error: --voter-username-start must be >= 0" >&2; exit 1; }
 command -v step-cli >/dev/null 2>&1 || { echo "Error: step-cli not found on PATH. Build it: (cd packages/step-cli && cargo build --release)" >&2; exit 1; }
@@ -309,12 +324,13 @@ retry_step 30 5 complete-key-ceremony --election-event-id "$ELECTION_EVENT_ID" -
 configure_as "$TRUSTEE2_USER" "$TRUSTEE2_PASSWORD"
 retry_step 30 5 complete-key-ceremony --election-event-id "$ELECTION_EVENT_ID" --key-ceremony-id "$KEY_CEREMONY_ID"
 
-log "[7/7] Publishing and opening the TELEPHONE voting channel"
+log "[7/7] Publishing and opening the $VOTING_CHANNEL voting channel"
 configure_as "$KEYCLOAK_ADMIN_USER" "$KEYCLOAK_ADMIN_PASSWORD"
 run_step publish --election-event-id "$ELECTION_EVENT_ID" >/dev/null
-run_step update-event-voting-status --election-event-id "$ELECTION_EVENT_ID" --voting-status OPEN --voting-channel TELEPHONE >/dev/null
+run_step update-event-voting-status --election-event-id "$ELECTION_EVENT_ID" --voting-status OPEN --voting-channel "$VOTING_CHANNEL" >/dev/null
 
 REALM_NAME="tenant-${TENANT_ID}-event-${ELECTION_EVENT_ID}"
+LOGIN_URL="${VOTING_PORTAL_URL%/}/tenant/${TENANT_ID}/event/${ELECTION_EVENT_ID}/login"
 cat >"$OUT_DIR/summary.json" <<SUMMARY
 {
   "tenant_id": "${TENANT_ID}",
@@ -323,12 +339,15 @@ cat >"$OUT_DIR/summary.json" <<SUMMARY
   "keycloak_realm": "${REALM_NAME}",
   "keycloak_url": "${KEYCLOAK_URL}",
   "hasura_url": "${ENDPOINT_URL}",
+  "voting_channel": "${VOTING_CHANNEL}",
+  "voting_portal_url": "${VOTING_PORTAL_URL%/}",
+  "login_url": "${LOGIN_URL}",
   "voters_csv": "${VOTERS_CSV}",
   "num_voters": ${NUM_VOTERS},
   "voter_area": "${VOTER_AREA_NAME}"
 }
 SUMMARY
 
-log "Done. Election event \"$ELECTION_EVENT_ALIAS\" ($ELECTION_EVENT_ID) is open for TELEPHONE voting."
+log "Done. Election event \"$ELECTION_EVENT_ALIAS\" ($ELECTION_EVENT_ID) is open for $VOTING_CHANNEL voting."
 log "Summary: $OUT_DIR/summary.json"
 log "Voters (username,password are the DTMF voter-id/PIN): $VOTERS_CSV"

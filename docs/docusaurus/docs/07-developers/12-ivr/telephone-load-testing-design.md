@@ -15,8 +15,11 @@ step-by-step instructions to actually run it, see
 [Telephone Load Testing Guide](telephone-load-testing-guide.md).
 
 > This covers the **TELEPHONE** channel only, driven by `step-cli` +
-> `ivr-cli`. It is unrelated to the **ONLINE** channel load-testing tooling
-> documented under [CLI tutorials](../02-cli/02-tutorials/load-testing/load_testing.md).
+> `ivr-cli`. The **ONLINE** channel has its own Playwright-based tooling with
+> the same two-stage architecture (and a shared Stage 1), documented under
+> [Online Load Testing — Design](../02-cli/02-tutorials/load-testing/online-load-testing-design.md);
+> for duplicating votes at the database level on a k8s cluster, see
+> [Load Testing](../02-cli/02-tutorials/load-testing/load_testing.md).
 
 ## Two stages
 
@@ -62,9 +65,12 @@ concrete flow this system supports.
 
 `update-event-voting-status` has a `--voting-channel` flag distinct from
 `ONLINE`; the IVR eligibility check gates specifically on
-`VotingStatusChannel::TELEPHONE`. Stage 1 always opens `TELEPHONE`
-voting — opening only `ONLINE` (as the general CLI tutorials do) makes every
-simulated call fail at the eligibility phase after a successful login.
+`VotingStatusChannel::TELEPHONE`. Stage 1 opens `TELEPHONE` voting by
+default (its `--voting-channel` arg exists for the online load test, which
+shares this script) — opening only `ONLINE` makes every simulated call fail
+at the eligibility phase after a successful login, which is why Stage 2
+refuses a run dir whose `summary.json` says it was provisioned for another
+channel.
 
 ### Every voter is pinned to a single election area
 

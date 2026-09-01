@@ -52,6 +52,18 @@ Required:
 Options:
   --concurrency <n>            Parallel calls. Default: 10
   --max-calls <n>              Cap on total calls. Default: every voter in the CSV
+  --voter-offset <n>           Skip the first N voters in the CSV before
+                               placing calls. For distributed runs: give each
+                               load machine a disjoint slice of one Stage-1
+                               voter set via --voter-offset/--max-calls, so no
+                               two machines re-use (and duplicate-vote) the
+                               same voters. Default: 0
+  --keycloak-url <url>         Override summary.json's keycloak_url — needed
+                               when Stage 1 was provisioned with URLs (e.g.
+                               the devcontainer's 127.0.0.1) that this machine
+                               cannot reach
+  --hasura-url <url>           Override summary.json's hasura_url (same
+                               distributed-run reason as --keycloak-url)
   --call-timeout <secs>        Per-call timeout. Default: 300
   --system-number <num>        Number the simulated callers dial (phone_config
                                 key). Default: +111111111111
@@ -75,6 +87,9 @@ RUN_DIR=""
 DTMF_TEMPLATE=""
 CONCURRENCY=10
 MAX_CALLS=""
+VOTER_OFFSET=0
+KEYCLOAK_URL_OVERRIDE=""
+HASURA_URL_OVERRIDE=""
 CALL_TIMEOUT=300
 SYSTEM_NUMBER="$DEFAULT_SYSTEM_NUMBER"
 IVR_CLI_BIN=""
@@ -89,6 +104,9 @@ while [[ $# -gt 0 ]]; do
     --dtmf-template) DTMF_TEMPLATE="$2"; shift 2 ;;
     --concurrency) CONCURRENCY="$2"; shift 2 ;;
     --max-calls) MAX_CALLS="$2"; shift 2 ;;
+    --voter-offset) VOTER_OFFSET="$2"; shift 2 ;;
+    --keycloak-url) KEYCLOAK_URL_OVERRIDE="$2"; shift 2 ;;
+    --hasura-url) HASURA_URL_OVERRIDE="$2"; shift 2 ;;
     --call-timeout) CALL_TIMEOUT="$2"; shift 2 ;;
     --system-number) SYSTEM_NUMBER="$2"; shift 2 ;;
     --ivr-cli-bin) IVR_CLI_BIN="$2"; shift 2 ;;
@@ -110,6 +128,7 @@ SUMMARY_JSON="$RUN_DIR/summary.json"
 [[ -f "$DTMF_TEMPLATE" ]] || { echo "Error: no such file: $DTMF_TEMPLATE" >&2; exit 1; }
 grep -q '{{PIN}}' "$DTMF_TEMPLATE" || { echo "Error: template $DTMF_TEMPLATE has no {{PIN}} placeholder" >&2; exit 1; }
 grep -qE '\{\{VOTER_ID\}\}|\{\{DOB\}\}' "$DTMF_TEMPLATE" || { echo "Error: template $DTMF_TEMPLATE has no {{VOTER_ID}} or {{DOB}} placeholder (whichever this realm's auth flow identifies voters by)" >&2; exit 1; }
+[[ "$VOTER_OFFSET" =~ ^[0-9]+$ ]] || { echo "Error: --voter-offset must be a non-negative integer" >&2; exit 1; }
 
 # --- Locate the ivr-cli binary -----------------------------------------------
 
@@ -142,14 +161,21 @@ json_get() {
 TENANT_ID="$(json_get tenant_id)"
 ELECTION_EVENT_ID="$(json_get election_event_id)"
 KEYCLOAK_REALM="$(json_get keycloak_realm)"
-KEYCLOAK_URL="$(json_get keycloak_url)"
+KEYCLOAK_URL="${KEYCLOAK_URL_OVERRIDE:-$(json_get keycloak_url)}"
 # summary.json stores step-cli's GraphQL endpoint (.../v1/graphql); ivr-core's
 # phone_config.hasura_url is the bare Hasura base URL, which it appends its
 # own /api/rest/ivr/... paths to (see election_config_hasura.rs) - strip the
 # GraphQL suffix so the IVR REST calls don't 404 on a doubled-up path.
-HASURA_URL="$(json_get hasura_url)"
+HASURA_URL="${HASURA_URL_OVERRIDE:-$(json_get hasura_url)}"
 HASURA_URL="${HASURA_URL%/v1/graphql}"
 VOTERS_CSV="$(json_get voters_csv)"
+# voting_channel was added to summary.json when Stage 1 grew --voting-channel;
+# an empty value is an older TELEPHONE-only run dir, which is fine.
+VOTING_CHANNEL="$(json_get voting_channel)"
+if [[ -n "$VOTING_CHANNEL" && "$VOTING_CHANNEL" != "TELEPHONE" ]]; then
+  echo "Error: $SUMMARY_JSON was provisioned for the $VOTING_CHANNEL channel — re-run setup-telephone-load-test.sh with --voting-channel TELEPHONE (the IVR eligibility check gates on the TELEPHONE channel being open)" >&2
+  exit 1
+fi
 for var in TENANT_ID ELECTION_EVENT_ID KEYCLOAK_REALM KEYCLOAK_URL HASURA_URL VOTERS_CSV; do
   [[ -n "${!var}" ]] || { echo "Error: could not read $var from $SUMMARY_JSON" >&2; exit 1; }
 done
@@ -283,8 +309,8 @@ while IFS=, read -r -a row; do
   if [[ -n "$MAX_CALLS" ]] && (( count >= MAX_CALLS )); then
     break
   fi
-done < <(tail -n +2 "$VOTERS_CSV")
-(( count > 0 )) || { echo "Error: no voter rows found in $VOTERS_CSV" >&2; exit 1; }
+done < <(tail -n +2 "$VOTERS_CSV" | tail -n +"$((VOTER_OFFSET + 1))")
+(( count > 0 )) || { echo "Error: no voter rows found in $VOTERS_CSV after skipping --voter-offset $VOTER_OFFSET" >&2; exit 1; }
 log "Rendered $count DTMF input files"
 
 # --- Fan out the calls -------------------------------------------------------
@@ -350,6 +376,7 @@ cat >"$SUMMARY_OUT" <<SUMMARY
   "tenant_id": "${TENANT_ID}",
   "dtmf_template": "${DTMF_TEMPLATE}",
   "concurrency": ${CONCURRENCY},
+  "voter_offset": ${VOTER_OFFSET},
   "call_timeout_secs": ${CALL_TIMEOUT},
   "system_number": "${SYSTEM_NUMBER}",
   "started_at": "${started_at}",
