@@ -180,11 +180,22 @@ done
   echo "Error: Playwright not installed. Install JS dependencies first: (cd packages && yarn)" >&2
   exit 1
 }
+if [[ -n "${IN_NIX_SHELL:-}" && -z "${PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS:-}" ]]; then
+  # Playwright's own ldd-based dependency check runs against devenv's nix
+  # glibc, which doesn't see this system's actual runtime libraries — a false
+  # positive that blocks every launch even though Chromium runs fine. Skip
+  # it; the chromium-install check just below still catches a genuinely
+  # missing browser.
+  export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1
+fi
 # Best-effort browser check against Playwright's default cache location; a
 # custom PLAYWRIGHT_BROWSERS_PATH is honored, and a false negative still
 # fails later with Playwright's own (equally actionable) error.
 BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
-if ! compgen -G "$BROWSERS_PATH/chromium*" >/dev/null; then
+shopt -s nullglob
+chromium_dirs=("$BROWSERS_PATH"/chromium*)
+shopt -u nullglob
+if [[ ${#chromium_dirs[@]} -eq 0 ]]; then
   echo "Error: no Playwright Chromium found under $BROWSERS_PATH — install it: (cd packages/voting-portal && yarn playwright install chromium)" >&2
   exit 1
 fi
@@ -196,6 +207,41 @@ if command -v nproc >/dev/null 2>&1; then
     log "WARNING: --concurrency $CONCURRENCY exceeds $((cores > 2 ? cores - 2 : 1)) (cores - 2 on this machine); ballot encryption is CPU-bound and the compose stack shares these cores — expect queueing to skew latency numbers"
   fi
 fi
+
+# --- Local port bridging (devcontainer-only) ----------------------------------
+#
+# The voting portal's login flow sends the BROWSER to Keycloak/MinIO URLs
+# baked in for the developer's own OS browser (reachable via VS Code's
+# forwardPorts, e.g. http://localhost:8090) — a headless browser launched
+# from *inside* the devcontainer can't reach those the same way, since
+# "localhost" there is the devcontainer's own loopback, not the host's.
+# Bridge the ports this flow is known to need with socat for the run,
+# skipping any that already resolve (e.g. a distributed run, or a
+# devcontainer with host networking where this is unnecessary). Content the
+# browser may also fetch straight from MinIO (e.g. candidate photos) is not
+# covered here.
+FORWARD_PIDS=()
+maybe_forward_local_port() {
+  local port="$1" target="$2"
+  if curl -sf -o /dev/null --max-time 2 "http://127.0.0.1:$port/" 2>/dev/null; then
+    return
+  fi
+  command -v socat >/dev/null 2>&1 || {
+    log "WARNING: 127.0.0.1:$port is not reachable from inside this container, and socat is not installed to bridge it to $target — the browser may fail to reach it"
+    return
+  }
+  log "Bridging 127.0.0.1:$port -> $target for the browser (socat)"
+  socat "TCP-LISTEN:$port,fork,reuseaddr" "TCP:$target" &
+  FORWARD_PIDS+=("$!")
+}
+if [[ "$VOTING_PORTAL_URL" == "http://localhost:"* || "$VOTING_PORTAL_URL" == "http://127.0.0.1:"* ]]; then
+  keycloak_hostport="${KEYCLOAK_URL#http://}"
+  hasura_hostport="${HASURA_URL#http://}"
+  maybe_forward_local_port "${keycloak_hostport##*:}" "$keycloak_hostport"
+  maybe_forward_local_port "${hasura_hostport##*:}" "$hasura_hostport"
+  maybe_forward_local_port 9002 "minio-proxy:9002"
+fi
+trap '(( ${#FORWARD_PIDS[@]} )) && kill "${FORWARD_PIDS[@]}" 2>/dev/null; true' EXIT
 
 # --- Output layout -----------------------------------------------------------
 
@@ -214,11 +260,22 @@ password_col="$(awk -F, -v RS='' '{for (i=1;i<=NF;i++) if ($i=="password") {prin
 [[ -n "$username_col" && -n "$password_col" ]] || { echo "Error: $VOTERS_CSV has no username/password columns (header: $header)" >&2; exit 1; }
 
 MANIFEST_JSON="$OUT_DIR/voters.json"
-tail -n +2 "$VOTERS_CSV" \
-  | tail -n +"$((VOTER_OFFSET + 1))" \
-  | { if [[ -n "$MAX_VOTES" ]]; then head -n "$MAX_VOTES"; else cat; fi; } \
-  | awk -F, -v u="$username_col" -v p="$password_col" '$u != "" && $p != "" {print $u "\t" $p}' \
-  | jq -R -s 'split("\n") | map(select(length > 0) | split("\t") | {username: .[0], password: .[1]})' \
+# Every CSV column is passed through (not just username/password): the login
+# form's fields depend on the realm's configured match-attributes (e.g.
+# dateOfBirth alongside — or instead of — a voter-id username), and the CSV
+# columns are named to match those fields, so the whole row is what the
+# browser flow needs to fill in.
+{ echo "$header";
+  tail -n +2 "$VOTERS_CSV" \
+    | tail -n +"$((VOTER_OFFSET + 1))" \
+    | { if [[ -n "$MAX_VOTES" ]]; then head -n "$MAX_VOTES"; else cat; fi; }; } \
+  | jq -R -s --arg u "$username_col" --arg p "$password_col" '
+      split("\n") | map(select(length > 0) | split(","))
+      | .[0] as $header
+      | .[1:]
+      | map(select((.[($u|tonumber)-1] // "") != "" and (.[($p|tonumber)-1] // "") != ""))
+      | map([$header, .] | transpose | map({(.[0]): .[1]}) | add)
+    ' \
   >"$MANIFEST_JSON"
 count="$(jq 'length' "$MANIFEST_JSON")"
 (( count > 0 )) || { echo "Error: no voter rows found in $VOTERS_CSV after skipping --voter-offset $VOTER_OFFSET" >&2; exit 1; }

@@ -6,8 +6,11 @@ import {expect, Page} from "@playwright/test"
 
 export interface CastBallotOptions {
     loginUrl: string
-    username: string
-    password: string
+    // Every column from the voter's CSV row (a "password" PIN/credential,
+    // plus whichever match-attributes — a voter-id username, a date of
+    // birth, or some combination — the realm's login form is configured to
+    // ask for).
+    credentials: Record<string, string>
     // Only candidates whose visible name matches are selected.
     candidatesPattern?: string
 }
@@ -28,6 +31,38 @@ async function settleOnElectionList(page: Page): Promise<void> {
         await demoAccept.click()
         await expect(electionItem).toBeVisible()
     }
+}
+
+// The login form's non-credential fields are realm-configurable
+// match-attributes (a voter-id username, a date of birth, or some
+// combination) — fill in whichever of the voter's CSV columns the form
+// actually asks for, rather than assuming a fixed username/password shape.
+// The credential field itself renders either as a plain password input, or —
+// when the realm's credential-input-policy is "structured" (e.g. a segmented
+// PIN) — as a JS-enhanced #structured-password input that mirrors typed
+// digits into the real (now hidden) password field.
+async function login(page: Page, credentials: Record<string, string>): Promise<void> {
+    for (const [field, value] of Object.entries(credentials)) {
+        if (field === "password") {
+            continue
+        }
+        const input = page.locator(`input[name="${field}"]`)
+        if ((await input.count()) > 0) {
+            await input.fill(value)
+        }
+    }
+
+    const structuredPin = page.locator("#structured-password")
+    const plainPassword = page.locator('input[name="password"]')
+    await expect(structuredPin.or(plainPassword).first()).toBeVisible()
+    if (await structuredPin.isVisible()) {
+        await structuredPin.click()
+        await structuredPin.pressSequentially(credentials.password)
+    } else {
+        await plainPassword.fill(credentials.password)
+    }
+
+    await page.locator("#kc-login").click()
 }
 
 async function selectCandidates(page: Page, candidatesPattern?: string): Promise<void> {
@@ -60,12 +95,60 @@ async function voteElection(
     candidatesPattern?: string
 ): Promise<string> {
     await page.locator(".election-item").nth(electionIndex).locator(".click-to-vote-button").click()
-    await page.getByRole("button", {name: "Start Voting"}).click()
 
-    await selectCandidates(page, candidatesPattern)
+    // .start-voting-button always renders (disabled or not), so it is a
+    // stable anchor for "the start screen has loaded" even when a demo
+    // dialog (no real key-ceremony public key attached to this election)
+    // covers it first.
+    const startVoting = page.locator(".start-voting-button")
+    const demoAccept = page.getByRole("button", {name: "I accept my vote will Not be cast"})
+    await expect(startVoting.or(demoAccept).first()).toBeVisible()
+    if (await demoAccept.isVisible()) {
+        await demoAccept.click()
+        await expect(startVoting).toBeVisible()
+    }
 
-    await page.locator(".next-button").click()
-    await page.locator(".cast-ballot-button").click()
+    // The eligibility declaration checkbox only renders when the election's
+    // security confirmation policy is MANDATORY, and gates the start button
+    // while unchecked.
+    const eligibilityCheckbox = page.locator(".security-confirmation-checkbox input[type=checkbox]")
+    if (await eligibilityCheckbox.isVisible()) {
+        await eligibilityCheckbox.check()
+    }
+    await startVoting.click()
+
+    // The ballot is paginated one group of contests per page — select on the
+    // current page, advance, and repeat until Next lands on the review
+    // screen (cast-ballot-button) instead of another page of contests.
+    const contestTitle = page.locator(".contest-title").first()
+    const castButton = page.locator(".cast-ballot-button")
+    for (;;) {
+        const previousTitle = await contestTitle.textContent().catch(() => null)
+        await selectCandidates(page, candidatesPattern)
+        await page.locator(".next-button").click()
+        // Next either swaps in a new page of contests (same component tree,
+        // so the title changes) or — on the last page — triggers WASM
+        // re-encryption before navigating to Review. Poll for one of those
+        // actually happening rather than a single toBeVisible check, which
+        // can trivially pass while the previous, still-mounted page's title
+        // is technically "visible" during that transition.
+        await expect
+            .poll(
+                async () => {
+                    if (await castButton.isVisible()) {
+                        return true
+                    }
+                    const currentTitle = await contestTitle.textContent().catch(() => null)
+                    return currentTitle !== null && currentTitle !== previousTitle
+                },
+                {timeout: castTimeoutMs}
+            )
+            .toBe(true)
+        if (await castButton.isVisible()) {
+            break
+        }
+    }
+    await castButton.click()
 
     // Casting may first open a confirmation dialog, depending on the election
     // event's cast_vote_confirm_modal setting — wait for whichever of the
@@ -97,9 +180,7 @@ export async function castBallotAsVoter(page: Page, options: CastBallotOptions):
     url.searchParams.set("lang", "en")
     await page.goto(url.toString())
 
-    await page.locator("input[name=username]").fill(options.username)
-    await page.locator("input[name=password]").fill(options.password)
-    await page.locator("[type=submit]").click()
+    await login(page, options.credentials)
 
     await settleOnElectionList(page)
     const electionCount = await page.locator(".election-item .click-to-vote-button").count()

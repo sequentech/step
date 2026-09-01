@@ -21,7 +21,7 @@
       "clientOfflineSessionMaxLifespan": "0",
       "clientSessionMaxLifespan": "0",
       "scimApiEnabled": "false",
-      "credential-input-pattern": "dddd-dddd-dddd-dddd",
+      "credential-input-pattern": "ddd-ddd",
       "cibaExpiresIn": "120",
       "clientSessionIdleTimeout": "0",
       "oauth2DeviceCodeLifespan": "600",

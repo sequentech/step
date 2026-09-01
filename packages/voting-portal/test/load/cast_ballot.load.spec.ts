@@ -10,18 +10,23 @@ import {castBallotAsVoter} from "./flow"
 // reports a per-voter outcome, which run-online-load-test.sh turns into
 // results.csv. Two ways to feed voters in:
 //
-// - LOAD_TEST_MANIFEST: a JSON array of {username, password}, rendered from
-//   the Stage-1 voters CSV by run-online-load-test.sh (the load-test mode).
-// - VOTER_USERNAME/VOTER_PASSWORD: a single voter's credentials, for running
-//   one vote directly (smoke test, selector debugging):
+// - LOAD_TEST_MANIFEST: a JSON array of voter records, rendered from the
+//   Stage-1 voters CSV by run-online-load-test.sh (the load-test mode). Every
+//   CSV column is carried through as a field (not just username/password):
+//   the login form's fields depend on the realm's configured
+//   match-attributes (e.g. dateOfBirth alongside — or instead of — a voter-id
+//   username), and flow.ts fills in whichever of these fields the form asks
+//   for.
+// - VOTER_USERNAME/VOTER_PASSWORD (and optionally VOTER_DATE_OF_BIRTH): a
+//   single voter's credentials, for running one vote directly (smoke test,
+//   selector debugging):
 //
 //     LOGIN_URL=http://127.0.0.1:3000/tenant/<t>/event/<e>/login \
-//     VOTER_USERNAME=100 VOTER_PASSWORD=123456 \
+//     VOTER_USERNAME=100 VOTER_PASSWORD=123456 VOTER_DATE_OF_BIRTH=1951-04-22 \
 //     yarn playwright test --config playwright.load.config.ts --headed
 
 interface Voter {
-    username: string
-    password: string
+    [field: string]: string
 }
 
 function loadVoters(): Voter[] {
@@ -33,9 +38,13 @@ function loadVoters(): Voter[] {
         }
         return voters
     }
-    const {VOTER_USERNAME: username, VOTER_PASSWORD: password} = process.env
+    const {
+        VOTER_USERNAME: username,
+        VOTER_PASSWORD: password,
+        VOTER_DATE_OF_BIRTH: dateOfBirth,
+    } = process.env
     if (username && password) {
-        return [{username, password}]
+        return [{username, password, ...(dateOfBirth ? {dateOfBirth} : {})}]
     }
     throw new Error(
         "Set LOAD_TEST_MANIFEST (normally done by run-online-load-test.sh) or VOTER_USERNAME/VOTER_PASSWORD"
@@ -56,8 +65,7 @@ for (const voter of loadVoters()) {
         const startedAt = Date.now()
         const ballotIds = await castBallotAsVoter(page, {
             loginUrl,
-            username: voter.username,
-            password: voter.password,
+            credentials: voter,
             candidatesPattern,
         })
         if (castCsvPath) {
