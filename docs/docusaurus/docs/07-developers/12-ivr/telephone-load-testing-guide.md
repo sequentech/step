@@ -60,10 +60,11 @@ placed in the same area, with unique numeric username/PIN/date-of-birth
 each), runs the keys ceremony, publishes, and opens `TELEPHONE` voting.
 Outputs land in `--out-dir`: `summary.json` and the voters CSV.
 
-Each run appends a random 5-character suffix to the election event's name
-(e.g. `TECUMSEH - UAT 2nd Round - K3F9Q`), so it's easy to pick your run out
-in the admin portal's election event list. The full name is printed at the
-end of the run and recorded as `election_event_name` in `summary.json`.
+Each run appends a random 5-character suffix to the election event's alias
+(e.g. `TECUMSEH - DATAFIX Test - K3F9Q`) — the admin portal's election event
+list renders alias, not name, so that's the field that needs the suffix to
+actually be visible there. The full alias is printed at the end of the run
+and recorded as `election_event_alias` in `summary.json`.
 
 Using your own election event JSON instead of the tracked example works the
 same way — just point `--election-event-json` at it. If it has more than one

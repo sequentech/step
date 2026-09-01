@@ -319,10 +319,12 @@ export -f run_one_call
 
 log "Placing $count calls with concurrency $CONCURRENCY (timeout ${CALL_TIMEOUT}s each)"
 : >"$OUT_DIR/exit_codes.csv"
+started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 start_ts="$(date +%s)"
 find "$OUT_DIR/inputs" -name 'call-*.txt' -print0 | sort -z |
   xargs -0 -P "$CONCURRENCY" -I{} bash -c 'run_one_call "$1"' _ {}
 elapsed=$(( $(date +%s) - start_ts ))
+finished_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # --- Results -----------------------------------------------------------------
 
@@ -340,9 +342,31 @@ while IFS=, read -r voter_id rc; do
   fi
 done <"$OUT_DIR/exit_codes.csv"
 
+SUMMARY_OUT="$OUT_DIR/summary.json"
+cat >"$SUMMARY_OUT" <<SUMMARY
+{
+  "run_dir": "${RUN_DIR}",
+  "election_event_id": "${ELECTION_EVENT_ID}",
+  "tenant_id": "${TENANT_ID}",
+  "dtmf_template": "${DTMF_TEMPLATE}",
+  "concurrency": ${CONCURRENCY},
+  "call_timeout_secs": ${CALL_TIMEOUT},
+  "system_number": "${SYSTEM_NUMBER}",
+  "started_at": "${started_at}",
+  "finished_at": "${finished_at}",
+  "elapsed_secs": ${elapsed},
+  "total_calls": ${count},
+  "cast": ${cast},
+  "failed": ${failed},
+  "results_csv": "${RESULTS_CSV}",
+  "logs_dir": "${OUT_DIR}/logs"
+}
+SUMMARY
+
 log "Done in ${elapsed}s: $cast/$count calls cast a ballot ($failed did not)"
 log "Per-call results: $RESULTS_CSV"
 log "Per-call logs:    $OUT_DIR/logs/"
+log "Run summary:      $SUMMARY_OUT"
 if (( failed > 0 )); then
   log "Inspect a failed call's log for where the flow diverged from the template (searched for /$SUCCESS_REGEX/i as the cast marker)"
   exit 1

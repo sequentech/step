@@ -37,7 +37,7 @@ Options (default to this repo's devcontainer dev tenant/Keycloak):
   --endpoint-url <url>            Hasura GraphQL endpoint. Default: $HASURA_ENDPOINT
   --keycloak-url <url>            Default: $KEYCLOAK_URL
   --keycloak-admin-user <user>    Default: $KEYCLOAK_ADMIN
-  --keycloak-admin-password <pw>  Default: $KEYCLOAK_ADMIN
+  --keycloak-admin-password <pw>  Default: $KEYCLOAK_ADMIN_PASSWORD
   --keycloak-client-id <id>       Default: api-key-client (needs "gold" acr
                                   for publish/voting-status; the devcontainer's
                                   $KEYCLOAK_CLI_CLIENT_ID is a lower tier and
@@ -63,7 +63,7 @@ THRESHOLD=2
 ENDPOINT_URL="${HASURA_ENDPOINT:-}"
 KEYCLOAK_URL="${KEYCLOAK_URL:-}"
 KEYCLOAK_ADMIN_USER="${KEYCLOAK_ADMIN:-}"
-KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN:-}"
+KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
 # NOT $KEYCLOAK_CLI_CLIENT_ID: that client (admin-portal in this devcontainer)
 # gets Keycloak's default "silver" acr on direct-grant login, and `publish` /
 # `update-event-voting-status` require "gold" (sequent-core's
@@ -113,7 +113,8 @@ done
 [[ -n "$ENDPOINT_URL" ]] || { echo "Error: --endpoint-url is required (or set \$HASURA_ENDPOINT)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_URL" ]] || { echo "Error: --keycloak-url is required (or set \$KEYCLOAK_URL)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_ADMIN_USER" ]] || { echo "Error: --keycloak-admin-user is required (or set \$KEYCLOAK_ADMIN)" >&2; exit 1; }
-[[ -n "$KEYCLOAK_CLIENT_ID" ]] || { echo "Error: --keycloak-client-id is required (or set \$KEYCLOAK_CLI_CLIENT_ID)" >&2; exit 1; }
+[[ -n "$KEYCLOAK_ADMIN_PASSWORD" ]] || { echo "Error: --keycloak-admin-password is required (or set \$KEYCLOAK_ADMIN_PASSWORD)" >&2; exit 1; }
+[[ -n "$KEYCLOAK_CLIENT_ID" ]] || { echo "Error: --keycloak-client-id is required" >&2; exit 1; }
 (( VOTER_PIN_DIGITS >= 1 && VOTER_PIN_DIGITS <= 8 )) || { echo "Error: --voter-pin-digits must be between 1 and 8 (DTMF voter auth limit)" >&2; exit 1; }
 (( VOTER_USERNAME_START >= 0 )) || { echo "Error: --voter-username-start must be >= 0" >&2; exit 1; }
 command -v step-cli >/dev/null 2>&1 || { echo "Error: step-cli not found on PATH. Build it: (cd packages/step-cli && cargo build --release)" >&2; exit 1; }
@@ -201,10 +202,15 @@ log "[1/7] Authenticating as admin ($KEYCLOAK_ADMIN_USER)"
 configure_as "$KEYCLOAK_ADMIN_USER" "$KEYCLOAK_ADMIN_PASSWORD"
 
 log "[2/7] Importing election event from $ELECTION_EVENT_JSON"
-# Append a random 5-char suffix to the election event's name (every language,
-# so it stays visible regardless of the admin portal's UI language) - makes
-# this run's election event easy to pick out in the admin portal's list,
-# especially when several load-test runs exist at once.
+# Append a random 5-char suffix to the election event's alias (every
+# language, so it stays visible regardless of the admin portal's UI
+# language) - makes this run's election event easy to pick out in the admin
+# portal's list, especially when several load-test runs exist at once. The
+# admin portal's election event list renders alias, falling back to name
+# only where no alias is set (useAliasRenderer.ts) - so alias, not name, is
+# the field that's actually shown there. Where a language has no alias yet,
+# seed it from that language's name so the suffix is visible in every
+# language, not just the ones that already had one.
 run_suffix_chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 RUN_SUFFIX=""
 for _ in 1 2 3 4 5; do
@@ -212,18 +218,18 @@ for _ in 1 2 3 4 5; do
 done
 jq --arg suffix "$RUN_SUFFIX" '
   .election_event.presentation.i18n |= with_entries(
-    if .value.name then .value.name += " - " + $suffix else . end
+    if .value.name then .value.alias = ((.value.alias // .value.name) + " - " + $suffix) else . end
   )
 ' "$ELECTION_EVENT_JSON" >"$OUT_DIR/election-event-to-import.json"
 out="$(run_step import-election --file-path "$OUT_DIR/election-event-to-import.json" --is-local)"
 ELECTION_EVENT_ID="$(extract_id "$out")"
 [[ -n "$ELECTION_EVENT_ID" ]] || { echo "Error: could not parse election_event_id from import-election output" >&2; exit 1; }
-ELECTION_EVENT_NAME="$(jq -r '
+ELECTION_EVENT_ALIAS="$(jq -r '
   .election_event.presentation.i18n as $i18n
-  | ($i18n.en.name // ($i18n | to_entries | map(select(.value.name)) | .[0].value.name) // "Unknown")
+  | ($i18n.en.alias // ($i18n | to_entries | map(select(.value.alias)) | .[0].value.alias) // "Unknown")
 ' "$OUT_DIR/election-event-to-import.json")"
 log "    election_event_id=$ELECTION_EVENT_ID"
-log "    election_event_name=$ELECTION_EVENT_NAME"
+log "    election_event_alias=$ELECTION_EVENT_ALIAS"
 
 log "[3/7] Generating $NUM_VOTERS voters with numeric, ${VOTER_PIN_DIGITS}-digit DTMF-safe credentials"
 # dateOfBirth is required: this realm's IVR auth flow (checked live via its
@@ -313,7 +319,7 @@ cat >"$OUT_DIR/summary.json" <<SUMMARY
 {
   "tenant_id": "${TENANT_ID}",
   "election_event_id": "${ELECTION_EVENT_ID}",
-  "election_event_name": "${ELECTION_EVENT_NAME}",
+  "election_event_alias": "${ELECTION_EVENT_ALIAS}",
   "keycloak_realm": "${REALM_NAME}",
   "keycloak_url": "${KEYCLOAK_URL}",
   "hasura_url": "${ENDPOINT_URL}",
@@ -323,6 +329,6 @@ cat >"$OUT_DIR/summary.json" <<SUMMARY
 }
 SUMMARY
 
-log "Done. Election event \"$ELECTION_EVENT_NAME\" ($ELECTION_EVENT_ID) is open for TELEPHONE voting."
+log "Done. Election event \"$ELECTION_EVENT_ALIAS\" ($ELECTION_EVENT_ID) is open for TELEPHONE voting."
 log "Summary: $OUT_DIR/summary.json"
 log "Voters (username,password are the DTMF voter-id/PIN): $VOTERS_CSV"
