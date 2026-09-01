@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Telephone Load Testing — Design | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Telephone Load Testing — Design | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3112/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Telephone Load Testing — Design","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3112/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3112/assets/js/runtime~main.be02d035.js" defer="defer"></script>
-<script src="/docusaurus/pr-preview/pr-3112/assets/js/main.276be52c.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3112/assets/js/runtime~main.85180c70.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3112/assets/js/main.5b47495b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -17,8 +17,11 @@ step-by-step instructions to actually run it, see
 <a class="" href="/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-guide">Telephone Load Testing Guide</a>.</p>
 <blockquote>
 <p>This covers the <strong>TELEPHONE</strong> channel only, driven by <code>step-cli</code> +
-<code>ivr-cli</code>. It is unrelated to the <strong>ONLINE</strong> channel load-testing tooling
-documented under <a class="" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/load_testing">CLI tutorials</a>.</p>
+<code>ivr-cli</code>. The <strong>ONLINE</strong> channel has its own Playwright-based tooling with
+the same two-stage architecture (and a shared Stage 1), documented under
+<a class="" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-design">Online Load Testing — Design</a>;
+for duplicating votes at the database level on a k8s cluster, see
+<a class="" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/load_testing">Load Testing</a>.</p>
 </blockquote>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="two-stages">Two stages<a href="#two-stages" class="hash-link" aria-label="Direct link to Two stages" title="Direct link to Two stages" translate="no">​</a></h2>
 <ol>
@@ -59,9 +62,12 @@ concrete flow this system supports.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-telephone-voting-channel-must-be-explicitly-opened">The TELEPHONE voting channel must be explicitly opened<a href="#the-telephone-voting-channel-must-be-explicitly-opened" class="hash-link" aria-label="Direct link to The TELEPHONE voting channel must be explicitly opened" title="Direct link to The TELEPHONE voting channel must be explicitly opened" translate="no">​</a></h3>
 <p><code>update-event-voting-status</code> has a <code>--voting-channel</code> flag distinct from
 <code>ONLINE</code>; the IVR eligibility check gates specifically on
-<code>VotingStatusChannel::TELEPHONE</code>. Stage 1 always opens <code>TELEPHONE</code>
-voting — opening only <code>ONLINE</code> (as the general CLI tutorials do) makes every
-simulated call fail at the eligibility phase after a successful login.</p>
+<code>VotingStatusChannel::TELEPHONE</code>. Stage 1 opens <code>TELEPHONE</code> voting by
+default (its <code>--voting-channel</code> arg exists for the online load test, which
+shares this script) — opening only <code>ONLINE</code> makes every simulated call fail
+at the eligibility phase after a successful login, which is why Stage 2
+refuses a run dir whose <code>summary.json</code> says it was provisioned for another
+channel.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="every-voter-is-pinned-to-a-single-election-area">Every voter is pinned to a single election area<a href="#every-voter-is-pinned-to-a-single-election-area" class="hash-link" aria-label="Direct link to Every voter is pinned to a single election area" title="Direct link to Every voter is pinned to a single election area" translate="no">​</a></h3>
 <p>Contests are assigned per voter area, and different areas can have different
 contest counts. Since the DTMF script hard-codes one keystroke sequence per
