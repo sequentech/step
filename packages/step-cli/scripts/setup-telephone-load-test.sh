@@ -195,10 +195,29 @@ log "[1/7] Authenticating as admin ($KEYCLOAK_ADMIN_USER)"
 configure_as "$KEYCLOAK_ADMIN_USER" "$KEYCLOAK_ADMIN_PASSWORD"
 
 log "[2/7] Importing election event from $ELECTION_EVENT_JSON"
-out="$(run_step import-election --file-path "$ELECTION_EVENT_JSON" --is-local)"
+# Append a random 5-char suffix to the election event's name (every language,
+# so it stays visible regardless of the admin portal's UI language) - makes
+# this run's election event easy to pick out in the admin portal's list,
+# especially when several load-test runs exist at once.
+run_suffix_chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+RUN_SUFFIX=""
+for _ in 1 2 3 4 5; do
+  RUN_SUFFIX+="${run_suffix_chars:$((RANDOM % ${#run_suffix_chars})):1}"
+done
+jq --arg suffix "$RUN_SUFFIX" '
+  .election_event.presentation.i18n |= with_entries(
+    if .value.name then .value.name += " - " + $suffix else . end
+  )
+' "$ELECTION_EVENT_JSON" >"$OUT_DIR/election-event-to-import.json"
+out="$(run_step import-election --file-path "$OUT_DIR/election-event-to-import.json" --is-local)"
 ELECTION_EVENT_ID="$(extract_id "$out")"
 [[ -n "$ELECTION_EVENT_ID" ]] || { echo "Error: could not parse election_event_id from import-election output" >&2; exit 1; }
+ELECTION_EVENT_NAME="$(jq -r '
+  .election_event.presentation.i18n as $i18n
+  | ($i18n.en.name // ($i18n | to_entries | map(select(.value.name)) | .[0].value.name) // "Unknown")
+' "$OUT_DIR/election-event-to-import.json")"
 log "    election_event_id=$ELECTION_EVENT_ID"
+log "    election_event_name=$ELECTION_EVENT_NAME"
 
 log "[3/7] Generating $NUM_VOTERS voters with numeric, ${VOTER_PIN_DIGITS}-digit DTMF-safe credentials"
 # dateOfBirth is required: this realm's IVR auth flow (checked live via its
@@ -287,6 +306,7 @@ cat >"$OUT_DIR/summary.json" <<SUMMARY
 {
   "tenant_id": "${TENANT_ID}",
   "election_event_id": "${ELECTION_EVENT_ID}",
+  "election_event_name": "${ELECTION_EVENT_NAME}",
   "keycloak_realm": "${REALM_NAME}",
   "keycloak_url": "${KEYCLOAK_URL}",
   "hasura_url": "${ENDPOINT_URL}",
@@ -296,6 +316,6 @@ cat >"$OUT_DIR/summary.json" <<SUMMARY
 }
 SUMMARY
 
-log "Done. Election event $ELECTION_EVENT_ID is open for TELEPHONE voting."
+log "Done. Election event \"$ELECTION_EVENT_NAME\" ($ELECTION_EVENT_ID) is open for TELEPHONE voting."
 log "Summary: $OUT_DIR/summary.json"
 log "Voters (username,password are the DTMF voter-id/PIN): $VOTERS_CSV"

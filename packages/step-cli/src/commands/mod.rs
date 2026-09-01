@@ -15,6 +15,7 @@ pub mod create_election;
 pub mod create_election_event;
 pub mod create_electoral_logs;
 pub mod create_voter;
+pub mod delete_election_event;
 pub mod download_tally_results;
 pub mod duplicate_votes;
 pub mod export_cast_votes;

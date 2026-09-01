@@ -21,6 +21,11 @@ All commands below assume a terminal opened **inside the dev container**
 `step-cli`'s dependencies (Hasura/Keycloak), and the `trustee1`/`trustee2`
 containers are reachable.
 
+Every command below writes its output under
+`packages/step-cli/scripts/telephone-load-test-output/` (gitignored) rather
+than `/tmp`, so a run survives a container restart and stays easy to find
+between steps.
+
 ## Prerequisites
 
 - The `keycloak`, `graphql-engine` (Hasura), `trustee1` and `trustee2`
@@ -47,13 +52,18 @@ export PATH="/workspaces/step/packages/step-cli/rust-local-target/release:$PATH"
 packages/step-cli/scripts/setup-telephone-load-test.sh \
   --election-event-json packages/step-cli/scripts/telephone-load-test-inputs/election-event.json \
   --num-voters 20 \
-  --out-dir /tmp/telephone-load-test-run
+  --out-dir packages/step-cli/scripts/telephone-load-test-output/run
 ```
 
 This imports the tracked example election event, generates 20 voters (all
 placed in the same area, with unique numeric username/PIN/date-of-birth
 each), runs the keys ceremony, publishes, and opens `TELEPHONE` voting.
 Outputs land in `--out-dir`: `summary.json` and the voters CSV.
+
+Each run appends a random 5-character suffix to the election event's name
+(e.g. `TECUMSEH - UAT 2nd Round - K3F9Q`), so it's easy to pick your run out
+in the admin portal's election event list. The full name is printed at the
+end of the run and recorded as `election_event_name` in `summary.json`.
 
 Using your own election event JSON instead of the tracked example works the
 same way — just point `--election-event-json` at it. If it has more than one
@@ -75,15 +85,15 @@ match your election — that's fine, the side effects are what you need):
 
 ```bash
 packages/step-cli/scripts/run-telephone-load-test.sh \
-  --run-dir /tmp/telephone-load-test-run \
+  --run-dir packages/step-cli/scripts/telephone-load-test-output/run \
   --dtmf-template packages/step-cli/scripts/dtmf-template.example.txt \
-  --out-dir /tmp/telephone-load-test-calls
+  --out-dir packages/step-cli/scripts/telephone-load-test-output/calls
 ```
 
 Then drive one call by hand, noting every prompt and keystroke:
 
 ```bash
-PHONE_CONFIG_PATH=/tmp/telephone-load-test-calls/phone_config.json \
+PHONE_CONFIG_PATH=packages/step-cli/scripts/telephone-load-test-output/calls/phone_config.json \
 beyond/packages/rust-local-target/release/ivr-cli \
   --bundle dev --system-number +111111111111 \
   --number +15550000000 --show-internal-state
@@ -108,7 +118,7 @@ curl -sf -H "Authorization: Bearer $TOKEN" "http://keycloak:8090/realms/<realm>/
 
 ```bash
 packages/step-cli/scripts/run-telephone-load-test.sh \
-  --run-dir /tmp/telephone-load-test-run \
+  --run-dir packages/step-cli/scripts/telephone-load-test-output/run \
   --dtmf-template packages/step-cli/scripts/dtmf-template.example.txt \
   --concurrency 10
 ```
@@ -119,6 +129,26 @@ local `valkey` container is started automatically as the session store if
 none is reachable (reused across runs; disable with `--no-start-valkey`).
 Results land in `results.csv` and per-call logs under `--out-dir` (defaults
 to a fresh temp dir).
+
+## 4. Clean up: delete the election event
+
+```bash
+ELECTION_EVENT_ID=$(jq -r .election_event_id packages/step-cli/scripts/telephone-load-test-output/run/summary.json)
+step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
+```
+
+This calls the `delete_election_event` GraphQL mutation, which queues an
+async task tearing down the election event's Postgres/Hasura rows, its
+Keycloak realm, and its ImmuDB and document-store data — the command blocks
+and polls until that task finishes (or fails/times out after 5 minutes), so
+a `Success!` means cleanup is actually done, not just queued.
+
+It reuses the session `step-cli` already has in `config/configuration.json`
+next to the binary (left there authenticated as admin by
+[Stage 1](#1-stage-1--provision-the-election-event-and-voters)). If that
+token has expired, re-authenticate first with the same `step config` call
+the setup script makes (see `configure_as` in
+`packages/step-cli/scripts/setup-telephone-load-test.sh`).
 
 ## Notes
 
