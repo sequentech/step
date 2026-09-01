@@ -42,8 +42,7 @@ use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
-    Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySessionContest,
-    TallySheet,
+    Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySheet,
 };
 use sequent_core::types::participation::VotesByChannel;
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -75,7 +74,6 @@ use velvet::pipes::pipe_name::PipeName;
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
-    pub last_tally_session_execution: TallySessionContest,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -134,7 +132,7 @@ pub fn prepare_tally_for_area_contest(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
-    let area_id = area_contest.last_tally_session_execution.area_id.clone();
+    let area_id = area_contest.area.id.clone();
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
         .get(&(area_id.clone(), contest_id.clone()))
