@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Online Load Testing — Design | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-design"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Online Load Testing — Design | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3112/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-design"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-design" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-design" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Online Load Testing — Design","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-design"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3112/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3112/assets/js/runtime~main.85180c70.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3112/assets/js/runtime~main.103e5c76.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3112/assets/js/main.5b47495b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -28,52 +28,58 @@ For duplicating votes at the database level on a k8s cluster, see
 (Keycloak auth, GraphQL queries, ballot-style fetches, sequent-core WASM
 ballot encryption, the cast mutation) is exercised for real — nothing is
 stubbed, intercepted, or blocked.</p>
+<p>All three scripts (setup and both Stage 2 runners) take no command-line
+arguments; every setting lives in
+<code>packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml</code>, loaded by
+a shared <code>load_test_common.py</code> module.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="two-stages">Two stages<a href="#two-stages" class="hash-link" aria-label="Direct link to Two stages" title="Direct link to Two stages" translate="no">​</a></h2>
 <ol>
 <li class=""><strong>Stage 1 — Provisioning</strong> (<code>step-cli</code>, network calls to Hasura/Keycloak
 only): the same script the telephone load test uses,
-<code>packages/step-cli/scripts/setup-telephone-load-test.sh</code>, invoked with
-<code>--voting-channel ONLINE</code>. It imports an election event, bulk-creates
-voters, runs the keys ceremony, publishes, and opens <strong>ONLINE</strong> voting.
-Ends with an election event ready to accept portal votes, plus a voters
-CSV and a <code>summary.json</code> recording the portal login URL.</li>
+<code>packages/step-cli/scripts/setup_telephone_load_test.py</code>, run with
+<code>setup.voting_channel: ONLINE</code> in <code>layers.yaml</code>. It imports an election
+event, bulk-creates voters, runs the keys ceremony, publishes, and opens
+<strong>ONLINE</strong> voting. Ends with an election event ready to accept portal
+votes, plus a voters CSV and a <code>summary.json</code> recording the portal login
+URL.</li>
 <li class=""><strong>Stage 2 — Casting</strong> (<code>Playwright</code>): renders a voter manifest from the
 Stage 1 CSV and drives one Playwright run in <code>packages/voting-portal</code>,
 where every voter is an independent headless-Chromium session casting a
 real ballot against the dev container&#x27;s real portal/Keycloak/Hasura.
-Implemented as <code>packages/step-cli/scripts/run-online-load-test.sh</code> plus
+Implemented as <code>packages/step-cli/scripts/run_online_load_test.py</code> plus
 <code>packages/voting-portal/test/load/</code>.</li>
 </ol>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design-constraints">Design constraints<a href="#design-constraints" class="hash-link" aria-label="Direct link to Design constraints" title="Direct link to Design constraints" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="stage-1-is-shared-with-the-telephone-test-not-forked">Stage 1 is shared with the telephone test, not forked<a href="#stage-1-is-shared-with-the-telephone-test-not-forked" class="hash-link" aria-label="Direct link to Stage 1 is shared with the telephone test, not forked" title="Direct link to Stage 1 is shared with the telephone test, not forked" translate="no">​</a></h3>
 <p>The provisioning steps are identical for both channels — only the channel
-opened at the end differs, so <code>setup-telephone-load-test.sh</code> grew a
-<code>--voting-channel ONLINE|TELEPHONE</code> enum arg (default <code>TELEPHONE</code>, preserving
-its original behavior) rather than a second script. The DTMF-safe numeric
-credentials it generates are a telephone constraint but work fine in the
-portal login form, so voter generation stays a single code path. For <code>ONLINE</code>
-the script records <code>voting_channel</code>, <code>voting_portal_url</code> and <code>login_url</code>
-(<code>{portal}/tenant/{tenant_id}/event/{election_event_id}/login</code>) in
-<code>summary.json</code>; both Stage 2 runners check <code>voting_channel</code> and refuse a run
-dir provisioned for the other channel, since each channel&#x27;s eligibility check
-gates on its own channel being open.</p>
+opened at the end differs, so <code>setup_telephone_load_test.py</code> grew a
+<code>voting_channel: ONLINE|TELEPHONE</code> YAML setting (default <code>TELEPHONE</code>,
+preserving its original behavior) rather than a second script. The DTMF-safe
+numeric credentials it generates are a telephone constraint but work fine in
+the portal login form, so voter generation stays a single code path. For
+<code>ONLINE</code> the script records <code>voting_channel</code>, <code>voting_portal_url</code> and
+<code>login_url</code> (<code>{portal}/tenant/{tenant_id}/event/{election_event_id}/login</code>)
+in <code>summary.json</code>; both Stage 2 runners check <code>voting_channel</code> and refuse a
+run dir provisioned for the other channel, since each channel&#x27;s eligibility
+check gates on its own channel being open.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="single-area-pinning-matters-for-online-too">Single-area pinning matters for ONLINE too<a href="#single-area-pinning-matters-for-online-too" class="hash-link" aria-label="Direct link to Single-area pinning matters for ONLINE too" title="Direct link to Single-area pinning matters for ONLINE too" translate="no">​</a></h3>
 <p>Contests are assigned per voter area, and different areas can have different
 contest counts. Stage 1 pins every generated voter to one area
-(<code>--voter-area-name</code>, defaulting to the election event&#x27;s first area), so
+(<code>setup.voter_area_name</code>, defaulting to the election event&#x27;s first area), so
 every browser session sees the same contests and one deterministic
 candidate-selection strategy is valid for every voter — the browser analog of
 &quot;one DTMF template works for every call&quot;.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="concurrency-is-playwright-workers-not-process-fan-out">Concurrency is Playwright workers, not process fan-out<a href="#concurrency-is-playwright-workers-not-process-fan-out" class="hash-link" aria-label="Direct link to Concurrency is Playwright workers, not process fan-out" title="Direct link to Concurrency is Playwright workers, not process fan-out" translate="no">​</a></h3>
-<p>The telephone Stage 2 fans out with <code>xargs -P</code> because each call is a cheap
-independent CLI process. Browsers are not cheap: N separate <code>playwright test</code>
-invocations would each pay a Node + browser startup and multiply memory.
-<code>run-online-load-test.sh</code> therefore invokes Playwright <strong>once</strong> with
-<code>--workers &lt;concurrency&gt;</code>; each worker reuses one browser process, and every
-voter runs in a fresh browser context inside it (so sessions don&#x27;t leak
-between voters, and no explicit logout is needed). The runner&#x27;s
-<code>--concurrency</code> arg keeps the same CLI surface as the telephone script — the
-engine underneath differs.</p>
+<p>The telephone Stage 2 fans out with a thread pool because each call is a
+cheap independent CLI process. Browsers are not cheap: N separate
+<code>playwright test</code> invocations would each pay a Node + browser startup and
+multiply memory. <code>run_online_load_test.py</code> therefore invokes Playwright
+<strong>once</strong> with <code>--workers &lt;concurrency&gt;</code>; each worker reuses one browser
+process, and every voter runs in a fresh browser context inside it (so
+sessions don&#x27;t leak between voters, and no explicit logout is needed). The
+runner&#x27;s <code>online_run.concurrency</code> setting keeps the same shape as the
+telephone script&#x27;s <code>telephone_run.concurrency</code> — the engine underneath
+differs.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="one-generated-test-per-voter">One generated test per voter<a href="#one-generated-test-per-voter" class="hash-link" aria-label="Direct link to One generated test per voter" title="Direct link to One generated test per voter" translate="no">​</a></h3>
 <p><code>test/load/cast_ballot.load.spec.ts</code> reads the voter manifest at module load
 and emits one Playwright <code>test()</code> per voter. That is what makes per-voter
@@ -83,8 +89,8 @@ The runner parses that report into <code>results.csv</code>
 (<code>voter_id,status,duration_ms,ballot_id</code>) and a <code>summary.json</code> with the same
 shape as the telephone run&#x27;s. Ballot ids come from rows the spec appends on
 success. Without a manifest the spec falls back to
-<code>VOTER_USERNAME</code>/<code>VOTER_PASSWORD</code> env vars and runs a single voter — the
-smoke-test and selector-debugging mode.</p>
+<code>VOTER_USERNAME</code>/<code>VOTER_PASSWORD</code>/<code>VOTER_DATE_OF_BIRTH</code> env vars and runs a
+single voter — the smoke-test and selector-debugging mode.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-success-criterion-is-the-rendered-ballot-id">The success criterion is the rendered ballot id<a href="#the-success-criterion-is-the-rendered-ballot-id" class="hash-link" aria-label="Direct link to The success criterion is the rendered ballot id" title="Direct link to The success criterion is the rendered ballot id" translate="no">​</a></h3>
 <p>The confirmation screen renders the ballot id (<code>data-testid=&quot;ballot-id&quot;</code> in
 <code>ConfirmationScreen.tsx</code>) only after a ballot has actually been cast — the
@@ -106,6 +112,15 @@ from &quot;realm missing — stale summary?&quot;), Hasura&#x27;s <code>/healthz
 binary (<code>yarn</code> not run) and the Chromium browser
 (<code>yarn playwright install chromium</code> not run). This is the browser-world
 equivalent of the telephone runner&#x27;s valkey/<code>ivr-cli</code> checks.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="local-port-bridging-inside-the-devcontainer">Local port bridging inside the devcontainer<a href="#local-port-bridging-inside-the-devcontainer" class="hash-link" aria-label="Direct link to Local port bridging inside the devcontainer" title="Direct link to Local port bridging inside the devcontainer" translate="no">​</a></h3>
+<p>The voting portal&#x27;s login flow sends the <em>browser</em> to Keycloak/MinIO URLs
+baked in for a developer&#x27;s own OS browser (reachable via VS Code&#x27;s
+<code>forwardPorts</code>, e.g. <code>http://localhost:8090</code>) — a headless browser launched
+from <em>inside</em> the devcontainer can&#x27;t reach those the same way, since
+<code>localhost</code> there is the devcontainer&#x27;s own loopback, not the host&#x27;s. The
+runner bridges the known ports (Keycloak, Hasura, the MinIO config proxy)
+with <code>socat</code> for the duration of the run, skipping any that already resolve
+(e.g. a distributed run, or a devcontainer with host networking).</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="resource-budget-parallel-voting-clients-on-a-local-machine">Resource budget: parallel voting clients on a local machine<a href="#resource-budget-parallel-voting-clients-on-a-local-machine" class="hash-link" aria-label="Direct link to Resource budget: parallel voting clients on a local machine" title="Direct link to Resource budget: parallel voting clients on a local machine" translate="no">​</a></h2>
 <p>Each client is a Chromium page doing WASM ballot encryption:</p>
 <ul>
@@ -113,14 +128,14 @@ equivalent of the telephone runner&#x27;s valkey/<code>ivr-cli</code> checks.</p
 <li class=""><strong>CPU</strong>: login and GraphQL are I/O-bound, but ballot encryption is a real
 CPU burst per contest — and the same machine is usually running the whole
 compose stack.</li>
-<li class=""><strong>Defaults</strong>: <code>--concurrency 4</code>; rule of thumb
+<li class=""><strong>Defaults</strong>: <code>online_run.concurrency: 4</code>; rule of thumb
 <code>min(cores − 2, free_GB / 0.5)</code>, realistically capping around 8 on a dev
 laptop. The runner warns (doesn&#x27;t fail) when concurrency exceeds
 <code>cores − 2</code>, since queueing skews the latency numbers.</li>
 <li class=""><strong>Don&#x27;t load-test webpack-dev-server</strong>: <code>yarn start:voting-portal</code> is a
 single-process dev server; above ~8 clients it becomes the bottleneck
-before the backend does. For bigger runs point <code>--voting-portal-url</code> at a
-production build served statically, or at a deployed portal.</li>
+before the backend does. For bigger runs point <code>online_run.voting_portal_url</code>
+at a production build served statically, or at a deployed portal.</li>
 <li class=""><strong>Scope boundary</strong>: browser clients measure realistic per-voter latency and
 exercise the full stack at modest concurrency; raw vote-volume throughput
 remains the job of <code>step-cli duplicate-votes</code>
@@ -128,44 +143,49 @@ remains the job of <code>step-cli duplicate-votes</code>
 browser votes, then duplicate to volume.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="distributed-runs-provision-once-load-from-several-machines">Distributed runs: provision once, load from several machines<a href="#distributed-runs-provision-once-load-from-several-machines" class="hash-link" aria-label="Direct link to Distributed runs: provision once, load from several machines" title="Direct link to Distributed runs: provision once, load from several machines" translate="no">​</a></h2>
-<p>Stage 2 (both <code>run-online-load-test.sh</code> and <code>run-telephone-load-test.sh</code>) is
+<p>Stage 2 (both <code>run_online_load_test.py</code> and <code>run_telephone_load_test.py</code>) is
 almost machine-independent by construction: the only Stage-1 artifacts it
 consumes are <code>summary.json</code> and the voters CSV — two small, portable text
-files. The event itself lives in Keycloak/Hasura, not in the run dir. What
-breaks when Stage 2 moves to another machine, and the fixes:</p>
+files. The event itself lives in Keycloak/Hasura, not in the run dir. Since
+neither script takes command-line arguments, each load machine needs its own
+copy of <code>layers.yaml</code> (or the shared one edited before that machine&#x27;s run) —
+what breaks when Stage 2 moves to another machine, and the fixes:</p>
 <ol>
 <li class=""><strong>Endpoint URLs inside <code>summary.json</code> are whatever Stage 1 used.</strong> In the
 devcontainer that&#x27;s <code>127.0.0.1</code> addresses, meaningless remotely. Two
 complementary fixes:<!-- -->
 <ul>
 <li class=""><em>Preferred</em>: provision Stage 1 with the <strong>public</strong> URLs
-(<code>--endpoint-url</code>, <code>--keycloak-url</code>, <code>--voting-portal-url</code>), so
-<code>summary.json</code> is remote-valid as written — distribution is then purely
-file copying.</li>
-<li class=""><em>Also</em>: both Stage 2 runners accept <code>--keycloak-url</code> / <code>--hasura-url</code>
-overrides (and the online runner <code>--voting-portal-url</code>), so an existing
-locally-provisioned run dir can still be replayed remotely.</li>
+(<code>setup.endpoint_url</code>, <code>setup.keycloak_url</code>, <code>setup.voting_portal_url</code>),
+so <code>summary.json</code> is remote-valid as written — distribution is then
+purely file copying.</li>
+<li class=""><em>Also</em>: both Stage 2 runners accept <code>keycloak_url</code> / <code>hasura_url</code>
+overrides (<code>telephone_run.*</code> / <code>online_run.*</code>, plus the online runner&#x27;s
+<code>online_run.voting_portal_url</code>), so an existing locally-provisioned run
+dir can still be replayed remotely by pointing each machine&#x27;s
+<code>layers.yaml</code> at it.</li>
 </ul>
 </li>
-<li class=""><strong>Getting the run dir there</strong>: <code>scp</code>/<code>rsync</code> the Stage-1 <code>--out-dir</code> (plus
-the DTMF template for telephone). Both runners tolerate a moved dir — the
-CSV path in <code>summary.json</code> falls back to <code>&lt;run-dir&gt;/&lt;basename&gt;</code>.</li>
+<li class=""><strong>Getting the run dir there</strong>: <code>scp</code>/<code>rsync</code> the Stage-1 <code>setup.out_dir</code>
+(plus the DTMF template for telephone). Both runners tolerate a moved dir
+— the CSV path in <code>summary.json</code> falls back to <code>&lt;run-dir&gt;/&lt;basename&gt;</code>.</li>
 <li class=""><strong>Disjoint voter shards per machine — the one correctness invariant.</strong>
 Two machines replaying the same CSV rows means duplicate votes (rejected,
-skewing results). <code>--voter-offset</code> + <code>--max-votes</code>/<code>--max-calls</code> slice the
-CSV per machine: machine A <code>--voter-offset 0 --max-votes 500</code>, machine B
-<code>--voter-offset 500 --max-votes 500</code>, and so on. Provision Stage 1 with
-<code>--num-voters</code> ≥ machines × per-machine votes. (The telephone runner
-derives each call&#x27;s synthetic caller number from the voter id, so
-disjoint voter slices also keep caller numbers unique across machines.)</li>
+skewing results). <code>voter_offset</code> + <code>max_votes</code>/<code>max_calls</code> slice the CSV
+per machine: machine A <code>voter_offset: 0, max_votes: 500</code>, machine B
+<code>voter_offset: 500, max_votes: 500</code>, and so on (set per-machine in each
+machine&#x27;s own <code>layers.yaml</code>). Provision Stage 1 with <code>setup.num_voters</code> ≥
+machines × per-machine votes. (The telephone runner derives each call&#x27;s
+synthetic caller number from the voter id, so disjoint voter slices also
+keep caller numbers unique across machines.)</li>
 <li class=""><strong>Telephone-only machine-local dependencies</strong>: each load machine needs the
 <code>ivr-cli</code> binary built, the IVR client secrets exported as env vars
 (<code>KEYCLOAK_IVR_SERVICE_CLIENT_SECRET</code>,
 <code>KEYCLOAK_IVR_VOTING_CLIENT_SECRET</code> — only the
 <code>.devcontainer/.env.development</code> <em>fallback</em> is devcontainer-bound), and a
 session store. The valkey auto-start assumes the devcontainer&#x27;s compose
-network, so remotely each machine runs its own local valkey/redis and
-passes <code>--valkey-url</code>. Nothing needs sharing between machines: IVR
+network, so remotely each machine runs its own local valkey/redis and sets
+<code>telephone_run.valkey_url</code>. Nothing needs sharing between machines: IVR
 sessions are per-call state consumed only by that machine&#x27;s own <code>ivr-cli</code>
 processes.</li>
 <li class=""><strong>Online-only</strong>: each machine needs the JS dependencies and the Playwright
@@ -176,6 +196,6 @@ distributed run implies anyway.</li>
 <code>summary.json</code>; the counts are additive and the CSVs concatenate (voter
 ids are globally unique), so a one-liner merges them. Combined
 votes/minute spans the earliest <code>started_at</code> to the latest <code>finished_at</code>.</li>
-</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/load_testing"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Load Testing</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-guide"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Online Load Testing Guide</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#two-stages" class="table-of-contents__link toc-highlight">Two stages</a></li><li><a href="#design-constraints" class="table-of-contents__link toc-highlight">Design constraints</a><ul><li><a href="#stage-1-is-shared-with-the-telephone-test-not-forked" class="table-of-contents__link toc-highlight">Stage 1 is shared with the telephone test, not forked</a></li><li><a href="#single-area-pinning-matters-for-online-too" class="table-of-contents__link toc-highlight">Single-area pinning matters for ONLINE too</a></li><li><a href="#concurrency-is-playwright-workers-not-process-fan-out" class="table-of-contents__link toc-highlight">Concurrency is Playwright workers, not process fan-out</a></li><li><a href="#one-generated-test-per-voter" class="table-of-contents__link toc-highlight">One generated test per voter</a></li><li><a href="#the-success-criterion-is-the-rendered-ballot-id" class="table-of-contents__link toc-highlight">The success criterion is the rendered ballot id</a></li><li><a href="#no-retries" class="table-of-contents__link toc-highlight">No retries</a></li><li><a href="#preflight-over-mid-run-failure" class="table-of-contents__link toc-highlight">Preflight over mid-run failure</a></li></ul></li><li><a href="#resource-budget-parallel-voting-clients-on-a-local-machine" class="table-of-contents__link toc-highlight">Resource budget: parallel voting clients on a local machine</a></li><li><a href="#distributed-runs-provision-once-load-from-several-machines" class="table-of-contents__link toc-highlight">Distributed runs: provision once, load from several machines</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/load_testing"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Load Testing</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3112/docs/developers/cli/tutorials/load-testing/online-load-testing-guide"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Online Load Testing Guide</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#two-stages" class="table-of-contents__link toc-highlight">Two stages</a></li><li><a href="#design-constraints" class="table-of-contents__link toc-highlight">Design constraints</a><ul><li><a href="#stage-1-is-shared-with-the-telephone-test-not-forked" class="table-of-contents__link toc-highlight">Stage 1 is shared with the telephone test, not forked</a></li><li><a href="#single-area-pinning-matters-for-online-too" class="table-of-contents__link toc-highlight">Single-area pinning matters for ONLINE too</a></li><li><a href="#concurrency-is-playwright-workers-not-process-fan-out" class="table-of-contents__link toc-highlight">Concurrency is Playwright workers, not process fan-out</a></li><li><a href="#one-generated-test-per-voter" class="table-of-contents__link toc-highlight">One generated test per voter</a></li><li><a href="#the-success-criterion-is-the-rendered-ballot-id" class="table-of-contents__link toc-highlight">The success criterion is the rendered ballot id</a></li><li><a href="#no-retries" class="table-of-contents__link toc-highlight">No retries</a></li><li><a href="#preflight-over-mid-run-failure" class="table-of-contents__link toc-highlight">Preflight over mid-run failure</a></li><li><a href="#local-port-bridging-inside-the-devcontainer" class="table-of-contents__link toc-highlight">Local port bridging inside the devcontainer</a></li></ul></li><li><a href="#resource-budget-parallel-voting-clients-on-a-local-machine" class="table-of-contents__link toc-highlight">Resource budget: parallel voting clients on a local machine</a></li><li><a href="#distributed-runs-provision-once-load-from-several-machines" class="table-of-contents__link toc-highlight">Distributed runs: provision once, load from several machines</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>

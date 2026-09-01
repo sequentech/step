@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Telephone Load Testing — Design | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Telephone Load Testing — Design | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3112/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Telephone Load Testing — Design","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3112/docs/developers/ivr/telephone-load-testing-design"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3112/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3112/assets/js/runtime~main.85180c70.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3112/assets/js/runtime~main.103e5c76.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3112/assets/js/main.5b47495b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -30,14 +30,14 @@ only): imports an election event for a tenant, bulk-creates voters with
 telephone-friendly credentials, runs the keys ceremony, publishes, and
 opens telephone voting. Ends with an election event ready to accept IVR
 calls, plus a voters CSV. Implemented as
-<code>packages/step-cli/scripts/setup-telephone-load-test.sh</code>.</li>
+<code>packages/step-cli/scripts/setup_telephone_load_test.py</code>.</li>
 <li class=""><strong>Stage 2 — Calling</strong> (<code>ivr-cli --bundle dev</code>): builds a local
 <code>phone_config.json</code> pointing at the event from Stage 1, turns the voters
 CSV into one DTMF input script per voter, and fans out N parallel
 <code>ivr-cli</code> processes — each one an independent simulated phone call —
 against the dev container&#x27;s real Keycloak/Hasura, no telephony
 infrastructure involved. Implemented as
-<code>packages/step-cli/scripts/run-telephone-load-test.sh</code>.</li>
+<code>packages/step-cli/scripts/run_telephone_load_test.py</code>.</li>
 </ol>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design-constraints">Design constraints<a href="#design-constraints" class="hash-link" aria-label="Direct link to Design constraints" title="Direct link to Design constraints" translate="no">​</a></h2>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="telephone-voting-needs-numeric-8-digit-credentials">Telephone voting needs numeric, ≤8-digit credentials<a href="#telephone-voting-needs-numeric-8-digit-credentials" class="hash-link" aria-label="Direct link to Telephone voting needs numeric, ≤8-digit credentials" title="Direct link to Telephone voting needs numeric, ≤8-digit credentials" translate="no">​</a></h3>
@@ -47,9 +47,9 @@ straight onto Keycloak ROPC form parameters, each capped at a small number of
 digits — the default flow uses <code>voter_id</code>/<code>password</code>; this realm&#x27;s flow (see
 below) uses <code>dateOfBirth</code>/<code>password</code> instead. Either way, every load-test
 voter&#x27;s identifying fields must be plain numeric strings. <code>step generate-voters</code>&#x27;s
-bare-counter username already satisfies this; <code>setup-telephone-load-test.sh</code>
+bare-counter username already satisfies this; <code>setup_telephone_load_test.py</code>
 starts that counter at 100 (<code>username_start_number</code> in <code>external_config.json</code>,
-<code>--voter-username-start</code> to change it) so every generated username is at
+<code>setup.voter_username_start</code> in <code>layers.yaml</code> to change it) so every generated username is at
 least 3 digits, rather than starting at a 1-digit &quot;0&quot;. Setting
 <code>voter_password_policy</code> to <code>RandomNumeric { digits: &lt;=8 }</code> in the run&#x27;s
 <code>external_config.json</code> produces a matching numeric PIN.</p>
@@ -63,8 +63,8 @@ concrete flow this system supports.</p>
 <p><code>update-event-voting-status</code> has a <code>--voting-channel</code> flag distinct from
 <code>ONLINE</code>; the IVR eligibility check gates specifically on
 <code>VotingStatusChannel::TELEPHONE</code>. Stage 1 opens <code>TELEPHONE</code> voting by
-default (its <code>--voting-channel</code> arg exists for the online load test, which
-shares this script) — opening only <code>ONLINE</code> makes every simulated call fail
+default (its <code>voting_channel</code> YAML setting exists for the online load test,
+which shares this script) — opening only <code>ONLINE</code> makes every simulated call fail
 at the eligibility phase after a successful login, which is why Stage 2
 refuses a run dir whose <code>summary.json</code> says it was provisioned for another
 channel.</p>
@@ -73,7 +73,7 @@ channel.</p>
 contest counts. Since the DTMF script hard-codes one keystroke sequence per
 contest, a script captured for a 4-contest area would diverge for a voter
 whose area only has 3. Stage 1 avoids this entirely: it restricts voter
-generation to a single area (<code>--voter-area-name</code>, defaulting to the election
+generation to a single area (<code>setup.voter_area_name</code>, defaulting to the election
 event&#x27;s first area) before handing the file to <code>generate-voters</code>, so every
 generated voter shares the same contest count and one captured DTMF template
 is valid for every call in the run. This only affects which area voters are
