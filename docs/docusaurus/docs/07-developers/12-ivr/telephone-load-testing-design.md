@@ -44,7 +44,10 @@ straight onto Keycloak ROPC form parameters, each capped at a small number of
 digits — the default flow uses `voter_id`/`password`; this realm's flow (see
 below) uses `dateOfBirth`/`password` instead. Either way, every load-test
 voter's identifying fields must be plain numeric strings. `step generate-voters`'s
-bare-counter username already satisfies this, and setting
+bare-counter username already satisfies this; `setup-telephone-load-test.sh`
+starts that counter at 100 (`username_start_number` in `external_config.json`,
+`--voter-username-start` to change it) so every generated username is at
+least 3 digits, rather than starting at a 1-digit "0". Setting
 `voter_password_policy` to `RandomNumeric { digits: <=8 }` in the run's
 `external_config.json` produces a matching numeric PIN.
 

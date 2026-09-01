@@ -26,6 +26,9 @@ Options (default to this repo's devcontainer dev tenant/Keycloak):
   --tenant-id <id>                Default: $SUPER_ADMIN_TENANT_ID
   --num-voters <n>                Default: 20
   --voter-pin-digits <n>          Numeric PIN length, max 8 (DTMF limit). Default: 6
+  --voter-username-start <n>      First voter username (usernames increment from
+                                  here). Default: 100, so every username is at
+                                  least 3 digits
   --voter-area-name <name>        Every generated voter is placed in this single
                                   area, so all voters get the same contest count
                                   and one DTMF template works for every call.
@@ -54,6 +57,7 @@ TENANT_ID="${SUPER_ADMIN_TENANT_ID:-}"
 ELECTION_EVENT_JSON=""
 NUM_VOTERS=20
 VOTER_PIN_DIGITS=6
+VOTER_USERNAME_START=100
 VOTER_AREA_NAME=""
 THRESHOLD=2
 ENDPOINT_URL="${HASURA_ENDPOINT:-}"
@@ -84,6 +88,7 @@ while [[ $# -gt 0 ]]; do
     --election-event-json) ELECTION_EVENT_JSON="$2"; shift 2 ;;
     --num-voters) NUM_VOTERS="$2"; shift 2 ;;
     --voter-pin-digits) VOTER_PIN_DIGITS="$2"; shift 2 ;;
+    --voter-username-start) VOTER_USERNAME_START="$2"; shift 2 ;;
     --voter-area-name) VOTER_AREA_NAME="$2"; shift 2 ;;
     --threshold) THRESHOLD="$2"; shift 2 ;;
     --endpoint-url) ENDPOINT_URL="$2"; shift 2 ;;
@@ -110,6 +115,7 @@ done
 [[ -n "$KEYCLOAK_ADMIN_USER" ]] || { echo "Error: --keycloak-admin-user is required (or set \$KEYCLOAK_ADMIN)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_CLIENT_ID" ]] || { echo "Error: --keycloak-client-id is required (or set \$KEYCLOAK_CLI_CLIENT_ID)" >&2; exit 1; }
 (( VOTER_PIN_DIGITS >= 1 && VOTER_PIN_DIGITS <= 8 )) || { echo "Error: --voter-pin-digits must be between 1 and 8 (DTMF voter auth limit)" >&2; exit 1; }
+(( VOTER_USERNAME_START >= 0 )) || { echo "Error: --voter-username-start must be >= 0" >&2; exit 1; }
 command -v step-cli >/dev/null 2>&1 || { echo "Error: step-cli not found on PATH. Build it: (cd packages/step-cli && cargo build --release)" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "Error: jq is required (used to restrict voter generation to a single area)" >&2; exit 1; }
 
@@ -262,6 +268,7 @@ cat >"$OUT_DIR/external_config.json" <<EXTCFG
     "domain": "example.invalid",
     "sequence_email_number": true,
     "sequence_start_number": 0,
+    "username_start_number": ${VOTER_USERNAME_START},
     "voter_password": "",
     "voter_password_policy": {"type": "random-numeric", "digits": ${VOTER_PIN_DIGITS}},
     "password_salt": "",
