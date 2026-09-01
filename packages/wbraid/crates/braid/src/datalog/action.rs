@@ -77,6 +77,4 @@ pub enum Action {
         PartialDecryptionsHashes,
         TrusteeIndex,
     ),
-    /// Produce the initial ballot set (test-only composition).
-    ComputeBallots(CfgHash, PublicKeyHash),
 }

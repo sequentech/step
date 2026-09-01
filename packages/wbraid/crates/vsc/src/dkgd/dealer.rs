@@ -12,7 +12,7 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::zkp::schnorr::SchnorrProof;
 use crate::utils::error::Error;
-use vser_derive::VSerializable;
+use canonical_derive::Canonical;
 
 /**
  * A dealer in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -50,7 +50,8 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
+ * use cryptography::dkgd::recipient::{combine, Recipient, ParticipantPosition, AttributedDecryption};
+ * use cryptography::cryptosystem::elgamal::PublicKey;
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -60,14 +61,16 @@ use vser_derive::VSerializable;
  *
  * let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
  *
- * let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+ * let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
  *     let position = ParticipantPosition::from_usize(i + 1);
  *
  *     let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
  *         .clone()
- *         .map(|d| d.get_verifiable_shares().for_recipient(&position));
+ *         .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
  *
- *     Recipient::from_shares(position, &verifiable_shares).unwrap()
+ *     let (recipient, joint_pk, _vks) =
+ *         Recipient::from_shares(position, &verifiable_shares, b"dkg proof context").unwrap();
+ *     (recipient, joint_pk)
  * });
  *
  * // Simulates distributed decryption
@@ -110,10 +113,6 @@ pub struct Dealer<C: Context, const T: usize, const P: usize> {
 
 impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     /// compile-time checks for dealer const parameters
-    #[crate::warning(
-        "Ensure choice of threshold parameter is secure or augment DKG with a Schnorr
-        proof of knowledge. See https://eprint.iacr.org/2024/915.pdf section 2.4"
-    )]
     const CHECK: () = {
         assert!(P < 100);
         assert!(P > 0);
@@ -134,13 +133,31 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
         Self { polynomial }
     }
 
-    /// Compute the `P` shares distributed by this dealer, and its `T` checking values.
+    /// Compute the `P` shares distributed by this dealer, and its `T` checking
+    /// values with Schnorr proofs of knowledge of their exponents.
+    ///
+    /// The proofs prevent rogue-key-style attacks in which a dealer chooses its
+    /// checking values as a function of other dealers' values without knowing
+    /// the corresponding coefficients (see
+    /// <https://eprint.iacr.org/2024/915.pdf> section 2.4). Recipients must
+    /// verify every proof (via [`CheckingValue::verify`]) under the same
+    /// `proof_context`.
+    ///
+    /// # Errors
+    ///
+    /// - `HashToElementError` if challenge generation returns error
     ///
     /// Returns a [`DealerShares`] instance containing the shares and checking values.
-    pub fn get_verifiable_shares(&self) -> DealerShares<C, T, P> {
+    pub fn get_verifiable_shares(
+        &self,
+        proof_context: &[u8],
+    ) -> Result<DealerShares<C, T, P>, Error> {
         let shares = self.get_shares();
 
-        DealerShares::new(shares, self.get_checking_values())
+        Ok(DealerShares::new(
+            shares,
+            self.get_checking_values_proofs(proof_context)?,
+        ))
     }
 
     /// Compute the `P` shares distributed by this dealer.
@@ -158,20 +175,6 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
         })
     }
 
-    /// Compute the `T` checking values for this dealer's polynomial.
-    ///
-    /// Each checking value is computed as `g^polynomial_coefficient`.
-    /// Use [`Self::get_verifiable_shares`] to obtain the shares [along
-    /// with][`DealerShares`] their checking values.
-    #[crate::warning(
-        "DKG checking values should include a Schnorr
-        proof of knowledge. Use get_checking_values_proofs instead of this function."
-    )]
-    pub(crate) fn get_checking_values(&self) ->[C::Element; T] {
-        let g = C::generator();
-        self.polynomial.0.clone().map(|v| g.exp(&v))
-    }
-
     /// Compute the `T` checking values for this dealer's polynomial, with Schnorr proofs.
     ///
     /// See <https://eprint.iacr.org/2024/915.pdf> section 2.4:
@@ -184,10 +187,6 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     /// Each checking value is computed as `g^polynomial_coefficient`.
     /// Use [`Self::get_verifiable_shares`] to obtain the shares [along
     /// with][`DealerShares`] their checking values.
-    #[crate::warning(
-        "DKG checking values should include a Schnorr
-        proof of knowledge. Use this function instead of get_checking_values."
-    )]
     pub(crate) fn get_checking_values_proofs(&self, proof_context: &[u8]) -> Result<[CheckingValue<C>; T], Error> {
         let g = C::generator();
         let values: [Result<CheckingValue<C>, Error>; T]  = self.polynomial.0.clone().map(|v| {
@@ -213,14 +212,14 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
  * of type `C::Scalar`, as are its arguments `x` and values `f(x)`.
  */
 #[derive(Clone)]
-pub struct Polynomial<C: Context, const T: usize>(pub(crate) [C::Scalar; T]);
+pub(crate) struct Polynomial<C: Context, const T: usize>(pub(crate) [C::Scalar; T]);
 
 impl<C: Context, const T: usize> Polynomial<C, T> {
     /// Generate a random polynomial of degree `T - 1` with `T` coefficients.
     ///
     /// Returns a new [`Polynomial`] instance, with inner type `[C::Scalar; T]`.
     #[must_use]
-    pub fn generate() -> Self {
+    pub(crate) fn generate() -> Self {
         let coefficients: [C::Scalar; T] = array::from_fn(|_| C::random_scalar());
 
         Self(coefficients)
@@ -229,7 +228,7 @@ impl<C: Context, const T: usize> Polynomial<C, T> {
     /// Evaluate the polynomial at a given point `x`.
     ///
     /// Returns the scalar `k`, where `k = f(x)`.
-    pub fn eval(&self, x: &C::Scalar) -> C::Scalar {
+    pub(crate) fn eval(&self, x: &C::Scalar) -> C::Scalar {
         let mut sum: C::Scalar = self.0[0].clone();
         let mut power = C::Scalar::one();
 
@@ -263,16 +262,17 @@ impl<C: Context, const T: usize> Polynomial<C, T> {
  *
  * // Generates `P` shares for threshold `T`
  * let dealer: Dealer<RCtx, T, P> = Dealer::generate();
- * let shares = dealer.get_verifiable_shares();
+ * let shares = dealer.get_verifiable_shares(b"dkg proof context").unwrap();
  * ```
  */
-#[derive(Debug, Clone, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct DealerShares<C: Context, const T: usize, const P: usize> {
     /// The shares distributed to each participant, offset by -1.
     /// For example, the share for participant 1 is stored at index 0.
     pub shares: [C::Scalar; P],
-    /// The checking values for the dealer's shares.
-    pub checking_values: [C::Element; T],
+    /// The checking values for the dealer's shares, each carrying a Schnorr
+    /// proof of knowledge of its exponent.
+    pub checking_values: [CheckingValue<C>; T],
 }
 
 impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
@@ -280,7 +280,7 @@ impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
     ///
     /// The standard way to compute the shares distributed by a [`Dealer`] is
     /// through the [`Dealer::get_verifiable_shares`] method.
-    pub(crate) fn new(shares: [C::Scalar; P], checking_values: [C::Element; T]) -> Self {
+    pub(crate) fn new(shares: [C::Scalar; P], checking_values: [CheckingValue<C>; T]) -> Self {
         Self {
             shares,
             checking_values,
@@ -291,6 +291,13 @@ impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
     ///
     /// This method will select the shares assigned to the required recipient from the set
     /// of all shares computed by the [`Dealer`].
+    ///
+    /// **Simulation convenience**: in a deployed protocol, shares reach their
+    /// recipients encrypted over a message board (the caller encrypts
+    /// `DealerShares::shares[i]` to recipient `i`, who decrypts it and builds
+    /// its own [`VerifiableShare`]) — no production code hands a recipient its
+    /// share in memory. This method exists for tests and examples that
+    /// simulate the full ceremony in one process.
     ///
     /// # Panics
     ///
@@ -312,7 +319,7 @@ impl<C: Context, const T: usize, const P: usize> DealerShares<C, T, P> {
  * A [`CheckingValue`] contains an element `g^polynomial_coefficient` and a Schnorr proof of knowledge
  * of the exponent `polynomial_coefficient`.
  */
-#[derive(Debug, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct CheckingValue<C: Context> {
     /// The checking value `g^polynomial_coefficient`.
     pub value: C::Element,
@@ -339,10 +346,13 @@ impl<C: Context> CheckingValue<C> {
 /**
  * One verifiable share distributed by one dealer to one recipient, in the DKG protocol.
  *
- * A [`VerifiableShare`] contains a secret scalar and the dealer's `T` checking values
- * necessary to verify the correctness of the share. The secret share of the joint public
- * key held by a recipient is the sum of the `P` secret scalars it receives from all
- * dealers (participants), including itself.
+ * A [`VerifiableShare`] contains a secret scalar and the dealer's `T` checking values —
+ * each carrying its Schnorr proof of knowledge — which together are everything needed
+ * to verify the dealing: the proofs (against the proof context) and the share (against
+ * the checking values), both performed by
+ * [`Recipient::from_shares`][`crate::dkgd::recipient::Recipient::from_shares`]. The
+ * secret share of the joint public key held by a recipient is the sum of the `P` secret
+ * scalars it receives from all dealers (participants), including itself.
  *
  * * # Examples
  *
@@ -359,18 +369,19 @@ impl<C: Context> CheckingValue<C> {
  *
  * // Generates `P` shares for threshold `T`
  * let dealer: Dealer<RCtx, T, P> = Dealer::generate();
- * let shares = dealer.get_verifiable_shares();
+ * let shares = dealer.get_verifiable_shares(b"dkg proof context").unwrap();
  * // Get the shares for participant 1
- * let position = ParticipantPosition(1);
+ * let position = ParticipantPosition::from_usize(1);
  * let shares: VerifiableShare<RCtx, T> = shares.for_recipient(&position);
  * ```
  */
-#[derive(Debug, VSerializable)]
+#[derive(Debug, Canonical)]
 pub struct VerifiableShare<C: Context, const T: usize> {
     /// the secret share as a raw scalar
     pub value: C::Scalar,
-    /// the checking values for the dealer's shares
-    pub checking_values: [C::Element; T],
+    /// the dealer's checking values, each carrying a Schnorr proof of
+    /// knowledge of its exponent
+    pub checking_values: [CheckingValue<C>; T],
 }
 
 impl<C: Context, const T: usize> VerifiableShare<C, T> {
@@ -379,7 +390,7 @@ impl<C: Context, const T: usize> VerifiableShare<C, T> {
     /// The standard way to obtain verifiable shares for some recipient `P` is through
     /// the [`Dealer::get_verifiable_shares`] method combined with the [`DealerShares::for_recipient`]
     /// method.
-    pub fn new(value: C::Scalar, checking_values: [C::Element; T]) -> Self {
+    pub fn new(value: C::Scalar, checking_values: [CheckingValue<C>; T]) -> Self {
         Self {
             value,
             checking_values,

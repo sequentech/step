@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+[package]
+name = "braid-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.braid]
+path = ".."
+default-features = false
+features = ["fuzzing"]
+
+[dependencies.cryptography]
+path = "../../vsc"
+package = "vsc"
+
+[[bin]]
+name = "deser_protocol_message_ristretto"
+path = "fuzz_targets/deser_protocol_message_ristretto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "deser_predicate"
+path = "fuzz_targets/deser_predicate.rs"
+test = false
+doc = false
+bench = false

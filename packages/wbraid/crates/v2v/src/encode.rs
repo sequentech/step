@@ -164,9 +164,9 @@ pub fn tree_to_ciphertexts<const W: usize>(
 
 /// Encode a scalar as a fixed-width field element (VMNV §6.2).
 pub fn scalar_to_tree(scalar: &P256Scalar) -> Result<ByteTree> {
-    use cryptography::utils::serialization::FSerializable;
+    use cryptography::utils::serialization::Serializable;
     let mut bytes = Vec::with_capacity(32);
-    scalar.ser_into(&mut bytes);
+    scalar.write(&mut bytes);
     if bytes.len() != 32 {
         return Err(anyhow!("expected a 32-byte scalar, got {}", bytes.len()));
     }

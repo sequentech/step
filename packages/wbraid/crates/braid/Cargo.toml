@@ -4,7 +4,7 @@
 
 [package]
 name = "braid"
-version = "0.6.1"
+version = "0.6.2"
 authors = [
   "David Ruescas <david@sequentech.io>",
   "Eduardo Robles <edu@sequentech.io>"
@@ -109,7 +109,11 @@ tikv-jemalloc-ctl = { version = "0.6", features = ["stats"], optional = true }
 # Native-only dev-deps (criterion pulls rayon and refuses to build for wasm).
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = {version = "0.5", features=["html_reports"]}
+proptest = "1"
 serial_test = "3.2"
+# Explicit-state model checking over the REAL trustee + datalog (the harness in
+# tests/model/): explores interleavings of Session cycles, no model of the rules.
+stateright = "0.31"
 
 # wasm-only: the headless-browser test harness for the IndexedDB backend (M3).
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
@@ -121,6 +125,10 @@ crate-type = ["cdylib", "rlib"]
 [features]
 # Default feature for native builds (server mode)
 default = ["native"]
+
+# Minimal surface for the fuzz targets (crates/braid/fuzz): just the message
+# layer's cryptography dependency, none of the native transport stack.
+fuzzing = ["dep:vsc"]
 
 # Native build with gRPC, filesystem, SQLite  
 native = [

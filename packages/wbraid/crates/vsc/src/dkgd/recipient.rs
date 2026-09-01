@@ -6,8 +6,7 @@
 
 #![allow(clippy::type_complexity)]
 use crate::context::Context;
-use crate::cryptosystem::elgamal::PublicKey;
-use crate::cryptosystem::elgamal::{Ciphertext, KeyPair};
+use crate::cryptosystem::elgamal::{Ciphertext, PublicKey};
 use crate::dkgd::dealer::VerifiableShare;
 use crate::traits::groups::DistGroupOps;
 use crate::traits::groups::GroupElement;
@@ -15,7 +14,7 @@ use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
 use crate::zkp::dlogeq::DlogEqProof;
 use std::array;
-use vser_derive::VSerializable;
+use canonical_derive::Canonical;
 
 /**
  * A recipient in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -57,7 +56,8 @@ use vser_derive::VSerializable;
  * use cryptography::context::RistrettoCtx as RCtx;
  * use cryptography::groups::ristretto255::RistrettoElement;
  * use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
- * use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
+ * use cryptography::dkgd::recipient::{combine, Recipient, ParticipantPosition, AttributedDecryption};
+ * use cryptography::cryptosystem::elgamal::PublicKey;
  *
  * const P: usize = 3;
  * const T: usize = 2;
@@ -67,14 +67,16 @@ use vser_derive::VSerializable;
  *
  * let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
  *
- * let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+ * let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
  *     let position = ParticipantPosition::from_usize(i + 1);
  *
  *     let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
  *         .clone()
- *         .map(|d| d.get_verifiable_shares().for_recipient(&position));
+ *         .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
  *
- *     Recipient::from_shares(position, &verifiable_shares).unwrap()
+ *     let (recipient, joint_pk, _vks) =
+ *         Recipient::from_shares(position, &verifiable_shares, b"dkg proof context").unwrap();
+ *     (recipient, joint_pk)
  * });
  *
  * // Simulates distributed decryption
@@ -131,12 +133,9 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
 
     /// Construct a `Recipient` with the given values.
     ///
-    /// The standard way to create a `Recipient` is through the
-    /// [`from_shares`][`Self::from_shares`] function, passing in this recipient's
-    /// [shares][VerifiableShare] which are then verified. Use this constructor
-    /// instead if the required argument values are available from a previously
-    /// created `Recipient` as a result of a call to [`from_shares`][`Self::from_shares`].
-    pub fn new(
+    /// A `Recipient` is created through the [`from_shares`][`Self::from_shares`]
+    /// function, which verifies the dealings this constructor trusts.
+    fn new(
         position: ParticipantPosition<P>,
         verification_key: C::Element,
         sk: C::Scalar,
@@ -156,6 +155,17 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         &self.verification_key
     }
 
+    /// Returns a reference to this recipient's secret share.
+    ///
+    /// The secret is derived (and its dealings verified) by
+    /// [`from_shares`][`Self::from_shares`]; it is exposed for callers that
+    /// must externalize key material — e.g. writing another system's key
+    /// files — not for protocol operations, which go through
+    /// [`partial_decrypt`][`Self::partial_decrypt`].
+    pub fn get_secret_share(&self) -> &C::Scalar {
+        &self.sk
+    }
+
     /// Returns a reference to this recipient's position.
     ///
     /// Note this is the recipient's *own* view of its position. A verifier must
@@ -166,15 +176,28 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         &self.position
     }
 
-    /// Construct a `Recipient` from its shares.
+    /// Construct a `Recipient` from its dealings — the protocol's DKG round 2
+    /// for one recipient.
     ///
-    /// The supplied shares will be verified by this function, using
-    /// the [dealer's][`crate::dkgd::dealer::Dealer`] checking values.
+    /// Verification covers **both** parts of a dealing: every dealer's every
+    /// checking-value Schnorr proof (against `proof_context` — the same context
+    /// the dealers proved under, see
+    /// [`Dealer::get_verifiable_shares`][`crate::dkgd::dealer::Dealer::get_verifiable_shares`]),
+    /// and every share against its dealer's checking values. Only then are the
+    /// round-2 outputs derived: this recipient's secret (held by the returned
+    /// `Recipient`), the joint public key, and the verification keys of **all**
+    /// `P` participants (computable from public data; the protocol posts them
+    /// alongside the joint key).
+    ///
+    /// This is also the re-derivation path: a caller that keeps no state
+    /// between key generation and decryption calls this again on the same
+    /// dealings, re-verifying everything.
     ///
     /// # Examples
     ///
     /// ```
-    /// use cryptography::dkgd::recipient::{Recipient, DkgPublicKey, ParticipantPosition};
+    /// use cryptography::dkgd::recipient::{Recipient, ParticipantPosition};
+    /// use cryptography::cryptosystem::elgamal::PublicKey;
     /// use cryptography::dkgd::dealer::{VerifiableShare, Dealer, DealerShares};
     /// use cryptography::context::RistrettoCtx as RCtx;
     /// use std::array;
@@ -186,77 +209,95 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
     ///
     //  // simulates P recipients with threshold T
-    /// let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+    /// let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
     ///     let position = ParticipantPosition::from_usize(i + 1);
     ///
     ///     // gather the shares for recipient at position from all dealers
     ///     let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
     ///         .clone()
-    ///         .map(|d| d.get_verifiable_shares().for_recipient(&position));
+    ///         .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
     ///
-    ///     // constructs the recipient, this includes verifying its shares
-    ///     Recipient::from_shares(position, &verifiable_shares).unwrap()
+    ///     // constructs the recipient: verifies every proof and every share
+    ///     let (recipient, joint_pk, _verification_keys) =
+    ///         Recipient::from_shares(position, &verifiable_shares, b"dkg proof context").unwrap();
+    ///     (recipient, joint_pk)
     /// });
     ///
     /// ```
-    /// Returns a tuple with the constructed `Recipient` and the protocol's joint public key
     ///
     /// # Parameters
     ///
     /// - `position`: the position of the recipient
-    /// - `shares`: the set of shares assigned to this participant from all `P` dealers, in any order
+    /// - `shares`: the dealing assigned to this participant from each of the
+    ///   `P` dealers, indexed by dealer (errors name the failing dealer by its
+    ///   1-based index in this array)
+    /// - `proof_context`: the domain the dealers proved their checking values
+    ///   under
     ///
     /// # Errors
     ///
-    /// - `ShareVerificationFailed` if the shares do not verify.
+    /// - `ShareVerificationFailed` if any checking-value proof or any share
+    ///   fails to verify, naming the dealer responsible.
+    /// - `HashToElementError` if proof-challenge generation returns an error.
+    ///
+    /// # Panics
+    ///
+    /// Infallible: panics if `position` < 1, which [`ParticipantPosition`]
+    /// guarantees cannot be constructed.
     pub fn from_shares(
         position: ParticipantPosition<P>,
         shares: &[VerifiableShare<C, T>; P],
-    ) -> Result<(Self, DkgPublicKey<C, T>), Error> {
-        let (joint_pk, verification_key, sk) = Self::verify_shares(&position, shares)?;
-        let inner = PublicKey { y: joint_pk };
-        let joint_pk_ret = DkgPublicKey::from_public_key(&inner);
+        proof_context: &[u8],
+    ) -> Result<(Self, PublicKey<C>, [C::Element; P]), Error> {
+        let g = C::generator();
 
-        let recipient = Self::new(position, verification_key, sk);
-
-        Ok((recipient, joint_pk_ret))
-    }
-
-    /// Verify the given shares for a `Recipient` at `position`.
-    ///
-    /// The supplied shares will be verified by this function, using
-    /// the [dealer's][`crate::dkgd::dealer::Dealer`] checking values.
-    ///
-    /// Returns a tuple with the protocol's [joint public key][`DkgPublicKey`], the
-    /// recipient's verification key, and their secret key. If you are constructing
-    /// a `Recipient` using [`from_shares`][`Self::from_shares`], you do
-    /// not need to separately call this function, it is called automatically.
-    ///
-    /// # Parameters
-    ///
-    /// - `position`: the position of the recipient
-    /// - `shares`: the set of shares assigned to this participant from all `P` dealers, in any order
-    ///
-    /// # Errors
-    ///
-    /// - `ShareVerificationFailed` if the shares do not verify.
-    pub fn verify_shares(
-        position: &ParticipantPosition<P>,
-        shares: &[VerifiableShare<C, T>; P],
-    ) -> Result<(C::Element, C::Element, C::Scalar), Error> {
-        let mut verification_key = C::Element::one();
-        let mut joint_pk = C::Element::one();
-        let mut sk = C::Scalar::zero();
-
-        for verifiable_share in shares {
-            let (pk_factor, vk_factor, sk_summand) =
-                Self::verify_share(verifiable_share, position)?;
-            joint_pk = joint_pk.mul(&pk_factor);
-            verification_key = verification_key.mul(&vk_factor);
-            sk = sk.add(&sk_summand);
+        // Round-2 step 1: every dealer's every checking-value proof, before
+        // any share is used.
+        for (d, share) in shares.iter().enumerate() {
+            let dealer = d.checked_add(1).expect("P < 100");
+            for (j, cv) in share.checking_values.iter().enumerate() {
+                if !cv.verify(&g, proof_context)? {
+                    return Err(Error::ShareVerificationFailed(format!(
+                        "invalid checking-value proof {j} from dealer {dealer}"
+                    )));
+                }
+            }
         }
 
-        Ok((joint_pk, verification_key, sk))
+        // The raw checking values, for the algebraic checks and the
+        // verification-key derivations.
+        let raw: [[C::Element; T]; P] = array::from_fn(|d| {
+            array::from_fn(|j| shares[d].checking_values[j].value.clone())
+        });
+
+        // Round-2 step 2: each share against its dealer's checking values;
+        // accumulate the joint public key and this recipient's secret.
+        let mut joint_pk = C::Element::one();
+        let mut sk = C::Scalar::zero();
+        for (d, share) in shares.iter().enumerate() {
+            let dealer = d.checked_add(1).expect("P < 100");
+            Self::verify_share(&share.value, &raw[d], &position).map_err(|_| {
+                Error::ShareVerificationFailed(format!("invalid share from dealer {dealer}"))
+            })?;
+            joint_pk = joint_pk.mul(&raw[d][0]);
+            sk = sk.add(&share.value);
+        }
+
+        // Round-2 outputs: the verification keys of all P participants.
+        let verification_keys: [C::Element; P] = array::from_fn(|m| {
+            let pos = ParticipantPosition::from_usize(m.checked_add(1).expect("P < 100"));
+            Self::verification_key(&pos, &raw)
+        });
+
+        let self_slot: usize = position
+            .0
+            .checked_sub(1)
+            .expect("ParticipantPosition is in 1..=P")
+            .try_into()
+            .expect("u32 fits in usize");
+        let recipient = Self::new(position, verification_keys[self_slot].clone(), sk);
+
+        Ok((recipient, PublicKey { y: joint_pk }, verification_keys))
     }
 
     /// Compute the verification key for a `Recipient` at `position`.
@@ -267,7 +308,12 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// - `all_checking_values`: an array of checking values provided by each of `P` dealers, in any dealer order
     ///
     /// Allows computing a verification key without constructing a `Recipient`,
-    /// using the checking values for all dealers.
+    /// using the checking values for all dealers. **Verifier-facing**: the
+    /// verification keys are computable from public data alone (PROTOCOL.md
+    /// §4.3/§9.2), so an external verifier — not only a protocol participant —
+    /// can derive and check them; the tests also use this as an independent
+    /// cross-check of [`from_shares`][`Self::from_shares`]. Participants
+    /// themselves obtain all keys from `from_shares`.
     pub fn verification_key(
         position: &ParticipantPosition<P>,
         all_checking_values: &[[C::Element; T]; P],
@@ -289,15 +335,17 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// - `all_checking_values`: an array of checking values provided by each of `P` dealers, in any dealer order
     ///
     /// Allows computing the joint public key without constructing a `Recipient`,
-    /// using the checking values for all dealers.
-    pub fn joint_public_key(all_checking_values: &[[C::Element; T]; P]) -> DkgPublicKey<C, T> {
+    /// using the checking values for all dealers. **Verifier-facing**, like
+    /// [`verification_key`][`Self::verification_key`]: an external verifier
+    /// re-derives the key from public data (PROTOCOL.md §9.2 step 2);
+    /// participants obtain it from [`from_shares`][`Self::from_shares`].
+    pub fn joint_public_key(all_checking_values: &[[C::Element; T]; P]) -> PublicKey<C> {
         let mut joint_public_key = C::Element::one();
 
         for cv in all_checking_values {
             joint_public_key = joint_public_key.mul(&cv[0]);
         }
-        let inner = PublicKey::new(joint_public_key);
-        DkgPublicKey::from_public_key(&inner)
+        PublicKey::new(joint_public_key)
     }
 
     /// Compute this recipient's partial decryptions for the given ciphertexts.
@@ -314,7 +362,8 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// use cryptography::context::RistrettoCtx as RCtx;
     /// use cryptography::groups::ristretto255::RistrettoElement;
     /// use cryptography::dkgd::dealer::{VerifiableShare, Dealer};
-    /// use cryptography::dkgd::recipient::{combine, Recipient, DkgPublicKey, ParticipantPosition, AttributedDecryption};
+    /// use cryptography::dkgd::recipient::{combine, Recipient, ParticipantPosition, AttributedDecryption};
+    /// use cryptography::cryptosystem::elgamal::PublicKey;
     ///
     /// const P: usize = 3;
     /// const T: usize = 2;
@@ -322,14 +371,16 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///
     /// let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
     ///
-    /// let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+    /// let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
     ///    let position = ParticipantPosition::from_usize(i + 1);
     ///
     ///    let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
     ///        .clone()
-    ///        .map(|d| d.get_verifiable_shares().for_recipient(&position));
+    ///        .map(|d| d.get_verifiable_shares(b"dkg proof context").unwrap().for_recipient(&position));
     ///
-    ///    Recipient::from_shares(position, &verifiable_shares).unwrap()
+    ///    let (recipient, joint_pk, _vks) =
+    ///        Recipient::from_shares(position, &verifiable_shares, b"dkg proof context").unwrap();
+    ///    (recipient, joint_pk)
     /// });
     ///
     /// let (recipient, pk) = &recipients[0];
@@ -373,7 +424,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     /// authenticated envelope instead.
     pub fn partial_decrypt<const W: usize>(
         &self,
-        ciphertexts: &[DkgCiphertext<C, W, T>],
+        ciphertexts: &[Ciphertext<C, W>],
         proof_context: &[u8],
     ) -> Result<PartialDecryption<C, W>, Error> {
         let factors: Vec<[C::Element; W]> = ciphertexts
@@ -428,26 +479,18 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
             .fold(C::Element::one(), |acc, next| acc.mul(next))
     }
 
-    /// Verify a single share for a `Recipient` at `position`.
-    ///
-    /// Returns a tuple with the public key factor, verification key factor,
-    /// and secret key summand if the share is valid.
-    ///
-    /// # Parameters
-    ///
-    /// - `verifiable_share`: the share to verify
-    /// - `position`: the position of the recipient
+    /// Verify a single share for a `Recipient` at `position` against its
+    /// dealer's (raw) checking values: `g^share = Π A_j^(position^j)`.
     ///
     /// # Errors
     ///
-    /// - `ShareVerificationFailed` if the shares do not verify.
+    /// - `ShareVerificationFailed` if the share does not verify.
     fn verify_share(
-        verifiable_share: &VerifiableShare<C, T>,
+        share: &C::Scalar,
+        checking_values: &[C::Element; T],
         position: &ParticipantPosition<P>,
-    ) -> Result<(C::Element, C::Element, C::Scalar), Error> {
+    ) -> Result<(), Error> {
         let g = C::generator();
-        let share = &verifiable_share.value;
-        let checking_values = &verifiable_share.checking_values;
         let lhs = g.exp(share);
         let rhs = Self::vk_factor(checking_values, position);
 
@@ -457,8 +500,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
             ));
         }
 
-        // pk_factor, vk_factor, sk_summand
-        Ok((checking_values[0].clone(), rhs, share.clone()))
+        Ok(())
     }
 }
 
@@ -488,7 +530,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
  * derived *after* the factors are fixed, which
  * the batching-exponent derivation enforces by hashing them.
  */
-#[derive(Debug, Clone, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct PartialDecryption<C: Context, const W: usize> {
     /// The partial decryption of each ciphertext, in the ciphertexts' order
     pub factors: Vec<[C::Element; W]>,
@@ -585,7 +627,7 @@ fn batching_exponents<C: Context, const W: usize>(
 ) -> Result<Vec<C::Scalar>, Error> {
     use crate::traits::groups::CryptographicGroup;
     use crate::utils::hash::{update_hasher, Hasher};
-    use crate::utils::serialization::VSerializable as _;
+    use crate::utils::serialization::Serializable as _;
     use sha3::Digest as _;
 
     if ciphertexts.len() != factors.len() {
@@ -614,75 +656,12 @@ fn batching_exponents<C: Context, const W: usize>(
         .collect()
 }
 
-/**
- * The joint public key computed as output of the Joint-Feldman DKG protocol.
- *
- * This type is a newtype wrapper around a plain `ElGamal` public key, parameterized by
- * the threshold `T`. Ciphertexts encrypted with this joint public key will require
- * a threshold `T` of participants to decrypt.
- */
-#[derive(Debug, VSerializable, PartialEq, Clone)]
-pub struct DkgPublicKey<C: Context, const T: usize> {
-    /// the underlying `ElGamal` public key
-    pub inner: PublicKey<C>,
-}
-
-impl<C: Context, const T: usize> DkgPublicKey<C, T> {
-    /// Constructs a new [`DkgPublicKey`] from the given `ElGamal` public key.
-    pub fn from_public_key(public_key: &PublicKey<C>) -> Self {
-        let inner = public_key.clone();
-        Self { inner }
-    }
-
-    /// Constructs a new [`DkgPublicKey`] from the given `ElGamal` keypair.
-    pub fn from_keypair(keypair: &KeyPair<C>) -> Self {
-        let inner = PublicKey {
-            y: keypair.pkey.y.clone(),
-        };
-        Self { inner }
-    }
-
-    /// Encrypts a message and returns a [`DkgCiphertext`], a ciphertext parameterized by `T`.
-    ///
-    /// See [`elgamal::PublicKey::encrypt`][`crate::cryptosystem::elgamal::PublicKey::encrypt`]
-    pub fn encrypt<const W: usize>(&self, message: &[C::Element; W]) -> DkgCiphertext<C, W, T> {
-        let mut rng = C::get_rng();
-        let r = <[C::Scalar; W]>::random(&mut rng);
-        self.encrypt_with_r(message, &r)
-    }
-
-    /// Encrypts a message into a [`DkgCiphertext`], a ciphertext parameterized by `T`.
-    ///
-    /// See [`elgamal::PublicKey::encrypt_with_r`][`crate::cryptosystem::elgamal::PublicKey::encrypt_with_r`]
-    pub fn encrypt_with_r<const W: usize>(
-        &self,
-        message: &[C::Element; W],
-        r: &[C::Scalar; W],
-    ) -> DkgCiphertext<C, W, T> {
-        DkgCiphertext::<C, W, T>(self.inner.encrypt_with_r(message, r))
-    }
-}
-
-/**
- * A newtype around a plain `ElGamal` ciphertext, parameterized by the threshold `T`.
- *
- * Ciphertexts can be partially decrypted using the [`Recipient::partial_decrypt`] method,
- * which produces a [`PartialDecryption`] covering the whole list. Given
- * `T` of these, the plaintext can be computed using the [`combine`]
- * function.
- */
-#[derive(Debug, PartialEq, VSerializable)]
-pub struct DkgCiphertext<C: Context, const W: usize, const T: usize>(pub Ciphertext<C, W>);
-impl<C: Context, const W: usize, const T: usize> DkgCiphertext<C, W, T> {
-    /// Returns the `u` component of the ciphertext.
-    pub fn u(&self) -> &[C::Element; W] {
-        self.0.u()
-    }
-    /// Returns the `v` component of the ciphertext.
-    pub fn v(&self) -> &[C::Element; W] {
-        self.0.v()
-    }
-}
+// There is deliberately no threshold-branded key or ciphertext type
+// (formerly `DkgPublicKey<C, T>` / `DkgCiphertext<C, W, T>`): the brand
+// cannot survive the wire — a deserializing caller would apply it
+// unilaterally, asserting nothing — so the DKG's outputs are plain
+// `elgamal::PublicKey` / `elgamal::Ciphertext` values, and the threshold
+// lives where it is enforced: in `Recipient`/`combine`'s const parameters.
 
 /**
  * A participant's position in the DKG protocol.
@@ -691,8 +670,8 @@ impl<C: Context, const W: usize, const T: usize> DkgCiphertext<C, W, T> {
  * and [Recipient][`Recipient`]. Each participant is assigned a 1-based index;
  * the first participant is assigned position 1, and so on up to participant `P`.
  */
-#[derive(Clone, Debug, VSerializable, PartialEq)]
-pub struct ParticipantPosition<const P: usize>(pub u32);
+#[derive(Clone, Debug, Canonical, PartialEq)]
+pub struct ParticipantPosition<const P: usize>(pub(crate) u32);
 
 impl<const P: usize> ParticipantPosition<P> {
     /// Creates a new [`ParticipantPosition`] with the given 1-based index
@@ -757,7 +736,7 @@ impl<const P: usize> ParticipantPosition<P> {
 /// - `HashToElementError` if any challenge generation for [`DlogEqProof`] verification returns error
 /// - `DecryptProofFailed` if any of the decryption proofs fail to verify.
 pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
-    ciphertexts: &[DkgCiphertext<C, W, T>],
+    ciphertexts: &[Ciphertext<C, W>],
     contributions: &[AttributedDecryption<C, W, P>; T],
     proof_context: &[u8],
 ) -> Result<Vec<[C::Element; W]>, Error> {

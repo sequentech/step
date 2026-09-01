@@ -112,46 +112,23 @@ impl std::hash::Hash for RistrettoElement {
     }
 }
 
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable, take};
 
-impl VSerializable for RistrettoElement {
-    fn ser(&self) -> Vec<u8> {
-        let bytes = self.0.compress().to_bytes();
-        bytes.to_vec()
+impl Serializable for RistrettoElement {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.0.compress().to_bytes());
     }
 }
 
-impl VDeserializable for RistrettoElement {
-    fn deser(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        let array = <[u8; 32]>::try_from(buffer).map_err(|_| {
-            CryptographyError::DeserializationError(
-                "Failed to convert Vec<u8> to [u8; 32]".to_string(),
-            )
-        })?;
+impl Deserializable for RistrettoElement {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
+        let bytes = take(input, 32)?;
+        let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");
         CompressedRistretto(array)
             .decompress()
             .map(RistrettoElement)
             .ok_or(CryptographyError::DeserializationError(
                 "Failed to parse Ristretto point bytes".to_string(),
             ))
-    }
-}
-
-use crate::utils::serialization::{FDeserializable, FSerializable};
-
-impl FSerializable for RistrettoElement {
-    fn size_bytes() -> usize {
-        32
-    }
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let point = self.0.compress();
-        let bytes = point.as_bytes();
-        buffer.extend_from_slice(bytes);
-    }
-}
-
-impl FDeserializable for RistrettoElement {
-    fn deser_f(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        Self::deser(buffer)
     }
 }

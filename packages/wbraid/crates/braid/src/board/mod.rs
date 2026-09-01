@@ -280,7 +280,7 @@ mod tests {
     use crate::protocol_manager::ProtocolManager;
     use crate::messages::wire::ProtocolMessage;
 
-    use cryptography::utils::serialization::VSerializable;
+    use cryptography::utils::serialization::Serializable;
 
     use crate::board::persistence::NoOpPersistence;
     use crate::board::transport::{MemoryBoard, MemoryTransport};
@@ -425,6 +425,7 @@ mod tests {
             cfg_hash,
             PublicKeyHash(zero_hash()),
             vec![1, 2],
+            1,
             &vec![9u8, 9, 9],
         ));
 

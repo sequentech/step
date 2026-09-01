@@ -27,9 +27,9 @@ use std::marker::PhantomData;
 use std::time::Instant;
 
 use cryptography::context::Context;
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::cryptosystem::elgamal::{KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
@@ -156,6 +156,13 @@ async fn run_with_width<C: Context, const W: usize>(
     let pk_hash = PublicKeyHash(hash_bytes(pk_body));
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
 
+    // The ballot encryption context is tally-agnostic (execution + key scoped),
+    // so one Naor-Yung key serves every tally of this DKG.
+    use cryptography::cryptosystem::naoryung;
+    let ctx_enc = crate::trustee::ballot_encryption_context::<C>(cfg.id, &dkg_pk.pk);
+    let ny_pk = naoryung::PublicKey::augment(&pk, &ctx_enc)
+        .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
+
     // --- phase 2: one or more tallies, each over its own child board unioned with
     //     the shared DKG parent ---
     for tally in 0..tallies {
@@ -165,8 +172,11 @@ async fn run_with_width<C: Context, const W: usize>(
         let plaintexts_in: Vec<[C::Element; W]> = (0..ciphertexts)
             .map(|_| std::array::from_fn(|_| C::G::random_element(&mut enc_rng)))
             .collect();
-        let encrypted: Vec<Ciphertext<C, W>> =
-            plaintexts_in.par_iter().map(|p| pk.encrypt(p)).collect();
+        let encrypted: Vec<naoryung::Ciphertext<C, W>> = plaintexts_in
+            .par_iter()
+            .map(|p| ny_pk.encrypt(p, &ctx_enc))
+            .collect::<Result<_, _>>()
+            .map_err(|e| anyhow!("ballot encryption failed: {:?}", e))?;
         let ballots = Ballots::<C, W>::new(encrypted);
         let ballots_message = ProtocolMessage::<C>::ballots(
             &pm,
@@ -174,6 +184,8 @@ async fn run_with_width<C: Context, const W: usize>(
             cfg_hash,
             pk_hash,
             mixing_trustees.clone(),
+            // Distinct tally-execution identifier per sibling tally (§8.2).
+            1 + tally as u128,
             &ballots,
         );
         child.push(ballots_message);

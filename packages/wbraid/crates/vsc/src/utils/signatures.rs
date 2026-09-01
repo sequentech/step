@@ -29,7 +29,7 @@ use ed25519_dalek::{Signature, SigningKey, VerifyingKey, ed25519};
 use crate::utils::Error as CryptoError;
 use crate::utils::{
     rng::CRng,
-    serialization::{FDeserializable, FSer, FSerializable, VDeserializable, VSer, VSerializable},
+    serialization::{Deserializable, Serializable, take},
 };
 
 /**
@@ -40,11 +40,11 @@ use crate::utils::{
  */
 pub trait SignatureScheme<R: CRng> {
     /// The signer type, a private key used for signing.
-    type Signer: Signer<Self::Signature> + FSer + VSer + Clone;
+    type Signer: Signer<Self::Signature> + Serializable + Deserializable + Clone;
     /// The verifier type, a public key used to verify signatures.
-    type Verifier: Verifier<Self::Signature> + FSer + VSer + Clone + PartialEq + Eq + std::hash::Hash + std::fmt::Debug;
+    type Verifier: Verifier<Self::Signature> + Serializable + Deserializable + Clone + PartialEq + Eq + std::hash::Hash + std::fmt::Debug;
     /// The signature type, a digital signature on some data.
-    type Signature: FSer + VSer + Clone;
+    type Signature: Serializable + Deserializable + Clone;
 
     /// Generates a new private signing key.
     ///
@@ -175,99 +175,45 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
     }
 }
 
-impl FSerializable for SigningKey {
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let bytes = self.as_bytes();
-        buffer.extend_from_slice(bytes);
-    }
-    fn size_bytes() -> usize {
-        ed25519_dalek::SECRET_KEY_LENGTH
+impl Serializable for SigningKey {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(self.as_bytes());
     }
 }
-impl FDeserializable for SigningKey {
-    fn deser_f(bytes: &[u8]) -> Result<Self, CryptoError> {
-        let bytes: [u8; 32] = bytes.try_into()?;
-        let ret = SigningKey::from_bytes(&bytes);
-
-        Ok(ret)
+impl Deserializable for SigningKey {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
+        let bytes = take(input, ed25519_dalek::SECRET_KEY_LENGTH)?;
+        let array: [u8; ed25519_dalek::SECRET_KEY_LENGTH] =
+            bytes.try_into().expect("take returns exactly the requested bytes");
+        Ok(SigningKey::from_bytes(&array))
     }
 }
 
-impl FSerializable for VerifyingKey {
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let bytes = self.as_bytes();
-        buffer.extend_from_slice(bytes);
-    }
-    fn size_bytes() -> usize {
-        ed25519_dalek::PUBLIC_KEY_LENGTH
+impl Serializable for VerifyingKey {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(self.as_bytes());
     }
 }
-impl FDeserializable for VerifyingKey {
-    fn deser_f(bytes: &[u8]) -> Result<Self, CryptoError> {
-        let bytes: [u8; 32] = bytes.try_into()?;
-        let ret = VerifyingKey::from_bytes(&bytes)?;
-
-        Ok(ret)
+impl Deserializable for VerifyingKey {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
+        let bytes = take(input, ed25519_dalek::PUBLIC_KEY_LENGTH)?;
+        let array: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] =
+            bytes.try_into().expect("take returns exactly the requested bytes");
+        Ok(VerifyingKey::from_bytes(&array)?)
     }
 }
 
-impl FSerializable for Signature {
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let bytes = self.to_bytes();
-        buffer.extend_from_slice(&bytes);
-    }
-    fn size_bytes() -> usize {
-        ed25519_dalek::SIGNATURE_LENGTH
+impl Serializable for Signature {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.to_bytes());
     }
 }
-impl FDeserializable for Signature {
-    fn deser_f(bytes: &[u8]) -> Result<Self, CryptoError> {
-        let bytes: [u8; ed25519_dalek::SIGNATURE_LENGTH] = bytes.try_into()?;
-        let ret = Signature::from_bytes(&bytes);
-
-        Ok(ret)
-    }
-}
-
-impl VSerializable for SigningKey {
-    fn ser(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
-    }
-}
-impl VDeserializable for SigningKey {
-    fn deser(bytes: &[u8]) -> Result<Self, CryptoError> {
-        let bytes: [u8; 32] = bytes.try_into()?;
-        let ret = SigningKey::from_bytes(&bytes);
-
-        Ok(ret)
-    }
-}
-
-impl VSerializable for VerifyingKey {
-    fn ser(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
-    }
-}
-impl VDeserializable for VerifyingKey {
-    fn deser(bytes: &[u8]) -> Result<Self, CryptoError> {
-        let bytes: [u8; 32] = bytes.try_into()?;
-        let ret = VerifyingKey::from_bytes(&bytes)?;
-
-        Ok(ret)
-    }
-}
-
-impl VSerializable for Signature {
-    fn ser(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
-    }
-}
-impl VDeserializable for Signature {
-    fn deser(bytes: &[u8]) -> Result<Self, CryptoError> {
-        let bytes: [u8; 64] = bytes.try_into()?;
-        let ret = Signature::from_bytes(&bytes);
-
-        Ok(ret)
+impl Deserializable for Signature {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
+        let bytes = take(input, ed25519_dalek::SIGNATURE_LENGTH)?;
+        let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] =
+            bytes.try_into().expect("take returns exactly the requested bytes");
+        Ok(Signature::from_bytes(&array))
     }
 }
 
@@ -319,13 +265,13 @@ mod tests {
         let ok = vk.verify(message, &signature);
         assert!(ok.is_ok());
 
-        let sk_bytes = sk.ser_f();
-        let vk_bytes = vk.ser_f();
-        let sig_bytes = signature.ser_f();
+        let sk_bytes = sk.ser();
+        let vk_bytes = vk.ser();
+        let sig_bytes = signature.ser();
 
-        let sk = SigningKey::deser_f(&sk_bytes).unwrap();
-        let vk = VerifyingKey::deser_f(&vk_bytes).unwrap();
-        let signature = Signature::deser_f(&sig_bytes).unwrap();
+        let sk = SigningKey::deser(&sk_bytes).unwrap();
+        let vk = VerifyingKey::deser(&vk_bytes).unwrap();
+        let signature = Signature::deser(&sig_bytes).unwrap();
 
         let ok = vk.verify(message, &signature);
         assert!(ok.is_ok());

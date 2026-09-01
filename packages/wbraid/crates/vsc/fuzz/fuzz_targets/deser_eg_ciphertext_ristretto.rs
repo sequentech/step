@@ -2,15 +2,19 @@
 // Copyright 2025 Free & Fair
 // See LICENSE.md for details
 
-//! Fuzz target for ciphertext deserialization.
+//! Fuzz target for ElGamal ciphertext deserialization: a bijection oracle.
+//! Any accepted byte string must re-serialize to exactly itself
+//! (`SERIALIZATION.md` property P2); a panic or a mismatch is a finding.
 
 #![no_main]
 
 use cryptography::context::RistrettoCtx;
 use cryptography::cryptosystem::elgamal::Ciphertext;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = Ciphertext::<RistrettoCtx, 2>::deser(&data);
+    if let Ok(value) = Ciphertext::<RistrettoCtx, 2>::deser(data) {
+        assert_eq!(value.ser(), data, "accepted bytes must re-serialize identically");
+    }
 });

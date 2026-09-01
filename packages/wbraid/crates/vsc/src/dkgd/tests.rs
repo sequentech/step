@@ -4,11 +4,11 @@
 
 //! Distributed key generation and decryption module tests
 
-use crate::cryptosystem::elgamal::Ciphertext;
-use crate::dkgd::dealer::{Dealer, VerifiableShare};
+use crate::cryptosystem::elgamal::{Ciphertext, PublicKey};
+use crate::dkgd::dealer::{CheckingValue, Dealer, VerifiableShare};
 use crate::dkgd::recipient::combine;
 use crate::dkgd::recipient::{
-    AttributedDecryption, DkgPublicKey, ParticipantPosition, PartialDecryption, Recipient,
+    AttributedDecryption, ParticipantPosition, PartialDecryption, Recipient,
 };
 use crate::traits::groups::DistGroupOps;
 use crate::traits::groups::GroupElement;
@@ -20,6 +20,10 @@ use crate::context::Context;
 use crate::context::RistrettoCtx as RCtx;
 use crate::context::RistrettoCtx as PCtx;
 use rand::seq::SliceRandom;
+
+/// Proof context under which every dealer in these tests proves knowledge of
+/// its checking-value exponents.
+const DKG_PROOF_CTX: &[u8] = b"dkgd test proof context";
 
 #[test]
 fn test_joint_pkey_ristretto() {
@@ -74,22 +78,28 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
 
-    let mut recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let mut recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
             .clone()
-            .map(|d| d.get_verifiable_shares().for_recipient(&position));
+            .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
 
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     // check different ways of computing verification keys match
     let verification_keys: [C::Element; T] =
         array::from_fn(|i| recipients[i].0.get_verification_key().clone());
 
-    let all_checking_values: [[<C as Context>::Element; T]; P] =
-        dealers.clone().map(|d| d.get_checking_values());
+    let all_checking_values: [[<C as Context>::Element; T]; P] = dealers.clone().map(|d| {
+        d.get_verifiable_shares(DKG_PROOF_CTX)
+            .unwrap()
+            .checking_values
+            .map(|cv| cv.value)
+    });
     let verification_keys_2: [C::Element; T] = array::from_fn(|i| {
         let position: ParticipantPosition<P> = ParticipantPosition::from_usize(i + 1);
         Recipient::<C, T, P>::verification_key(&position, &all_checking_values)
@@ -99,7 +109,7 @@ fn test_dkgd<C: Context, const T: usize, const P: usize, const W: usize>() {
     let mut rng = C::get_rng();
     recipients.shuffle(&mut rng);
 
-    let pk: &DkgPublicKey<C, T> = &recipients[0].1;
+    let pk: &PublicKey<C> = &recipients[0].1;
 
     let message: [C::Element; W] = array::from_fn(|_| C::random_element());
     let encrypted = vec![pk.encrypt(&message)];
@@ -127,17 +137,19 @@ fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const 
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
 
-    let recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
             .clone()
-            .map(|d| d.get_verifiable_shares().for_recipient(&position));
+            .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
 
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
-    let pk: &DkgPublicKey<C, T> = &recipients[0].1;
+    let pk: &PublicKey<C> = &recipients[0].1;
 
     let message: [C::Element; W] = array::from_fn(|_| C::random_element());
     let encrypted = vec![pk.encrypt(&message)];
@@ -153,7 +165,6 @@ fn test_dkgd_all_participants<C: Context, const T: usize, const P: usize, const 
     // using all participants, not just T of them
     assert_eq!(dfactors.len(), P);
 
-    let encrypted: Vec<Ciphertext<C, W>> = encrypted.iter().map(|e| e.0.clone()).collect();
     let decrypted = untyped_combine(&encrypted, &dfactors);
     assert!(message == decrypted[0]);
 }
@@ -163,22 +174,29 @@ fn test_joint_pkey<C: Context, const T: usize, const P: usize, const W: usize>()
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
 
-    let recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
 
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
             .clone()
-            .map(|d| d.get_verifiable_shares().for_recipient(&position));
+            .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
 
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     // all computed joint public keys are equal
     let equal = recipients.windows(2).all(|w| w[0].1 == w[1].1);
     assert!(equal);
 
-    let lhs = Recipient::<C, T, P>::joint_public_key(&dealers.map(|d| d.get_checking_values()));
-    let rhs: DkgPublicKey<C, T> = recipients[0].1.clone();
+    let lhs = Recipient::<C, T, P>::joint_public_key(&dealers.map(|d| {
+        d.get_verifiable_shares(DKG_PROOF_CTX)
+            .unwrap()
+            .checking_values
+            .map(|cv| cv.value)
+    }));
+    let rhs: PublicKey<C> = recipients[0].1.clone();
 
     assert_eq!(lhs, rhs);
 }
@@ -267,15 +285,17 @@ fn test_batched_proof_rejects<C: Context, const T: usize, const P: usize, const 
     const N: usize = 4;
 
     let dealers: [Dealer<C, T, P>; P] = array::from_fn(|_| Dealer::generate());
-    let recipients: [(Recipient<C, T, P>, DkgPublicKey<C, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<C, T, P>, PublicKey<C>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
         let verifiable_shares: [VerifiableShare<C, T>; P] = dealers
             .clone()
-            .map(|d| d.get_verifiable_shares().for_recipient(&position));
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+            .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
-    let pk: &DkgPublicKey<C, T> = &recipients[0].1;
+    let pk: &PublicKey<C> = &recipients[0].1;
     let encrypted: Vec<_> = (0..N)
         .map(|_| {
             let message: [C::Element; W] = array::from_fn(|_| C::random_element());
@@ -342,6 +362,103 @@ fn test_batched_proof_rejects<C: Context, const T: usize, const P: usize, const 
     );
 }
 
+// -------------------------------------------------------------------------
+// from_shares is the single verification gate: both parts must reject
+// -------------------------------------------------------------------------
+
+/// `from_shares` performs round 2's complete verification — the
+/// checking-value proofs and the algebraic share check. Each part must
+/// reject on its own, and the error must name the dealer responsible.
+#[test]
+fn test_from_shares_rejects() {
+    const T: usize = 2;
+    const P: usize = 3;
+
+    let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
+    let position = ParticipantPosition::from_usize(1);
+    let shares: [VerifiableShare<RCtx, T>; P] = dealers
+        .clone()
+        .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+
+    // Untampered: verifies.
+    assert!(
+        Recipient::<RCtx, T, P>::from_shares(position.clone(), &shares, DKG_PROOF_CTX).is_ok()
+    );
+
+    // A swapped checking-value proof (valid, but for another dealer's value)
+    // must reject, naming dealer 2.
+    let mut tampered = dealers
+        .clone()
+        .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+    let foreign_proof = tampered[0].checking_values[0].proof.clone();
+    tampered[1].checking_values[0].proof = foreign_proof;
+    match Recipient::<RCtx, T, P>::from_shares(position.clone(), &tampered, DKG_PROOF_CTX) {
+        Err(Error::ShareVerificationFailed(msg)) => {
+            assert!(
+                msg.contains("checking-value proof") && msg.contains("dealer 2"),
+                "must name the failing part and dealer, got: {msg}"
+            );
+        }
+        Err(other) => panic!("expected ShareVerificationFailed, got {other:?}"),
+        Ok(_) => panic!("a swapped proof must reject"),
+    }
+
+    // A tampered share (proofs intact) must reject the algebraic check,
+    // naming dealer 3.
+    let mut tampered = dealers
+        .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+    tampered[2].value = tampered[2].value.add(&<RCtx as Context>::Scalar::one());
+    match Recipient::<RCtx, T, P>::from_shares(position, &tampered, DKG_PROOF_CTX) {
+        Err(Error::ShareVerificationFailed(msg)) => {
+            assert!(
+                msg.contains("share") && msg.contains("dealer 3"),
+                "must name the failing part and dealer, got: {msg}"
+            );
+        }
+        Err(other) => panic!("expected ShareVerificationFailed, got {other:?}"),
+        Ok(_) => panic!("a tampered share must reject"),
+    }
+}
+
+// -------------------------------------------------------------------------
+// The checking-value proofs must actually reject
+// -------------------------------------------------------------------------
+
+/// A checking value's Schnorr proof must verify only for the value it was
+/// produced for, and only under the context it was produced under. Without
+/// this, a dealer could post checking values whose exponents it does not
+/// know (the rogue-key pattern of eprint 2024/915 §2.4) and the proofs
+/// would be decoration.
+#[test]
+fn test_checking_value_proofs_reject() {
+    const T: usize = 3;
+    const P: usize = 4;
+
+    let g = RCtx::generator();
+    let dealer: Dealer<RCtx, T, P> = Dealer::generate();
+    let shares = dealer.get_verifiable_shares(DKG_PROOF_CTX).unwrap();
+
+    // Untampered: every proof verifies.
+    for cv in &shares.checking_values {
+        assert!(cv.verify(&g, DKG_PROOF_CTX).unwrap());
+    }
+
+    // A different context must not verify: the proof is bound to its domain.
+    for cv in &shares.checking_values {
+        assert!(!cv.verify(&g, b"some other proof context").unwrap());
+    }
+
+    // A proof attached to a different value must not verify: a dealer cannot
+    // present a value it did not choose with a proof it holds for another.
+    let other: Dealer<RCtx, T, P> = Dealer::generate();
+    let other_shares = other.get_verifiable_shares(DKG_PROOF_CTX).unwrap();
+    let forged = CheckingValue::new(
+        other_shares.checking_values[0].value.clone(),
+        shares.checking_values[0].proof.clone(),
+    );
+    assert!(!forged.verify(&g, DKG_PROOF_CTX).unwrap());
+}
+
 /// Swapping the proof between two participants must fail: the batching
 /// exponents commit to the verification key, so a contribution cannot be
 /// replayed as somebody else's.
@@ -352,12 +469,14 @@ fn test_batched_proof_is_bound_to_its_author() {
     const W: usize = 2;
 
     let dealers: [Dealer<RCtx, T, P>; P] = array::from_fn(|_| Dealer::generate());
-    let recipients: [(Recipient<RCtx, T, P>, DkgPublicKey<RCtx, T>); P] = array::from_fn(|i| {
+    let recipients: [(Recipient<RCtx, T, P>, PublicKey<RCtx>); P] = array::from_fn(|i| {
         let position = ParticipantPosition::from_usize(i + 1);
         let verifiable_shares: [VerifiableShare<RCtx, T>; P] = dealers
             .clone()
-            .map(|d| d.get_verifiable_shares().for_recipient(&position));
-        Recipient::from_shares(position, &verifiable_shares).unwrap()
+            .map(|d| d.get_verifiable_shares(DKG_PROOF_CTX).unwrap().for_recipient(&position));
+        let (recipient, joint_pk, _vks) =
+            Recipient::from_shares(position, &verifiable_shares, DKG_PROOF_CTX).unwrap();
+        (recipient, joint_pk)
     });
 
     let pk = &recipients[0].1;

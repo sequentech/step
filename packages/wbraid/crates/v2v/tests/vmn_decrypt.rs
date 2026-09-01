@@ -25,15 +25,19 @@ const P: usize = 3;
 /// Run a real DKG and return each dealer's coefficient commitments alongside the
 /// joint public key the recipients derive.
 fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
+    const TEST_DKG_CTX: &[u8] = b"vmn decrypt test dkg";
     let dealers: Vec<Dealer<P256Ctx, T, P>> = (0..P).map(|_| Dealer::generate()).collect();
-    let all_shares: Vec<_> = dealers.iter().map(|d| d.get_verifiable_shares()).collect();
+    let all_shares: Vec<_> = dealers
+        .iter()
+        .map(|d| d.get_verifiable_shares(TEST_DKG_CTX).expect("dealing must succeed"))
+        .collect();
 
     let commitments: Vec<Vec<P256Element>> = all_shares
         .iter()
-        .map(|s| s.checking_values.to_vec())
+        .map(|s| s.checking_values.iter().map(|cv| cv.value).collect())
         .collect();
 
-    // Recipient 1 verifies its shares from every dealer and derives the joint key.
+    // Recipient 1 verifies its dealings from every dealer and derives the joint key.
     use cryptography::dkgd::dealer::VerifiableShare;
     let shares_for_first: [VerifiableShare<P256Ctx, T>; P] = std::array::from_fn(|d| {
         VerifiableShare::new(
@@ -42,11 +46,11 @@ fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
         )
     });
     let position = ParticipantPosition::from_usize(1);
-    let (joint_pk, _vk, _sk) =
-        Recipient::<P256Ctx, T, P>::verify_shares(&position, &shares_for_first)
+    let (_recipient, joint_pk, _vks) =
+        Recipient::<P256Ctx, T, P>::from_shares(position, &shares_for_first, TEST_DKG_CTX)
             .expect("shares must verify");
 
-    (commitments, joint_pk)
+    (commitments, joint_pk.y)
 }
 
 /// Γ_0 must be the joint public key. This is Algorithm 24's cross-check, and the

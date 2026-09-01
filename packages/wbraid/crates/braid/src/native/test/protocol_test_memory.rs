@@ -25,9 +25,9 @@ use std::marker::PhantomData;
 use std::time::Instant;
 
 use cryptography::context::Context;
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::cryptosystem::elgamal::{KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
@@ -152,14 +152,21 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     let pk_hash = PublicKeyHash(hash_bytes(pk_body));
 
     // --- manager encrypts a batch of plaintexts and posts the ballots ---
+    use cryptography::cryptosystem::naoryung;
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+    let ctx_enc = crate::trustee::ballot_encryption_context::<C>(cfg.id, &dkg_pk.pk);
+    let ny_pk = naoryung::PublicKey::augment(&pk, &ctx_enc)
+        .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
     let mut enc_rng = C::get_rng();
     info!("Encrypting {} ciphertexts (width {})", ciphertexts, W);
     let plaintexts_in: Vec<[C::Element; W]> = (0..ciphertexts)
         .map(|_| std::array::from_fn(|_| C::G::random_element(&mut enc_rng)))
         .collect();
-    let encrypted: Vec<Ciphertext<C, W>> =
-        plaintexts_in.par_iter().map(|p| pk.encrypt(p)).collect();
+    let encrypted: Vec<naoryung::Ciphertext<C, W>> = plaintexts_in
+        .par_iter()
+        .map(|p| ny_pk.encrypt(p, &ctx_enc))
+        .collect::<Result<_, _>>()
+        .map_err(|e| anyhow!("ballot encryption failed: {:?}", e))?;
     let ballots = Ballots::<C, W>::new(encrypted);
     let ballots_message = ProtocolMessage::<C>::ballots(
         &pm,
@@ -167,6 +174,7 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
         cfg_hash,
         pk_hash,
         mixing_trustees.clone(),
+        1, // tally_id: single tally in this harness
         &ballots,
     );
     board.push(ballots_message);
@@ -198,6 +206,133 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     info!("* Ciphertexts = {} (width = {})", ciphertexts, W);
     info!("***************************************************************");
 
+    Ok(())
+}
+
+/// Negative control: a ballot with an invalid well-formedness proof must halt
+/// the tally at first-mix engagement (PROTOCOL.md §5.5) — no mix and no
+/// plaintexts are produced.
+///
+/// With all-honest sessions the refusal surfaces in the mixer's `ComputeMix`
+/// (no mix ever exists for the others to `SignMix`), but both actions fetch
+/// ballots through the same verify-and-strip seam
+/// (`Trustee::mix_input_ciphertexts`), so this exercises the one location
+/// where a trustee accepts external ballots.
+pub fn run_rejects_invalid_ballot<C: Context>() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .expect("failed to build tokio runtime");
+    runtime.block_on(run_invalid_ballot::<C>()).unwrap()
+}
+
+async fn run_invalid_ballot<C: Context>() -> Result<()> {
+    use cryptography::cryptosystem::naoryung;
+    const W: usize = 2;
+
+    let n_trustees = 3;
+    let n_threshold = 2;
+    let mixing_trustees: Vec<TrusteeIndex> = vec![1, 2];
+
+    // --- manager, per-trustee key material, and the configuration ---
+    let mut key_rng = C::get_rng();
+    let pm = ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut key_rng));
+    let mut signing_keys = Vec::with_capacity(n_trustees);
+    let mut trustee_vks = Vec::with_capacity(n_trustees);
+    let mut share_keypairs = Vec::with_capacity(n_trustees);
+    let mut share_enc_keys = Vec::with_capacity(n_trustees);
+    for _ in 0..n_trustees {
+        let sk = C::SignatureScheme::gen_signing_key(&mut key_rng);
+        trustee_vks.push(C::SignatureScheme::verifying_key(&sk));
+        signing_keys.push(sk);
+        let keypair = KeyPair::<C>::generate();
+        share_enc_keys.push(keypair.pkey.y.clone());
+        share_keypairs.push(keypair);
+    }
+    let cfg = Configuration::<C>::new(
+        0,
+        C::SignatureScheme::verifying_key(&pm.signing_key),
+        trustee_vks,
+        n_threshold,
+        W,
+        share_enc_keys,
+        PhantomData,
+    );
+    let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
+    let cfg_message = ProtocolMessage::<C>::configuration(&pm, DATE, &cfg);
+
+    let board = MemoryBoard::<C>::new();
+    board.push(cfg_message);
+    let mut sessions: Vec<MemorySession<C>> = Vec::with_capacity(n_trustees);
+    for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
+        let transport = MemoryTransport::new(board.clone());
+        let client = BoardClient::connect(transport, NoOpPersistence).await?;
+        let trustee = Trustee::new(
+            (i + 1).to_string(),
+            signing_key,
+            keypair,
+            client.configuration(),
+        )?;
+        sessions.push(Session::new(trustee, client));
+    }
+    drive(&mut sessions).await?;
+
+    let dkg_messages = board.snapshot();
+    let pk_body = dkg_messages
+        .iter()
+        .find(|m| m.message_type == MessageType::PublicKey)
+        .and_then(|m| m.body.as_ref())
+        .ok_or_else(|| anyhow!("DKG did not produce a public key"))?;
+    let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
+        .map_err(|e| anyhow!("failed to deserialize public key: {:?}", e))?;
+    let pk_hash = PublicKeyHash(hash_bytes(pk_body));
+
+    let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+    let ctx_enc = crate::trustee::ballot_encryption_context::<C>(cfg.id, &dkg_pk.pk);
+    let ny_pk = naoryung::PublicKey::augment(&pk, &ctx_enc)
+        .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
+    let mut enc_rng = C::get_rng();
+    let mut encrypted: Vec<naoryung::Ciphertext<C, W>> = (0..4)
+        .map(|_| {
+            let p: [C::Element; W] = std::array::from_fn(|_| C::G::random_element(&mut enc_rng));
+            ny_pk.encrypt(&p, &ctx_enc)
+        })
+        .collect::<Result<_, _>>()
+        .map_err(|e| anyhow!("ballot encryption failed: {:?}", e))?;
+
+    // Swap the well-formedness proofs of two ballots: each ciphertext is
+    // intact and each proof is valid — but for the other statement.
+    let proof0 = encrypted[0].proof.clone();
+    encrypted[0].proof = encrypted[1].proof.clone();
+    encrypted[1].proof = proof0;
+
+    let ballots = Ballots::<C, W>::new(encrypted);
+    let ballots_message = ProtocolMessage::<C>::ballots(
+        &pm,
+        DATE,
+        cfg_hash,
+        pk_hash,
+        mixing_trustees,
+        1,
+        &ballots,
+    );
+    board.push(ballots_message);
+
+    let err = drive(&mut sessions)
+        .await
+        .expect_err("a tampered ballot must halt the tally");
+    assert!(
+        err.to_string().contains("failed Naor-Yung verification"),
+        "unexpected error: {err}"
+    );
+
+    // The tally must have produced nothing: no mix, no plaintexts.
+    let final_messages = board.snapshot();
+    assert!(
+        !final_messages
+            .iter()
+            .any(|m| matches!(m.message_type, MessageType::Mix | MessageType::Plaintexts)),
+        "a tampered ballot must not produce mixes or plaintexts"
+    );
     Ok(())
 }
 

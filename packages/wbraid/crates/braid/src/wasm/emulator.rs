@@ -60,7 +60,7 @@ use std::marker::PhantomData;
 use cryptography::context::{Context, RistrettoCtx};
 use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts};
@@ -154,13 +154,17 @@ impl Keys {
 /// Deterministic in its inputs, which is what lets an imported setup rebuild
 /// the identical `Configuration` — and therefore the same hash, which every
 /// message on the board is bound to.
+/// The emulator's fixed election-execution identifier (`Configuration.id`),
+/// which also enters the ballot encryption context.
+const EMULATOR_CFG_ID: u128 = 0;
+
 fn configuration_for(
     keys: &Keys,
     threshold: usize,
     width: usize,
 ) -> Result<(Configuration<RistrettoCtx>, ConfigurationHash)> {
     let cfg = Configuration::<RistrettoCtx>::new(
-        0,
+        EMULATOR_CFG_ID,
         Sig::verifying_key(&keys.pm.signing_key),
         keys.signing.iter().map(Sig::verifying_key).collect(),
         threshold,
@@ -259,7 +263,7 @@ fn expected_plaintexts<C: Context, const W: usize>(
 }
 
 /// Encrypt this tally's derived plaintexts under the DKG public key (`pk_body`)
-/// and build the manager's `Ballots` message.
+/// as Naor-Yung ballots and build the manager's `Ballots` message.
 fn encrypt_ballots<C: Context, const W: usize>(
     pk_body: &[u8],
     setup_id: &str,
@@ -267,15 +271,25 @@ fn encrypt_ballots<C: Context, const W: usize>(
     ciphertexts: u32,
     mixing_trustees: Vec<TrusteeIndex>,
     pm: &ProtocolManager<C>,
+    cfg_id: u128,
     cfg_hash: ConfigurationHash,
 ) -> Result<ProtocolMessage<C>> {
+    use cryptography::cryptosystem::naoryung;
+
     let dkg_pk = DkgPublicKey::<C>::deser(pk_body)
         .map_err(|e| anyhow!("deserialize public key: {:?}", e))?;
     let pk_hash = PublicKeyHash(hash_bytes(pk_body));
     let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+    let ctx_enc = crate::trustee::ballot_encryption_context::<C>(cfg_id, &dkg_pk.pk);
+    let ny_pk = naoryung::PublicKey::augment(&pk, &ctx_enc)
+        .map_err(|e| anyhow!("derive the ballot auxiliary key: {:?}", e))?;
 
     let plaintexts_in = ballot_plaintexts::<C, W>(setup_id, tally, ciphertexts)?;
-    let encrypted: Vec<Ciphertext<C, W>> = plaintexts_in.iter().map(|p| pk.encrypt(p)).collect();
+    let encrypted: Vec<naoryung::Ciphertext<C, W>> = plaintexts_in
+        .iter()
+        .map(|p| ny_pk.encrypt(p, &ctx_enc))
+        .collect::<Result<_, _>>()
+        .map_err(|e| anyhow!("ballot encryption failed: {:?}", e))?;
 
     let ballots = Ballots::<C, W>::new(encrypted);
     Ok(ProtocolMessage::<C>::ballots(
@@ -284,6 +298,8 @@ fn encrypt_ballots<C: Context, const W: usize>(
         cfg_hash,
         pk_hash,
         mixing_trustees,
+        // Distinct tally-execution identifier per sibling tally (§8.2).
+        1 + tally as u128,
         &ballots,
     ))
 }
@@ -374,7 +390,7 @@ struct SetupBlob {
     manager_sk: String,
     /// Trustee signing keys (base64), in index order.
     trustee_sks: Vec<String>,
-    /// Trustee share-decryption secret scalars (base64 `VSerializable`), in index
+    /// Trustee share-decryption secret scalars (base64 `Serializable`), in index
     /// order; the public side is recomputed as `g^sk`.
     share_sks: Vec<String>,
 }
@@ -976,6 +992,7 @@ impl Emulator {
                 ciphertexts,
                 self.mixing_trustees.clone(),
                 &self.keys.pm,
+                EMULATOR_CFG_ID,
                 self.cfg_hash,
             )
         })

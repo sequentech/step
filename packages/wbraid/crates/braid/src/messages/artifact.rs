@@ -10,13 +10,15 @@ use super::newtypes::PROTOCOL_MANAGER_INDEX;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
+use cryptography::cryptosystem::naoryung;
 
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::dkgd::dealer::CheckingValue;
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
 use cryptography::zkp::shuffle::ShuffleProof;
-use cryptography::VSerializable as VSer;
+use cryptography::Canonical;
 
-#[derive(VSer)]
+#[derive(Canonical)]
 pub struct Configuration<C: Context> {
     pub id: u128,
     pub protocol_manager: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
@@ -92,17 +94,19 @@ impl<C: Context> Configuration<C> {
     }
 }
 
-#[derive(Debug, VSer)]
+#[derive(Debug, Canonical)]
 pub struct Shares<C: Context> {
-    // Commitments to the coefficients of the generated polynomial, aka the checking values.
-    pub commitments: Vec<C::Element>,
+    // Commitments to the coefficients of the generated polynomial, aka the
+    // checking values, each carrying a Schnorr proof of knowledge of its
+    // exponent (§7). Recipients verify every proof; any failure halts.
+    pub commitments: Vec<CheckingValue<C>>,
     // One vector of bytes per trustee, including the share sent to
     // itself. The bytes are the serialization of the ElGamal
     // encryption of the share. See  CryptographicGroup::encrypt_scalar.
     pub encrypted_shares: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, VSer)]
+#[derive(Debug, Canonical)]
 pub struct DkgPublicKey<C: Context> {
     pub pk: C::Element,
     pub verification_keys: Vec<C::Element>,
@@ -117,13 +121,17 @@ impl<C: Context> DkgPublicKey<C> {
     }
 }
 
-#[derive(Debug, VSer)]
+/// The tally input: Naor-Yung ballot ciphertexts (PROTOCOL.md §3.6, §5.5).
+/// Every trustee independently verifies each ciphertext's well-formedness
+/// proof and strips it to its ElGamal part at first-mix engagement; the
+/// stripped list is derived locally and never posted.
+#[derive(Debug, Canonical)]
 pub struct Ballots<C: Context, const W: usize> {
-    pub ciphertexts: Vec<Ciphertext<C, W>>,
+    pub ciphertexts: Vec<naoryung::Ciphertext<C, W>>,
 }
 
 impl<C: Context, const W: usize> Ballots<C, W> {
-    pub fn new(ciphertexts: Vec<Ciphertext<C, W>>) -> Ballots<C, W> {
+    pub fn new(ciphertexts: Vec<naoryung::Ciphertext<C, W>>) -> Ballots<C, W> {
         Ballots { ciphertexts }
     }
 }
@@ -134,17 +142,19 @@ pub struct Mix<C: Context, const W: usize> {
     pub proof: Option<ShuffleProof<C, W>>,
 }
 
-impl<C: Context, const W: usize> VSerializable for Mix<C, W> {
-    fn ser(&self) -> Vec<u8> {
-        (&self.ciphertexts, &self.proof).ser()
+impl<C: Context, const W: usize> Serializable for Mix<C, W> {
+    fn write(&self, out: &mut Vec<u8>) {
+        self.ciphertexts.write(out);
+        self.proof.write(out);
     }
 }
 
-impl<C: Context, const W: usize> VDeserializable for Mix<C, W> {
-    fn deser(buffer: &[u8]) -> Result<Self, cryptography::utils::error::Error> {
-        let (ciphertexts, proof) =
-            <(Vec<Ciphertext<C, W>>, Option<ShuffleProof<C, W>>)>::deser(buffer)?;
-        Ok(Mix { ciphertexts, proof })
+impl<C: Context, const W: usize> Deserializable for Mix<C, W> {
+    fn read(input: &mut &[u8]) -> Result<Self, cryptography::utils::error::Error> {
+        Ok(Mix {
+            ciphertexts: Vec::<Ciphertext<C, W>>::read(input)?,
+            proof: Option::<ShuffleProof<C, W>>::read(input)?,
+        })
     }
 }
 
@@ -177,7 +187,7 @@ impl<C: Context, const W: usize> Mix<C, W> {
 /// boundary and one type serves.
 pub use cryptography::dkgd::recipient::PartialDecryption;
 
-#[derive(Debug, VSer)]
+#[derive(Debug, Canonical)]
 pub struct Plaintexts<C: Context, const W: usize>(pub Vec<[C::Element; W]>);
 
 ///////////////////////////////////////////////////////////////////////////

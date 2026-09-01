@@ -16,7 +16,7 @@
 
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
-use cryptography::utils::serialization::VDeserializable;
+use cryptography::utils::serialization::Deserializable;
 
 use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{
@@ -122,6 +122,7 @@ pub fn verify<C: Context>(
                 public_key: head.public_key,
                 ciphertexts: CiphertextsHash(body_hash),
                 trustees: head.trustees,
+                tally_id: head.tally_id,
             }
             .into();
             Ok((predicate, Some(body.clone())))

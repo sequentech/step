@@ -28,6 +28,10 @@ Verificatum. The tests look for that last one at `crates/verificatum`,
 which is **not in this repository** — you assemble it, or point `VMN_HOME`
 somewhere else.
 
+WSL is invoked by the tests themselves: they spawn `wsl.exe` to run `vmn`'s
+demo scripts (see [How `vmn` and `vmnv` are actually run](#how-vmn-and-vmnv-are-actually-run)).
+You run `cargo test` from PowerShell as usual and never enter WSL yourself.
+
 There is no single Verificatum repository. It is distributed as separate
 projects, two of which are needed here, cloned side by side:
 

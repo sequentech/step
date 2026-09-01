@@ -102,45 +102,23 @@ impl PartialEq for RistrettoScalar {
 
 impl Eq for RistrettoScalar {}
 
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable, take};
 
-impl VSerializable for RistrettoScalar {
-    fn ser(&self) -> Vec<u8> {
-        let bytes = self.0.to_bytes();
-        bytes.to_vec()
+impl Serializable for RistrettoScalar {
+    fn write(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.0.to_bytes());
     }
 }
 
-impl VDeserializable for RistrettoScalar {
-    fn deser(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        let bytes = <[u8; 32]>::try_from(buffer).map_err(|_| {
-            CryptographyError::DeserializationError(
-                "Failed to convert Vec<u8> to [u8; 32]".to_string(),
-            )
-        })?;
-        let opt: Option<RistrettoScalar> = DalekScalar::from_canonical_bytes(bytes)
+impl Deserializable for RistrettoScalar {
+    fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
+        let bytes = take(input, 32)?;
+        let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");
+        let opt: Option<RistrettoScalar> = DalekScalar::from_canonical_bytes(array)
             .map(RistrettoScalar)
             .into();
         opt.ok_or(CryptographyError::DeserializationError(
-            "Failed to convert parse Ristretto scalar bytes".to_string(),
+            "Failed to parse Ristretto scalar bytes".to_string(),
         ))
-    }
-}
-
-use crate::utils::serialization::{FDeserializable, FSerializable};
-
-impl FSerializable for RistrettoScalar {
-    fn size_bytes() -> usize {
-        32
-    }
-    fn ser_into(&self, buffer: &mut Vec<u8>) {
-        let bytes = self.0.as_bytes();
-        buffer.extend_from_slice(bytes);
-    }
-}
-
-impl FDeserializable for RistrettoScalar {
-    fn deser_f(buffer: &[u8]) -> Result<Self, CryptographyError> {
-        Self::deser(buffer)
     }
 }

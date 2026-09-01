@@ -6,8 +6,8 @@ use anyhow::Result;
 
 use super::artifact::Configuration;
 use cryptography::context::Context;
-use cryptography::utils::serialization::VSerializable;
-use cryptography::VSerializable as VSer;
+use cryptography::utils::serialization::Serializable;
+use cryptography::Canonical;
 
 pub const MAX_TRUSTEES: usize = 8;
 pub const MAX_CIPHERTEXT_WIDTH: usize = 8;
@@ -47,7 +47,7 @@ pub fn zero_hash() -> Hash {
 // Newtypes
 ///////////////////////////////////////////////////////////////////////////
 
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, Canonical)]
 pub struct ConfigurationHash(pub Hash);
 
 impl ConfigurationHash {
@@ -64,7 +64,7 @@ impl std::fmt::Debug for ConfigurationHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Canonical)]
 pub struct SharesHash(pub Hash);
 impl std::fmt::Debug for SharesHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -72,7 +72,7 @@ impl std::fmt::Debug for SharesHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, Canonical)]
 pub struct PublicKeyHash(pub Hash);
 impl std::fmt::Debug for PublicKeyHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -84,7 +84,7 @@ impl std::fmt::Debug for PublicKeyHash {
 // This allows accessing either one when pointing to a source of
 // ciphertexts (ballots or mix). The same typed hash is propagated
 // all the way from Ballots to PartialDecryptions predicates.
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, Canonical)]
 pub struct CiphertextsHash(pub Hash);
 impl std::fmt::Debug for CiphertextsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -92,7 +92,7 @@ impl std::fmt::Debug for CiphertextsHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Canonical)]
 pub struct PartialDecryptionHash(pub Hash);
 impl std::fmt::Debug for PartialDecryptionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -100,7 +100,7 @@ impl std::fmt::Debug for PartialDecryptionHash {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, VSer)]
+#[derive(Copy, Clone, PartialEq, Eq, Canonical)]
 pub struct PlaintextsHash(pub Hash);
 impl std::fmt::Debug for PlaintextsHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -21,83 +21,140 @@ Status legend: **[IN PLACE]** works today · **[PLANNED]** decided, not yet done
 
 ---
 
-## 1. Model checking — port the vs_lift `stateright` tests  [PLANNED, Tier 1]
+## 1. Model checking — `stateright` over the real implementation  [IN PLACE]
 
-The braid datalog (`crate::datalog`, §7) is a port of the vs_lift `ascent` rules;
-vs_lift also carried `stateright` model-checking harnesses that were **not**
-ported. Bringing them over is banked in spec §12 and carries real assurance value
-for the "brain". The source is restored (read-only) under
-`crates/braid/vs_lift/` for reference.
+Two harnesses under `crates/braid/tests/` model-check the **real
+implementation** — the real datalog, board client, wire assembly and
+signatures — rather than a separate model of it:
 
-The harnesses split into two tiers with very different effort profiles.
+- `model_check_symbolic.rs` — deterministic token artifacts make the
+  exploration a graph; carries the fault program and the safety/liveness
+  property set. Runs in the ordinary test suite.
+- `model_check.rs` — real crypto end to end; checks the honest-path axioms
+  the symbolic harness assumes. `#[ignore]`d (real crypto per explored
+  transition); run on demand.
 
-### Tier 1 — ascent-logic model checks  [feasible, moderate]
-
-Per-phase `stateright::Model`s for DKG / mix / decrypt (in
-`vs_lift/.../ascent_logic/{dkg,mix,decrypt}.rs` `mod stateright`), a shared board
-mock in `ascent_logic/mod.rs` (`HashBoard`), and a whole-protocol model in
-`protocol.rs` — ~1,400 lines total. Each model: `actions()` runs the **infer**
-program to get enabled actions; `next_state()` runs a test-only **execute**
-program that fabricates result messages with stub hashes; `properties()` asserts
-safety/liveness (e.g. "shares completed", collision ⇒ no progress); a `#[test]`
-BFS-checks a small committee (e.g. `<RistrettoCtx, 2, 2, 3>`). These depend only
-on `ascent_logic` + `cryptography::Context` + the `stateright` crate — **no**
-actor/handler coupling — so they plug straight into `crate::datalog`.
-
-Effort is **comparable to the datalog rule port already completed**:
-
-- Reusable as-is: the composed **infer** program (`datalog::composed`), the rules,
-  the `Action`/`Predicate` types, and the newtypes.
-- To add (all native-only `#[cfg(test)]`):
-  1. a `stateright` dev-dependency;
-  2. a `HashBoard`-equivalent mock keyed on braid's `Predicate` (~100 lines,
-     mechanical);
-  3. the test-only **execute** ascent fragments (`*_execute`) — these were dropped
-     in our port and must be re-added (small: a couple of rules per phase, stub
-     hashes);
-  4. a `composed_execute` program (analogous to the existing `composed`);
-  5. the `Model`/`Property` impls per phase + the whole-protocol model
-     (mechanical translation).
-- Known friction (no architectural unknowns): vs_lift's positional `Message` enum
-  → braid's typed named-field `Predicate` (the same adaptation already done for
-  the infer input-mapping rules), the `message(…)` → `predicate(…)` relation
-  rename in the execute rules, and adding the test-only `active` relation (braid's
-  prelude does not carry it).
-- Suggested delivery: per phase (dkg → mix → decrypt → whole-protocol), each a
-  small self-contained addition under `datalog`.
-
-### Tier 2 — integration / actor model checks  [major; a rewrite, not a port]
-
-`vs_lift/integration_tests.rs` (~2,335 lines) + `integration_tests_basic.rs`
-(~634) build a `stateright::Model` over the **full actor system**
-(`trustee_administration_server::handlers`, `trustee_application::{handlers,
-top_level_actor}`, `trustee_cryptography`, `trustee_messages`). v0.6 deliberately
-**replaced** that architecture with `Trustee` + `BoardClient` + `b4`, so
-this is not portable as-is — it would mean re-expressing the integration model
-over braid's runtime (`Session`/`BoardClient`), i.e. new design work. Treat as a
-separate, later question if end-to-end model checking of the v0.6 runtime is ever
-wanted.
-
-**Verdict:** pursue **Tier 1** when scheduled (bounded, moderate, high
-value-for-effort). **Tier 2** is a major undertaking best framed as new work.
+Everything else — design record, fault model, property catalog, how to run,
+and roadmap — is in `STATERIGHT.md` (per-commit measurement log:
+`STATERIGHT-log.md`). The retired vs_lift harnesses remain in-tree,
+read-only, under `crates/braid/vs_lift/` for reference.
 
 ---
 
-## 2. Property-based testing  [CANDIDATE — not yet assessed]
+## 2. Property-based testing  [IN PLACE for serialization; broader candidates remain]
 
-Generative tests (e.g. `proptest`) over the platform-agnostic, deterministic
-cores: `collides()` totality/symmetry, predicate (de)serialization round-trips,
-the `AccumulatorSet` ordering invariants, and board-client admit/anti-rewrite
-behaviour under randomized message sets/orderings. Overlaps with Tier 1 model
-checking but is cheaper to stand up and complements it (random inputs vs.
-exhaustive small-state search).
+**In place — the serialization bijection properties.** The wire format
+(`SERIALIZATION.md`) requires `ser`/`deser` to be a bijection between values
+and accepted byte strings. Two proptest properties pin it:
 
-## 3. Fuzzing  [CANDIDATE — not yet assessed]
+- **P1 (round trip)**: `deser(ser(x)) == x` for arbitrary values;
+- **P2 (strictness)**: `deser(b) == Ok(v)` implies `ser(v) == b` for arbitrary
+  byte strings — exercised over mutations of valid encodings
+  (truncate/extend/edit, the distribution that catches trailing-byte and
+  length slack) and over raw random bytes.
 
-Highest-value target is the **untrusted boundary**: deserialization of
-`WireMessage` / bodies and the `verify` path (`cargo-fuzz`/libFuzzer on the
-`b4` → trustee inputs). b4 is untrusted (§8), so malformed/adversarial bytes must
-never panic or mis-verify — a natural fuzzing surface.
+Two suites carry them:
+
+- `vsc/src/utils/serialization/properties.rs` — a kitchen-sink type tree
+  covering every composition rule (fixed leaves, `String`, `Option`, `Vec`
+  including byte vectors, arrays, nesting, `PhantomData`, group
+  elements/scalars), both contexts, all-fixed and variable struct shapes.
+- `braid/tests/serialization_properties.rs` — the two braid-specific
+  boundaries: `ProtocolMessage` (untrusted-board bytes, pre-signature) and
+  `Predicate` (anti-rewrite persistence), over valid, mutated, and random
+  distributions.
+
+**How to run.** Both suites run as part of the ordinary `cargo test` flow; to
+run just them, from the workspace root:
+
+```sh
+cargo test --release -p vsc serialization::properties
+cargo test --release -p braid --test serialization_properties
+```
+
+proptest generates 256 cases per property by default. Deepen a run with the
+`PROPTEST_CASES` environment variable (both suites use proptest's default
+configuration, so the variable is honored):
+
+```sh
+PROPTEST_CASES=65536 cargo test --release -p braid --test serialization_properties
+```
+
+(PowerShell: `$env:PROPTEST_CASES=65536` on its own line, then the `cargo
+test` command.)
+
+The properties are format-agnostic (they pin the bijection, not byte
+layouts), so they survive encoding changes as the acceptance suite.
+
+**Still candidates**: `collides()` totality/symmetry, the `AccumulatorSet`
+ordering invariants, and board-client admit/anti-rewrite behaviour under
+randomized message orderings.
+
+## 3. Fuzzing  [IN PLACE for serialization; broader candidates remain]
+
+**In place — bijection-oracle fuzz targets** (`cargo-fuzz`/libFuzzer). Every
+deserializer target embeds the strictness oracle — `if let Ok(v) =
+T::deser(data) { assert_eq!(v.ser(), data) }` — so coverage-guided fuzzing
+hunts panics *and* canonicality violations in one pass.
+
+- `crates/vsc/fuzz`: deserializer oracles for ElGamal and Naor-Yung
+  ciphertexts, shuffle proofs, and DKG dealings (`VerifiableShare`, including
+  checking-value proofs), plus two verify-boundary targets — Naor-Yung
+  verify-and-strip (the PlEq verifier) and Schnorr verification — running
+  accepted adversarial inputs against fixed, deterministically derived keys,
+  and the pre-existing `encode_bytes`/`encode_scalar` targets.
+- `crates/braid/fuzz`: oracles for `ProtocolMessage` and `Predicate`.
+
+**How to run — vsc** (any platform; `cargo fuzz` needs the nightly toolchain,
+which is this workspace's default). From `crates/vsc`:
+
+```sh
+cargo fuzz list                                        # enumerate the targets
+cargo fuzz run deser_ny_ciphertext_ristretto           # fuzz until Ctrl-C
+cargo fuzz run deser_ny_ciphertext_ristretto -- -max_total_time=300
+```
+
+libFuzzer options go after the `--` separator: `-max_total_time=<seconds>`
+bounds a run (deeper campaigns = raise it); `-help=1` lists the rest.
+
+**How to run — braid** (Linux only, see below). From the **workspace root**:
+
+```sh
+cargo fuzz run deser_predicate --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+cargo fuzz run deser_protocol_message_ristretto --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+```
+
+Two platform constraints, one of which shapes the command:
+
+- **Run from the workspace root, not `crates/braid`.**
+  `crates/braid/.cargo/config.toml` applies `[unstable] build-std` and wasm
+  linker flags (needed for wasm threading) to any cargo invocation started
+  inside that directory, which breaks the host-side fuzz build; invoking from
+  the root with `--fuzz-dir` keeps that config out of scope.
+- **Windows/MSVC cannot even link these targets**: braid's wasm `cdylib`
+  crate-type conflicts with libFuzzer's `/include:main` (and the
+  `--no-include-main-msvc` opt-out removes the fuzz binary's own entry
+  point), so both `cargo fuzz build` and `cargo fuzz run` fail at the link
+  step. On Windows the braid property suite above exercises the same
+  bijection oracle host-side.
+
+Smoke baselines, all clean (zero crashes, zero bijection violations):
+
+- vsc (2026-08-28, Windows host, 40s/target): eight targets — the six
+  serialization-campaign targets plus `encode_bytes_ristretto` and
+  `encode_scalar_bytes_ristretto` — ~7.9M executions total.
+- braid (2026-08-28, Linux under WSL, `-max_total_time=300`): both targets;
+  `deser_protocol_message_ristretto` ran ~36.3M executions. The oracle's
+  accept path was genuinely exercised, not just rejection paths: replaying
+  the persisted corpora host-side, 31/80 protocol-message and 22/94 predicate
+  entries deserialize successfully and re-serialize byte-identically — the
+  fuzzer synthesized valid messages from an empty corpus. Those corpora
+  persist locally under `crates/braid/fuzz/corpus/` (gitignored) and seed
+  future runs.
+
+**Still candidates**: fuzzing the b4 server's own inputs, and the braid
+`verify` path end to end (signature + statement reconstruction) beyond the
+serialization layer.
 
 ## 4. Static analysis & linting  [CANDIDATE / hygiene]
 

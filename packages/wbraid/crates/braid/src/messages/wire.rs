@@ -39,9 +39,9 @@ pub fn schema_version() -> String {
 use anyhow::{anyhow, Result};
 use cryptography::context::Context;
 use cryptography::utils::error::Error;
-use cryptography::utils::serialization::{VDeserializable, VSerializable};
+use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
-use cryptography::VSerializable as VSer;
+use cryptography::Canonical;
 
 use super::artifact::Configuration;
 use super::newtypes::{
@@ -79,15 +79,15 @@ impl MessageType {
     }
 }
 
-impl VSerializable for MessageType {
-    fn ser(&self) -> Vec<u8> {
-        (*self as u8).ser()
+impl Serializable for MessageType {
+    fn write(&self, out: &mut Vec<u8>) {
+        (*self as u8).write(out);
     }
 }
 
-impl VDeserializable for MessageType {
-    fn deser(bytes: &[u8]) -> Result<Self, Error> {
-        let discriminant = u8::deser(bytes)?;
+impl Deserializable for MessageType {
+    fn read(input: &mut &[u8]) -> Result<Self, Error> {
+        let discriminant = u8::read(input)?;
         match discriminant {
             0 => Ok(MessageType::Configuration),
             1 => Ok(MessageType::Shares),
@@ -117,13 +117,13 @@ impl VDeserializable for MessageType {
 /// (`ConfigurationValid`) also needs the trustee count / threshold (from the
 /// body) and this trustee's `self_index`, so it is assembled by the board client
 /// at construction (§9.8), not by the generic verify path.
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct ConfigurationHead {
     pub date: Timestamp,
 }
 
 /// Head of a `Shares` message. In: `configuration`. Out: `H(body)` = shares hash.
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct SharesHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
@@ -132,26 +132,30 @@ pub struct SharesHead {
 /// Head of a `PublicKey` message. In: `configuration`. Out: `H(body)` = public
 /// key hash. (Lean: the justifying shares are separate `Shares` predicates the
 /// datalog joins from the EDB — they are not carried here.)
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct PublicKeyHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
 }
 
 /// Head of a `Ballots` message (manager-authored). In: `configuration`,
-/// `public_key`; param: `trustees` (the active mixing set). Out: `H(body)` =
-/// ciphertexts hash. Ballots has no sender field (single manager slot).
-#[derive(Clone, Debug, VSer)]
+/// `public_key`; param: `trustees` (the active mixing set) and `tally_id`
+/// (manager-assigned identifier of this tally execution, separating the
+/// Fiat-Shamir transcript domains of sibling tallies over one DKG, §8.2).
+/// Out: `H(body)` = ciphertexts hash. Ballots has no sender field (single
+/// manager slot).
+#[derive(Clone, Debug, Canonical)]
 pub struct BallotsHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
     pub public_key: PublicKeyHash,
     pub trustees: Vec<TrusteeIndex>,
+    pub tally_id: u128,
 }
 
 /// Head of a `Mix` message. In: `configuration`, `public_key`, `input` (the
 /// consumed ciphertexts). Out: `H(body)` = output ciphertexts hash.
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct MixHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
@@ -161,7 +165,7 @@ pub struct MixHead {
 
 /// Head of a `MixSignature` message. BODYLESS: both `input` and `output` are
 /// in-hashes carried by the head; there is no body and no out hash.
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct MixSignatureHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
@@ -173,7 +177,7 @@ pub struct MixSignatureHead {
 /// Head of a `PartialDecryptions` message. In: `configuration`, `public_key`,
 /// `ciphertexts` (the ciphertexts being decrypted). Out: `H(body)` = decryption
 /// factors hash.
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct PartialDecryptionsHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
@@ -183,7 +187,7 @@ pub struct PartialDecryptionsHead {
 
 /// Head of a `Plaintexts` message. In: `configuration`, `public_key`,
 /// `ciphertexts`. Out: `H(body)` = plaintexts hash.
-#[derive(Clone, Debug, VSer)]
+#[derive(Clone, Debug, Canonical)]
 pub struct PlaintextsHead {
     pub date: Timestamp,
     pub configuration: ConfigurationHash,
@@ -204,7 +208,7 @@ pub trait Signer<C: Context> {
     fn get_name(&self) -> String;
 }
 
-#[derive(VSer)]
+#[derive(Canonical)]
 pub struct Sender<C: Context> {
     pub name: String,
     pub pk: <C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
@@ -237,7 +241,7 @@ impl<C: Context> Sender<C> {
 /// (absent for the bodyless [`MessageType::MixSignature`]). Both `head` and
 /// `body` are length-delimited fields, so `body` is a clean slice hashed
 /// directly.
-#[derive(VSer)]
+#[derive(Canonical)]
 pub struct ProtocolMessage<C: Context> {
     pub sender: Sender<C>,
     pub signature: <C::SignatureScheme as SignatureScheme<C::Rng>>::Signature,
@@ -282,7 +286,7 @@ impl<C: Context> std::fmt::Debug for ProtocolMessage<C> {
 /// Serialize the transient Statement that is signed and verified (§3.3): the
 /// serialized `head` followed by `H(body)` when present. For bodyless messages
 /// (`MixSignature`) there is no `body_hash`, so the statement is the head alone.
-pub fn statement_bytes<H: VSerializable>(head: &H, body_hash: Option<&Hash>) -> Vec<u8> {
+pub fn statement_bytes<H: Serializable>(head: &H, body_hash: Option<&Hash>) -> Vec<u8> {
     let mut bytes = head.ser();
     if let Some(body_hash) = body_hash {
         bytes.extend(body_hash.ser());
@@ -334,7 +338,7 @@ impl<C: Context> ProtocolMessage<C> {
     /// `Configuration` (manager self-signed). Special: it is accepted and
     /// verified at construction (§9.8), so there is no matching `verify` arm —
     /// [`ProtocolMessage::verify`] rejects [`MessageType::Configuration`].
-    pub fn configuration<S: Signer<C>, B: VSerializable>(
+    pub fn configuration<S: Signer<C>, B: Serializable>(
         manager: &S,
         date: Timestamp,
         body: &B,
@@ -353,7 +357,7 @@ impl<C: Context> ProtocolMessage<C> {
     }
 
     /// `Shares`. In: `configuration`. Out: `H(body)` = shares hash.
-    pub fn shares<S: Signer<C>, B: VSerializable>(
+    pub fn shares<S: Signer<C>, B: Serializable>(
         signer: &S,
         date: Timestamp,
         configuration: ConfigurationHash,
@@ -376,7 +380,7 @@ impl<C: Context> ProtocolMessage<C> {
     }
 
     /// `PublicKey`. In: `configuration`. Out: `H(body)` = public key hash.
-    pub fn public_key<S: Signer<C>, B: VSerializable>(
+    pub fn public_key<S: Signer<C>, B: Serializable>(
         signer: &S,
         date: Timestamp,
         configuration: ConfigurationHash,
@@ -399,13 +403,14 @@ impl<C: Context> ProtocolMessage<C> {
     }
 
     /// `Ballots` (manager-authored). In: `configuration`, `public_key`; param:
-    /// `trustees`. Out: `H(body)` = ciphertexts hash.
-    pub fn ballots<S: Signer<C>, B: VSerializable>(
+    /// `trustees`, `tally_id`. Out: `H(body)` = ciphertexts hash.
+    pub fn ballots<S: Signer<C>, B: Serializable>(
         manager: &S,
         date: Timestamp,
         configuration: ConfigurationHash,
         public_key: PublicKeyHash,
         trustees: Vec<TrusteeIndex>,
+        tally_id: u128,
         body: &B,
     ) -> ProtocolMessage<C> {
         let body_bytes = body.ser();
@@ -415,6 +420,7 @@ impl<C: Context> ProtocolMessage<C> {
             configuration,
             public_key,
             trustees,
+            tally_id,
         };
         let signed = statement_bytes(&head, Some(&body_hash));
         Self::sign_wire(
@@ -428,7 +434,7 @@ impl<C: Context> ProtocolMessage<C> {
 
     /// `Mix`. In: `configuration`, `public_key`, `input`. Out: `H(body)` =
     /// output ciphertexts hash.
-    pub fn mix<S: Signer<C>, B: VSerializable>(
+    pub fn mix<S: Signer<C>, B: Serializable>(
         signer: &S,
         date: Timestamp,
         configuration: ConfigurationHash,
@@ -477,7 +483,7 @@ impl<C: Context> ProtocolMessage<C> {
 
     /// `PartialDecryptions`. In: `configuration`, `public_key`, `ciphertexts`.
     /// Out: `H(body)` = decryption factors hash.
-    pub fn partial_decryptions<S: Signer<C>, B: VSerializable>(
+    pub fn partial_decryptions<S: Signer<C>, B: Serializable>(
         signer: &S,
         date: Timestamp,
         configuration: ConfigurationHash,
@@ -505,7 +511,7 @@ impl<C: Context> ProtocolMessage<C> {
 
     /// `Plaintexts`. In: `configuration`, `public_key`, `ciphertexts`. Out:
     /// `H(body)` = plaintexts hash.
-    pub fn plaintexts<S: Signer<C>, B: VSerializable>(
+    pub fn plaintexts<S: Signer<C>, B: Serializable>(
         signer: &S,
         date: Timestamp,
         configuration: ConfigurationHash,

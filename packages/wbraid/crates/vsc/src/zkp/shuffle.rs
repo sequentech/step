@@ -16,11 +16,11 @@ use crate::traits::groups::ReplScalarOps;
 use crate::utils::error::Error;
 use crate::utils::error::ErrorContext;
 use crate::utils::hash;
-use crate::utils::serialization::VSerializable;
+use crate::utils::serialization::Serializable;
 
 use rand::RngExt;
 use sha3::Digest;
-use vser_derive::VSerializable as VSer;
+use canonical_derive::Canonical;
 
 use rayon::prelude::*;
 
@@ -99,21 +99,30 @@ pub struct Shuffler<C: Context, const W: usize> {
  * particular Verificatum's, so that proofs braid produces can be checked by an
  * independently written verifier (see `VERIFICATUM.md`).
  *
- * [`NativeChallenges`] is the default and reproduces the previous behaviour
- * exactly, so [`Shuffler::shuffle`] and [`Shuffler::verify`] are unchanged.
+ * [`NativeChallenges`] is the default, used by [`Shuffler::shuffle`] and
+ * [`Shuffler::verify`].
  *
  * Implementors must derive both challenges deterministically from public data
- * only. Note the batching challenges are handed the generators and the Pedersen
- * commitments as well as the ciphertexts: braid's own derivation ignores them,
- * but Verificatum's commits to them, and they are available at the point the
- * challenge is needed.
+ * only, and must follow strong Fiat-Shamir: the batching seed commits to the
+ * full statement (generators, Pedersen permutation commitments, public key,
+ * both ciphertext lists, context), and the final challenge chains that seed,
+ * so it transitively binds the statement and the batching vector.
  */
 pub trait ShuffleChallenges<C: Context, const W: usize> {
-    /// The batching vector `e = (e_1, ..., e_N)`.
+    /// The batching seed and vector `e = (e_1, ..., e_N)`.
+    ///
+    /// The seed is the digest committing to the full statement, from which the
+    /// batching vector is expanded; the caller passes it on to
+    /// [`challenge`](Self::challenge).
     ///
     /// Values are reduced into the scalar field. That is sound for any
     /// convention whose challenges are wider than the group order, because these
     /// values are only ever used as exponents and `g^e = g^(e mod q)`.
+    ///
+    /// # Errors
+    ///
+    /// Implementation-defined: whatever the convention's derivation can fail
+    /// with — typically hashing to a scalar failing in the backend.
     fn batching_challenges(
         &self,
         generators: &[C::Element],
@@ -122,12 +131,23 @@ pub trait ShuffleChallenges<C: Context, const W: usize> {
         ciphertexts: &[Ciphertext<C, W>],
         permuted_ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
-    ) -> Result<Vec<C::Scalar>, Error>;
+    ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error>;
 
-    /// The single challenge `v`, derived from the proof commitments.
+    /// The single challenge `v`, derived from the batching seed and the proof
+    /// commitments.
+    ///
+    /// `seed` is the value [`batching_challenges`](Self::batching_challenges)
+    /// returned for this statement. Binding it binds — transitively — the
+    /// statement and the batching vector `e`, so `v` cannot be fixed before
+    /// either.
+    ///
+    /// # Errors
+    ///
+    /// Implementation-defined: whatever the convention's derivation can fail
+    /// with — typically hashing to a scalar failing in the backend.
     fn challenge(
         &self,
-        pk: &elgamal::PublicKey<C>,
+        seed: &[u8],
         commitments: &ShuffleCommitments<C, W>,
         context: &[u8],
     ) -> Result<C::Scalar, Error>;
@@ -141,14 +161,17 @@ pub struct NativeChallenges;
 impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
     fn batching_challenges(
         &self,
-        _generators: &[C::Element],
-        _pedersen_commitments: &[C::Element],
+        generators: &[C::Element],
+        pedersen_commitments: &[C::Element],
         pk: &elgamal::PublicKey<C>,
         ciphertexts: &[Ciphertext<C, W>],
         permuted_ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
-    ) -> Result<Vec<C::Scalar>, Error> {
+    ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error> {
         let a = [
+            C::generator().ser(),
+            generators.to_vec().ser(),
+            pedersen_commitments.to_vec().ser(),
             pk.ser(),
             ciphertexts.to_vec().ser(),
             permuted_ciphertexts.to_vec().ser(),
@@ -169,17 +192,17 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
             let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
             ret.push(C::G::hash_to_scalar(inputs, ds_tags)?);
         }
-        Ok(ret)
+        Ok((bytes.to_vec(), ret))
     }
 
     fn challenge(
         &self,
-        pk: &elgamal::PublicKey<C>,
+        seed: &[u8],
         commitments: &ShuffleCommitments<C, W>,
         context: &[u8],
     ) -> Result<C::Scalar, Error> {
         let a = [
-            pk.ser(),
+            seed.to_vec(),
             commitments.big_b_n.ser(),
             commitments.big_a_prime.ser(),
             commitments.big_b_prime_n.ser(),
@@ -240,12 +263,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     #[crate::warning(
         "The following function is not optimized. Parallelize with rayon. Error handling wrt generators length is suboptimal"
     )]
-    #[allow(clippy::many_single_char_names)]
-    #[allow(clippy::similar_names)]
-    #[allow(clippy::too_many_lines)]
     pub fn shuffle(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
     ) -> Result<(Vec<Ciphertext<C, W>>, ShuffleProof<C, W>), Error> {
         self.shuffle_with(ciphertexts, context, &NativeChallenges)
@@ -257,9 +277,24 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     /// The proof algebra is identical; only the transcript differs. This is what
     /// lets braid emit a proof another implementation's verifier will accept
     /// (see [`ShuffleChallenges`]).
+    ///
+    /// # Errors
+    ///
+    /// - `EmptyShuffle` if the input ciphertexts are zero length
+    /// - `MismatchedShuffleLength` if there is a length mismatch between ciphertexts and generators
+    /// - Any error the [`ShuffleChallenges`] implementation returns while deriving
+    ///   the challenges
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the length of the generated permutation does
+    /// not match the ciphertexts length, which should be impossible.
+    #[allow(clippy::many_single_char_names)]
+    #[allow(clippy::similar_names)]
+    #[allow(clippy::too_many_lines)]
     pub fn shuffle_with<X: ShuffleChallenges<C, W>>(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
         challenges: &X,
     ) -> Result<(Vec<Ciphertext<C, W>>, ShuffleProof<C, W>), Error> {
@@ -284,7 +319,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 1 /////////////////
 
         // Challenge e
-        let e_n = challenges.batching_challenges(
+        let (seed, e_n) = challenges.batching_challenges(
             &self.h_generators,
             &pedersen_commitments,
             &self.pk,
@@ -369,9 +404,11 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let w_prime_n_epsilon_n = w_prime_n_epsilon_n
             .into_par_iter()
             .map(|(w, e)| w.map_ref(|uv| uv.dist_exp(&e)));
-        let w_prime_n_epsilon_n = w_prime_n_epsilon_n
-            .into_par_iter()
-            .reduce(<[[C::Element; W]; 2]>::one, |acc, next| acc.mul(&next));
+        let w_prime_n_epsilon_n = fold_values(
+            w_prime_n_epsilon_n,
+            <[[C::Element; W]; 2]>::one,
+            |acc, next| acc.mul(next),
+        );
         let big_f_prime = Ciphertext::<C, W>(w_prime_n_epsilon_n);
         let big_f_prime: Ciphertext<C, W> = big_f_prime.re_encrypt(&phi.neg(), &self.pk.y);
 
@@ -394,7 +431,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 3 /////////////////
 
         // Challenge v
-        let v = challenges.challenge(&self.pk, &commitments, context)?;
+        let v = challenges.challenge(&seed, &commitments, context)?;
 
         ///////////////// Step 4 /////////////////
 
@@ -411,7 +448,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         // f
         let s_n_e_n = encryption_exponents.par_iter().zip(e_n.par_iter());
         let s_n_e_n = s_n_e_n.map(|(s, e)| s.dist_mul(e));
-        let f = s_n_e_n.reduce(<[C::Scalar; W]>::zero, |acc, next| acc.add(&next));
+        let f = fold_values(s_n_e_n, <[C::Scalar; W]>::zero, |acc, next| acc.add(next));
 
         // d_n
         // "sets d1 = b1 and computes di = bi + e′i*di−1 for i ∈ [N]"
@@ -487,11 +524,10 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     #[crate::warning(
         "The following function is not optimized. Parallelize with rayon. Error handling wrt generators length is suboptimal"
     )]
-    #[allow(clippy::similar_names)]
     pub fn verify(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
-        permuted_ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
+        permuted_ciphertexts: &[Ciphertext<C, W>],
         proof: &ShuffleProof<C, W>,
         context: &[u8],
     ) -> Result<bool, Error> {
@@ -501,10 +537,20 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     /// As [`verify`](Self::verify), but deriving the challenges through
     /// `challenges`. Must be paired with the matching
     /// [`shuffle_with`](Self::shuffle_with) convention.
+    ///
+    /// # Errors
+    ///
+    /// - `EmptyShuffle` if the input ciphertexts are zero length
+    /// - `MismatchedShuffleLength` if there is a length mismatch between the
+    ///   ciphertext lists, the generators, or the proof commitments
+    /// - Any error the [`ShuffleChallenges`] implementation returns while deriving
+    ///   the challenges
+    #[allow(clippy::similar_names)]
+    #[allow(clippy::too_many_lines)]
     pub fn verify_with<X: ShuffleChallenges<C, W>>(
         &self,
-        ciphertexts: &Vec<Ciphertext<C, W>>,
-        permuted_ciphertexts: &Vec<Ciphertext<C, W>>,
+        ciphertexts: &[Ciphertext<C, W>],
+        permuted_ciphertexts: &[Ciphertext<C, W>],
         proof: &ShuffleProof<C, W>,
         context: &[u8],
         challenges: &X,
@@ -532,7 +578,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let responses = &proof.responses;
         let g = C::generator();
 
-        let e_n = challenges.batching_challenges(
+        let (seed, e_n) = challenges.batching_challenges(
             &self.h_generators,
             &commitments.u_n,
             &self.pk,
@@ -540,7 +586,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             permuted_ciphertexts,
             context,
         )?;
-        let v = challenges.challenge(&self.pk, commitments, context)?;
+        let v = challenges.challenge(&seed, commitments, context)?;
 
         ///////////////// Step 5 /////////////////
 
@@ -553,9 +599,10 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let e_n_w_n = e_n.par_iter().zip(ciphertexts.par_iter());
         let big_f_n = e_n_w_n.map(|(e, w)| w.map_ref(|uv| uv.dist_exp(e)));
         // let big_f_n = e_n_w_n.map(|(e, w)| array::from_fn(|i| w.0[i].dist_exp(&e)));
-        let identity = <[[C::Element; W]; 2]>::one();
         let big_f: [[C::Element; W]; 2] =
-            big_f_n.reduce(|| identity.clone(), |acc, next| acc.mul(&next));
+            fold_values(big_f_n, <[[C::Element; W]; 2]>::one, |acc, next| {
+                acc.mul(next)
+            });
 
         // C
         let u_n_fold = commitments
@@ -644,8 +691,11 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let w_prime_n = permuted_ciphertexts;
         let w_prime_n_k_e_n = w_prime_n.par_iter().zip(responses.k_e_n.par_iter());
         let w_prime_n_k_e_n = w_prime_n_k_e_n.map(|(w, k)| w.map_ref(|uv| uv.dist_exp(k)));
-        let w_prime_n_k_e_n_fold =
-            w_prime_n_k_e_n.reduce(|| identity.clone(), |acc, next| acc.mul(&next));
+        let w_prime_n_k_e_n_fold = fold_values(
+            w_prime_n_k_e_n,
+            <[[C::Element; W]; 2]>::one,
+            |acc, next| acc.mul(next),
+        );
 
         let one = [g, self.pk.y.clone()].map(|gy| gy.repl_exp(&responses.k_f.neg()));
         let rhs_5 = one.mul(&w_prime_n_k_e_n_fold);
@@ -701,23 +751,23 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         Ok(ret)
     }
 
-    /// Domain separation tags for the e-challenge input
-    #[crate::warning(
-        "Challenge inputs are incomplete. Also add generators and pedersen commitments"
-    )]
-    const DS_TAGS_CHALLENGE_E: [&[u8]; 4] = [
+    /// Domain separation tags for the e-challenge (batching seed) input:
+    /// the full statement `(g, h, u, pk, w, w')` plus the context.
+    const DS_TAGS_CHALLENGE_E: [&[u8]; 7] = [
+        b"g",
+        b"h_n",
+        b"u_n",
         b"pk",
         b"w_n",
         b"w_prime_n",
         b"shuffle_proof_challenge_e_context",
     ];
 
-    /// Domain separation tags for the v-challenge input
-    #[crate::warning(
-        "Challenge inputs are incomplete. Also add generators, pedersen commitments, pk, and ciphertexts"
-    )]
+    /// Domain separation tags for the v-challenge input: the batching seed
+    /// (which transitively binds the statement and the batching vector `e`)
+    /// plus the proof commitments and the context.
     const DS_TAGS_CHALLENGE_V: [&[u8]; 8] = [
-        b"pk",
+        b"seed",
         b"big_b_n",
         b"big_a_prime",
         b"big_b_prime_n",
@@ -727,6 +777,110 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         b"shuffle_challenge_input_v_context",
     ];
 
+}
+
+/// Fold the values of a parallel iterator into one, combining with `combine`
+/// from `identity()`.
+///
+/// This is the seam between two fold strategies, selected at compile time by
+/// the `bounded-combine` feature so they can be benchmarked against each
+/// other. This definition is the default: rayon's recursive `reduce`, fused
+/// with the upstream `map` (nothing is materialized). Its stack use grows
+/// with input length, `W` and run-time work stealing, because each split
+/// dispatches a stack frame carrying `T`-sized accumulators -- measured on
+/// Windows x64 at `W = 100`, pool threads need 4 MiB at `N = 100`, 8 MiB at
+/// `N = 1,000` and 16 MiB at `N = 10,000`.
+///
+/// Both strategies combine the operands in their original order, so for the
+/// associative operations used here the result -- and therefore any proof
+/// derived from it -- is identical across the two.
+#[cfg(not(feature = "bounded-combine"))]
+fn fold_values<T, I, Ident, Combine>(items: I, identity: Ident, combine: Combine) -> T
+where
+    I: IntoParallelIterator<Item = T>,
+    T: Send + Sync,
+    Ident: Fn() -> T + Send + Sync,
+    Combine: Fn(T, &T) -> T + Send + Sync,
+{
+    items
+        .into_par_iter()
+        .reduce(identity, |acc, next| combine(acc, &next))
+}
+
+/// Fold the values of a parallel iterator into one, combining with `combine`
+/// from `identity()`.
+///
+/// This is the seam between two fold strategies, selected at compile time by
+/// the `bounded-combine` feature so they can be benchmarked against each
+/// other. This definition is the `bounded-combine` strategy: the values are
+/// materialized and handed to [`bounded_combine`], whose stack use is bounded
+/// by a small constant independent of input length and scheduling. The cost
+/// is the materialization itself, `len * size_of::<T>()` bytes of heap held
+/// for the duration of the fold.
+///
+/// Both strategies combine the operands in their original order, so for the
+/// associative operations used here the result -- and therefore any proof
+/// derived from it -- is identical across the two.
+#[cfg(feature = "bounded-combine")]
+fn fold_values<T, I, Ident, Combine>(items: I, identity: Ident, combine: Combine) -> T
+where
+    I: IntoParallelIterator<Item = T>,
+    T: Send + Sync,
+    Ident: Fn() -> T + Send + Sync,
+    Combine: Fn(T, &T) -> T + Send + Sync,
+{
+    let values: Vec<T> = items.into_par_iter().collect();
+    bounded_combine(&values, identity, combine)
+}
+
+/// Chunk-count multiplier for [`bounded_combine`]. This is used to
+/// create a number of chunks proportional to the available thread count.
+#[cfg(feature = "bounded-combine")]
+const BOUNDED_COMBINE_CHUNKS_PER_THREAD: usize = 4;
+
+/// Combine `items` via `combine`, starting from `identity()`.
+///
+/// Splits `items` into a number of chunks proportional to the available
+/// thread count (not to `items.len()`), folds each chunk with a plain
+/// sequential loop, and combines the resulting handful of partial values
+/// with another plain sequential loop. Rayon's own recursive `reduce`
+/// dispatches roughly one stack frame per split, and how many splits stay
+/// unstolen (and so execute nested, rather than unwinding first) depends on
+/// thread contention at run time, not just on `items.len()`; when combined
+/// values are large, that recursion's stack cost is not bounded independent
+/// of scheduling. Pre-chunking here bounds the recursive dispatch depth to
+/// a small constant, and each chunk's own fold uses a loop, not recursion,
+/// so no combined value is ever carried through a deep call stack.
+#[cfg(feature = "bounded-combine")]
+fn bounded_combine<T, Ident, Combine>(items: &[T], identity: Ident, combine: Combine) -> T
+where
+    T: Sync + Send,
+    Ident: Fn() -> T + Sync,
+    Combine: Fn(T, &T) -> T + Sync,
+{
+    if items.is_empty() {
+        return identity();
+    }
+    let num_chunks = rayon::current_num_threads()
+        .max(1)
+        .saturating_mul(BOUNDED_COMBINE_CHUNKS_PER_THREAD)
+        .min(items.len());
+    let chunk_size = items.len().div_ceil(num_chunks);
+    let partials: Vec<T> = items
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            let mut acc = identity();
+            for next in chunk {
+                acc = combine(acc, next);
+            }
+            acc
+        })
+        .collect();
+    let mut result = identity();
+    for partial in &partials {
+        result = combine(result, partial);
+    }
+    result
 }
 
 /// Convenience structure to hold re-encryption and permutation data
@@ -771,7 +925,7 @@ impl<C: Context, const W: usize> PermutationData<C, W> {
  * See `EVS`: Protocol 12.3
  */
 #[crate::warning("Remove clone, only requried for sandbox/sr")]
-#[derive(Debug, VSer, PartialEq, Clone)]
+#[derive(Debug, Canonical, PartialEq, Clone)]
 pub struct ShuffleProof<C: Context, const W: usize> {
     /// Proof shuffle commitments
     pub commitments: ShuffleCommitments<C, W>,
@@ -795,7 +949,7 @@ impl<C: Context, const W: usize> ShuffleProof<C, W> {
 ///
 /// Includes bridging commitments, proof commitments and
 /// pedersen commitments.
-#[derive(Debug, VSer, PartialEq, Clone)]
+#[derive(Debug, Canonical, PartialEq, Clone)]
 pub struct ShuffleCommitments<C: Context, const W: usize> {
     /// Bridging commitments
     big_b_n: Vec<C::Element>,
@@ -891,7 +1045,7 @@ impl<C: Context, const W: usize> ShuffleCommitments<C, W> {
 /**
  * Responses to the challenge in the shuffle proof
  */
-#[derive(Debug, VSer, PartialEq, Clone)]
+#[derive(Debug, Canonical, PartialEq, Clone)]
 pub struct Responses<C: Context, const W: usize> {
     /// Response `k_a`
     pub k_a: C::Scalar,
@@ -1090,10 +1244,37 @@ mod tests {
     use crate::cryptosystem::elgamal::Ciphertext;
     use crate::cryptosystem::elgamal::KeyPair;
     use crate::traits::groups::CryptographicGroup;
-    use crate::utils::serialization::{VDeserializable, VSerializable};
+    use crate::utils::serialization::{Deserializable, Serializable};
     use crate::zkp::shuffle::Permutation;
     use crate::zkp::shuffle::ShuffleProof;
     use crate::zkp::shuffle::Shuffler;
+
+    /// [`bounded_combine`](super::bounded_combine) must agree with a plain
+    /// sequential fold -- including on an empty input (identity) and on inputs
+    /// shorter than the chunk count.
+    #[cfg(feature = "bounded-combine")]
+    #[test]
+    fn test_bounded_combine_matches_sequential() {
+        use crate::traits::groups::GroupScalar;
+        type Scalar = <RCtx as Context>::Scalar;
+
+        for len in [0usize, 1, 3, 100, 1000] {
+            let values: Vec<Scalar> = (0..len)
+                .map(|i| {
+                    let i: u32 = i.try_into().expect("len < u32::MAX");
+                    Scalar::from(i)
+                })
+                .collect();
+
+            let expected = values
+                .iter()
+                .fold(Scalar::zero(), |acc, next| acc.add(next));
+            let actual =
+                super::bounded_combine(&values, Scalar::zero, |acc, next| acc.add(next));
+
+            assert_eq!(expected, actual, "mismatch at len {len}");
+        }
+    }
 
     #[test]
     #[cfg_attr(miri, ignore)]

@@ -95,6 +95,7 @@ mod tests {
                 public_key: PublicKeyHash(zero_hash()),
                 ciphertexts: CiphertextsHash(zero_hash()),
                 trustees,
+                tally_id: 1,
             }),
         ]
     }

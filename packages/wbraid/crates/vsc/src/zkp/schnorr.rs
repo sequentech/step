@@ -9,8 +9,8 @@ use crate::traits::groups::CryptographicGroup;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
-use crate::utils::serialization::VSerializable;
-use vser_derive::VSerializable;
+use crate::utils::serialization::Serializable;
+use canonical_derive::Canonical;
 
 /**
  * Schnorr proof of knowledge of discrete logarithm.
@@ -40,7 +40,7 @@ use vser_derive::VSerializable;
  * ```
  *
  */
-#[derive(Debug, VSerializable, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct SchnorrProof<C: Context> {
     /// Prover commitment
     pub(crate) big_a: C::Element,
@@ -153,7 +153,7 @@ mod tests {
     use crate::context::Context;
     use crate::context::P256Ctx as PCtx;
     use crate::context::RistrettoCtx as RCtx;
-    use crate::utils::serialization::{FDeserializable, FSerializable};
+    use crate::utils::serialization::{Deserializable, Serializable};
 
     #[test]
     fn test_schnorr_proof_valid_ristretto() {
@@ -204,10 +204,9 @@ mod tests {
 
         let proof = SchnorrProof::<Ctx>::prove(&g, &public_y, &secret_x, &[]).unwrap();
 
-        let proof_bytes = proof.ser_f();
-        assert_eq!(proof_bytes.len(), SchnorrProof::<Ctx>::size_bytes());
+        let proof_bytes = proof.ser();
 
-        let parsed_proof_result = SchnorrProof::<Ctx>::deser_f(&proof_bytes);
+        let parsed_proof_result = SchnorrProof::<Ctx>::deser(&proof_bytes);
         assert!(parsed_proof_result.is_ok());
         let parsed_proof = parsed_proof_result.unwrap();
 

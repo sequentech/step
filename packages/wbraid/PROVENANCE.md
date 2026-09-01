@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 ## Import
 
 `packages/wbraid` was imported from the `sequentech/step` branch
-`feat/braid-0.6.1/main` at commit `32ede628b3` (author: David Ruescas). Only the
+`feat/braid-0.6.3/main` at commit `9b159b2582` (author: David Ruescas). Only the
 `packages/wbraid` subtree was taken; nothing outside it was carried over.
 
 Two subtrees were deleted at import time and are recoverable from the source
@@ -17,18 +17,19 @@ branch if they are ever needed:
 - `packages/wbraid/legacy/`
 - `packages/wbraid/crates/braid/vs_lift/`
 
-## Successor branch
+## Stateright / model-checking work
 
-Work on `feat/braid-0.6.1/main` has continued on `exp/braid-stateright/main`,
-tip `4cdb414941070879e1f35612eedb6e71ee9b8792` at the time of this import. That
-branch is the source for the deferred stateright / model-checking work, which is
-not part of this import.
+The stateright / model-checking work that once lived separately on
+`exp/braid-stateright/main` has been folded back into the 0.6.x line: that
+branch's tip `4404cee077c1cad0584bc59ca9d86b9ccf705bd0` is an ancestor of the
+imported commit, so the work is part of this import (see `STATERIGHT.md` and
+`crates/braid/tests/model_check*.rs`).
 
 ## `crates/vsc`
 
-`crates/vsc` (crate version `0.2.1`, `[lib] name = "cryptography"`) is a vendored
+`crates/vsc` (crate version `0.6.2`, `[lib] name = "cryptography"`) is a vendored
 fork of https://github.com/FreeAndFair/VoteSecure, licensed Apache-2.0,
-© Free & Fair. It was taken verbatim from `feat/braid-0.6.1/main` @ `32ede628b3`;
+© Free & Fair. It was taken verbatim from `feat/braid-0.6.3/main` @ `9b159b2582`;
 no delta against upstream is measured or recorded here. The relationship to
 upstream — including whether changes are contributed back or the fork is
 maintained independently — is tracked by David.
@@ -57,3 +58,6 @@ repository-root `REUSE.toml`.
 - **Added AGPL-3.0-only headers to `crates/rnk/`**, which carried no licence
   markers at all, and added `license = "AGPL-3.0-only"` to its `[package]`
   section.
+- **Added AGPL-3.0-only headers to `crates/braid/fuzz/`** (`Cargo.toml` and
+  `.gitignore`), which carried no licence markers. The fuzz crate is its own
+  cargo workspace and keeps no lockfile, matching the source branch.

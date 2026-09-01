@@ -35,7 +35,7 @@ use anyhow::{anyhow, Result};
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::KeyPair;
-use cryptography::utils::serialization::VSerializable;
+use cryptography::utils::serialization::Serializable;
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::messages::artifact::Configuration;
@@ -182,23 +182,56 @@ impl<C: Context> Trustee<C> {
                 decryptions_hashes,
                 *self_index,
             ),
-            Action::ComputeBallots(..) => Err(anyhow!(
-                "ComputeBallots is authored by the protocol manager, not executed by a trustee"
-            )),
         }
     }
 }
 
-/// Domain-separation prefix for a Fiat–Shamir transcript, bound to this
-/// execution's configuration hash (the per-execution domain, §3.3) rather than
-/// the numeric `Configuration.id`. Mirrors the byte layout of the former
-/// `Configuration::label` — a length-delimited `suffix` — but keyed on `cfg_hash`,
-/// so two executions cannot share a proof transcript domain even if they reuse a
-/// configuration `id`. Shared by the [`mix`] and [`decrypt`] phases.
+/// Purpose string of the domain label under which dealers prove knowledge of
+/// their checking-value exponents (§7; PROTOCOL.md §4.3). Used wherever
+/// dealings are verified: at key derivation ([`dkg`]) and at decrypt-time
+/// re-derivation ([`decrypt`]).
+pub(crate) const DKG_CHECKING_VALUE_PURPOSE: &str = "dkg_checking_value";
+
+/// Domain-separation prefix for an execution-scoped Fiat–Shamir transcript,
+/// bound to this execution's configuration hash (the per-execution domain,
+/// §3.3) rather than the numeric `Configuration.id`. Mirrors the byte layout
+/// of the former `Configuration::label` — a length-delimited `suffix` — but
+/// keyed on `cfg_hash`, so two executions cannot share a proof transcript
+/// domain even if they reuse a configuration `id`. Used by the [`dkg`] phase;
+/// the tally phases use [`tally_label`], which additionally binds the tally
+/// execution.
 fn domain_label(cfg_hash: &ConfigurationHash, suffix: &str) -> Vec<u8> {
     let mut bytes = cfg_hash.ser();
-    // platform-independent length (cannot use usize as it may differ)
-    bytes.extend((suffix.len() as u64).to_le_bytes());
+    // platform-independent length (cannot use usize as it may differ);
+    // big-endian, like every integer entering a hash transcript
+    bytes.extend((suffix.len() as u64).to_be_bytes());
     bytes.extend(suffix.as_bytes());
+    bytes
+}
+
+/// Domain-separation prefix for a tally-scoped Fiat–Shamir transcript
+/// (PROTOCOL.md §2.4): [`domain_label`] with the tally-execution identifier
+/// (the `Ballots` head's `tally_id`, big-endian) inserted after `cfg_hash`.
+/// Sibling tallies over one DKG share `cfg_hash`, the public key, and possibly
+/// the ciphertext lists (a re-run), so their proof transcripts are separated
+/// by the tally identifier alone. Used by the [`mix`] and [`decrypt`] phases.
+fn tally_label(cfg_hash: &ConfigurationHash, tally_id: u128, suffix: &str) -> Vec<u8> {
+    let mut bytes = cfg_hash.ser();
+    bytes.extend(tally_id.to_be_bytes());
+    bytes.extend((suffix.len() as u64).to_be_bytes());
+    bytes.extend(suffix.as_bytes());
+    bytes
+}
+
+/// The ballot encryption context `ctx_enc` (PROTOCOL.md §5.2): the Naor-Yung
+/// auxiliary key is `z = H2G(ctx_enc, "naor_yung_public_key_a")`, and every
+/// ballot's well-formedness proof is bound to `ctx_enc`. It binds the election
+/// execution (`Configuration.id`) and the election public key `y` — both known
+/// to the voting client from the signed election configuration, and to the
+/// trustees from their own `Configuration` and the DKG output. Deliberately
+/// tally-agnostic: ballots survive a tally re-run without re-encryption.
+pub fn ballot_encryption_context<C: Context>(configuration_id: u128, y: &C::Element) -> Vec<u8> {
+    let mut bytes = configuration_id.to_be_bytes().to_vec();
+    bytes.extend(y.ser());
     bytes
 }

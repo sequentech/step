@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 use anyhow::Result;
 use cryptography::context::{Context, RistrettoCtx};
 use cryptography::cryptosystem::elgamal::KeyPair;
-use cryptography::utils::serialization::VSerializable;
+use cryptography::utils::serialization::Serializable;
 use cryptography::utils::signatures::SignatureScheme;
 
 use crate::board::transport::{MemoryBoard, MemoryTransport};

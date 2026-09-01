@@ -10,8 +10,8 @@ use crate::traits::groups::DistGroupOps;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
-use crate::utils::serialization::VSerializable;
-use vser_derive::VSerializable as VSer;
+use crate::utils::serialization::Serializable;
+use canonical_derive::Canonical;
 
 /**
  * Proof of equality of discrete logarithms.
@@ -53,7 +53,7 @@ use vser_derive::VSerializable as VSer;
  * ```
  *
  */
-#[derive(Debug, Clone, VSer, PartialEq)]
+#[derive(Debug, Clone, Canonical, PartialEq)]
 pub struct DlogEqProof<C: Context, const W: usize> {
     /// Commitment 1
     pub big_a_0: C::Element,
@@ -215,7 +215,7 @@ mod tests {
     use crate::context::Context;
     use crate::context::P256Ctx as PCtx;
     use crate::context::RistrettoCtx as RCtx;
-    use crate::utils::serialization::{FDeserializable, FSerializable};
+    use crate::utils::serialization::{Deserializable, Serializable};
 
     #[test]
     fn test_dlogeq_proof_valid_ristretto() {
@@ -281,10 +281,9 @@ mod tests {
 
         let proof: DlogEqProof<Ctx, 2> =
             DlogEqProof::prove(&secret_x, &g1, &public_y1, &gn, &public_yn, &vec![]).unwrap();
-        let proof_bytes = proof.ser_f();
-        assert_eq!(proof_bytes.len(), DlogEqProof::<Ctx, 2>::size_bytes());
+        let proof_bytes = proof.ser();
 
-        let parsed_proof = DlogEqProof::<Ctx, 2>::deser_f(&proof_bytes).unwrap();
+        let parsed_proof = DlogEqProof::<Ctx, 2>::deser(&proof_bytes).unwrap();
         assert!(
             parsed_proof
                 .verify(&g1, &public_y1, &gn, &public_yn, &vec![])

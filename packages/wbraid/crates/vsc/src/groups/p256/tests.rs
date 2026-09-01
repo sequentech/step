@@ -10,7 +10,7 @@ use crate::context::P256Ctx as Ctx;
 use crate::traits::groups::CryptographicGroup;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
-use crate::utils::serialization::{VDeserializable, VSerializable};
+use crate::utils::serialization::{Deserializable, Serializable};
 
 #[test]
 fn test_p256_scalar_from_u32() {

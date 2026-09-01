@@ -18,16 +18,10 @@
 //! order; they are reduced into the scalar field, which is sound because they
 //! are only ever exponents (`g^e = g^(e mod q)`).
 //!
-//! # Ordering dependency
-//!
-//! `v` is derived from the *seed*, not recomputed from the statement, so
-//! [`batching_challenges`](ShuffleChallenges::batching_challenges) must run
-//! before [`challenge`](ShuffleChallenges::challenge) — it caches the seed for
-//! it. Both `Shuffler::shuffle_with` and `Shuffler::verify_with` call them in
-//! that order. The cache makes a `VmnChallenges` single-use per proof and not
-//! shareable across threads; construct one per shuffle.
-
-use std::cell::RefCell;
+//! `v` is derived from the *seed*, not recomputed from the statement. The seed
+//! flows through the trait: [`batching_challenges`](ShuffleChallenges::batching_challenges)
+//! returns it and the caller hands it to [`challenge`](ShuffleChallenges::challenge),
+//! so a `VmnChallenges` is stateless and reusable.
 
 use cryptography::context::P256Ctx;
 use cryptography::cryptosystem::elgamal::{Ciphertext, PublicKey};
@@ -52,8 +46,6 @@ pub struct VmnChallenges {
     n_v: usize,
     /// Ciphertext width omega, needed to widen the public key.
     width: usize,
-    /// Seed from the batching query, consumed by the challenge query.
-    seed: RefCell<Option<Vec<u8>>>,
 }
 
 impl VmnChallenges {
@@ -64,13 +56,7 @@ impl VmnChallenges {
             n_e,
             n_v,
             width,
-            seed: RefCell::new(None),
         }
-    }
-
-    /// The batching seed of the last [`batching_challenges`] call, if any.
-    pub fn seed(&self) -> Option<Vec<u8>> {
-        self.seed.borrow().clone()
     }
 }
 
@@ -106,7 +92,7 @@ impl<const W: usize> ShuffleChallenges<P256Ctx, W> for VmnChallenges {
         ciphertexts: &[Ciphertext<P256Ctx, W>],
         permuted_ciphertexts: &[Ciphertext<P256Ctx, W>],
         _context: &[u8],
-    ) -> Result<Vec<P256Scalar>, Error> {
+    ) -> Result<(Vec<u8>, Vec<P256Scalar>), Error> {
         let g = encode::element_to_tree(&P256Element::generator()).map_err(encode_err)?;
         let h = encode::elements_to_tree(generators).map_err(encode_err)?;
         let u = encode::elements_to_tree(pedersen_commitments).map_err(encode_err)?;
@@ -119,31 +105,25 @@ impl<const W: usize> ShuffleChallenges<P256Ctx, W> for VmnChallenges {
         let w_prime = encode::ciphertexts_to_tree(permuted_ciphertexts).map_err(encode_err)?;
 
         let seed = crypto::pos_seed(self.hash, &self.rho, &g, &h, &u, &wide_pk, &w, &w_prime);
-        *self.seed.borrow_mut() = Some(seed.clone());
 
         // Expand the seed into one n_e-bit integer per ciphertext.
         let component = self.n_e.div_ceil(8);
         let stream = crypto::Prg::new(self.hash, &seed).generate(component * ciphertexts.len());
-        stream
+        let e_n = stream
             .chunks(component)
             .map(|chunk| scalar_from_bits(chunk, self.n_e))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((seed, e_n))
     }
 
     fn challenge(
         &self,
-        _pk: &PublicKey<P256Ctx>,
+        seed: &[u8],
         commitments: &ShuffleCommitments<P256Ctx, W>,
         _context: &[u8],
     ) -> Result<P256Scalar, Error> {
-        let seed = self.seed.borrow().clone().ok_or_else(|| {
-            Error::SerializationError(
-                "VmnChallenges::challenge called before batching_challenges".to_string(),
-            )
-        })?;
-
         let tau = commitments_to_tree(commitments)?;
-        let v = crypto::pos_challenge(self.hash, self.n_v, &self.rho, &seed, &tau);
+        let v = crypto::pos_challenge(self.hash, self.n_v, &self.rho, seed, &tau);
         scalar_from_bits(&v, self.n_v)
     }
 }

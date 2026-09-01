@@ -1,6 +1,6 @@
 [package]
 name = "vsc"
-version = "0.2.1"
+version = "0.6.2"
 license = "Apache-2.0"
 edition = "2024"
 
@@ -36,7 +36,7 @@ rayon = { version = "1.10.0", optional = true }
 cfg-if = "1.0.1"
 
 # serialization
-vser_derive = { path = "./macros/vser_derive" }
+canonical_derive = { path = "./macros/canonical_derive" }
 serde = { version = "1.0.219", features=["derive"], optional = true}
 
 hex = "0.4.3"
@@ -56,14 +56,18 @@ name = "cryptography"
 default = ["client", "server"]
 server = ["dep:rayon"]
 client = []
+# Fold strategy for the shuffle's wide parallel products (see
+# `zkp::shuffle::fold_values`). Off: rayon's recursive `reduce`, the historical
+# behaviour. On: `bounded_combine`, chunked plain loops whose stack use is
+# bounded by a small constant independent of input size and scheduling. The
+# folded values -- and therefore the proofs -- are byte-identical either way;
+# the switch exists so the two implementations can be benchmarked against each
+# other.
+bounded-combine = []
 custom-warnings = ["custom_warning_macro/on"]
 serde = ["dep:serde"]
 long_running_tests = []
 wasm = []
-
-[[bench]]
-name = "large_vector"
-harness = true
 
 [[bench]]
 name = "shuffle"
@@ -73,10 +77,15 @@ harness = true
 serde = { version = "1.0.219", features=["derive"] }
 bincode = { version = "2.0.1", features=["serde"] }
 wasm-bindgen-test = "0.3"
+proptest = "1"
 
 [lints.rustdoc]
 missing_crate_level_docs = "deny"
 broken_intra_doc_links = "deny"
+# Public docs must not link to items absent from the public docs build.
+private_intra_doc_links = "deny"
+# Bare generics like `Vec<T>` parse as HTML tags and vanish from rendered docs.
+invalid_html_tags = "deny"
 
 [lints.rust]
 missing_docs = "deny"
