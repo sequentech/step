@@ -343,6 +343,9 @@ const VotingScreen: React.FC = () => {
     const defaultLanguageCode =
         election?.presentation?.language_conf?.default_language_code ??
         ballotStyle?.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+    const electionDescription = translateFromPresentation(election, "description", i18n.language, {
+        defaultLanguageCode,
+    })
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -556,18 +559,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {election.description ? (
+            {electionDescription ? (
                 <Typography
                     className="description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(
-                        translateFromPresentation(election, "description", i18n.language, {
-                            defaultLanguageCode,
-                        }) ?? "-"
-                    )}
+                    {stringToHtml(electionDescription)}
                 </Typography>
             ) : null}
 

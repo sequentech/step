@@ -5,7 +5,7 @@
 import {ETranslationScope} from "@sequentech/ui-core"
 import {TFunction} from "i18next"
 import React from "react"
-import {SelectInput} from "react-admin"
+import {required, SelectInput} from "react-admin"
 import {useTranslation} from "react-i18next"
 
 const scopeFallbackLabels: Record<ETranslationScope, string> = {
@@ -66,6 +66,7 @@ export const TranslationScopeInput: React.FC<TranslationScopeInputProps> = ({
                 t("electionEventScreen.localization.labels.scope", {defaultValue: "Portal scope"})
             )}
             choices={choices}
+            validate={required()}
             defaultValue={defaultValue}
             fullWidth
         />

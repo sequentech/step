@@ -16,7 +16,11 @@ import basqueTranslation from "../translations/eu"
 import {ELanguageDetectionPolicy, ILanguageConf} from "../types/LanguageConf"
 import {getValueFromCookie} from "../utils/cookies"
 import {iso_639_2t_to_bcp47_js, locale_to_internal_language_code_js} from "sequent-core"
-import {ETranslationScope, filterTranslationOverrides} from "./translationScopes"
+import {
+    ETranslationScope,
+    filterTranslationOverrides,
+    setActiveTranslationScope,
+} from "./translationScopes"
 
 export const USER_LANGUAGE_COOKIE_NAME = "USER_LANGUAGE"
 
@@ -140,7 +144,12 @@ export const toBCP47 = (lang: string): string => {
     return [language.toLowerCase(), ...normalizedRest].join("-")
 }
 
-export const initializeLanguages = (externalTranslations: Resource, language?: string) => {
+export const initializeLanguages = (
+    externalTranslations: Resource,
+    language?: string,
+    translationScope?: ETranslationScope
+) => {
+    setActiveTranslationScope(translationScope)
     // Reinitialization replaces the complete resource store, so there is no
     // earlier scoped layer left to restore.
     appliedTranslationOverrides.clear()

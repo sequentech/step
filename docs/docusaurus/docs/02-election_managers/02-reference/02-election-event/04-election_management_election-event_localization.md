@@ -27,6 +27,23 @@ target the Voting Portal, Ballot Verifier, Results Portal, or every public porta
 - **Edit** a Localization element or change its portal scope.
 - **Delete** a Localization element.
 
+### Presentation fields
+
+Portal scopes also apply to translated presentation fields such as an election-event, election,
+contest, or candidate name, alias, and description. Each application automatically uses its own
+scope. For example, the Voting Portal reads `votingPortal:description`, while the Ballot Verifier
+reads `ballotVerifier:description`.
+
+For the selected language, presentation fields are resolved in this order:
+
+1. The current portal's value, such as `votingPortal:description`.
+2. The value for all portals, such as `global:description`.
+3. The unprefixed presentation value, such as `description`.
+4. The legacy database field, when present, for compatibility with older election events.
+
+If no value exists in the active language, the same order is applied to the configured default
+language before using the legacy field.
+
 ### Existing overrides
 
 Overrides created before portal scopes were introduced are shown as **Legacy (Voting portal)**.
