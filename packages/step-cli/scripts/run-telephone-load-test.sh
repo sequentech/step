@@ -8,7 +8,8 @@
 # local phone_config.json and one DTMF input script per voter from a captured
 # call template, then fans out N parallel `ivr-cli --bundle dev` processes —
 # each an independent simulated phone call against the dev-container's real
-# Keycloak/Hasura. See IVR_LOAD_TEST_DESIGN.md at the repo root.
+# Keycloak/Hasura. See
+# docs/docusaurus/docs/07-developers/12-ivr/telephone-load-testing-design.md.
 #
 # The DTMF template is captured empirically: run one interactive call by hand
 # against the Stage-1 event and note every keystroke (see
@@ -188,13 +189,19 @@ if [[ -z "$VALKEY_URL" ]]; then
     # address it by container name rather than 127.0.0.1.
     compose_network="$(docker inspect keycloak --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null)"
     if [[ -n "$compose_network" ]]; then
-      if ! docker inspect "$VALKEY_CONTAINER_NAME" >/dev/null 2>&1; then
+      container_state="$(docker inspect "$VALKEY_CONTAINER_NAME" --format '{{.State.Status}}' 2>/dev/null || true)"
+      if [[ "$container_state" != "running" ]]; then
         (( START_VALKEY )) && command -v docker >/dev/null 2>&1 || {
           echo "Error: no session store reachable and auto-start is disabled or docker is unavailable; pass --valkey-url" >&2
           exit 1
         }
-        log "Starting $VALKEY_CONTAINER_NAME ($VALKEY_IMAGE) on network $compose_network"
-        docker run -d --name "$VALKEY_CONTAINER_NAME" --network "$compose_network" "$VALKEY_IMAGE" >/dev/null
+        if [[ -n "$container_state" ]]; then
+          log "Restarting existing, stopped $VALKEY_CONTAINER_NAME"
+          docker start "$VALKEY_CONTAINER_NAME" >/dev/null
+        else
+          log "Starting $VALKEY_CONTAINER_NAME ($VALKEY_IMAGE) on network $compose_network"
+          docker run -d --name "$VALKEY_CONTAINER_NAME" --network "$compose_network" "$VALKEY_IMAGE" >/dev/null
+        fi
       fi
       VALKEY_URL="redis://$VALKEY_CONTAINER_NAME:$VALKEY_PORT"
       for _ in $(seq 1 30); do

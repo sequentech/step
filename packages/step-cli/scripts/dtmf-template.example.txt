@@ -3,15 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Captured DTMF input template for run-telephone-load-test.sh (Stage 2 of
-// IVR_LOAD_TEST_DESIGN.md). One line per DTMF input the IVR asks for; blank
+// docs/07-developers/12-ivr/telephone-load-testing-design.md). One line per
+// DTMF input the IVR asks for; blank
 // lines and lines starting with `//` are ignored by ivr-cli, so comments
 // survive into the rendered per-voter files.
 //
-// Captured against a real Stage 1 event (export_election_event-bdb79900-...)
-// with `ivr-cli -b dev -n <fake-number> -s +111111111111 --show-internal-state`,
+// Captured against a real Stage 1 event with
+// `ivr-cli -b dev -n <fake-number> -s +111111111111 --show-internal-state`,
 // logging in as the CSV's first voter and driving one full call by hand.
 //
-// IMPORTANT - re-capture per election, don't assume this sequence transfers:
+// setup-telephone-load-test.sh pins every generated voter to a single area
+// (--voter-area-name, defaults to the election event's first area), so every
+// voter gets the same contest count and this one template is valid for every
+// call. Still, re-capture per election - both of the below are specific to
+// this election/realm and won't transfer to a different one:
 //
 // 1. Auth fields vary per realm. This election's realm resolves voters by
 //    date of birth + PIN (a `multi-attribute-password-direct` Keycloak
@@ -26,27 +31,9 @@
 //    run-telephone-load-test.sh). Swap in {{VOTER_ID}} instead if your
 //    realm's ivr-config maps an identifier field to "username".
 //
-// 2. Ballot shape (candidate counts, confirm/submit keys) is fixed by this
-//    election's contests - re-capture for any other election JSON.
-//
-// 3. KNOWN LIMITATION, not fixed by this template: contests are assigned per
-//    voter AREA, and areas can have different contest counts (this election:
-//    25 areas, 11 contests total, each area gets only 3 or 4 of them - see
-//    the area_contests list in the election event JSON). generate-voters
-//    round-robins one voter per area, so in a 20-voter run every voter can
-//    land in a DIFFERENT area with a DIFFERENT number of contests. This
-//    template is captured for a 4-contest area; a voter whose area has only
-//    3 contests will diverge after contest 3 (the queued 4th "candidate 1"
-//    keystroke lands on the ballot-summary screen instead, most likely
-//    re-opening contest 1 for editing rather than submitting - the call then
-//    times out with no ballot cast, since there's no scripted keystroke left
-//    to actually submit). Confirmed empirically: running this template
-//    unmodified against a 20-voter run (one voter per area) does NOT cast a
-//    ballot for every voter - see IVR_LOAD_TEST_DESIGN.md's Stage 2 section
-//    for the actual pass/fail breakdown. For a load test that needs every
-//    call to succeed, either restrict the voter CSV to one area (so the
-//    contest count is uniform) or build the input file per-area instead of
-//    from one shared template.
+// 2. Ballot shape (candidate counts, confirm/submit keys) is fixed by the
+//    pinned area's contests - re-capture for any other election JSON or
+//    --voter-area-name.
 
 // --- Language select ---
 1
@@ -82,9 +69,7 @@
 1
 1
 
-// --- Ballot summary: 0 submits, 1..N re-opens that contest to edit -
-// --- only valid for a voter whose area has exactly 4 contests (see the
-// --- KNOWN LIMITATION note above) ---
+// --- Ballot summary: 0 submits, 1..N re-opens that contest to edit ---
 0
 
 // --- Continue past the ballot receipt ("Your ballot locator is ...") ---

@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Illustrative only — not read by any script. setup-telephone-load-test.sh
+# takes the equivalent settings as plain CLI flags (--tenant-id, --num-voters)
+# since a single run only ever targets one tenant/election event. Kept here as
+# a sketch of how a future multi-tenant/multi-event run could be declared.
+tenants:
+  - slug: dev
+    election_events:
+      - voters: 20
+        votes_per_second: 1
+        duration: 30s

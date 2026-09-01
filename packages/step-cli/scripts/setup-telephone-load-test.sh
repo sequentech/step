@@ -6,11 +6,12 @@
 # Stage 1 of the telephone (IVR) load test: provisions an election event for
 # a tenant, bulk-creates DTMF-safe voters, runs the keys ceremony, publishes,
 # and opens the TELEPHONE voting channel. Writes a summary.json + voters CSV
-# that Stage 2 (driving `ivr-cli` calls) consumes. See IVR_LOAD_TEST_DESIGN.md
-# at the repo root for the full design.
+# that Stage 2 (driving `ivr-cli` calls) consumes. See
+# docs/docusaurus/docs/07-developers/12-ivr/telephone-load-testing-design.md
+# for the full design and telephone-load-testing-guide.md for a walkthrough.
 #
 # Requires the `step-cli` binary on PATH (cd packages/step-cli && cargo build
-# --release, or run inside `devenv shell` which already does this for you).
+# --release).
 
 set -euo pipefail
 
@@ -25,6 +26,10 @@ Options (default to this repo's devcontainer dev tenant/Keycloak):
   --tenant-id <id>                Default: $SUPER_ADMIN_TENANT_ID
   --num-voters <n>                Default: 20
   --voter-pin-digits <n>          Numeric PIN length, max 8 (DTMF limit). Default: 6
+  --voter-area-name <name>        Every generated voter is placed in this single
+                                  area, so all voters get the same contest count
+                                  and one DTMF template works for every call.
+                                  Default: the first area in the election event
   --threshold <n>                 Key ceremony trustee threshold. Default: 2
   --endpoint-url <url>            Hasura GraphQL endpoint. Default: $HASURA_ENDPOINT
   --keycloak-url <url>            Default: $KEYCLOAK_URL
@@ -49,6 +54,7 @@ TENANT_ID="${SUPER_ADMIN_TENANT_ID:-}"
 ELECTION_EVENT_JSON=""
 NUM_VOTERS=20
 VOTER_PIN_DIGITS=6
+VOTER_AREA_NAME=""
 THRESHOLD=2
 ENDPOINT_URL="${HASURA_ENDPOINT:-}"
 KEYCLOAK_URL="${KEYCLOAK_URL:-}"
@@ -78,6 +84,7 @@ while [[ $# -gt 0 ]]; do
     --election-event-json) ELECTION_EVENT_JSON="$2"; shift 2 ;;
     --num-voters) NUM_VOTERS="$2"; shift 2 ;;
     --voter-pin-digits) VOTER_PIN_DIGITS="$2"; shift 2 ;;
+    --voter-area-name) VOTER_AREA_NAME="$2"; shift 2 ;;
     --threshold) THRESHOLD="$2"; shift 2 ;;
     --endpoint-url) ENDPOINT_URL="$2"; shift 2 ;;
     --keycloak-url) KEYCLOAK_URL="$2"; shift 2 ;;
@@ -104,13 +111,13 @@ done
 [[ -n "$KEYCLOAK_CLIENT_ID" ]] || { echo "Error: --keycloak-client-id is required (or set \$KEYCLOAK_CLI_CLIENT_ID)" >&2; exit 1; }
 (( VOTER_PIN_DIGITS >= 1 && VOTER_PIN_DIGITS <= 8 )) || { echo "Error: --voter-pin-digits must be between 1 and 8 (DTMF voter auth limit)" >&2; exit 1; }
 command -v step-cli >/dev/null 2>&1 || { echo "Error: step-cli not found on PATH. Build it: (cd packages/step-cli && cargo build --release)" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "Error: jq is required (used to restrict voter generation to a single area)" >&2; exit 1; }
 
 export NO_COLOR=1
 
 log() { echo "==> $*" >&2; }
 
 if [[ -z "$KEYCLOAK_CLIENT_SECRET" ]]; then
-  command -v jq >/dev/null 2>&1 || { echo "Error: jq is required to look up \$KEYCLOAK_CLIENT_ID's secret (or pass --keycloak-client-secret explicitly)" >&2; exit 1; }
   log "Looking up $KEYCLOAK_CLIENT_ID's client secret from Keycloak (master realm admin API)"
   master_token="$(curl -sf -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
     -d grant_type=password -d client_id=admin-cli \
@@ -199,7 +206,27 @@ log "[3/7] Generating $NUM_VOTERS voters with numeric, ${VOTER_PIN_DIGITS}-digit
 # voters by dateOfBirth + PIN rather than by username + PIN, so a voter with
 # no dateOfBirth attribute can never authenticate over a call. generate-voters
 # writes it in the realm's expected YYYY-MM-DD form already.
-cp "$ELECTION_EVENT_JSON" "$OUT_DIR/election-event.json"
+#
+# generate-voters round-robins voters across every area in the election event
+# file it's given, and different areas can have different contest counts —
+# which would mean different voters need different DTMF scripts. This copy is
+# trimmed down to a single area (and only that area's area_contests) so every
+# generated voter lands in the same area, keeping one DTMF template valid for
+# every simulated call. This only affects voter generation, not the election
+# itself: $ELECTION_EVENT_JSON (with all its areas) is what was already
+# imported in step [2/7] above.
+if [[ -z "$VOTER_AREA_NAME" ]]; then
+  VOTER_AREA_NAME="$(jq -r '.areas[0].name' "$ELECTION_EVENT_JSON")"
+  [[ -n "$VOTER_AREA_NAME" && "$VOTER_AREA_NAME" != "null" ]] || { echo "Error: $ELECTION_EVENT_JSON has no areas" >&2; exit 1; }
+fi
+jq --arg area "$VOTER_AREA_NAME" '
+  ([.areas[] | select(.name == $area)] | .[0].id) as $area_id
+  | if $area_id == null then error("no area named \($area)") else . end
+  | .areas = [.areas[] | select(.name == $area)]
+  | .area_contests = [.area_contests[] | select(.area_id == $area_id)]
+' "$ELECTION_EVENT_JSON" >"$OUT_DIR/election-event.json" \
+  || { echo "Error: --voter-area-name '$VOTER_AREA_NAME' does not match any area in $ELECTION_EVENT_JSON" >&2; exit 1; }
+log "    voter_area=$VOTER_AREA_NAME"
 cat >"$OUT_DIR/external_config.json" <<EXTCFG
 {
   "election_event_json_file": "election-event.json",
@@ -264,7 +291,8 @@ cat >"$OUT_DIR/summary.json" <<SUMMARY
   "keycloak_url": "${KEYCLOAK_URL}",
   "hasura_url": "${ENDPOINT_URL}",
   "voters_csv": "${VOTERS_CSV}",
-  "num_voters": ${NUM_VOTERS}
+  "num_voters": ${NUM_VOTERS},
+  "voter_area": "${VOTER_AREA_NAME}"
 }
 SUMMARY
 
