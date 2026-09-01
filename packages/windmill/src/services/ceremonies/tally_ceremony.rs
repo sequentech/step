@@ -207,8 +207,7 @@ pub async fn insert_tally_session_contests(
     tenant_id: &str,
     election_event_id: &str,
     tally_session_id: &str,
-    relevant_area_contests: &HashSet<AreaContest>,
-    contests_map: &HashMap<String, Contest>,
+    published_ballot_styles: &[SequentBallotStyle],
     configuration: &TallySessionConfiguration,
 ) -> Result<()> {
     // Each contest area owns `VOTE_WEIGHT_BATCHES` consecutive batches starting
@@ -218,55 +217,58 @@ pub async fn insert_tally_session_contests(
     let mut batch: BatchNumber =
         get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
 
-    let contest_encryption_policy = configuration.get_contest_encryption_policy();
-
-    if ContestEncryptionPolicy::MULTIPLE_CONTESTS == contest_encryption_policy {
-        // (election id, area id)
-        let mut elections_set: HashSet<(String, String)> = HashSet::new();
-
-        for area_contest in relevant_area_contests {
-            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
-            };
-            let election_id = contest.election_id.clone();
-            let area_id = area_contest.area_id.clone();
-            if !elections_set.insert((election_id.clone(), area_id.clone())) {
-                continue;
-            }
-
-            let _tally_session_contest = insert_tally_session_contest(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &area_contest.area_id,
-                None,
-                batch.clone(),
-                &tally_session_id,
-                &election_id,
-            )
-            .await?;
-            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
-        }
-    } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
-        for area_contest in relevant_area_contests {
-            let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-                return Err(anyhow!("Contest not found {:?}", area_contest.contest_id));
-            };
-            let _tally_session_contest = insert_tally_session_contest(
-                hasura_transaction,
-                tenant_id,
-                election_event_id,
-                &area_contest.area_id,
-                Some(area_contest.contest_id.clone()),
-                batch.clone(),
-                &tally_session_id,
-                &contest.election_id,
-            )
-            .await?;
-            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
-        }
+    for (election_id, area_id, contest_id) in required_decryption_sets(
+        published_ballot_styles,
+        configuration.get_contest_encryption_policy(),
+    ) {
+        insert_tally_session_contest(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &area_id,
+            contest_id,
+            batch,
+            tally_session_id,
+            &election_id,
+        )
+        .await?;
+        batch += VOTE_WEIGHT_BATCHES as BatchNumber;
     }
     Ok(())
+}
+
+/// Returns the encrypted payloads that must go through the decryption
+/// ceremony. Acclaimed contests are present in the published ballot style but
+/// deliberately absent from its ciphertext.
+fn required_decryption_sets(
+    ballot_styles: &[SequentBallotStyle],
+    policy: ContestEncryptionPolicy,
+) -> HashSet<(String, String, Option<String>)> {
+    match policy {
+        ContestEncryptionPolicy::SINGLE_CONTEST => ballot_styles
+            .iter()
+            .flat_map(|ballot_style| {
+                votable_contests(&ballot_style.contests).map(|contest| {
+                    (
+                        ballot_style.election_id.clone(),
+                        ballot_style.area_id.clone(),
+                        Some(contest.id.clone()),
+                    )
+                })
+            })
+            .collect(),
+        ContestEncryptionPolicy::MULTIPLE_CONTESTS => ballot_styles
+            .iter()
+            .filter(|ballot_style| votable_contests(&ballot_style.contests).next().is_some())
+            .map(|ballot_style| {
+                (
+                    ballot_style.election_id.clone(),
+                    ballot_style.area_id.clone(),
+                    None,
+                )
+            })
+            .collect(),
+    }
 }
 
 fn get_area_contests_for_election_ids(
@@ -305,6 +307,23 @@ pub async fn create_tally_ceremony(
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
     let weighted_voting_policy = election_event.get_weighted_voting_policy();
+    let published_ballot_style_rows =
+        get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
+            .await?;
+    let published_ballot_styles = published_ballot_style_rows
+        .iter()
+        .map(|published| {
+            let ballot_eml = published.ballot_eml.as_deref().ok_or_else(|| {
+                anyhow!("Published ballot style {} has no ballot EML", published.id)
+            })?;
+            deserialize_str(ballot_eml).map_err(|error| {
+                anyhow!(
+                    "Could not read published ballot style {}: {error:?}",
+                    published.id
+                )
+            })
+        })
+        .collect::<Result<Vec<SequentBallotStyle>>>()?;
     if weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING {
         // A delegate's ballot has no defined weighted semantics, and applying
         // both would silently compute weight * (1 + delegate_count).
@@ -367,27 +386,9 @@ pub async fn create_tally_ceremony(
         // that is the value velvet will use: clearing the live area row without
         // republishing would otherwise satisfy the check while the tally still
         // double-counted every ballot.
-        let published_ballot_styles = get_ballot_styles_by_elections(
-            &transaction,
-            &tenant_id,
-            &election_event_id,
-            &election_ids,
-        )
-        .await?;
         let mut weighted_areas: Vec<String> = Vec::new();
         let mut unsupported_contests: Vec<String> = Vec::new();
-        for published in &published_ballot_styles {
-            let Some(eml) = published.ballot_eml.clone().filter(|eml| !eml.is_empty()) else {
-                // No published ballot for this style, so nothing the tally will
-                // read from it and nothing to check.
-                continue;
-            };
-            let ballot_style: SequentBallotStyle = deserialize_str(&eml).map_err(|error| {
-                anyhow!(
-                    "Could not read published ballot style {}: {error:?}",
-                    published.id
-                )
-            })?;
+        for ballot_style in &published_ballot_styles {
             // An absent weight and an explicit 1 are the same value, so only a
             // weight that would actually multiply is a conflict.
             let is_weighted = ballot_style
@@ -583,8 +584,7 @@ pub async fn create_tally_ceremony(
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-        &relevant_area_contests,
-        &contests_map,
+        &published_ballot_styles,
         &final_configuration,
     )
     .await?;
@@ -1101,4 +1101,77 @@ pub async fn begin_tally_session_recount(
     .await?;
 
     Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::Contest as SequentContest;
+
+    fn contest(id: &str, is_acclaimed: bool) -> SequentContest {
+        SequentContest {
+            id: id.to_string(),
+            election_id: "election".to_string(),
+            is_acclaimed: Some(is_acclaimed),
+            ..Default::default()
+        }
+    }
+
+    fn ballot_style(area_id: &str, contests: Vec<SequentContest>) -> SequentBallotStyle {
+        SequentBallotStyle {
+            id: format!("style-{area_id}"),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            num_allowed_revotes: None,
+            description: None,
+            public_key: None,
+            area_id: area_id.to_string(),
+            area_presentation: None,
+            contests,
+            election_event_presentation: None,
+            election_presentation: None,
+            election_dates: None,
+            election_event_annotations: None,
+            election_annotations: None,
+            area_annotations: None,
+            multi_contest_encoding_mode: None,
+        }
+    }
+
+    #[test]
+    fn single_contest_decryption_sets_exclude_acclaimed_contests() {
+        let styles = vec![
+            ballot_style(
+                "mixed-area",
+                vec![contest("acclaimed", true), contest("votable", false)],
+            ),
+            ballot_style("acclaimed-area", vec![contest("also-acclaimed", true)]),
+        ];
+
+        assert_eq!(
+            HashSet::from([(
+                "election".to_string(),
+                "mixed-area".to_string(),
+                Some("votable".to_string()),
+            )]),
+            required_decryption_sets(&styles, ContestEncryptionPolicy::SINGLE_CONTEST)
+        );
+    }
+
+    #[test]
+    fn multi_contest_decryption_sets_exclude_fully_acclaimed_areas() {
+        let styles = vec![
+            ballot_style(
+                "mixed-area",
+                vec![contest("acclaimed", true), contest("votable", false)],
+            ),
+            ballot_style("acclaimed-area", vec![contest("also-acclaimed", true)]),
+        ];
+
+        assert_eq!(
+            HashSet::from([("election".to_string(), "mixed-area".to_string(), None,)]),
+            required_decryption_sets(&styles, ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+        );
+    }
 }
