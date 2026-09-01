@@ -26,6 +26,21 @@ Every command below writes its output under
 `/tmp`, so a run survives a container restart and stays easy to find between
 steps.
 
+## Configuration
+
+`setup_telephone_load_test.py`, `run_telephone_load_test.py` and
+`run_online_load_test.py` take **no command-line arguments** — every setting
+lives in
+[`packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml),
+under the `setup:` / `telephone_run:` / `online_run:` sections respectively.
+Edit that file before each run instead of passing flags — in particular, set
+`setup.voting_channel: ONLINE` and `setup.out_dir:
+online-load-test-output/run` before Stage 1 (the tracked example already
+ships with `TELEPHONE`/`telephone-load-test-output/run` as the default,
+shared with the [telephone load test](../../../12-ivr/telephone-load-testing-guide.md)).
+A field left as `null` falls back to the environment variable named in the
+comment beside it (already exported in this repo's devcontainer).
+
 ## Prerequisites
 
 - The `keycloak`, `graphql-engine` (Hasura), `trustee1` and `trustee2`
@@ -38,7 +53,7 @@ steps.
     (cd packages && yarn start:voting-portal)
   ```
 
-- `jq` (already installed in the dev container).
+- Python 3 with PyYAML (already available in the devenv shell).
 
 ## 0. Build step-cli and install Playwright
 
@@ -54,22 +69,19 @@ cd /workspaces/step
 
 ## 1. Stage 1 — provision the election event and voters
 
-The same provisioning script the telephone load test uses, with the ONLINE
-channel opened instead:
+Set `setup.voting_channel: ONLINE` and `setup.out_dir:
+online-load-test-output/run` in `layers.yaml` (the same provisioning script
+the telephone load test uses, with the ONLINE channel opened instead), then:
 
 ```bash
-packages/step-cli/scripts/setup-telephone-load-test.sh \
-  --election-event-json packages/step-cli/scripts/telephone-load-test-inputs/election-event.json \
-  --voting-channel ONLINE \
-  --num-voters 20 \
-  --out-dir packages/step-cli/scripts/online-load-test-output/run
+python3 packages/step-cli/scripts/setup_telephone_load_test.py
 ```
 
 This imports the tracked example election event, generates 20 voters (all
 placed in the same area, with unique numeric username/PIN each), runs the
 keys ceremony, publishes, and opens `ONLINE` voting. Outputs land in
-`--out-dir`: `summary.json` (including the portal `login_url`) and the voters
-CSV.
+`setup.out_dir`: `summary.json` (including the portal `login_url`) and the
+voters CSV.
 
 ## 2. Smoke-test one voter (optional but recommended)
 
@@ -77,33 +89,37 @@ Before fanning out, watch a single voter cast a ballot in a headed browser —
 this catches a wrong URL, a closed channel, or changed selectors immediately:
 
 ```bash
-LOGIN_URL=$(jq -r .login_url packages/step-cli/scripts/online-load-test-output/run/summary.json)
+LOGIN_URL=$(python3 -c 'import json; print(json.load(open("packages/step-cli/scripts/online-load-test-output/run/summary.json"))["login_url"])')
 VOTER_USERNAME=$(awk -F, 'NR==2 {print $1}' packages/step-cli/scripts/online-load-test-output/run/voters_20.csv)
 VOTER_PASSWORD=$(awk -F, 'NR==2 {print $3}' packages/step-cli/scripts/online-load-test-output/run/voters_20.csv)
+VOTER_DATE_OF_BIRTH=$(awk -F, 'NR==2 {print $6}' packages/step-cli/scripts/online-load-test-output/run/voters_20.csv)
 LOGIN_URL="$LOGIN_URL" VOTER_USERNAME="$VOTER_USERNAME" VOTER_PASSWORD="$VOTER_PASSWORD" \
+  VOTER_DATE_OF_BIRTH="$VOTER_DATE_OF_BIRTH" \
   yarn --cwd packages/voting-portal playwright test --config playwright.load.config.ts --headed
 ```
 
-(Check the `username`/`password` column positions against the CSV header —
-they depend on the `fields` list in the run's `external_config.json`. The
-voter used here casts its one vote, so start Stage 3 at `--voter-offset 1`.)
+(Check the `username`/`password`/`dateOfBirth` column positions against the
+CSV header — they depend on the `fields` list in the run's
+`external_config.json`; `VOTER_DATE_OF_BIRTH` is only needed if the realm's
+login form actually asks for a date of birth. The voter used here casts its
+one vote, so start Stage 3 at `online_run.voter_offset: 1`.)
 
 ## 3. Stage 2 — fan out the browser sessions
 
+Set `online_run.voter_offset: 1` in `layers.yaml` if you ran the smoke test
+above, then:
+
 ```bash
-packages/step-cli/scripts/run-online-load-test.sh \
-  --run-dir packages/step-cli/scripts/online-load-test-output/run \
-  --voter-offset 1 \
-  --concurrency 4 \
-  --out-dir packages/step-cli/scripts/online-load-test-output/votes
+python3 packages/step-cli/scripts/run_online_load_test.py
 ```
 
 This checks every dependency up front (portal, Keycloak realm, Hasura,
 Playwright — each failure prints the exact command that fixes it), renders a
-voter manifest, and runs one Playwright invocation with `--concurrency`
-workers, each voter a fresh browser context casting a real ballot. Results
-land in `results.csv` (`voter_id,status,duration_ms,ballot_id`), failure
-traces under `traces/`, and a run `summary.json` under `--out-dir`.
+voter manifest, and runs one Playwright invocation with
+`online_run.concurrency` workers, each voter a fresh browser context casting
+a real ballot. Results land in `results.csv`
+(`voter_id,status,duration_ms,ballot_id`), failure traces under `traces/`,
+and a run `summary.json` under `online_run.out_dir`.
 
 Inspect a failed voter's trace with:
 
@@ -117,16 +133,16 @@ Each client is a real Chromium page doing WASM ballot encryption: budget
 roughly 0.5 GB RAM and one core per client, on top of the compose stack. On
 a dev laptop `min(cores − 2, free_GB / 0.5)` is the practical ceiling —
 usually 4–8. Above ~8 clients the webpack dev server itself becomes the
-bottleneck; point `--voting-portal-url` at a production build or a deployed
-portal for bigger runs, or spread the load across machines (see
+bottleneck; point `online_run.voting_portal_url` at a production build or a
+deployed portal for bigger runs, or spread the load across machines (see
 [Distributed runs](online-load-testing-design.md#distributed-runs-provision-once-load-from-several-machines) —
-in short: copy the Stage-1 `--out-dir` to each machine and give each one a
-disjoint `--voter-offset`/`--max-votes` slice).
+in short: copy the Stage-1 `setup.out_dir` to each machine and give each one a
+disjoint `online_run.voter_offset`/`online_run.max_votes` slice).
 
 ## 4. Clean up: delete the election event
 
 ```bash
-ELECTION_EVENT_ID=$(jq -r .election_event_id packages/step-cli/scripts/online-load-test-output/run/summary.json)
+ELECTION_EVENT_ID=$(python3 -c 'import json; print(json.load(open("packages/step-cli/scripts/online-load-test-output/run/summary.json"))["election_event_id"])')
 step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
 ```
 
@@ -135,21 +151,21 @@ The command blocks and polls until the async teardown task finishes, so a
 1 left in `config/configuration.json` next to the `step-cli` binary; if that
 token has expired, re-authenticate with the same `step config` call the
 setup script makes (see `configure_as` in
-`packages/step-cli/scripts/setup-telephone-load-test.sh`).
+`packages/step-cli/scripts/setup_telephone_load_test.py`).
 
 ## Notes
 
 - **Each voter casts exactly one vote.** Re-running Stage 2 against the
-  *same* `--run-dir` re-uses the same (already-voted) voters, which the
-  system correctly rejects as duplicate votes — not a failure. Either
-  provision more voters than one run consumes and advance `--voter-offset`
-  between runs, or re-run
+  *same* `online_run.run_dir` re-uses the same (already-voted) voters, which
+  the system correctly rejects as duplicate votes — not a failure. Either
+  provision more voters than one run consumes and advance
+  `online_run.voter_offset` between runs, or re-run
   [Stage 1](#1-stage-1--provision-the-election-event-and-voters) for a fresh
   election event and voter set.
 - **Language**: the flow matches English button labels and pins the portal
   to English via the login URL's `lang` parameter, so the run does not
   depend on browser locale.
 - **Candidate choice** is deterministic (first eligible candidates up to
-  each contest's minimum, at least one). Pass
-  `--candidates-pattern <regex>` to restrict which candidates may be
-  selected by visible name.
+  each contest's minimum, at least one). Set
+  `online_run.candidates_pattern` to a regular expression to restrict which
+  candidates may be selected by visible name.

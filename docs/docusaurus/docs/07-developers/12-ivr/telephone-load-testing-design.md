@@ -28,14 +28,14 @@ step-by-step instructions to actually run it, see
    telephone-friendly credentials, runs the keys ceremony, publishes, and
    opens telephone voting. Ends with an election event ready to accept IVR
    calls, plus a voters CSV. Implemented as
-   `packages/step-cli/scripts/setup-telephone-load-test.sh`.
+   `packages/step-cli/scripts/setup_telephone_load_test.py`.
 2. **Stage 2 — Calling** (`ivr-cli --bundle dev`): builds a local
    `phone_config.json` pointing at the event from Stage 1, turns the voters
    CSV into one DTMF input script per voter, and fans out N parallel
    `ivr-cli` processes — each one an independent simulated phone call —
    against the dev container's real Keycloak/Hasura, no telephony
    infrastructure involved. Implemented as
-   `packages/step-cli/scripts/run-telephone-load-test.sh`.
+   `packages/step-cli/scripts/run_telephone_load_test.py`.
 
 ## Design constraints
 
@@ -47,9 +47,9 @@ straight onto Keycloak ROPC form parameters, each capped at a small number of
 digits — the default flow uses `voter_id`/`password`; this realm's flow (see
 below) uses `dateOfBirth`/`password` instead. Either way, every load-test
 voter's identifying fields must be plain numeric strings. `step generate-voters`'s
-bare-counter username already satisfies this; `setup-telephone-load-test.sh`
+bare-counter username already satisfies this; `setup_telephone_load_test.py`
 starts that counter at 100 (`username_start_number` in `external_config.json`,
-`--voter-username-start` to change it) so every generated username is at
+`setup.voter_username_start` in `layers.yaml` to change it) so every generated username is at
 least 3 digits, rather than starting at a 1-digit "0". Setting
 `voter_password_policy` to `RandomNumeric { digits: <=8 }` in the run's
 `external_config.json` produces a matching numeric PIN.
@@ -66,8 +66,8 @@ concrete flow this system supports.
 `update-event-voting-status` has a `--voting-channel` flag distinct from
 `ONLINE`; the IVR eligibility check gates specifically on
 `VotingStatusChannel::TELEPHONE`. Stage 1 opens `TELEPHONE` voting by
-default (its `--voting-channel` arg exists for the online load test, which
-shares this script) — opening only `ONLINE` makes every simulated call fail
+default (its `voting_channel` YAML setting exists for the online load test,
+which shares this script) — opening only `ONLINE` makes every simulated call fail
 at the eligibility phase after a successful login, which is why Stage 2
 refuses a run dir whose `summary.json` says it was provisioned for another
 channel.
@@ -78,7 +78,7 @@ Contests are assigned per voter area, and different areas can have different
 contest counts. Since the DTMF script hard-codes one keystroke sequence per
 contest, a script captured for a 4-contest area would diverge for a voter
 whose area only has 3. Stage 1 avoids this entirely: it restricts voter
-generation to a single area (`--voter-area-name`, defaulting to the election
+generation to a single area (`setup.voter_area_name`, defaulting to the election
 event's first area) before handing the file to `generate-voters`, so every
 generated voter shares the same contest count and one captured DTMF template
 is valid for every call in the run. This only affects which area voters are

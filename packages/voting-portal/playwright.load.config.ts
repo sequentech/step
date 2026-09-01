@@ -5,7 +5,7 @@
 import {defineConfig} from "@playwright/test"
 
 // Dedicated config for the online-channel load test (test/load), normally
-// driven by packages/step-cli/scripts/run-online-load-test.sh — kept separate
+// driven by packages/step-cli/scripts/run_online_load_test.py — kept separate
 // so `yarn test` (Jest) and the Nightwatch e2e suites are unaffected.
 export default defineConfig({
     testDir: "./test/load",

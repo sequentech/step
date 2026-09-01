@@ -26,12 +26,23 @@ Every command below writes its output under
 than `/tmp`, so a run survives a container restart and stays easy to find
 between steps.
 
+## Configuration
+
+`setup_telephone_load_test.py`, `run_telephone_load_test.py` and
+`run_online_load_test.py` take **no command-line arguments** — every setting
+lives in
+[`packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml),
+under the `setup:` / `telephone_run:` / `online_run:` sections respectively.
+Edit that file before each run instead of passing flags. A field left as
+`null` falls back to the environment variable named in the comment beside
+it (already exported in this repo's devcontainer).
+
 ## Prerequisites
 
 - The `keycloak`, `graphql-engine` (Hasura), `trustee1` and `trustee2`
   containers must be running (`docker ps`; `docker start trustee1 trustee2`
   if they aren't — the keys ceremony hangs without them).
-- `jq` (already installed in the dev container).
+- Python 3 with PyYAML (already available in the devenv shell).
 
 ## 0. Build the CLIs
 
@@ -48,17 +59,18 @@ export PATH="/workspaces/step/packages/step-cli/rust-local-target/release:$PATH"
 
 ## 1. Stage 1 — provision the election event and voters
 
+`layers.yaml`'s `setup:` section already points at the tracked example
+election event with `voting_channel: TELEPHONE` and 20 voters — run it as-is:
+
 ```bash
-packages/step-cli/scripts/setup-telephone-load-test.sh \
-  --election-event-json packages/step-cli/scripts/telephone-load-test-inputs/election-event.json \
-  --num-voters 20 \
-  --out-dir packages/step-cli/scripts/telephone-load-test-output/run
+python3 packages/step-cli/scripts/setup_telephone_load_test.py
 ```
 
 This imports the tracked example election event, generates 20 voters (all
 placed in the same area, with unique numeric username/PIN/date-of-birth
 each), runs the keys ceremony, publishes, and opens `TELEPHONE` voting.
-Outputs land in `--out-dir`: `summary.json` and the voters CSV.
+Outputs land in `setup.out_dir` (`telephone-load-test-output/run` by
+default): `summary.json` and the voters CSV.
 
 Each run appends a random 5-character suffix to the election event's alias
 (e.g. `TECUMSEH - DATAFIX Test - K3F9Q`) — the admin portal's election event
@@ -67,28 +79,27 @@ actually be visible there. The full alias is printed at the end of the run
 and recorded as `election_event_alias` in `summary.json`.
 
 Using your own election event JSON instead of the tracked example works the
-same way — just point `--election-event-json` at it. If it has more than one
-area, pass `--voter-area-name <name>` to pick which one voters are generated
-into (defaults to the first area).
+same way — just point `setup.election_event_json` at it in `layers.yaml`. If
+it has more than one area, set `setup.voter_area_name` to pick which one
+voters are generated into (`null` defaults to the first area).
 
 ## 2. Get a DTMF template
 
-`packages/step-cli/scripts/dtmf-template.example.txt` is already captured
-for the tracked example election's first area and works as-is — skip to
+`packages/step-cli/scripts/dtmf-template.example.txt` — the default for
+`telephone_run.dtmf_template` — is already captured for the tracked example
+election's first area and works as-is — skip to
 [step 3](#3-stage-2--fan-out-the-simulated-calls).
 
-If you're testing a **different** election event JSON or `--voter-area-name`,
-capture a new template: the ballot portion (candidate numbering, confirm/
-submit keys) depends on that election's contests. First get a
-`phone_config.json` and a running session store by running Stage 2 once with
-any existing template (the calls themselves may fail if the template doesn't
-match your election — that's fine, the side effects are what you need):
+If you're testing a **different** election event JSON or
+`setup.voter_area_name`, capture a new template: the ballot portion
+(candidate numbering, confirm/submit keys) depends on that election's
+contests. First get a `phone_config.json` and a running session store by
+running Stage 2 once with any existing template (the calls themselves may
+fail if the template doesn't match your election — that's fine, the side
+effects are what you need):
 
 ```bash
-packages/step-cli/scripts/run-telephone-load-test.sh \
-  --run-dir packages/step-cli/scripts/telephone-load-test-output/run \
-  --dtmf-template packages/step-cli/scripts/dtmf-template.example.txt \
-  --out-dir packages/step-cli/scripts/telephone-load-test-output/calls
+python3 packages/step-cli/scripts/run_telephone_load_test.py
 ```
 
 Then drive one call by hand, noting every prompt and keystroke:
@@ -101,14 +112,15 @@ beyond/packages/rust-local-target/release/ivr-cli \
 ```
 
 Log in with the first row of the voters CSV. Transcribe the full keystroke
-sequence into a copy of `dtmf-template.example.txt`, replacing the
-identifier/PIN lines with `{{VOTER_ID}}`/`{{PIN}}` or `{{DOB}}`/`{{PIN}}` —
-check which fields this realm's IVR flow expects first:
+sequence into a copy of `dtmf-template.example.txt` (and point
+`telephone_run.dtmf_template` at your copy), replacing the identifier/PIN
+lines with `{{VOTER_ID}}`/`{{PIN}}` or `{{DOB}}`/`{{PIN}}` — check which
+fields this realm's IVR flow expects first:
 
 ```bash
 TOKEN=$(curl -sf -X POST "http://keycloak:8090/realms/<realm>/protocol/openid-connect/token" \
   -d grant_type=client_credentials -d client_id=ivr-service -d client_secret=<KEYCLOAK_IVR_SERVICE_CLIENT_SECRET> \
-  | jq -r '.access_token')
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
 curl -sf -H "Authorization: Bearer $TOKEN" "http://keycloak:8090/realms/<realm>/ivr-config"
 ```
 
@@ -118,23 +130,21 @@ curl -sf -H "Authorization: Bearer $TOKEN" "http://keycloak:8090/realms/<realm>/
 ## 3. Stage 2 — fan out the simulated calls
 
 ```bash
-packages/step-cli/scripts/run-telephone-load-test.sh \
-  --run-dir packages/step-cli/scripts/telephone-load-test-output/run \
-  --dtmf-template packages/step-cli/scripts/dtmf-template.example.txt \
-  --concurrency 10
+python3 packages/step-cli/scripts/run_telephone_load_test.py
 ```
 
 This generates `phone_config.json`, renders one DTMF input file per voter
-from the template, and fans out `--concurrency` parallel `ivr-cli` calls. A
-local `valkey` container is started automatically as the session store if
-none is reachable (reused across runs; disable with `--no-start-valkey`).
-Results land in `results.csv` and per-call logs under `--out-dir` (defaults
-to a fresh temp dir).
+from the template, and fans out `telephone_run.concurrency` parallel
+`ivr-cli` calls. A local `valkey` container is started automatically as the
+session store if none is reachable (reused across runs; disable with
+`telephone_run.start_valkey: false`). Results land in `results.csv` and
+per-call logs under `telephone_run.out_dir` (`telephone-load-test-output/calls`
+by default).
 
 ## 4. Clean up: delete the election event
 
 ```bash
-ELECTION_EVENT_ID=$(jq -r .election_event_id packages/step-cli/scripts/telephone-load-test-output/run/summary.json)
+ELECTION_EVENT_ID=$(python3 -c 'import json; print(json.load(open("packages/step-cli/scripts/telephone-load-test-output/run/summary.json"))["election_event_id"])')
 step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
 ```
 
@@ -149,17 +159,18 @@ next to the binary (left there authenticated as admin by
 [Stage 1](#1-stage-1--provision-the-election-event-and-voters)). If that
 token has expired, re-authenticate first with the same `step config` call
 the setup script makes (see `configure_as` in
-`packages/step-cli/scripts/setup-telephone-load-test.sh`).
+`packages/step-cli/scripts/setup_telephone_load_test.py`).
 
 ## Notes
 
 - **Each voter casts exactly one vote.** Re-running Stage 2 against the
-  *same* `--run-dir` re-uses the same (already-voted) voters — every call
-  logs in successfully but reports "voting is now complete" without casting
-  a ballot, since there's nothing left for that voter to vote on. This is
-  the system correctly rejecting a duplicate vote, not a failure. To place a
-  fresh batch of calls, re-run [Stage 1](#1-stage-1--provision-the-election-event-and-voters)
-  to provision a new election event and voter set.
+  *same* `telephone_run.run_dir` re-uses the same (already-voted) voters —
+  every call logs in successfully but reports "voting is now complete"
+  without casting a ballot, since there's nothing left for that voter to
+  vote on. This is the system correctly rejecting a duplicate vote, not a
+  failure. To place a fresh batch of calls, re-run
+  [Stage 1](#1-stage-1--provision-the-election-event-and-voters) to
+  provision a new election event and voter set.
 - **Re-running after a dev container restart:** the auto-started `valkey`
   container is reused if it's already there (even if stopped), so you don't
   need to remove it manually between runs.

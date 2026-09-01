@@ -7,11 +7,11 @@ import {test} from "@playwright/test"
 import {castBallotAsVoter} from "./flow"
 
 // One test per voter: Playwright distributes them across --workers and
-// reports a per-voter outcome, which run-online-load-test.sh turns into
+// reports a per-voter outcome, which run_online_load_test.py turns into
 // results.csv. Two ways to feed voters in:
 //
 // - LOAD_TEST_MANIFEST: a JSON array of voter records, rendered from the
-//   Stage-1 voters CSV by run-online-load-test.sh (the load-test mode). Every
+//   Stage-1 voters CSV by run_online_load_test.py (the load-test mode). Every
 //   CSV column is carried through as a field (not just username/password):
 //   the login form's fields depend on the realm's configured
 //   match-attributes (e.g. dateOfBirth alongside — or instead of — a voter-id
@@ -47,7 +47,7 @@ function loadVoters(): Voter[] {
         return [{username, password, ...(dateOfBirth ? {dateOfBirth} : {})}]
     }
     throw new Error(
-        "Set LOAD_TEST_MANIFEST (normally done by run-online-load-test.sh) or VOTER_USERNAME/VOTER_PASSWORD"
+        "Set LOAD_TEST_MANIFEST (normally done by run_online_load_test.py) or VOTER_USERNAME/VOTER_PASSWORD"
     )
 }
 
