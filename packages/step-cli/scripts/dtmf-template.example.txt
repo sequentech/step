@@ -2,40 +2,90 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Example DTMF input template for run-telephone-load-test.sh (Stage 2 of
+// Captured DTMF input template for run-telephone-load-test.sh (Stage 2 of
 // IVR_LOAD_TEST_DESIGN.md). One line per DTMF input the IVR asks for; blank
 // lines and lines starting with `//` are ignored by ivr-cli, so comments
 // survive into the rendered per-voter files.
 //
-// The call flow past authentication (language selection, contest numbering,
-// confirm/clear/submit keys) is defined by the realm's ivr-config and this
-// election's contests, so it CANNOT be written down a priori — capture it
-// empirically against your freshly-provisioned Stage 1 event:
+// Captured against a real Stage 1 event (export_election_event-bdb79900-...)
+// with `ivr-cli -b dev -n <fake-number> -s +111111111111 --show-internal-state`,
+// logging in as the CSV's first voter and driving one full call by hand.
 //
-//   export PHONE_CONFIG_PATH=<out-dir>/phone_config.json   # or let the load
-//       # test script generate it once, then reuse it for this manual call
-//   ivr-cli --bundle dev --system-number +111111111111 \
-//       --number +15550000000 --show-internal-state
+// IMPORTANT - re-capture per election, don't assume this sequence transfers:
 //
-// Log in as any voter from the Stage 1 CSV, complete one full call by hand,
-// and copy each keystroke you entered as one line below — then replace the
-// voter-id line with {{VOTER_ID}} and the PIN line with {{PIN}}. The load
-// test script substitutes those per voter; everything else is identical for
-// every call.
+// 1. Auth fields vary per realm. This election's realm resolves voters by
+//    date of birth + PIN (a `multi-attribute-password-direct` Keycloak
+//    authenticator - checked live via {realm}/ivr-config, NOT the generic
+//    voter_id+pin default flow auth.rs::default_flow describes). Confirm your
+//    realm's actual flow the same way before assuming {{VOTER_ID}} applies:
+//      curl -H "Authorization: Bearer <ivr-service token>" \
+//        "$KEYCLOAK_URL/realms/<realm>/ivr-config"
+//    This template uses {{DOB}} (raw YYYYMMDD digits - generate-voters must
+//    include "dateOfBirth" in generate_voters.fields for this to exist, and
+//    the CSV's dashed YYYY-MM-DD gets stripped to digits by
+//    run-telephone-load-test.sh). Swap in {{VOTER_ID}} instead if your
+//    realm's ivr-config maps an identifier field to "username".
+//
+// 2. Ballot shape (candidate counts, confirm/submit keys) is fixed by this
+//    election's contests - re-capture for any other election JSON.
+//
+// 3. KNOWN LIMITATION, not fixed by this template: contests are assigned per
+//    voter AREA, and areas can have different contest counts (this election:
+//    25 areas, 11 contests total, each area gets only 3 or 4 of them - see
+//    the area_contests list in the election event JSON). generate-voters
+//    round-robins one voter per area, so in a 20-voter run every voter can
+//    land in a DIFFERENT area with a DIFFERENT number of contests. This
+//    template is captured for a 4-contest area; a voter whose area has only
+//    3 contests will diverge after contest 3 (the queued 4th "candidate 1"
+//    keystroke lands on the ballot-summary screen instead, most likely
+//    re-opening contest 1 for editing rather than submitting - the call then
+//    times out with no ballot cast, since there's no scripted keystroke left
+//    to actually submit). Confirmed empirically: running this template
+//    unmodified against a 20-voter run (one voter per area) does NOT cast a
+//    ballot for every voter - see IVR_LOAD_TEST_DESIGN.md's Stage 2 section
+//    for the actual pass/fail breakdown. For a load test that needs every
+//    call to succeed, either restrict the voter CSV to one area (so the
+//    contest count is uniform) or build the input file per-area instead of
+//    from one shared template.
 
-// --- Authentication (default realm flow: voter_id then pin, both numeric,
-// --- max 8 digits — auth.rs::default_flow) ---
-{{VOTER_ID}}
+// --- Language select ---
+1
+
+// --- Authentication (this realm's actual flow: date of birth then PIN,
+// --- confirmed live via {realm}/ivr-config, both numeric) ---
+{{DOB}}
 {{PIN}}
 
-// --- Everything below is election-specific: replace with your captured
-// --- keystrokes. Typical shape (ballot_loop.rs): pick the election, one
-// --- numbered selection per contest with a confirm (1) after each, then 0
-// --- to confirm the summary and cast, e.g.:
-//
-// 1    // select the (only) election
-// 1    // contest 1: candidate 1
-// 1    // confirm selection
-// ...  // remaining contests
-// 0    // election summary: confirm and cast
-// 1    // continue past the ballot receipt ("Your ballot locator is ...")
+// --- Eligibility declaration ---
+2
+
+// --- Select the (only) election on offer ---
+1
+
+// --- Per-election language select (separate from the top-level IVR system
+// --- language select above - this election itself offers a language choice) ---
+1
+
+// --- Contest 1 (e.g. Mayor): pick candidate 1, confirm ---
+1
+1
+
+// --- Contest 2 (e.g. Deputy Mayor): pick candidate 1, confirm ---
+1
+1
+
+// --- Contest 3 (e.g. Councillor - Ward N): pick candidate 1, confirm ---
+1
+1
+
+// --- Contest 4 (e.g. Trustee): pick candidate 1, confirm ---
+1
+1
+
+// --- Ballot summary: 0 submits, 1..N re-opens that contest to edit -
+// --- only valid for a voter whose area has exactly 4 contests (see the
+// --- KNOWN LIMITATION note above) ---
+0
+
+// --- Continue past the ballot receipt ("Your ballot locator is ...") ---
+1

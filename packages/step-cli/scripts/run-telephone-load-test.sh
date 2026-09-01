@@ -13,7 +13,9 @@
 # The DTMF template is captured empirically: run one interactive call by hand
 # against the Stage-1 event and note every keystroke (see
 # dtmf-template.example.txt next to this script for the procedure), replacing
-# the voter-id/PIN entries with {{VOTER_ID}} / {{PIN}}.
+# the identifier/PIN entries with {{PIN}}, plus whichever of {{VOTER_ID}} /
+# {{DOB}} matches this realm's auth flow (check {realm}/ivr-config - it
+# varies per realm, e.g. voter_id+pin vs dateOfBirth+pin).
 #
 # Requires the `ivr-cli` binary (cd beyond/packages && cargo build --release
 # -p ivr-cli) and a Redis-compatible session store; if none is reachable this
@@ -40,10 +42,11 @@ Usage: run-telephone-load-test.sh --run-dir <stage1-out-dir> --dtmf-template <fi
 Required:
   --run-dir <dir>              Stage 1 output directory (must contain
                                 summary.json and the voters CSV it references)
-  --dtmf-template <file>       DTMF input template with {{VOTER_ID}} and
-                                {{PIN}} placeholders. Capture it with one
-                                manual ivr-cli call — see
-                                dtmf-template.example.txt for the procedure
+  --dtmf-template <file>       DTMF input template with {{PIN}} and whichever
+                                of {{VOTER_ID}}/{{DOB}} this realm's auth flow
+                                uses. Capture it with one manual ivr-cli call
+                                — see dtmf-template.example.txt for the
+                                procedure
 
 Options:
   --concurrency <n>            Parallel calls. Default: 10
@@ -104,8 +107,8 @@ SUMMARY_JSON="$RUN_DIR/summary.json"
 [[ -f "$SUMMARY_JSON" ]] || { echo "Error: no summary.json in $RUN_DIR — run setup-telephone-load-test.sh first" >&2; exit 1; }
 [[ -n "$DTMF_TEMPLATE" ]] || { echo "Error: --dtmf-template is required (see $SCRIPT_DIR/dtmf-template.example.txt for how to capture one)" >&2; usage; exit 1; }
 [[ -f "$DTMF_TEMPLATE" ]] || { echo "Error: no such file: $DTMF_TEMPLATE" >&2; exit 1; }
-grep -q '{{VOTER_ID}}' "$DTMF_TEMPLATE" || { echo "Error: template $DTMF_TEMPLATE has no {{VOTER_ID}} placeholder" >&2; exit 1; }
 grep -q '{{PIN}}' "$DTMF_TEMPLATE" || { echo "Error: template $DTMF_TEMPLATE has no {{PIN}} placeholder" >&2; exit 1; }
+grep -qE '\{\{VOTER_ID\}\}|\{\{DOB\}\}' "$DTMF_TEMPLATE" || { echo "Error: template $DTMF_TEMPLATE has no {{VOTER_ID}} or {{DOB}} placeholder (whichever this realm's auth flow identifies voters by)" >&2; exit 1; }
 
 # --- Locate the ivr-cli binary -----------------------------------------------
 
@@ -139,7 +142,12 @@ TENANT_ID="$(json_get tenant_id)"
 ELECTION_EVENT_ID="$(json_get election_event_id)"
 KEYCLOAK_REALM="$(json_get keycloak_realm)"
 KEYCLOAK_URL="$(json_get keycloak_url)"
+# summary.json stores step-cli's GraphQL endpoint (.../v1/graphql); ivr-core's
+# phone_config.hasura_url is the bare Hasura base URL, which it appends its
+# own /api/rest/ivr/... paths to (see election_config_hasura.rs) - strip the
+# GraphQL suffix so the IVR REST calls don't 404 on a doubled-up path.
 HASURA_URL="$(json_get hasura_url)"
+HASURA_URL="${HASURA_URL%/v1/graphql}"
 VOTERS_CSV="$(json_get voters_csv)"
 for var in TENANT_ID ELECTION_EVENT_ID KEYCLOAK_REALM KEYCLOAK_URL HASURA_URL VOTERS_CSV; do
   [[ -n "${!var}" ]] || { echo "Error: could not read $var from $SUMMARY_JSON" >&2; exit 1; }
@@ -169,21 +177,38 @@ KEYCLOAK_IVR_VOTING_CLIENT_SECRET="${KEYCLOAK_IVR_VOTING_CLIENT_SECRET:-$(env_fi
 port_open() { (exec 3<>"/dev/tcp/$1/$2") 2>/dev/null && exec 3>&- && exec 3<&-; }
 
 if [[ -z "$VALKEY_URL" ]]; then
-  VALKEY_URL="redis://127.0.0.1:$VALKEY_PORT"
-  if ! port_open 127.0.0.1 "$VALKEY_PORT"; then
-    if (( START_VALKEY )) && command -v docker >/dev/null 2>&1; then
-      log "No session store on 127.0.0.1:$VALKEY_PORT — starting $VALKEY_CONTAINER_NAME ($VALKEY_IMAGE)"
-      docker rm -f "$VALKEY_CONTAINER_NAME" >/dev/null 2>&1 || true
-      docker run -d --name "$VALKEY_CONTAINER_NAME" -p "$VALKEY_PORT:6379" "$VALKEY_IMAGE" >/dev/null
+  if port_open 127.0.0.1 "$VALKEY_PORT"; then
+    VALKEY_URL="redis://127.0.0.1:$VALKEY_PORT"
+  else
+    # This script (and ivr-cli) typically run inside the devcontainer, which
+    # is itself a container on the compose stack's docker network — a plain
+    # `docker run -p` publishes to the outer host's network namespace, which
+    # is unreachable from here. Attach the auto-started container to the same
+    # network as an already-running stack service (keycloak) instead, and
+    # address it by container name rather than 127.0.0.1.
+    compose_network="$(docker inspect keycloak --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null)"
+    if [[ -n "$compose_network" ]]; then
+      if ! docker inspect "$VALKEY_CONTAINER_NAME" >/dev/null 2>&1; then
+        (( START_VALKEY )) && command -v docker >/dev/null 2>&1 || {
+          echo "Error: no session store reachable and auto-start is disabled or docker is unavailable; pass --valkey-url" >&2
+          exit 1
+        }
+        log "Starting $VALKEY_CONTAINER_NAME ($VALKEY_IMAGE) on network $compose_network"
+        docker run -d --name "$VALKEY_CONTAINER_NAME" --network "$compose_network" "$VALKEY_IMAGE" >/dev/null
+      fi
+      VALKEY_URL="redis://$VALKEY_CONTAINER_NAME:$VALKEY_PORT"
       for _ in $(seq 1 30); do
-        port_open 127.0.0.1 "$VALKEY_PORT" && break
+        port_open "$VALKEY_CONTAINER_NAME" "$VALKEY_PORT" && break
         sleep 1
       done
-    fi
-    port_open 127.0.0.1 "$VALKEY_PORT" || {
-      echo "Error: no Redis-compatible session store reachable at $VALKEY_URL (ivr-cli's dev bundle needs one; rerun without --no-start-valkey, or pass --valkey-url)" >&2
+      port_open "$VALKEY_CONTAINER_NAME" "$VALKEY_PORT" || {
+        echo "Error: $VALKEY_CONTAINER_NAME did not become reachable on $compose_network" >&2
+        exit 1
+      }
+    else
+      echo "Error: no Redis-compatible session store reachable at 127.0.0.1:$VALKEY_PORT, and couldn't find the compose network (no running 'keycloak' container) to start one on; pass --valkey-url" >&2
       exit 1
-    }
+    fi
   fi
 fi
 log "Session store: $VALKEY_URL"
@@ -225,10 +250,15 @@ log "Generated $PHONE_CONFIG_PATH"
 # --- Per-voter DTMF input files ----------------------------------------------
 
 # The voters CSV comes from `step-cli step generate-voters` (header row, no
-# quoting on the numeric username/password columns).
+# quoting on the numeric username/password/dateOfBirth columns). dateOfBirth
+# is optional in the CSV - only realms whose IVR auth flow identifies voters
+# by date of birth (checked live via {realm}/ivr-config, not assumed) need
+# {{DOB}} in the template; realms using the generic voter_id+pin default flow
+# only need {{VOTER_ID}}/{{PIN}}.
 header="$(head -1 "$VOTERS_CSV")"
 username_col="$(awk -F, -v RS='' '{for (i=1;i<=NF;i++) if ($i=="username") {print i; exit}}' <<<"$header")"
 password_col="$(awk -F, -v RS='' '{for (i=1;i<=NF;i++) if ($i=="password") {print i; exit}}' <<<"$header")"
+dob_col="$(awk -F, -v RS='' '{for (i=1;i<=NF;i++) if ($i=="dateOfBirth") {print i; exit}}' <<<"$header")"
 [[ -n "$username_col" && -n "$password_col" ]] || { echo "Error: $VOTERS_CSV has no username/password columns (header: $header)" >&2; exit 1; }
 
 count=0
@@ -236,7 +266,11 @@ while IFS=, read -r -a row; do
   voter_id="${row[$((username_col - 1))]}"
   pin="${row[$((password_col - 1))]}"
   [[ -n "$voter_id" && -n "$pin" ]] || continue
-  sed -e "s/{{VOTER_ID}}/$voter_id/g" -e "s/{{PIN}}/$pin/g" \
+  # generate-voters writes dateOfBirth as YYYY-MM-DD; DTMF collection is raw
+  # digits only (YYYYMMDD - a phone keypad has no "-" key).
+  dob=""
+  [[ -n "$dob_col" ]] && dob="${row[$((dob_col - 1))]//-/}"
+  sed -e "s/{{VOTER_ID}}/$voter_id/g" -e "s/{{PIN}}/$pin/g" -e "s/{{DOB}}/$dob/g" \
     "$DTMF_TEMPLATE" >"$OUT_DIR/inputs/call-$voter_id.txt"
   count=$((count + 1))
   if [[ -n "$MAX_CALLS" ]] && (( count >= MAX_CALLS )); then

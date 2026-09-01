@@ -19,9 +19,7 @@ usage() {
 Usage: setup-telephone-load-test.sh --election-event-json <path> [options]
 
 Required:
-  --election-event-json <path>   Election event JSON to import (see
-                                  packages/headless-load-test/data/local/
-                                  export_election_event-*.json for an example)
+  --election-event-json <path>   Election event JSON to import
 
 Options (default to this repo's devcontainer dev tenant/Keycloak):
   --tenant-id <id>                Default: $SUPER_ADMIN_TENANT_ID
@@ -63,7 +61,11 @@ KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN:-}"
 # client configured with `default.acr.values: gold`, matching what every CLI
 # tutorial in docs/docusaurus hardcodes for this same reason.
 KEYCLOAK_CLIENT_ID="api-key-client"
-KEYCLOAK_CLIENT_SECRET="4lzmxNgZHjfzS5BwDVlyrRUDqwvFLUvL"
+# Left empty by default: looked up live from Keycloak's admin API below,
+# rather than hardcoded, since a client secret is per-environment and can be
+# rotated independently of this script. NOT $KEYCLOAK_CLI_CLIENT_SECRET - that
+# devcontainer env var is admin-portal's secret, a different client.
+KEYCLOAK_CLIENT_SECRET=""
 TRUSTEE1_USER="trustee1"
 TRUSTEE1_PASSWORD="trustee1"
 TRUSTEE2_USER="trustee2"
@@ -100,13 +102,26 @@ done
 [[ -n "$KEYCLOAK_URL" ]] || { echo "Error: --keycloak-url is required (or set \$KEYCLOAK_URL)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_ADMIN_USER" ]] || { echo "Error: --keycloak-admin-user is required (or set \$KEYCLOAK_ADMIN)" >&2; exit 1; }
 [[ -n "$KEYCLOAK_CLIENT_ID" ]] || { echo "Error: --keycloak-client-id is required (or set \$KEYCLOAK_CLI_CLIENT_ID)" >&2; exit 1; }
-[[ -n "$KEYCLOAK_CLIENT_SECRET" ]] || { echo "Error: --keycloak-client-secret is required (or set \$KEYCLOAK_CLI_CLIENT_SECRET)" >&2; exit 1; }
 (( VOTER_PIN_DIGITS >= 1 && VOTER_PIN_DIGITS <= 8 )) || { echo "Error: --voter-pin-digits must be between 1 and 8 (DTMF voter auth limit)" >&2; exit 1; }
 command -v step-cli >/dev/null 2>&1 || { echo "Error: step-cli not found on PATH. Build it: (cd packages/step-cli && cargo build --release)" >&2; exit 1; }
 
 export NO_COLOR=1
 
 log() { echo "==> $*" >&2; }
+
+if [[ -z "$KEYCLOAK_CLIENT_SECRET" ]]; then
+  command -v jq >/dev/null 2>&1 || { echo "Error: jq is required to look up \$KEYCLOAK_CLIENT_ID's secret (or pass --keycloak-client-secret explicitly)" >&2; exit 1; }
+  log "Looking up $KEYCLOAK_CLIENT_ID's client secret from Keycloak (master realm admin API)"
+  master_token="$(curl -sf -X POST "$KEYCLOAK_URL/realms/master/protocol/openid-connect/token" \
+    -d grant_type=password -d client_id=admin-cli \
+    -d "username=$KEYCLOAK_ADMIN_USER" -d "password=$KEYCLOAK_ADMIN_PASSWORD" \
+    | jq -r '.access_token // empty')"
+  [[ -n "$master_token" ]] || { echo "Error: could not obtain a master-realm admin token to look up $KEYCLOAK_CLIENT_ID's secret (pass --keycloak-client-secret explicitly)" >&2; exit 1; }
+  KEYCLOAK_CLIENT_SECRET="$(curl -sf -H "Authorization: Bearer $master_token" \
+    "$KEYCLOAK_URL/admin/realms/tenant-$TENANT_ID/clients?clientId=$KEYCLOAK_CLIENT_ID" \
+    | jq -r '.[0].secret // empty')"
+  [[ -n "$KEYCLOAK_CLIENT_SECRET" ]] || { echo "Error: could not look up $KEYCLOAK_CLIENT_ID's secret in tenant-$TENANT_ID (pass --keycloak-client-secret explicitly)" >&2; exit 1; }
+fi
 
 # step-cli always exits 0, even on failure (commands eprintln "Error! ..."
 # and return); detect failure by scanning the captured output instead of $?.
@@ -179,6 +194,11 @@ ELECTION_EVENT_ID="$(extract_id "$out")"
 log "    election_event_id=$ELECTION_EVENT_ID"
 
 log "[3/7] Generating $NUM_VOTERS voters with numeric, ${VOTER_PIN_DIGITS}-digit DTMF-safe credentials"
+# dateOfBirth is required: this realm's IVR auth flow (checked live via its
+# {realm}/ivr-config endpoint, not assumed from a generic default) resolves
+# voters by dateOfBirth + PIN rather than by username + PIN, so a voter with
+# no dateOfBirth attribute can never authenticate over a call. generate-voters
+# writes it in the realm's expected YYYY-MM-DD form already.
 cp "$ELECTION_EVENT_JSON" "$OUT_DIR/election-event.json"
 cat >"$OUT_DIR/external_config.json" <<EXTCFG
 {
@@ -190,7 +210,7 @@ cat >"$OUT_DIR/external_config.json" <<EXTCFG
   "election_id": "",
   "generate_voters": {
     "csv_file_name": "voters",
-    "fields": ["username", "area_name", "password", "email", "email_verified"],
+    "fields": ["username", "area_name", "password", "email", "email_verified", "dateOfBirth"],
     "excluded_columns": [],
     "email_prefix": "telephone-load-test",
     "domain": "example.invalid",
