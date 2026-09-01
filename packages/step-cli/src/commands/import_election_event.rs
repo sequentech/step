@@ -63,8 +63,9 @@ fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Erro
             }
             Ok(_) => {
                 if Instant::now().duration_since(start_time) >= timeout {
-                    return Err("Timeout while waiting for import election event task to complete"
-                        .into());
+                    return Err(
+                        "Timeout while waiting for import election event task to complete".into(),
+                    );
                 }
                 sleep(polling_interval);
             }
