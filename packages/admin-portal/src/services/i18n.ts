@@ -19,19 +19,8 @@ import i18next from "i18next"
 
 type I18N = Record<string, Record<string, string>>
 
-initializeLanguages({
-    en: englishTranslation,
-    es: spanishTranslation,
-    cat: catalanTranslation,
-    fr: frenchTranslation,
-    tl: tagalogTranslation,
-    gl: galegoTranslation,
-    nl: dutchTranslation,
-    eu: basqueTranslation,
-})
-
-export const triggerOverrideTranslations = (i18n?: I18N) => {
-    initializeLanguages({
+initializeLanguages(
+    {
         en: englishTranslation,
         es: spanishTranslation,
         cat: catalanTranslation,
@@ -40,7 +29,26 @@ export const triggerOverrideTranslations = (i18n?: I18N) => {
         gl: galegoTranslation,
         nl: dutchTranslation,
         eu: basqueTranslation,
-    })
+    },
+    undefined,
+    ETranslationScope.ADMIN_PORTAL
+)
+
+export const triggerOverrideTranslations = (i18n?: I18N) => {
+    initializeLanguages(
+        {
+            en: englishTranslation,
+            es: spanishTranslation,
+            cat: catalanTranslation,
+            fr: frenchTranslation,
+            tl: tagalogTranslation,
+            gl: galegoTranslation,
+            nl: dutchTranslation,
+            eu: basqueTranslation,
+        },
+        undefined,
+        ETranslationScope.ADMIN_PORTAL
+    )
     overwriteTranslations(i18n ? {i18n} : undefined, {
         scope: ETranslationScope.ADMIN_PORTAL,
         legacyScope: ETranslationScope.ADMIN_PORTAL,
