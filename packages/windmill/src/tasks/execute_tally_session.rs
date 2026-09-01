@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
-use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::keys_ceremony::{get_keys_ceremonies, get_keys_ceremony_by_id};
@@ -135,17 +134,53 @@ fn get_ballot_styles(ballot_styles: &Vec<BallotStyleHasura>) -> Result<Vec<Ballo
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
+fn generate_acclaimed_area_contests(
+    ballot_styles: &[BallotStyle],
+    areas: &[Area],
+) -> Vec<AreaContestDataType> {
+    let areas_map: HashMap<&str, &Area> =
+        areas.iter().map(|area| (area.id.as_str(), area)).collect();
+    let mut found = HashSet::new();
+    let mut result = Vec::new();
+
+    for ballot_style in ballot_styles {
+        let Some(area) = areas_map.get(ballot_style.area_id.as_str()) else {
+            event!(Level::WARN, "Area not found {}", ballot_style.area_id);
+            continue;
+        };
+        for contest in ballot_style
+            .contests
+            .iter()
+            .filter(|contest| contest.is_acclaimed())
+        {
+            if !found.insert((ballot_style.area_id.as_str(), contest.id.as_str())) {
+                continue;
+            }
+            result.push(AreaContestDataType {
+                plaintexts: Vec::new(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
+                area: (*area).clone(),
+                auditable_votes: 0,
+                votes_by_channel: None,
+            });
+        }
+    }
+
+    result
+}
+
 #[instrument(skip_all, err)]
 async fn generate_area_contests_mc(
-    hasura_transaction: &Transaction<'_>,
+    _hasura_transaction: &Transaction<'_>,
     relevant_plaintexts: &Vec<&Message>,
     ballot_styles: &Vec<BallotStyle>,
     tally_session_contest: &Vec<TallySessionContest>,
     areas: &Vec<Area>,
-    tenant_id: &str,
-    election_event_id: &str,
+    _tenant_id: &str,
+    _election_event_id: &str,
 ) -> AnyhowResult<Vec<AreaContestDataType>> {
-    let all_contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
     let areas_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
@@ -153,42 +188,32 @@ async fn generate_area_contests_mc(
         .collect();
     let mut almost_vec: Vec<AreaContestDataType> = vec![];
     for session_election in tally_session_contest.clone() {
-        // contest ids for this election
-        let contest_ids = all_contests
-            .iter()
-            .filter_map(|contest| {
-                if contest.election_id != session_election.election_id {
-                    return None;
-                }
-                Some(contest.id.clone())
-            })
-            .collect::<Vec<_>>();
-
-        // The guards below are per contest, but gathering the plaintexts is per
-        // row and can fail, so a row that every one of those guards would skip
-        // must be dropped before it can abort every election in the session.
-        // This is the same condition they test, hoisted to the row.
-        let has_usable_contest = contest_ids.iter().any(|contest_id| {
-            ballot_styles.iter().any(|ballot_style| {
-                ballot_style.area_id == session_election.area_id
-                    && ballot_style.election_id == session_election.election_id
-                    && ballot_style
-                        .contests
-                        .iter()
-                        .any(|contest| contest.id == *contest_id)
-            })
-        }) && areas_map.contains_key(&session_election.area_id);
-        if !has_usable_contest {
+        let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+            ballot_style.area_id == session_election.area_id
+                && ballot_style.election_id == session_election.election_id
+        }) else {
             event!(
                 Level::WARN,
-                "IGNORING: no ballot style or area for tally session contest {} (area {}, \
-                 election {})",
+                "IGNORING: no ballot style for tally session contest {} (area {}, election {})",
                 session_election.id,
                 session_election.area_id,
                 session_election.election_id
             );
             continue;
-        }
+        };
+        let Some(area) = areas_map.get(&session_election.area_id) else {
+            event!(Level::INFO, "Area not found {}", session_election.area_id);
+            continue;
+        };
+        let contests = votable_contests(&ballot_style.contests).collect::<Vec<_>>();
+        if contests.is_empty() {
+            event!(
+                Level::WARN,
+                "IGNORING: tally session contest {} has no encrypted contests",
+                session_election.id
+            );
+            continue;
+        };
 
         // Extract plaintexts once per session, across every batch the area
         // owns. Without weighting that is the single batch it always was.
@@ -201,35 +226,22 @@ async fn generate_area_contests_mc(
             continue;
         }
 
-        // Loop over contests
-        for contest_id in contest_ids.iter() {
+        let (eligible_voters, auditable_votes, votes_by_channel) =
+            if let Some(annotations) = session_election.annotations.clone() {
+                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
+
+                (
+                    annotations.elegible_voters,
+                    annotations.ballots_without_voter,
+                    annotations.votes_by_channel,
+                )
+            } else {
+                (0u64, 0u64, Default::default())
+            };
+
+        for contest in contests {
             let area_id = session_election.area_id.clone();
             let election_id = session_election.election_id.clone();
-
-            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
-                ballot_style.area_id == area_id
-                    && ballot_style.election_id == election_id
-                    && ballot_style
-                        .contests
-                        .iter()
-                        .any(|contest| contest.id == *contest_id)
-            }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", area_id, election_id, contest_id);
-                continue;
-            };
-
-            let Some(contest) = ballot_style
-                .contests
-                .iter()
-                .find(|contest| contest.election_id == election_id && contest.id == *contest_id)
-            else {
-                event!(
-                    Level::WARN,
-                    "IGNORING: Contest not found for contest id = {}",
-                    contest_id
-                );
-                continue;
-            };
 
             // Assign plaintexts to the first VALID contest
             // .take() returns the value inside the Option and replaces it with None.
@@ -246,33 +258,13 @@ async fn generate_area_contests_mc(
                 vec![]
             };
 
-            let Some(area) = areas_map.get(&ballot_style.area_id) else {
-                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
-                continue;
-            };
-
-            let (eligible_voters, auditable_votes, votes_by_channel) = if let Some(annotations) =
-                session_election.annotations.clone()
-            {
-                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
-
-                (
-                    annotations.elegible_voters,
-                    annotations.ballots_without_voter,
-                    annotations.votes_by_channel,
-                )
-            } else {
-                (0u64, 0u64, Default::default())
-            };
-
             almost_vec.push(AreaContestDataType {
                 plaintexts,
-                last_tally_session_execution: session_election.clone(),
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
                 eligible_voters,
                 auditable_votes,
-                votes_by_channel,
+                votes_by_channel: votes_by_channel.clone(),
                 area: area.clone(),
             })
         }
@@ -361,7 +353,6 @@ fn generate_area_contests(
 
         almost_vec.push(AreaContestDataType {
             plaintexts,
-            last_tally_session_execution: session_contest.clone(),
             contest: contest.clone(),
             ballot_style: ballot_style.clone(),
             eligible_voters,
@@ -390,7 +381,7 @@ async fn process_plaintexts(
         "Num sequent_backend_tally_session_contest = {}",
         &tally_session_contest.len()
     );
-    let almost_vec = match contest_encryption_policy {
+    let mut almost_vec = match contest_encryption_policy {
         ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
             generate_area_contests_mc(
                 hasura_transaction,
@@ -410,6 +401,7 @@ async fn process_plaintexts(
             areas,
         )?,
     };
+    almost_vec.extend(generate_acclaimed_area_contests(&ballot_styles, areas));
     event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
     let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
 
@@ -1257,6 +1249,13 @@ async fn build_reports_template_data(
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
+fn should_force_initial_results(
+    is_execution_completed: bool,
+    previous_results_event_id: Option<&str>,
+) -> bool {
+    is_execution_completed && previous_results_event_id.is_none()
+}
+
 #[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
@@ -1414,7 +1413,11 @@ pub async fn execute_tally_session_wrapped(
         // lost, so the reason on the execution row counts too.
         force_new_results_id
             || has_resolved_tie_break
-            || tally_session_execution.run_reason() == TallyRunReason::RECOUNT,
+            || tally_session_execution.run_reason() == TallyRunReason::RECOUNT
+            || should_force_initial_results(
+                is_execution_completed,
+                tally_session_execution.results_event_id.as_deref(),
+            ),
     )
     .await?;
 
@@ -1669,10 +1672,77 @@ pub async fn execute_tally_session(
 #[cfg(test)]
 mod tests {
 
-    use crate::tasks::execute_tally_session::count_cast_votes_election_with_census;
+    use crate::tasks::execute_tally_session::{
+        count_cast_votes_election_with_census, generate_acclaimed_area_contests,
+        should_force_initial_results,
+    };
     use anyhow::anyhow;
     use anyhow::Result;
-    use sequent_core::types::hasura::core::TallySessionContest;
+    use sequent_core::ballot::{BallotStyle, Contest};
+    use sequent_core::types::hasura::core::{Area, TallySessionContest};
+
+    #[test]
+    fn initial_results_are_forced_only_after_execution_completes() {
+        assert!(should_force_initial_results(true, None));
+        assert!(!should_force_initial_results(false, None));
+        assert!(!should_force_initial_results(
+            true,
+            Some("existing-results")
+        ));
+    }
+
+    #[test]
+    fn acclaimed_results_do_not_require_a_tally_session_contest() {
+        let contest = Contest {
+            id: "acclaimed-contest".to_string(),
+            election_id: "election".to_string(),
+            is_acclaimed: Some(true),
+            ..Default::default()
+        };
+        let ballot_style = BallotStyle {
+            id: "style".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            num_allowed_revotes: None,
+            description: None,
+            public_key: None,
+            area_id: "area".to_string(),
+            area_presentation: None,
+            contests: vec![contest],
+            election_event_presentation: None,
+            election_presentation: None,
+            election_dates: None,
+            election_event_annotations: None,
+            election_annotations: None,
+            area_annotations: None,
+            multi_contest_encoding_mode: None,
+        };
+        let area = Area {
+            id: "area".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            name: None,
+            description: None,
+            r#type: None,
+            parent_id: None,
+            presentation: None,
+        };
+
+        let result = generate_acclaimed_area_contests(&[ballot_style], &[area]);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].contest.id, "acclaimed-contest");
+        assert_eq!(result[0].area.id, "area");
+        assert!(result[0].plaintexts.is_empty());
+        assert_eq!(result[0].eligible_voters, 0);
+        assert_eq!(result[0].auditable_votes, 0);
+        assert!(result[0].votes_by_channel.is_none());
+    }
 
     #[tokio::test]
     async fn test_count_cast_votes_election_with_census() -> Result<()> {
