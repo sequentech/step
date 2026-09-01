@@ -61,3 +61,32 @@ repository-root `REUSE.toml`.
 - **Added AGPL-3.0-only headers to `crates/braid/fuzz/`** (`Cargo.toml` and
   `.gitignore`), which carried no licence markers. The fuzz crate is its own
   cargo workspace and keeps no lockfile, matching the source branch.
+
+## Local modifications for building on stable Rust
+
+The source branch assumes a nightly toolchain; the following changes make the
+workspace build with stable Rust (1.96.0), with upstream behaviour restored on
+nightly by enabling the named features:
+
+- **Gated `crates/vsc`'s nightly feature gates** (`stmt_expr_attributes`,
+  `proc_macro_hygiene`) behind `cfg_attr(feature = "custom-warnings", ...)`,
+  and wrapped every `#[crate::warning(...)]` in statement, expression, or
+  file-module position the same way — those positions reject proc-macro
+  attributes on stable even though `custom_warning_macro` expands to a no-op
+  pass-through when its `on` feature is off. Item-position uses are unchanged.
+- **Gated the libtest bench** `crates/vsc/benches/shuffle.rs`
+  (`#![feature(test)]`, a hard error on stable) behind a new empty
+  `nightly-benches` feature via `required-features`, so `--all-targets` builds
+  skip it on stable.
+- **Pinned `primefield` to `0.14.0-rc.9` in `Cargo.lock`**: cargo's pre-release
+  semver rules resolve `p256 0.14.0-rc.9`'s `primefield 0.14.0-rc.9`
+  requirement to the API-incompatible `0.14.0` final release, which does not
+  compile against p256 rc.9.
+- The `[[patch.unused]]` entry for `auto_generate_cdp` in `Cargo.lock` is
+  written by cargo because `packages/.cargo/config.toml` (an ancestor config)
+  declares that patch for the main workspace; it is inert here.
+
+`cargo clippy --workspace` passes on stable. `cargo clippy --workspace
+--all-targets` fails inside `crates/vsc`'s test modules and the
+`shuffle_scaling` example (mostly `unwrap_used` and pedantic lints in test
+code, identical on nightly); that upstream state is left untouched.

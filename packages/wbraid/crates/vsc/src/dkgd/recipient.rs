@@ -685,7 +685,7 @@ impl<const P: usize> ParticipantPosition<P> {
     /// Panics if the position is not in the range [1, P].
     #[must_use]
     pub fn new(position: u32) -> Self {
-        #[crate::warning("Possibly avoidable panics")]
+        #[cfg_attr(feature = "custom-warnings", crate::warning("Possibly avoidable panics"))]
         assert!(position > 0);
         assert!(position as usize <= P);
 
@@ -704,7 +704,7 @@ impl<const P: usize> ParticipantPosition<P> {
     /// Panics if the position is not in the range [1, P].
     #[must_use]
     pub fn from_usize(position: usize) -> Self {
-        #[crate::warning("Possibly avoidable panics")]
+        #[cfg_attr(feature = "custom-warnings", crate::warning("Possibly avoidable panics"))]
         assert!(position > 0);
         assert!(position <= P);
 
@@ -745,7 +745,10 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
     let bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|c| c.u().clone()).collect();
     let mut divisors_acc: Vec<[C::Element; W]> = vec![<[C::Element; W]>::one(); ciphertexts.len()];
 
-    #[crate::warning("Ensure that the contributions are from distinct participants.")]
+    #[cfg_attr(
+        feature = "custom-warnings",
+        crate::warning("Ensure that the contributions are from distinct participants.")
+    )]
     for contribution in contributions {
         let factors = &contribution.partial.factors;
         if factors.len() != ciphertexts.len() {

@@ -61,7 +61,12 @@ impl EncryptionData {
 ///     
 /// Returns `Error::EncryptionError` if key generation fails
 pub fn gen_key() -> Result<SymmetricKey, Error> {
-    #[crate::warning("We should pass in our single rng entry point, instead of delegating to Key internal generator")]
+    #[cfg_attr(
+        feature = "custom-warnings",
+        crate::warning(
+            "We should pass in our single rng entry point, instead of delegating to Key internal generator"
+        )
+    )]
     Ok(Key::<ChaCha20Poly1305>::generate())
 }
 
@@ -73,7 +78,12 @@ pub fn gen_key() -> Result<SymmetricKey, Error> {
 pub fn encrypt(key: SymmetricKey, data: &[u8]) -> Result<EncryptionData, Error> {
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given key
-    #[crate::warning("We should pass in our single rng entry point, instead of delegating to Nonce internal generator")]
+    #[cfg_attr(
+        feature = "custom-warnings",
+        crate::warning(
+            "We should pass in our single rng entry point, instead of delegating to Nonce internal generator"
+        )
+    )]
     let nonce = Nonce::generate();
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher

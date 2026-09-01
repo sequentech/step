@@ -108,7 +108,10 @@ impl CryptographicGroup for P256Group {
         let ds_tags: &[&[u8]] = &[b"context", b"independent_generators_p256_counter"];
         let mut ret = vec![];
 
-        #[crate::warning("The following code is not optimized. Parallelize with rayon")]
+        #[cfg_attr(
+            feature = "custom-warnings",
+            crate::warning("The following code is not optimized. Parallelize with rayon")
+        )]
         for i in 0..count {
             // Cannot use platform dependent type in random oracle
             let i_u64 = i as u64;
