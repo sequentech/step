@@ -820,7 +820,6 @@ pub async fn set_private_key(
         &keys_ceremony,
     )
     .await?;
-    // FFF tally fix
 
     match classify_private_key_restore(
         &encrypted_private_key,
