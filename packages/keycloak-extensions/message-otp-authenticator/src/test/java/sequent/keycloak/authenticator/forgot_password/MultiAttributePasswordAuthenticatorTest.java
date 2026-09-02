@@ -1410,8 +1410,7 @@ class MultiAttributePasswordAuthenticatorTest {
         .thenReturn(
             Map.of(
                 MultiAttributePasswordAuthenticator.EXISTING_USER_SESSION_POLICY,
-                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy
-                    .TERMINATE_BEFORE_LOGIN
+                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN
                     .name()));
     when(context.getAuthenticatorConfig()).thenReturn(authConfig);
     UserSessionModel existingSession = mock(UserSessionModel.class);
@@ -1466,8 +1465,7 @@ class MultiAttributePasswordAuthenticatorTest {
         policyProperty
             .getOptions()
             .contains(
-                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy
-                    .TERMINATE_BEFORE_LOGIN
+                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN
                     .name()));
   }
 
