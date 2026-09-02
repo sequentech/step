@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
-import {isTallyAcceptingTrusteeKeys, isTrusteeInTallyCeremony} from "./tallyCeremonyParticipation"
+import {ITallyTrusteeStatus} from "@/types/ceremonies"
+import {getTallyTrusteeStatus} from "./tallyCeremonyParticipation"
 
 const execution = {
     status: {
@@ -16,31 +16,12 @@ const execution = {
     },
 }
 
-describe("isTrusteeInTallyCeremony", () => {
-    it("uses the trustee claim to find a participant", () => {
-        expect(isTrusteeInTallyCeremony(execution, "trustee-1")).toBe(true)
+describe("getTallyTrusteeStatus", () => {
+    it("returns the status for the trustee claim", () => {
+        expect(getTallyTrusteeStatus(execution, "trustee-2")).toBe(ITallyTrusteeStatus.KEY_RESTORED)
     })
 
-    it.each(["another-trustee", undefined, null])("rejects non-participant %s", (trusteeName) => {
-        expect(isTrusteeInTallyCeremony(execution, trusteeName)).toBe(false)
-    })
-})
-
-describe("isTallyAcceptingTrusteeKeys", () => {
-    it.each([ITallyExecutionStatus.STARTED, ITallyExecutionStatus.CONNECTED])(
-        "accepts keys in %s",
-        (status) => {
-            expect(isTallyAcceptingTrusteeKeys(status)).toBe(true)
-        }
-    )
-
-    it.each([
-        ITallyExecutionStatus.NOT_STARTED,
-        ITallyExecutionStatus.IN_PROGRESS,
-        ITallyExecutionStatus.AWAITING_INPUT,
-        ITallyExecutionStatus.SUCCESS,
-        ITallyExecutionStatus.CANCELLED,
-    ])("rejects keys in %s", (status) => {
-        expect(isTallyAcceptingTrusteeKeys(status)).toBe(false)
+    it.each(["another-trustee", undefined, null])("returns null for non-participant %s", (name) => {
+        expect(getTallyTrusteeStatus(execution, name)).toBeNull()
     })
 })
