@@ -2026,9 +2026,10 @@ const catalanTranslation: TranslationType = {
                 subtitle:
                     "Per continuar, si us plau descarrega i guarda la teva Clau Privada Encriptada en almenys dos dispositius diferents:",
                 downloadButton: "Descarregar la teva Clau Privada Encriptada",
-                errorDownloading: "Error de descàrrega: {{error}}",
+                downloaded: "Clau Privada Encriptada descarregada correctament.",
                 errorEmptyKey: "Error de descàrrega, fitxer buit",
                 unexpectedError: "No s'ha pogut descarregar la clau privada. Torna-ho a provar.",
+                alreadyVerified: "La teva clau privada ja s'havia descarregat i verificat.",
                 unavailable:
                     "La descàrrega de la clau privada ja no està disponible perquè la cerimònia ha avançat.",
                 confirmdDialog: {
@@ -2051,7 +2052,6 @@ const catalanTranslation: TranslationType = {
                     "Còpia de Seguretat de la Clau Encriptada Privada invàlida, si us plau intenta-ho de nou",
                 errorEmptyFile: "Fitxer buit o no trobat",
                 verified: "Còpia de seguretat verificada correctament.",
-                downloaded: "Clau Encriptada Privada generada amb èxit.",
             },
         },
         miruExport: {

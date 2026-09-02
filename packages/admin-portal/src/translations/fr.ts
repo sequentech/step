@@ -2029,9 +2029,10 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "Pour continuer, veuillez télécharger et sauvegarder votre Clé Privée Cryptée sur au moins deux appareils différents :",
                 downloadButton: "Télécharger votre Clé Privée Cryptée",
-                errorDownloading: "Erreur de téléchargement : {{error}}",
+                downloaded: "Clé Privée Cryptée téléchargée avec succès.",
                 errorEmptyKey: "Erreur de téléchargement, fichier vide",
                 unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
+                alreadyVerified: "Votre clé privée a déjà été téléchargée et vérifiée.",
                 unavailable:
                     "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
                 confirmdDialog: {
@@ -2054,7 +2055,6 @@ const frenchTranslation: TranslationType = {
                     "Copa de Sauvegarde de la Clé Privée Cryptée invalide, veuillez réessayer",
                 errorEmptyFile: "Fichier vide ou non trouvé",
                 verified: "Copie de sauvegarde vérifiée avec succès.",
-                downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
         miruExport: {

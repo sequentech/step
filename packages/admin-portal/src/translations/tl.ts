@@ -2020,9 +2020,10 @@ const tagalogTranslation: TranslationType = {
                 subtitle:
                     "Upang magpatuloy, mangyaring i-download at itago ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang device:",
                 downloadButton: "I-download ang iyong Encrypted Private Key",
-                errorDownloading: "Error sa pag-download: {{error}}",
+                downloaded: "Matagumpay na na-download ang Encrypted Private Key.",
                 errorEmptyKey: "Error sa pag-download, walang laman na file",
                 unexpectedError: "Hindi ma-download ang pribadong key. Pakisubukang muli.",
+                alreadyVerified: "Na-download at na-verify na ang iyong pribadong key.",
                 unavailable:
                     "Hindi na maaaring i-download ang pribadong key dahil nagpatuloy na ang seremonya.",
                 confirmdDialog: {
@@ -2044,7 +2045,6 @@ const tagalogTranslation: TranslationType = {
                 errorUploading: "Di-wastong Encrypted Private Key Backup, mangyaring subukan muli",
                 errorEmptyFile: "Walang laman na file o hindi natagpuan",
                 verified: "Backup ay matagumpay na nasuri.",
-                downloaded: "Encrypted Private Key ay matagumpay na nabuo.",
             },
         },
         miruExport: {

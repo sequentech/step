@@ -21,7 +21,10 @@ import {Dialog} from "@sequentech/ui-essentials"
 import {useGetOne, useNotify} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {IKeysCeremonyExecutionStatus as EStatus} from "@/services/KeyCeremony"
+import {
+    IKeysCeremonyExecutionStatus as EStatus,
+    IKeysCeremonyTrusteeStatus as TStatus,
+} from "@/services/KeyCeremony"
 import {isPrivateKeyDownloadUnavailableError} from "@/services/privateKeyDownloadError"
 
 export interface DownloadStepProps {
@@ -71,6 +74,13 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         downloadUnavailable ||
         (latestCeremony?.execution_status ?? currentCeremony.execution_status) !==
             EStatus.IN_PROGRESS
+    const trusteeStatus = (latestCeremony?.status ?? currentCeremony.status)?.trustees?.find(
+        (trustee: {name: string}) => trustee.name === authContext.trustee
+    )?.status
+    const downloadUnavailableMessage =
+        trusteeStatus === TStatus.KEY_CHECKED
+            ? "keysGeneration.downloadStep.alreadyVerified"
+            : "keysGeneration.downloadStep.unavailable"
 
     const [getPrivateKeysMutation] = useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
     const download = async () => {
@@ -147,16 +157,14 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     <WizardStyles.StatusBox>
                         {downloading ? <WizardStyles.DownloadProgress /> : null}
                         {isDownloadUnavailable ? (
-                            <Alert severity="info">
-                                {t("keysGeneration.downloadStep.unavailable")}
-                            </Alert>
+                            <Alert severity="info">{t(downloadUnavailableMessage)}</Alert>
                         ) : null}
                         {downloaded ? (
                             <WizardStyles.SucessMessage
                                 variant="body1"
                                 className="keys-download-success"
                             >
-                                {t("keysGeneration.checkStep.downloaded")}
+                                {t("keysGeneration.downloadStep.downloaded")}
                             </WizardStyles.SucessMessage>
                         ) : null}
                         {errors ? (

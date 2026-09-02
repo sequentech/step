@@ -41,7 +41,7 @@ pub struct CheckPrivateKeyOutput {
 }
 
 // The main function to get the private key
-#[instrument(skip(claims))]
+#[instrument(skip(body, claims))]
 #[post("/check-private-key", format = "json", data = "<body>")]
 pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,

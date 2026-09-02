@@ -2009,9 +2009,10 @@ const basqueTranslation: TranslationType = {
                 subtitle:
                     "Jarraitzeko, mesedez deskargatu eta gorde zure Zifratutako Giltza Pribatua gutxienez bi gailu desberdinetan:",
                 downloadButton: "Deskargatu zure Zifratutako Giltza Pribatua",
-                errorDownloading: "Deskarga errorea: {{error}}",
+                downloaded: "Zifratutako Giltza Pribatua behar bezala deskargatu da.",
                 errorEmptyKey: "Deskarga errorea, fitxategi hutsa",
                 unexpectedError: "Ezin izan da gako pribatua deskargatu. Saiatu berriro.",
+                alreadyVerified: "Zure gako pribatua deskargatuta eta egiaztatuta zegoen.",
                 unavailable:
                     "Gako pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
                 confirmdDialog: {
@@ -2034,7 +2035,6 @@ const basqueTranslation: TranslationType = {
                     "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
                 errorEmptyFile: "Fitxategia hutsa edo ez da aurkitu",
                 verified: "Babeskopia arrakastaz egiaztatua.",
-                downloaded: "Zifratutako Giltza Pribatua arrakastaz sortua.",
             },
         },
         miruExport: {
