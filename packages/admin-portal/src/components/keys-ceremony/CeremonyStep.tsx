@@ -56,6 +56,7 @@ export interface CeremonyStepProps {
     goNext?: () => void
     isNextDisabled?: boolean
     goBack: () => void
+    verifyPrivateKey?: () => void
 }
 
 export const CeremonyStep: React.FC<CeremonyStepProps> = ({
@@ -66,6 +67,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
     goBack,
     goNext,
     isNextDisabled = false,
+    verifyPrivateKey,
 }) => {
     const {t} = useTranslation()
     const {globalSettings} = useContext(SettingsContext)
@@ -218,6 +220,12 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <ArrowBackIosIcon />
                         {t("common.label.back")}
                     </CancelButton>
+                    {!!verifyPrivateKey && (
+                        <WizardStyles.NextButton color="info" onClick={verifyPrivateKey}>
+                            <ArrowForwardIosIcon />
+                            {t("keysGeneration.checkStep.title")}
+                        </WizardStyles.NextButton>
+                    )}
                     {!!goNext && !isAutomaticCeremony && (
                         <WizardStyles.NextButton
                             color="info"
