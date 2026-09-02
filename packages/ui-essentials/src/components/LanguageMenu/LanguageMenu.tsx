@@ -91,6 +91,7 @@ const LanguageMenu: React.FC<{
                 anchorEl={anchorEl}
                 open={open}
                 onClose={handleClose}
+                transitionDuration={0}
                 MenuListProps={{
                     "aria-labelledby": "lang-button",
                 }}
