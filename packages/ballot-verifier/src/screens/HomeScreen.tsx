@@ -23,6 +23,10 @@ import {IAuditableBallot, IAuditableMultiBallot, IAuditableSingleBallot} from "@
 import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
+import {
+    EBallotEncoding,
+    isAuditableBallotCiphertextConsistent,
+} from "../services/ballotCiphertextVerification"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
@@ -139,6 +143,7 @@ export const HomeScreen: React.FC<IProps> = ({
 }) => {
     const {t} = useTranslation()
     const [showError, setShowError] = useState(false)
+    const [showCiphertextError, setShowCiphertextError] = useState(false)
     const [openStep1Help, setOpenStep1Help] = useState(false)
     const [openStep2Help, setOpenStep2Help] = useState(false)
     const [isNextActive, setNextActive] = useState(false)
@@ -184,6 +189,18 @@ export const HomeScreen: React.FC<IProps> = ({
         const ballotStyle = auditableBallot?.config ?? null
         if (null === auditableBallot || null === decodedBallot || null === ballotStyle) {
             setShowError(true)
+            setShowCiphertextError(false)
+            setConfirmationBallot(null)
+            return
+        }
+        // Decoding only reads the plaintext. The ballot is not verified until the
+        // plaintext and randomness are shown to reproduce the ciphertext.
+        const encoding = isMultiContest
+            ? EBallotEncoding.MULTI_CONTEST
+            : EBallotEncoding.SINGLE_CONTEST
+        if (!isAuditableBallotCiphertextConsistent(ballotService, auditableBallot, encoding)) {
+            setShowError(false)
+            setShowCiphertextError(true)
             setConfirmationBallot(null)
             return
         }
@@ -210,6 +227,7 @@ export const HomeScreen: React.FC<IProps> = ({
             } catch (error) {
                 console.log(error)
                 setShowError(true)
+                setShowCiphertextError(false)
                 setConfirmationBallot(null)
                 return
             }
@@ -221,6 +239,7 @@ export const HomeScreen: React.FC<IProps> = ({
             decoded_questions: decodedBallot,
         })
         setShowError(false)
+        setShowCiphertextError(false)
     }
 
     const handleFiles = async (files: FileList) => {
@@ -230,6 +249,7 @@ export const HomeScreen: React.FC<IProps> = ({
             auditableBallotString && handleAuditableBallot(JSON.parse(auditableBallotString))
         } catch (e) {
             setShowError(true)
+            setShowCiphertextError(false)
             setConfirmationBallot(null)
         }
     }
@@ -292,6 +312,16 @@ export const HomeScreen: React.FC<IProps> = ({
                 >
                     {t("homeScreen.importErrorMoreInfo")}
                 </RouterLink>
+            </Alert>
+            <Alert
+                severity="error"
+                style={{display: showCiphertextError ? undefined : "none"}}
+                data-testid="ciphertext-error"
+            >
+                <AlertTitle>{t("homeScreen.ciphertextErrorTitle")}</AlertTitle>
+                <Typography variant="body2">
+                    {t("homeScreen.ciphertextErrorDescription")}
+                </Typography>
             </Alert>
             <DropFile handleFiles={handleFiles} />
             {confirmationBallot ? <JsonFile name={fileName} /> : null}
