@@ -12,9 +12,11 @@ use sequent_core::ballot::{
 };
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
-use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyResolution;
 use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{
+    RestorePrivateKeyOutcome, TallyExecutionStatus,
+};
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{
     services::jwt::JwtClaims, types::hasura::core::TallySessionConfiguration,
@@ -396,6 +398,7 @@ pub struct SetPrivateKeyInput {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SetPrivateKeyOutput {
     is_valid: bool,
+    outcome: RestorePrivateKeyOutcome,
 }
 
 // The main function to restore the private key
@@ -430,7 +433,7 @@ pub async fn restore_private_key(
             )
         })?;
 
-    let is_valid = tally_ceremony::set_private_key(
+    let outcome = tally_ceremony::set_private_key(
         &hasura_transaction,
         &claims,
         &tenant_id,
@@ -443,16 +446,19 @@ pub async fn restore_private_key(
 
     event!(
         Level::INFO,
-        "Restoring given private key, election_event_id={}, tally_session_id={}, is_valid={}",
+        "Restoring given private key, election_event_id={}, tally_session_id={}, outcome={:?}",
         input.election_event_id,
         input.tally_session_id,
-        is_valid,
+        outcome,
     );
 
     hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
-    Ok(Json(SetPrivateKeyOutput { is_valid }))
+    Ok(Json(SetPrivateKeyOutput {
+        is_valid: outcome != RestorePrivateKeyOutcome::Invalid,
+        outcome,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug)]

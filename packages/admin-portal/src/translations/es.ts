@@ -2038,6 +2038,7 @@ const spanishTranslation: TranslationType = {
                     "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
+                alreadyRestored: "Tu clave ya se había restaurado.",
                 downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
