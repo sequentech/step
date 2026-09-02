@@ -3,4 +3,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 pub mod ecies_encrypt;
+#[cfg(feature = "miru")]
 pub mod shell;

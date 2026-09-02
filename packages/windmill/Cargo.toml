@@ -17,8 +17,8 @@ path = "external-bin/generate_logs.rs"
 
 [features]
 default = ["fips_full"]
-fips_core = ["dep:postgres-openssl", "dep:openssl"]
-fips_full = ["dep:postgres-openssl", "dep:openssl"]
+fips_core = ["dep:postgres-openssl"]
+fips_full = ["dep:postgres-openssl"]
 # The Miru results-transmission integration (ACM/EML transmission packages
 # signed and encrypted with the external ECIES tool). Not part of the
 # evaluated TOE; no production build definition enables it.
@@ -105,7 +105,7 @@ postgres-openssl = { version = "0.5", optional = true }
 # OpenSSL needs to be configured to operate in FIPS mode
 # https://github.com/sfackler/rust-openssl/issues/1924
 # https://www.openssl.org/docs/man3.0/man7/fips_module.html
-openssl = { version = "0.10", optional = true }
+openssl = { version = "0.10" }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 
