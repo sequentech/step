@@ -12,6 +12,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -26,6 +28,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +37,7 @@ import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
+import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.HttpRequest;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakSession;
@@ -46,6 +50,10 @@ import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
+import org.keycloak.userprofile.AttributeMetadata;
+import org.keycloak.userprofile.Attributes;
+import org.keycloak.userprofile.UserProfile;
+import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -189,6 +197,70 @@ class MultiAttributePasswordAuthenticatorTest {
 
     assertTrue(result.authenticatedUser().isPresent());
     assertEquals(alice, result.authenticatedUser().get());
+  }
+
+  // ── effectiveMatchAttributes: form-level narrowing before the resolver ever sees the list ──
+
+  @Test
+  void effectiveMatchAttributes_dropsBlankOptionalAttribute() {
+    List<String> result =
+        authenticator.effectiveMatchAttributes(
+            List.of("dateOfBirth", "nationalId"),
+            valuesOf("dateOfBirth", "19900101", "nationalId", ""),
+            Set.of("nationalId"));
+
+    assertEquals(List.of("dateOfBirth"), result);
+  }
+
+  @Test
+  void effectiveMatchAttributes_keepsMandatoryAttributeEvenWhenBlank() {
+    // nationalId is blank but NOT in optionalAttributes - kept as-is, so the resolver's own
+    // blank-attribute check rejects it exactly as it does today.
+    List<String> result =
+        authenticator.effectiveMatchAttributes(
+            List.of("dateOfBirth", "nationalId"),
+            valuesOf("dateOfBirth", "19900101", "nationalId", ""),
+            Set.of());
+
+    assertEquals(List.of("dateOfBirth", "nationalId"), result);
+  }
+
+  @Test
+  void effectiveMatchAttributes_keepsOptionalAttributeWhenFilledIn() {
+    List<String> result =
+        authenticator.effectiveMatchAttributes(
+            List.of("dateOfBirth", "nationalId"),
+            valuesOf("dateOfBirth", "19900101", "nationalId", "X123"),
+            Set.of("nationalId"));
+
+    assertEquals(List.of("dateOfBirth", "nationalId"), result);
+  }
+
+  @Test
+  void effectiveMatchAttributes_fallsBackToOriginalListWhenEveryAttributeWouldBeDropped() {
+    // Both optional and blank - dropping both would hand the resolver an empty list, which it
+    // treats as a static misconfiguration (see MultiAttributeCredentialResolver's empty-list
+    // check) rather than a normal all-blank submission, and would run an unconstrained query if
+    // it didn't. Falling back to the original list instead lets the resolver's own
+    // blank-attribute check reject it the same way as any other invalid submission.
+    List<String> result =
+        authenticator.effectiveMatchAttributes(
+            List.of("dateOfBirth", "nationalId"),
+            valuesOf("dateOfBirth", "", "nationalId", ""),
+            Set.of("dateOfBirth", "nationalId"));
+
+    assertEquals(List.of("dateOfBirth", "nationalId"), result);
+  }
+
+  @Test
+  void effectiveMatchAttributes_dropsOptionalUsernameWhenBlank() {
+    List<String> result =
+        authenticator.effectiveMatchAttributes(
+            List.of("username", "dateOfBirth"),
+            valuesOf("username", "", "dateOfBirth", "19900101"),
+            Set.of("username"));
+
+    assertEquals(List.of("dateOfBirth"), result);
   }
 
   // ── DOB-not-unique-alone case: multiple candidates, password disambiguates ──
@@ -1074,36 +1146,6 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
-  void buildAttributeFields_html5DateAnnotation_resolvesToDateInputType() {
-    mockUserProfileAttributes(new UPAttribute("dateOfBirth", Map.of("inputType", "html5-date")));
-
-    List<Map<String, String>> fields =
-        authenticator.buildAttributeFields(session, List.of("dateOfBirth"));
-
-    assertEquals(List.of(Map.of("name", "dateOfBirth", "type", "date")), fields);
-  }
-
-  @Test
-  void buildAttributeFields_nonHtml5InputType_fallsBackToText() {
-    mockUserProfileAttributes(new UPAttribute("country", Map.of("inputType", "select")));
-
-    List<Map<String, String>> fields =
-        authenticator.buildAttributeFields(session, List.of("country"));
-
-    assertEquals(List.of(Map.of("name", "country", "type", "text")), fields);
-  }
-
-  @Test
-  void buildAttributeFields_noUserProfileEntry_fallsBackToText() {
-    mockUserProfileAttributes();
-
-    List<Map<String, String>> fields =
-        authenticator.buildAttributeFields(session, List.of("nationalId"));
-
-    assertEquals(List.of(Map.of("name", "nationalId", "type", "text")), fields);
-  }
-
-  @Test
   void getRealmUserProfileAttributes_noUserProfileProvider_returnsEmptyList() {
     when(session.getProvider(UserProfileProvider.class)).thenReturn(null);
 
@@ -1144,6 +1186,162 @@ class MultiAttributePasswordAuthenticatorTest {
   @Test
   void resolveHtml5InputType_unknownAttribute_fallsBackToText() {
     assertEquals("text", Utils.resolveHtml5InputType(List.of(), "nationalId"));
+  }
+
+  private void mockEmptyUserProfile() {
+    UserProfileProvider userProfileProvider = mock(UserProfileProvider.class);
+    UserProfile userProfile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+    UPConfig configuration = new UPConfig();
+    configuration.setAttributes(List.of());
+    lenient().when(userProfile.getAttributes()).thenReturn(attributes);
+    lenient().when(userProfileProvider.getConfiguration()).thenReturn(configuration);
+    lenient()
+        .when(userProfileProvider.create(eq(UserProfileContext.REGISTRATION), isNull(), isNull()))
+        .thenReturn(userProfile);
+    lenient().when(session.getProvider(UserProfileProvider.class)).thenReturn(userProfileProvider);
+  }
+
+  private AuthenticationFlowContext mockChallengeContext(Map<String, String> config) {
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
+    when(authConfig.getConfig()).thenReturn(config);
+    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    lenient().when(context.getSession()).thenReturn(session);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    lenient().when(context.form()).thenReturn(form);
+    lenient()
+        .when(form.createForm(MultiAttributePasswordAuthenticator.FORM_FTL))
+        .thenReturn(mock(Response.class));
+    mockEmptyUserProfile();
+    return context;
+  }
+
+  @Test
+  void challenge_setsMatchAttributesAndProfileFormAttributes() {
+    AuthenticationFlowContext context =
+        mockChallengeContext(Map.of(Utils.MATCH_ATTRIBUTES, "dateOfBirth"));
+
+    authenticator.challenge(context, new MultivaluedHashMap<>(), null);
+
+    verify(context.form()).setAttribute("matchAttributes", List.of("dateOfBirth"));
+    verify(context.form()).setAttribute(eq("profile"), any(LoginBean.class));
+  }
+
+  @Test
+  void challenge_honorUserProfileRequiredEnabled_setsFormAttribute() {
+    AuthenticationFlowContext context =
+        mockChallengeContext(
+            Map.of(
+                Utils.MATCH_ATTRIBUTES, "dateOfBirth",
+                Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
+
+    authenticator.challenge(context, new MultivaluedHashMap<>(), null);
+
+    verify(context.form()).setAttribute("honorUserProfileRequired", true);
+  }
+
+  @Test
+  void challenge_honorUserProfileRequiredNotConfigured_neverSetsFormAttribute() {
+    AuthenticationFlowContext context =
+        mockChallengeContext(Map.of(Utils.MATCH_ATTRIBUTES, "dateOfBirth"));
+
+    authenticator.challenge(context, new MultivaluedHashMap<>(), null);
+
+    verify(context.form(), never()).setAttribute(eq("honorUserProfileRequired"), any());
+  }
+
+  @Test
+  void factory_configPropertiesIncludeHonorUserProfileRequiredDisabledByDefault() {
+    MultiAttributePasswordAuthenticator factory = new MultiAttributePasswordAuthenticator();
+    ProviderConfigProperty honorRequiredProp =
+        factory.getConfigProperties().stream()
+            .filter(prop -> Utils.HONOR_USER_PROFILE_REQUIRED.equals(prop.getName()))
+            .findFirst()
+            .orElse(null);
+
+    assertTrue(honorRequiredProp != null);
+    assertEquals(ProviderConfigProperty.BOOLEAN_TYPE, honorRequiredProp.getType());
+    assertEquals("false", honorRequiredProp.getDefaultValue());
+  }
+
+  // ── optionalAttributes: which matchAttributes the realm's User Profile does NOT require ──
+
+  @Test
+  void optionalAttributes_declaredRequiredAttribute_staysMandatory() {
+    AuthenticationFlowContext context =
+        mockChallengeContext(
+            Map.of(
+                Utils.MATCH_ATTRIBUTES, "dateOfBirth",
+                Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
+    mockUserProfileForOptionalAttributes(Map.of("dateOfBirth", true));
+
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("dateOfBirth"));
+
+    assertTrue(optional.isEmpty());
+  }
+
+  @Test
+  void optionalAttributes_declaredNonRequiredAttribute_becomesOptional() {
+    AuthenticationFlowContext context =
+        mockChallengeContext(
+            Map.of(
+                Utils.MATCH_ATTRIBUTES, "nationalId",
+                Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
+    mockUserProfileForOptionalAttributes(Map.of("nationalId", false));
+
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("nationalId"));
+
+    assertEquals(Set.of("nationalId"), optional);
+  }
+
+  @Test
+  void optionalAttributes_undeclaredAttribute_staysMandatory() {
+    // "voterId" has no User Profile entry at all (e.g. a typo, or a non-User-Profile field) -
+    // the conservative default is to leave it mandatory rather than silently widen the match.
+    AuthenticationFlowContext context =
+        mockChallengeContext(
+            Map.of(
+                Utils.MATCH_ATTRIBUTES, "voterId",
+                Utils.HONOR_USER_PROFILE_REQUIRED, "true"));
+    mockUserProfileForOptionalAttributes(Map.of());
+
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("voterId"));
+
+    assertTrue(optional.isEmpty());
+  }
+
+  @Test
+  void optionalAttributes_notEnabled_returnsEmptySetRegardlessOfUserProfile() {
+    AuthenticationFlowContext context =
+        mockChallengeContext(Map.of(Utils.MATCH_ATTRIBUTES, "nationalId"));
+    mockUserProfileForOptionalAttributes(Map.of("nationalId", false));
+
+    Set<String> optional = authenticator.optionalAttributes(context, List.of("nationalId"));
+
+    assertTrue(optional.isEmpty());
+  }
+
+  private void mockUserProfileForOptionalAttributes(Map<String, Boolean> requiredByName) {
+    UserProfileProvider userProfileProvider = mock(UserProfileProvider.class);
+    UserProfile userProfile = mock(UserProfile.class);
+    Attributes attributes = mock(Attributes.class);
+
+    for (Map.Entry<String, Boolean> entry : requiredByName.entrySet()) {
+      String name = entry.getKey();
+      AttributeMetadata metadata = mock(AttributeMetadata.class);
+      lenient().when(metadata.getName()).thenReturn(name);
+      lenient().when(metadata.getAttributeDisplayName()).thenReturn(name);
+      lenient().when(metadata.getAnnotations()).thenReturn(Map.of());
+      lenient().when(metadata.getValidators()).thenReturn(List.of());
+      lenient().when(attributes.getMetadata(name)).thenReturn(metadata);
+      lenient().when(attributes.isRequired(name)).thenReturn(entry.getValue());
+    }
+    lenient().when(userProfile.getAttributes()).thenReturn(attributes);
+    lenient()
+        .when(userProfileProvider.create(eq(UserProfileContext.REGISTRATION), isNull(), isNull()))
+        .thenReturn(userProfile);
+    lenient().when(session.getProvider(UserProfileProvider.class)).thenReturn(userProfileProvider);
   }
 
   // ── Date normalization (collectSubmittedValues) ─────────────────────────
@@ -1221,6 +1419,85 @@ class MultiAttributePasswordAuthenticatorTest {
     inOrder.verify(context).clearUser();
   }
 
+  @Test
+  void action_lockedOutStatesRenderGenericErrorWithoutHidingInternalEventReason() {
+    for (LockoutState state : List.of(LockoutState.TEMPORARY, LockoutState.PERMANENT)) {
+      AuthenticationFlowContext context = mockActionContext();
+      EventBuilder event = context.getEvent();
+      UserModel attributableUser = mock(UserModel.class);
+      Response challengeResponse = mock(Response.class);
+      java.util.concurrent.atomic.AtomicReference<String> renderedError =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      MultiAttributePasswordAuthenticator actionAuthenticator =
+          actionAuthenticator(
+              Resolution.lockedOut(attributableUser, state), challengeResponse, renderedError);
+
+      actionAuthenticator.action(context);
+
+      assertEquals(
+          MultiAttributePasswordAuthenticator.INVALID_CREDENTIALS_MESSAGE, renderedError.get());
+      verify(event)
+          .error(
+              state == LockoutState.PERMANENT
+                  ? org.keycloak.events.Errors.USER_DISABLED
+                  : org.keycloak.events.Errors.USER_TEMPORARILY_DISABLED);
+      verify(context).forceChallenge(challengeResponse);
+      verify(context, never()).failureChallenge(any(), any());
+    }
+  }
+
+  @Test
+  void action_passesNarrowedMatchAttributesFromOptionalAttributesToResolver() {
+    AuthenticationFlowContext context = mockActionContext();
+    AuthenticatorConfigModel authConfig = context.getAuthenticatorConfig();
+    when(authConfig.getConfig())
+        .thenReturn(Map.of(Utils.MATCH_ATTRIBUTES, "dateOfBirth##nationalId"));
+    java.util.concurrent.atomic.AtomicReference<List<String>> captured =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    MultiAttributePasswordAuthenticator actionAuthenticator =
+        new MultiAttributePasswordAuthenticator() {
+          @Override
+          protected Map<String, String> collectSubmittedValues(
+              KeycloakSession session,
+              List<String> matchAttributes,
+              MultivaluedMap<String, String> formData) {
+            // nationalId left blank - only dateOfBirth has a submitted value.
+            return valuesOf("dateOfBirth", "19900101");
+          }
+
+          @Override
+          protected Set<String> optionalAttributes(
+              AuthenticationFlowContext context, List<String> matchAttributes) {
+            return Set.of("nationalId");
+          }
+
+          @Override
+          protected Resolution resolveAuthenticatedUser(
+              KeycloakSession session,
+              RealmModel realm,
+              List<String> matchAttributes,
+              Map<String, String> submittedValues,
+              String password,
+              MultiAttributeCredentialResolver.ThrottleConfig throttleConfig,
+              MultiAttributeCredentialResolver.MatchPolicy matchPolicy) {
+            captured.set(matchAttributes);
+            return Resolution.failure();
+          }
+
+          @Override
+          protected Response challenge(
+              AuthenticationFlowContext context,
+              MultivaluedMap<String, String> formData,
+              String error) {
+            return mock(Response.class);
+          }
+        };
+
+    actionAuthenticator.action(context);
+
+    assertEquals(List.of("dateOfBirth"), captured.get());
+  }
+
   private AuthenticationFlowContext mockActionContext() {
     AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
     HttpRequest request = mock(HttpRequest.class);
@@ -1239,6 +1516,13 @@ class MultiAttributePasswordAuthenticatorTest {
 
   private MultiAttributePasswordAuthenticator actionAuthenticator(
       Resolution resolution, Response challengeResponse) {
+    return actionAuthenticator(resolution, challengeResponse, null);
+  }
+
+  private MultiAttributePasswordAuthenticator actionAuthenticator(
+      Resolution resolution,
+      Response challengeResponse,
+      java.util.concurrent.atomic.AtomicReference<String> renderedError) {
     return new MultiAttributePasswordAuthenticator() {
       @Override
       protected Map<String, String> collectSubmittedValues(
@@ -1265,6 +1549,9 @@ class MultiAttributePasswordAuthenticatorTest {
           AuthenticationFlowContext context,
           MultivaluedMap<String, String> formData,
           String error) {
+        if (renderedError != null) {
+          renderedError.set(error);
+        }
         return challengeResponse;
       }
     };

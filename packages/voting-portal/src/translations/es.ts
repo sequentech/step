@@ -10,6 +10,22 @@ const spanishTranslation: TranslationType = {
             showMore: "Mostrar más",
             showLess: "Mostrar menos",
         },
+        a11y: {
+            skipToContent: "Saltar al contenido principal",
+            helpAbout: "Ayuda sobre {{topic}}",
+            copyToClipboard: "Copiar {{label}} al portapapeles",
+            previewMaterial: "Vista previa de {{title}}",
+            ballotsTable: "Papeletas",
+            ballotLocatorTabs: "Secciones del localizador de papeletas",
+            ballotIdLabel: "ID de voto",
+            votingProgress: "Progreso de la votación",
+            stepOf: "Paso {{current}} de {{total}}",
+            selectUpTo_one: "Seleccione hasta {{count}} opción",
+            selectUpTo_other: "Seleccione hasta {{count}} opciones",
+            selectExactly_one: "Seleccione {{count}} opción",
+            selectExactly_other: "Seleccione {{count}} opciones",
+            selectBetween: "Seleccione entre {{min}} y {{max}} opciones",
+        },
         candidatesList: {
             collapseToggle: "Alternar lista {{listTitle}}",
             showCandidates: "Mostrar candidatos",
@@ -28,6 +44,12 @@ const spanishTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Funciona con <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Esta votación se ha resuelto por aclamación. Sus candidaturas resultan elegidas sin votación, por lo que no se puede seleccionar ninguna opción ni se registra ningún voto.",
+            },
         },
         votingScreen: {
             backButton: "Atrás",
@@ -55,6 +77,13 @@ const spanishTranslation: TranslationType = {
                 continue: "Continuar",
                 cancel: "Cancelar",
             },
+            blankBallotDialog: {
+                title: "No ha seleccionado ningún candidato",
+                content:
+                    "No ha realizado ninguna selección. Su papeleta se emitirá como papeleta en blanco, lo cual es una elección válida y deliberada y se contabilizará como tal.",
+                continue: "Continuar",
+                cancel: "Cancelar",
+            },
         },
         startScreen: {
             startButton: "Empezar a votar",
@@ -79,6 +108,18 @@ const spanishTranslation: TranslationType = {
                 "Cuando esté listo, emita su papeleta para que quede registrada oficialmente. O elija auditar primero para confirmar que fue correctamente capturada y cifrada",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Resuelto por aclamación",
+                helpDialog: {
+                    title: "Información: Aclamación",
+                    content:
+                        "Esta pantalla muestra lo que se ha resuelto por aclamación. Como no se ha podido seleccionar ninguna opción, no se emite ninguna papeleta y no hay nada que verificar después.",
+                    ok: "OK",
+                },
+                description:
+                    "Revise lo que se ha resuelto por aclamación en esta elección. No se emitirá ninguna papeleta.",
+                finishButton: "Finalizar",
+            },
             title: "Revisa tu voto",
             description:
                 "Para realizar cambios en sus selecciones, haga clic en el botón “<b>Editar selección</b>”, para confirmar sus selecciones, haga clic en el botón “<b>Enviar tu voto</b>” debajo, y para auditar su papeleta haga clic en el botón “<b>Auditar papeleta</b>” debajo.",
@@ -87,6 +128,9 @@ const spanishTranslation: TranslationType = {
             backButton: "Editar tu voto",
             castBallotButton: "Enviar voto",
             auditButton: "Auditar papeleta",
+            copyBallotId: "Copiar el ID de la papeleta",
+            ballotIdCopied: "ID de la papeleta copiado",
+            ballotIdCopyError: "No se pudo copiar el ID de la papeleta",
             reviewScreenHelpDialog: {
                 title: "Sobre la pantalla de revisión",
                 content: "Esta pantalla le permite revisar sus selecciones antes de emitir su voto",
@@ -110,6 +154,13 @@ const spanishTranslation: TranslationType = {
                 title: "¿Está seguro de que quiere emitir su voto?",
                 content: "Una vez que confirmes, tu voto será emitido.",
                 ok: "Sí, quiero emitir mi voto",
+                cancel: "Cancelar",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "¿Está seguro de que desea emitir una papeleta en blanco?",
+                content:
+                    "No ha seleccionado ningún candidato. Una vez confirme, su papeleta se emitirá en blanco.",
+                ok: "Sí, quiero emitir mi papeleta en blanco",
                 cancel: "Cancelar",
             },
             error: {
@@ -205,11 +256,27 @@ const spanishTranslation: TranslationType = {
                     "Hubo un error interno al emitir el voto. Por favor, inténtelo de nuevo más tarde o contacte con soporte para obtener ayuda.",
             },
             declineToVote: "Declinar votar",
+            blankBallot: "Papeleta en blanco",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Resuelto por aclamación",
+                description:
+                    "Todas las votaciones de esta elección se han resuelto por aclamación, por lo que no se ha emitido ninguna papeleta y no hay identificador de papeleta que consultar.",
+                helpDialog: {
+                    title: "Información: Aclamación",
+                    content:
+                        "Todas las votaciones de esta elección se han resuelto por aclamación: sus candidaturas resultan elegidas sin votación. Como no se ha emitido ninguna papeleta, no hay identificador de papeleta, comprobante ni código QR que verificar.",
+                    ok: "OK",
+                },
+            },
             title: "Su voto ha sido emitido",
             description:
                 "Su papeleta fue emitida correctamente. Use el código a continuación para verificar que fue contabilizada",
+            blankBallot: {
+                description:
+                    "Su papeleta se emitió en blanco, lo cual es una elección válida y deliberada.",
+            },
             ballotId: "Localizador del Voto",
             printButton: "Imprimir",
             finishButton: "Finalizar",
@@ -315,6 +382,10 @@ const spanishTranslation: TranslationType = {
                 electionEventNotPublished:
                     "El evento electoral aún no ha sido publicado. Por favor, inténtelo de nuevo más tarde o contacte con el soporte para obtener ayuda.",
             },
+            materialsGate: {
+                instructions:
+                    "Debes leer <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+            },
         },
         errors: {
             encoding: {
@@ -360,6 +431,12 @@ const spanishTranslation: TranslationType = {
                 back: "Volver a la lista de votaciones",
                 close: "Cerrar",
                 preview: "Vista previa",
+                download: "Descargar",
+            },
+            mandatory: {
+                checkboxLabel: "He leído los Materiales de Soporte",
+                continueButton: "Continuar",
+                error: "Hubo un problema al registrar tu confirmación. Por favor, inténtalo de nuevo.",
             },
         },
         ballotLocator: {

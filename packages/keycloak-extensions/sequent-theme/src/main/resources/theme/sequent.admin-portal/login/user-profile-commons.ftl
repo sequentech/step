@@ -6,6 +6,14 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 <#--  Source: https://github.com/keycloak/keycloak/blob/24.0.0/themes/src/main/resources/theme/base/login/user-profile-commons.ftl  -->
 
+<#import "field-helper-text.ftl" as fieldHelperText>
+
+<#--  inputTagSelects appends to these for disableAttribute/disableElement annotations. They live
+      at namespace level so any caller works - login.ftl renders single fields through
+      inputFieldWithLabel without going through userProfileFormFields.  -->
+<#assign readonlyElements = []>
+<#assign disabledElements = []>
+
 <#--  True when the attribute was prefilled from a login hint annotated as READ_ONLY,
       in which case the voter must not be able to change the submitted value.  -->
 <#function isLoginHintReadOnly attributeName>
@@ -72,6 +80,267 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<#nested "afterField" attribute>
 	</#list>
 
+	<@fieldToggleHandlers/>
+
+	<#list profile.html5DataAnnotations?keys as key>
+		<script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
+	</#list>
+</#macro>
+
+<#--  requiredMarker controls the "*" label only; required controls the actual HTML5 required
+      attribute (see inputTag). They default to the same, always-on value register.ftl has always
+      used (attribute.required, unconditionally) so its rendering is unaffected. login.ftl passes
+      both explicitly, gated by honorUserProfileRequired, so the asterisk and the real enforcement
+      never disagree there - see login.ftl's matchAttributes loop.  -->
+<#--  autofocus / autocomplete are opt-in and default to off, so register.ftl's rendering is
+      unchanged. login.ftl passes them for its matchAttributes fields, which are the first thing on
+      the page and must not be autofilled from a previous voter's session. No tabindex: these
+      controls are natively focusable and rendered in the order they should be tabbed, so source
+      order already gives the correct sequence - a positive tabindex would only lift them out of
+      the document's natural order.  -->
+<#macro inputFieldWithLabel attribute name values required=attribute.required requiredMarker=attribute.required autofocus=false autocomplete="">
+	<#local describedBy = []>
+	<#if (attribute.annotations.inputHelperTextBefore!'')?has_content>
+		<#local describedBy += ['form-help-text-before-' + name]>
+	</#if>
+	<#if messagesPerField.existsError('${name}')>
+		<#local describedBy += ['input-error-' + name]>
+	</#if>
+	<#if (attribute.annotations.inputHelperTextAfter!'')?has_content>
+		<#local describedBy += ['form-help-text-after-' + name]>
+	</#if>
+	<div class="${properties.kcFormGroupClass!}">
+		<div class="${properties.kcLabelWrapperClass!}">
+			<label for="${name}" class="${properties.kcLabelClass!}">
+				<#if name?ends_with("-confirm")>
+					${advancedMsg(attribute.annotations.confirm!'')}
+				<#else>
+					${advancedMsg(attribute.displayName!'')}
+				</#if>
+			</label>
+			<#if requiredMarker>*</#if>
+		</div>
+		<div class="${properties.kcInputWrapperClass!}">
+			<#if attribute.annotations.inputHelperTextBefore??>
+				<@fieldHelperText.helperTextBefore id=name text=attribute.annotations.inputHelperTextBefore/>
+			</#if>
+			<@inputFieldByType attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy?join(' ')/>
+			<#if messagesPerField.existsError('${name}')>
+				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
+					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
+				</span>
+			</#if>
+			<#if attribute.annotations.inputHelperTextAfter??>
+				<@fieldHelperText.helperTextAfter id=name text=attribute.annotations.inputHelperTextAfter/>
+			</#if>
+		</div>
+	</div>
+</#macro>
+
+<#macro inputFieldByType attribute name values required=false autofocus=false autocomplete="" describedBy="">
+	<#switch attribute.annotations.inputType!''>
+	<#case 'textarea'>
+		<@textareaTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy/>
+		<#break>
+	<#case 'select'>
+	<#case 'multiselect'>
+		<@selectTag attribute=attribute name=name values=values required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy/>
+		<#break>
+	<#case 'select-radiobuttons'>
+	<#case 'multiselect-checkboxes'>
+		<@inputTagSelects attribute=attribute name=name values=values required=required describedBy=describedBy/>
+		<#break>
+	<#default>
+		<#if attribute.multivalued && values?has_content>
+			<#list values as value>
+				<@inputTag attribute=attribute name=name value=value!'' required=required autofocus=(autofocus && value?index == 0) autocomplete=autocomplete describedBy=describedBy/>
+			</#list>
+		<#else>
+			<@inputTag attribute=attribute name=name value=attribute.value!'' required=required autofocus=autofocus autocomplete=autocomplete describedBy=describedBy/>
+		</#if>
+	</#switch>
+</#macro>
+
+<#macro inputTag attribute name value required=false autofocus=false autocomplete="" describedBy="">
+	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
+		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
+		<#if required>required</#if>
+		<#if autofocus>autofocus</#if>
+		<#-- Skipped when the attribute declares the same html-attribute annotation: a duplicate
+		     attribute is dropped by the HTML parser, so the theme default would silently win
+		     over the realm's explicit configuration. -->
+		<#if autocomplete?has_content && !attribute.annotations['html-attribute:autocomplete']??>autocomplete="${autocomplete}"</#if>
+		<#if attribute.readOnly>disabled</#if>
+		<#-- readonly rather than disabled so the locked value is still submitted -->
+		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
+		<#--  Checks for attribute annotations that start with "html-attribute:" and sets them as input attributes  -->
+		<#list attribute.annotations as key, value>
+			<#if key?starts_with("html-attribute:")>${key[15..]}="${value}"</#if>
+		</#list>
+		<#if attribute.annotations.inputTypePlaceholder??>placeholder="${attribute.annotations.inputTypePlaceholder}"</#if>
+		<#if attribute.annotations.inputTypePattern??>pattern="${attribute.annotations.inputTypePattern}"</#if>
+		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
+		<#if attribute.annotations.inputTypeMaxlength??>maxlength="${attribute.annotations.inputTypeMaxlength}"</#if>
+		<#if attribute.annotations.inputTypeMinlength??>minlength="${attribute.annotations.inputTypeMinlength}"</#if>
+		<#-- A bare input[type=date] accepts a year of four OR MORE digits, so a
+		     voter can enter 123456-01-01. Bound it unless the attribute sets its
+		     own max. Compared against the raw annotation rather than the output
+		     of <@inputTagType/>: capturing a macro under Keycloak's HTML output
+		     format yields markup, not a string, and any string operation on it
+		     throws at render time. -->
+		<#local dateInputType = (attribute.annotations.inputType!'') == 'html5-date'
+			|| (attribute.annotations.inputType!'') == 'date'>
+		<#if attribute.annotations.inputTypeMax??>
+			max="${attribute.annotations.inputTypeMax}"
+		<#elseif dateInputType>
+			max="9999-12-31"
+		</#if>
+		<#if attribute.annotations.inputTypeMin??>min="${attribute.annotations.inputTypeMin}"</#if>
+		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
+		<#list attribute.html5DataAnnotations as key, value>
+    		data-${key}="${value}"
+		</#list>
+	/>
+</#macro>
+
+<#macro inputTagType attribute>
+	<#compress>
+	<#if attribute.annotations.inputType??>
+		<#if attribute.annotations.inputType?starts_with("html5-")>
+			${attribute.annotations.inputType[6..]}
+		<#else>
+			${attribute.annotations.inputType}
+		</#if>
+	<#else>
+	text
+	</#if>
+	</#compress>
+</#macro>
+
+<#macro textareaTag attribute name values required=false autofocus=false autocomplete="" describedBy="">
+	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
+		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
+		<#if required>required</#if>
+		<#if autofocus>autofocus</#if>
+		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
+		<#if attribute.readOnly>disabled</#if>
+		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
+		<#if attribute.annotations.inputTypeCols??>cols="${attribute.annotations.inputTypeCols}"</#if>
+		<#if attribute.annotations.inputTypeRows??>rows="${attribute.annotations.inputTypeRows}"</#if>
+		<#if attribute.annotations.inputTypeMaxlength??>maxlength="${attribute.annotations.inputTypeMaxlength}"</#if>
+	>${(attribute.value!'')}</textarea>
+</#macro>
+
+<#--  The browser treats required on same-name radios as a group requirement. Required checkbox
+      multiselects are synchronized by fieldToggleHandlers so any one checked option satisfies the
+      group. Autofocus is omitted from both group types.  -->
+<#macro selectTag attribute name values required=false autofocus=false autocomplete="" describedBy="">
+	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
+		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+		<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
+		<#if required>required</#if>
+		<#if autofocus>autofocus</#if>
+		<#if autocomplete?has_content>autocomplete="${autocomplete}"</#if>
+		<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
+		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
+		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
+		<#if attribute.annotations.filterSelectAttribute??>onchange="filterSelectAttribute(event, '${attribute.annotations.filterSelectAttribute?js_string}')"</#if>
+	>
+	<#if attribute.annotations.inputType=='select'>
+		<option value=""></option>
+	</#if>
+
+	<#if attribute.annotations.inputOptionsFromValidation?? && attribute.validators[attribute.annotations.inputOptionsFromValidation]?? && attribute.validators[attribute.annotations.inputOptionsFromValidation].options??>
+		<#assign options=attribute.validators[attribute.annotations.inputOptionsFromValidation].options>
+	<#elseif attribute.validators.options?? && attribute.validators.options.options??>
+		<#assign options=attribute.validators.options.options>
+	<#else>
+		<#assign options=[]>
+	</#if>
+
+	<#list options as option>
+		<option value="${option}" <#if values?seq_contains(option)>selected</#if>><@selectOptionLabelText attribute=attribute option=option/></option>
+	</#list>
+
+	</select>
+	<#-- A disabled select submits nothing, so mirror the locked value in a hidden input -->
+	<@loginHintLockedValues attribute=attribute name=name values=values/>
+</#macro>
+
+<#macro loginHintLockedValues attribute name values>
+	<#if isLoginHintReadOnly(attribute.name)>
+		<#list values as value>
+			<input type="hidden" name="${name}" value="${value}"/>
+		</#list>
+	</#if>
+</#macro>
+
+<#macro inputTagSelects attribute name values required=false describedBy="">
+	<#if attribute.annotations.inputType=='select-radiobuttons'>
+		<#assign inputType='radio'>
+		<#assign classDiv=properties.kcInputClassRadio!>
+		<#assign classInput=properties.kcInputClassRadioInput!>
+		<#assign classLabel=properties.kcInputClassRadioLabel!>
+	<#else>
+		<#assign inputType='checkbox'>
+		<#assign classDiv=properties.kcInputClassCheckbox!>
+		<#assign classInput=properties.kcInputClassCheckboxInput!>
+		<#assign classLabel=properties.kcInputClassCheckboxLabel!>
+	</#if>
+
+	<#if attribute.annotations.inputOptionsFromValidation?? && attribute.validators[attribute.annotations.inputOptionsFromValidation]?? && attribute.validators[attribute.annotations.inputOptionsFromValidation].options??>
+		<#assign options=attribute.validators[attribute.annotations.inputOptionsFromValidation].options>
+	<#elseif attribute.validators.options?? && attribute.validators.options.options??>
+		<#assign options=attribute.validators.options.options>
+	<#else>
+		<#assign options=[]>
+	</#if>
+
+	<#list options as option>
+		<div class="${classDiv}">
+			<input type="${inputType}" id="${name}-${option}" name="${name}" value="${option}" class="${classInput}"
+				aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
+				<#if describedBy?has_content>aria-describedby="${describedBy}"</#if>
+				<#if required && inputType == 'radio'>required</#if>
+				<#if required && inputType == 'checkbox'>data-required-checkbox-group="${name}" aria-required="true"<#if option?index == 0> required</#if></#if>
+				<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
+				<#if values?seq_contains(option)>checked</#if>
+				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
+				<#if attribute.annotations.disableElement??>onclick="disableElementById(event, '${option}')"</#if>
+			/>
+			<label for="${name}-${option}" class="${classLabel}<#if attribute.readOnly> ${properties.kcInputClassRadioCheckboxLabelDisabled!}</#if>"><@selectOptionLabelText attribute=attribute option=option/></label>
+		</div>
+		<#if attribute.annotations.disableAttribute??>
+		<#assign readonlyElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
+		</#if>
+		<#if attribute.annotations.disableElement??>
+		<#assign disabledElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
+		</#if>
+	</#list>
+	<#-- Disabled radios and checkboxes submit nothing, so mirror the locked value -->
+	<@loginHintLockedValues attribute=attribute name=name values=values/>
+</#macro>
+
+<#macro selectOptionLabelText attribute option>
+	<#compress>
+	<#if attribute.annotations.inputOptionLabels??>
+		${advancedMsg(attribute.annotations.inputOptionLabels[option]!option)}
+	<#else>
+		<#if attribute.annotations.inputOptionLabelsI18nPrefix??>
+			${msg(attribute.annotations.inputOptionLabelsI18nPrefix + '.' + option)}
+		<#else>
+			${option}
+		</#if>
+	</#if>
+	</#compress>
+</#macro>
+
+<#--  Handlers for the disableAttribute / disableElement annotations, plus the initial state
+      for the controls that carry them. Emitted by userProfileFormFields and by login.ftl's
+      matchAttributes loop, which does not go through it.  -->
+<#macro fieldToggleHandlers>
 	<script>
 		// Disable field function. Turns inputs into read only. Add a disableAttribute annotation to a select or multiselect user profile attribute.
 		function readOnlyElementById(e, idToSetReadOnly) {
@@ -117,6 +386,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 			}
 		}
 	document.addEventListener('DOMContentLoaded', function() {
+		const requiredCheckboxGroups = new Map();
+		document.querySelectorAll('[data-required-checkbox-group]').forEach(function (checkbox) {
+			const name = checkbox.dataset.requiredCheckboxGroup;
+			const group = requiredCheckboxGroups.get(name) || [];
+			group.push(checkbox);
+			requiredCheckboxGroups.set(name, group);
+		});
+		requiredCheckboxGroups.forEach(function (checkboxes) {
+			const synchronizeRequired = function () {
+				checkboxes[0].required = !checkboxes.some(checkbox => checkbox.checked);
+			};
+			checkboxes.forEach(checkbox => checkbox.addEventListener('change', synchronizeRequired));
+			synchronizeRequired();
+		});
 		<#list readonlyElements as element>
 			setAllReadOnly("${element.id}", ${element.checked});
 		</#list>
@@ -126,205 +409,4 @@ SPDX-License-Identifier: AGPL-3.0-only
 	}, false);
 
 	</script>
-
-	<#list profile.html5DataAnnotations?keys as key>
-		<script type="module" src="${url.resourcesPath}/js/${key}.js"></script>
-	</#list>
-</#macro>
-
-<#macro inputFieldWithLabel attribute name values>
-	<div class="${properties.kcFormGroupClass!}">
-		<div class="${properties.kcLabelWrapperClass!}">
-			<label for="${name}" class="${properties.kcLabelClass!}">
-				<#if name?ends_with("-confirm")>
-					${advancedMsg(attribute.annotations.confirm!'')}
-				<#else>
-					${advancedMsg(attribute.displayName!'')}
-				</#if>
-			</label>
-			<#if attribute.required>*</#if>
-		</div>
-		<div class="${properties.kcInputWrapperClass!}">
-			<#if attribute.annotations.inputHelperTextBefore??>
-				<div class="${properties.kcInputHelperTextBeforeClass!}" id="form-help-text-before-${name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextBefore))?no_esc}</div>
-			</#if>
-			<@inputFieldByType attribute=attribute name=name values=values/>
-			<#if messagesPerField.existsError('${name}')>
-				<span id="input-error-${name}" class="${properties.kcInputErrorMessageClass!}" aria-live="polite">
-					${kcSanitize(messagesPerField.get('${name}'))?no_esc}
-				</span>
-			</#if>
-			<#if attribute.annotations.inputHelperTextAfter??>
-				<div class="${properties.kcInputHelperTextAfterClass!}" id="form-help-text-after-${name}" aria-live="polite">${kcSanitize(advancedMsg(attribute.annotations.inputHelperTextAfter))?no_esc}</div>
-			</#if>
-		</div>
-	</div>
-</#macro>
-
-<#macro inputFieldByType attribute name values>
-	<#switch attribute.annotations.inputType!''>
-	<#case 'textarea'>
-		<@textareaTag attribute=attribute name=name values=values/>
-		<#break>
-	<#case 'select'>
-	<#case 'multiselect'>
-		<@selectTag attribute=attribute name=name values=values/>
-		<#break>
-	<#case 'select-radiobuttons'>
-	<#case 'multiselect-checkboxes'>
-		<@inputTagSelects attribute=attribute name=name values=values/>
-		<#break>
-	<#default>
-		<#if attribute.multivalued && values?has_content>
-			<#list values as value>
-				<@inputTag attribute=attribute name=name value=value!''/>
-			</#list>
-		<#else>
-			<@inputTag attribute=attribute name=name value=attribute.value!''/>
-		</#if>
-	</#switch>
-</#macro>
-
-<#macro inputTag attribute name value>
-	<input type="<@inputTagType attribute=attribute/>" id="${name}" name="${name}" value="${(value!'')}" class="${properties.kcInputClass!}"
-		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
-		<#if attribute.readOnly>disabled</#if>
-		<#-- readonly rather than disabled so the locked value is still submitted -->
-		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
-		<#--  Checks for attribute annotations that start with "html-attribute:" and sets them as input attributes  -->
-		<#list attribute.annotations as key, value>
-			<#if key?starts_with("html-attribute:")>${key[15..]}=${value}</#if>
-		</#list>
-		<#if attribute.annotations.inputTypePlaceholder??>placeholder="${attribute.annotations.inputTypePlaceholder}"</#if>
-		<#if attribute.annotations.inputTypePattern??>pattern="${attribute.annotations.inputTypePattern}"</#if>
-		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
-		<#if attribute.annotations.inputTypeMaxlength??>maxlength="${attribute.annotations.inputTypeMaxlength}"</#if>
-		<#if attribute.annotations.inputTypeMinlength??>minlength="${attribute.annotations.inputTypeMinlength}"</#if>
-		<#if attribute.annotations.inputTypeMax??>max="${attribute.annotations.inputTypeMax}"</#if>
-		<#if attribute.annotations.inputTypeMin??>min="${attribute.annotations.inputTypeMin}"</#if>
-		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
-		<#if attribute.annotations.inputTypeStep??>step="${attribute.annotations.inputTypeStep}"</#if>
-		<#list attribute.html5DataAnnotations as key, value>
-    		data-${key}="${value}"
-		</#list>
-	/>
-</#macro>
-
-<#macro inputTagType attribute>
-	<#compress>
-	<#if attribute.annotations.inputType??>
-		<#if attribute.annotations.inputType?starts_with("html5-")>
-			${attribute.annotations.inputType[6..]}
-		<#else>
-			${attribute.annotations.inputType}
-		</#if>
-	<#else>
-	text
-	</#if>
-	</#compress>
-</#macro>
-
-<#macro textareaTag attribute name values>
-	<textarea id="${name}" name="${name}" class="${properties.kcInputClass!}"
-		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
-		<#if attribute.readOnly>disabled</#if>
-		<#if isLoginHintReadOnly(attribute.name)>readonly</#if>
-		<#if attribute.annotations.inputTypeCols??>cols="${attribute.annotations.inputTypeCols}"</#if>
-		<#if attribute.annotations.inputTypeRows??>rows="${attribute.annotations.inputTypeRows}"</#if>
-		<#if attribute.annotations.inputTypeMaxlength??>maxlength="${attribute.annotations.inputTypeMaxlength}"</#if>
-	>${(attribute.value!'')}</textarea>
-</#macro>
-
-<#macro selectTag attribute name values>
-	<select id="${name}" name="${name}" class="${properties.kcInputClass!}"
-		aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
-		<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
-		<#if attribute.annotations.inputType=='multiselect'>multiple</#if>
-		<#if attribute.annotations.inputTypeSize??>size="${attribute.annotations.inputTypeSize}"</#if>
-		<#if attribute.annotations.filterSelectAttribute??>onchange="filterSelectAttribute(event, '${attribute.annotations.filterSelectAttribute}')"</#if>
-	>
-	<#if attribute.annotations.inputType=='select'>
-		<option value=""></option>
-	</#if>
-
-	<#if attribute.annotations.inputOptionsFromValidation?? && attribute.validators[attribute.annotations.inputOptionsFromValidation]?? && attribute.validators[attribute.annotations.inputOptionsFromValidation].options??>
-		<#assign options=attribute.validators[attribute.annotations.inputOptionsFromValidation].options>
-	<#elseif attribute.validators.options?? && attribute.validators.options.options??>
-		<#assign options=attribute.validators.options.options>
-	<#else>
-		<#assign options=[]>
-	</#if>
-
-	<#list options as option>
-		<option value="${option}" <#if values?seq_contains(option)>selected</#if>><@selectOptionLabelText attribute=attribute option=option/></option>
-	</#list>
-
-	</select>
-	<#-- A disabled select submits nothing, so mirror the locked value in a hidden input -->
-	<@loginHintLockedValues attribute=attribute name=name values=values/>
-</#macro>
-
-<#macro loginHintLockedValues attribute name values>
-	<#if isLoginHintReadOnly(attribute.name)>
-		<#list values as value>
-			<input type="hidden" name="${name}" value="${value}"/>
-		</#list>
-	</#if>
-</#macro>
-
-<#macro inputTagSelects attribute name values>
-	<#if attribute.annotations.inputType=='select-radiobuttons'>
-		<#assign inputType='radio'>
-		<#assign classDiv=properties.kcInputClassRadio!>
-		<#assign classInput=properties.kcInputClassRadioInput!>
-		<#assign classLabel=properties.kcInputClassRadioLabel!>
-	<#else>
-		<#assign inputType='checkbox'>
-		<#assign classDiv=properties.kcInputClassCheckbox!>
-		<#assign classInput=properties.kcInputClassCheckboxInput!>
-		<#assign classLabel=properties.kcInputClassCheckboxLabel!>
-	</#if>
-
-	<#if attribute.annotations.inputOptionsFromValidation?? && attribute.validators[attribute.annotations.inputOptionsFromValidation]?? && attribute.validators[attribute.annotations.inputOptionsFromValidation].options??>
-		<#assign options=attribute.validators[attribute.annotations.inputOptionsFromValidation].options>
-	<#elseif attribute.validators.options?? && attribute.validators.options.options??>
-		<#assign options=attribute.validators.options.options>
-	<#else>
-		<#assign options=[]>
-	</#if>
-
-	<#list options as option>
-		<div class="${classDiv}">
-			<input type="${inputType}" id="${name}-${option}" name="${name}" value="${option}" class="${classInput}"
-				aria-invalid="<#if messagesPerField.existsError('${name}')>true</#if>"
-				<#if attribute.readOnly || isLoginHintReadOnly(attribute.name)>disabled</#if>
-				<#if values?seq_contains(option)>checked</#if>
-				<#if attribute.annotations.disableAttribute??>onclick="readOnlyElementById(event, '${option}')"</#if>
-				<#if attribute.annotations.disableElement??>onclick="disableElementById(event, '${option}')"</#if>
-			/>
-			<label for="${name}-${option}" class="${classLabel}<#if attribute.readOnly> ${properties.kcInputClassRadioCheckboxLabelDisabled!}</#if>"><@selectOptionLabelText attribute=attribute option=option/></label>
-		</div>
-		<#if attribute.annotations.disableAttribute??>
-		<#assign readonlyElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
-		</#if>
-		<#if attribute.annotations.disableElement??>
-		<#assign disabledElements += [{"id":"${option}","checked":"${values?seq_contains(option)?c}"}]>
-		</#if>
-	</#list>
-	<#-- Disabled radios and checkboxes submit nothing, so mirror the locked value -->
-	<@loginHintLockedValues attribute=attribute name=name values=values/>
-</#macro>
-
-<#macro selectOptionLabelText attribute option>
-	<#compress>
-	<#if attribute.annotations.inputOptionLabels??>
-		${advancedMsg(attribute.annotations.inputOptionLabels[option]!option)}
-	<#else>
-		<#if attribute.annotations.inputOptionLabelsI18nPrefix??>
-			${msg(attribute.annotations.inputOptionLabelsI18nPrefix + '.' + option)}
-		<#else>
-			${option}
-		</#if>
-	</#if>
-	</#compress>
 </#macro>

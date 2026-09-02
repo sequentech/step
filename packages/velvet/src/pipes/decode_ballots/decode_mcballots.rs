@@ -6,7 +6,7 @@ use crate::pipes::error::{Error, Result};
 use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
-use sequent_core::ballot::Contest;
+use sequent_core::ballot::{Contest, MultiContestEncodingMode};
 use sequent_core::ballot_codec::multi_ballot::{
     BallotChoices, DecodedBallotChoices, MultiBallotCodecContext,
 };
@@ -21,7 +21,7 @@ use std::io::BufRead;
 use std::path::Path;
 
 use std::str::FromStr;
-use tracing::instrument;
+use tracing::{instrument, warn};
 
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 
@@ -45,6 +45,8 @@ impl DecodeMCBallots {
         path: &Path,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
+        mode: MultiContestEncodingMode,
         serial_number_counter: &mut u32,
     ) -> Result<Vec<DecodedBallotChoices>> {
         let file = fs::File::open(path).map_err(|e| Error::FileAccess(path.to_path_buf(), e))?;
@@ -73,9 +75,13 @@ impl DecodeMCBallots {
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
-                    let context =
-                        MultiBallotCodecContext::new(contests, include_decline_to_vote)
-                            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                    let context = MultiBallotCodecContext::new(
+                        contests,
+                        include_decline_to_vote,
+                        include_blank_ballots,
+                        mode,
+                    )
+                    .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
                     codec_context.get_or_insert(context)
                 }
             };
@@ -148,10 +154,34 @@ impl Pipe for DecodeMCBallots {
                     .and_then(|presentation| presentation.decline_to_vote_policy.clone())
                     == Some(sequent_core::ballot::DeclineToVotePolicy::ENABLED);
 
+                let include_blank_ballots = election_input
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.blank_ballots_policy.clone())
+                    == Some(sequent_core::ballot::BlankBallotsPolicy::ENABLED);
+
+                // Resolved election-wide at publication time, so every ballot style for
+                // this election carries the same value; look it up by area anyway in case
+                // that ever stops being true.
+                let area_ballot_style = election_input
+                    .ballot_styles
+                    .iter()
+                    .find(|ballot_style| ballot_style.area_id == area_id.to_string())
+                    .ok_or(Error::AreaConfigNotFound(area_id))?;
+
+                // `None` means the style predates the encoding-mode field, so it can only
+                // have been produced by the legacy layout. `create_ballot_style` always
+                // writes `Some(..)`, so a new style never lands here.
+                let multi_contest_encoding_mode = area_ballot_style
+                    .multi_contest_encoding_mode
+                    .unwrap_or_default();
+
                 let res = Self::decode_ballots(
                     path_ballots.as_path(),
                     &contests,
                     include_decline_to_vote,
+                    include_blank_ballots,
+                    multi_contest_encoding_mode,
                     &mut serial_number_counter,
                 );
 

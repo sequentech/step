@@ -73,6 +73,8 @@ import {
     ELanguageDetectionPolicy,
     getDefaultLanguageDetectionPolicy,
     REALM_ATTR_VOTER_CERTIFICATE_POLICY,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
 } from "@sequentech/ui-core"
 import {ListActions} from "@/components/ListActions"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
@@ -110,6 +112,10 @@ import {
 } from "@/queries/UpdateRealmAttributes"
 import {GET_REALM_ATTRIBUTES, GetRealmAttributesQuery} from "@/queries/GetRealmAttributes"
 import {GoogleMeetLinkGenerator} from "@/components/election-event/google-meet/GoogleMeetLinkGenerator"
+import {
+    PasswordPolicyAccordion,
+    PasswordPolicyAccordionHandle,
+} from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -229,7 +235,9 @@ const CustomDateTimeFormatInvalidNotifier: React.FC<{
     return null
 }
 
-export const EditElectionEventDataForm: React.FC = () => {
+export const EditElectionEventDataForm: React.FC<{
+    transform: (data: Sequent_Backend_Election_Event_Extended) => Promise<RaRecord<Identifier>>
+}> = ({transform}) => {
     const {t} = useTranslation()
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
@@ -238,11 +246,17 @@ export const EditElectionEventDataForm: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const notify = useNotify()
     const checkCustomDateTimeFormatRef = useRef<() => void>(() => {})
+    const passwordPolicyRef = useRef<PasswordPolicyAccordionHandle | null>(null)
 
     const canEdit = authContext.isAuthorized(
         true,
         authContext.tenantId,
         IPermissions.ELECTION_EVENT_WRITE
+    )
+    const canReadPasswordPolicy = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.ELECTION_EVENT_READ
     )
     const canReadRealmAttributes = authContext.isAuthorized(
         true,
@@ -354,6 +368,7 @@ export const EditElectionEventDataForm: React.FC = () => {
             tenant_id: record?.tenant_id,
             election_event_id: record?.id,
         },
+        pagination: {page: 1, perPage: 9999},
     })
 
     const [votingSettings] = useState<TVotingSetting>({
@@ -484,23 +499,68 @@ export const EditElectionEventDataForm: React.FC = () => {
     // validation for this form must therefore live here, keyed by the field's
     // source path so the error reaches the input's helper text.
     const formValidator = (values: {
-        presentation?: {voting_portal_datetime_format?: VotingPortalDateTimeFormat}
+        presentation?: {
+            voting_portal_datetime_format?: VotingPortalDateTimeFormat
+            weighted_voting_policy?: EElectionEventWeightedVotingPolicy
+            delegated_voting_policy?: EElectionEventDelegatedVotingPolicy
+            decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
+        }
     }): Record<string, unknown> => {
         const errors: Record<string, unknown> = {}
+        const presentationErrors: Record<string, unknown> = {}
         const dateTimeFormat = values?.presentation?.voting_portal_datetime_format
         if (
             isCustomVotingPortalDateTimeFormat(dateTimeFormat) &&
             !isValidVotingPortalDateTimePattern(dateTimeFormat.custom)
         ) {
-            errors.presentation = {
-                voting_portal_datetime_format: {
-                    custom: String(
-                        t(
-                            "electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid"
-                        )
-                    ),
-                },
+            presentationErrors.voting_portal_datetime_format = {
+                custom: String(
+                    t("electionEventScreen.field.votingPortalDateTimeFormat.customFormat.invalid")
+                ),
             }
+        }
+
+        // A voter's weight is applied by counting their ballot more than once, so it has no
+        // defined meaning combined with a delegated ballot, and publishing the
+        // decoded ballots would show the weight as a run of identical
+        // plaintexts. The tally refuses both, but only once voting has closed.
+        // Each message is also keyed onto the field it conflicts with, so the
+        // error is visible whichever of the two the operator is looking at.
+        const weightedPolicyMessages: string[] = []
+        if (
+            values?.presentation?.weighted_voting_policy ===
+            EElectionEventWeightedVotingPolicy.VOTERS_WEIGHTED_VOTING
+        ) {
+            if (
+                values?.presentation?.delegated_voting_policy ===
+                EElectionEventDelegatedVotingPolicy.ENABLED
+            ) {
+                const message = String(
+                    t("electionEventScreen.field.weightedVotingPolicy.noDelegated")
+                )
+                weightedPolicyMessages.push(message)
+                presentationErrors.delegated_voting_policy = message
+            }
+            if (
+                values?.presentation?.decoded_ballot_inclusion_policy ===
+                EElectionEventDecodedBallots.INCLUDED
+            ) {
+                const message = String(
+                    t("electionEventScreen.field.weightedVotingPolicy.noDecodedBallots")
+                )
+                weightedPolicyMessages.push(message)
+                presentationErrors.decoded_ballot_inclusion_policy = message
+            }
+        }
+
+        // Both conflicts can hold at once, and one assignment would replace the
+        // other, so the weighted field reports every conflict it has.
+        if (weightedPolicyMessages.length > 0) {
+            presentationErrors.weighted_voting_policy = weightedPolicyMessages.join(" ")
+        }
+
+        if (Object.keys(presentationErrors).length > 0) {
+            errors.presentation = presentationErrors
         }
         return errors
     }
@@ -687,6 +747,13 @@ export const EditElectionEventDataForm: React.FC = () => {
         return Object.values(EElectionEventDecodedBallots).map((value) => ({
             id: value,
             name: t(`electionEventScreen.field.decodedBallots.options.${value}`),
+        }))
+    }
+
+    const supportMaterialsPolicyChoices = () => {
+        return Object.values(ESupportMaterialsPolicy).map((value) => ({
+            id: value,
+            name: t(`electionEventScreen.field.supportMaterialsPolicy.options.${value}`),
         }))
     }
 
@@ -1059,6 +1126,12 @@ export const EditElectionEventDataForm: React.FC = () => {
         }
 
         await handleConfigureResultsWebsitePolicy(values.resultsWebsitePolicy, recordId)
+        if (canEdit) {
+            const passwordPolicyUpdated = await passwordPolicyRef.current?.save()
+            if (passwordPolicyUpdated === false) {
+                throw new Error("Password policy could not be updated")
+            }
+        }
         setActivateSave(false)
 
         return {
@@ -1071,6 +1144,16 @@ export const EditElectionEventDataForm: React.FC = () => {
             },
         }
     }
+
+    const saveTransform = async (values: Sequent_Backend_Election_Event_Extended) => {
+        try {
+            return await transform(await onSave(values))
+        } catch (error) {
+            notify(error instanceof Error ? error.message : String(error), {type: "error"})
+            throw error
+        }
+    }
+
     return (
         <>
             <Box
@@ -1100,7 +1183,7 @@ export const EditElectionEventDataForm: React.FC = () => {
                         {canSave && (
                             <SaveButton
                                 type="button"
-                                transform={onSave}
+                                transform={saveTransform}
                                 alwaysEnable={activateSave}
                             />
                         )}
@@ -1258,6 +1341,11 @@ export const EditElectionEventDataForm: React.FC = () => {
                             resettable={true}
                             source={"presentation.redirect_finish_url"}
                             label={String(t("electionEventScreen.field.redirectFinishUrl"))}
+                        />
+                        <TextInput
+                            resettable={true}
+                            source={"presentation.kiosk_redirect_finish_url"}
+                            label={String(t("electionEventScreen.field.kioskRedirectFinishUrl"))}
                         />
                         <TextInput
                             resettable={true}
@@ -1519,11 +1607,25 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
-                        <BooleanInput
+                        <SelectInput
                             disabled={!canEdit}
-                            source={`presentation.materials.activated`}
-                            label={String(t(`electionEventScreen.field.materialActivated`))}
+                            source={`presentation.materials.policy`}
+                            choices={supportMaterialsPolicyChoices()}
+                            label={String(
+                                t(`electionEventScreen.field.supportMaterialsPolicy.label`)
+                            )}
+                            defaultValue={getEffectiveSupportMaterialsPolicy(
+                                record?.presentation?.materials
+                            )}
+                            validate={required()}
                         />
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{display: "block"}}
+                        >
+                            {t("electionEventScreen.field.supportMaterialsPolicy.helperText")}
+                        </Typography>
                         <Tabs value={valueMaterials} onChange={handleChangeMaterials}>
                             {renderTabs(parsedValue, "materials")}
                         </Tabs>
@@ -1533,6 +1635,23 @@ export const EditElectionEventDataForm: React.FC = () => {
                         </Box>
                     </AccordionDetails>
                 </Accordion>
+
+                {canReadPasswordPolicy && (
+                    <PasswordPolicyAccordion
+                        ref={passwordPolicyRef}
+                        electionEventId={record?.id?.toString()}
+                        canEdit={canEdit}
+                        expanded={expanded === "election-event-data-password-policy"}
+                        onChange={() =>
+                            setExpanded((previous) =>
+                                previous === "election-event-data-password-policy"
+                                    ? ""
+                                    : "election-event-data-password-policy"
+                            )
+                        }
+                        onDirty={() => setActivateSave(true)}
+                    />
+                )}
 
                 <Accordion
                     sx={{width: "100%"}}
@@ -1596,7 +1715,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <SelectInput
                             source={"presentation.weighted_voting_policy"}
                             choices={weightedVotingPolicyOptions()}
-                            label={"Weighted Voting Policy"}
+                            label={String(
+                                t("electionEventScreen.field.weightedVotingPolicy.policyLabel")
+                            )}
                             defaultValue={
                                 EElectionEventWeightedVotingPolicy.DISABLED_WEIGHTED_VOTING
                             }
@@ -1606,7 +1727,9 @@ export const EditElectionEventDataForm: React.FC = () => {
                         <SelectInput
                             source={"presentation.delegated_voting_policy"}
                             choices={delegatedVotingPolicyOptions()}
-                            label={"Delegated Voting Policy"}
+                            label={String(
+                                t("electionEventScreen.field.delegatedVotingPolicy.policyLabel")
+                            )}
                             defaultValue={EElectionEventDelegatedVotingPolicy.DISABLED}
                             emptyText={undefined}
                             validate={required()}

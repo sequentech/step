@@ -110,28 +110,21 @@ use sequent_core::types::keycloak::{
 };
 use sequent_core::types::scheduled_event::*;
 use sequent_core::util::temp_path::{generate_temp_file, get_file_size};
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ImportElectionEventSchema {
-    pub tenant_id: Uuid,
-    pub keycloak_event_realm: Option<RealmRepresentation>,
-    pub election_event: ElectionEvent,
-    pub elections: Vec<Election>,
-    pub contests: Vec<Contest>,
-    pub candidates: Vec<Candidate>,
-    pub areas: Vec<Area>,
-    pub area_contests: Vec<AreaContest>,
-    pub scheduled_events: Option<Vec<ScheduledEvent>>,
-    pub reports: Vec<Report>,
-    pub keys_ceremonies: Option<Vec<KeysCeremony>>,
-    pub applications: Option<Vec<Application>>,
-    #[serde(default = "default_version")]
-    pub version: String,
-}
-
-/// Set the default version of an imported election event to be compatible with version 9, which is the first version to include this feature.
-fn default_version() -> String {
-    HISTORICAL_DEFAULT_VERSION.to_string()
-}
+// The bundle schema now lives in sequent_core::election_config, so that the tools
+// which write an import describe it the same way this importer reads it.
+// Re-exported because windmill refers to it by this path throughout.
+//
+// Two field types differ from the struct that used to be here, both so the module
+// can compile to WASM for the browser-side tools:
+//
+//   tenant_id            String, not Uuid. Import replaces it with the importing
+//                        request's tenant regardless, and every use here
+//                        stringifies it. Its format is checked by validation.
+//   keycloak_event_realm serde_json::Value, not RealmRepresentation. That type
+//                        comes from the keycloak crate, which pulls reqwest.
+//                        Deserialized into the typed form where it is used.
+use sequent_core::election_config;
+pub use sequent_core::election_config::ImportElectionEventSchema;
 
 #[instrument(err)]
 pub async fn upsert_b3_and_elog(
@@ -579,7 +572,7 @@ pub async fn get_election_event_schema(
     // with a more obscure error when trying to deserialize data that is incompatible with the current version.
     let raw: serde_json::Value = serde_json::from_str(data_str)
         .map_err(|e| anyhow!("Failed to parse import data as JSON: {e}"))?;
-    let default_ver = default_version();
+    let default_ver = HISTORICAL_DEFAULT_VERSION.to_string();
     let imported_version = raw
         .get(VERSION_KEY)
         .and_then(|v| v.as_str())
@@ -588,7 +581,45 @@ pub async fn get_election_event_schema(
         .map_err(|_| anyhow!("Environment variable {ENV_VAR_APP_VERSION} should be set"))?;
     check_version_compatibility(imported_version, &current_version)?;
     let original_data: ImportElectionEventSchema = deserialize_str(data_str)?;
+    check_bundle(&original_data)?;
     replace_ids(data_str, &original_data, event_id, tenant_id.clone())
+}
+
+/// Run the shared validation, refusing the import if it found anything fatal.
+///
+/// The same code answers in the browser before an upload, so a bundle the
+/// configuration tools accepted reaches this and passes. When one does not, the
+/// operator gets every problem at once rather than the first — and the same
+/// wording they would have seen client-side.
+///
+/// Validates the bundle as written, before `replace_ids` rewrites the
+/// identifiers: a problem naming an id the author never chose is not much use to
+/// them.
+///
+/// This is deliberately additive. It does not replace the checks that follow —
+/// those need the database, and this pass by design does not touch it.
+#[instrument(err, skip_all)]
+fn check_bundle(data: &ImportElectionEventSchema) -> Result<()> {
+    let report = election_config::validate(data);
+
+    for problem in report.warnings() {
+        event!(Level::WARN, "election event import: {problem}");
+    }
+
+    if report.has_errors() {
+        let listing = report
+            .errors()
+            .map(|problem| format!("  {problem}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let count = report.errors().count();
+        let noun = if count == 1 { "problem" } else { "problems" };
+        return Err(anyhow!(
+            "The election event bundle cannot be imported; {count} {noun} found:\n{listing}"
+        ));
+    }
+
+    Ok(())
 }
 
 #[instrument(err, skip_all)]
@@ -670,10 +701,18 @@ pub async fn process_election_event_file(
         default_language = Some(data.election_event.get_default_language());
     }
 
+    // The bundle carries the realm opaquely; this is where it becomes typed.
+    let keycloak_event_realm: Option<RealmRepresentation> = data
+        .keycloak_event_realm
+        .clone()
+        .map(deserialize_value)
+        .transpose()
+        .with_context(|| "Error deserializing keycloak_event_realm")?;
+
     upsert_keycloak_realm(
         tenant_id.as_str(),
         &election_event_id,
-        data.keycloak_event_realm.clone(),
+        keycloak_event_realm,
         default_language
     )
     .await
@@ -1421,7 +1460,8 @@ pub async fn process_document(
             if file_name.contains(EDocuments::CERTIFICATES.to_file_name()) {
                 let pem_content = String::from_utf8(file_contents.clone())
                     .context("Failed to decode certificates PEM as UTF-8")?;
-                let tenant_uuid = election_event_schema.tenant_id;
+                let tenant_uuid = Uuid::parse_str(&election_event_schema.tenant_id)
+                    .context("Invalid tenant_id in the imported bundle")?;
                 let election_event_uuid = Uuid::parse_str(&election_event_schema.election_event.id)
                     .context("Failed to parse election event UUID")?;
                 let pem_chunks = split_pem_bundle(&pem_content);
@@ -1564,4 +1604,105 @@ pub async fn maybe_create_scheduled_event(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+    const EVENT: &str = "e0000000-0000-5000-8000-000000000000";
+
+    /// A bundle that deserializes and is fatally invalid: its contest points at an
+    /// election that is not in it.
+    ///
+    /// Deliberately not a sound one — a sound bundle belongs in `election_config`'s
+    /// fixtures, shared by both callers rather than copied here.
+    fn a_bundle_with_a_dangling_election() -> String {
+        serde_json::json!({
+            "tenant_id": TENANT,
+            "keycloak_event_realm": null,
+            "election_event": {
+                "id": EVENT,
+                "tenant_id": TENANT,
+                "is_archived": false,
+                "encryption_protocol": "RSA256"
+            },
+            "elections": [{
+                "id": "e1000000-0000-5000-8000-000000000000",
+                "tenant_id": TENANT,
+                "election_event_id": EVENT,
+                "external_id": "officers"
+            }],
+            "contests": [{
+                "id": "c1000000-0000-5000-8000-000000000000",
+                "tenant_id": TENANT,
+                "election_event_id": EVENT,
+                "election_id": "e9000000-0000-5000-8000-000000000000",
+                "external_id": "president",
+                "min_votes": 0,
+                "max_votes": 1,
+                "winning_candidates_num": 1,
+                "voting_type": "non-preferential",
+                "counting_algorithm": "plurality-at-large"
+            }],
+            "candidates": [],
+            "areas": [],
+            "area_contests": [],
+            "scheduled_events": null,
+            "reports": [],
+            "keys_ceremonies": [],
+            "applications": []
+        })
+        .to_string()
+    }
+
+    /// The import refuses a bundle the shared rules call fatal, and says why.
+    ///
+    /// The integration boundary rather than the rule: `election_config`'s own suite
+    /// covers what counts as a problem.
+    #[tokio::test]
+    async fn a_fatal_bundle_does_not_import() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let outcome = get_election_event_schema(
+            &a_bundle_with_a_dangling_election(),
+            None,
+            TENANT.to_string(),
+        )
+        .await;
+
+        let error = outcome
+            .expect_err("a contest pointing at a missing election should not import")
+            .to_string();
+        assert!(
+            error.contains("cannot be imported"),
+            "unexpected message: {error}"
+        );
+        assert!(
+            error.contains("contests[0].election_id"),
+            "unexpected message: {error}"
+        );
+    }
+
+    /// And a bundle with no fatal problems gets through this gate.
+    ///
+    /// The same bundle with its one fault repaired, so the pair says which fault the
+    /// refusal was about.
+    #[tokio::test]
+    async fn a_bundle_whose_fault_is_fixed_gets_through() {
+        std::env::set_var(ENV_VAR_APP_VERSION, DEV_APP_VERSION);
+
+        let mut bundle: serde_json::Value =
+            serde_json::from_str(&a_bundle_with_a_dangling_election()).expect("the fixture parses");
+        bundle["contests"][0]["election_id"] =
+            serde_json::json!("e1000000-0000-5000-8000-000000000000");
+
+        let (_schema, ids) =
+            get_election_event_schema(&bundle.to_string(), None, TENANT.to_string())
+                .await
+                .expect("a bundle with no fatal problems should get past validation");
+
+        assert!(!ids.is_empty());
+    }
 }

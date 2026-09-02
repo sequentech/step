@@ -254,6 +254,8 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
+                VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -275,10 +277,24 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
                 PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
+            },
+            documentAccess: {
+                title: "Acceso al documento",
+                sensitivityNotice:
+                    "Información confidencial. Comparta esta contraseña únicamente con el destinatario previsto.",
+                passwordLabel: "Contraseña para abrir el PDF cifrado",
+                showPassword: "Mostrar contraseña",
+                copyPassword: "Copiar contraseña",
+                passwordCopied: "Contraseña copiada",
+                passwordError: "No se pudo recuperar la contraseña del PDF",
+                copyError: "No se pudo copiar la contraseña",
+                guidance:
+                    "La contraseña se carga únicamente después de elegir Mostrar contraseña. Una vez cargada, aparecerá aquí un campo de solo lectura con la opción de copiar.",
             },
             widget: {
                 taskTitle: "Tarea: {{title}}",
@@ -465,6 +481,11 @@ const spanishTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Inicio de sesión",
@@ -476,6 +497,7 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    duplicateKey: "Ya existe una sustitución con esta clave y ámbito del portal.",
                     invalidDateTimeFormat:
                         "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
@@ -485,10 +507,50 @@ const spanishTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito del portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Heredado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Longitud mínima",
+                    maximumLength: "Longitud máxima",
+                    includeUppercase: "Incluir letras mayúsculas",
+                    includeLowercase: "Incluir letras minúsculas",
+                    includeDigits: "Incluir dígitos",
+                    includeSpecialCharacters: "Incluir caracteres especiales",
+                    help: {
+                        minimumLength:
+                            "El número mínimo de caracteres requeridos para la contraseña.",
+                        maximumLength:
+                            "El número máximo de caracteres permitidos para la contraseña.",
+                        includeUppercase:
+                            "La contraseña debe incluir al menos una letra mayúscula.",
+                        includeLowercase:
+                            "La contraseña debe incluir al menos una letra minúscula.",
+                        includeDigits: "La contraseña debe incluir al menos un dígito.",
+                        includeSpecialCharacters:
+                            "La contraseña debe incluir al menos un carácter especial.",
+                    },
+                    notConfigured:
+                        "No hay ninguna política de contraseñas configurada. Al guardar se aplicarán los valores predeterminados que se muestran a continuación.",
+                    errors: {
+                        lengthRange:
+                            "Las longitudes de la contraseña deben ser números enteros entre 1 y 256.",
+                        minimumExceedsMaximum:
+                            "La longitud mínima no puede superar la longitud máxima.",
+                        characterClassRequired:
+                            "Seleccione al menos una clase de caracteres para la contraseña.",
+                    },
+                },
                 name: "Nombre",
                 alias: "Alias",
                 description: "Descripción",
@@ -497,12 +559,23 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
                 materialActivated: "Materiales de Soporte activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiales de Soporte",
+                    helperText:
+                        "La opción Obligatorio para Votar requiere que los votantes abran cada Material de Soporte y confirmen que lo han leído antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obligatorio para Votar",
+                    },
+                },
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "Logo URL",
                 userVerification:
                     "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
+                kioskRedirectFinishUrl: "URL de redirección al finalizar del quiosco",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
@@ -605,8 +678,13 @@ const spanishTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
                     },
+                    noDelegated:
+                        "La Votación Ponderada por Votantes no puede combinarse con el Voto Delegado",
+                    noDecodedBallots:
+                        "La Votación Ponderada por Votantes no puede combinarse con la inclusión de papeletas descifradas en los resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votación Delegada",
@@ -639,6 +717,7 @@ const spanishTranslation: TranslationType = {
                     config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locuciones",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "Guardado correctamente",
@@ -673,6 +752,36 @@ const spanishTranslation: TranslationType = {
 
                     noFilterMatch: "Ninguna entrada coincide con los filtros indicados",
                     phoneRequired: "El número de teléfono es obligatorio",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccione un área y las elecciones deseadas para probar la sesión de IVR.",
+                    apiStatus: {
+                        unavailable: "El sistema del emulador no está disponible en su entorno",
+                        loading: "Cargando el sistema del emulador",
+                        error: "Error al cargar el sistema del emulador",
+                    },
+                    hints: {
+                        title: "Sugerencias",
+                        publishRequired:
+                            "Cualquier cambio realizado en las elecciones, contiendas o candidatos debe publicarse primero para que esté disponible. En el emulador solo se utilizarán los estilos de boleta publicados más recientemente para el área correspondiente.",
+                        eventChangesImmediate:
+                            "Los cambios realizados en el evento electoral, como la configuración de IVR o las modificaciones de los mensajes, están disponibles inmediatamente al reiniciar la sesión del emulador.",
+                        credentials:
+                            'El identificador de votante y el PIN válidos son "123" y "123".',
+                    },
+                    sendDtmf: "Enviar entrada DTMF",
+                    sendTimeout: "Enviar tiempo de espera",
+                    disconnected: "Desconectado",
+                    startSession: "Iniciar nueva sesión",
+                    endSession: "Finalizar la sesión",
+                    noStylesFound:
+                        "No se encontraron estilos de boleta publicados que coincidan con sus selecciones",
+                    inputPlaceholder:
+                        "Introduzca su entrada (máximo de dígitos={{maxDigits}}, entradas válidas={{validInputs}}, tiempo de espera={{timeout}} s)",
+                    blacklistCaller: "Bloquear a la persona que llama",
+                    elections: "Elecciones",
+                    area: "Área",
                 },
             },
             stats: {
@@ -947,6 +1056,13 @@ const spanishTranslation: TranslationType = {
                     disabled: "Deshabilitado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en blanco",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botón Atrás de la pantalla de votación",
                 options: {
@@ -973,6 +1089,16 @@ const spanishTranslation: TranslationType = {
                 mobileNumber: "Móvil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "La contraseña no cumple la Política de contraseñas de este evento electoral. Revise la política en Datos del evento electoral e introduzca una contraseña válida.",
+                passwordPolicyRules: {
+                    minimumLength: "La longitud mínima de la contraseña es {{count}}.",
+                    maximumLength: "La longitud máxima de la contraseña es {{count}}.",
+                    uppercase: "Caracteres en mayúscula requeridos: {{count}}.",
+                    lowercase: "Caracteres en minúscula requeridos: {{count}}.",
+                    digits: "Dígitos requeridos: {{count}}.",
+                    specialCharacters: "Caracteres especiales requeridos: {{count}}.",
+                },
                 label: "Cambiar contraseña",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -1000,6 +1126,8 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",
@@ -1030,6 +1158,11 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar usuarios",
@@ -1039,6 +1172,20 @@ const spanishTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta de información para el votante",
+                    generate: "Generar",
+                    confirmation:
+                        "¿Generar una Carta de información para este votante? Se asignará una nueva contraseña y se incluirá en un PDF cifrado.",
+                    generationStarted: "Se inició la generación de la Carta de información",
+                    generationError: "No se pudo generar la Carta de información",
+                    policyNotConfigured:
+                        "La Política de contraseñas no está configurada. Configúrela en Datos del evento electoral antes de generar una carta.",
+                    policyMinimumLengthMissing:
+                        "La Política de contraseñas debe incluir una longitud mínima antes de generar una carta.",
+                    policyCharacterClassMissing:
+                        "La Política de contraseñas debe incluir al menos una clase de caracteres antes de generar una carta.",
+                },
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
                 review: {
@@ -1068,13 +1215,40 @@ const spanishTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editando votante",
+                    editErrorReason: "Error editando votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
+                    createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Se rechazó "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algunos campos deben corregirse antes de guardar",
+                        hintBetween: "Entre {{min}} y {{max}} caracteres",
+                        hintMin: "Al menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "y {{count}} más",
+                        invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
+                        tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',
+                        required: '"{{field}}" es obligatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser una dirección de correo electrónico válida',
+                        invalidFormat: '"{{field}}" no tiene el formato esperado',
+                        invalid: '"{{field}}" tiene un valor no válido',
+                    },
+                    createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
+                    createPasswordErrorReason:
+                        "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar votantes",
@@ -1114,6 +1288,7 @@ const spanishTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Generar Carta de información para el votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "application-export": "Exportación de Aplicaciones",
@@ -1170,6 +1345,7 @@ const spanishTranslation: TranslationType = {
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
+                "document-password-read": "Leer contraseñas de documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "tally-sheet-import-create": "Crear importación de actas de recuento",
                 "tally-sheet-import-review": "Revisar importación de actas de recuento",
@@ -1697,6 +1873,7 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Inválido Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
@@ -1747,6 +1924,11 @@ const spanishTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Nombre de la página",
+            },
+            isAcclaimed: {
+                label: "Resuelto por aclamación",
+                helperText:
+                    "Los votantes ven esta votación pero no pueden seleccionar nada, no se registra nada y todas las candidaturas se declaran ganadoras con cero votos. Configúrelo antes de publicar las papeletas: cambiarlo después invalida las papeletas ya emitidas.",
             },
             allowWriteins: {
                 label: "Permitir candidaturas manuales",
@@ -2116,6 +2298,7 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Blanco",
                 participation_by_channel: "Participación por canal",
                 channel: "Canal",
                 channel_online: "En línea",
@@ -2125,6 +2308,8 @@ const spanishTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
@@ -2228,6 +2413,7 @@ const spanishTranslation: TranslationType = {
                 ko: "Cancelar",
                 error: "Error al cargar las papeletas publicadas",
                 error_publish: "Error al publicar la papeleta",
+                error_capacity: "Fallo al generar el estilo de papeleta: {{message}}",
                 error_status: "Error al cambiar el estado de la publicación",
                 error_preview: "Error al obtener la vista previa de la publicación",
                 diff: "Renderizar todos los cambios podría hacer que la página no responda. ¿Estás seguro de que quieres continuar?",
@@ -2316,8 +2502,19 @@ const spanishTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
-                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                    "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta contienda ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
+                censusTooSmall:
+                    "El total de votos ({{totalVotes}}) no puede ser mayor que el censo ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "El total de votos inválidos ({{totalInvalid}}) debe ser igual a los votos inválidos implícitos ({{implicitInvalid}}) más los votos inválidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de votos ({{totalVotes}}) debe ser igual al total de votos válidos ({{totalValidVotes}}) más el total de votos inválidos ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "El algoritmo de recuento de esta contienda ({{countingAlgorithm}}) no se reconoce, por lo que no se puede determinar el número permitido de votos de candidatos. Revise la configuración de la contienda.",
+                blankBallotsInconsistent:
+                    "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por contienda de esta urna",
             },
             label: {
                 area: "Area",
@@ -2328,6 +2525,7 @@ const spanishTranslation: TranslationType = {
                 explicit_invalid: "Votos Explícitamente Inválidos",
                 implicit_invalid: "Votos Implícitamente Inválidos",
                 total_blank_votes: "Votos en Blanco Totales",
+                blank_ballots: "Papeletas en Blanco",
                 census: "Censo",
             },
             common: {

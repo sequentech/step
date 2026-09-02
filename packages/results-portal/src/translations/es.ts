@@ -47,6 +47,9 @@ const spanishTranslation: TranslationType = {
             version: "Versión {{version}}",
             publicAccess: "Acceso público",
             signedInAccess: "Acceso con sesión iniciada",
+            acclaimed: "Elegido por aclamación",
+            acclamationNote:
+                "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             published: "Publicado",
             notPublishedYet: "Todavía no publicado",
             position: "{{count}} puesto",
@@ -74,6 +77,7 @@ const spanishTranslation: TranslationType = {
                 totalVotesCounted: "Total de votos contados",
                 validVotes: "Votos válidos",
                 participation: "Participación",
+                totalBlankBallots: "Total de papeletas en blanco",
             },
             resultsAndParticipation: {
                 participationSummary: "Resumen de participación",

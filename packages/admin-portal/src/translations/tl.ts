@@ -255,6 +255,8 @@ const tagalogTranslation: TranslationType = {
                 logs: "Mga Log",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "I-publish ang balota",
+                VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
                 IMPORT_ELECTION_EVENT: "I-import ang Kaganapan sa Halalan",
@@ -276,11 +278,25 @@ const tagalogTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "I-export ang mga Template",
                 IMPORT_TEMPLATES: "I-import ang mga Template",
                 DELETE_ELECTION_EVENT: "Tanggalin ang Kaganapan ng Halalan",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Ihanda ang paunang tingin ng publikasyon",
                 EXPORT_TALLY_RESULTS_XLSX:
                     "I-export ang mga resulta ng pagbibilang sa format na XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "I-export ang mga awtoridad sa sertipikasyon",
                 PUBLISH_RESULTS_WEBSITE: "I-publish ang website ng mga resulta",
+            },
+            documentAccess: {
+                title: "Pag-access sa dokumento",
+                sensitivityNotice:
+                    "Sensitibong impormasyon. Ibahagi ang password na ito sa nilalayong tatanggap lamang.",
+                passwordLabel: "Password para buksan ang naka-encrypt na PDF",
+                showPassword: "Ipakita ang password",
+                copyPassword: "Kopyahin ang password",
+                passwordCopied: "Nakopya ang password",
+                passwordError: "Hindi nakuha ang password ng PDF",
+                copyError: "Hindi makopya ang password",
+                guidance:
+                    "Nilo-load lamang ang password pagkatapos mong piliin ang Ipakita ang password. Kapag na-load na, lalabas dito ang read-only na field na may opsyong kumopya.",
             },
             widget: {
                 taskTitle: "Gawain: {{title}}",
@@ -467,6 +483,11 @@ const tagalogTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Pag-login",
@@ -478,6 +499,7 @@ const tagalogTranslation: TranslationType = {
                 notify: {
                     success: "Matagumpay ang pag-update ng localization",
                     error: "Bigo ang pag-update ng localization",
+                    duplicateKey: "May override na para sa key at saklaw ng portal na ito.",
                     invalidDateTimeFormat:
                         "Di-wastong format ng petsa/oras. Gamitin ang mga token na yyyy, MM, dd, HH, mm, ss (hal. dd/MM/yyyy HH:mm).",
                 },
@@ -487,10 +509,50 @@ const tagalogTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Susi",
+                    scope: "Saklaw ng portal",
                     value: "Halaga",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Pangkalahatan",
+                    votingPortal: "Portal ng pagboto",
+                    ballotVerifier: "Tagapagpatunay ng balota",
+                    resultsPortal: "Portal ng mga resulta",
+                    adminPortal: "Portal ng admin",
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Pinakamababang haba",
+                    maximumLength: "Pinakamataas na haba",
+                    includeUppercase: "Magsama ng malalaking titik",
+                    includeLowercase: "Magsama ng maliliit na titik",
+                    includeDigits: "Magsama ng mga numero",
+                    includeSpecialCharacters: "Magsama ng mga espesyal na karakter",
+                    help: {
+                        minimumLength:
+                            "Ang pinakamababang bilang ng mga karakter na kailangan para sa password.",
+                        maximumLength:
+                            "Ang pinakamataas na bilang ng mga karakter na pinapayagan para sa password.",
+                        includeUppercase:
+                            "Kailangan ng hindi bababa sa isang malaking titik sa password.",
+                        includeLowercase:
+                            "Kailangan ng hindi bababa sa isang maliit na titik sa password.",
+                        includeDigits: "Kailangan ng hindi bababa sa isang numero sa password.",
+                        includeSpecialCharacters:
+                            "Kailangan ng hindi bababa sa isang espesyal na karakter sa password.",
+                    },
+                    notConfigured:
+                        "Walang naka-configure na patakaran sa password. Kapag nag-save, ilalapat ang mga default na halaga sa ibaba.",
+                    errors: {
+                        lengthRange:
+                            "Ang mga halaga ng haba ng password ay dapat mga buong numero mula 1 hanggang 256.",
+                        minimumExceedsMaximum:
+                            "Hindi maaaring lumampas ang pinakamababang haba sa pinakamataas na haba.",
+                        characterClassRequired:
+                            "Pumili ng hindi bababa sa isang klase ng karakter para sa password.",
+                    },
+                },
                 name: "Pangalan",
                 alias: "Alias",
                 description: "Paglalarawan",
@@ -499,12 +561,23 @@ const tagalogTranslation: TranslationType = {
                 language: "Wika",
                 votingChannels: "Mga Channel ng Pagboto",
                 materialActivated: "Mga Karagdagang Materyales na Gumagana",
+                supportMaterialsPolicy: {
+                    label: "Patakaran sa Mga Pangsuportang Materyales",
+                    helperText:
+                        "Ang Kinakailangan para Bumoto ay nangangailangan sa mga botante na buksan ang bawat Pangsuportang Materyal at kumpirmahin na nabasa na nila ito bago sila makaboto.",
+                    options: {
+                        off: "Naka-off",
+                        optional: "Opsyonal",
+                        mandatory_for_voting: "Kinakailangan para Bumoto",
+                    },
+                },
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
                 userVerification:
                     "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",
+                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
@@ -604,8 +677,13 @@ const tagalogTranslation: TranslationType = {
                     policyLabel: "Patakaran sa Timbang na Pagboto",
                     options: {
                         "areas-weighted-voting": "Timbang na Pagboto ayon sa mga Lugar",
+                        "voters-weighted-voting": "Timbang na Pagboto ayon sa mga Botante",
                         "disabled-weighted-voting": "Hindi Pinagana ang Timbang na Pagboto",
                     },
+                    noDelegated:
+                        "Ang Timbang na Pagboto ayon sa mga Botante ay hindi maaaring pagsamahin sa Delegadong Pagboto",
+                    noDecodedBallots:
+                        "Ang Timbang na Pagboto ayon sa mga Botante ay hindi maaaring pagsamahin sa pagsasama ng mga na-decode na balota sa mga resulta",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Patakaran sa Delegadong Pagboto",
@@ -638,6 +716,7 @@ const tagalogTranslation: TranslationType = {
                     config: "Configuration",
                     blacklist: "Listahan ng pag-block",
                     prompts: "Mga voice prompt",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Matagumpay na na-save",
@@ -672,6 +751,35 @@ const tagalogTranslation: TranslationType = {
 
                     noFilterMatch: "Walang entry na tumutugma sa ibinigay na mga filter",
                     phoneRequired: "Kinakailangan ang numero ng telepono",
+                },
+                emulator: {
+                    infoMsg:
+                        "Pumili ng lugar at ng mga nais na halalan upang subukan ang IVR session.",
+                    apiStatus: {
+                        unavailable: "Hindi available ang emulator system sa iyong environment",
+                        loading: "Nilo-load ang emulator system",
+                        error: "Nagkaroon ng error sa pag-load ng emulator system",
+                    },
+                    hints: {
+                        title: "Mga pahiwatig",
+                        publishRequired:
+                            "Ang anumang pagbabagong ginawa sa mga halalan, mga contest, o mga kandidato ay dapat munang i-publish para maging available. Tanging ang pinakabagong na-publish na mga ballot style para sa tumutugmang lugar ang gagamitin sa emulator.",
+                        eventChangesImmediate:
+                            "Ang mga pagbabagong ginawa sa election event, gaya ng IVR configuration o mga pagbabago sa prompt, ay available kaagad kapag ni-restart ang emulator session.",
+                        credentials: 'Ang valid na voter ID at PIN ay "123" at "123".',
+                    },
+                    sendDtmf: "Magpadala ng DTMF input",
+                    sendTimeout: "Magpadala ng timeout",
+                    disconnected: "Nadiskonekta",
+                    startSession: "Magsimula ng bagong session",
+                    endSession: "Tapusin ang session",
+                    noStylesFound:
+                        "Walang nakitang na-publish na mga ballot style na tumutugma sa iyong mga pinili",
+                    inputPlaceholder:
+                        "Ilagay ang iyong input (max na digit={{maxDigits}}, mga valid na input={{validInputs}}, timeout={{timeout}} s)",
+                    blacklistCaller: "I-block ang tumatawag",
+                    elections: "Mga halalan",
+                    area: "Lugar",
                 },
             },
             stats: {
@@ -947,6 +1055,13 @@ const tagalogTranslation: TranslationType = {
                     disabled: "Naka-disable",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Patakaran sa mga blangkong balota",
+                options: {
+                    enabled: "Pinagana",
+                    disabled: "Naka-disable",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Patakaran sa pindutang Bumalik ng screen ng pagboto",
                 options: {
@@ -973,6 +1088,16 @@ const tagalogTranslation: TranslationType = {
                 mobileNumber: "Mobile",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Hindi sumusunod ang password sa Patakaran sa Password para sa kaganapang ito ng halalan. Suriin ang patakaran sa Data ng Kaganapan ng Halalan at maglagay ng wastong password.",
+                passwordPolicyRules: {
+                    minimumLength: "Ang pinakamababang haba ng password ay {{count}}.",
+                    maximumLength: "Ang pinakamataas na haba ng password ay {{count}}.",
+                    uppercase: "Kinakailangang malalaking titik: {{count}}.",
+                    lowercase: "Kinakailangang maliliit na titik: {{count}}.",
+                    digits: "Kinakailangang mga numero: {{count}}.",
+                    specialCharacters: "Kinakailangang espesyal na mga karakter: {{count}}.",
+                },
                 label: "Palitan ang password",
                 temporatyLabel: "Pansamantala",
                 temporatyInfo:
@@ -1000,6 +1125,8 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",
                     "username": "Username",
@@ -1031,6 +1158,11 @@ const tagalogTranslation: TranslationType = {
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang tagagamit na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling tagagamit?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga tagagamit",
@@ -1040,6 +1172,20 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Liham ng impormasyon para sa botante",
+                    generate: "Bumuo",
+                    confirmation:
+                        "Bumuo ng Liham ng impormasyon para sa botanteng ito? Magtatalaga ng bagong password at isasama ito sa isang naka-encrypt na PDF.",
+                    generationStarted: "Nagsimula na ang pagbuo ng Liham ng impormasyon",
+                    generationError: "Hindi mabuo ang Liham ng impormasyon",
+                    policyNotConfigured:
+                        "Hindi naka-configure ang Patakaran sa Password. I-configure ito sa Data ng Kaganapan ng Halalan bago bumuo ng liham.",
+                    policyMinimumLengthMissing:
+                        "Dapat may pinakamababang haba ang Patakaran sa Password bago bumuo ng liham.",
+                    policyCharacterClassMissing:
+                        "Dapat may hindi bababa sa isang klase ng karakter ang Patakaran sa Password bago bumuo ng liham.",
+                },
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
                 review: {
@@ -1069,13 +1215,41 @@ const tagalogTranslation: TranslationType = {
                 askCreate: "Gusto mo bang lumikha ng isa?",
                 errors: {
                     editError: "Error sa pag-edit ng botante",
+                    editErrorReason: "Error sa pag-edit ng botante: {{reason}}",
                     editSuccess: "Nai-edit ang botante",
                     createError: "Error sa paglikha ng botante",
+                    createErrorReason: "Error sa paglikha ng botante: {{reason}}",
                     createSuccess: "Nalikha ang botante",
+                    attribute: {
+                        invalidNamed: 'Tinanggihan ang "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "May mga field na kailangang itama bago mag-save",
+                        hintBetween: "Sa pagitan ng {{min}} at {{max}} na karakter",
+                        hintMin: "Hindi bababa sa {{min}} na karakter",
+                        hintMax: "Hindi hihigit sa {{max}} na karakter",
+                        andMore: "at {{count}} pa",
+                        invalidLength:
+                            'Ang "{{field}}" ay dapat na nasa pagitan ng {{min}} at {{max}} na karakter',
+                        tooShort: 'Ang "{{field}}" ay dapat na hindi bababa sa {{min}} na karakter',
+                        tooLong: 'Ang "{{field}}" ay dapat na hindi hihigit sa {{max}} na karakter',
+                        required: 'Ang "{{field}}" ay kinakailangan',
+                        invalidEmail: 'Ang "{{field}}" ay dapat na wastong email address',
+                        invalidFormat: 'Ang "{{field}}" ay walang inaasahang format',
+                        invalid: 'Ang "{{field}}" ay may hindi wastong halaga',
+                    },
+                    createPasswordError:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito",
+                    createPasswordErrorReason:
+                        "Nalikha ang botante, ngunit hindi maitakda ang password nito: {{reason}}",
                 },
                 delete: {
                     body: "Sigurado ka bang gusto mong tanggalin ang botante na ito?",
                     bulkBody: "Sigurado ka bang gusto mong tanggalin ang mga napiling botante?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error sa pag-export ng mga botante",
@@ -1115,6 +1289,7 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Bumuo ng Liham ng impormasyon para sa botante",
                 "admin-user": "Admin na Tagagamit",
                 "admin-dashboard-view": "Tingnan ang Dashboard ng Admin",
                 "application-export": "Pag-export ng Aplikasyon",
@@ -1171,6 +1346,7 @@ const tagalogTranslation: TranslationType = {
                 "keys-read": "Basahin ang Mga Susi",
                 "document-upload": "Mag-upload ng Mga Dokumento",
                 "document-download": "I-download ang Mga Dokumento",
+                "document-password-read": "Basahin ang Mga Password ng Dokumento",
                 "tally-sheet-create": "Lumikha ng Tally Sheet",
                 "tally-sheet-import-create": "Lumikha ng Import ng Tally Sheet",
                 "tally-sheet-import-review": "Suriin ang Import ng Tally Sheet",
@@ -1699,6 +1875,8 @@ const tagalogTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Magbigay ng Babala sa Di-wastong Implicit at Explicit",
                 "not-allowed": "Hindi Pinapayagan",
+                "allowed-with-exclusive-explicit":
+                    "Pinapayagan na may Eksklusibong Di-wastong Boto",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "An porma kan icon kan kahon kan mga kandidato",
@@ -1750,6 +1928,11 @@ const tagalogTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
+            },
+            isAcclaimed: {
+                label: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                helperText:
+                    "Nakikita ng mga botante ang paligsahang ito ngunit walang mapipili, walang naitatala, at lahat ng kandidato ay iniuulat na nanalo na may zero na boto. Itakda ito bago ilathala ang mga balota: ang pagbabago pagkatapos ay magpapawalang-bisa sa mga balotang naisumite na.",
             },
             allowWriteins: {
                 label: "Payagan ang Mga Manu-manong Kandidato",
@@ -2118,6 +2301,7 @@ const tagalogTranslation: TranslationType = {
                     round: "Ikot",
                 },
                 total_declined_to_vote: "Kabuuang Tumangging Bumoto",
+                total_blank_ballots: "Kabuuang Blangkong Balota",
                 participation_by_channel: "Paglahok ayon sa channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2127,6 +2311,8 @@ const tagalogTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Koreo",
                 channel_in_person: "Personal",
+                acclamation_note:
+                    "Nanalo sa pamamagitan ng aklamasyon. Ang paligsahang ito ay napagpasyahan nang walang botohan, kaya walang naitalang boto.",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",
@@ -2238,6 +2424,7 @@ const tagalogTranslation: TranslationType = {
                 ko: "Kanselahin",
                 error: "Error sa pag-load ng paglalathala ng balota",
                 error_publish: "Error sa paglalathala ng balota",
+                error_capacity: "Nabigo ang paggawa ng estilo ng balota: {{message}}",
                 error_status: "Error sa pagbabago ng katayuan ng paglalathala ng balota",
                 error_preview: "Error sa pag-preview ng publikasyon",
                 diff: "Ang pag-render ng lahat ng mga pagbabago ay maaaring magdulot ng pagka-antala sa pahina. Sigurado ka bang nais mong magpatuloy?",
@@ -2320,9 +2507,19 @@ const tagalogTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Ang kabuuang bilang ng mga balidong boto ay hindi tumutugma sa suma ng mga boto ng kandidato at mga blangkong boto",
+                    "Ang mga boto ng kandidato ({{candidateVotesSum}}) ay dapat nasa pagitan ng {{lowerBound}} at {{upperBound}} ayon sa mga panuntunan sa pagboto ng paligsahang ito ({{nonBlankValidVotes}} balidong hindi blangkong boto × hanggang {{maxMarks}} marka bawat balota)",
                 censusTooSmall:
-                    "Ang senso ay dapat na mas malaki o katumbas ng kabuuang bilang ng mga boto",
+                    "Ang kabuuang bilang ng mga boto ({{totalVotes}}) ay hindi dapat mas malaki kaysa sa senso ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Ang kabuuang bilang ng mga di-balidong boto ({{totalInvalid}}) ay dapat katumbas ng implicit na di-balidong boto ({{implicitInvalid}}) kasama ang explicit na di-balidong boto ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Ang kabuuang bilang ng boto ({{totalVotes}}) ay dapat katumbas ng kabuuang balidong boto ({{totalValidVotes}}) kasama ang kabuuang di-balidong boto ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "Hindi nakikilala ang counting algorithm ng paligsahang ito ({{countingAlgorithm}}), kaya hindi matukoy ang pinapayagang bilang ng mga boto ng kandidato. Suriin ang konpigurasyon ng paligsahan.",
+                blankBallotsInconsistent:
+                    "Ang Blangkong Balota ay dapat magkaroon ng parehong halaga sa bawat sheet ng kontest sa kahong ito",
+                blankBallotsOutOfBounds:
+                    "Ang halaga ng Blangkong Balota ay wala sa hanay na ipinahihiwatig ng bilang ng blangkong boto bawat kontest sa kahong ito",
             },
             label: {
                 area: "Lugar",
@@ -2333,6 +2530,7 @@ const tagalogTranslation: TranslationType = {
                 explicit_invalid: "Tahasang Invalid na Boto",
                 implicit_invalid: "Implicit na Invalid na Boto",
                 total_blank_votes: "Blankong Boto",
+                blank_ballots: "Blangkong Balota",
                 census: "Senso",
             },
             common: {

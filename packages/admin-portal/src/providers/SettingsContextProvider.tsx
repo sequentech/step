@@ -22,6 +22,7 @@ export interface GlobalSettings {
     PUBLIC_BUCKET_URL: string
     VOTING_PORTAL_URL: string
     RESULTS_PORTAL_URL: string
+    IVR_EMULATOR_BASE_URL: string
     ACTIVATE_MIRU_EXPORT: boolean
     CUSTOM_URLS_DOMAIN_NAME: string
 }
@@ -84,9 +85,10 @@ const defaultSettingsValues: SettingsContextValues = {
   {{{data.qrcode}}}
 </div>`,
         },
-        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
+        PUBLIC_BUCKET_URL: "http://localhost:9002/public/",
         VOTING_PORTAL_URL: "http://localhost:3000",
         RESULTS_PORTAL_URL: "http://localhost:3004",
+        IVR_EMULATOR_BASE_URL: "/wasm/ivr_emulator_wasm",
         ACTIVATE_MIRU_EXPORT: false,
         CUSTOM_URLS_DOMAIN_NAME: "google.com",
     },

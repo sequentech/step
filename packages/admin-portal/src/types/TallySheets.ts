@@ -57,6 +57,7 @@ export interface IAreaContestResults {
     total_valid_votes?: number
     invalid_votes?: IInvalidVotes
     total_blank_votes?: number
+    blank_ballots?: number
     census?: number
     candidate_results: {[id: string]: ICandidateResults}
 }

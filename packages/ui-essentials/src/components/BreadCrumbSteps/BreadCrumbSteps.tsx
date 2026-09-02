@@ -12,12 +12,23 @@ export enum BreadCrumbStepsVariant {
     Circle = "circle",
 }
 
-const StepsContainer = styled(Box)`
+const StepsContainer = styled("ol")`
     display: flex;
     flex-direction: row;
     gap: 10px;
     width: 100%;
     align-items: center;
+    list-style: none;
+    margin: 0;
+    padding-inline-start: 0;
+`
+
+const StepItem = styled("li")<{islast: string}>`
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    ${({islast}) => (islast === "true" ? "" : "flex-grow: 2;")}
 `
 
 interface StepNumberProps {
@@ -63,6 +74,7 @@ const StepSeparator = styled(Box)(
 
 interface StepLabelProps {
     isselected: string
+    iscurrent: string
 }
 
 const StepLabel = styled(Box)<StepLabelProps>`
@@ -70,6 +82,27 @@ const StepLabel = styled(Box)<StepLabelProps>`
         isselected === "true"
             ? theme.palette.customGrey.contrastText
             : theme.palette.customGrey.main};
+
+    /* On narrow screens only the current step's label is painted, but the other
+       labels stay in the accessibility tree so the sequence is still readable.
+       Uses the theme's own down("sm") query so the cut-over lands on the same
+       pixel as the responsive display prop this replaced. */
+    ${({theme}) => theme.breakpoints.down("sm")} {
+        ${({iscurrent}) =>
+            iscurrent === "true"
+                ? ""
+                : `
+                    position: absolute;
+                    width: 1px;
+                    height: 1px;
+                    padding: 0;
+                    margin: -1px;
+                    overflow: hidden;
+                    clip: rect(0 0 0 0);
+                    white-space: nowrap;
+                    border: 0;
+                `}
+    }
 `
 
 interface StepProps {
@@ -86,29 +119,28 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
     const {t} = useTranslation()
 
     return (
-        <>
+        <StepItem islast={isLast.toString()} aria-current={isSelected ? "step" : undefined}>
+            {/* Decorative: role="list" + <li> already gives AT the item's
+                position (e.g. "1 of 4"), so reading this digit too doubled
+                every step's announcement. */}
             <StepNumber
                 className="step-number"
                 variant={variant}
                 isselected={(isSelected || colorStep).toString()}
                 warning={(!!warning).toString()}
+                aria-hidden="true"
             >
                 {index + 1}
             </StepNumber>
             <StepLabel
-                sx={{
-                    display: {
-                        xs: isSelected ? "block" : "none",
-                        sm: "block",
-                    },
-                }}
                 isselected={(isSelected || colorStep).toString()}
+                iscurrent={isSelected.toString()}
                 className={isSelected ? "selected" : "not-selected"}
             >
                 {t(label)}
             </StepLabel>
-            {isLast ? null : <StepSeparator className="step-separator" />}
-        </>
+            {isLast ? null : <StepSeparator className="step-separator" aria-hidden="true" />}
+        </StepItem>
     )
 }
 
@@ -118,6 +150,9 @@ interface BreadCrumbStepsProps {
     selected: number
     warning?: boolean
     colorPreviousSteps?: boolean
+    // Names the surrounding landmark, e.g. "Voting progress". Supplied by the
+    // consuming portal because the same stepper describes different journeys.
+    ariaLabel?: string
 }
 
 export default function BreadCrumbSteps({
@@ -126,9 +161,15 @@ export default function BreadCrumbSteps({
     selected,
     warning,
     colorPreviousSteps = false,
+    ariaLabel,
 }: BreadCrumbStepsProps) {
+    // Named with aria-label rather than wrapped in a <nav>: the steps are labels,
+    // not links, so a navigation landmark would advertise nothing navigable —
+    // and consumers that pass no label would emit an unnamed landmark. The
+    // explicit role="list" is needed because the <ol> is styled list-style: none,
+    // which makes Safari and VoiceOver drop the list semantics.
     return (
-        <StepsContainer className="step-container">
+        <StepsContainer className="step-container" role="list" aria-label={ariaLabel}>
             {labels.map((label, index) => (
                 <Step
                     key={index}

@@ -14,6 +14,7 @@ import {
     useRefresh,
     useNotify,
     useGetList,
+    useGetOne,
     FunctionField,
     Button as ReactAdminButton,
     useRecordContext,
@@ -39,6 +40,7 @@ import EditIcon from "@mui/icons-material/Edit"
 import MailIcon from "@mui/icons-material/Mail"
 import CreditScoreIcon from "@mui/icons-material/CreditScore"
 import PasswordIcon from "@mui/icons-material/Password"
+import ArticleIcon from "@mui/icons-material/Article"
 import DeleteIcon from "@mui/icons-material/Delete"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import FilterAlt from "@mui/icons-material/FilterAlt"
@@ -51,18 +53,30 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetUserProfileAttributesQuery,
+    GetUserProfileConfigurationQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
+    GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
 import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
 import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
+import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
-import {IRole, IUser, translate} from "@sequentech/ui-core"
+import {
+    EElectionEventWeightedVotingPolicy,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
+    IElectionEventPresentation,
+    IRole,
+    IUser,
+    parseEntityPresentation,
+    translate,
+} from "@sequentech/ui-core"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {ImportDataDrawer} from "@/components/election-event/import-data/ImportDataDrawer"
 import {FormStyles} from "@/components/styles/FormStyles"
@@ -71,8 +85,13 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
-import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
+import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
+import {
+    getAttributeLabel,
+    getTranslationLabel,
+    isHiddenAttribute,
+    userBasicInfo,
+} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import SyncAltIcon from "@mui/icons-material/SyncAlt"
@@ -80,11 +99,13 @@ import {ReconciliationWizard} from "@/resources/VoterListSync/ReconciliationWiza
 import EditPassword from "./EditPassword"
 import {styled} from "@mui/material/styles"
 import {DELETE_USERS} from "@/queries/DeleteUsers"
+import {buildUserFilterPayload} from "@/queries/GetUsers"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import SelectArea from "@/components/area/SelectArea"
 import {WidgetProps} from "@/components/Widget"
 import {ResetFilters} from "@/components/ResetFilters"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
@@ -93,19 +114,24 @@ import {useLocation} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {GENERATE_VOTER_INFORMATION_LETTER} from "@/queries/VoterInformationLetter"
+import {VoterInformationLetterPasswordAccess} from "@/resources/Tasks/VoterInformationLetterPasswordAccess"
+import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
+export const SUPPORT_MATERIALS_ACKNOWLEDGED = "support-materials-acknowledged"
+export const VOTE_WEIGHT = "vote-weight"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
     shouldForwardProp: (prop) => prop !== "isOpenSideBar", // Prevent `isOpenSideBar` from being passed to the DOM
 })<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
-        overflowx: auto;
+        overflow-x: auto;
         width: 100%;
         ${({isOpenSideBar}) =>
-            `maxWidth: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
+            `max-width: ${isOpenSideBar ? "calc(100vw - 355px)" : "calc(100vw - 108px)"};`}
         &  > div:first-of-type {
             position: absolute;
             width: 100%;
@@ -131,6 +157,42 @@ export interface ListUsersProps {
 export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, electionId}) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
+    // The Voted Channel attribute can only ever be written by the Datafix
+    // integration, so the column and filter are gated on the event being
+    // configured for it. The event record is not otherwise in scope here.
+    const {data: electionEventRecord} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: electionEventId, meta: {tenant_id: tenantId}},
+        {enabled: Boolean(electionEventId && tenantId)}
+    )
+    const isDatafixEvent = isDatafixElectionEvent(electionEventRecord)
+    const isSupportMaterialsMandatory =
+        getEffectiveSupportMaterialsPolicy(electionEventRecord?.presentation?.materials) ===
+        ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
+
+    // A voter has "viewed" Support Materials only once they've acknowledged
+    // every currently visible material for this Election Event, so the
+    // Voters list column/filter needs the full current set to compare
+    // against each voter's attributes['support-materials-acknowledged'].
+    const {data: supportMaterialsList} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                is_hidden: false,
+            },
+        },
+        {enabled: Boolean(electionEventId && tenantId && isSupportMaterialsMandatory)}
+    )
+    const requiredSupportMaterialDocumentIds = useMemo(
+        () =>
+            (supportMaterialsList ?? [])
+                .map((material) => material.document_id)
+                .filter((documentId): documentId is string => Boolean(documentId)),
+        [supportMaterialsList]
+    )
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
@@ -152,8 +214,20 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [openDeleteModal, setOpenDeleteModal] = React.useState(false)
     const [openManualVerificationModal, setOpenManualVerificationModal] = React.useState(false)
     const [openDeleteBulkModal, setOpenDeleteBulkModal] = React.useState(false)
+    const [deletingBulk, setDeletingBulk] = useState(false)
     const [openEditPassword, setOpenEditPassword] = React.useState(false)
+    const [openVoterInformationLetter, setOpenVoterInformationLetter] = useState(false)
+    const [voterInformationLetterPassword, setVoterInformationLetterPassword] = useState<string>()
+    const [generatingVoterInformationLetter, setGeneratingVoterInformationLetter] = useState(false)
     const [selectedIds, setSelectedIds] = useState<Identifier[]>([])
+    const filterValuesRef = useRef<Record<string, any>>({})
+    // What the pending bulk delete will actually act on. `selectAll` means
+    // every voter matching the active filters, which only the server can
+    // enumerate -- the browser holds one page.
+    const [deleteScope, setDeleteScope] = useState<{
+        selectedCount: number
+        matchingCount: number
+    }>({selectedCount: 0, matchingCount: 0})
     const [deleteId, setDeleteId] = useState<string | undefined>()
     const [openDrawer, setOpenDrawer] = useState<boolean>(false)
     const [openImportDrawer, setOpenImportDrawer] = useState<boolean>(false)
@@ -167,10 +241,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
+    const [generateVoterInformationLetter] = useMutation<GenerateVoterInformationLetterMutation>(
+        GENERATE_VOTER_INFORMATION_LETTER,
+        {
+            fetchPolicy: "no-cache",
+            context: {headers: {"x-hasura-role": IPermissions.VOTER_INFORMATION_LETTER}},
+        }
+    )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
-    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
-        USER_PROFILE_ATTRIBUTES,
+    const {data: userProfileConfiguration} = useQuery<GetUserProfileConfigurationQuery>(
+        USER_PROFILE_CONFIGURATION,
         {
             variables: {
                 tenantId: tenantId,
@@ -178,34 +259,72 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
+    // Keep the existing list/filter consumers on their current attributes-only
+    // shape while create/edit also receives the new group metadata.
+    const userAttributes = useMemo(
+        () =>
+            userProfileConfiguration
+                ? {
+                      get_user_profile_attributes:
+                          userProfileConfiguration.get_user_profile_configuration.attributes,
+                  }
+                : undefined,
+        [userProfileConfiguration]
+    )
+    const userAttributeGroups =
+        userProfileConfiguration?.get_user_profile_configuration.groups ?? []
+
+    const visibleUserAttributes = useMemo(() => {
+        // Attributes hidden from the voter-facing forms are also kept out of
+        // the admin columns, filters, and forms. Username is the exception: it
+        // remains visible to administrators as Keycloak's built-in identifier.
+        const attributes = userAttributes?.get_user_profile_attributes?.filter(
+            (attribute) => !isHiddenAttribute(attribute)
+        )
+        if (!attributes || !electionEventId) {
+            return attributes
+        }
+
+        const weightedVotingPolicy = parseEntityPresentation<IElectionEventPresentation>(
+            electionEventRecord?.presentation
+        )?.weighted_voting_policy
+
+        return weightedVotingPolicy === EElectionEventWeightedVotingPolicy.VOTERS_WEIGHTED_VOTING
+            ? attributes
+            : attributes.filter((attribute) => attribute.name !== VOTE_WEIGHT)
+    }, [electionEventId, electionEventRecord?.presentation, userAttributes])
 
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
-        if (userAttributes?.get_user_profile_attributes) {
-            filters = userAttributes.get_user_profile_attributes.map((attr) => {
-                //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
-                const source = attr.name?.replaceAll(".", "%")
-                if (attr.annotations?.inputType === "html5-date") {
+        if (visibleUserAttributes) {
+            filters = visibleUserAttributes
+                // Has its own dedicated boolean column/handling, not a generic
+                // text filter.
+                .filter((attr) => attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED)
+                .map((attr) => {
+                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    const source = attr.name?.replaceAll(".", "%")
+                    if (attr.annotations?.inputType === "html5-date") {
+                        return (
+                            <DateInput
+                                key={attr.name}
+                                source={`attributes.${attr.name}`}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            />
+                        )
+                    }
                     return (
-                        <DateInput
+                        <TextInput
                             key={attr.name}
-                            source={`attributes.${attr.name}`}
+                            source={
+                                userBasicInfo.includes(`${attr.name}`)
+                                    ? `${attr.name}.IsLike`
+                                    : `attributes.${source}`
+                            }
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
-                }
-                return (
-                    <TextInput
-                        key={attr.name}
-                        source={
-                            userBasicInfo.includes(`${attr.name}`)
-                                ? `${attr.name}.IsLike`
-                                : `attributes.${source}`
-                        }
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                    />
-                )
-            })
+                })
             filters.push(<BooleanInput key="enabled" source={"enabled"} />)
             filters.push(<BooleanInput key="email_verified" source={"email_verified"} />)
             if (electionEventId) {
@@ -226,17 +345,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         label={String(t("usersAndRolesScreen.users.fields.has_voted"))}
                     />
                 )
-                filters.push(
-                    <TextInput
-                        key={VOTED_CHANNEL}
-                        source={`attributes.${VOTED_CHANNEL}`}
-                        label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
-                    />
-                )
+                if (isDatafixEvent) {
+                    filters.push(
+                        <TextInput
+                            key={VOTED_CHANNEL}
+                            source={`attributes.${VOTED_CHANNEL}`}
+                            label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
+                        />
+                    )
+                }
             }
         }
         return filters
-    }, [userAttributes?.get_user_profile_attributes])
+    }, [visibleUserAttributes, isDatafixEvent])
 
     const [exportTenantUsers] = useMutation<ExportTenantUsersMutation>(EXPORT_TENANT_USERS, {
         context: {
@@ -268,6 +389,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canExportVoters,
         canManuallyVerify,
         canChangePassword,
+        canGenerateVoterInformationLetter,
         showVotersColumns,
         showVotersFilters,
         showVotersLogs,
@@ -284,6 +406,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenSendTemplate(false)
         setOpenDeleteModal(false)
         setOpenManualVerificationModal(false)
+        setOpenVoterInformationLetter(false)
+        setVoterInformationLetterPassword(undefined)
         setOpenDeleteBulkModal(false)
         setOpenDrawer(false)
         setOpenNew(false)
@@ -355,6 +479,69 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenDeleteModal(false)
         setOpenEditPassword(true)
         setRecordIds([id as string])
+    }
+
+    const voterInformationLetterAction = (id: Identifier) => {
+        if (!electionEventId) {
+            return
+        }
+        setOpen(false)
+        setOpenNew(false)
+        setOpenSendTemplate(false)
+        setOpenManualVerificationModal(false)
+        setOpenDeleteBulkModal(false)
+        setOpenDeleteModal(false)
+        setOpenEditPassword(false)
+        setRecordIds([id])
+        setVoterInformationLetterPassword(undefined)
+        setOpenVoterInformationLetter(true)
+    }
+
+    const confirmVoterInformationLetter = async () => {
+        const voterId = recordIds[0]
+        if (!electionEventId || !voterId) {
+            return
+        }
+
+        setGeneratingVoterInformationLetter(true)
+        try {
+            const {data} = await generateVoterInformationLetter({
+                variables: {
+                    electionEventId,
+                    voterId: String(voterId),
+                },
+            })
+            const taskId = data?.generate_voter_information_letter?.task_execution?.id
+            const pdfPassword = data?.generate_voter_information_letter?.pdf_password
+            if (!taskId || !pdfPassword) {
+                throw new Error("Voter Information Letter access data was not returned")
+            }
+
+            const widget = addWidget(ETasksExecution.VOTER_INFORMATION_LETTER, false)
+            setWidgetTaskId(widget.identifier, taskId)
+            notify(t("usersAndRolesScreen.voters.voterInformationLetter.generationStarted"), {
+                type: "success",
+            })
+            setOpenVoterInformationLetter(false)
+            setRecordIds([])
+            setVoterInformationLetterPassword(pdfPassword)
+        } catch (error: unknown) {
+            const passwordPolicyError = getVoterInformationLetterPasswordPolicyError(error)
+            const notificationKey = passwordPolicyError
+                ? {
+                      notConfigured:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyNotConfigured",
+                      minimumLengthMissing:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyMinimumLengthMissing",
+                      characterClassMissing:
+                          "usersAndRolesScreen.voters.voterInformationLetter.policyCharacterClassMissing",
+                  }[passwordPolicyError]
+                : "usersAndRolesScreen.voters.voterInformationLetter.generationError"
+            notify(t(notificationKey), {type: "error"})
+            setOpenVoterInformationLetter(false)
+        } finally {
+            setGeneratingVoterInformationLetter(false)
+        }
     }
 
     const confirmManualVerificationAction = async () => {
@@ -460,6 +647,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
             saveRecordAction: setUserRecord,
         },
+        [UserActionTypes.VOTER_INFORMATION_LETTER]: {
+            icon: <ArticleIcon />,
+            action: voterInformationLetterAction,
+            showAction: () => canGenerateVoterInformationLetter,
+            label: t("usersAndRolesScreen.voters.voterInformationLetter.label"),
+        },
         [UserActionTypes.PASSWORD]: {
             icon: <PasswordIcon />,
             action: editPasswordAction,
@@ -485,6 +678,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             UserActionTypes.EDIT,
             UserActionTypes.DELETE,
             UserActionTypes.MANUAL_VERIFICATION,
+            UserActionTypes.VOTER_INFORMATION_LETTER,
             UserActionTypes.PASSWORD,
             UserActionTypes.LOGS,
         ],
@@ -501,41 +695,80 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return getActionsForUserType(userType)
     }, [electionEventId])
 
-    async function confirmDeleteBulkAction() {
-        const {errors} = await deleteUsers({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                usersId: selectedIds,
-            },
-        })
+    async function confirmDeleteBulkAction(selectAll: boolean) {
+        const scopeKey = electionEventId ? "voters" : "users"
+        setDeletingBulk(true)
+        // Voter deletion runs as a tracked task so a long run, or a partial
+        // failure part-way through, is visible instead of silently timing out.
+        const widget = electionEventId
+            ? addWidget(ETasksExecution.DELETE_VOTERS, undefined)
+            : undefined
 
-        if (errors) {
-            notify(
-                t(
-                    `usersAndRolesScreen.${
-                        electionEventId ? "voters" : "users"
-                    }.notifications.deleteError`
-                ),
-                {type: "error"}
-            )
-            return
+        const failed = () => {
+            if (widget) {
+                updateWidgetFail(widget.identifier)
+            }
+            notify(t(`usersAndRolesScreen.${scopeKey}.notifications.deleteError`), {
+                type: "error",
+            })
         }
 
-        notify(
-            t(
-                `usersAndRolesScreen.${
-                    electionEventId ? "voters" : "users"
-                }.notifications.multipleDeleteSuccess`
-            ),
-            {type: "success"}
-        )
+        try {
+            // Exactly the filters the list is showing, built by the list's own
+            // builder from the same merged filter object the dataProvider gets.
+            // Precedence matches ra-core's useListController, which spreads the
+            // permanent `filter` prop last; reversing it would resolve a
+            // different set than the one on screen.
+            const listFilters = selectAll
+                ? buildUserFilterPayload({
+                      ...filterValuesRef.current,
+                      ...myFilters,
+                      ...permanentFilters,
+                  })
+                : undefined
 
-        refresh()
+            const {data, errors} = await deleteUsers({
+                variables: {
+                    tenantId: tenantId,
+                    electionEventId: electionEventId,
+                    electionId: electionId,
+                    usersId: selectAll ? undefined : selectedIds,
+                    selectAll,
+                    ...(listFilters ?? {}),
+                },
+            })
+
+            if (errors || data?.delete_users?.error_msg) {
+                failed()
+                return
+            }
+
+            const taskId = data?.delete_users?.task_execution?.id
+            if (widget) {
+                taskId
+                    ? setWidgetTaskId(widget.identifier, taskId)
+                    : updateWidgetFail(widget.identifier)
+            }
+
+            notify(t(`usersAndRolesScreen.${scopeKey}.notifications.multipleDeleteSuccess`), {
+                type: "success",
+            })
+
+            refresh()
+        } catch (error) {
+            // useMutation has no onError here, so Apollo rethrows.
+            failed()
+        } finally {
+            setDeletingBulk(false)
+        }
     }
 
-    // @ts-ignore
-    function BulkActions(props) {
+    function BulkActions() {
+        const {total, filterValues, selectedIds: listSelectedIds} = useListContext()
+        // Kept in a ref so confirmDeleteBulkAction, which lives outside the
+        // List context, sends the filters that were active when the operator
+        // opened the dialog.
+        filterValuesRef.current = filterValues ?? {}
         return (
             <>
                 {canSendTemplates && (
@@ -543,7 +776,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         variant="actionbar"
                         key="send-notification"
                         onClick={() => {
-                            sendTemplateAction(props.selectedIds ?? [], AudienceSelection.SELECTED)
+                            sendTemplateAction(listSelectedIds ?? [], AudienceSelection.SELECTED)
                         }}
                     >
                         <ResourceListStyles.MailIcon />
@@ -555,7 +788,17 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     <Button
                         variant="actionbar"
                         onClick={() => {
-                            setSelectedIds(props.selectedIds)
+                            const ids: Identifier[] = listSelectedIds ?? []
+                            setSelectedIds(ids)
+                            // Both counts are offered to the operator; nothing
+                            // is inferred from the selection. The header
+                            // checkbox only ever selects the loaded page, so
+                            // guessing intent from it would silently escalate a
+                            // page-sized delete into an event-sized one.
+                            setDeleteScope({
+                                selectedCount: ids.length,
+                                matchingCount: total ?? ids.length,
+                            })
                             setOpenDeleteBulkModal(true)
                         }}
                     >
@@ -584,7 +827,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             setExporting(true)
 
             if (electionEventId) {
-                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, undefined)
+                currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
                     variables: {tenantId, electionEventId, electionId},
                 })
@@ -904,16 +1147,19 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         const attributesFields: UserProfileAttribute[] = []
         const omitFields = ["id", "email_verified", "email"]
 
-        userAttributes?.get_user_profile_attributes.forEach((attr) => {
+        visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
+            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
+                // Has its own dedicated boolean column below; must not be
+                // auto-omitted like other Keycloak-attribute-derived columns.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
             }
         })
         return {basicInfoFields, attributesFields, omitFields}
-    }, [userAttributes?.get_user_profile_attributes])
+    }, [visibleUserAttributes])
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
@@ -1010,6 +1256,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         return false
     }
 
+    const checkSupportMaterialsViewed = (record: IUser) => {
+        const acknowledgedIds = record?.attributes?.[SUPPORT_MATERIALS_ACKNOWLEDGED] ?? []
+        return (
+            requiredSupportMaterialDocumentIds.length > 0 &&
+            requiredSupportMaterialDocumentIds.every((documentId) =>
+                acknowledgedIds.includes(documentId)
+            )
+        )
+    }
+
     const checkIsVoted = (record: IUser) => {
         return record?.votes_info?.length
             ? !electionId || record.votes_info.some((vote) => vote.election_id === electionId)
@@ -1047,11 +1303,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }, [isFetching, filtersChanged])
 
         const hasAuthorizedElectionIdsAttributes = useMemo(
-            () =>
-                userAttributes?.get_user_profile_attributes.find(
-                    (attr) => attr.name === AUTHORIZED_ELECTION_IDS
-                ),
-            [userAttributes?.get_user_profile_attributes]
+            () => visibleUserAttributes?.find((attr) => attr.name === AUTHORIZED_ELECTION_IDS),
+            [visibleUserAttributes]
         )
 
         if (isLoading || (isFetching && filtersChanged)) {
@@ -1060,8 +1313,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
         return (
             <>
-                {userAttributes?.get_user_profile_attributes && (
+                {visibleUserAttributes && (
                     <DataGridContainerStyle
+                        header={ThreeStateDatagridHeader}
                         preferenceKey={getPreferenceKey(location.pathname, "voters")}
                         omit={listFields.omitFields}
                         isOpenSideBar={isOpenSidebar}
@@ -1112,7 +1366,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         )}
 
                         {renderFields(listFields.attributesFields)}
-                        {electionEventId && (
+                        {electionEventId && isDatafixEvent && (
                             <FunctionField<IUser>
                                 source={`attributes['${VOTED_CHANNEL}']`}
                                 label={String(t("usersAndRolesScreen.users.fields.voted-channel"))}
@@ -1125,7 +1379,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
-                        {electionEventId && showVoterListSync && (
+                        {electionEventId && showVoterListSync && isDatafixEvent && (
                             <FunctionField<IUser>
                                 source={`attributes['${DISABLE_COMMENT}']`}
                                 label={String(
@@ -1158,10 +1412,32 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
+                        {electionEventId && isSupportMaterialsMandatory && (
+                            <FunctionField<IUser>
+                                source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.support_materials_viewed")
+                                )}
+                                render={(record, source) => {
+                                    let newRecord = {
+                                        support_materials_viewed:
+                                            checkSupportMaterialsViewed(record),
+                                        ...record,
+                                    }
+                                    return source ? (
+                                        <BooleanField
+                                            record={newRecord}
+                                            source="support_materials_viewed"
+                                        />
+                                    ) : null
+                                }}
+                            />
+                        )}
                         {!canEditVoters &&
                         !canDeleteVoters &&
                         !canSendTemplates &&
                         !canManuallyVerify &&
+                        !canGenerateVoterInformationLetter &&
                         !canChangePassword &&
                         !showVotersLogs ? null : (
                             <WrapperField source="actions" label="Actions">
@@ -1223,9 +1499,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     electionEventId={electionEventId}
                                     close={handleClose}
                                     rolesList={rolesList || []}
-                                    userAttributes={
-                                        userAttributes?.get_user_profile_attributes || []
-                                    }
+                                    userAttributes={visibleUserAttributes || []}
+                                    userAttributeGroups={userAttributeGroups}
                                 />
                             }
                             withComponent={canCreateVoters}
@@ -1264,7 +1539,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionId={electionId}
                     close={handleClose}
                     rolesList={rolesList || []}
-                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributes={visibleUserAttributes || []}
+                    userAttributeGroups={userAttributeGroups}
                     record={userRecord}
                     onTaskLaunched={handleEditUserTask}
                 />
@@ -1282,7 +1558,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     electionEventId={electionEventId}
                     close={handleClose}
                     rolesList={rolesList || []}
-                    userAttributes={userAttributes?.get_user_profile_attributes || []}
+                    userAttributes={visibleUserAttributes || []}
+                    userAttributeGroups={userAttributeGroups}
                 />
             </ResourceListStyles.Drawer>
             <Dialog
@@ -1369,18 +1646,57 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             <Dialog
                 variant="warning"
                 open={openDeleteBulkModal}
-                ok={String(t("common.label.delete"))}
+                ok={String(
+                    t(
+                        `usersAndRolesScreen.${
+                            electionEventId ? "voters" : "users"
+                        }.delete.okSelected`,
+                        {count: deleteScope.selectedCount}
+                    )
+                )}
                 cancel={String(t("common.label.cancel"))}
                 title={String(t("common.label.warning"))}
+                middleActions={
+                    electionEventId && deleteScope.matchingCount > deleteScope.selectedCount
+                        ? [
+                              <Button
+                                  key="delete-all-matching"
+                                  variant="warning"
+                                  disabled={deletingBulk}
+                                  onClick={() => {
+                                      if (deletingBulk) {
+                                          return
+                                      }
+                                      confirmDeleteBulkAction(true)
+                                      setOpenDeleteBulkModal(false)
+                                      unselectAll()
+                                  }}
+                              >
+                                  {t(
+                                      `usersAndRolesScreen.${
+                                          electionEventId ? "voters" : "users"
+                                      }.delete.okAllMatching`
+                                  )}
+                              </Button>,
+                          ]
+                        : []
+                }
                 handleClose={(result: boolean) => {
                     if (result) {
-                        confirmDeleteBulkAction()
+                        confirmDeleteBulkAction(false)
                     }
                     setOpenDeleteBulkModal(false)
                     unselectAll()
                 }}
             >
-                {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.bulkBody`)}
+                {t(
+                    `usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.${
+                        electionEventId && deleteScope.matchingCount > deleteScope.selectedCount
+                            ? "bulkBodyChoose"
+                            : "bulkBodySelected"
+                    }`,
+                    {count: deleteScope.selectedCount}
+                )}
             </Dialog>
 
             <Dialog
@@ -1440,6 +1756,46 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         />
                     )}
                 </>
+            </Dialog>
+
+            <Dialog
+                variant="info"
+                open={openVoterInformationLetter}
+                ok={String(t("usersAndRolesScreen.voters.voterInformationLetter.generate"))}
+                okEnabled={() => !generatingVoterInformationLetter}
+                cancel={String(t("common.label.cancel"))}
+                title={String(t("usersAndRolesScreen.voters.voterInformationLetter.label"))}
+                handleClose={(result: boolean) => {
+                    if (result) {
+                        void confirmVoterInformationLetter()
+                        return
+                    }
+                    setOpenVoterInformationLetter(false)
+                    setRecordIds([])
+                }}
+            >
+                <Typography>
+                    {t("usersAndRolesScreen.voters.voterInformationLetter.confirmation")}
+                </Typography>
+                <FormStyles.ReservedProgressSpace>
+                    {generatingVoterInformationLetter ? <FormStyles.ShowProgress /> : null}
+                </FormStyles.ReservedProgressSpace>
+            </Dialog>
+
+            <Dialog
+                fullWidth={true}
+                variant="info"
+                maxWidth={"sm"}
+                title={String(t("tasksScreen.documentAccess.title"))}
+                ok={String(t("common.label.close"))}
+                open={Boolean(voterInformationLetterPassword)}
+                handleClose={() => setVoterInformationLetterPassword(undefined)}
+            >
+                {voterInformationLetterPassword ? (
+                    <VoterInformationLetterPasswordAccess
+                        pdfPassword={voterInformationLetterPassword}
+                    />
+                ) : null}
             </Dialog>
 
             {openEditPassword && (

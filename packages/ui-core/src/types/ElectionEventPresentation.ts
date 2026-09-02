@@ -5,8 +5,21 @@
 import {IVotingPortalCountdownPolicy} from "./CoreTypes"
 import {ILanguageConf} from "./LanguageConf"
 
+export enum ESupportMaterialsPolicy {
+    OFF = "off",
+    OPTIONAL = "optional",
+    MANDATORY_FOR_VOTING = "mandatory_for_voting",
+}
+
 export interface IElectionEventMaterials {
-    activated?: boolean
+    policy?: ESupportMaterialsPolicy
+}
+
+/** Mirrors `ElectionEventMaterials::effective_policy` in `sequent-core`. */
+export const getEffectiveSupportMaterialsPolicy = (
+    materials?: IElectionEventMaterials
+): ESupportMaterialsPolicy => {
+    return materials?.policy ?? ESupportMaterialsPolicy.OFF
 }
 
 export interface ICustomUrls {
@@ -83,6 +96,7 @@ export enum EElectionEventAutomaticRecountPolicy {
 export enum EElectionEventWeightedVotingPolicy {
     AREAS_WEIGHTED_VOTING = "areas-weighted-voting",
     DISABLED_WEIGHTED_VOTING = "disabled-weighted-voting",
+    VOTERS_WEIGHTED_VOTING = "voters-weighted-voting",
 }
 
 export enum EElectionEventDelegatedVotingPolicy {
@@ -194,6 +208,7 @@ export interface IElectionEventPresentation {
     language_conf?: ILanguageConf
     logo_url?: string
     redirect_finish_url?: string
+    kiosk_redirect_finish_url?: string
     css?: string
     skip_election_list?: boolean
     show_user_profile?: boolean
@@ -203,6 +218,7 @@ export interface IElectionEventPresentation {
     keys_ceremony_policy?: KeysCeremonyPolicy
     locked_down?: EElectionEventLockedDown
     contest_encryption_policy?: EElectionEventContestEncryptionPolicy
+    decoded_ballot_inclusion_policy?: EElectionEventDecodedBallots
     publish_policy?: EElectionEventPublishPolicy
     enrollment?: EElectionEventEnrollment
     otp?: EElectionEventOTP

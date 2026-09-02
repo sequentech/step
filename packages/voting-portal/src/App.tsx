@@ -15,20 +15,24 @@ import {
     getValueFromCookie,
 } from "@sequentech/ui-core"
 import Stack from "@mui/material/Stack"
+import {useTranslation} from "react-i18next"
 import {useNavigate} from "react-router-dom"
 import {AuthContext} from "./providers/AuthContextProvider"
 import {SettingsContext} from "./providers/SettingsContextProvider"
 import {TenantEventType} from "."
 import {ApolloWrapper} from "./providers/ApolloContextProvider"
 import {VotingPortalError, VotingPortalErrorType} from "./services/VotingPortalError"
-import {useAppSelector} from "./store/hooks"
+import {useAppDispatch, useAppSelector} from "./store/hooks"
 import {selectElectionIds} from "./store/elections/electionsSlice"
 import {
     selectBallotStyleByElectionId,
     selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "./store/ballotStyles/ballotStylesSlice"
-import {selectElectionEventById} from "./store/electionEvents/electionEventsSlice"
+import {
+    seedElectionEvent,
+    selectElectionEventById,
+} from "./store/electionEvents/electionEventsSlice"
 import WatermarkBackground from "./components/WaterMark/Watermark"
 import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
 import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
@@ -133,11 +137,13 @@ const HeaderWithContext: React.FC = () => {
 }
 
 const App = () => {
+    const {t} = useTranslation()
     const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const location = useLocation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {isAuthenticated, setTenantEvent} = useContext(AuthContext)
+    const dispatch = useAppDispatch()
     const [loginHintRequest] = useState(() => {
         const acceptsLoginHints = routeAcceptsLoginHints(location.pathname)
 
@@ -227,6 +233,16 @@ const App = () => {
             const presentation = config.election_event_presentation
             const languageConf = presentation?.language_conf
 
+            // Seed early routes from the public config, but never downgrade a
+            // full query result or frozen preview publication already stored.
+            dispatch(
+                seedElectionEvent({
+                    id: config.election_event_id,
+                    tenant_id: config.tenant_id,
+                    presentation,
+                })
+            )
+
             const defaultLocale =
                 languageConf?.language_detection_policy === ELanguageDetectionPolicy.FORCE_DEFAULT
                     ? languageConf.default_language_code
@@ -244,6 +260,7 @@ const App = () => {
         location.pathname,
         loginHintsForCurrentRoute,
         setTenantEvent,
+        dispatch,
     ])
 
     useEffect(() => {
@@ -272,6 +289,9 @@ const App = () => {
         >
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
+                <a className="skip-link" href="#main-content">
+                    {t("a11y.skipToContent")}
+                </a>
                 <ApolloWrapper>
                     <HeaderWithContext />
                     <PageBanner
@@ -280,7 +300,7 @@ const App = () => {
                         className="main"
                         component="main"
                         id="main-content"
-                        role="main"
+                        tabIndex={-1}
                     >
                         <WatermarkBackground />
                         <Outlet />

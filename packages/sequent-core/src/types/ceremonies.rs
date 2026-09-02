@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, VariantNames};
 
 #[derive(
     Display,
@@ -82,6 +82,37 @@ pub enum TallyExecutionStatus {
     AWAITING_INPUT,
     SUCCESS,
     CANCELLED,
+}
+
+/// Why a tally session execution was created, recorded on the
+/// `tally_session_execution` row itself so that the reason survives the loss of
+/// the celery message that would otherwise carry it.
+///
+/// The task reads the reason from the newest execution row, and a completed run
+/// appends a fresh `NORMAL` row -- so finishing the work consumes the reason
+/// without a separate clearing step, while a run that bails out early writes no
+/// row at all and is therefore retried by the next `process_board` tick.
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    Default,
+    JsonSchema,
+)]
+pub enum TallyRunReason {
+    /// Advance the tally with board messages that have not been processed yet.
+    #[default]
+    NORMAL,
+    /// Re-run a completed session over the same board messages, producing a
+    /// fresh results event.
+    RECOUNT,
+    /// Re-run after tie-break resolutions were submitted.
+    TIE_BREAK_RERUN,
 }
 
 #[derive(
@@ -335,6 +366,8 @@ pub struct TallyResolution {
     Debug,
     EnumString,
     Display,
+    // `election_config::validate` reads `VARIANTS` as the list of admissible values.
+    VariantNames,
     Default,
     Serialize,
     Deserialize,
@@ -344,6 +377,10 @@ pub struct TallyResolution {
     Clone,
     Copy,
 )]
+// Stored as free text on the Hasura `contest.counting_algorithm` column, so
+// parsing tolerates case that differs from the canonical form rather than
+// silently falling through to the default.
+#[strum(ascii_case_insensitive)]
 pub enum CountingAlgType {
     #[strum(serialize = "plurality-at-large")]
     #[serde(rename = "plurality-at-large")]
@@ -392,6 +429,13 @@ impl CountingAlgType {
                 | CountingAlgType::Desborda2
                 | CountingAlgType::Desborda3
         )
+    }
+
+    /// Returns true if a voter may give multiple points to the same
+    /// candidate, so per-candidate marks must be bounded by a checkbox
+    /// budget instead of a single mark per ballot.
+    pub fn is_cumulative(&self) -> bool {
+        matches!(self, CountingAlgType::Cumulative)
     }
 
     pub fn get_default_tally_operation_for_contest(&self) -> TallyOperation {

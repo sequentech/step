@@ -302,13 +302,15 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     const displayResults = !!resultsUrl
 
     return (
-        <Box>
+        // role="listitem" pairs with role="list" on the parent container so
+        // scanning tools announce a boundary between elections instead of
+        // running titles together — the parent is a plain Box, not a real
+        // <ul>, so the semantics need to be explicit.
+        <Box role="listitem">
             <BorderBox
                 onClick={handleClickToVote}
                 isopen={String(!!isOpen)}
                 isactive={String(!!isActive)}
-                role="button"
-                tabIndex={0}
                 className={className ? `election-item ${className}` : "election-item"}
                 is-start={String(!!isStarted)}
             >
@@ -365,7 +367,11 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 </DatesUrlWrap>
                 <ElectionActions className="election-actions">
                     {displayBallotLocator && (
-                        <StyledButton variant="secondary" onClick={handleClickBallotLocator}>
+                        <StyledButton
+                            variant="secondary"
+                            onClick={handleClickBallotLocator}
+                            aria-label={`${t("selectElection.ballotLocator")} — ${title}`}
+                        >
                             {t("selectElection.ballotLocator")}
                         </StyledButton>
                     )}
@@ -387,6 +393,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             className="click-to-vote-button"
                             disabled={!onClickToVote}
                             onClick={handleClickToVote}
+                            aria-label={`${t("selectElection.voteButton")} — ${title}`}
                         >
                             {t("selectElection.voteButton")}
                         </StyledButton>

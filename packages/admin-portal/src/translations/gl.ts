@@ -254,6 +254,8 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
+                VOTER_INFORMATION_LETTER: "Carta de información para o votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
                 IMPORT_ELECTION_EVENT: "Importar evento electoral",
@@ -275,10 +277,24 @@ const galegoTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar a vista previa da publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar os resultados do reconto en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
                 PUBLISH_RESULTS_WEBSITE: "Publicar sitio web de resultados",
+            },
+            documentAccess: {
+                title: "Acceso ao documento",
+                sensitivityNotice:
+                    "Información sensible. Comparta este contrasinal só co destinatario previsto.",
+                passwordLabel: "Contrasinal para abrir o PDF cifrado",
+                showPassword: "Amosar o contrasinal",
+                copyPassword: "Copiar o contrasinal",
+                passwordCopied: "Contrasinal copiado",
+                passwordError: "Non se puido recuperar o contrasinal do PDF",
+                copyError: "Non se puido copiar o contrasinal",
+                guidance:
+                    "O contrasinal só se carga despois de escoller Amosar o contrasinal. Unha vez cargado, aparecerá aquí un campo de só lectura coa opción de copiar.",
             },
             widget: {
                 taskTitle: "Tarefa: {{title}}",
@@ -465,6 +481,11 @@ const galegoTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Iniciar Sesión",
@@ -476,6 +497,7 @@ const galegoTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada correctamente",
                     error: "Fallou a actualización da localización",
+                    duplicateKey: "Xa existe unha substitución con esta clave e ámbito do portal.",
                     invalidDateTimeFormat:
                         "Formato de data/hora non válido. Usa os tokens yyyy, MM, dd, HH, mm, ss (p. ex. dd/MM/yyyy HH:mm).",
                 },
@@ -485,10 +507,50 @@ const galegoTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito do portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Herdado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Lonxitude mínima",
+                    maximumLength: "Lonxitude máxima",
+                    includeUppercase: "Incluír letras maiúsculas",
+                    includeLowercase: "Incluír letras minúsculas",
+                    includeDigits: "Incluír díxitos",
+                    includeSpecialCharacters: "Incluír caracteres especiais",
+                    help: {
+                        minimumLength:
+                            "O número mínimo de caracteres requiridos para o contrasinal.",
+                        maximumLength:
+                            "O número máximo de caracteres permitidos para o contrasinal.",
+                        includeUppercase:
+                            "O contrasinal debe incluír polo menos unha letra maiúscula.",
+                        includeLowercase:
+                            "O contrasinal debe incluír polo menos unha letra minúscula.",
+                        includeDigits: "O contrasinal debe incluír polo menos un díxito.",
+                        includeSpecialCharacters:
+                            "O contrasinal debe incluír polo menos un carácter especial.",
+                    },
+                    notConfigured:
+                        "Non hai ningunha política de contrasinais configurada. Ao gardar aplicaranse os valores predeterminados que se mostran a continuación.",
+                    errors: {
+                        lengthRange:
+                            "As lonxitudes do contrasinal deben ser números enteiros entre 1 e 256.",
+                        minimumExceedsMaximum:
+                            "A lonxitude mínima non pode superar a lonxitude máxima.",
+                        characterClassRequired:
+                            "Seleccione polo menos unha clase de caracteres para o contrasinal.",
+                    },
+                },
                 name: "Nome",
                 alias: "Alias",
                 description: "Descrición",
@@ -497,12 +559,23 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canles de Votación",
                 materialActivated: "Materiais de Soporte Activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiais de Soporte",
+                    helperText:
+                        "A opción Obrigatorio para Votar require que os votantes abran cada Material de Soporte e confirmen que o leron antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obrigatorio para Votar",
+                    },
+                },
                 materialTitle: "Título",
                 materialSubTitle: "Subtítulo",
                 logoUrl: "URL do Logo",
                 userVerification:
                     "Pode introducir un modelo personalizado que se utilizará para verificar manualmente os votantes",
                 redirectFinishUrl: "URL de Redirección ao Finalizar",
+                kioskRedirectFinishUrl: "URL de Redirección ao Finalizar do Quiosco",
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
@@ -604,8 +677,13 @@ const galegoTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Desactivada",
                     },
+                    noDelegated:
+                        "A Votación Ponderada por Votantes non pode combinarse co Voto Delegado",
+                    noDecodedBallots:
+                        "A Votación Ponderada por Votantes non pode combinarse coa inclusión de papeletas descifradas nos resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Voto Delegado",
@@ -638,6 +716,7 @@ const galegoTranslation: TranslationType = {
                     config: "Configuración",
                     blacklist: "Lista de bloqueo",
                     prompts: "Locucións",
+                    emulator: "Emulador",
                 },
                 common: {
                     saveSuccess: "Gardado correctamente",
@@ -672,6 +751,36 @@ const galegoTranslation: TranslationType = {
 
                     noFilterMatch: "Ningunha entrada coincide cos filtros indicados",
                     phoneRequired: "O número de teléfono é obrigatorio",
+                },
+                emulator: {
+                    infoMsg:
+                        "Seleccione unha área e as eleccións desexadas para probar a sesión IVR.",
+                    apiStatus: {
+                        unavailable: "O sistema do emulador non está dispoñible na súa contorna",
+                        loading: "Cargando o sistema do emulador",
+                        error: "Erro ao cargar o sistema do emulador",
+                    },
+                    hints: {
+                        title: "Suxestións",
+                        publishRequired:
+                            "Calquera cambio realizado nas eleccións, nas contendas ou nos candidatos debe publicarse primeiro para que estea dispoñible. No emulador só se utilizarán os estilos de papeleta publicados máis recentemente para a área correspondente.",
+                        eventChangesImmediate:
+                            "Os cambios realizados no evento electoral, como a configuración IVR ou as modificacións das mensaxes, están dispoñibles inmediatamente ao reiniciar a sesión do emulador.",
+                        credentials:
+                            'O identificador de votante e o PIN válidos son "123" e "123".',
+                    },
+                    sendDtmf: "Enviar entrada DTMF",
+                    sendTimeout: "Enviar tempo de espera",
+                    disconnected: "Desconectado",
+                    startSession: "Iniciar unha nova sesión",
+                    endSession: "Finalizar a sesión",
+                    noStylesFound:
+                        "Non se atoparon estilos de papeleta publicados que coincidan coas súas seleccións",
+                    inputPlaceholder:
+                        "Introduza a súa entrada (máximo de díxitos={{maxDigits}}, entradas válidas={{validInputs}}, tempo de espera={{timeout}} s)",
+                    blacklistCaller: "Bloquear a persoa que chama",
+                    elections: "Eleccións",
+                    area: "Área",
                 },
             },
             stats: {
@@ -946,6 +1055,13 @@ const galegoTranslation: TranslationType = {
                     disabled: "Desactivado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en branco",
+                options: {
+                    enabled: "Activado",
+                    disabled: "Desactivado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política do botón Atrás da pantalla de votación",
                 options: {
@@ -972,6 +1088,16 @@ const galegoTranslation: TranslationType = {
                 mobileNumber: "Móbil",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "O contrasinal non cumpre a Política de contrasinais deste evento electoral. Revise a política en Datos do evento electoral e introduza un contrasinal válido.",
+                passwordPolicyRules: {
+                    minimumLength: "A lonxitude mínima do contrasinal é {{count}}.",
+                    maximumLength: "A lonxitude máxima do contrasinal é {{count}}.",
+                    uppercase: "Caracteres en maiúscula requiridos: {{count}}.",
+                    lowercase: "Caracteres en minúscula requiridos: {{count}}.",
+                    digits: "Díxitos requiridos: {{count}}.",
+                    specialCharacters: "Caracteres especiais requiridos: {{count}}.",
+                },
                 label: "Cambiar contrasinal",
                 temporatyLabel: "Temporal",
                 temporatyInfo:
@@ -999,6 +1125,8 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Peso do voto",
                     "voted-channel": "Canle de voto",
                     "disable-comment": "Comentario de desactivación",
                     "username": "Nome de Usuario",
@@ -1029,6 +1157,11 @@ const galegoTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro de que queres eliminar este usuario?",
                     bulkBody: "¿Estás seguro de que queres eliminar os usuarios seleccionados?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erro ao exportar usuarios",
@@ -1038,6 +1171,20 @@ const galegoTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Carta de información para o votante",
+                    generate: "Xerar",
+                    confirmation:
+                        "Xerar unha Carta de información para este votante? Asignarase un novo contrasinal e incluirase nun PDF cifrado.",
+                    generationStarted: "Iniciouse a xeración da Carta de información",
+                    generationError: "Non se puido xerar a Carta de información",
+                    policyNotConfigured:
+                        "A Política de contrasinais non está configurada. Configúrea en Datos do evento electoral antes de xerar unha carta.",
+                    policyMinimumLengthMissing:
+                        "A Política de contrasinais debe incluír unha lonxitude mínima antes de xerar unha carta.",
+                    policyCharacterClassMissing:
+                        "A Política de contrasinais debe incluír polo menos unha clase de caracteres antes de xerar unha carta.",
+                },
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
                 review: {
@@ -1067,13 +1214,41 @@ const galegoTranslation: TranslationType = {
                 askCreate: "¿Queres crear un?",
                 errors: {
                     editError: "Erro ao editar o votante",
+                    editErrorReason: "Erro ao editar o votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Erro ao crear o votante",
+                    createErrorReason: "Erro ao crear o votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Rexeitouse "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algúns campos deben corrixirse antes de gardar",
+                        hintBetween: "Entre {{min}} e {{max}} caracteres",
+                        hintMin: "Polo menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "e {{count}} máis",
+                        invalidLength: '"{{field}}" debe ter entre {{min}} e {{max}} caracteres',
+                        tooShort: '"{{field}}" debe ter polo menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe ter como máximo {{max}} caracteres',
+                        required: '"{{field}}" é obrigatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser un enderezo de correo electrónico válido',
+                        invalidFormat: '"{{field}}" non ten o formato esperado',
+                        invalid: '"{{field}}" ten un valor non válido',
+                    },
+                    createPasswordError:
+                        "Votante creado, pero non se puido establecer o seu contrasinal",
+                    createPasswordErrorReason:
+                        "Votante creado, pero non se puido establecer o seu contrasinal: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro de que queres eliminar este votante?",
                     bulkBody: "¿Estás seguro de que queres eliminar os votantes seleccionados?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Erro ao exportar votantes",
@@ -1113,6 +1288,7 @@ const galegoTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Xerar Carta de información para o votante",
                 "admin-user": "Administración",
                 "admin-dashboard-view": "Vista del Panel de Administración",
                 "application-export": "Exportación de Aplicaciones",
@@ -1169,6 +1345,7 @@ const galegoTranslation: TranslationType = {
                 "keys-read": "Leer Claves",
                 "document-upload": "Subir Documentos",
                 "document-download": "Descargar Documentos",
+                "document-password-read": "Ler contrasinais de documentos",
                 "tally-sheet-create": "Crear Acta de Recuento",
                 "tally-sheet-import-create": "Crear importación de actas de reconto",
                 "tally-sheet-import-review": "Revisar importación de actas de reconto",
@@ -1697,6 +1874,7 @@ const galegoTranslation: TranslationType = {
                 "warn": "Avisar",
                 "warn-invalid-implicit-and-explicit": "Avisar Votos Nulos Implícitos e Explícitos",
                 "not-allowed": "Non Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Nulo Explícito Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma do Icono de Caixa de Selección dos Candidatos",
@@ -1745,6 +1923,11 @@ const galegoTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Nome da Páxina",
+            },
+            isAcclaimed: {
+                label: "Resolto por aclamación",
+                helperText:
+                    "Os votantes ven este concurso pero non poden seleccionar nada, non se rexistra nada e todas as candidaturas se declaran gañadoras con cero votos. Configúreo antes de publicar as papeletas: cambialo despois invalida as papeletas xa emitidas.",
             },
             allowWriteins: {
                 label: "Permitir candidaturas manuais",
@@ -2114,6 +2297,7 @@ const galegoTranslation: TranslationType = {
                     round: "Rolda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Branco",
                 participation_by_channel: "Participación por canle",
                 channel: "Canle",
                 channel_online: "En liña",
@@ -2123,6 +2307,8 @@ const galegoTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",
@@ -2232,6 +2418,7 @@ const galegoTranslation: TranslationType = {
                 ko: "Cancelar",
                 error: "Erro ao cargar a publicación de papeletas",
                 error_publish: "Erro ao publicar a publicación de papeletas",
+                error_capacity: "Erro ao xerar o estilo de papeleta: {{message}}",
                 error_status: "Erro ao cambiar o estado da publicación de papeletas",
                 error_preview: "Erro ao previsualizar a publicación",
                 diff: "Renderizar todos os cambios pode facer que a páxina non responda. ¿Estás seguro de que queres continuar?",
@@ -2314,8 +2501,19 @@ const galegoTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "O total de votos válidos non coincide coa suma dos votos dos candidatos máis os votos en branco",
-                censusTooSmall: "O censo debe ser maior ou igual ao total de votos",
+                    "Os votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} e {{upperBound}} segundo as regras de votación desta contenda ({{nonBlankValidVotes}} votos válidos non en branco × ata {{maxMarks}} marcas por papeleta)",
+                censusTooSmall:
+                    "O total de votos ({{totalVotes}}) non pode ser maior que o censo ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "O total de votos non válidos ({{totalInvalid}}) debe ser igual aos votos non válidos implícitos ({{implicitInvalid}}) máis os votos non válidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "O total de votos ({{totalVotes}}) debe ser igual ao total de votos válidos ({{totalValidVotes}}) máis o total de votos non válidos ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "O algoritmo de reconto desta contenda ({{countingAlgorithm}}) non se recoñece, polo que non se pode determinar o número permitido de votos de candidatos. Revise a configuración da contenda.",
+                blankBallotsInconsistent:
+                    "As Papeletas en Branco deben ter o mesmo valor en todas as follas de escrutinio desta urna",
+                blankBallotsOutOfBounds:
+                    "O valor de Papeletas en Branco está fóra do rango que implican os reconto de votos en branco por candidatura desta urna",
             },
             label: {
                 area: "Área",
@@ -2326,6 +2524,7 @@ const galegoTranslation: TranslationType = {
                 explicit_invalid: "Votos Nulos Explícitos",
                 implicit_invalid: "Votos Nulos Implícitos",
                 total_blank_votes: "Votos en Branco",
+                blank_ballots: "Papeletas en Branco",
                 census: "Censo",
             },
             common: {

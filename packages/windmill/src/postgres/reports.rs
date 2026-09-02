@@ -18,57 +18,14 @@ use uuid::Uuid;
 
 use crate::services::reports::template_renderer::EReportEncryption;
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
-pub struct ReportCronConfig {
-    #[serde(default)]
-    pub is_active: bool,
-    #[serde(default)]
-    pub last_document_produced: Option<String>,
-    #[serde(default)]
-    pub cron_expression: String,
-    #[serde(default)]
-    pub email_recipients: Vec<String>,
-    #[serde(default)]
-    pub executer_username: String,
-}
-
-impl Default for ReportCronConfig {
-    fn default() -> Self {
-        ReportCronConfig {
-            is_active: false,
-            last_document_produced: None,
-            cron_expression: Default::default(),
-            email_recipients: Default::default(),
-            executer_username: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Report {
-    pub id: String,
-    pub election_event_id: String,
-    pub tenant_id: String,
-    pub election_id: Option<String>,
-    pub report_type: String,
-    pub template_alias: Option<String>,
-    pub encryption_policy: EReportEncryption,
-    pub cron_config: Option<ReportCronConfig>,
-    pub created_at: DateTime<Utc>,
-    pub permission_label: Option<Vec<String>>,
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
-pub enum ReportType {
-    INITIALIZATION_REPORT,
-    ELECTORAL_RESULTS,
-    BALLOT_IMAGES,
-    BALLOT_RECEIPT,
-    ACTIVITY_LOGS,
-    MANUAL_VERIFICATION,
-    PARTICIPATION_REPORT,
-}
+// Report, ReportCronConfig and ReportType now live in
+// sequent_core::election_config, so that the tools which write an import bundle
+// describe reports exactly as the importer reads them. Re-exported here because
+// windmill refers to them by this path in a dozen places.
+//
+// The database mapping stays below: it needs tokio_postgres, which cannot be in
+// a module that compiles to WASM.
+pub use sequent_core::election_config::{Report, ReportCronConfig, ReportType};
 
 pub struct ReportWrapper(pub Report);
 

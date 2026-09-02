@@ -8,10 +8,11 @@ import com.google.auto.service.AutoService;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.extern.jbosslog.JBossLog;
 import org.keycloak.Config;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -28,7 +29,6 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
-import org.keycloak.services.messages.Messages;
 
 /**
  * Authenticates a user by matching one or more configured user attributes against submitted form
@@ -46,11 +46,20 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
   public static final String PROVIDER_ID = "multi-attribute-password-form";
 
   /**
+   * Shown for every failed attempt. Deliberately not Keycloak's {@code invalidUserMessage}: that
+   * reads "Invalid username or password", and this form has no username field - the voter matched
+   * on profile attributes. Defined in the Sequent theme's message bundles.
+   */
+  public static final String INVALID_CREDENTIALS_MESSAGE = "invalidCredentialsMessage";
+
+  /**
    * Renders the active theme's own {@code login.ftl} (voting-portal / admin-portal), instead of a
    * bespoke template, so this authenticator gets the same registration link, social-provider
    * buttons, remember-me and password-visibility toggle as the standard login form. {@code
    * login.ftl} renders its single "username" field as one field per {@code matchAttributes} entry
-   * when that template attribute is set - see {@link #challenge}.
+   * when that template attribute is set, looking each one up in the {@code profile} attribute (a
+   * {@link LoginBean}) via {@code profile.attributesByName} and rendering it with the same {@code
+   * user-profile-commons.ftl} macros {@code register.ftl} uses - see {@link #challenge}.
    */
   public static final String FORM_FTL = "login.ftl";
 
@@ -94,11 +103,14 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
         Utils.getThrottleConfig(context.getAuthenticatorConfig());
     MultiAttributeCredentialResolver.MatchPolicy matchPolicy =
         Utils.getMatchPolicy(context.getAuthenticatorConfig());
+    Set<String> optionalAttributes = optionalAttributes(context, matchAttributes);
+    List<String> attributesToMatch =
+        effectiveMatchAttributes(matchAttributes, submittedValues, optionalAttributes);
     MultiAttributeCredentialResolver.Resolution result =
         resolveAuthenticatedUser(
             context.getSession(),
             context.getRealm(),
-            matchAttributes,
+            attributesToMatch,
             submittedValues,
             password,
             throttleConfig,
@@ -120,7 +132,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
   private void fail(AuthenticationFlowContext context, MultivaluedMap<String, String> formData) {
     context.getEvent().error(Errors.INVALID_USER_CREDENTIALS);
-    Response challengeResponse = challenge(context, formData, Messages.INVALID_USER);
+    Response challengeResponse = challenge(context, formData, INVALID_CREDENTIALS_MESSAGE);
     context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challengeResponse);
     context.clearUser();
   }
@@ -136,13 +148,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       MultiAttributeCredentialResolver.LockoutState state) {
     boolean permanent = state == MultiAttributeCredentialResolver.LockoutState.PERMANENT;
     context.getEvent().error(permanent ? Errors.USER_DISABLED : Errors.USER_TEMPORARILY_DISABLED);
-    Response challengeResponse =
-        challenge(
-            context,
-            formData,
-            permanent
-                ? Messages.ACCOUNT_PERMANENTLY_DISABLED
-                : Messages.ACCOUNT_TEMPORARILY_DISABLED);
+    Response challengeResponse = challenge(context, formData, INVALID_CREDENTIALS_MESSAGE);
     context.forceChallenge(challengeResponse);
     context.clearUser();
   }
@@ -190,12 +196,80 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
   }
 
   /**
+   * When {@link Utils#HONOR_USER_PROFILE_REQUIRED} is enabled, returns the subset of {@code
+   * matchAttributes} the realm's User Profile does <em>not</em> mark required for this same {@link
+   * LoginBean} context - the same source of truth {@link #challenge} uses to decide the client-side
+   * required marking, so a field is never marked required in the form while being optional to
+   * match, or vice versa. An attribute with no User Profile entry at all stays mandatory (the
+   * conservative default - see the fallback field in {@code login.ftl}). When disabled (default),
+   * returns an empty set, so every configured attribute stays mandatory, unchanged from before this
+   * setting existed.
+   *
+   * <p>Consumed by {@link #effectiveMatchAttributes} - {@link MultiAttributeCredentialResolver}
+   * itself has no notion of "optional", it's purely a form-level concern handled before calling it.
+   */
+  protected Set<String> optionalAttributes(
+      AuthenticationFlowContext context, List<String> matchAttributes) {
+    if (!Utils.getBoolean(
+        context.getAuthenticatorConfig(),
+        Utils.HONOR_USER_PROFILE_REQUIRED,
+        Boolean.parseBoolean(Utils.HONOR_USER_PROFILE_REQUIRED_DEFAULT))) {
+      return Set.of();
+    }
+    LoginBean profile = new LoginBean(context.getSession(), matchAttributes);
+    Map<String, LoginBean.Attribute> attributesByName = profile.getAttributesByName();
+    Set<String> optional = new HashSet<>();
+    for (String attribute : matchAttributes) {
+      LoginBean.Attribute declared = attributesByName.get(attribute);
+      if (declared != null && !declared.isRequired()) {
+        optional.add(attribute);
+      }
+    }
+    return optional;
+  }
+
+  /**
+   * Drops any {@code optionalAttributes} entry left blank in {@code submittedValues} from the list
+   * passed to {@link MultiAttributeCredentialResolver#resolveAuthenticatedUser} - the resolver then
+   * never sees that attribute for this request, the same as if it weren't configured at all, rather
+   * than the resolver needing its own "optional" concept. A mandatory attribute left blank is
+   * deliberately kept in the list even though it'll fail: that's what makes the resolver's existing
+   * blank-attribute check reject it (with its usual dummy-hash timing safety), exactly as it
+   * already does today.
+   *
+   * <p>Falls back to the original, unfiltered {@code matchAttributes} if every entry would be
+   * dropped (every configured attribute is optional and blank): passing an empty list to the
+   * resolver would misreport a normal, if unusual, submission as a static misconfiguration (see
+   * {@link MultiAttributeCredentialResolver#resolveAuthenticatedUser}'s empty-list check), and
+   * would let the request through as an unconstrained "match everyone" query. Passing the original
+   * list instead lets the resolver's own blank-attribute check reject it the same way as any other
+   * invalid submission.
+   */
+  protected List<String> effectiveMatchAttributes(
+      List<String> matchAttributes,
+      Map<String, String> submittedValues,
+      Set<String> optionalAttributes) {
+    List<String> kept =
+        matchAttributes.stream()
+            .filter(
+                attribute ->
+                    !optionalAttributes.contains(attribute)
+                        || hasValue(submittedValues.get(attribute)))
+            .toList();
+    return kept.isEmpty() ? matchAttributes : kept;
+  }
+
+  private static boolean hasValue(String value) {
+    return value != null && !value.isBlank();
+  }
+
+  /**
    * Reads each configured attribute's submitted value, normalizing date-typed attributes (per the
-   * realm's User Profile {@code html5-date} annotation, the same source {@link
-   * #buildAttributeFields} reads) into the canonical {@code YYYY-MM-DD} storage format - see {@link
-   * Utils#normalizeDate}. An HTML5 date input already submits exactly {@code YYYY-MM-DD}, so this
-   * is a no-op for the common case; it's still applied defensively so the browser path stays
-   * consistent with the IVR path, which needs real reordering.
+   * realm's User Profile {@code html5-date} annotation - see {@link Utils#resolveHtml5InputType})
+   * into the canonical {@code YYYY-MM-DD} storage format - see {@link Utils#normalizeDate}. An
+   * HTML5 date input already submits exactly {@code YYYY-MM-DD}, so this is a no-op for the common
+   * case; it's still applied defensively so the browser path stays consistent with the IVR path,
+   * which needs real reordering.
    */
   protected Map<String, String> collectSubmittedValues(
       KeycloakSession session,
@@ -229,33 +303,16 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             context.getAuthenticatorConfig(),
             Utils.MATCH_ATTRIBUTES,
             Utils.MATCH_ATTRIBUTES_DEFAULT);
-    form.setAttribute(
-        "matchAttributes", buildAttributeFields(context.getSession(), matchAttributes));
+    form.setAttribute("matchAttributes", matchAttributes);
+    form.setAttribute("profile", new LoginBean(context.getSession(), matchAttributes));
+    if (Utils.getBoolean(
+        context.getAuthenticatorConfig(),
+        Utils.HONOR_USER_PROFILE_REQUIRED,
+        Boolean.parseBoolean(Utils.HONOR_USER_PROFILE_REQUIRED_DEFAULT))) {
+      form.setAttribute("honorUserProfileRequired", true);
+    }
 
     return form.createForm(FORM_FTL);
-  }
-
-  /**
-   * Builds the {@code {name, type}} pairs the template renders one input per configured attribute
-   * from. {@code type} mirrors whatever HTML5 input type (e.g. {@code date}) the realm's User
-   * Profile configuration declares for that attribute, so a field like {@code dateOfBirth} renders
-   * the same native date picker here as it does at registration - see {@link
-   * Utils#resolveHtml5InputType}. Fetches the User Profile attribute list once up front rather than
-   * once per configured attribute.
-   */
-  protected List<Map<String, String>> buildAttributeFields(
-      KeycloakSession session, List<String> matchAttributes) {
-    List<UPAttribute> profileAttributes = Utils.getRealmUserProfileAttributes(session);
-    List<Map<String, String>> fields = new ArrayList<>();
-    for (String attribute : matchAttributes) {
-      fields.add(
-          Map.of(
-              "name",
-              attribute,
-              "type",
-              Utils.resolveHtml5InputType(profileAttributes, attribute)));
-    }
-    return fields;
   }
 
   @Override
@@ -392,7 +449,25 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
                 + ".",
             ProviderConfigProperty.STRING_TYPE,
             Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
-        matchPolicy);
+        matchPolicy,
+        new ProviderConfigProperty(
+            Utils.HONOR_USER_PROFILE_REQUIRED,
+            "Honor User Profile required attributes",
+            "When enabled, each matchAttributes field's required-ness - both for matching and for"
+                + " the rendered form - comes from the realm's User Profile required setting for"
+                + " that attribute, instead of every configured attribute being unconditionally"
+                + " mandatory. An attribute User Profile marks required gets the HTML5 required"
+                + " attribute plus the asterisk + \"Required fields\" note register.ftl shows, and"
+                + " must be filled in to match. An attribute NOT marked required becomes optional:"
+                + " a voter may leave it blank and still match on the remaining attributes, as long"
+                + " as at least one configured attribute has a value - an all-blank submission"
+                + " still fails, same as today. WARNING: making an attribute optional widens who it"
+                + " can match (e.g. dateOfBirth alone instead of dateOfBirth+nationalId), so only"
+                + " enable this if that's the intended tradeoff for that attribute. Disabled by"
+                + " default: every configured attribute stays unconditionally mandatory, exactly as"
+                + " before this setting existed.",
+            ProviderConfigProperty.BOOLEAN_TYPE,
+            Utils.HONOR_USER_PROFILE_REQUIRED_DEFAULT));
   }
 
   @Override

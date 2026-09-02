@@ -26,6 +26,12 @@ export type Scalars = {
     uuid: {input: any; output: any}
 }
 
+export type AcknowledgeSupportMaterialsOutput = {
+    __typename?: "AcknowledgeSupportMaterialsOutput"
+    document_ids: Array<Scalars["String"]["output"]>
+    election_event_id: Scalars["uuid"]["output"]
+}
+
 export type Aggregate = {
     __typename?: "Aggregate"
     count: Scalars["Int"]["output"]
@@ -98,6 +104,8 @@ export type CastVotesByIp = {
 
 export type CastVotesPerDay = {
     __typename?: "CastVotesPerDay"
+    bucket: Scalars["String"]["output"]
+    channel: Scalars["String"]["output"]
     day: Scalars["date"]["output"]
     day_count: Scalars["Int"]["output"]
 }
@@ -237,7 +245,14 @@ export type DeleteUserOutput = {
 
 export type DeleteUsersOutput = {
     __typename?: "DeleteUsersOutput"
+    error_msg?: Maybe<Scalars["String"]["output"]>
     ids?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
+export type DocumentPasswordOutput = {
+    __typename?: "DocumentPasswordOutput"
+    password: Scalars["String"]["output"]
 }
 
 export enum EarlyVotingPolicy {
@@ -267,9 +282,11 @@ export type EditUsersInput = {
 }
 
 export type ElectionEventStatsInput = {
+    bucket_count?: InputMaybe<Scalars["Int"]["input"]>
     election_event_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    time_resolution?: InputMaybe<Scalars["String"]["input"]>
     user_timezone: Scalars["String"]["input"]
 }
 
@@ -279,14 +296,17 @@ export type ElectionEventStatsOutput = {
     total_distinct_voters: Scalars["Int"]["output"]
     total_elections: Scalars["Int"]["output"]
     total_eligible_voters: Scalars["Int"]["output"]
+    voters_by_channel: Array<VotersByChannel>
     votes_per_day: Array<Maybe<CastVotesPerDay>>
 }
 
 export type ElectionStatsInput = {
+    bucket_count?: InputMaybe<Scalars["Int"]["input"]>
     election_event_id: Scalars["uuid"]["input"]
     election_id: Scalars["uuid"]["input"]
     end_date: Scalars["String"]["input"]
     start_date: Scalars["String"]["input"]
+    time_resolution?: InputMaybe<Scalars["String"]["input"]>
     user_timezone: Scalars["String"]["input"]
 }
 
@@ -294,6 +314,7 @@ export type ElectionStatsOutput = {
     __typename?: "ElectionStatsOutput"
     total_areas: Scalars["Int"]["output"]
     total_distinct_voters: Scalars["Int"]["output"]
+    voters_by_channel: Array<VotersByChannel>
     votes_per_day: Array<Maybe<CastVotesPerDay>>
 }
 
@@ -436,6 +457,12 @@ export type FetchResultsArtifactOutput = {
     urls: Array<Scalars["String"]["output"]>
 }
 
+export type GenerateBallotPublicationOutput = {
+    __typename?: "GenerateBallotPublicationOutput"
+    ballot_publication_id: Scalars["uuid"]["output"]
+    task_execution: Tasks_Execution_Type
+}
+
 export type GenerateGoogleMeetOutput = {
     __typename?: "GenerateGoogleMeetOutput"
     meet_link?: Maybe<Scalars["String"]["output"]>
@@ -493,6 +520,11 @@ export type GetPrivateKeyOutput = {
     private_key_base64: Scalars["String"]["output"]
 }
 
+export type GetRealmAttributesOutput = {
+    __typename?: "GetRealmAttributesOutput"
+    attributes: Scalars["jsonb"]["output"]
+}
+
 export type GetRolesInput = {
     limit?: InputMaybe<Scalars["Int"]["input"]>
     offset?: InputMaybe<Scalars["Int"]["input"]>
@@ -504,6 +536,11 @@ export type GetRolesOutput = {
     __typename?: "GetRolesOutput"
     items: Array<KeycloakRole>
     total: TotalAggregate
+}
+
+export type GetSupportMaterialsAcknowledgmentOutput = {
+    __typename?: "GetSupportMaterialsAcknowledgmentOutput"
+    document_ids: Array<Scalars["String"]["output"]>
 }
 
 export type GetTopCastVotesByIpInput = {
@@ -852,6 +889,17 @@ export type PublishResultsWebsiteOutput = {
     task_execution_id: Scalars["String"]["output"]
 }
 
+export type RealmPasswordPolicy = {
+    __typename?: "RealmPasswordPolicy"
+    configured: Scalars["Boolean"]["output"]
+    include_digits: Scalars["Boolean"]["output"]
+    include_lowercase: Scalars["Boolean"]["output"]
+    include_special_characters: Scalars["Boolean"]["output"]
+    include_uppercase: Scalars["Boolean"]["output"]
+    maximum_length: Scalars["Int"]["output"]
+    minimum_length: Scalars["Int"]["output"]
+}
+
 export type RefreshResultsPublicationIndexOutput = {
     __typename?: "RefreshResultsPublicationIndexOutput"
     election_event_id: Scalars["String"]["output"]
@@ -1074,6 +1122,11 @@ export type UpdateRealmAttributesOutput = {
     updated: Scalars["Boolean"]["output"]
 }
 
+export type UpdateRealmPasswordPolicyOutput = {
+    __typename?: "UpdateRealmPasswordPolicyOutput"
+    updated: Scalars["Boolean"]["output"]
+}
+
 export type UpsertAreaOutput = {
     __typename?: "UpsertAreaOutput"
     id: Scalars["String"]["output"]
@@ -1091,6 +1144,33 @@ export type UserProfileAttribute = {
     required?: Maybe<Scalars["jsonb"]["output"]>
     selector?: Maybe<Scalars["jsonb"]["output"]>
     validations?: Maybe<Scalars["jsonb"]["output"]>
+}
+
+export type UserProfileAttributeGroup = {
+    __typename?: "UserProfileAttributeGroup"
+    annotations?: Maybe<Scalars["jsonb"]["output"]>
+    display_description?: Maybe<Scalars["String"]["output"]>
+    display_header?: Maybe<Scalars["String"]["output"]>
+    name?: Maybe<Scalars["String"]["output"]>
+}
+
+export type UserProfileConfiguration = {
+    __typename?: "UserProfileConfiguration"
+    attributes: Array<UserProfileAttribute>
+    groups: Array<UserProfileAttributeGroup>
+}
+
+export type VoterInformationLetterOutput = {
+    __typename?: "VoterInformationLetterOutput"
+    document_id: Scalars["String"]["output"]
+    pdf_password: Scalars["String"]["output"]
+    task_execution: Tasks_Execution_Type
+}
+
+export type VotersByChannel = {
+    __typename?: "VotersByChannel"
+    channel: Scalars["String"]["output"]
+    count: Scalars["Int"]["output"]
 }
 
 export type VotesInfo = {
@@ -1225,6 +1305,8 @@ export type Mutation_Root = {
     ApplicationChangeStatus?: Maybe<ApplicationChangeStatusOutput>
     /** Verify User Registration Application */
     VerifyApplication: Scalars["String"]["output"]
+    /** acknowledge_support_materials */
+    acknowledge_support_materials?: Maybe<AcknowledgeSupportMaterialsOutput>
     /** applies the Sequent-side reconciliation diff for an already-computed import */
     apply_external_reconciliation_changes?: Maybe<TaskOutput>
     call_plugin_route: PluginsRouteOutput
@@ -1450,13 +1532,14 @@ export type Mutation_Root = {
     export_tenant_config?: Maybe<DocumentTaskOutput>
     export_tenant_users?: Maybe<ExportTenantUsersOutput>
     export_users?: Maybe<ExportUsersOutput>
-    generate_ballot_publication?: Maybe<PublishBallotOutput>
+    generate_ballot_publication?: Maybe<GenerateBallotPublicationOutput>
     /** generate Google Meet link for election events */
     generate_google_meet?: Maybe<GenerateGoogleMeetOutput>
     generate_preview_url?: Maybe<GeneratePreviewUrlOutput>
     generate_report?: Maybe<GenerateReportOutput>
     generate_template?: Maybe<GenerateTemplateOutput>
     generate_transmission_report?: Maybe<GenerateReportOutput>
+    generate_voter_information_letter: VoterInformationLetterOutput
     get_ballot_publication_changes?: Maybe<GetBallotPublicationChangesOutput>
     get_manual_verification_pdf?: Maybe<GetManualVerificationOutput>
     /** get private key */
@@ -1681,6 +1764,7 @@ export type Mutation_Root = {
     update_election_voting_status?: Maybe<UpdateElectionVotingStatusOutput>
     update_event_voting_status?: Maybe<UpdateEventVotingStatusOutput>
     update_realm_attributes?: Maybe<UpdateRealmAttributesOutput>
+    update_realm_password_policy: UpdateRealmPasswordPolicyOutput
     /** update data of the table: "sequent_backend.applications" */
     update_sequent_backend_applications?: Maybe<Sequent_Backend_Applications_Mutation_Response>
     /** update single row of the table: "sequent_backend.applications" */
@@ -2036,6 +2120,12 @@ export type Mutation_RootApplicationChangeStatusArgs = {
 /** mutation root */
 export type Mutation_RootVerifyApplicationArgs = {
     body: ApplicationVerifyBody
+}
+
+/** mutation root */
+export type Mutation_RootAcknowledge_Support_MaterialsArgs = {
+    document_ids: Array<Scalars["String"]["input"]>
+    election_event_id: Scalars["uuid"]["input"]
 }
 
 /** mutation root */
@@ -2699,9 +2789,20 @@ export type Mutation_RootDelete_User_RoleArgs = {
 
 /** mutation root */
 export type Mutation_RootDelete_UsersArgs = {
+    attributes?: InputMaybe<Scalars["json"]["input"]>
+    authorized_to_election_alias?: InputMaybe<Scalars["String"]["input"]>
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    election_id?: InputMaybe<Scalars["String"]["input"]>
+    email?: InputMaybe<Scalars["json"]["input"]>
+    email_verified?: InputMaybe<Scalars["Boolean"]["input"]>
+    enabled?: InputMaybe<Scalars["Boolean"]["input"]>
+    first_name?: InputMaybe<Scalars["json"]["input"]>
+    has_voted?: InputMaybe<Scalars["Boolean"]["input"]>
+    last_name?: InputMaybe<Scalars["json"]["input"]>
+    select_all?: InputMaybe<Scalars["Boolean"]["input"]>
     tenant_id: Scalars["String"]["input"]
-    users_id: Array<Scalars["String"]["input"]>
+    username?: InputMaybe<Scalars["json"]["input"]>
+    users_id?: InputMaybe<Array<Scalars["String"]["input"]>>
 }
 
 /** mutation root */
@@ -2839,6 +2940,12 @@ export type Mutation_RootGenerate_Transmission_ReportArgs = {
     election_id?: InputMaybe<Scalars["String"]["input"]>
     tally_session_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootGenerate_Voter_Information_LetterArgs = {
+    election_event_id: Scalars["String"]["input"]
+    voter_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
@@ -3632,6 +3739,17 @@ export type Mutation_RootUpdate_Realm_AttributesArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootUpdate_Realm_Password_PolicyArgs = {
+    election_event_id: Scalars["String"]["input"]
+    include_digits: Scalars["Boolean"]["input"]
+    include_lowercase: Scalars["Boolean"]["input"]
+    include_special_characters: Scalars["Boolean"]["input"]
+    include_uppercase: Scalars["Boolean"]["input"]
+    maximum_length: Scalars["Int"]["input"]
+    minimum_length: Scalars["Int"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootUpdate_Sequent_Backend_ApplicationsArgs = {
     _append?: InputMaybe<Sequent_Backend_Applications_Append_Input>
     _delete_at_path?: InputMaybe<Sequent_Backend_Applications_Delete_At_Path_Input>
@@ -4310,6 +4428,7 @@ export type Mutation_RootUpdate_Sequent_Backend_Results_Election_AreaArgs = {
     _delete_at_path?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_At_Path_Input>
     _delete_elem?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_Elem_Input>
     _delete_key?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_Key_Input>
+    _inc?: InputMaybe<Sequent_Backend_Results_Election_Area_Inc_Input>
     _prepend?: InputMaybe<Sequent_Backend_Results_Election_Area_Prepend_Input>
     _set?: InputMaybe<Sequent_Backend_Results_Election_Area_Set_Input>
     where: Sequent_Backend_Results_Election_Area_Bool_Exp
@@ -4321,6 +4440,7 @@ export type Mutation_RootUpdate_Sequent_Backend_Results_Election_Area_By_PkArgs 
     _delete_at_path?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_At_Path_Input>
     _delete_elem?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_Elem_Input>
     _delete_key?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_Key_Input>
+    _inc?: InputMaybe<Sequent_Backend_Results_Election_Area_Inc_Input>
     _prepend?: InputMaybe<Sequent_Backend_Results_Election_Area_Prepend_Input>
     _set?: InputMaybe<Sequent_Backend_Results_Election_Area_Set_Input>
     pk_columns: Sequent_Backend_Results_Election_Area_Pk_Columns_Input
@@ -4871,11 +4991,17 @@ export type Query_Root = {
     getElectionEventStats?: Maybe<ElectionEventStatsOutput>
     /** get election event stats */
     getElectionStats?: Maybe<ElectionStatsOutput>
+    get_document_password: DocumentPasswordOutput
     /** list permissions */
     get_permissions: GetPermissionsOutput
+    get_realm_attributes: GetRealmAttributesOutput
+    get_realm_password_policy: RealmPasswordPolicy
     get_roles: GetRolesOutput
+    /** get_support_materials_acknowledgment */
+    get_support_materials_acknowledgment: GetSupportMaterialsAcknowledgmentOutput
     get_top_votes_by_ip?: Maybe<GetTopCastVotesByIpOutput>
     get_user_profile_attributes: Array<UserProfileAttribute>
+    get_user_profile_configuration: UserProfileConfiguration
     get_users: GetUsersOutput
     /** List Electoral Log */
     listElectoralLog?: Maybe<DataListElectoralLog>
@@ -5172,12 +5298,28 @@ export type Query_RootGetElectionStatsArgs = {
     object: ElectionStatsInput
 }
 
+export type Query_RootGet_Document_PasswordArgs = {
+    document_id: Scalars["String"]["input"]
+}
+
 export type Query_RootGet_PermissionsArgs = {
     body: GetPermissionsInput
 }
 
+export type Query_RootGet_Realm_AttributesArgs = {
+    election_event_id: Scalars["String"]["input"]
+}
+
+export type Query_RootGet_Realm_Password_PolicyArgs = {
+    election_event_id: Scalars["String"]["input"]
+}
+
 export type Query_RootGet_RolesArgs = {
     body: GetRolesInput
+}
+
+export type Query_RootGet_Support_Materials_AcknowledgmentArgs = {
+    election_event_id: Scalars["uuid"]["input"]
 }
 
 export type Query_RootGet_Top_Votes_By_IpArgs = {
@@ -5185,6 +5327,11 @@ export type Query_RootGet_Top_Votes_By_IpArgs = {
 }
 
 export type Query_RootGet_User_Profile_AttributesArgs = {
+    election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    tenant_id: Scalars["String"]["input"]
+}
+
+export type Query_RootGet_User_Profile_ConfigurationArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
@@ -15840,6 +15987,8 @@ export type Sequent_Backend_Results_Contest_Variance_Fields = {
 export type Sequent_Backend_Results_Election = {
     __typename?: "sequent_backend_results_election"
     annotations?: Maybe<Scalars["jsonb"]["output"]>
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     documents?: Maybe<Scalars["jsonb"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
@@ -15910,6 +16059,8 @@ export type Sequent_Backend_Results_Election_Append_Input = {
 export type Sequent_Backend_Results_Election_Area = {
     __typename?: "sequent_backend_results_election_area"
     area_id: Scalars["uuid"]["output"]
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at: Scalars["timestamptz"]["output"]
     documents?: Maybe<Scalars["jsonb"]["output"]>
     election_event_id: Scalars["uuid"]["output"]
@@ -15936,9 +16087,17 @@ export type Sequent_Backend_Results_Election_Area_Aggregate = {
 /** aggregate fields of "sequent_backend.results_election_area" */
 export type Sequent_Backend_Results_Election_Area_Aggregate_Fields = {
     __typename?: "sequent_backend_results_election_area_aggregate_fields"
+    avg?: Maybe<Sequent_Backend_Results_Election_Area_Avg_Fields>
     count: Scalars["Int"]["output"]
     max?: Maybe<Sequent_Backend_Results_Election_Area_Max_Fields>
     min?: Maybe<Sequent_Backend_Results_Election_Area_Min_Fields>
+    stddev?: Maybe<Sequent_Backend_Results_Election_Area_Stddev_Fields>
+    stddev_pop?: Maybe<Sequent_Backend_Results_Election_Area_Stddev_Pop_Fields>
+    stddev_samp?: Maybe<Sequent_Backend_Results_Election_Area_Stddev_Samp_Fields>
+    sum?: Maybe<Sequent_Backend_Results_Election_Area_Sum_Fields>
+    var_pop?: Maybe<Sequent_Backend_Results_Election_Area_Var_Pop_Fields>
+    var_samp?: Maybe<Sequent_Backend_Results_Election_Area_Var_Samp_Fields>
+    variance?: Maybe<Sequent_Backend_Results_Election_Area_Variance_Fields>
 }
 
 /** aggregate fields of "sequent_backend.results_election_area" */
@@ -15952,12 +16111,21 @@ export type Sequent_Backend_Results_Election_Area_Append_Input = {
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
 }
 
+/** aggregate avg on columns */
+export type Sequent_Backend_Results_Election_Area_Avg_Fields = {
+    __typename?: "sequent_backend_results_election_area_avg_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
+}
+
 /** Boolean expression to filter rows from the table "sequent_backend.results_election_area". All fields are combined with a logical 'AND'. */
 export type Sequent_Backend_Results_Election_Area_Bool_Exp = {
     _and?: InputMaybe<Array<Sequent_Backend_Results_Election_Area_Bool_Exp>>
     _not?: InputMaybe<Sequent_Backend_Results_Election_Area_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Results_Election_Area_Bool_Exp>>
     area_id?: InputMaybe<Uuid_Comparison_Exp>
+    blank_ballots?: InputMaybe<Int_Comparison_Exp>
+    blank_ballots_percent?: InputMaybe<Numeric_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -15992,9 +16160,17 @@ export type Sequent_Backend_Results_Election_Area_Delete_Key_Input = {
     documents?: InputMaybe<Scalars["String"]["input"]>
 }
 
+/** input type for incrementing numeric columns in table "sequent_backend.results_election_area" */
+export type Sequent_Backend_Results_Election_Area_Inc_Input = {
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
+}
+
 /** input type for inserting data into table "sequent_backend.results_election_area" */
 export type Sequent_Backend_Results_Election_Area_Insert_Input = {
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16010,6 +16186,8 @@ export type Sequent_Backend_Results_Election_Area_Insert_Input = {
 export type Sequent_Backend_Results_Election_Area_Max_Fields = {
     __typename?: "sequent_backend_results_election_area_max_fields"
     area_id?: Maybe<Scalars["uuid"]["output"]>
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16024,6 +16202,8 @@ export type Sequent_Backend_Results_Election_Area_Max_Fields = {
 export type Sequent_Backend_Results_Election_Area_Min_Fields = {
     __typename?: "sequent_backend_results_election_area_min_fields"
     area_id?: Maybe<Scalars["uuid"]["output"]>
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16053,6 +16233,8 @@ export type Sequent_Backend_Results_Election_Area_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.results_election_area". */
 export type Sequent_Backend_Results_Election_Area_Order_By = {
     area_id?: InputMaybe<Order_By>
+    blank_ballots?: InputMaybe<Order_By>
+    blank_ballots_percent?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
@@ -16082,6 +16264,10 @@ export enum Sequent_Backend_Results_Election_Area_Select_Column {
     /** column name */
     AreaId = "area_id",
     /** column name */
+    BlankBallots = "blank_ballots",
+    /** column name */
+    BlankBallotsPercent = "blank_ballots_percent",
+    /** column name */
     CreatedAt = "created_at",
     /** column name */
     Documents = "documents",
@@ -16104,6 +16290,8 @@ export enum Sequent_Backend_Results_Election_Area_Select_Column {
 /** input type for updating data in table "sequent_backend.results_election_area" */
 export type Sequent_Backend_Results_Election_Area_Set_Input = {
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16113,6 +16301,27 @@ export type Sequent_Backend_Results_Election_Area_Set_Input = {
     name?: InputMaybe<Scalars["String"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
+}
+
+/** aggregate stddev on columns */
+export type Sequent_Backend_Results_Election_Area_Stddev_Fields = {
+    __typename?: "sequent_backend_results_election_area_stddev_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate stddev_pop on columns */
+export type Sequent_Backend_Results_Election_Area_Stddev_Pop_Fields = {
+    __typename?: "sequent_backend_results_election_area_stddev_pop_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate stddev_samp on columns */
+export type Sequent_Backend_Results_Election_Area_Stddev_Samp_Fields = {
+    __typename?: "sequent_backend_results_election_area_stddev_samp_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
 }
 
 /** Streaming cursor of the table "sequent_backend_results_election_area" */
@@ -16126,6 +16335,8 @@ export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Value_Input = {
     area_id?: InputMaybe<Scalars["uuid"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16137,10 +16348,21 @@ export type Sequent_Backend_Results_Election_Area_Stream_Cursor_Value_Input = {
     tenant_id?: InputMaybe<Scalars["uuid"]["input"]>
 }
 
+/** aggregate sum on columns */
+export type Sequent_Backend_Results_Election_Area_Sum_Fields = {
+    __typename?: "sequent_backend_results_election_area_sum_fields"
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
+}
+
 /** update columns of table "sequent_backend.results_election_area" */
 export enum Sequent_Backend_Results_Election_Area_Update_Column {
     /** column name */
     AreaId = "area_id",
+    /** column name */
+    BlankBallots = "blank_ballots",
+    /** column name */
+    BlankBallotsPercent = "blank_ballots_percent",
     /** column name */
     CreatedAt = "created_at",
     /** column name */
@@ -16170,6 +16392,8 @@ export type Sequent_Backend_Results_Election_Area_Updates = {
     _delete_elem?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_Elem_Input>
     /** delete key/value pair or string element. key/value pairs are matched based on their key value */
     _delete_key?: InputMaybe<Sequent_Backend_Results_Election_Area_Delete_Key_Input>
+    /** increments the numeric columns with given value of the filtered values */
+    _inc?: InputMaybe<Sequent_Backend_Results_Election_Area_Inc_Input>
     /** prepend existing jsonb value of filtered columns with new jsonb value */
     _prepend?: InputMaybe<Sequent_Backend_Results_Election_Area_Prepend_Input>
     /** sets the columns of the filtered rows to the given values */
@@ -16178,9 +16402,32 @@ export type Sequent_Backend_Results_Election_Area_Updates = {
     where: Sequent_Backend_Results_Election_Area_Bool_Exp
 }
 
+/** aggregate var_pop on columns */
+export type Sequent_Backend_Results_Election_Area_Var_Pop_Fields = {
+    __typename?: "sequent_backend_results_election_area_var_pop_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate var_samp on columns */
+export type Sequent_Backend_Results_Election_Area_Var_Samp_Fields = {
+    __typename?: "sequent_backend_results_election_area_var_samp_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
+}
+
+/** aggregate variance on columns */
+export type Sequent_Backend_Results_Election_Area_Variance_Fields = {
+    __typename?: "sequent_backend_results_election_area_variance_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
+}
+
 /** aggregate avg on columns */
 export type Sequent_Backend_Results_Election_Avg_Fields = {
     __typename?: "sequent_backend_results_election_avg_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -16192,6 +16439,8 @@ export type Sequent_Backend_Results_Election_Bool_Exp = {
     _not?: InputMaybe<Sequent_Backend_Results_Election_Bool_Exp>
     _or?: InputMaybe<Array<Sequent_Backend_Results_Election_Bool_Exp>>
     annotations?: InputMaybe<Jsonb_Comparison_Exp>
+    blank_ballots?: InputMaybe<Int_Comparison_Exp>
+    blank_ballots_percent?: InputMaybe<Numeric_Comparison_Exp>
     created_at?: InputMaybe<Timestamptz_Comparison_Exp>
     documents?: InputMaybe<Jsonb_Comparison_Exp>
     election_event_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -16236,6 +16485,8 @@ export type Sequent_Backend_Results_Election_Delete_Key_Input = {
 
 /** input type for incrementing numeric columns in table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Inc_Input = {
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     elegible_census?: InputMaybe<Scalars["Int"]["input"]>
     total_voters?: InputMaybe<Scalars["Int"]["input"]>
     total_voters_percent?: InputMaybe<Scalars["numeric"]["input"]>
@@ -16244,6 +16495,8 @@ export type Sequent_Backend_Results_Election_Inc_Input = {
 /** input type for inserting data into table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Insert_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16262,6 +16515,8 @@ export type Sequent_Backend_Results_Election_Insert_Input = {
 /** aggregate max on columns */
 export type Sequent_Backend_Results_Election_Max_Fields = {
     __typename?: "sequent_backend_results_election_max_fields"
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16278,6 +16533,8 @@ export type Sequent_Backend_Results_Election_Max_Fields = {
 /** aggregate min on columns */
 export type Sequent_Backend_Results_Election_Min_Fields = {
     __typename?: "sequent_backend_results_election_min_fields"
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     created_at?: Maybe<Scalars["timestamptz"]["output"]>
     election_event_id?: Maybe<Scalars["uuid"]["output"]>
     election_id?: Maybe<Scalars["uuid"]["output"]>
@@ -16310,6 +16567,8 @@ export type Sequent_Backend_Results_Election_On_Conflict = {
 /** Ordering options when selecting data from "sequent_backend.results_election". */
 export type Sequent_Backend_Results_Election_Order_By = {
     annotations?: InputMaybe<Order_By>
+    blank_ballots?: InputMaybe<Order_By>
+    blank_ballots_percent?: InputMaybe<Order_By>
     created_at?: InputMaybe<Order_By>
     documents?: InputMaybe<Order_By>
     election_event_id?: InputMaybe<Order_By>
@@ -16345,6 +16604,10 @@ export enum Sequent_Backend_Results_Election_Select_Column {
     /** column name */
     Annotations = "annotations",
     /** column name */
+    BlankBallots = "blank_ballots",
+    /** column name */
+    BlankBallotsPercent = "blank_ballots_percent",
+    /** column name */
     CreatedAt = "created_at",
     /** column name */
     Documents = "documents",
@@ -16375,6 +16638,8 @@ export enum Sequent_Backend_Results_Election_Select_Column {
 /** input type for updating data in table "sequent_backend.results_election" */
 export type Sequent_Backend_Results_Election_Set_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16393,6 +16658,8 @@ export type Sequent_Backend_Results_Election_Set_Input = {
 /** aggregate stddev on columns */
 export type Sequent_Backend_Results_Election_Stddev_Fields = {
     __typename?: "sequent_backend_results_election_stddev_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -16401,6 +16668,8 @@ export type Sequent_Backend_Results_Election_Stddev_Fields = {
 /** aggregate stddev_pop on columns */
 export type Sequent_Backend_Results_Election_Stddev_Pop_Fields = {
     __typename?: "sequent_backend_results_election_stddev_pop_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -16409,6 +16678,8 @@ export type Sequent_Backend_Results_Election_Stddev_Pop_Fields = {
 /** aggregate stddev_samp on columns */
 export type Sequent_Backend_Results_Election_Stddev_Samp_Fields = {
     __typename?: "sequent_backend_results_election_stddev_samp_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -16425,6 +16696,8 @@ export type Sequent_Backend_Results_Election_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type Sequent_Backend_Results_Election_Stream_Cursor_Value_Input = {
     annotations?: InputMaybe<Scalars["jsonb"]["input"]>
+    blank_ballots?: InputMaybe<Scalars["Int"]["input"]>
+    blank_ballots_percent?: InputMaybe<Scalars["numeric"]["input"]>
     created_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     documents?: InputMaybe<Scalars["jsonb"]["input"]>
     election_event_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -16443,6 +16716,8 @@ export type Sequent_Backend_Results_Election_Stream_Cursor_Value_Input = {
 /** aggregate sum on columns */
 export type Sequent_Backend_Results_Election_Sum_Fields = {
     __typename?: "sequent_backend_results_election_sum_fields"
+    blank_ballots?: Maybe<Scalars["Int"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["numeric"]["output"]>
     elegible_census?: Maybe<Scalars["Int"]["output"]>
     total_voters?: Maybe<Scalars["Int"]["output"]>
     total_voters_percent?: Maybe<Scalars["numeric"]["output"]>
@@ -16452,6 +16727,10 @@ export type Sequent_Backend_Results_Election_Sum_Fields = {
 export enum Sequent_Backend_Results_Election_Update_Column {
     /** column name */
     Annotations = "annotations",
+    /** column name */
+    BlankBallots = "blank_ballots",
+    /** column name */
+    BlankBallotsPercent = "blank_ballots_percent",
     /** column name */
     CreatedAt = "created_at",
     /** column name */
@@ -16502,6 +16781,8 @@ export type Sequent_Backend_Results_Election_Updates = {
 /** aggregate var_pop on columns */
 export type Sequent_Backend_Results_Election_Var_Pop_Fields = {
     __typename?: "sequent_backend_results_election_var_pop_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -16510,6 +16791,8 @@ export type Sequent_Backend_Results_Election_Var_Pop_Fields = {
 /** aggregate var_samp on columns */
 export type Sequent_Backend_Results_Election_Var_Samp_Fields = {
     __typename?: "sequent_backend_results_election_var_samp_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -16518,6 +16801,8 @@ export type Sequent_Backend_Results_Election_Var_Samp_Fields = {
 /** aggregate variance on columns */
 export type Sequent_Backend_Results_Election_Variance_Fields = {
     __typename?: "sequent_backend_results_election_variance_fields"
+    blank_ballots?: Maybe<Scalars["Float"]["output"]>
+    blank_ballots_percent?: Maybe<Scalars["Float"]["output"]>
     elegible_census?: Maybe<Scalars["Float"]["output"]>
     total_voters?: Maybe<Scalars["Float"]["output"]>
     total_voters_percent?: Maybe<Scalars["Float"]["output"]>
@@ -18729,6 +19014,8 @@ export type Sequent_Backend_Tally_Session_Execution = {
     labels?: Maybe<Scalars["jsonb"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     status?: Maybe<Scalars["jsonb"]["output"]>
     tally_session_id: Scalars["uuid"]["output"]
@@ -18812,6 +19099,7 @@ export type Sequent_Backend_Tally_Session_Execution_Bool_Exp = {
     labels?: InputMaybe<Jsonb_Comparison_Exp>
     last_updated_at?: InputMaybe<Timestamptz_Comparison_Exp>
     results_event_id?: InputMaybe<Uuid_Comparison_Exp>
+    run_reason?: InputMaybe<String_Comparison_Exp>
     session_ids?: InputMaybe<Int_Array_Comparison_Exp>
     status?: InputMaybe<Jsonb_Comparison_Exp>
     tally_session_id?: InputMaybe<Uuid_Comparison_Exp>
@@ -18864,6 +19152,8 @@ export type Sequent_Backend_Tally_Session_Execution_Insert_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -18879,6 +19169,8 @@ export type Sequent_Backend_Tally_Session_Execution_Max_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     tally_session_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -18893,6 +19185,8 @@ export type Sequent_Backend_Tally_Session_Execution_Min_Fields = {
     id?: Maybe<Scalars["uuid"]["output"]>
     last_updated_at?: Maybe<Scalars["timestamptz"]["output"]>
     results_event_id?: Maybe<Scalars["uuid"]["output"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: Maybe<Scalars["String"]["output"]>
     session_ids?: Maybe<Array<Scalars["Int"]["output"]>>
     tally_session_id?: Maybe<Scalars["uuid"]["output"]>
     tenant_id?: Maybe<Scalars["uuid"]["output"]>
@@ -18925,6 +19219,7 @@ export type Sequent_Backend_Tally_Session_Execution_Order_By = {
     labels?: InputMaybe<Order_By>
     last_updated_at?: InputMaybe<Order_By>
     results_event_id?: InputMaybe<Order_By>
+    run_reason?: InputMaybe<Order_By>
     session_ids?: InputMaybe<Order_By>
     status?: InputMaybe<Order_By>
     tally_session_id?: InputMaybe<Order_By>
@@ -18967,6 +19262,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Select_Column {
     /** column name */
     ResultsEventId = "results_event_id",
     /** column name */
+    RunReason = "run_reason",
+    /** column name */
     SessionIds = "session_ids",
     /** column name */
     Status = "status",
@@ -18987,6 +19284,8 @@ export type Sequent_Backend_Tally_Session_Execution_Set_Input = {
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19030,6 +19329,8 @@ export type Sequent_Backend_Tally_Session_Execution_Stream_Cursor_Value_Input = 
     labels?: InputMaybe<Scalars["jsonb"]["input"]>
     last_updated_at?: InputMaybe<Scalars["timestamptz"]["input"]>
     results_event_id?: InputMaybe<Scalars["uuid"]["input"]>
+    /** TallyRunReason: NORMAL | RECOUNT | TIE_BREAK_RERUN. NULL means NORMAL. */
+    run_reason?: InputMaybe<Scalars["String"]["input"]>
     session_ids?: InputMaybe<Array<Scalars["Int"]["input"]>>
     status?: InputMaybe<Scalars["jsonb"]["input"]>
     tally_session_id?: InputMaybe<Scalars["uuid"]["input"]>
@@ -19062,6 +19363,8 @@ export enum Sequent_Backend_Tally_Session_Execution_Update_Column {
     LastUpdatedAt = "last_updated_at",
     /** column name */
     ResultsEventId = "results_event_id",
+    /** column name */
+    RunReason = "run_reason",
     /** column name */
     SessionIds = "session_ids",
     /** column name */
@@ -24198,9 +24501,15 @@ export type GetBallotStylesQueryVariables = Exact<{[key: string]: never}>
 
 export type GetBallotStylesQuery = {
     __typename?: "query_root"
+    sequent_backend_ballot_publication: Array<{
+        __typename?: "sequent_backend_ballot_publication"
+        id: any
+        published_at?: any | null
+    }>
     sequent_backend_ballot_style: Array<{
         __typename?: "sequent_backend_ballot_style"
         id: any
+        ballot_publication_id: any
         election_id: any
         election_event_id: any
         status?: string | null
@@ -24226,6 +24535,56 @@ export const GetBallotStylesDocument = {
             selectionSet: {
                 kind: "SelectionSet",
                 selections: [
+                    {
+                        kind: "Field",
+                        name: {kind: "Name", value: "sequent_backend_ballot_publication"},
+                        arguments: [
+                            {
+                                kind: "Argument",
+                                name: {kind: "Name", value: "where"},
+                                value: {
+                                    kind: "ObjectValue",
+                                    fields: [
+                                        {
+                                            kind: "ObjectField",
+                                            name: {kind: "Name", value: "deleted_at"},
+                                            value: {
+                                                kind: "ObjectValue",
+                                                fields: [
+                                                    {
+                                                        kind: "ObjectField",
+                                                        name: {kind: "Name", value: "_is_null"},
+                                                        value: {kind: "BooleanValue", value: true},
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                        {
+                                            kind: "ObjectField",
+                                            name: {kind: "Name", value: "published_at"},
+                                            value: {
+                                                kind: "ObjectValue",
+                                                fields: [
+                                                    {
+                                                        kind: "ObjectField",
+                                                        name: {kind: "Name", value: "_is_null"},
+                                                        value: {kind: "BooleanValue", value: false},
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: "SelectionSet",
+                            selections: [
+                                {kind: "Field", name: {kind: "Name", value: "id"}},
+                                {kind: "Field", name: {kind: "Name", value: "published_at"}},
+                            ],
+                        },
+                    },
                     {
                         kind: "Field",
                         name: {kind: "Name", value: "sequent_backend_ballot_style"},
@@ -24258,6 +24617,10 @@ export const GetBallotStylesDocument = {
                             kind: "SelectionSet",
                             selections: [
                                 {kind: "Field", name: {kind: "Name", value: "id"}},
+                                {
+                                    kind: "Field",
+                                    name: {kind: "Name", value: "ballot_publication_id"},
+                                },
                                 {kind: "Field", name: {kind: "Name", value: "election_id"}},
                                 {kind: "Field", name: {kind: "Name", value: "election_event_id"}},
                                 {kind: "Field", name: {kind: "Name", value: "status"}},

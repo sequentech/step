@@ -131,6 +131,15 @@
         "clientRole": false,
         "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
         "attributes": {}
+      },
+      {
+        "id": "fdff7a41-a8c7-4a51-8d56-a94f852b22ad",
+        "name": "ack-support-materials",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "613e770d-7498-4726-90ff-b288f40a7b30",
+        "attributes": {}
       }
     ],
     "client": {
@@ -470,7 +479,8 @@
       "attributes": {},
       "realmRoles": [
         "default-roles-tenant90505c8a23a94cdfa26b4e19f6a097d5event33f18502a67c48538333a58630663559",
-        "user"
+        "user",
+        "ack-support-materials"
       ],
       "clientRoles": {}
     }
@@ -2709,7 +2719,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"up-username-not-idn-homograph\":{},\"length\":{\"min\":\"3\",\"max\":\"40\"}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"annotations\",\"displayName\":\"annotations\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
+            "{\"attributes\":[{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{\"html-attribute:autocomplete\":\"given-name\"},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"annotations\":{},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"up-username-not-idn-homograph\":{},\"length\":{\"min\":\"3\",\"max\":\"40\"}},\"annotations\":{\"hidden\":\"true\"},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"tenant-id\",\"displayName\":\"Tenant Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"area-id\",\"displayName\":\"Area Id\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"vote-weight\",\"displayName\":\"Vote Weight\",\"validations\":{\"integer\":{\"min\":\"1\",\"max\":\"100000\"}},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"authorized-election-ids\",\"displayName\":\"Authorized Elections\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"annotations\",\"displayName\":\"annotations\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]},\"multivalued\":true},{\"name\":\"support-materials-acknowledged\",\"displayName\":\"Support Materials Acknowledged\",\"validations\":{},\"annotations\":{},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":true}],\"groups\":[]}"
           ]
         }
       }
@@ -4535,7 +4545,13 @@
     "parRequestUriLifespan": "60",
     "clientSessionMaxLifespan": "0",
     "frontendUrl": "",
-    "acr.loa.map": "{}"
+    "acr.loa.map": "{}",
+    "credential-input-policy": "standard",
+    "credential-input-pattern": "dddd-dddd-dddd-dddd",
+    "credential-input-placeholder": "d",
+    "credential-field-position": "LAST",
+    "login-validation-policy": "BROWSER",
+    "voter-certificate-policy": "disabled"
   },
   "keycloakVersion": "24.0.5",
   "userManagedAccessAllowed": false,

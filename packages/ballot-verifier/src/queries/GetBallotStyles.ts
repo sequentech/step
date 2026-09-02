@@ -5,8 +5,15 @@ import {gql} from "@apollo/client"
 
 export const GET_BALLOT_STYLES = gql`
     query GetBallotStyles {
+        sequent_backend_ballot_publication(
+            where: {deleted_at: {_is_null: true}, published_at: {_is_null: false}}
+        ) {
+            id
+            published_at
+        }
         sequent_backend_ballot_style(where: {deleted_at: {_is_null: true}}) {
             id
+            ballot_publication_id
             election_id
             election_event_id
             status

@@ -82,16 +82,9 @@ pub enum ReportOriginatedFrom {
     ReportsTab,
 }
 
-#[allow(non_camel_case_types)]
-#[derive(
-    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString, IntoStaticStr,
-)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum EReportEncryption {
-    Unencrypted,
-    ConfiguredPassword,
-}
+// Moved to sequent_core::election_config so the import writers and the importer
+// agree on the wire form. Re-exported: windmill refers to it by this path.
+pub use sequent_core::election_config::EReportEncryption;
 
 pub const DEFAULT_ITEMS_PER_REPORT_LIMIT: usize = 1000;
 /// Trait that defines the behavior for rendering templates
@@ -106,6 +99,10 @@ pub trait TemplateRenderer: Debug {
     fn get_tenant_id(&self) -> String;
     fn get_election_event_id(&self) -> String;
     fn get_report_origin(&self) -> ReportOriginatedFrom;
+
+    fn contains_sensitive_data(&self) -> bool {
+        false
+    }
 
     /// Can be None when a report is generated with no template assigned to it,
     /// or from other place than the reports TAB.
@@ -339,7 +336,9 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        debug!("user data in template renderer: {user_data_map:#?}");
+        if !self.contains_sensitive_data() {
+            debug!("user data in template renderer: {user_data_map:#?}");
+        }
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
@@ -398,7 +397,9 @@ pub trait TemplateRenderer: Debug {
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
 
-        debug!("user data in template renderer: {user_data_map:#?}");
+        if !self.contains_sensitive_data() {
+            debug!("user data in template renderer: {user_data_map:#?}");
+        }
 
         let rendered_user_template =
             reports::render_template_text(user_tpl_document, user_data_map)
@@ -560,9 +561,10 @@ pub trait TemplateRenderer: Debug {
                         // Render to PDF bytes
                         let pdf_bytes = GLOBAL_RT
                             .block_on(async {
-                                pdf::PdfRenderer::render_pdf(
+                                pdf::PdfRenderer::render_pdf_with_sensitivity(
                                     rendered_system_template,
                                     Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+                                    self.contains_sensitive_data(),
                                 )
                                 .await
                             })
@@ -788,11 +790,14 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        debug!("Report generated: {rendered_system_template}");
+        if !self.contains_sensitive_data() {
+            debug!("Report generated: {rendered_system_template}");
+        }
         let extension_suffix = "pdf";
-        let content_bytes = pdf::PdfRenderer::render_pdf(
+        let content_bytes = pdf::PdfRenderer::render_pdf_with_sensitivity(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
+            self.contains_sensitive_data(),
         )
         .await
         .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;

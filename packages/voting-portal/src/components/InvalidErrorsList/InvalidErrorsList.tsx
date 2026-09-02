@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useMemo, useState} from "react"
-import {WarnBox} from "@sequentech/ui-essentials"
+import {WarnBox, EWarnBoxAnnouncement} from "@sequentech/ui-essentials"
 import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
 import {provideBallotService} from "../../services/BallotService"
 import {useAppSelector} from "../../store/hooks"
@@ -31,6 +31,14 @@ const ErrorWrapper = styled(Box)`
     gap: 4px;
     margin-bottom: 12px;
 `
+
+// The write-in length error is the one message tied to a specific control, so it
+// gets a predictable id that the write-in field can point aria-describedby at.
+export const writeInErrorId = (contestId: string): string => `contest-${contestId}-writein-error`
+
+// The contest's answer group points aria-describedby here, so the reason the
+// voter cannot continue is read out along with the group.
+export const contestErrorsId = (contestId: string): string => `contest-${contestId}-errors`
 
 export interface IInvalidErrorsListProps {
     ballotStyle: IBallotStyle
@@ -106,8 +114,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     // !() is used so that function instead of behaving like
                     // "show error when this happens" behaves more like "hide
                     // error when this happens"
-                    (error) => {
-                        let ret = !(
+                    (error) =>
+                        !(
                             ("errors.implicit.underVote" === error.message &&
                                 !isReview &&
                                 under_vote_policy === EUnderVotePolicy.WARN_ONLY_IN_REVIEW) ||
@@ -116,21 +124,6 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                                 blank_vote_policy === EBlankVotePolicy.WARN_ONLY_IN_REVIEW) ||
                             (error.message === "errors.implicit.overVoteDisabled" && isReview)
                         )
-                        if (!ret) {
-                            console.log(`
-                                invalid_alerts: filtering out alert: ${error.message}.
-                                - error.message: ${error.message}
-                                - isReview: ${isReview}
-                                - isTouched: ${isTouched}
-                                - isVotedState: ${isVotedState}
-                                - under_vote_policy: ${under_vote_policy}
-                                - blank_vote_policy: ${blank_vote_policy}
-                            `)
-                        } else {
-                            console.log(`invalid_alerts: NOT filtering out error: ${error.message}`)
-                        }
-                        return ret
-                    }
                 ) || [],
         }
         if (!isReview && !isTouched) {
@@ -154,7 +147,8 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         )
         ret.invalid_errors = ret.invalid_errors.filter((error) => {
             let ret = !(
-                invalid_vote_policy === EInvalidVotePolicy.ALLOWED &&
+                (invalid_vote_policy === EInvalidVotePolicy.ALLOWED ||
+                    invalid_vote_policy === EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT) &&
                 !(
                     "errors.implicit.selectedMax" === error.message &&
                     over_vote_policy !== EOverVotePolicy.ALLOWED
@@ -221,10 +215,14 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
     }, [numAvailableChars, isInvalidWriteIns, setIsInvalidWriteIns])
 
     return (
-        <ErrorWrapper className="error-list">
+        <ErrorWrapper className="error-list" id={contestErrorsId(question.id)} role="status">
             {numAvailableChars < 0 ? (
                 <WarnBox
                     variant="warning"
+                    id={writeInErrorId(question.id)}
+                    // The write-in field points aria-describedby at this box, so
+                    // announcing it as well would read the same text twice.
+                    announcement={EWarnBoxAnnouncement.SILENT}
                     warnId="errors.encoding.writeInCharsExceeded"
                     warnType={IInvalidPlaintextErrorType.EncodingError}
                 >
@@ -237,6 +235,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 <WarnBox
                     variant="warning"
                     key={index}
+                    announcement={EWarnBoxAnnouncement.SILENT}
                     warnId={error.message}
                     warnType={error.error_type}
                 >
@@ -247,6 +246,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                 <WarnBox
                     variant="info"
                     key={index}
+                    announcement={EWarnBoxAnnouncement.SILENT}
                     warnId={error.message}
                     warnType={error.error_type}
                 >

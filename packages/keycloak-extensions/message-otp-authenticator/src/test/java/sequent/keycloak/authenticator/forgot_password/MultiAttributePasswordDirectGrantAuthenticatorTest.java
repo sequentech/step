@@ -469,7 +469,21 @@ class MultiAttributePasswordDirectGrantAuthenticatorTest {
 
   @Test
   void factory_providerId() {
-    assertEquals("multi-attribute-password-direct-grant", authenticator.getId());
+    assertEquals("multi-attribute-password-direct", authenticator.getId());
+  }
+
+  /**
+   * Keycloak stores a flow step's authenticator in {@code AUTHENTICATION_EXECUTION.AUTHENTICATOR},
+   * a {@code varchar(36)} column. A longer id still registers and appears in {@code
+   * /admin/serverinfo}, so it looks healthy right up until an admin tries to add the step to a
+   * flow, which then fails with SQLSTATE 22001 behind an opaque HTTP 500.
+   */
+  @Test
+  void factory_providerId_fitsKeycloakAuthenticatorColumn() {
+    assertTrue(
+        authenticator.getId().length() <= 36,
+        "provider id must fit AUTHENTICATION_EXECUTION.AUTHENTICATOR varchar(36), was "
+            + authenticator.getId().length());
   }
 
   @Test

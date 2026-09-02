@@ -4,7 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::hasura::core::{Document, SupportMaterial};
+use sequent_core::types::hasura::core::{Document, DocumentAnnotations, SupportMaterial};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -245,11 +245,38 @@ pub async fn insert_document(
     is_public: bool,
     document_id: Option<String>,
 ) -> Result<Document> {
+    insert_document_with_annotations(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        name,
+        media_type,
+        size,
+        is_public,
+        document_id,
+        None,
+    )
+    .await
+}
+
+#[instrument(err, skip(hasura_transaction, annotations))]
+pub async fn insert_document_with_annotations(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: Option<String>,
+    name: &str,
+    media_type: &str,
+    size: i64,
+    is_public: bool,
+    document_id: Option<String>,
+    annotations: Option<&DocumentAnnotations>,
+) -> Result<Document> {
     let document_uuid: uuid::Uuid = document_id
         .map(|id| parse_uuid_v4(&id))
         .unwrap_or(Ok(Uuid::new_v4()))?;
     let election_event_uuid: Option<uuid::Uuid> =
         election_event_id.map(|id| parse_uuid_v4(&id)).transpose()?;
+    let annotations = annotations.map(serde_json::to_value).transpose()?;
 
     let statement = hasura_transaction
         .prepare(
@@ -264,6 +291,7 @@ pub async fn insert_document(
                     media_type,
                     size,
                     is_public,
+                    annotations,
                     created_at
                 )
                 VALUES (
@@ -274,6 +302,7 @@ pub async fn insert_document(
                     $5,
                     $6,
                     $7,
+                    $8,
                     NOW()
                 )
                 RETURNING
@@ -302,6 +331,7 @@ pub async fn insert_document(
                 &media_type,
                 &size,
                 &is_public,
+                &annotations,
             ],
         )
         .await

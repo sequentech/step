@@ -32,7 +32,13 @@ import {sortContestList} from "@sequentech/ui-core"
 import {keyBy} from "lodash"
 import {useElectionClassName} from "./hooks/useElectionClassName"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {EDeclineToVotePolicy, EElectionEventContestEncryptionPolicy} from "@sequentech/ui-core"
+import {
+    EDeclineToVotePolicy,
+    EElectionEventContestEncryptionPolicy,
+    EBlankBallotsPolicy,
+} from "@sequentech/ui-core"
+import {getConfirmationContests} from "../services/confirmationContests"
+import {getBallotStyleDefaultLanguageCode} from "../services/defaultLanguageCode"
 
 const StyledLink = styled(RouterLink)`
     margin: auto 0;
@@ -254,29 +260,27 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
     const contestsOrderType =
         confirmationBallot?.election_config.election_presentation?.contests_order
     const sortedPlaintextVoteQuestions = useMemo(() => {
-        if (!plaintextVoteQuestions.length) {
-            return []
-        }
-
         const sortedContests = sortContestList(
             confirmationBallot?.election_config.contests || [],
             contestsOrderType
         )
-        const contestIndexMap = new Map(
-            sortedContests.map((contest, index) => [contest.id, index] as const)
-        )
 
-        return [...plaintextVoteQuestions].sort((a, b) => {
-            const firstIndex = contestIndexMap.get(a.contest_id) ?? Number.MAX_SAFE_INTEGER
-            const secondIndex = contestIndexMap.get(b.contest_id) ?? Number.MAX_SAFE_INTEGER
-            return firstIndex - secondIndex
-        })
+        return getConfirmationContests(sortedContests, plaintextVoteQuestions)
     }, [confirmationBallot?.election_config.contests, contestsOrderType, plaintextVoteQuestions])
     const {globalSettings} = useContext(SettingsContext)
+    const defaultLanguageCode = getBallotStyleDefaultLanguageCode(
+        confirmationBallot?.election_config
+    )
 
     const isDeclineToVotePolicyEnabled =
         confirmationBallot?.election_config?.election_presentation?.decline_to_vote_policy ===
             EDeclineToVotePolicy.ENABLED &&
+        confirmationBallot?.election_config?.election_event_presentation
+            ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+
+    const isBlankBallotsPolicyEnabled =
+        confirmationBallot?.election_config?.election_presentation?.blank_ballots_policy ===
+            EBlankBallotsPolicy.ENABLED &&
         confirmationBallot?.election_config?.election_event_presentation
             ?.contest_encryption_policy === EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
@@ -346,6 +350,10 @@ const VerifySelectionsSection: React.FC<VerifySelectionsSectionProps> = ({
                             pointsLabel={(points) => t("confirmationScreen.points", {points})}
                             isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
                             declineToVoteLabel={t("confirmationScreen.declineToVote")}
+                            isBlankBallotsPolicyEnabled={isBlankBallotsPolicyEnabled}
+                            blankBallotLabel={t("confirmationScreen.blankBallot")}
+                            acclamationDescription={t("confirmationScreen.acclamationDescription")}
+                            defaultLanguageCode={defaultLanguageCode}
                         />
                     ))}
                 </>

@@ -252,6 +252,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
@@ -273,10 +274,25 @@ const englishTranslation = {
                 EXPORT_TEMPLATES: "Export Templates",
                 IMPORT_TEMPLATES: "Import Templates",
                 DELETE_ELECTION_EVENT: "Delete Election Event",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Prepare Publication Preview",
                 EXPORT_TALLY_RESULTS_XLSX: "Export Tally Results in XLSX format",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Export Certificate Authorities",
                 PUBLISH_RESULTS_WEBSITE: "Publish Results Website",
+                VOTER_INFORMATION_LETTER: "Voter Information Letter",
+            },
+            documentAccess: {
+                title: "Document access",
+                sensitivityNotice:
+                    "Sensitive information. Share this password only with the intended recipient.",
+                passwordLabel: "Password to open the encrypted PDF",
+                showPassword: "Show password",
+                copyPassword: "Copy password",
+                passwordCopied: "Password copied",
+                passwordError: "The PDF password could not be retrieved",
+                copyError: "The password could not be copied",
+                guidance:
+                    "The password is loaded only after you choose Show password. After it loads, a read-only field with copy appears here.",
             },
             widget: {
                 taskTitle: "Task: {{title}}",
@@ -462,6 +478,11 @@ const englishTranslation = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Login",
@@ -473,6 +494,7 @@ const englishTranslation = {
                 notify: {
                     success: "Localization updated Successfully",
                     error: "Localization update failed",
+                    duplicateKey: "An override with this key and portal scope already exists.",
                     invalidDateTimeFormat:
                         "Invalid date/time format. Use tokens yyyy, MM, dd, HH, mm, ss (e.g. dd/MM/yyyy HH:mm).",
                 },
@@ -482,10 +504,47 @@ const englishTranslation = {
                 },
                 labels: {
                     key: "Key",
+                    scope: "Portal scope",
                     value: "Value",
+                },
+                scopes: {
+                    legacy: "Legacy ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Voting portal",
+                    ballotVerifier: "Ballot verifier",
+                    resultsPortal: "Results portal",
+                    adminPortal: "Admin portal",
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Minimum length",
+                    maximumLength: "Maximum length",
+                    includeUppercase: "Include uppercase letters",
+                    includeLowercase: "Include lowercase letters",
+                    includeDigits: "Include digits",
+                    includeSpecialCharacters: "Include special characters",
+                    help: {
+                        minimumLength:
+                            "The minimum number of characters required for the password.",
+                        maximumLength: "The maximum number of characters allowed for the password.",
+                        includeUppercase:
+                            "Require at least one uppercase character in the password.",
+                        includeLowercase:
+                            "Require at least one lowercase character in the password.",
+                        includeDigits: "Require at least one digit in the password.",
+                        includeSpecialCharacters:
+                            "Require at least one special character in the password string.",
+                    },
+                    notConfigured:
+                        "No password policy is configured. Saving will apply the defaults below.",
+                    errors: {
+                        lengthRange: "Password lengths must be whole numbers between 1 and 256.",
+                        minimumExceedsMaximum: "Minimum length cannot exceed maximum length.",
+                        characterClassRequired:
+                            "Select at least one character class for the password.",
+                    },
+                },
                 name: "Name",
                 alias: "Alias",
                 description: "Description",
@@ -494,12 +553,23 @@ const englishTranslation = {
                 language: "Language",
                 votingChannels: "Voting Channels",
                 materialActivated: "Support Materials Activated",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
                 userVerification:
                     "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
+                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
@@ -603,7 +673,12 @@ const englishTranslation = {
                     options: {
                         "areas-weighted-voting": "Weighted Voting for Areas",
                         "disabled-weighted-voting": "Disabled Weighted Voting",
+                        "voters-weighted-voting": "Weighted Voting for Voters",
                     },
+                    noDelegated:
+                        "Weighted Voting for Voters cannot be combined with Delegated Voting",
+                    noDecodedBallots:
+                        "Weighted Voting for Voters cannot be combined with including decoded ballots in the results",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Delegated Voting Policy",
@@ -636,6 +711,7 @@ const englishTranslation = {
                     config: "Configuration",
                     blacklist: "Blocklist",
                     prompts: "Prompts",
+                    emulator: "Emulator",
                 },
                 common: {
                     saveSuccess: "Saved successfully",
@@ -669,6 +745,33 @@ const englishTranslation = {
                         "Configure the blocklist for the IVR. Calls from these numbers will be disconnected automatically by the system.",
                     noFilterMatch: "No entries match the given filters",
                     phoneRequired: "Phone number is required",
+                },
+                emulator: {
+                    infoMsg: "Select an area and desired elections to experience the IVR session.",
+                    apiStatus: {
+                        unavailable: "The emulator system is not available in your environment",
+                        loading: "Loading the emulator system",
+                        error: "Error loading the emulator system",
+                    },
+                    hints: {
+                        title: "Hints",
+                        publishRequired:
+                            "Any changes made to elections, contests or candidates must be published first to be available. Only the latest published ballot styles for the matching area will be used in the emulator.",
+                        eventChangesImmediate:
+                            "Changes made to the election event, such as IVR configuration or prompt overrides, are available immediately upon emulator session restart.",
+                        credentials: 'The valid voter id and pin are "123" and "123".',
+                    },
+                    sendDtmf: "Send DTMF input",
+                    sendTimeout: "Send timeout",
+                    disconnected: "Disconnected",
+                    startSession: "Start new session",
+                    endSession: "End the session",
+                    noStylesFound: "No published ballot styles found matching your selections",
+                    inputPlaceholder:
+                        "Enter your input (max digits={{maxDigits}}, valid inputs={{validInputs}}, timeout={{timeout}}s)",
+                    blacklistCaller: "Blocklist the caller",
+                    elections: "Elections",
+                    area: "Area",
                 },
             },
             stats: {
@@ -943,6 +1046,13 @@ const englishTranslation = {
                     disabled: "Disabled",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Blank Ballots Policy",
+                options: {
+                    enabled: "Enabled",
+                    disabled: "Disabled",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Voting Screen Back Button Policy",
                 options: {
@@ -972,6 +1082,16 @@ const englishTranslation = {
                 label: "Change password",
                 temporatyLabel: "Temporary",
                 temporatyInfo: "If enabled, the user must change the password on next login",
+                passwordPolicyViolation:
+                    "The password does not meet the Password Policy for this election event. Review the policy under Election Event Data and enter a compliant password.",
+                passwordPolicyRules: {
+                    minimumLength: "The password minimum length is {{count}}.",
+                    maximumLength: "The password maximum length is {{count}}.",
+                    uppercase: "Required uppercase characters: {{count}}.",
+                    lowercase: "Required lowercase characters: {{count}}.",
+                    digits: "Required digits: {{count}}.",
+                    specialCharacters: "Required special characters: {{count}}.",
+                },
             },
             users: {
                 title: "Users",
@@ -995,6 +1115,8 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Vote Weight",
                     "voted-channel": "Voted Channel",
                     "disable-comment": "Disable Comment",
                     "username": "Username",
@@ -1025,6 +1147,11 @@ const englishTranslation = {
                 delete: {
                     body: "Are you sure you want to delete this user?",
                     bulkBody: "Are you sure you want to delete the selected users?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting users",
@@ -1059,17 +1186,57 @@ const englishTranslation = {
                     noEmailOrPhone:
                         "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
                 },
+                voterInformationLetter: {
+                    label: "Voter Information Letter",
+                    generate: "Generate",
+                    confirmation:
+                        "Generate a Voter Information Letter for this voter? A new password will be assigned and included in an encrypted PDF.",
+                    generationStarted: "Voter Information Letter generation started",
+                    generationError: "The Voter Information Letter could not be generated",
+                    policyNotConfigured:
+                        "Password Policy is not configured. Set it under Election Event Data before generating a letter.",
+                    policyMinimumLengthMissing:
+                        "Password Policy must include a minimum length before generating a letter.",
+                    policyCharacterClassMissing:
+                        "Password Policy must include at least one character class before generating a letter.",
+                },
                 emptyHeader: "No voters yet.",
                 askCreate: "Do you want to create one?",
                 errors: {
                     editError: "Error editing voter",
+                    editErrorReason: "Error editing voter: {{reason}}",
                     editSuccess: "Voter edited",
                     createError: "Error creating voter",
+                    createErrorReason: "Error creating voter: {{reason}}",
                     createSuccess: "Voter created",
+                    attribute: {
+                        invalidNamed: '"{{field}}" was refused: {{constraint}}',
+                        fieldsToCorrect: "Some fields need correcting before saving",
+                        hintBetween: "Between {{min}} and {{max}} characters",
+                        hintMin: "At least {{min}} characters",
+                        hintMax: "At most {{max}} characters",
+                        andMore: "and {{count}} more",
+                        invalidLength: '"{{field}}" must be between {{min}} and {{max}} characters',
+                        tooShort: '"{{field}}" must be at least {{min}} characters',
+                        tooLong: '"{{field}}" must be at most {{max}} characters',
+                        required: '"{{field}}" is required',
+                        invalidEmail: '"{{field}}" must be a valid email address',
+                        invalidFormat: '"{{field}}" does not have the expected format',
+                        invalid: '"{{field}}" has an invalid value',
+                    },
+                    createPasswordError: "Voter created, but their password could not be set",
+                    createPasswordErrorReason:
+                        "Voter created, but their password could not be set: {{reason}}",
                 },
                 delete: {
                     body: "Are you sure you want to delete this voter?",
                     bulkBody: "Are you sure you want to delete the selected voters?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error exporting voters",
@@ -1165,6 +1332,7 @@ const englishTranslation = {
                 "keys-read": "Read Keys",
                 "document-upload": "Upload Documents",
                 "document-download": "Download Documents",
+                "document-password-read": "Read Document Passwords",
                 "tally-sheet-create": "Create Tally Sheet",
                 "tally-sheet-import-create": "Create Tally Sheet Import",
                 "tally-sheet-import-review": "Review Tally Sheet Import",
@@ -1233,6 +1401,7 @@ const englishTranslation = {
                 "ee-voters-filters": "View Election Event Voters Filters",
                 "voter-delete": "Delete Voter",
                 "voter-change-password": "Change Voter Password",
+                "voter-information-letter": "Generate Voter Information Letter",
                 "election-event-localization-selector": "Election Event Localization Selector",
                 "localization-create": "Create Localization",
                 "localization-read": "Read Localization",
@@ -1683,6 +1852,7 @@ const englishTranslation = {
                 "warn": "Warn",
                 "warn-invalid-implicit-and-explicit": "Warn Invalid Implicit And Explicit",
                 "not-allowed": "Not Allowed",
+                "allowed-with-exclusive-explicit": "Allowed With Exclusive Explicit",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Candidates checkbox icon shape",
@@ -1731,6 +1901,11 @@ const englishTranslation = {
             },
             paginationPolicy: {
                 label: "Page Name",
+            },
+            isAcclaimed: {
+                label: "Decided by acclamation",
+                helperText:
+                    "Voters see this contest but cannot select anything, nothing is recorded for it, and every candidate is reported as a winner with zero votes. Set this before publishing ballots: changing it afterwards invalidates ballots already cast.",
             },
             allowWriteins: {
                 label: "Allow Write-Ins",
@@ -2098,6 +2273,7 @@ const englishTranslation = {
                     round: "Round",
                 },
                 total_declined_to_vote: "Total Declined to Vote",
+                total_blank_ballots: "Total Blank Ballots",
                 participation_by_channel: "Participation by channel",
                 channel: "Channel",
                 channel_online: "Online",
@@ -2107,6 +2283,8 @@ const englishTranslation = {
                 channel_paper: "Paper",
                 channel_postal: "Postal",
                 channel_in_person: "In person",
+                acclamation_note:
+                    "Won by acclamation. This contest was decided without a vote, so no votes were recorded for it.",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
@@ -2214,6 +2392,7 @@ const englishTranslation = {
                 ko: "Cancel",
                 error: "Error loading ballot publication",
                 error_publish: "Error publishing ballot publication",
+                error_capacity: "Ballot style generation failed: {{message}}",
                 error_status: "Error change ballot publication status",
                 error_preview: "Error previewing publication",
                 diff: "Rendering all changes might make the page unresponsive. Are you sure you want to continue?",
@@ -2296,8 +2475,19 @@ const englishTranslation = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Total valid votes does not match the sum of the candidate votes plus blank votes",
-                censusTooSmall: "Census must be greater or equal than the total votes",
+                    "Candidate votes ({{candidateVotesSum}}) must be between {{lowerBound}} and {{upperBound}} for this contest's voting rules ({{nonBlankValidVotes}} valid non-blank votes × up to {{maxMarks}} marks per ballot)",
+                censusTooSmall:
+                    "Total votes ({{totalVotes}}) must not be greater than census ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "Total invalid votes ({{totalInvalid}}) must equal implicit invalid votes ({{implicitInvalid}}) plus explicit invalid votes ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "Total votes ({{totalVotes}}) must equal total valid votes ({{totalValidVotes}}) plus total invalid votes ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "This contest's counting algorithm ({{countingAlgorithm}}) is not recognised, so the allowed number of candidate votes cannot be determined. Check the contest configuration.",
+                blankBallotsInconsistent:
+                    "Blank Ballots must have the same value on every contest sheet of this ballot box",
+                blankBallotsOutOfBounds:
+                    "Blank Ballots value is outside the range implied by this box's per-contest blank vote counts",
             },
             label: {
                 area: "Area",
@@ -2308,6 +2498,7 @@ const englishTranslation = {
                 explicit_invalid: "Explicitly Invalid Votes",
                 implicit_invalid: "Implicitly Invalid Votes",
                 total_blank_votes: "Blank Votes",
+                blank_ballots: "Blank Ballots",
                 census: "Census",
             },
             common: {
@@ -2458,7 +2649,7 @@ const englishTranslation = {
             updateMaterialError: "Error updating support material",
             common: {
                 title: "Support Material",
-                subtitle: "Enter suppot material data.",
+                subtitle: "Enter support material data.",
             },
             error: {
                 title: "Title is required",

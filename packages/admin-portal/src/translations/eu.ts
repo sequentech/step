@@ -255,6 +255,8 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Boto-papera argitaratu",
+                VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
                 IMPORT_ELECTION_EVENT: "Inportatu Hauteskunde Gertaera",
@@ -276,10 +278,24 @@ const basqueTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Txantiloiak Esportatu",
                 IMPORT_TEMPLATES: "Txantiloiak Inportatu",
                 DELETE_ELECTION_EVENT: "Ezabatu Hauteskunde Gertaera",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Argitalpenaren aurrebista prestatu",
                 EXPORT_TALLY_RESULTS_XLSX: "Esportatu zenbaketa-emaitzak XLSX formatuan",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Ziurtagiri-agintaritzak esportatu",
                 PUBLISH_RESULTS_WEBSITE: "Argitaratu emaitzen webgunea",
+            },
+            documentAccess: {
+                title: "Dokumenturako sarbidea",
+                sensitivityNotice:
+                    "Informazio sentikorra. Partekatu pasahitz hau aurreikusitako hartzailearekin soilik.",
+                passwordLabel: "PDF zifratua irekitzeko pasahitza",
+                showPassword: "Erakutsi pasahitza",
+                copyPassword: "Kopiatu pasahitza",
+                passwordCopied: "Pasahitza kopiatu da",
+                passwordError: "Ezin izan da PDFaren pasahitza eskuratu",
+                copyError: "Ezin izan da pasahitza kopiatu",
+                guidance:
+                    "Pasahitza Erakutsi pasahitza aukeratu ondoren bakarrik kargatzen da. Kargatu ondoren, kopiatzeko aukera duen irakurtzeko soilik den eremu bat agertuko da hemen.",
             },
             widget: {
                 taskTitle: "Ataza: {{title}}",
@@ -466,6 +482,11 @@ const basqueTranslation: TranslationType = {
                 realm_attributes_update_error: "Error updating Keycloak realm attributes",
                 realm_attributes_not_loaded:
                     "Keycloak realm attributes have not loaded, changes were not saved",
+                password_policy: "Password Policy",
+                password_policy_load_error: "Error loading Keycloak password policy",
+                password_policy_update_error: "Error updating Keycloak password policy",
+                password_policy_not_loaded:
+                    "Keycloak password policy has not loaded, changes were not saved",
             },
             customUrls: {
                 login: "Sarrera",
@@ -477,6 +498,7 @@ const basqueTranslation: TranslationType = {
                 notify: {
                     success: "Lokalizazioa arrakastaz eguneratua",
                     error: "Lokalizazio eguneraketa huts egin du",
+                    duplicateKey: "Giltza eta atari-esparru hori dituen ordezkapen bat badago.",
                     invalidDateTimeFormat:
                         "Data/orduaren formatu baliogabea. Erabili yyyy, MM, dd, HH, mm, ss tokenak (adib. dd/MM/yyyy HH:mm).",
                 },
@@ -486,10 +508,46 @@ const basqueTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Giltza",
+                    scope: "Atariaren esparrua",
                     value: "Balioa",
+                },
+                scopes: {
+                    legacy: "Legatua ({{portal}})",
+                    global: "Globala",
+                    votingPortal: "Bozketa-ataria",
+                    ballotVerifier: "Boto-paperen egiaztatzailea",
+                    resultsPortal: "Emaitzen ataria",
+                    adminPortal: "Administrazio-ataria",
                 },
             },
             field: {
+                passwordPolicy: {
+                    minimumLength: "Gutxieneko luzera",
+                    maximumLength: "Gehieneko luzera",
+                    includeUppercase: "Sartu letra larriak",
+                    includeLowercase: "Sartu letra xeheak",
+                    includeDigits: "Sartu digituak",
+                    includeSpecialCharacters: "Sartu karaktere bereziak",
+                    help: {
+                        minimumLength: "Pasahitzak izan behar duen gutxieneko karaktere kopurua.",
+                        maximumLength: "Pasahitzak izan dezakeen gehieneko karaktere kopurua.",
+                        includeUppercase: "Pasahitzak gutxienez letra larri bat izan behar du.",
+                        includeLowercase: "Pasahitzak gutxienez letra xehe bat izan behar du.",
+                        includeDigits: "Pasahitzak gutxienez digitu bat izan behar du.",
+                        includeSpecialCharacters:
+                            "Pasahitzak gutxienez karaktere berezi bat izan behar du.",
+                    },
+                    notConfigured:
+                        "Ez dago pasahitz-politikarik konfiguratuta. Gordetzean, beheko balio lehenetsiak aplikatuko dira.",
+                    errors: {
+                        lengthRange:
+                            "Pasahitzaren luzera-balioek 1 eta 256 arteko zenbaki osoak izan behar dute.",
+                        minimumExceedsMaximum:
+                            "Gutxieneko luzerak ezin du gehieneko luzera gainditu.",
+                        characterClassRequired:
+                            "Hautatu gutxienez karaktere-klase bat pasahitzerako.",
+                    },
+                },
                 name: "Izena",
                 alias: "Ezizena",
                 description: "Deskribapena",
@@ -498,12 +556,23 @@ const basqueTranslation: TranslationType = {
                 language: "Hizkuntza",
                 votingChannels: "Bozketa Kanalak",
                 materialActivated: "Laguntza Materialak Aktibatuta",
+                supportMaterialsPolicy: {
+                    label: "Laguntza Materialen Politika",
+                    helperText:
+                        "Bozkatzeko Derrigorrezkoa aukeratzen bada, bozkatzaileek boto bat eman ahal izan aurretik Laguntza Material bakoitza ireki eta irakurri dutela berretsi beharko dute.",
+                    options: {
+                        off: "Desaktibatuta",
+                        optional: "Aukerakoa",
+                        mandatory_for_voting: "Bozkatzeko Derrigorrezkoa",
+                    },
+                },
                 materialTitle: "Izenburua",
                 materialSubTitle: "Azpititulua",
                 logoUrl: "Logo URLa",
                 userVerification:
                     "Bozkatzaileak eskuz egiaztatzeko erabiliko den txantiloi pertsonalizatu bat sar dezakezu",
                 redirectFinishUrl: "Berbideratu Amaiera URLa",
+                kioskRedirectFinishUrl: "Kioskoaren amaierako berbideratze URLa",
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
@@ -605,8 +674,13 @@ const basqueTranslation: TranslationType = {
                     policyLabel: "Bozketa Ponderatuaren Politika",
                     options: {
                         "areas-weighted-voting": "Eremuen araberako Bozketa Ponderatua",
+                        "voters-weighted-voting": "Bozkatzaileen araberako Bozketa Ponderatua",
                         "disabled-weighted-voting": "Bozketa Ponderatua Desgaituta",
                     },
+                    noDelegated:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da Boto Delegatuarekin konbinatu",
+                    noDecodedBallots:
+                        "Bozkatzaileen araberako Bozketa Ponderatua ezin da emaitzetan deszifratutako botoak sartzearekin konbinatu",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Botoa Eskualdatzeko Politika",
@@ -639,6 +713,7 @@ const basqueTranslation: TranslationType = {
                     config: "Konfigurazioa",
                     blacklist: "Blokeatze-zerrenda",
                     prompts: "Ahots-mezuak",
+                    emulator: "Emuladorea",
                 },
                 common: {
                     saveSuccess: "Behar bezala gorde da",
@@ -673,6 +748,35 @@ const basqueTranslation: TranslationType = {
 
                     noFilterMatch: "Ez dago emandako iragazkiekin bat datorren sarrerarik",
                     phoneRequired: "Telefono-zenbakia nahitaezkoa da",
+                },
+                emulator: {
+                    infoMsg:
+                        "Hautatu eremu bat eta nahi dituzun hauteskundeak IVR saioa probatzeko.",
+                    apiStatus: {
+                        unavailable: "Emuladore-sistema ez dago erabilgarri zure ingurunean",
+                        loading: "Emuladore-sistema kargatzen",
+                        error: "Errorea emuladore-sistema kargatzean",
+                    },
+                    hints: {
+                        title: "Aholkuak",
+                        publishRequired:
+                            "Hauteskundeetan, lehiaketetan edo hautagaietan egindako edozein aldaketa lehenik argitaratu behar da erabilgarri egon dadin. Dagokion eremurako azkenik argitaratutako boto-paper estiloak soilik erabiliko dira emuladorean.",
+                        eventChangesImmediate:
+                            "Hauteskunde-ekitaldian egindako aldaketak, hala nola IVR konfigurazioa edo mezuen gainidazketak, berehala egongo dira erabilgarri emuladorearen saioa berrabiaraztean.",
+                        credentials: 'Baliozko hautesle-IDa eta PINa "123" eta "123" dira.',
+                    },
+                    sendDtmf: "Bidali DTMF sarrera",
+                    sendTimeout: "Bidali denbora-muga",
+                    disconnected: "Deskonektatuta",
+                    startSession: "Hasi saio berria",
+                    endSession: "Amaitu saioa",
+                    noStylesFound:
+                        "Ez da aurkitu zure hautapenekin bat datorren argitaratutako boto-paper estilorik",
+                    inputPlaceholder:
+                        "Idatzi sarrera (gehienezko digitu kopurua={{maxDigits}}, baliozko sarrerak={{validInputs}}, denbora-muga={{timeout}} s)",
+                    blacklistCaller: "Blokeatu deitzailea",
+                    elections: "Hauteskundeak",
+                    area: "Eremua",
                 },
             },
             stats: {
@@ -948,6 +1052,13 @@ const basqueTranslation: TranslationType = {
                     disabled: "Desgaituta",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Boto-txartel zurien politika",
+                options: {
+                    enabled: "Gaituta",
+                    disabled: "Desgaituta",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Bozketa-pantailako atzera botoiaren politika",
                 options: {
@@ -974,6 +1085,16 @@ const basqueTranslation: TranslationType = {
                 mobileNumber: "Mugikorra",
             },
             editPassword: {
+                passwordPolicyViolation:
+                    "Pasahitzak ez du betetzen hauteskunde-gertaera honetako Pasahitz-politika. Berrikusi politika Hauteskunde-gertaeraren datuak atalean eta idatzi baliozko pasahitz bat.",
+                passwordPolicyRules: {
+                    minimumLength: "Pasahitzaren gutxieneko luzera {{count}} da.",
+                    maximumLength: "Pasahitzaren gehieneko luzera {{count}} da.",
+                    uppercase: "Beharrezko letra larriak: {{count}}.",
+                    lowercase: "Beharrezko letra xeheak: {{count}}.",
+                    digits: "Beharrezko digituak: {{count}}.",
+                    specialCharacters: "Beharrezko karaktere bereziak: {{count}}.",
+                },
                 label: "Aldatu pasahitza",
                 temporatyLabel: "Behin-behinekoa",
                 temporatyInfo:
@@ -1001,6 +1122,8 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",
                     "username": "Erabiltzaile izena",
@@ -1029,6 +1152,11 @@ const basqueTranslation: TranslationType = {
                 delete: {
                     body: "Ziur zaude erabiltzaile hau ezabatu nahi duzula?",
                     bulkBody: "Ziur zaude hautatutako erabiltzaileak ezabatu nahi dituzula?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Errorea erabiltzaileak esportatzerakoan",
@@ -1038,6 +1166,20 @@ const basqueTranslation: TranslationType = {
                 },
             },
             voters: {
+                voterInformationLetter: {
+                    label: "Hauteslearen informazio-gutuna",
+                    generate: "Sortu",
+                    confirmation:
+                        "Hautesle honentzako informazio-gutuna sortu? Pasahitz berri bat esleituko da eta PDF zifratu batean sartuko da.",
+                    generationStarted: "Informazio-gutuna sortzen hasi da",
+                    generationError: "Ezin izan da informazio-gutuna sortu",
+                    policyNotConfigured:
+                        "Pasahitz-politika ez dago konfiguratuta. Konfiguratu Hauteskunde-gertaeraren datuak atalean gutuna sortu aurretik.",
+                    policyMinimumLengthMissing:
+                        "Pasahitz-politikak gutxieneko luzera izan behar du gutuna sortu aurretik.",
+                    policyCharacterClassMissing:
+                        "Pasahitz-politikak gutxienez karaktere-klase bat izan behar du gutuna sortu aurretik.",
+                },
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
                 review: {
@@ -1067,13 +1209,41 @@ const basqueTranslation: TranslationType = {
                 askCreate: "Bat sortu nahi duzu?",
                 errors: {
                     editError: "Errorea bozkatzailea editatzerakoan",
+                    editErrorReason: "Errorea bozkatzailea editatzerakoan: {{reason}}",
                     editSuccess: "Bozkatzailea editatua",
                     createError: "Errorea bozkatzailea sortzerakoan",
+                    createErrorReason: "Errorea bozkatzailea sortzerakoan: {{reason}}",
                     createSuccess: "Bozkatzailea sortua",
+                    attribute: {
+                        invalidNamed: '"{{field}}" baztertu da: {{constraint}}',
+                        fieldsToCorrect: "Eremu batzuk zuzendu behar dira gorde aurretik",
+                        hintBetween: "{{min}} eta {{max}} karaktere artean",
+                        hintMin: "Gutxienez {{min}} karaktere",
+                        hintMax: "Gehienez {{max}} karaktere",
+                        andMore: "eta beste {{count}}",
+                        invalidLength:
+                            '"{{field}}" eremuak {{min}} eta {{max}} karaktere artean izan behar ditu',
+                        tooShort: '"{{field}}" eremuak gutxienez {{min}} karaktere izan behar ditu',
+                        tooLong: '"{{field}}" eremuak gehienez {{max}} karaktere izan behar ditu',
+                        required: '"{{field}}" nahitaezkoa da',
+                        invalidEmail: '"{{field}}" baliozko helbide elektronikoa izan behar da',
+                        invalidFormat: '"{{field}}" ez dauka espero den formatua',
+                        invalid: '"{{field}}" balio baliogabea dauka',
+                    },
+                    createPasswordError:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri",
+                    createPasswordErrorReason:
+                        "Bozkatzailea sortua, baina ezin izan da bere pasahitza ezarri: {{reason}}",
                 },
                 delete: {
                     body: "Ziur zaude bozkatzaile hau ezabatu nahi duzula?",
                     bulkBody: "Ziur zaude hautatutako bozkatzaileak ezabatu nahi dituzula?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Errorea bozkatzaileak esportatzerakoan",
@@ -1113,6 +1283,7 @@ const basqueTranslation: TranslationType = {
                 },
             },
             permissions: {
+                "voter-information-letter": "Hauteslearen informazio-gutuna sortu",
                 "admin-user": "Admin Erabiltzailea",
                 "admin-dashboard-view": "Admin Panela Ikusi",
                 "application-export": "Aplikazio Esportazioa",
@@ -1169,6 +1340,7 @@ const basqueTranslation: TranslationType = {
                 "keys-read": "Irakurri Giltzak",
                 "document-upload": "Igo Dokumentuak",
                 "document-download": "Deskargatu Dokumentuak",
+                "document-password-read": "Irakurri dokumentuen pasahitzak",
                 "tally-sheet-create": "Sortu Zenbaketa Orria",
                 "tally-sheet-import-create": "Sortu zenbaketa orrien inportazioa",
                 "tally-sheet-import-review": "Berrikusi zenbaketa orrien inportazioa",
@@ -1694,6 +1866,7 @@ const basqueTranslation: TranslationType = {
                 "warn-invalid-implicit-and-explicit":
                     "Abisatu Baliogabeko Inplizitu eta Esplizitua",
                 "not-allowed": "Ez Baimenduta",
+                "allowed-with-exclusive-explicit": "Baimenduta, Esplizitua Esklusiboa",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Hautagaien kontrol-laukiaren ikono forma",
@@ -1744,6 +1917,11 @@ const basqueTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Orri Izena",
+            },
+            isAcclaimed: {
+                label: "Aklamazioz erabakia",
+                helperText:
+                    "Botoemaileek lehiaketa hau ikusten dute baina ezin dute ezer hautatu, ez da ezer erregistratzen eta hautagai guztiak irabazle gisa jasotzen dira zero bozkarekin. Ezarri hau boto-txartelak argitaratu aurretik: ondoren aldatzeak dagoeneko emandako boto-txartelak baliogabetzen ditu.",
             },
             allowWriteins: {
                 label: "Eskuzko hautagaitzak baimendu",
@@ -2112,6 +2290,7 @@ const basqueTranslation: TranslationType = {
                     round: "Txanda",
                 },
                 total_declined_to_vote: "Bozkatzeari uko egindakoen guztira",
+                total_blank_ballots: "Boto-txartel Zuriak Guztira",
                 participation_by_channel: "Parte-hartzea kanalaren arabera",
                 channel: "Kanala",
                 channel_online: "Linean",
@@ -2121,6 +2300,8 @@ const basqueTranslation: TranslationType = {
                 channel_paper: "Papera",
                 channel_postal: "Posta",
                 channel_in_person: "Aurrez aurre",
+                acclamation_note:
+                    "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",
@@ -2226,6 +2407,7 @@ const basqueTranslation: TranslationType = {
                 ko: "Ezeztatu",
                 error: "Errorea bozketa argitalpena kargatzerakoan",
                 error_publish: "Errorea bozketa argitalpena argitaratzerakoan",
+                error_capacity: "Bozketa-estiloa sortzeak huts egin du: {{message}}",
                 error_status: "Errorea bozketa argitalpen egoera aldatzerakoan",
                 error_preview: "Errorea argitalpena aurreikusterakoan",
                 diff: "Aldaketa guztiak errendatzeak orria erantzunik gabe utzi dezake. Ziur zaude jarraitu nahi duzula?",
@@ -2308,9 +2490,19 @@ const basqueTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "Baliozko botoen guztizko kopurua ez dator bat hautagaien botoen eta boto zurien baturarekin",
+                    "Hautagaien botoek ({{candidateVotesSum}}) {{lowerBound}} eta {{upperBound}} artean egon behar dute lehiaketa honen bozketa-arauen arabera ({{nonBlankValidVotes}} baliozko boto ez-zuri × gehienez {{maxMarks}} marka boto-txartel bakoitzeko)",
                 censusTooSmall:
-                    "Erroldak boto guztien kopurua baino handiagoa edo berdina izan behar du",
+                    "Boto guztien kopurua ({{totalVotes}}) ezin da erroldakoa ({{census}}) baino handiagoa izan",
+                totalInvalidDoesNotMatch:
+                    "Boto baliogabeen guztizkoak ({{totalInvalid}}) boto baliogabe inplizituen ({{implicitInvalid}}) eta boto baliogabe esplizituen ({{explicitInvalid}}) baturaren berdina izan behar du",
+                totalVotesDoesNotMatch:
+                    "Boto guztizkoak ({{totalVotes}}) boto baliodun guztizkoen ({{totalValidVotes}}) eta boto baliogabe guztizkoen ({{totalInvalid}}) baturaren berdina izan behar du",
+                unknownCountingAlgorithm:
+                    "Lehiaketa honen zenbaketa-algoritmoa ({{countingAlgorithm}}) ez da ezaguna, beraz ezin da zehaztu hautagaien botoen baimendutako kopurua. Egiaztatu lehiaketaren konfigurazioa.",
+                blankBallotsInconsistent:
+                    "Boto-txartel Zuriak balio berdina izan behar du ontzi honetako hautagaitza-orri guztietan",
+                blankBallotsOutOfBounds:
+                    "Boto-txartel Zuriak balioa ontzi honen hautagaitzako boto zurien kontaketek ezartzen duten tartetik kanpo dago",
             },
             label: {
                 area: "Eremua",
@@ -2321,6 +2513,7 @@ const basqueTranslation: TranslationType = {
                 explicit_invalid: "Esplizituki Baliogabeko Botoak",
                 implicit_invalid: "Inplizituki Baliogabeko Botoak",
                 total_blank_votes: "Boto Zuriak",
+                blank_ballots: "Boto-txartel Zuriak",
                 census: "Zentso",
             },
             common: {

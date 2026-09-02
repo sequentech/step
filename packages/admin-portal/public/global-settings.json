@@ -4,6 +4,7 @@
     "ONLINE_VOTING_CLIENT_ID": "admin-portal",
     "KEYCLOAK_URL": "http://localhost:8090/",
     "HASURA_URL": "http://localhost:8080/v1/graphql",
+    "IVR_EMULATOR_BASE_URL": "http://localhost:9002/public/ivr_emulator_wasm",
     "APP_VERSION": "dev",
     "APP_HASH": "dev",
     "DEFAULT_EMAIL_SUBJECT": {"en": "Participate in {{election_event.name}}"},
@@ -16,7 +17,7 @@
     "DEFAULT_SMS_MESSAGE": {
         "en": "Enter in {{vote_url}} to vote"
     },
-    "PUBLIC_BUCKET_URL": "http://127.0.0.1:9002/public/",
+    "PUBLIC_BUCKET_URL": "http://localhost:9002/public/",
     "VOTING_PORTAL_URL": "http://localhost:3000",
     "RESULTS_PORTAL_URL": "http://localhost:3004",
     "ACTIVATE_MIRU_EXPORT": true,

@@ -76,6 +76,9 @@ const catalanTranslation: TranslationType = {
             points: "({{points}} Punts)",
             contestNotFound: "Pregunta no trobada: {{contestId}}",
             declineToVote: "Vot no emès",
+            blankBallot: "Papereta en blanc",
+            acclamationDescription:
+                "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
         },
         "errors": {
             encoding: {

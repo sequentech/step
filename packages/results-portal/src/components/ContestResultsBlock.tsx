@@ -17,6 +17,7 @@ import {
 import {ResultsManifestContest, ResultsRow, ResultsSqliteDataset} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
 import {entityClassName} from "@/services/cssClassNames"
+import {orderResultCandidates} from "@/services/resultsOrdering"
 
 interface ContestResultsBlockProps {
     manifestContest: ResultsManifestContest
@@ -98,9 +99,8 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
         : dataset.results_contest_candidate
 
     const candidates = useMemo<CandidateResultRow[]>(() => {
-        return dataset.candidate
-            .filter((candidate) => sameId(candidate.contest_id, manifestContest.contest_id))
-            .map((candidate) => {
+        return orderResultCandidates(dataset, manifestContest.contest_id, locale).map(
+            (candidate) => {
                 const result = resultsCandidates.find(
                     (row) =>
                         sameId(row.candidate_id, candidate.id) &&
@@ -116,8 +116,9 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                     castVotesPercent: getNumber(result?.cast_votes_percent),
                     winningPosition: getNumber(result?.winning_position),
                 }
-            })
-    }, [dataset.candidate, resultsCandidates, manifestContest, locale])
+            }
+        )
+    }, [dataset, resultsCandidates, manifestContest, locale])
 
     const summary = useMemo<ResultsParticipationSummary | null>(() => {
         if (!resultContest) return null
@@ -161,6 +162,9 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
         return parseAnnotations(resultContest?.annotations)?.process_results ?? null
     }, [contest?.counting_algorithm, resultContest?.annotations])
     const preferential = contest?.counting_algorithm === ICountingAlgorithm.INSTANT_RUNOFF
+    // An acclaimed contest was decided without a vote: every candidate wins
+    // with zero votes, so participation figures are replaced by a note.
+    const isAcclaimed = Boolean(contest?.is_acclaimed)
 
     const title =
         (typeof resultContest?.name === "string" && resultContest.name.length > 0
@@ -217,6 +221,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                 "resultsPortal.resultsAndParticipation.participationByChannel"
             ),
             channel: t("resultsPortal.resultsAndParticipation.channel"),
+            acclamationNote: t("resultsPortal.acclamationNote"),
             channelNames: {
                 [VotingStatusChannel.Online]: t(
                     "resultsPortal.resultsAndParticipation.channelOnline"
@@ -255,7 +260,10 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                 preferential
                     ? "seq-results-contest--preferential"
                     : "seq-results-contest--candidate",
-            ].join(" ")}
+                isAcclaimed ? "seq-results-contest--acclaimed" : "",
+            ]
+                .filter(Boolean)
+                .join(" ")}
             component="section"
             sx={{
                 mt: 3,
@@ -294,6 +302,15 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                         {areaName ? ` - ${areaName}` : ""}
                     </Typography>
                 </Box>
+                {isAcclaimed ? (
+                    <Chip
+                        className="seq-results-contest__acclaimed-chip"
+                        label={t("resultsPortal.acclaimed")}
+                        color="info"
+                        variant="outlined"
+                        size="small"
+                    />
+                ) : null}
                 <Chip
                     className="seq-results-contest__status-chip"
                     label={
@@ -324,6 +341,7 @@ export const ContestResultsBlock: React.FC<ContestResultsBlockProps> = ({
                         processResults={processResults}
                         preferential={preferential}
                         labels={labels}
+                        acclaimed={isAcclaimed}
                     />
                 </Box>
             )}

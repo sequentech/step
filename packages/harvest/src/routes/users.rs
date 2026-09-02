@@ -3,18 +3,26 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
+use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
+use rocket::Request;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::keycloak::{
+    get_event_realm, get_realm_password_policy, get_tenant_realm,
+    get_user_profile_validation_errors, is_keycloak_bad_request,
+    PasswordPolicyViolation, UserProfileValidationError,
+};
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, PERMISSION_LABELS, TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, UserProfileConfiguration, PERMISSION_LABELS,
+    TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -27,6 +35,11 @@ use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::cast_votes::get_users_with_vote_info;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
+use windmill::services::election::is_election_event_locked_down;
+use windmill::services::electoral_log::{
+    post_voter_password_change, ElectoralLogAdminContext,
+    VoterPasswordChangeSource,
+};
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
@@ -38,6 +51,9 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
+use windmill::tasks::delete_users::{
+    self as delete_users_task, DeleteUsersOutput,
+};
 use windmill::tasks::edit_user::{EditUserOutput, EditUserTaskBody};
 use windmill::tasks::export_users::{self, ExportUsersOutput};
 use windmill::tasks::import_users::{self, ImportUsersOutput};
@@ -50,6 +66,23 @@ pub struct DeleteUserBody {
     user_id: String,
 }
 
+async fn ensure_election_event_not_locked(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    match is_election_event_locked_down(tenant_id, election_event_id).await {
+        Ok(false) => Ok(()),
+        Ok(true) => Err((
+            Status::Forbidden,
+            "Election event is locked down".to_string(),
+        )),
+        Err(err) => Err((
+            Status::InternalServerError,
+            format!("Failed to check election event lockdown: {err}"),
+        )),
+    }
+}
+
 #[instrument(skip(claims))]
 #[post("/delete-user", format = "json", data = "<body>")]
 pub async fn delete_user(
@@ -58,7 +91,7 @@ pub async fn delete_user(
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+        Permissions::VOTER_DELETE
     } else {
         Permissions::USER_WRITE
     };
@@ -68,9 +101,13 @@ pub async fn delete_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        ensure_election_event_not_locked(&input.tenant_id, election_event_id)
+            .await?;
+    }
+    let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -96,7 +133,25 @@ pub async fn delete_user(
 pub struct DeleteUsersBody {
     tenant_id: String,
     election_event_id: Option<String>,
-    users_id: Vec<String>,
+    election_id: Option<String>,
+    /// The explicit selection. Absent when `select_all` is set.
+    users_id: Option<Vec<String>>,
+    /// Delete every voter matching the filters below rather than an explicit
+    /// list. The browser only knows the page it has loaded, so "select all" has
+    /// to be resolved server side.
+    select_all: Option<bool>,
+    /// The same filter set `get-users` accepts. It has to be the same set: any
+    /// filter the list applies but the delete does not would resolve to MORE
+    /// voters than the operator can see.
+    first_name: Option<FilterOption>,
+    last_name: Option<FilterOption>,
+    username: Option<FilterOption>,
+    email: Option<FilterOption>,
+    attributes: Option<HashMap<String, String>>,
+    has_voted: Option<bool>,
+    enabled: Option<bool>,
+    email_verified: Option<bool>,
+    authorized_to_election_alias: Option<String>,
 }
 
 #[instrument(skip(claims))]
@@ -104,10 +159,10 @@ pub struct DeleteUsersBody {
 pub async fn delete_users(
     claims: jwt::JwtClaims,
     body: Json<DeleteUsersBody>,
-) -> Result<Json<OptionalId>, (Status, String)> {
+) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
     let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_WRITE
+        Permissions::VOTER_DELETE
     } else {
         Permissions::USER_WRITE
     };
@@ -117,23 +172,146 @@ pub async fn delete_users(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+
+    let select_all = input.select_all.unwrap_or(false);
+    if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty())
+    {
+        return Err((
+            Status::BadRequest,
+            "No voters selected and select_all was not set".to_string(),
+        ));
+    }
+    // Without an election event there is nothing to scope the filters to, so
+    // select_all would resolve every non-service account in the tenant realm --
+    // every admin, including the caller -- and there is no task_execution row
+    // to audit it either. The tenant user list deletes by explicit selection.
+    if select_all && input.election_event_id.is_none() {
+        return Err((
+            Status::BadRequest,
+            "select_all requires an election event".to_string(),
+        ));
+    }
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        ensure_election_event_not_locked(&input.tenant_id, election_event_id)
+            .await?;
+    }
+
+    let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    for id in input.users_id {
-        client
-            .delete_user(&realm, &id)
+    // Tenant users do not have an election event to own a task_execution row.
+    // Keep this path synchronous so Keycloak failures are returned to the
+    // caller instead of disappearing in an untracked worker task.
+    if input.election_event_id.is_none() {
+        let client = KeycloakAdminClient::new()
             .await
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+            .map_err(|e| (Status::InternalServerError, format!("{e:?}")))?;
+        let user_ids = input
+            .users_id
+            .as_ref()
+            .ok_or((Status::BadRequest, "No users selected".to_string()))?;
+        for id in user_ids {
+            client.delete_user(&realm, id).await.map_err(|e| {
+                (
+                    Status::InternalServerError,
+                    format!("Error deleting the user: {e:?}"),
+                )
+            })?;
+        }
+        return Ok(Json(DeleteUsersOutput {
+            ids: None,
+            error_msg: None,
+            task_execution: None,
+        }));
     }
-    Ok(Json(Default::default()))
+
+    let executer_name = claims
+        .name
+        .clone()
+        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+    let election_event_id = input
+        .election_event_id
+        .clone()
+        .expect("tenant users returned above");
+    let task_execution = Some(
+        post(
+            &input.tenant_id,
+            Some(&election_event_id),
+            ETasksExecution::DELETE_VOTERS,
+            &executer_name,
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?,
+    );
+
+    let filter = if select_all {
+        Some(ListUsersFilter {
+            tenant_id: input.tenant_id.clone(),
+            election_event_id: input.election_event_id.clone(),
+            election_id: input.election_id.clone(),
+            area_id: None,
+            realm: realm.clone(),
+            search: None,
+            first_name: input.first_name,
+            last_name: input.last_name,
+            username: input.username,
+            email: input.email,
+            limit: None,
+            offset: None,
+            user_ids: None,
+            attributes: input.attributes,
+            enabled: input.enabled,
+            email_verified: input.email_verified,
+            sort: None,
+            has_voted: input.has_voted,
+            authorized_to_election_alias: input.authorized_to_election_alias,
+        })
+    } else {
+        None
+    };
+
+    let celery_app = get_celery_app().await;
+    if let Err(err) = celery_app
+        .send_task(delete_users_task::delete_users::new(
+            realm,
+            if select_all { None } else { input.users_id },
+            filter,
+            task_execution.clone(),
+        ))
+        .await
+    {
+        // Otherwise the row sits IN_PROGRESS forever with nothing to run it.
+        if let Some(task_execution) = &task_execution {
+            let _ = update_fail(
+                task_execution,
+                &format!("Failed to enqueue the Delete Voters task: {err}"),
+            )
+            .await;
+        }
+        return Ok(Json(DeleteUsersOutput {
+            ids: None,
+            error_msg: Some(format!("Error sending Delete Voters task: {err}")),
+            task_execution,
+        }));
+    }
+
+    info!("Sent DELETE_VOTERS task");
+
+    Ok(Json(DeleteUsersOutput {
+        ids: None,
+        error_msg: None,
+        task_execution,
+    }))
 }
 
 #[derive(Deserialize, Debug)]
@@ -399,6 +577,68 @@ pub async fn get_users(
     }))
 }
 
+/// Names a refused attribute and the constraint it broke, for logs and for any
+/// consumer that does not read the structured extensions. The constraint's
+/// arguments are left to those extensions, which the admin portal renders in
+/// the admin's own language.
+fn describe_user_profile_validation(
+    validation: &UserProfileValidationError,
+) -> String {
+    let field = validation.field.as_deref().unwrap_or("unknown attribute");
+    let reason = validation
+        .error_message
+        .as_deref()
+        .unwrap_or("invalid value");
+
+    format!("Invalid value for \"{field}\": {reason}")
+}
+
+/// How many refused attributes are reported at once. Keycloak reports every
+/// one it refused, and a mis-mapped import can refuse most of a profile, which
+/// is more than an error message can usefully carry.
+const MAX_REPORTED_USER_PROFILE_ERRORS: usize = 10;
+
+/// Client error naming the attributes Keycloak refused, listing at most
+/// MAX_REPORTED_USER_PROFILE_ERRORS of them and saying how many were left out.
+fn user_profile_error(validations: &[UserProfileValidationError]) -> JsonError {
+    let reported: Vec<UserProfileValidationError> = validations
+        .iter()
+        .take(MAX_REPORTED_USER_PROFILE_ERRORS)
+        .cloned()
+        .collect();
+    let mut message = reported
+        .iter()
+        .map(describe_user_profile_validation)
+        .collect::<Vec<String>>()
+        .join("; ");
+    let unreported = validations.len() - reported.len();
+    if unreported > 0 {
+        message.push_str(&format!(" (and {unreported} more)"));
+    }
+
+    ErrorResponse::user_profile_validation(
+        Status::BadRequest,
+        &message,
+        &reported,
+        validations.len(),
+    )
+}
+
+/// Turn a refused Keycloak write into a client error naming the attributes it
+/// refused, and into an internal error when Keycloak did not say which.
+fn keycloak_user_error(error: anyhow::Error, context: &str) -> JsonError {
+    let validations = get_user_profile_validation_errors(&error);
+    if validations.is_empty() {
+        return ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("{context}: {error:?}"),
+            ErrorCode::InternalServerError,
+        );
+    }
+
+    user_profile_error(&validations)
+}
+
 #[derive(Deserialize, Debug)]
 pub struct CreateUserBody {
     tenant_id: String,
@@ -412,7 +652,7 @@ pub struct CreateUserBody {
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
-) -> Result<Json<User>, (Status, String)> {
+) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
     let mut required_perms = Vec::<Permissions>::new();
     if input.election_event_id.is_some() {
@@ -427,19 +667,37 @@ pub async fn create_user(
             }
         }
     };
-    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
+    authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
+        .map_err(|(status, message)| {
+            let code = if status == Status::InternalServerError {
+                ErrorCode::InternalServerError
+            } else {
+                ErrorCode::Unauthorized
+            };
+            ErrorResponse::new(status, &message, code)
+        })?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
-    let client = KeycloakAdminClient::new()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let client = KeycloakAdminClient::new().await.map_err(|error| {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            &format!("Error connecting to Keycloak: {error:?}"),
+            ErrorCode::InternalServerError,
+        )
+    })?;
     let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
-        let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME")
-            .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        let voter_group_name =
+            env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|error| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    &format!("Error reading voter group name: {error:?}"),
+                    ErrorCode::InternalServerError,
+                )
+            })?;
         (
             Some(HashMap::from([(
                 TENANT_ID_ATTR_NAME.to_string(),
@@ -481,7 +739,9 @@ pub async fn create_user(
     let user = client
         .create_user(&realm, &user, user_attributes, groups)
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            keycloak_user_error(error, "Error creating user in Keycloak")
+        })?;
 
     match (user.id.clone(), &input.user_roles_ids) {
         (Some(id), Some(user_roles_ids)) => {
@@ -514,6 +774,67 @@ pub struct EditUserBody {
 }
 
 const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
+
+pub struct EditUserError(JsonError);
+
+impl std::fmt::Debug for EditUserError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EditUserError")
+            .field("status", &self.0 .0)
+            .field("code", &self.0 .1 .0.extensions.code)
+            .finish()
+    }
+}
+
+impl EditUserError {
+    fn new(status: Status, message: &str, code: ErrorCode) -> Self {
+        Self(ErrorResponse::new(status, message, code))
+    }
+
+    fn password_policy_violation() -> Self {
+        Self::new(
+            Status::BadRequest,
+            "The password does not comply with the election event password policy",
+            ErrorCode::PasswordPolicyViolation,
+        )
+    }
+
+    fn password_policy_violation_with_details(
+        violation: &PasswordPolicyViolation,
+    ) -> Self {
+        Self(ErrorResponse::password_policy_violation(
+            Status::BadRequest,
+            &violation.to_string(),
+            violation.rule.as_str(),
+            violation.required_count,
+        ))
+    }
+
+    fn from_keycloak(error: anyhow::Error, context: &str) -> Self {
+        Self(keycloak_user_error(error, context))
+    }
+}
+
+impl From<(Status, String)> for EditUserError {
+    fn from((status, message): (Status, String)) -> Self {
+        let code =
+            if status == Status::Unauthorized || status == Status::Forbidden {
+                ErrorCode::Unauthorized
+            } else if status == Status::InternalServerError {
+                ErrorCode::InternalServerError
+            } else {
+                ErrorCode::UnknownError
+            };
+        Self::new(status, &message, code)
+    }
+}
+
+impl<'r> Responder<'r, 'static> for EditUserError {
+    fn respond_to(self, request: &'r Request<'_>) -> ResponseResult<'static> {
+        self.0.respond_to(request)
+    }
+}
 
 pub async fn check_edit_email_tlf(
     client: &KeycloakAdminClient,
@@ -563,12 +884,23 @@ pub async fn check_edit_email_tlf(
 pub async fn edit_user(
     claims: jwt::JwtClaims,
     body: Json<EditUserBody>,
-) -> Result<Json<EditUserOutput>, (Status, String)> {
+) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
+    let password_only = input.election_event_id.is_some()
+        && input.password.is_some()
+        && input.enabled.is_none()
+        && input.attributes.is_none()
+        && input.email.is_none()
+        && input.first_name.is_none()
+        && input.last_name.is_none()
+        && input.username.is_none();
     let mut required_perms = Vec::<Permissions>::new();
     let mut voter_voted_edit = false;
     let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
+        if password_only {
+            required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
+        }
         voter_voted_edit = claims
             .hasura_claims
             .allowed_roles
@@ -582,10 +914,15 @@ pub async fn edit_user(
             .allowed_roles
             .contains(&Permissions::VOTER_WRITE.to_string());
 
-        if voter_write {
-            required_perms.push(Permissions::VOTER_WRITE);
-        } else {
-            required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+        if !password_only {
+            if voter_write {
+                required_perms.push(Permissions::VOTER_WRITE);
+            } else {
+                required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
+            }
+            if input.password.is_some() {
+                required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
+            }
         }
     } else {
         required_perms.push(Permissions::USER_WRITE);
@@ -605,6 +942,30 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+
+    if let (Some(election_event_id), Some(password)) = (
+        input.election_event_id.as_deref(),
+        input.password.as_deref(),
+    ) {
+        let password_policy =
+            get_realm_password_policy(&input.tenant_id, election_event_id)
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                    "Failed to read election event Password Policy: {error:#}"
+                ),
+                    )
+                })?;
+        password_policy
+            .validate_password(password)
+            .map_err(|violation| {
+                EditUserError::password_policy_violation_with_details(
+                    &violation,
+                )
+            })?;
+    }
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -646,14 +1007,16 @@ pub async fn edit_user(
                 return Err((
                     Status::InternalServerError,
                     format!("Error listing voter with vote info"),
-                ));
+                )
+                    .into());
             };
             if let Some(votes_info) = voter.votes_info.clone() {
                 if votes_info.len() > 0 {
                     return Err((
                         Status::Unauthorized,
                         format!("Can't edit a voter that has already cast its ballot"),
-                    ));
+                    )
+                        .into());
                 }
             }
         }
@@ -666,7 +1029,8 @@ pub async fn edit_user(
         return Err((
             Status::BadRequest,
             "Cannot change tenant-id attribute".to_string(),
-        ));
+        )
+            .into());
     }
 
     if voter_email_tlf_edit {
@@ -710,68 +1074,84 @@ pub async fn edit_user(
     // from blocking on the (retried) VoterView round-trip, and the admin portal
     // tracks the outcome in the returned task widget. Non-Datafix edits stay
     // synchronous.
-    if let (Some(election_event_id), Some(_election_event)) =
-        (input.election_event_id.as_deref(), datafix_election_event)
-    {
-        let executer_name = claims
-            .name
-            .clone()
-            .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-
-        let task_execution = post(
-            &input.tenant_id,
-            Some(election_event_id),
-            ETasksExecution::EDIT_USER,
-            &executer_name,
-        )
-        .await
-        .map_err(|error| {
-            (
-                Status::InternalServerError,
-                format!("Failed to insert task execution record: {error:?}"),
-            )
-        })?;
-
-        let task_body = EditUserTaskBody {
-            tenant_id: input.tenant_id.clone(),
-            user_id: input.user_id.clone(),
-            election_event_id: election_event_id.to_string(),
-            enabled: input.enabled,
-            attributes: new_attributes,
-            email: input.email.clone(),
-            first_name: input.first_name.clone(),
-            last_name: input.last_name.clone(),
-            username: input.username.clone(),
-            password: input.password.clone(),
-            temporary: input.temporary,
-        };
-
-        let celery_app = get_celery_app().await;
-        if let Err(err) = celery_app
-            .send_task(windmill::tasks::edit_user::edit_user::new(
-                task_body,
-                task_execution.clone(),
-            ))
-            .await
+    if !password_only {
+        if let (Some(election_event_id), Some(_election_event)) =
+            (input.election_event_id.as_deref(), datafix_election_event)
         {
-            update_fail(
-                &task_execution,
-                &format!("Failed to send Edit Voter task: {err:?}"),
+            let executer_name = claims
+                .name
+                .clone()
+                .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
+
+            let task_execution = post(
+                &input.tenant_id,
+                Some(election_event_id),
+                ETasksExecution::EDIT_USER,
+                &executer_name,
             )
             .await
-            .ok();
-            return Err((
-                Status::InternalServerError,
-                format!("Error sending Edit Voter task: {err:?}"),
-            ));
+            .map_err(|error| {
+                (
+                    Status::InternalServerError,
+                    format!(
+                        "Failed to insert task execution record: {error:?}"
+                    ),
+                )
+            })?;
+
+            let task_body = EditUserTaskBody {
+                tenant_id: input.tenant_id.clone(),
+                user_id: input.user_id.clone(),
+                election_event_id: election_event_id.to_string(),
+                enabled: input.enabled,
+                attributes: new_attributes,
+                email: input.email.clone(),
+                first_name: input.first_name.clone(),
+                last_name: input.last_name.clone(),
+                username: input.username.clone(),
+                password: input.password.clone(),
+                temporary: input.temporary,
+                password_change_initiator: input.password.as_ref().map(|_| {
+                    ElectoralLogAdminContext {
+                        user_id: claims.hasura_claims.user_id.clone(),
+                        username: claims.preferred_username.clone(),
+                        authorized_election_ids: claims
+                            .hasura_claims
+                            .authorized_election_ids
+                            .clone(),
+                        area_id: claims.hasura_claims.area_id.clone(),
+                    }
+                }),
+            };
+
+            let celery_app = get_celery_app().await;
+            if let Err(err) = celery_app
+                .send_task(windmill::tasks::edit_user::edit_user::new(
+                    task_body,
+                    task_execution.clone(),
+                ))
+                .await
+            {
+                update_fail(
+                    &task_execution,
+                    &format!("Failed to send Edit Voter task: {err:?}"),
+                )
+                .await
+                .ok();
+                return Err((
+                    Status::InternalServerError,
+                    format!("Error sending Edit Voter task: {err:?}"),
+                )
+                    .into());
+            }
+
+            info!("Sent EDIT_USER task {}", task_execution.id);
+
+            return Ok(Json(EditUserOutput {
+                user: None,
+                task_execution: Some(task_execution),
+            }));
         }
-
-        info!("Sent EDIT_USER task {}", task_execution.id);
-
-        return Ok(Json(EditUserOutput {
-            user: None,
-            task_execution: Some(task_execution),
-        }));
     }
 
     let client = KeycloakAdminClient::new()
@@ -792,7 +1172,48 @@ pub async fn edit_user(
             input.temporary,
         )
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            if password_only && is_keycloak_bad_request(&error) {
+                EditUserError::password_policy_violation()
+            } else {
+                EditUserError::from_keycloak(
+                    error,
+                    "Error editing user in Keycloak",
+                )
+            }
+        })?;
+
+    if let (Some(election_event_id), Some(_)) =
+        (input.election_event_id.as_deref(), input.password.as_ref())
+    {
+        let admin = ElectoralLogAdminContext {
+            user_id: claims.hasura_claims.user_id.clone(),
+            username: claims.preferred_username.clone(),
+            authorized_election_ids: claims
+                .hasura_claims
+                .authorized_election_ids
+                .clone(),
+            area_id: claims.hasura_claims.area_id.clone(),
+        };
+        post_voter_password_change(
+            &input.tenant_id,
+            election_event_id,
+            &input.user_id,
+            user.username.clone(),
+            &admin,
+            VoterPasswordChangeSource::AdminPortal,
+        )
+        .await
+        .map_err(|error| -> EditUserError {
+            (
+                Status::InternalServerError,
+                format!(
+                    "Voter password changed, but its electoral-log entry failed: {error:#}"
+                ),
+            )
+                .into()
+        })?;
+    }
 
     Ok(Json(EditUserOutput {
         user: Some(user),
@@ -1094,4 +1515,141 @@ pub async fn get_user_profile_attributes(
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
     Ok(Json(attributes_res))
+}
+
+#[instrument(skip(claims))]
+#[post("/get-user-profile-configuration", format = "json", data = "<body>")]
+pub async fn get_user_profile_configuration(
+    claims: jwt::JwtClaims,
+    body: Json<GetUserProfileAttributesBody>,
+) -> Result<Json<UserProfileConfiguration>, (Status, String)> {
+    let required_perm = if body.election_event_id.is_some() {
+        Permissions::VOTER_READ
+    } else {
+        Permissions::USER_READ
+    };
+
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let realm = match input.election_event_id {
+        Some(election_event_id) => {
+            get_event_realm(&input.tenant_id, &election_event_id)
+        }
+        None => get_tenant_realm(&input.tenant_id),
+    };
+
+    let client = KeycloakAdminClient::new()
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let configuration = client
+        .get_user_profile_configuration(&realm)
+        .await
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    Ok(Json(configuration))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        user_profile_error, EditUserError, MAX_REPORTED_USER_PROFILE_ERRORS,
+    };
+    use rocket::http::Status;
+    use sequent_core::services::keycloak::{
+        PasswordPolicyRule, PasswordPolicyViolation, UserProfileValidationError,
+    };
+
+    fn refused(field: &str) -> UserProfileValidationError {
+        UserProfileValidationError {
+            field: Some(field.to_string()),
+            error_message: Some("error-invalid-length".to_string()),
+            params: Some(vec![field.into(), 1.into(), 2.into()]),
+        }
+    }
+
+    #[test]
+    fn a_refused_attribute_is_a_structured_bad_request() {
+        let response = user_profile_error(&[refused("roll")]);
+        let extensions = &response.1 .0.extensions;
+
+        assert_eq!(response.0, Status::BadRequest);
+        assert_eq!(extensions.code, "UserProfileValidation");
+        assert_eq!(extensions.user_profile_errors_total, Some(1));
+        assert!(response.1 .0.message.contains("roll"));
+        assert!(response.1 .0.message.contains("error-invalid-length"));
+    }
+
+    #[test]
+    fn every_refused_attribute_is_reported_in_order() {
+        let response = user_profile_error(&[refused("ward"), refused("roll")]);
+        let reported = response
+            .1
+             .0
+            .extensions
+            .user_profile_errors
+            .as_ref()
+            .unwrap();
+
+        assert_eq!(reported.len(), 2);
+        assert_eq!(reported[0].field.as_deref(), Some("ward"));
+        assert_eq!(reported[1].field.as_deref(), Some("roll"));
+        let message = &response.1 .0.message;
+        assert!(message.find("ward") < message.find("roll"));
+    }
+
+    #[test]
+    fn a_long_list_of_refused_attributes_is_capped_and_counted() {
+        let validations: Vec<UserProfileValidationError> = (0..15)
+            .map(|index| refused(&format!("field_{index}")))
+            .collect();
+
+        let response = user_profile_error(&validations);
+        let extensions = &response.1 .0.extensions;
+        let reported = extensions.user_profile_errors.as_ref().unwrap();
+
+        assert_eq!(reported.len(), MAX_REPORTED_USER_PROFILE_ERRORS);
+        // The count is of everything refused, not of what was listed.
+        assert_eq!(extensions.user_profile_errors_total, Some(15));
+        assert!(response.1 .0.message.contains("(and 5 more)"));
+        assert!(!response.1 .0.message.contains("field_10"));
+    }
+
+    #[test]
+    fn a_short_list_does_not_claim_there_are_more() {
+        let response = user_profile_error(&[refused("roll")]);
+
+        assert!(!response.1 .0.message.contains("more"));
+    }
+
+    #[test]
+    fn password_policy_violation_is_a_structured_bad_request() {
+        let response = EditUserError::password_policy_violation_with_details(
+            &PasswordPolicyViolation {
+                rule: PasswordPolicyRule::Digits,
+                required_count: 3,
+            },
+        );
+
+        assert_eq!(response.0 .0, Status::BadRequest);
+        assert_eq!(response.0 .1 .0.extensions.code, "PasswordPolicyViolation");
+        assert_eq!(
+            response.0 .1 .0.extensions.password_policy_rule.as_deref(),
+            Some("digits")
+        );
+        assert_eq!(
+            response.0 .1 .0.extensions.password_policy_required_count,
+            Some(3)
+        );
+        assert_eq!(
+            response.0 .1 .0.message,
+            "Password does not contain enough digits"
+        );
+    }
 }

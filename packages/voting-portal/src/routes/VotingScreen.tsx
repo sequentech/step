@@ -2,21 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useContext, useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {selectBallotStyleByElectionId} from "../store/ballotStyles/ballotStylesSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
+import {store} from "../store/store"
 import {Box} from "@mui/material"
-import {PageLimit, Icon, IconButton, theme, Dialog} from "@sequentech/ui-essentials"
+import {PageLimit, Icon, IconButton, theme, Dialog, VisuallyHidden} from "@sequentech/ui-essentials"
 import {
     check_voting_error_dialog_bool,
     check_voting_not_allowed_next_bool,
+    checkIsBlank,
     stringToHtml,
     isUndefined,
     translateFromPresentation,
     IContest,
     EElectionEventContestEncryptionPolicy,
+    EBlankBallotsPolicy,
     BallotSelection,
     getDefaultVotingScreenBackPolicy,
+    areAllContestsAcclaimed,
+    isAcclaimedContest,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -34,6 +39,7 @@ import {
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
+    setAllBallotSelectionsBlankBallot,
 } from "../store/ballotSelections/ballotSelectionsSlice"
 import {clearDeclinedToVoteForElection, clearIsVoted, setIsVoted} from "../store/extra/extraSlice"
 import {TenantEventType} from ".."
@@ -62,7 +68,7 @@ const StyledLink = styled(RouterLink)`
     }
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -206,8 +212,19 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
     const dispatch = useAppDispatch()
     const submit = useSubmit()
 
+    const {t} = useTranslation()
     const contestsOrderType = ballotStyle?.ballot_eml.election_presentation?.contests_order
     const [pageIndex, setPageIndex] = useState(0)
+    const pageAnnouncementRef = useRef<HTMLDivElement>(null)
+    const isFirstRender = useRef(true)
+
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false
+            return
+        }
+        pageAnnouncementRef.current?.focus()
+    }, [pageIndex])
     const sortedContests = sortContestList(contests[pageIndex], contestsOrderType)
     const ballotSelectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle.election_id)
@@ -275,6 +292,13 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
 
     return (
         <>
+            {/* Paging through a multi-page ballot swaps the contests in place
+                without a route change. Moving focus here both orients the voter
+                and gets the new page number read out, so this is deliberately
+                not also a live region — that would announce it twice. */}
+            <VisuallyHidden tabIndex={-1} ref={pageAnnouncementRef}>
+                {t("a11y.stepOf", {current: pageIndex + 1, total: contests.length})}
+            </VisuallyHidden>
             {sortedContests &&
                 sortedContests.map((contest, index) => (
                     <Box key={contest.id} className={`contest-${index}`}>
@@ -355,6 +379,34 @@ const VotingScreen: React.FC = () => {
         return check_voting_error_dialog_bool(ballotStyle?.ballot_eml.contests, decodedContests)
     }
 
+    // whole-ballot blank ballots are only meaningful for MULTIPLE_CONTESTS
+    // elections, and only when the admin has opted into the policy - this is
+    // distinct from each contest's own (pre-existing) blank_vote_policy
+    const isBlankBallotsPolicyEnabled = (): boolean => {
+        const isMultiContest =
+            ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
+            EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+        return (
+            election?.presentation?.blank_ballots_policy === EBlankBallotsPolicy.ENABLED &&
+            isMultiContest
+        )
+    }
+
+    const isWholeBallotBlank = (): boolean => {
+        // Acclaimed contests are never encoded and never blank, so a ballot is
+        // wholly blank when every contest the voter could actually fill in is.
+        const contests = (ballotStyle?.ballot_eml.contests ?? []).filter(
+            (contest) => !isAcclaimedContest(contest)
+        )
+        if (contests.length === 0 || !isBlankBallotsPolicyEnabled()) {
+            return false
+        }
+        return contests.every((contest) => {
+            const decoded = decodedContests[contest.id]
+            return Boolean(decoded && checkIsBlank(decoded))
+        })
+    }
+
     const encryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
@@ -376,13 +428,32 @@ const VotingScreen: React.FC = () => {
             return
         }
 
+        // A fully acclaimed election produces no ballot, so there is nothing
+        // to encrypt: the voter reviews what was decided by acclamation and
+        // moves on.
+        if (areAllContestsAcclaimed(ballotStyle.ballot_eml.contests)) {
+            return submit(null, {method: "post"})
+        }
+
         dispatch(clearDeclinedToVoteForElection(ballotStyle.election_id))
+
+        // dispatch() updates the Redux store synchronously, but the
+        // `selectionState` bound in this closure was captured by
+        // useAppSelector on a prior render and won't reflect it - re-read
+        // the store directly, mirroring StartScreen.tsx's confirmDeclineToVote().
+        let selectionStateToEncrypt = selectionState
+        if (isWholeBallotBlank()) {
+            dispatch(setAllBallotSelectionsBlankBallot({ballotStyle}))
+            selectionStateToEncrypt =
+                selectBallotSelectionByElectionId(ballotStyle.election_id)(store.getState()) ??
+                selectionState
+        }
 
         const isMultiContest =
             ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ==
             EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
 
-        if (encryptAndStoreBallot(ballotStyle, selectionState, isMultiContest)) {
+        if (encryptAndStoreBallot(ballotStyle, selectionStateToEncrypt, isMultiContest)) {
             submit(null, {method: "post"})
         } else {
             submit({error: VotingPortalErrorType.UNABLE_TO_CAST_BALLOT}, {method: "post"})
@@ -444,7 +515,7 @@ const VotingScreen: React.FC = () => {
     }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {
-        return <CircularProgress />
+        return <CircularProgress aria-label={t("a11y.loading")} />
     }
 
     const warnAllowContinue = (value: boolean) => {
@@ -459,7 +530,7 @@ const VotingScreen: React.FC = () => {
             <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4" className="title-container">
+            <StyledTitle variant="h4" component="h1" className="title-container">
                 <Box className="selected-election-title">
                     {translateFromPresentation(election, "name", i18n.language, {
                         defaultLanguageCode,
@@ -471,6 +542,9 @@ const VotingScreen: React.FC = () => {
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
                     onClick={() => setOpenBallotHelp(true)}
+                    ariaLabel={t("a11y.helpAbout", {
+                        topic: t("votingScreen.ballotHelpDialog.title"),
+                    })}
                 />
                 <Dialog
                     handleClose={() => setOpenBallotHelp(false)}
@@ -486,6 +560,7 @@ const VotingScreen: React.FC = () => {
                 <Typography
                     className="description"
                     variant="body2"
+                    component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
                     {stringToHtml(
@@ -522,17 +597,23 @@ const VotingScreen: React.FC = () => {
                     title={t(
                         hasInvalidErrors
                             ? "votingScreen.nonVotedDialog.title"
-                            : "votingScreen.warningDialog.title"
+                            : isWholeBallotBlank()
+                              ? "votingScreen.blankBallotDialog.title"
+                              : "votingScreen.warningDialog.title"
                     )}
                     ok={t(
                         hasInvalidErrors
                             ? "votingScreen.nonVotedDialog.continue"
-                            : "votingScreen.warningDialog.continue"
+                            : isWholeBallotBlank()
+                              ? "votingScreen.blankBallotDialog.continue"
+                              : "votingScreen.warningDialog.continue"
                     )}
                     cancel={t(
                         hasInvalidErrors
                             ? "votingScreen.nonVotedDialog.cancel"
-                            : "votingScreen.warningDialog.cancel"
+                            : isWholeBallotBlank()
+                              ? "votingScreen.blankBallotDialog.cancel"
+                              : "votingScreen.warningDialog.cancel"
                     )}
                     variant="action"
                 >
@@ -540,7 +621,9 @@ const VotingScreen: React.FC = () => {
                         t(
                             hasInvalidErrors
                                 ? "votingScreen.nonVotedDialog.content"
-                                : "votingScreen.warningDialog.content"
+                                : isWholeBallotBlank()
+                                  ? "votingScreen.blankBallotDialog.content"
+                                  : "votingScreen.warningDialog.content"
                         )
                     )}
                 </Dialog>

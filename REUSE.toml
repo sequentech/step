@@ -107,3 +107,9 @@ path = "packages/admin-portal/public/sql-wasm.wasm"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["", "2025 Sequent Tech <legal@sequentech.io>"]
 SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "packages/admin-portal/src/services/generated/ivr_emulator_wasm.d.ts"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["", "2026 Sequent Tech Inc <legal@sequentech.io>"]
+SPDX-License-Identifier = "AGPL-3.0-only"

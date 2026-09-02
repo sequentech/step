@@ -8,6 +8,22 @@ const englishTranslation = {
             showMore: "Show more",
             showLess: "Show less",
         },
+        a11y: {
+            skipToContent: "Skip to main content",
+            helpAbout: "Help about {{topic}}",
+            copyToClipboard: "Copy {{label}} to clipboard",
+            previewMaterial: "Preview {{title}}",
+            ballotsTable: "Ballots",
+            ballotLocatorTabs: "Ballot locator sections",
+            ballotIdLabel: "Ballot ID",
+            votingProgress: "Voting progress",
+            stepOf: "Step {{current}} of {{total}}",
+            selectUpTo_one: "Select up to {{count}} option",
+            selectUpTo_other: "Select up to {{count}} options",
+            selectExactly_one: "Select {{count}} option",
+            selectExactly_other: "Select {{count}} options",
+            selectBetween: "Select between {{min}} and {{max}} options",
+        },
         candidatesList: {
             collapseToggle: "Toggle list {{listTitle}}",
             showCandidates: "Show candidates",
@@ -27,6 +43,12 @@ const englishTranslation = {
         footer: {
             poweredBy: "Powered by <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
+            },
+        },
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
@@ -34,7 +56,7 @@ const englishTranslation = {
             ballotHelpDialog: {
                 title: "About this screen",
                 content:
-                    "This screen shows the contest you are eligible to vote in. You can make your selection by activating the checkbox next to the candidate or answer. To reset your selections, click the “<b>Clear choices</b>” button. To move to the next step, click the “<b>Next</b>” button below.",
+                    "This screen shows the contests you are eligible to vote in. You can make your selection by activating the checkbox to the right of the Candidate/Answer. To reset your selections, click the “<b>Clear selection</b>” button; to move to the next step, click the “<b>Next</b>” button below.",
                 ok: "OK",
             },
             nonVotedDialog: {
@@ -50,6 +72,13 @@ const englishTranslation = {
                 content:
                     "Your ballot contains selections that may need your attention (such as selecting fewer options than allowed). Your ballot is valid and will be counted as submitted.",
                 ok: "Back and review",
+                continue: "Continue",
+                cancel: "Cancel",
+            },
+            blankBallotDialog: {
+                title: "You have not selected any candidates",
+                content:
+                    "You have not made any selections. Your ballot will be cast as a blank ballot, which is a valid, deliberate choice and will be counted as such.",
                 continue: "Continue",
                 cancel: "Cancel",
             },
@@ -77,6 +106,18 @@ const englishTranslation = {
                 "When you’re ready, cast your ballot so it’s officially recorded. Or choose to audit first to confirm it was correctly captured and encrypted",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "This screen shows what was decided by acclamation. Because no option could be selected, no ballot is cast and there is nothing to verify afterwards.",
+                    ok: "OK",
+                },
+                description:
+                    "Review what was decided by acclamation in this election. No ballot will be cast.",
+                finishButton: "Finish",
+            },
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
@@ -85,6 +126,9 @@ const englishTranslation = {
             backButton: "Edit ballot",
             castBallotButton: "Cast ballot",
             auditButton: "Audit ballot",
+            copyBallotId: "Copy ballot ID",
+            ballotIdCopied: "Ballot ID copied",
+            ballotIdCopyError: "Could not copy ballot ID",
             reviewScreenHelpDialog: {
                 title: "About the review screen",
                 content: "This screen lets you review your selections before casting your ballot",
@@ -108,6 +152,13 @@ const englishTranslation = {
                 title: "Are you sure you want to cast your vote?",
                 content: "After you confirm, your vote will be cast.",
                 ok: "Yes, I want to cast my vote",
+                cancel: "Cancel",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Are you sure you want to cast a blank ballot?",
+                content:
+                    "You have not selected any candidates. After you confirm, your ballot will be cast as blank.",
+                ok: "Yes, cast my blank ballot",
                 cancel: "Cancel",
             },
             error: {
@@ -196,11 +247,26 @@ const englishTranslation = {
                     "There was an internal error while casting the vote. Please try again later or contact support for assistance.",
             },
             declineToVote: "Decline to vote",
+            blankBallot: "Blank ballot",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                description:
+                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no ballot ID to track.",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no ballot ID, receipt or QR code to verify.",
+                    ok: "OK",
+                },
+            },
             title: "Your vote has been cast",
             description:
                 "Your ballot was cast successfully. Use the code below to verify that it was counted",
+            blankBallot: {
+                description: "Your ballot was cast blank, which is a valid, deliberate choice.",
+            },
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",
@@ -275,7 +341,7 @@ const englishTranslation = {
             chooserHelpDialog: {
                 title: "About the Ballot list",
                 content:
-                    "This screen lists the ballots you can access. Some may be open, scheduled, or closed. You can only vote on ballots that are open",
+                    "Welcome to the Voting Booth. This screen shows the ballots you can vote on. Ballots displayed in this list can be open to voting, scheduled, or closed. You will be able to access the ballot only if the voting period is open.",
                 ok: "OK",
             },
             noResults: "No ballots for now.",
@@ -305,6 +371,10 @@ const englishTranslation = {
                     "There are no elections you can vote for. This could be because the area doesn’t have any contest associated. Please try again later or contact support for assistance.",
                 electionEventNotPublished:
                     "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
+            },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
             },
         },
         errors: {
@@ -353,6 +423,12 @@ const englishTranslation = {
                 back: "Back to ballot list",
                 close: "Close",
                 preview: "Preview",
+                download: "Download",
+            },
+            mandatory: {
+                checkboxLabel: "I have read the Support Materials",
+                continueButton: "Continue",
+                error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
         ballotLocator: {
@@ -378,7 +454,7 @@ const englishTranslation = {
             titleHelpDialog: {
                 title: "About the Ballot Finder Screen",
                 content:
-                    "The Ballot Finder screen lets you enter your Ballot ID to locate your vote and confirm it was recorded correctly.",
+                    "This screen allows you to find your vote by using the Ballot ID to retrieve it. This procedure enables you to check that your ballot was correctly cast and that the recorded ballot matches the encrypted ballot you sent.",
                 ok: "OK",
             },
             tabs: {

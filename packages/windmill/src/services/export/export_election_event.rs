@@ -17,7 +17,6 @@ use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
 use crate::services::import::import_election_event::ImportElectionEventSchema;
-use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -147,8 +146,10 @@ pub async fn read_export_data(
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
 
     let import_election_event_schema = ImportElectionEventSchema {
-        tenant_id: parse_uuid_v4(&tenant_id)?,
-        keycloak_event_realm: Some(realm),
+        // parse_uuid_v4 still runs: the schema now carries a String, but an
+        // export must not emit a tenant id that is not a UUID.
+        tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
+        keycloak_event_realm: Some(serde_json::to_value(realm)?),
         election_event: election_event,
         elections: export_elections,
         contests: contests.clone(),
@@ -516,17 +517,14 @@ pub async fn process_export_zip(
             ReportFormat::CSV, // Assuming CSV format for this export
         );
 
-        // Prepare user data
-        let user_data = activity_logs_template
-            .prepare_user_data(&hasura_transaction, &hasura_transaction)
+        // Generate the CSV file directly from the electoral log board, streaming
+        // in batches (same path used by ActivityLogsTemplate::execute_report for
+        // the CSV report type), since prepare_user_data is not implemented for
+        // this report type.
+        let temp_activity_logs_file = activity_logs_template
+            .generate_export_csv_data(&activity_logs_filename)
             .await
-            .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
-
-        // Generate the CSV file using generate_export_data
-        let temp_activity_logs_file =
-            activity_log::generate_export_data(&user_data.electoral_log, &activity_logs_filename)
-                .await
-                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+            .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
         zip_writer
             .start_file(&activity_logs_filename, options)
