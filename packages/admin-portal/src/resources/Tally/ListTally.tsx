@@ -65,10 +65,8 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
-import {
-    isTallyAcceptingTrusteeKeys,
-    isTrusteeInTallyCeremony,
-} from "@/services/tallyCeremonyParticipation"
+import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
+import {canTrusteeRestorePrivateKey} from "./utils"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -199,7 +197,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
-            pagination: {page: 1, perPage: 1000},
+            pagination: {page: 1, perPage: Math.max(tallySessionIds.length, 1)},
             sort: {field: "created_at", order: "DESC"},
             filter: {
                 tally_session_id: {
@@ -213,6 +211,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
+            meta: {latestPerTallySession: true},
         }
     )
 
@@ -319,10 +318,12 @@ export const ListTally: React.FC<ListAreaProps> = () => {
     }
 
     const canTrusteeAct = (record: RaRecord): boolean =>
-        isTallyAcceptingTrusteeKeys(record.execution_status) &&
-        isTrusteeInTallyCeremony(
-            latestExecutionByTallySessionId.get(String(record.id)),
-            authContext.trustee
+        canTrusteeRestorePrivateKey(
+            getTallyTrusteeStatus(
+                latestExecutionByTallySessionId.get(String(record.id)),
+                authContext.trustee
+            ),
+            record.execution_status
         )
 
     const actions = (record: RaRecord) => [
@@ -435,7 +436,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         }
     }
 
-    // Returns an active tally ceremony in which the current trustee participates.
+    // Returns an active tally ceremony in which the current trustee must restore a key.
     const getActiveCeremony = (
         tallySessions: Sequent_Backend_Tally_Session[] | undefined,
         trusteeName: string | null | undefined
@@ -443,17 +444,18 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         if (!tallySessions) {
             return
         } else {
-            return tallySessions.find(
-                (tallySession) =>
-                    isTallyAcceptingTrusteeKeys(tallySession.execution_status) &&
-                    isTrusteeInTallyCeremony(
+            return tallySessions.find((tallySession) =>
+                canTrusteeRestorePrivateKey(
+                    getTallyTrusteeStatus(
                         latestExecutionByTallySessionId.get(tallySession.id),
                         trusteeName
-                    )
+                    ),
+                    tallySession.execution_status
+                )
             )
         }
     }
-    let activeCeremony = getActiveCeremony(tallySessions, authContext.trustee)
+    const activeCeremony = getActiveCeremony(tallySessions, authContext.trustee)
 
     if (errorCeremonies) {
         return (
@@ -467,16 +469,14 @@ export const ListTally: React.FC<ListAreaProps> = () => {
 
     return (
         <>
-            {canTrusteeCeremony &&
-            activeCeremony &&
-            tallySessions?.[0]?.execution_status === "STARTED" ? (
+            {canTrusteeCeremony && activeCeremony ? (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.tally.notify.participateNow">
                         {t("tally.invited")}
                         <NotificationLink
                             onClick={(e: any) => {
                                 e.preventDefault()
-                                viewTrusteeTally(tallySessions?.[0]?.id)
+                                viewTrusteeTally(activeCeremony.id)
                             }}
                         >
                             click on the tally Key Action

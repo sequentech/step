@@ -5,6 +5,15 @@
 import {ParsedAnnotations, RunoffStatus} from "./types"
 import {Sequent_Backend_Candidate, Sequent_Backend_Contest} from "@/gql/graphql"
 import {ICandidate, IContest, ICountingAlgorithm} from "@sequentech/ui-core"
+import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
+
+export const canTrusteeRestorePrivateKey = (
+    trusteeStatus: ITallyTrusteeStatus | null,
+    tallyExecutionStatus: string | null | undefined
+): boolean =>
+    trusteeStatus === ITallyTrusteeStatus.WAITING &&
+    (tallyExecutionStatus === ITallyExecutionStatus.STARTED ||
+        tallyExecutionStatus === ITallyExecutionStatus.CONNECTED)
 
 /**
  * Safely extracts the value from a GraphQL 'Maybe<T>' type.
