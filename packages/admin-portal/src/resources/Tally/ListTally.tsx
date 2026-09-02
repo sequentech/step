@@ -318,68 +318,66 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         openRecountTallySet(true)
     }
 
-    const actions = (record: RaRecord) => {
-        const trusteeCanAct =
-            isTallyAcceptingTrusteeKeys(record.execution_status) &&
-            isTrusteeInTallyCeremony(
-                latestExecutionByTallySessionId.get(String(record.id)),
-                authContext.trustee
-            )
+    const canTrusteeAct = (record: RaRecord): boolean =>
+        isTallyAcceptingTrusteeKeys(record.execution_status) &&
+        isTrusteeInTallyCeremony(
+            latestExecutionByTallySessionId.get(String(record.id)),
+            authContext.trustee
+        )
 
-        return [
-            {
-                icon: isTrustee ? (
-                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.manage"))}>
-                        <CellTowerIcon />
-                    </Tooltip>
-                ) : (
-                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
-                        <DescriptionIcon />
-                    </Tooltip>
-                ),
-                action: viewAdminTally,
-                showAction: (id: Identifier) => canAdminCeremony || canDoMiruAction,
-            },
-            {
-                icon: (
-                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.cancel"))}>
-                        <DoNotDisturbOnIcon />
-                    </Tooltip>
-                ),
-                action: cancelAdminTally,
-                showAction: (id: Identifier) =>
-                    canAdminCeremony &&
-                    (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
-                        record.execution_status === ITallyExecutionStatus.STARTED ||
-                        record.execution_status === ITallyExecutionStatus.CONNECTED),
-            },
-            {
-                icon: (
-                    <Tooltip title={String(t("tally.recountTallyCeremony"))}>
-                        <ReplayIcon />
-                    </Tooltip>
-                ),
-                action: recountAdminTally,
-                showAction: (id: Identifier) =>
-                    canRecountTally &&
-                    record.execution_status === ITallyExecutionStatus.SUCCESS &&
-                    record.is_execution_completed,
-            },
-            {
-                icon: trusteeCanAct ? (
-                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
-                        <TrusteeKeyIcon />
-                    </Tooltip>
-                ) : (
-                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
-                        <DescriptionIcon />
-                    </Tooltip>
-                ),
-                action: viewTrusteeTally,
-                showAction: (id: Identifier) => canTrusteeCeremony,
-            },
-        ]
-    }
+    const actions = (record: RaRecord) => [
+        {
+            icon: isTrustee ? (
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.manage"))}>
+                    <CellTowerIcon />
+                </Tooltip>
+            ) : (
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
+                    <DescriptionIcon />
+                </Tooltip>
+            ),
+            action: viewAdminTally,
+            showAction: (id: Identifier) => canAdminCeremony || canDoMiruAction,
+        },
+        {
+            icon: (
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.cancel"))}>
+                    <DoNotDisturbOnIcon />
+                </Tooltip>
+            ),
+            action: cancelAdminTally,
+            showAction: (id: Identifier) =>
+                canAdminCeremony &&
+                (record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
+                    record.execution_status === ITallyExecutionStatus.STARTED ||
+                    record.execution_status === ITallyExecutionStatus.CONNECTED),
+        },
+        {
+            icon: (
+                <Tooltip title={String(t("tally.recountTallyCeremony"))}>
+                    <ReplayIcon />
+                </Tooltip>
+            ),
+            action: recountAdminTally,
+            showAction: (id: Identifier) =>
+                canRecountTally &&
+                record.execution_status === ITallyExecutionStatus.SUCCESS &&
+                record.is_execution_completed,
+        },
+        {
+            icon: canTrusteeAct(record) ? (
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
+                    <TrusteeKeyIcon />
+                </Tooltip>
+            ) : (
+                <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
+                    <DescriptionIcon />
+                </Tooltip>
+            ),
+            action: viewTrusteeTally,
+            showAction: (id: Identifier) => canTrusteeCeremony,
+        },
+    ]
 
     const confirmCancelAction = async () => {
         try {
