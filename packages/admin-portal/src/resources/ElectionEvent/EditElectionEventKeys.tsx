@@ -23,7 +23,7 @@ import {
     FunctionField,
     RaRecord,
 } from "react-admin"
-import {Button, Typography, Chip, Alert, Box} from "@mui/material"
+import {Button, Typography, Chip, Alert, Box, Tooltip} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
 import {TrusteeWizard, isTrusteeParticipating} from "@/components/keys-ceremony/TrusteeWizard"
@@ -37,6 +37,7 @@ import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import FileOpenIcon from "@mui/icons-material/FileOpen"
 import KeyIcon from "@mui/icons-material/Key"
+import DescriptionIcon from "@mui/icons-material/Description"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {ListActions} from "../../components/ListActions"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
@@ -241,6 +242,11 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         }
     }
 
+    const isTrusteeActionable = (id: Identifier): boolean => {
+        const ceremony = getCeremony(id)
+        return !!ceremony && isTrusteeParticipating(ceremony, authContext)
+    }
+
     const actions: Action[] = [
         {
             icon: <FileOpenIcon className="keys-view-admin-icon" />,
@@ -248,9 +254,23 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             showAction: (id: Identifier) => canAdminCeremony && !!getCeremony(id),
         },
         {
-            icon: <TrusteeKeyIcon className="keys-view-trustee-icon" />,
+            icon: (
+                <Tooltip title={String(t("electionEventScreen.keys.actions.participate"))}>
+                    <TrusteeKeyIcon className="keys-view-trustee-icon" />
+                </Tooltip>
+            ),
             action: viewTrusteeCeremony,
-            showAction: (id: Identifier) => canTrusteeCeremony && !!getCeremony(id),
+            showAction: (id: Identifier) => canTrusteeCeremony && isTrusteeActionable(id),
+        },
+        {
+            icon: (
+                <Tooltip title={String(t("electionEventScreen.keys.actions.view"))}>
+                    <DescriptionIcon className="keys-view-trustee-status-icon" />
+                </Tooltip>
+            ),
+            action: viewTrusteeCeremony,
+            showAction: (id: Identifier) =>
+                canTrusteeCeremony && !!getCeremony(id) && !isTrusteeActionable(id),
         },
     ]
 

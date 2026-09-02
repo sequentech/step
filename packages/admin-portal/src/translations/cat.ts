@@ -804,6 +804,10 @@ const catalanTranslation: TranslationType = {
                 statusLabel: "Estat",
                 waitingKeys: "Esperant a la Generació de Claus..",
                 started: "Iniciada en",
+                actions: {
+                    participate: "Participa en la cerimònia de claus",
+                    view: "Mostra la cerimònia de claus",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Cerimònia",
