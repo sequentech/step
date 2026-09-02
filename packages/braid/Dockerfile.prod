@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.96.0-slim-bookworm as builder
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 as builder
 
 WORKDIR /app
 
@@ -48,7 +48,7 @@ RUN cargo build --release --locked
 
 
 
-FROM debian:bookworm
+FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 # Some shared libraries (extra-runtime-dependencies) may need to be installed:
 # Installing also AWS CLI and Vault CLI for trustee configuration
 # Set the default Vault version (put 'latest' for automatic substitution)

@@ -17,7 +17,7 @@ ARG OID4VP_VERSION=0.6.2
 ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
 
 # Start with a Maven base image to compile the Keycloak provider extensions.
-FROM maven:3-amazoncorretto-17 AS spis-build
+FROM maven:3-amazoncorretto-17@sha256:771f7b6dbf09ad8b9a0ca910b8b852650d1cff3e6c5d29c81e8f0a0c3d631642 AS spis-build
 RUN dnf install -y findutils && dnf clean all
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
 WORKDIR /build/context
@@ -47,7 +47,7 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         -exec cp -t /build/keycloak-provider-jars/ {} +
 
 # Build the oid4vp extension from source (requires Java 21)
-FROM maven:3-amazoncorretto-21 AS oid4vp-build
+FROM maven:3-amazoncorretto-21@sha256:81de222c1f34ac467bf968e1800b73fb41e714427c0212ba004296ea972e808a AS oid4vp-build
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
 RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
@@ -58,7 +58,7 @@ RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
  && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
  && mvn -B clean package -DskipTests
 
-FROM quay.io/keycloak/keycloak:26.6.1 AS builder
+FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
@@ -99,7 +99,7 @@ COPY --chown=keycloak:keycloak \
 
 RUN /opt/keycloak/bin/kc.sh build 
 
-FROM quay.io/keycloak/keycloak:26.6.1
+FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 
