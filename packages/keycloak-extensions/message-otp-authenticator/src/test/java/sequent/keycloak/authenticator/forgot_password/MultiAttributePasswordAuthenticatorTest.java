@@ -46,10 +46,14 @@ import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.UserSessionProvider;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
@@ -1399,6 +1403,73 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void authenticate_terminatePolicyRemovesExistingSessionBeforeShowingLoginForm() {
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
+    when(authConfig.getConfig())
+        .thenReturn(
+            Map.of(
+                MultiAttributePasswordAuthenticator.EXISTING_USER_SESSION_POLICY,
+                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN
+                    .name()));
+    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    UserSessionModel existingSession = mock(UserSessionModel.class);
+    UserSessionProvider userSessions = mock(UserSessionProvider.class);
+    configureBrowserSession(context, existingSession, userSessions);
+    when(context.getRealm()).thenReturn(realm);
+    Response challengeResponse = mock(Response.class);
+    MultiAttributePasswordAuthenticator kioskAuthenticator =
+        challengeAuthenticator(challengeResponse);
+
+    kioskAuthenticator.authenticate(context);
+
+    InOrder inOrder = inOrder(context, userSessions);
+    inOrder.verify(userSessions).removeUserSession(realm, existingSession);
+    inOrder.verify(context).challenge(challengeResponse);
+  }
+
+  @Test
+  void authenticate_defaultPolicyKeepsExistingSession() {
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
+    when(authConfig.getConfig()).thenReturn(Map.of());
+    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    Response challengeResponse = mock(Response.class);
+    MultiAttributePasswordAuthenticator portalAuthenticator =
+        challengeAuthenticator(challengeResponse);
+
+    portalAuthenticator.authenticate(context);
+
+    verify(context, never()).getAuthenticationSession();
+    verify(context).challenge(challengeResponse);
+  }
+
+  @Test
+  void factory_configPropertiesIncludeExistingSessionPolicyDefaultingToKeep() {
+    MultiAttributePasswordAuthenticator factory = new MultiAttributePasswordAuthenticator();
+    ProviderConfigProperty policyProperty =
+        factory.getConfigProperties().stream()
+            .filter(
+                property ->
+                    MultiAttributePasswordAuthenticator.EXISTING_USER_SESSION_POLICY.equals(
+                        property.getName()))
+            .findFirst()
+            .orElse(null);
+
+    assertTrue(policyProperty != null);
+    assertEquals(ProviderConfigProperty.LIST_TYPE, policyProperty.getType());
+    assertEquals(
+        MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.KEEP.name(),
+        policyProperty.getDefaultValue());
+    assertTrue(
+        policyProperty
+            .getOptions()
+            .contains(
+                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN
+                    .name()));
+  }
+
+  @Test
   void action_failureClearsAttributedUserAfterSignalingFailure() {
     AuthenticationFlowContext context = mockActionContext();
     UserModel attributableUser = mock(UserModel.class);
@@ -1514,9 +1585,35 @@ class MultiAttributePasswordAuthenticatorTest {
     return context;
   }
 
+  private void configureBrowserSession(
+      AuthenticationFlowContext context,
+      UserSessionModel existingSession,
+      UserSessionProvider userSessions) {
+    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+    RootAuthenticationSessionModel rootSession = mock(RootAuthenticationSessionModel.class);
+    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(context.getSession()).thenReturn(session);
+    when(authenticationSession.getParentSession()).thenReturn(rootSession);
+    when(rootSession.getId()).thenReturn("browser-session");
+    when(session.sessions()).thenReturn(userSessions);
+    when(userSessions.getUserSession(realm, "browser-session")).thenReturn(existingSession);
+  }
+
   private MultiAttributePasswordAuthenticator actionAuthenticator(
       Resolution resolution, Response challengeResponse) {
     return actionAuthenticator(resolution, challengeResponse, null);
+  }
+
+  private MultiAttributePasswordAuthenticator challengeAuthenticator(Response challengeResponse) {
+    return new MultiAttributePasswordAuthenticator() {
+      @Override
+      protected Response challenge(
+          AuthenticationFlowContext context,
+          MultivaluedMap<String, String> formData,
+          String error) {
+        return challengeResponse;
+      }
+    };
   }
 
   private MultiAttributePasswordAuthenticator actionAuthenticator(
