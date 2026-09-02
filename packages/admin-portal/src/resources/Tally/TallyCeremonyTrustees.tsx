@@ -34,6 +34,7 @@ import {
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {isTrusteeInTallyCeremony} from "@/services/tallyCeremonyParticipation"
 
 const WizardSteps = {
     Start: 0,
@@ -56,6 +57,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
+    const [trusteeParticipating, setTrusteeParticipating] = useState(false)
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
@@ -128,19 +130,24 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 (item) => item.name === username
             )?.status
             setTrusteeStatus(trusteeStatus ?? null)
+            setTrusteeParticipating(
+                isTrusteeInTallyCeremony(tallySessionExecutions?.[0], authContext.trustee)
+            )
         }
-    }, [tallySessionExecutions])
+    }, [tallySessionExecutions, authContext.trustee, authContext.username])
 
     useEffect(() => {
         setPage(
-            !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                ? WizardSteps.Start
-                : trusteeStatus === ITrusteeStatus.WAITING &&
-                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
+            !trusteeParticipating
+                ? WizardSteps.Status
+                : !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
                   ? WizardSteps.Start
-                  : WizardSteps.Status
+                  : trusteeStatus === ITrusteeStatus.WAITING &&
+                      tally?.execution_status !== ITallyExecutionStatus.CANCELLED
+                    ? WizardSteps.Start
+                    : WizardSteps.Status
         )
-    }, [trusteeStatus])
+    }, [trusteeParticipating, trusteeStatus, tally?.execution_status])
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
