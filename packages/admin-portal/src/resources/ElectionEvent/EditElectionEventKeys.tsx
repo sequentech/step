@@ -26,7 +26,7 @@ import {
 import {Button, Typography, Chip, Alert, Box, Tooltip} from "@mui/material"
 import {theme, IconButton} from "@sequentech/ui-essentials"
 import {AdminWizard} from "@/components/keys-ceremony/AdminWizard"
-import {TrusteeWizard, isTrusteeParticipating} from "@/components/keys-ceremony/TrusteeWizard"
+import {TrusteeWizard, isTrusteeActionable} from "@/components/keys-ceremony/TrusteeWizard"
 import {statusColor} from "@/components/keys-ceremony/CeremonyStep"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -100,7 +100,7 @@ const getActiveCeremony = (
     if (!keyCeremonies) {
         return
     } else {
-        return keyCeremonies.find((ceremony) => isTrusteeParticipating(ceremony, authContext))
+        return keyCeremonies.find((ceremony) => isTrusteeActionable(ceremony, authContext))
     }
 }
 
@@ -242,9 +242,9 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
         }
     }
 
-    const isTrusteeActionable = (id: Identifier): boolean => {
+    const isCeremonyActionable = (id: Identifier): boolean => {
         const ceremony = getCeremony(id)
-        return !!ceremony && isTrusteeParticipating(ceremony, authContext)
+        return !!ceremony && isTrusteeActionable(ceremony, authContext)
     }
 
     const actions: Action[] = [
@@ -260,7 +260,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                 </Tooltip>
             ),
             action: viewTrusteeCeremony,
-            showAction: (id: Identifier) => canTrusteeCeremony && isTrusteeActionable(id),
+            showAction: (id: Identifier) => canTrusteeCeremony && isCeremonyActionable(id),
         },
         {
             icon: (
@@ -270,7 +270,7 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
             ),
             action: viewTrusteeCeremony,
             showAction: (id: Identifier) =>
-                canTrusteeCeremony && !!getCeremony(id) && !isTrusteeActionable(id),
+                canTrusteeCeremony && !!getCeremony(id) && !isCeremonyActionable(id),
         },
     ]
 
