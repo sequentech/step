@@ -2018,6 +2018,9 @@ const spanishTranslation: TranslationType = {
                 downloadButton: "Descargar tu Clave Privada Encriptada",
                 errorDownloading: "Error de descarga: {{error}}",
                 errorEmptyKey: "Error de descarga, fichero vacío",
+                unexpectedError: "No se pudo descargar la clave privada. Inténtalo de nuevo.",
+                unavailable:
+                    "La descarga de la clave privada ya no está disponible porque la ceremonia ha avanzado.",
                 confirmdDialog: {
                     ok: "Confirmar copias de seguridad y Continuar",
                     cancel: "Volver",

@@ -2031,6 +2031,9 @@ const frenchTranslation: TranslationType = {
                 downloadButton: "Télécharger votre Clé Privée Cryptée",
                 errorDownloading: "Erreur de téléchargement : {{error}}",
                 errorEmptyKey: "Erreur de téléchargement, fichier vide",
+                unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
+                unavailable:
+                    "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
                 confirmdDialog: {
                     ok: "Confirmer les copies de sauvegarde et Continuer",
                     cancel: "Revenir",

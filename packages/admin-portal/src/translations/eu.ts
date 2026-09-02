@@ -2011,6 +2011,9 @@ const basqueTranslation: TranslationType = {
                 downloadButton: "Deskargatu zure Zifratutako Giltza Pribatua",
                 errorDownloading: "Deskarga errorea: {{error}}",
                 errorEmptyKey: "Deskarga errorea, fitxategi hutsa",
+                unexpectedError: "Ezin izan da gako pribatua deskargatu. Saiatu berriro.",
+                unavailable:
+                    "Gako pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
                 confirmdDialog: {
                     ok: "Berretsi Babeskopiak eta Jarraitu",
                     cancel: "Itzuli",

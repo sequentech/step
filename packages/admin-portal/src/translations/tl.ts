@@ -2022,6 +2022,9 @@ const tagalogTranslation: TranslationType = {
                 downloadButton: "I-download ang iyong Encrypted Private Key",
                 errorDownloading: "Error sa pag-download: {{error}}",
                 errorEmptyKey: "Error sa pag-download, walang laman na file",
+                unexpectedError: "Hindi ma-download ang pribadong key. Pakisubukang muli.",
+                unavailable:
+                    "Hindi na maaaring i-download ang pribadong key dahil nagpatuloy na ang seremonya.",
                 confirmdDialog: {
                     ok: "Kumpirmahin ang mga Backup at Magpatuloy",
                     cancel: "Bumalik",

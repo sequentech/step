@@ -1995,6 +1995,9 @@ const englishTranslation = {
                 downloadButton: "Download your Encrypted Private Key",
                 errorDownloading: "Download error: {{error}}",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The private key could not be downloaded. Please try again.",
+                unavailable:
+                    "Private key download is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",

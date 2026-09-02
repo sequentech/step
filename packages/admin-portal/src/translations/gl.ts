@@ -2017,6 +2017,9 @@ const galegoTranslation: TranslationType = {
                 downloadButton: "Descargar a túa Chave Privada Cifrada",
                 errorDownloading: "Erro de descarga: {{error}}",
                 errorEmptyKey: "Erro de descarga, ficheiro baleiro",
+                unexpectedError: "Non se puido descargar a clave privada. Téntao de novo.",
+                unavailable:
+                    "A descarga da clave privada xa non está dispoñible porque a cerimonia avanzou.",
                 confirmdDialog: {
                     ok: "Confirmar Copias de Seguridade e Continuar",
                     cancel: "Volver Atrás",

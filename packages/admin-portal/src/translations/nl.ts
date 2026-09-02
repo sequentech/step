@@ -2016,6 +2016,9 @@ const dutchTranslation: TranslationType = {
                 downloadButton: "Download uw Versleutelde Privésleutel",
                 errorDownloading: "Downloadfout: {{error}}",
                 errorEmptyKey: "Downloadfout, leeg bestand",
+                unexpectedError: "De privésleutel kon niet worden gedownload. Probeer het opnieuw.",
+                unavailable:
+                    "De privésleutel kan niet meer worden gedownload omdat de ceremonie is gevorderd.",
                 confirmdDialog: {
                     ok: "Back-ups Bevestigen en Doorgaan",
                     cancel: "Terug",

@@ -2028,6 +2028,9 @@ const catalanTranslation: TranslationType = {
                 downloadButton: "Descarregar la teva Clau Privada Encriptada",
                 errorDownloading: "Error de descàrrega: {{error}}",
                 errorEmptyKey: "Error de descàrrega, fitxer buit",
+                unexpectedError: "No s'ha pogut descarregar la clau privada. Torna-ho a provar.",
+                unavailable:
+                    "La descàrrega de la clau privada ja no està disponible perquè la cerimònia ha avançat.",
                 confirmdDialog: {
                     ok: "Confirmar còpies de seguretat i Continuar",
                     cancel: "Tornar",
