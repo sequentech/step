@@ -2074,6 +2074,7 @@ const tagalogTranslation: TranslationType = {
                 errorUploading: "Di-wastong Encrypted Private Key Backup, mangyaring subukan muli",
                 errorEmptyFile: "Walang laman na file o hindi natagpuan",
                 verified: "Backup ay matagumpay na nasuri.",
+                alreadyRestored: "Naibalik na ang iyong key.",
                 downloaded: "Encrypted Private Key ay matagumpay na nabuo.",
             },
         },
