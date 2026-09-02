@@ -81,7 +81,11 @@ second identifying attribute is available.
    read and understood [Multiple-Candidate Match Policy](#multiple-candidate-match-policy) below -
    the alternative, `FIRST_MATCH`, is only safe when password uniqueness across every possible
    candidate is guaranteed.
-7. Click **Save**.
+7. Leave **Existing browser session policy** at `KEEP` for normal login flows. For a shared-device
+   flow where each visit must allow a different user to sign in, select `TERMINATE_BEFORE_LOGIN`.
+   Opening that login form then ends the user session attached to the browser before credentials
+   are submitted.
+8. Click **Save**.
 
 ---
 
