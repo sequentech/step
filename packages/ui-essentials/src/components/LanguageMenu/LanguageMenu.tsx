@@ -41,6 +41,24 @@ const LanguageMenu: React.FC<{
         setAnchorEl(null)
     }
 
+    React.useEffect(() => {
+        if (!open) {
+            return
+        }
+
+        const closeOnFileDrag = (event: DragEvent) => {
+            if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+                setAnchorEl(null)
+            }
+        }
+
+        document.addEventListener("dragenter", closeOnFileDrag, true)
+
+        return () => {
+            document.removeEventListener("dragenter", closeOnFileDrag, true)
+        }
+    }, [open])
+
     const changeLanguage = async (lang: string) => {
         handleClose()
         await i18n.changeLanguage(lang)
