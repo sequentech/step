@@ -2009,6 +2009,7 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
+                verifyButton: "Verify key",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",

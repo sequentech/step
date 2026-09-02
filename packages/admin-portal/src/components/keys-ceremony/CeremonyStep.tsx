@@ -17,6 +17,7 @@ import {WizardStyles} from "@/components/styles/WizardStyles"
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline"
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty"
 import {Accordion, AccordionSummary, Typography} from "@mui/material"
 import Table from "@mui/material/Table"
@@ -221,10 +222,10 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         {t("common.label.back")}
                     </CancelButton>
                     {!!verifyPrivateKey && (
-                        <WizardStyles.NextButton color="info" onClick={verifyPrivateKey}>
-                            <ArrowForwardIosIcon />
-                            {t("keysGeneration.checkStep.title")}
-                        </WizardStyles.NextButton>
+                        <CancelButton onClick={verifyPrivateKey} className="list-actions">
+                            <CheckCircleOutlineIcon />
+                            {t("keysGeneration.checkStep.verifyButton")}
+                        </CancelButton>
                     )}
                     {!!goNext && !isAutomaticCeremony && (
                         <WizardStyles.NextButton

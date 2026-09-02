@@ -2042,6 +2042,7 @@ const catalanTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verifica les teves Còpies de Seguretat de la teva Clau Privada Encriptada",
+                verifyButton: "Verifica la clau",
                 subtitle:
                     "Puja la Còpia de Seguretat de la teva Clau Privada Encriptada per verificar que sigui correcta. Pots intentar-ho tantes vegades com sigui necessari, des de les teves diferents còpies de seguretat:",
                 errorUploading:

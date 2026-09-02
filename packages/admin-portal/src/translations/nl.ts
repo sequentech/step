@@ -2030,6 +2030,7 @@ const dutchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Controleer uw Back-ups van de Versleutelde Privésleutel",
+                verifyButton: "Sleutel verifiëren",
                 subtitle:
                     "Upload een Back-up van de Versleutelde Privésleutel om te controleren of deze correct is. U kunt het zo vaak als nodig proberen, vanaf uw verschillende back-ups:",
                 errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
