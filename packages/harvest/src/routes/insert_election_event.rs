@@ -19,6 +19,7 @@ use uuid::Uuid;
 use windmill::services;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::electoral_log::ElectoralLogAdminContext;
 use windmill::services::import::import_election_event::{
     get_document, get_zip_entries,
 };
@@ -142,6 +143,9 @@ pub async fn import_election_event_f(
         vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
     )
     .is_ok();
+    input.secret_write_initiator = input
+        .may_write_secret_attributes
+        .then(|| ElectoralLogAdminContext::from_claims(&claims));
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|err| {

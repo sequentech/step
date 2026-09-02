@@ -913,6 +913,8 @@ const galegoTranslation: TranslationType = {
                 subtitle:
                     "A exportación pode ser unha operación longa. ¿Estás seguro de que queres exportar os rexistros?",
                 encryptWithPassword: "Cifrar con Contrasinal",
+                passwordForcedNote:
+                    "O arquivo protexerase con contrasinal de todos os xeitos: os informes, as solicitudes e os datos do taboleiro cífranse sempre. Marca a caixa para incluír tamén os campos secretos de votante descifrados.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Rexistros de Actividade",
                 bulletinBoard: "Taboleiro de Anuncios",

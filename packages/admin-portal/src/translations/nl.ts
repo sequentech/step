@@ -912,6 +912,8 @@ const dutchTranslation: TranslationType = {
                 title: "Verkiezingsevenement Exporteren",
                 subtitle: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
                 encryptWithPassword: "Versleutelen met wachtwoord",
+                passwordForcedNote:
+                    "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",

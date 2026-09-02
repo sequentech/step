@@ -17,6 +17,10 @@ use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
 
 use crate::services;
 
@@ -65,6 +69,33 @@ pub async fn create_scheduled_event(
                     Some(input.tenant_id.clone()),
                     vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
                 )?;
+                let election_event_id =
+                    input.election_event_id.as_deref().ok_or_else(|| {
+                        (
+                            Status::BadRequest,
+                            "Encrypted voter attributes require an election event"
+                                .to_string(),
+                        )
+                    })?;
+                post_voter_secret_attribute_audit(
+                    &input.tenant_id,
+                    election_event_id,
+                    &ElectoralLogAdminContext::from_claims(&claims),
+                    VoterSecretAttributeAction::Communication,
+                    VoterSecretAttributeAudit {
+                        voter_id: None,
+                        voter_username: None,
+                        attribute_names: &payload.secret_attribute_names,
+                        document_id: None,
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
+                    )
+                })?;
             }
         }
         EventProcessors::CREATE_REPORT => {

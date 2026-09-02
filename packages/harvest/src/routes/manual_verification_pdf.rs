@@ -16,6 +16,11 @@ use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+
 use windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names;
 use windmill::postgres::reports::ReportType;
 
@@ -70,6 +75,27 @@ pub async fn get_manual_verification_pdf(
             Some(input.tenant_id.clone()),
             vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
         )?;
+        let attribute_names: Vec<String> =
+            declared_secret_names.iter().cloned().collect();
+        post_voter_secret_attribute_audit(
+            &input.tenant_id,
+            &input.election_event_id,
+            &ElectoralLogAdminContext::from_claims(&claims),
+            VoterSecretAttributeAction::Report,
+            VoterSecretAttributeAudit {
+                voter_id: Some(&input.voter_id),
+                voter_username: None,
+                attribute_names: &attribute_names,
+                document_id: None,
+            },
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
+            )
+        })?;
     }
     drop(hasura_transaction);
     drop(hasura_client);

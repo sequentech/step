@@ -22,7 +22,10 @@ use windmill::postgres::reports::ReportType;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::document_password::save_password;
-use windmill::services::electoral_log::ElectoralLogAdminContext;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
 use windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names;
 use windmill::services::tasks_execution::{post, update_fail};
 use windmill::types::tasks::ETasksExecution;
@@ -175,6 +178,26 @@ pub async fn generate_voter_information_letter(
                 Status::Forbidden,
                 "Authorization failed",
                 ErrorCode::Unauthorized,
+            )
+        })?;
+        let attribute_names: Vec<String> =
+            declared_secret_names.iter().cloned().collect();
+        post_voter_secret_attribute_audit(
+            &tenant_id,
+            &input.election_event_id,
+            &ElectoralLogAdminContext::from_claims(&claims),
+            VoterSecretAttributeAction::Report,
+            VoterSecretAttributeAudit {
+                voter_id: Some(&input.voter_id),
+                voter_username: None,
+                attribute_names: &attribute_names,
+                document_id: None,
+            },
+        )
+        .await
+        .map_err(|_| {
+            internal_error(
+                "Failed to record the secret-attribute electoral-log entry",
             )
         })?;
     }

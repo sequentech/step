@@ -729,8 +729,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     electionEventId,
                     user: {
                         id: user?.id,
-                        first_name: secretNames.has("first_name") ? undefined : user?.first_name,
-                        last_name: secretNames.has("last_name") ? undefined : user?.last_name,
+                        first_name: user?.first_name,
+                        last_name: user?.last_name,
                         enabled: user?.enabled,
                         email: user?.email,
                         username: user?.username,
@@ -845,8 +845,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     user_id: user?.id,
                     tenant_id: tenantId,
                     election_event_id: electionEventId,
-                    first_name: secretNames.has("first_name") ? undefined : user?.first_name,
-                    last_name: secretNames.has("last_name") ? undefined : user?.last_name,
+                    first_name: user?.first_name,
+                    last_name: user?.last_name,
                     enabled: user?.enabled,
                     email: user?.email,
                     password:
@@ -1134,13 +1134,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const optionLabels = getInputOptionLabels(attr)
                 if (isSecretAttribute(attr)) {
                     const name = attr.name
-                    const builtInValue =
-                        name === "first_name"
-                            ? user?.first_name
-                            : name === "last_name"
-                              ? user?.last_name
-                              : undefined
-                    const stored = Boolean(user?.attributes?.[name]?.length || builtInValue)
+                    const stored = Boolean(user?.attributes?.[name]?.length)
                     const value = secretAttributeValues[name]?.[0] ?? ""
                     const revealed = revealedSecretAttributes.has(name)
                     const revealing = revealingSecretAttributes.has(name)

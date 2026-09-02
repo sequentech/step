@@ -916,6 +916,8 @@ const catalanTranslation: TranslationType = {
                 subtitle:
                     "L'exportació pot ser una operació llarga. Estàs segur que vols exportar els registres?",
                 encryptWithPassword: "Xifrar amb Contrasenya",
+                passwordForcedNote:
+                    "L'arxiu es protegirà amb contrasenya igualment: els informes, les sol·licituds i les dades del tauler sempre es xifren. Marca la casella per incloure també els camps secrets de votant desxifrats.",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
                 bulletinBoard: "Tauler d'Anuncis",

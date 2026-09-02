@@ -10,7 +10,9 @@ use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
-use crate::services::voter_secret_attributes::{decrypt_user_attributes, secret_attribute_names};
+use crate::services::voter_secret_attributes::{
+    decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
+};
 use crate::types::error::Result;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
@@ -27,7 +29,7 @@ use lettre::Message;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::services::translations::Name;
 use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -367,14 +369,19 @@ pub async fn send_template(
         .iter()
         .cloned()
         .collect::<HashSet<_>>();
+    // Undeclared secrets are stripped whatever the profile's state; decrypting
+    // declared ones additionally requires a valid configuration.
     let configured_secret_names = if let Some(event_id) = election_event_id.as_deref() {
-        let profile = KeycloakAdminClient::new()
+        let config = get_secret_attribute_config(&tenant_id, event_id)
             .await
-            .map_err(|error| anyhow!("Error obtaining Keycloak admin client: {error:?}"))?
-            .get_user_profile_attributes(&get_event_realm(&tenant_id, event_id))
-            .await
-            .map_err(|error| anyhow!("Error obtaining Keycloak user profile: {error:?}"))?;
-        secret_attribute_names(&profile)?
+            .map_err(|error| {
+                anyhow!("Error reading the secret-attribute configuration: {error:#}")
+            })?;
+        if requested_secret_names.is_empty() {
+            config.redacted_names().clone()
+        } else {
+            config.validated_names()?
+        }
     } else {
         HashSet::new()
     };
@@ -525,11 +532,11 @@ pub async fn send_template(
                     )
                 })?;
             }
-            if let Some(attributes) = render_user.attributes.as_mut() {
-                for name in configured_secret_names.difference(&requested_secret_names) {
-                    attributes.remove(name);
-                }
-            }
+            strip_undeclared_secret_attributes(
+                &mut render_user,
+                &configured_secret_names,
+                &requested_secret_names,
+            );
             let success = send_template_email_or_sms(
                 &hasura_transaction,
                 &render_user,

@@ -15,7 +15,9 @@ use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
-use crate::services::voter_secret_attributes::{decrypt_user_attributes, secret_attribute_names};
+use crate::services::voter_secret_attributes::{
+    decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -233,15 +235,13 @@ pub trait TemplateRenderer: Debug {
         let tenant_id = self.get_tenant_id();
         let election_event_id = self.get_election_event_id();
         let realm = get_event_realm(&tenant_id, &election_event_id);
+        let configured_names = get_secret_attribute_config(&tenant_id, &election_event_id)
+            .await
+            .context("Error reading the secret-attribute configuration for voter report")?
+            .validated_names()?;
         let client = KeycloakAdminClient::new()
             .await
             .context("Error initializing Keycloak client for voter report")?;
-        let configured_names = secret_attribute_names(
-            &client
-                .get_user_profile_attributes(&realm)
-                .await
-                .context("Error reading Keycloak user profile for voter report")?,
-        )?;
         if let Some(name) = declared_names
             .iter()
             .find(|name| !configured_names.contains(*name))
@@ -256,9 +256,8 @@ pub trait TemplateRenderer: Debug {
             .await
             .context("Error reading voter for voter report")?;
         decrypt_user_attributes(&mut voter, &tenant_id, &election_event_id, declared_names).await?;
-        let mut attributes = voter.attributes.unwrap_or_default();
-        attributes
-            .retain(|name, _| !configured_names.contains(name) || declared_names.contains(name));
+        strip_undeclared_secret_attributes(&mut voter, &configured_names, declared_names);
+        let attributes = voter.attributes.unwrap_or_default();
         let mut user_variables = Map::new();
         user_variables.insert("first_name".to_string(), json!(voter.first_name));
         user_variables.insert("last_name".to_string(), json!(voter.last_name));

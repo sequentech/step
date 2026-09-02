@@ -7,6 +7,7 @@ use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
 };
@@ -792,6 +793,7 @@ async fn process_voters_file(
     tenant_id: String,
     is_admin: bool,
     may_write_secret_attributes: bool,
+    secret_write_initiator: Option<&ElectoralLogAdminContext>,
 ) -> Result<()> {
     let separator = if file_name.ends_with(".tsv") {
         b'\t'
@@ -807,6 +809,7 @@ async fn process_voters_file(
         tenant_id,
         is_admin,
         may_write_secret_attributes,
+        secret_write_initiator,
     )
     .await
     .map_err(|err| anyhow!("Error importing users file: {err}"))?;
@@ -1165,6 +1168,7 @@ pub async fn process_document(
     };
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
+    let secret_write_initiator = object.secret_write_initiator.clone();
     let (election_event_schema, replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
@@ -1216,6 +1220,7 @@ pub async fn process_document(
                     election_event_schema.tenant_id.to_string(),
                     false,
                     may_write_secret_attributes,
+                    secret_write_initiator.as_ref(),
                 )
                 .await
                 .context("Failed to import voters")?;

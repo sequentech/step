@@ -13,6 +13,11 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
@@ -353,6 +358,27 @@ pub async fn generate_report(
             Some(report.tenant_id.clone()),
             vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
         )?;
+        let attribute_names: Vec<String> =
+            declared_secret_names.iter().cloned().collect();
+        post_voter_secret_attribute_audit(
+            &report.tenant_id,
+            &report.election_event_id,
+            &ElectoralLogAdminContext::from_claims(&claims),
+            VoterSecretAttributeAction::Report,
+            VoterSecretAttributeAudit {
+                voter_id: None,
+                voter_username: None,
+                attribute_names: &attribute_names,
+                document_id: None,
+            },
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
+            )
+        })?;
     }
 
     // Insert the task execution record

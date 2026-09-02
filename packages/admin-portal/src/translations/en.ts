@@ -904,6 +904,8 @@ const englishTranslation = {
                 subtitle:
                     "Export can be a long operation. Are you sure you want to export records?",
                 encryptWithPassword: "Encrypt with Password",
+                passwordForcedNote:
+                    "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",

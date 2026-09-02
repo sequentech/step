@@ -196,17 +196,24 @@ Before enabling the annotation:
 - Do not configure a Keycloak value validator on the attribute. The
   `person-name-prohibited-characters` validator is the only supported exception because it accepts
   the encrypted envelope. A **Required field** rule is supported.
-- Keep each plaintext value at or below 4096 bytes.
+- Keep each plaintext value at or below 150 bytes. The encrypted envelope must fit the
+  255-character Keycloak attribute value column that voter imports and listings use.
 - Protect or migrate any existing plaintext values before enabling the annotation. Existing values
   are not encrypted retroactively, and Step refuses to reveal an unencrypted value as a fallback.
 
-First name (`first_name`), last name (`last_name`), and eligible custom fields can be secret. The
-following identity and operational attributes cannot:
+Only custom voter attributes can be secret. The following identity and operational attributes
+cannot:
 
-- `username`, `email`, `dateOfBirth`, `area-id`, and `tenant-id`
+- `username`, `email`, `first_name`, `last_name`, `dateOfBirth`, `area-id`, and `tenant-id`
 - `authorized-election-ids`, `authorized-to-election-alias`, and `permission_labels`
 - `vote-weight`, `voted-channel`, and `disable-comment`
 - `sequent.read-only.id-card-number-validated` and `sequent.read-only.mobile-number`
+
+Step reads the secret-attribute configuration through a short cache, so a change to the
+annotation can take up to 30 seconds to be reflected in the voter list and editor. If the
+configuration is invalid (a forbidden attribute or a value validator on a secret attribute), voter
+lists still redact the attribute, but revealing, editing, importing, exporting and voter-level
+outputs refuse to use it until the profile is corrected.
 
 Secret and hidden are different classifications. A hidden attribute is omitted from the editor but
 its plaintext can still reach the browser and ordinary exports. A secret attribute is encrypted at

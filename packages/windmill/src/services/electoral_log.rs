@@ -31,6 +31,7 @@ use immudb_rs::{sql_value::Value, Client, NamedParam, Row, TxMode};
 use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
+use sequent_core::services::jwt::JwtClaims;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -63,6 +64,17 @@ pub struct ElectoralLogAdminContext {
     pub username: Option<String>,
     pub authorized_election_ids: Option<Vec<String>>,
     pub area_id: Option<String>,
+}
+
+impl ElectoralLogAdminContext {
+    pub fn from_claims(claims: &JwtClaims) -> Self {
+        Self {
+            user_id: claims.hasura_claims.user_id.clone(),
+            username: claims.preferred_username.clone(),
+            authorized_election_ids: claims.hasura_claims.authorized_election_ids.clone(),
+            area_id: claims.hasura_claims.area_id.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -280,6 +292,145 @@ pub async fn post_voter_password_change(
         .post()
         .await
         .context("Failed to post the voter password-change electoral-log entry")
+}
+
+/// What an administrator did with one or more secret voter attributes.
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum VoterSecretAttributeAction {
+    /// A stored value was decrypted and shown in the Admin Portal.
+    Reveal,
+    /// A value was created or replaced.
+    Set,
+    /// A stored value was removed.
+    Clear,
+    /// Values were imported from a CSV file.
+    Import,
+    /// Decrypted values were written into an export document.
+    Export,
+    /// Decrypted values were injected into an email or SMS template.
+    Communication,
+    /// Decrypted values were injected into a per-voter report.
+    Report,
+}
+
+impl VoterSecretAttributeAction {
+    fn event_type(self) -> &'static str {
+        match self {
+            Self::Reveal => "VOTER_SECRET_ATTRIBUTE: REVEAL",
+            Self::Set => "VOTER_SECRET_ATTRIBUTE: SET",
+            Self::Clear => "VOTER_SECRET_ATTRIBUTE: CLEAR",
+            Self::Import => "VOTER_SECRET_ATTRIBUTE: IMPORT",
+            Self::Export => "VOTER_SECRET_ATTRIBUTE: EXPORT",
+            Self::Communication => "VOTER_SECRET_ATTRIBUTE: COMMUNICATION",
+            Self::Report => "VOTER_SECRET_ATTRIBUTE: REPORT",
+        }
+    }
+}
+
+/// The subject of a secret-attribute audit entry. Values are never part of
+/// it: only which attributes, for which voter, and which document or task
+/// consumed them.
+#[derive(Clone, Debug, Default)]
+pub struct VoterSecretAttributeAudit<'a> {
+    pub voter_id: Option<&'a str>,
+    pub voter_username: Option<&'a str>,
+    pub attribute_names: &'a [String],
+    pub document_id: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct VoterSecretAttributeAuditBody<'a> {
+    action: VoterSecretAttributeAction,
+    attribute_names: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    voter: Option<ElectoralLogUser<'a>>,
+    initiated_by: ElectoralLogUser<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    document_id: Option<&'a str>,
+}
+
+fn voter_secret_attribute_audit_body(
+    action: VoterSecretAttributeAction,
+    audit: &VoterSecretAttributeAudit<'_>,
+    admin: &ElectoralLogAdminContext,
+) -> Result<String> {
+    let mut attribute_names: Vec<&str> = audit.attribute_names.iter().map(String::as_str).collect();
+    attribute_names.sort_unstable();
+    attribute_names.dedup();
+    serde_json::to_string(&VoterSecretAttributeAuditBody {
+        action,
+        attribute_names,
+        voter: audit.voter_id.map(|user_id| ElectoralLogUser {
+            user_id,
+            username: audit.voter_username,
+        }),
+        initiated_by: ElectoralLogUser {
+            user_id: &admin.user_id,
+            username: admin.username.as_deref(),
+        },
+        document_id: audit.document_id,
+    })
+    .context("Failed to serialize voter secret-attribute electoral-log details")
+}
+
+/// Posts an admin-signed electoral-log entry recording who revealed, changed,
+/// cleared, imported or consumed which secret voter attributes. Callers post
+/// it before handing out or storing a value, so a failure to record the
+/// action stops the action.
+#[instrument(skip_all, err)]
+pub async fn post_voter_secret_attribute_audit(
+    tenant_id: &str,
+    election_event_id: &str,
+    admin: &ElectoralLogAdminContext,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<()> {
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get Hasura client for the secret-attribute electoral log")?;
+    let transaction = client
+        .transaction()
+        .await
+        .context("Failed to start secret-attribute electoral-log transaction")?;
+    let election_event = get_election_event_by_id(&transaction, tenant_id, election_event_id)
+        .await
+        .context("Failed to get election event for the secret-attribute electoral log")?;
+    let board = get_election_event_board(election_event.bulletin_board_reference)
+        .context("Election event is missing its electoral-log board")?;
+    let electoral_log = ElectoralLog::for_admin_user(
+        &transaction,
+        &board,
+        tenant_id,
+        election_event_id,
+        &admin.user_id,
+        admin.username.clone(),
+        admin.authorized_election_ids.clone(),
+        admin.area_id.clone(),
+    )
+    .await
+    .context("Failed to initialize the admin-signed secret-attribute electoral log")?;
+    let body = voter_secret_attribute_audit_body(action, &audit, admin)?;
+    let message = electoral_log
+        .build_keycloak_event_message(
+            election_event_id.to_string(),
+            action.event_type().to_string(),
+            body,
+            audit.voter_id.map(str::to_string),
+            audit.voter_username.map(str::to_string),
+            None,
+        )
+        .context("Failed to build the secret-attribute electoral-log entry")?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit the secret-attribute electoral-log transaction")?;
+    PreparedVoterPasswordChangeLog { board, message }
+        .post()
+        .await
+        .context("Failed to post the secret-attribute electoral-log entry")
 }
 
 pub struct ElectoralLog {
@@ -1977,5 +2128,45 @@ mod password_change_tests {
 
         inserted.message.push(5);
         assert!(!same_electoral_log_message(&inserted, &prepared));
+    }
+}
+
+#[cfg(test)]
+mod voter_secret_attribute_audit_tests {
+    use super::*;
+
+    #[test]
+    fn audit_body_names_attributes_and_actors_but_never_values() {
+        let admin = ElectoralLogAdminContext {
+            user_id: "admin-id".to_string(),
+            username: Some("admin".to_string()),
+            authorized_election_ids: None,
+            area_id: None,
+        };
+        let names = vec![
+            "reference".to_string(),
+            "code".to_string(),
+            "code".to_string(),
+        ];
+        let body = voter_secret_attribute_audit_body(
+            VoterSecretAttributeAction::Reveal,
+            &VoterSecretAttributeAudit {
+                voter_id: Some("voter-id"),
+                voter_username: Some("voter"),
+                attribute_names: &names,
+                document_id: None,
+            },
+            &admin,
+        )
+        .unwrap();
+        let body: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(body["action"], "reveal");
+        assert_eq!(
+            body["attribute_names"],
+            serde_json::json!(["code", "reference"])
+        );
+        assert_eq!(body["voter"]["user_id"], "voter-id");
+        assert_eq!(body["initiated_by"]["username"], "admin");
+        assert!(body.get("document_id").is_none());
     }
 }

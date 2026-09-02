@@ -914,6 +914,8 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
                 encryptWithPassword: "Cifrar con Contraseña",
+                passwordForcedNote:
+                    "El archivo se protegerá con contraseña de todos modos: los informes, las solicitudes y los datos del tablón se cifran siempre. Marca la casilla para incluir también los campos secretos de votante descifrados.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
                 bulletinBoard: "Tablón de Anuncios",

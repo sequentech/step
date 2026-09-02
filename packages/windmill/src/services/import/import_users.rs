@@ -6,8 +6,14 @@ use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
 use crate::postgres::keycloak_realm::get_duplicate_emails_allowed;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
+};
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
-use crate::services::voter_secret_attributes::{encrypt_attribute_values, secret_attribute_names};
+use crate::services::voter_secret_attributes::{
+    encrypt_attribute_values, get_secret_attribute_config,
+};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use base64::prelude::*;
@@ -19,7 +25,7 @@ use rand::{thread_rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
-    get_event_realm, get_tenant_realm, KeycloakAdminClient, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
+    get_event_realm, get_tenant_realm, MULTIVALUE_USER_ATTRIBUTE_SEPARATOR,
 };
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
@@ -541,6 +547,7 @@ pub async fn import_users_file(
     tenant_id: String,
     is_admin: bool,
     may_write_secret_attributes: bool,
+    secret_write_initiator: Option<&ElectoralLogAdminContext>,
 ) -> Result<()> {
     let mut keycloak_db_client = match get_keycloak_pool().await.get().await {
         Ok(client) => client,
@@ -616,30 +623,52 @@ pub async fn import_users_file(
     }
 
     let secret_names = if let Some(event_id) = election_event_id.as_deref() {
-        let client = KeycloakAdminClient::new().await.map_err(|err| {
-            Error::String(format!("Error obtaining Keycloak admin client: {err:?}"))
-        })?;
-        let profile = client
-            .get_user_profile_attributes(&get_event_realm(&tenant_id, event_id))
+        get_secret_attribute_config(&tenant_id, event_id)
             .await
-            .map_err(|err| {
-                Error::String(format!(
-                    "Error obtaining Keycloak User Profile Attributes: {err:?}"
-                ))
-            })?;
-        secret_attribute_names(&profile).map_err(|err| Error::String(err.to_string()))?
+            .map_err(|err| Error::String(format!("{err:#}")))?
+            .validated_names()
+            .map_err(|err| Error::String(err.to_string()))?
     } else {
         Default::default()
     };
     let imported_secret_names = headers
         .iter()
         .filter(|header| secret_names.contains(*header))
+        .map(str::to_string)
         .collect::<Vec<_>>();
     if !imported_secret_names.is_empty() && !may_write_secret_attributes {
         return Err(Error::String(format!(
             "Importing encrypted voter attributes requires voter-secret-attribute-write: {}",
             imported_secret_names.join(", ")
         )));
+    }
+    if let (false, Some(event_id)) = (
+        imported_secret_names.is_empty(),
+        election_event_id.as_deref(),
+    ) {
+        let initiator = secret_write_initiator.ok_or_else(|| {
+            Error::String(
+                "Importing encrypted voter attributes requires an identified initiator".to_string(),
+            )
+        })?;
+        post_voter_secret_attribute_audit(
+            &tenant_id,
+            event_id,
+            initiator,
+            VoterSecretAttributeAction::Import,
+            VoterSecretAttributeAudit {
+                voter_id: None,
+                voter_username: None,
+                attribute_names: &imported_secret_names,
+                document_id: None,
+            },
+        )
+        .await
+        .map_err(|err| {
+            Error::String(format!(
+                "Failed to record the secret-attribute electoral-log entry: {err:#}"
+            ))
+        })?;
     }
 
     let (

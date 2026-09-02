@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
+import {Typography} from "@mui/material"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
@@ -171,8 +172,18 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
                         }
+                        className="export-encrypt-with-password"
                         label={String(t("electionEventScreen.export.encryptWithPassword"))}
                     />
+                    {!encryptWithPassword && (bulletinBoard || reports || applications) ? (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            className="export-password-forced-note"
+                        >
+                            {t("electionEventScreen.export.passwordForcedNote")}
+                        </Typography>
+                    ) : null}
                     <FormControlLabel
                         control={
                             <StyledCheckbox

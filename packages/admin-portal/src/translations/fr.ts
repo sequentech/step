@@ -916,6 +916,8 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
+                passwordForcedNote:
+                    "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",

@@ -5,29 +5,52 @@
 use crate::services::vault::vault::get_master_secret;
 use anyhow::{anyhow, Context, Result};
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
+use once_cell::sync::Lazy;
 use ring::hkdf;
-use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, FIRST_NAME_ATTRIBUTE, LAST_NAME_ATTRIBUTE,
-};
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
+use sequent_core::types::keycloak::{User, UserProfileAttribute};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
+use std::time::{Duration, Instant};
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::symm::{decrypt, encrypt, EncryptionData, SymmetricKey};
+use tokio::sync::RwLock;
 
 pub const SECRET_ATTRIBUTE_ANNOTATION: &str = "sequent.secret";
 pub const ENCRYPTED_VALUE_PREFIX: &str = "seqenc:v1:";
 pub const REDACTED_SECRET_VALUE: &str = "<redacted>";
+/// Keycloak keeps attribute values in `user_attribute.value`, a 255-character
+/// column, and moves longer values to `long_value`. The bulk voter import
+/// writes that table directly and the user listing queries read only `value`,
+/// so an envelope must fit the column to be usable everywhere.
+pub const MAX_ENCRYPTED_VALUE_CHARS: usize = 255;
+/// Largest plaintext whose `seqenc:v1:` envelope fits
+/// [`MAX_ENCRYPTED_VALUE_CHARS`]: 10 prefix characters plus the unpadded
+/// base64 of the serialized ciphertext (4-byte length, plaintext, 12-byte
+/// nonce, 16-byte tag).
+pub const MAX_SECRET_VALUE_BYTES: usize = 150;
 
 const KEY_DERIVATION_DOMAIN: &[u8] = b"sequent-voter-secret-attribute-v1";
-const MAX_SECRET_VALUE_BYTES: usize = 4096;
+/// How long a realm's secret-attribute configuration is reused before the
+/// Keycloak user profile is read again. Voter list and detail requests are
+/// polled by the Admin Portal, so they must not hit the Keycloak admin API
+/// on every call.
+const CONFIG_CACHE_TTL: Duration = Duration::from_secs(30);
 const CIPHERTEXT_COMPATIBLE_VALIDATORS: [&str; 1] = ["person-name-prohibited-characters"];
-const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 13] = [
+/// Identity and operational fields that other components read in plaintext.
+/// The first and last name are included: they live in Keycloak's top-level
+/// user fields, which every voter-level output copies verbatim.
+const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 17] = [
     "area-id",
     "authorized-election-ids",
     "authorized-to-election-alias",
     "dateOfBirth",
     "disable-comment",
     "email",
+    "firstName",
+    "first_name",
+    "lastName",
+    "last_name",
     "permission_labels",
     "sequent.read-only.id-card-number-validated",
     "sequent.read-only.mobile-number",
@@ -36,6 +59,9 @@ const FORBIDDEN_SECRET_ATTRIBUTES: [&str; 13] = [
     "vote-weight",
     "voted-channel",
 ];
+
+static CONFIG_CACHE: Lazy<RwLock<HashMap<String, (Instant, SecretAttributeConfig)>>> =
+    Lazy::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum VoterAttributeStoragePolicy {
@@ -77,32 +103,104 @@ pub fn storage_policy(attribute: &UserProfileAttribute) -> VoterAttributeStorage
     }
 }
 
-pub fn secret_attribute_names(attributes: &[UserProfileAttribute]) -> Result<HashSet<String>> {
-    attributes
-        .iter()
-        .filter(|attribute| storage_policy(attribute) == VoterAttributeStoragePolicy::Encrypted)
-        .map(|attribute| {
-            let name = attribute
-                .name
-                .clone()
-                .ok_or_else(|| anyhow!("An encrypted user-profile attribute has no name"))?;
+/// The secret-attribute configuration of one election-event realm.
+///
+/// Read paths must redact every attribute annotated as secret even when the
+/// profile is misconfigured, otherwise a configuration mistake would turn the
+/// voter list into an error page. Paths that store, reveal or decrypt values
+/// refuse to work on a misconfigured profile instead.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct SecretAttributeConfig {
+    names: HashSet<String>,
+    error: Option<String>,
+}
+
+impl SecretAttributeConfig {
+    pub fn from_profile(attributes: &[UserProfileAttribute]) -> Self {
+        let mut names = HashSet::new();
+        let mut error = None;
+        for attribute in attributes
+            .iter()
+            .filter(|attribute| storage_policy(attribute) == VoterAttributeStoragePolicy::Encrypted)
+        {
+            let Some(name) = attribute.name.clone() else {
+                error.get_or_insert_with(|| {
+                    "An encrypted user-profile attribute has no name".to_string()
+                });
+                continue;
+            };
             if FORBIDDEN_SECRET_ATTRIBUTES.contains(&name.as_str()) {
-                return Err(anyhow!(
-                    "User-profile attribute `{name}` cannot be configured as encrypted"
-                ));
-            }
-            if attribute.validations.as_ref().is_some_and(|validations| {
+                error.get_or_insert_with(|| {
+                    format!("User-profile attribute `{name}` cannot be configured as encrypted")
+                });
+            } else if attribute.validations.as_ref().is_some_and(|validations| {
                 validations
                     .keys()
                     .any(|name| !CIPHERTEXT_COMPATIBLE_VALIDATORS.contains(&name.as_str()))
             }) {
-                return Err(anyhow!(
-                    "Encrypted user-profile attribute `{name}` cannot use Keycloak value validators"
-                ));
+                error.get_or_insert_with(|| {
+                    format!(
+                        "Encrypted user-profile attribute `{name}` cannot use Keycloak value validators"
+                    )
+                });
             }
-            Ok(name)
-        })
-        .collect()
+            names.insert(name);
+        }
+        Self { names, error }
+    }
+
+    /// Every attribute annotated as secret, for redaction and column filtering.
+    pub fn redacted_names(&self) -> &HashSet<String> {
+        &self.names
+    }
+
+    /// The secret attributes, or the first configuration problem found.
+    pub fn validated_names(&self) -> Result<HashSet<String>> {
+        match &self.error {
+            Some(error) => Err(anyhow!("{error}")),
+            None => Ok(self.names.clone()),
+        }
+    }
+}
+
+pub fn secret_attribute_names(attributes: &[UserProfileAttribute]) -> Result<HashSet<String>> {
+    SecretAttributeConfig::from_profile(attributes).validated_names()
+}
+
+/// Reads the election-event realm's secret-attribute configuration, reusing a
+/// recent copy for [`CONFIG_CACHE_TTL`]. A profile change therefore takes up
+/// to that long to be observed by the read and redaction paths.
+pub async fn get_secret_attribute_config(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<SecretAttributeConfig> {
+    let realm = get_event_realm(tenant_id, election_event_id);
+    if let Some((cached_at, config)) = CONFIG_CACHE.read().await.get(&realm) {
+        if cached_at.elapsed() < CONFIG_CACHE_TTL {
+            return Ok(config.clone());
+        }
+    }
+    let attributes = KeycloakAdminClient::new()
+        .await
+        .context("Error connecting to Keycloak")?
+        .get_user_profile_attributes(&realm)
+        .await
+        .context("Error reading the Keycloak user profile")?;
+    let config = SecretAttributeConfig::from_profile(&attributes);
+    CONFIG_CACHE
+        .write()
+        .await
+        .insert(realm, (Instant::now(), config.clone()));
+    Ok(config)
+}
+
+/// Drops the cached configuration of one realm, for callers that just changed
+/// the user profile.
+pub async fn invalidate_secret_attribute_config(tenant_id: &str, election_event_id: &str) {
+    CONFIG_CACHE
+        .write()
+        .await
+        .remove(&get_event_realm(tenant_id, election_event_id));
 }
 
 fn derive_key(
@@ -143,10 +241,17 @@ fn encrypt_with_master_secret(
     let serialized = encrypted
         .strand_serialize()
         .context("Failed to serialize voter secret attribute")?;
-    Ok(format!(
+    let envelope = format!(
         "{ENCRYPTED_VALUE_PREFIX}{}",
         BASE64_URL_SAFE_NO_PAD.encode(serialized)
-    ))
+    );
+    if envelope.len() > MAX_ENCRYPTED_VALUE_CHARS {
+        return Err(anyhow!(
+            "Voter secret attribute `{}` does not fit the {MAX_ENCRYPTED_VALUE_CHARS}-character Keycloak attribute column",
+            scope.attribute_name
+        ));
+    }
+    Ok(envelope)
 }
 
 fn decrypt_with_master_secret(
@@ -275,66 +380,45 @@ impl VoterSecretAttributeDecryptor {
 }
 
 pub fn user_attribute_values(user: &User, name: &str) -> Vec<String> {
-    match name {
-        FIRST_NAME_ATTRIBUTE => user.first_name.clone().into_iter().collect(),
-        LAST_NAME_ATTRIBUTE => user.last_name.clone().into_iter().collect(),
-        _ => user
-            .attributes
-            .as_ref()
-            .and_then(|attributes| attributes.get(name))
-            .cloned()
-            .unwrap_or_default(),
-    }
+    user.attributes
+        .as_ref()
+        .and_then(|attributes| attributes.get(name))
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn set_user_attribute_values(user: &mut User, name: &str, values: Vec<String>) -> Result<()> {
-    match name {
-        FIRST_NAME_ATTRIBUTE => {
-            if values.len() > 1 {
-                return Err(anyhow!(
-                    "Built-in voter attribute `{name}` cannot be multivalued"
-                ));
-            }
-            user.first_name = values.into_iter().next();
-        }
-        LAST_NAME_ATTRIBUTE => {
-            if values.len() > 1 {
-                return Err(anyhow!(
-                    "Built-in voter attribute `{name}` cannot be multivalued"
-                ));
-            }
-            user.last_name = values.into_iter().next();
-        }
-        _ => {
-            user.attributes
-                .get_or_insert_with(HashMap::new)
-                .insert(name.to_string(), values);
-        }
-    }
+    user.attributes
+        .get_or_insert_with(HashMap::new)
+        .insert(name.to_string(), values);
     Ok(())
 }
 
 pub fn redact_user(user: &mut User, secret_names: &HashSet<String>) {
     for name in secret_names {
-        match name.as_str() {
-            FIRST_NAME_ATTRIBUTE if user.first_name.is_some() => {
-                user.first_name = Some(REDACTED_SECRET_VALUE.to_string());
-            }
-            LAST_NAME_ATTRIBUTE if user.last_name.is_some() => {
-                user.last_name = Some(REDACTED_SECRET_VALUE.to_string());
-            }
-            _ => {
-                if let Some(values) = user
-                    .attributes
-                    .as_mut()
-                    .and_then(|attributes| attributes.get_mut(name))
-                {
-                    if !values.is_empty() {
-                        *values = vec![REDACTED_SECRET_VALUE.to_string()];
-                    }
-                }
+        if let Some(values) = user
+            .attributes
+            .as_mut()
+            .and_then(|attributes| attributes.get_mut(name))
+        {
+            if !values.is_empty() {
+                *values = vec![REDACTED_SECRET_VALUE.to_string()];
             }
         }
+    }
+}
+
+/// Removes every configured secret attribute that a voter-level output did
+/// not declare, so neither ciphertext nor plaintext of an undeclared secret
+/// can reach a rendered template.
+pub fn strip_undeclared_secret_attributes(
+    user: &mut User,
+    configured_names: &HashSet<String>,
+    declared_names: &HashSet<String>,
+) {
+    if let Some(attributes) = user.attributes.as_mut() {
+        attributes
+            .retain(|name, _| !configured_names.contains(name) || declared_names.contains(name));
     }
 }
 
@@ -364,11 +448,6 @@ pub async fn encrypt_secret_attribute_map(
             ));
         }
         let values = values.unwrap_or_default();
-        if matches!(name.as_str(), FIRST_NAME_ATTRIBUTE | LAST_NAME_ATTRIBUTE) && values.len() > 1 {
-            return Err(anyhow!(
-                "Built-in voter attribute `{name}` cannot be multivalued"
-            ));
-        }
         encrypted.insert(
             name.clone(),
             encrypt_attribute_values(tenant_id, election_event_id, user_id, &name, &values).await?,
@@ -438,31 +517,106 @@ mod tests {
         }
     }
 
+    fn secret_attribute(name: &str) -> UserProfileAttribute {
+        UserProfileAttribute {
+            annotations: Some(HashMap::from([(
+                SECRET_ATTRIBUTE_ANNOTATION.to_string(),
+                Value::Bool(true),
+            )])),
+            display_name: None,
+            group: None,
+            multivalued: None,
+            name: Some(name.to_string()),
+            required: None,
+            validations: None,
+            permissions: None,
+            selector: None,
+        }
+    }
+
     #[test]
-    fn built_in_values_are_read_and_redacted_from_top_level_fields() {
+    fn envelope_of_the_largest_allowed_plaintext_fits_the_keycloak_value_column() {
+        let master = gen_key();
+        let plaintext = "x".repeat(MAX_SECRET_VALUE_BYTES);
+        let envelope = encrypt_with_master_secret(&master, &scope("user-1"), &plaintext)
+            .expect("encryption succeeds");
+        assert!(envelope.len() <= MAX_ENCRYPTED_VALUE_CHARS);
+        assert_eq!(
+            decrypt_with_master_secret(&master, &scope("user-1"), &envelope).unwrap(),
+            plaintext
+        );
+    }
+
+    #[test]
+    fn plaintext_over_the_limit_is_rejected() {
+        let master = gen_key();
+        let plaintext = "x".repeat(MAX_SECRET_VALUE_BYTES + 1);
+        assert!(encrypt_with_master_secret(&master, &scope("user-1"), &plaintext).is_err());
+    }
+
+    #[test]
+    fn built_in_name_fields_cannot_be_secret() {
+        for name in [
+            "first_name",
+            "last_name",
+            "firstName",
+            "lastName",
+            "email",
+            "username",
+        ] {
+            let config = SecretAttributeConfig::from_profile(&[secret_attribute(name)]);
+            assert!(config.validated_names().is_err(), "{name} must be rejected");
+            assert!(config.redacted_names().contains(name));
+        }
+    }
+
+    #[test]
+    fn misconfigured_profile_is_still_redacted_but_refuses_validation() {
+        let config = SecretAttributeConfig::from_profile(&[
+            secret_attribute("private-reference"),
+            secret_attribute("email"),
+        ]);
+        assert_eq!(
+            config.redacted_names(),
+            &HashSet::from(["private-reference".to_string(), "email".to_string()])
+        );
+        assert!(config.validated_names().is_err());
+
         let mut user = User {
-            first_name: Some("encrypted-first".to_string()),
-            last_name: Some("encrypted-last".to_string()),
+            attributes: Some(HashMap::from([
+                (
+                    "private-reference".to_string(),
+                    vec!["seqenc:v1:x".to_string()],
+                ),
+                ("public".to_string(), vec!["visible".to_string()]),
+            ])),
             ..Default::default()
         };
-        assert_eq!(
-            user_attribute_values(&user, FIRST_NAME_ATTRIBUTE),
-            vec!["encrypted-first"]
-        );
-        assert_eq!(
-            user_attribute_values(&user, LAST_NAME_ATTRIBUTE),
-            vec!["encrypted-last"]
-        );
+        redact_user(&mut user, config.redacted_names());
+        let attributes = user.attributes.unwrap();
+        assert_eq!(attributes["private-reference"], vec![REDACTED_SECRET_VALUE]);
+        assert_eq!(attributes["public"], vec!["visible"]);
+    }
 
-        redact_user(
+    #[test]
+    fn undeclared_secret_attributes_are_stripped_and_declared_ones_kept() {
+        let mut user = User {
+            attributes: Some(HashMap::from([
+                ("declared".to_string(), vec!["plain".to_string()]),
+                ("undeclared".to_string(), vec!["seqenc:v1:x".to_string()]),
+                ("public".to_string(), vec!["visible".to_string()]),
+            ])),
+            ..Default::default()
+        };
+        strip_undeclared_secret_attributes(
             &mut user,
-            &HashSet::from([
-                FIRST_NAME_ATTRIBUTE.to_string(),
-                LAST_NAME_ATTRIBUTE.to_string(),
-            ]),
+            &HashSet::from(["declared".to_string(), "undeclared".to_string()]),
+            &HashSet::from(["declared".to_string()]),
         );
-        assert_eq!(user.first_name.as_deref(), Some(REDACTED_SECRET_VALUE));
-        assert_eq!(user.last_name.as_deref(), Some(REDACTED_SECRET_VALUE));
+        let attributes = user.attributes.unwrap();
+        assert_eq!(attributes.get("declared"), Some(&vec!["plain".to_string()]));
+        assert!(!attributes.contains_key("undeclared"));
+        assert_eq!(attributes.get("public"), Some(&vec!["visible".to_string()]));
     }
 
     #[test]

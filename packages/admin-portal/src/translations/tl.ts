@@ -913,6 +913,8 @@ const tagalogTranslation: TranslationType = {
                 subtitle:
                     "Ang pag-export ay maaaring isang mahabang proseso. Sigurado ka bang gusto mong i-export ang mga tala?",
                 encryptWithPassword: "I-encrypt gamit ang Password",
+                passwordForcedNote:
+                    "Mapoprotektahan pa rin ng password ang archive: palaging naka-encrypt ang mga ulat, aplikasyon at datos ng bulletin board. Lagyan ng tsek ang kahon para isama rin ang mga na-decrypt na lihim na field ng botante.",
                 includeVoters: "Isama ang mga Botante",
                 activityLogs: "Mga Log ng Aktibidad",
                 bulletinBoard: "Bulletin Board",

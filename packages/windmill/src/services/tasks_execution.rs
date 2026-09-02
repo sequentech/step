@@ -21,10 +21,13 @@ pub struct TaskAnnotations {
 }
 
 const SECRET_EXPORT_AUTHORIZATION_KEY: &str = "secret_export_authorization";
+/// How long a persisted decrypted-export grant stays valid. Read by harvest
+/// when it creates the grant and by windmill when it starts the export.
+pub const SECRET_EXPORT_GRANT_TTL_ENV_VAR: &str = "WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS";
 const DEFAULT_SECRET_EXPORT_GRANT_TTL_SECONDS: i64 = 24 * 60 * 60;
 
 fn secret_export_grant_ttl() -> Duration {
-    let seconds = std::env::var("SECRET_EXPORT_GRANT_TTL_SECONDS")
+    let seconds = std::env::var(SECRET_EXPORT_GRANT_TTL_ENV_VAR)
         .ok()
         .and_then(|value| value.parse::<i64>().ok())
         .filter(|seconds| *seconds > 0)

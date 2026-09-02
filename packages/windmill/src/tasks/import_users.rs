@@ -6,6 +6,7 @@ use crate::postgres::document::get_document;
 use crate::postgres::maintenance::vacuum_analyze_direct;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::get_document_as_temp_file;
+use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_users::import_users_file;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
@@ -31,6 +32,10 @@ pub struct ImportUsersBody {
     pub is_admin: bool,
     #[serde(default)]
     pub may_write_secret_attributes: bool,
+    /// Who authorized writing secret attributes; recorded in the electoral
+    /// log when the CSV actually contains a secret column.
+    #[serde(default)]
+    pub secret_write_initiator: Option<ElectoralLogAdminContext>,
     pub sha256: Option<String>,
 }
 
@@ -146,6 +151,7 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
         body.tenant_id,
         body.is_admin,
         body.may_write_secret_attributes,
+        body.secret_write_initiator.as_ref(),
     )
     .await
     {

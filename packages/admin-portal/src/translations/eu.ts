@@ -910,6 +910,8 @@ const basqueTranslation: TranslationType = {
                 subtitle:
                     "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
                 encryptWithPassword: "Zifratu Pasahitzarekin",
+                passwordForcedNote:
+                    "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia hautesleen eremu sekretu deszifratuak ere sartzeko.",
                 includeVoters: "Sartu Bozkatzaileak",
                 activityLogs: "Jarduera Egunkariak",
                 bulletinBoard: "Iragarki Taula",
