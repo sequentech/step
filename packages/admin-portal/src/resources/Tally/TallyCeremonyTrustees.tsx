@@ -189,7 +189,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
         try {
             const fileContent = await readFileContent(firstFile)
-            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
             if (fileContent == null) {
                 setErrors(t("keysGeneration.checkStep.noFileSelected"))
                 return
