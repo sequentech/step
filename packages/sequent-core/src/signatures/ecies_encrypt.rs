@@ -1,20 +1,40 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+
+//! Wrapper around the external ECIES tool used by the Miru integration.
+//!
+//! Everything that invokes the tool is compiled only with the `miru` feature;
+//! the `EciesKeyPair` type stays available so that the configuration
+//! structures referring to it compile in every build.
+
+#[cfg(feature = "miru")]
 use crate::signatures::shell::run_shell_command;
+#[cfg(feature = "miru")]
 use crate::util::temp_path::generate_temp_file;
+#[cfg(feature = "miru")]
 use anyhow::{anyhow, Context, Result};
+#[cfg(feature = "miru")]
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "miru")]
 use std::collections::HashMap;
+#[cfg(feature = "miru")]
 use std::fs;
+#[cfg(feature = "miru")]
 use std::fs::File;
+#[cfg(feature = "miru")]
 use std::io::{self, Read, Seek, Write};
+#[cfg(feature = "miru")]
 use std::path::PathBuf;
+#[cfg(feature = "miru")]
 use strand::hash::hash_sha256;
+#[cfg(feature = "miru")]
 use tempfile::tempdir;
+#[cfg(feature = "miru")]
 use tracing::{info, instrument};
 
+#[cfg(feature = "miru")]
 pub const ECIES_TOOL_PATH: &str = "/usr/local/bin/ecies-tool.jar";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EciesKeyPair {
@@ -22,6 +42,7 @@ pub struct EciesKeyPair {
     pub public_key_pem: String,
 }
 
+#[cfg(feature = "miru")]
 #[instrument(skip(password), err)]
 pub fn ecies_encrypt_string(
     public_key_pem: &str,
@@ -54,6 +75,7 @@ pub fn ecies_encrypt_string(
     Ok(result)
 }
 
+#[cfg(feature = "miru")]
 #[instrument(err)]
 pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     let temp_private_pem_file = generate_temp_file("private_key", ".pem")?;
@@ -85,6 +107,7 @@ pub fn generate_ecies_key_pair() -> Result<EciesKeyPair> {
     })
 }
 
+#[cfg(feature = "miru")]
 #[instrument(skip(data), err)]
 pub fn ecies_sign_data(
     acm_key_pair: &EciesKeyPair,
@@ -131,11 +154,13 @@ pub fn ecies_sign_data(
 }
 
 // A struct you can use to keep track of each item you want to sign
+#[cfg(feature = "miru")]
 pub struct SignRequest {
     pub id: String,   // or any key you want, to correlate back
     pub data: String, // the sign_data string
 }
 
+#[cfg(feature = "miru")]
 #[instrument(skip_all, err)]
 pub fn ecies_sign_data_bulk(
     acm_key_pair: &EciesKeyPair,

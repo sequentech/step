@@ -9,6 +9,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# The Miru results-transmission integration. Not part of the evaluated TOE.
+miru = ["windmill/miru", "sequent-core/miru"]
+
 [dependencies]
 rocket = { version = "0.5", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }

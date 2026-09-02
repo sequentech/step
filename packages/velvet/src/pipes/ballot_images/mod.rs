@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod ballot_images;
+#[cfg(feature = "miru")]
 pub mod mcballot_images;
 
 pub use ballot_images::*;

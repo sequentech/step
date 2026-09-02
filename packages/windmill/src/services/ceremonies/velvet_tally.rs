@@ -10,6 +10,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
+#[cfg(feature = "miru")]
 use crate::services::consolidation::acm_json::get_acm_key_pair;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_dates::get_election_dates;
@@ -571,7 +572,12 @@ pub async fn build_ballot_images_pipe_config(
         ),
     };
 
-    let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
+    // The ACM signing key is used only by the Miru transmission pipes.
+    #[cfg(feature = "miru")]
+    let acm_key: Option<EciesKeyPair> =
+        Some(get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?);
+    #[cfg(not(feature = "miru"))]
+    let acm_key: Option<EciesKeyPair> = None;
 
     let ballot_images_pipe_config = PipeConfigBallotImages {
         template: user_tpl_document,
@@ -581,7 +587,7 @@ pub async fn build_ballot_images_pipe_config(
         pdf_options: Some(ext_cfg.pdf_options),
         report_options: Some(ext_cfg.report_options),
         execution_annotations: None,
-        acm_key: Some(acm_key),
+        acm_key,
     };
     Ok(ballot_images_pipe_config)
 }

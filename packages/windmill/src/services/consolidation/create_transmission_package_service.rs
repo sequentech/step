@@ -9,22 +9,19 @@ use super::eml_generator::{
     MIRU_AREA_THRESHOLD, MIRU_PLUGIN_PREPEND, MIRU_TALLY_SESSION_DATA,
 };
 use super::logs::create_transmission_package_log;
+use super::tally_download::download_tally_tar_gz_to_file;
 use super::transmission_package::{
     create_logs_package, create_transmission_package, generate_base_compressed_xml,
 };
 use super::zip::compress_folder_to_zip;
 use crate::postgres::area::get_area_by_id;
-use crate::postgres::document::get_document;
 use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_election::get_results_election_by_results_event_id;
-use crate::postgres::results_event::get_results_event_by_id;
 use crate::postgres::tally_session::{get_tally_session_by_id, update_tally_session_annotation};
-use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::eml_types::ACMTrustee;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
 use crate::services::documents::upload_and_return_document;
 use crate::services::folders::list_files;
 use crate::types::miru_plugin::{
@@ -45,63 +42,13 @@ use sequent_core::signatures::ecies_encrypt::generate_ecies_key_pair;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::types::date_time::TimeZone;
 use sequent_core::types::hasura::core::Document;
-use sequent_core::types::results::{ResultDocumentType, ResultDocuments};
+use sequent_core::types::results::ResultDocuments;
 use sequent_core::util::date_time::PHILIPPINO_TIMEZONE;
 use sequent_core::util::temp_path::*;
-use tempfile::{tempdir, NamedTempFile};
+use tempfile::tempdir;
 use tracing::{info, instrument};
 use uuid::Uuid;
 use velvet::pipes::generate_reports::ReportData;
-
-#[instrument(skip(hasura_transaction), err)]
-pub async fn download_tally_tar_gz_to_file(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    tally_session_id: &str,
-) -> Result<NamedTempFile> {
-    let tally_session_execution = get_last_tally_session_execution(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    )
-    .await
-    .with_context(|| "Error fetching tally session executions")?
-    .ok_or(anyhow!("No tally session execution found"))?;
-
-    let results_event_id = tally_session_execution
-        .results_event_id
-        .clone()
-        .ok_or_else(|| anyhow!("Missing results_event_id in tally session execution"))?;
-
-    let result_event = get_results_event_by_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &results_event_id,
-    )
-    .await
-    .with_context(|| "Error fetching results event")?;
-
-    let document_type = ResultDocumentType::TarGzOriginal;
-    let document_id = result_event
-        .documents
-        .ok_or_else(|| anyhow!("Missing documents in results_event"))?
-        .get_document_by_type(&document_type)
-        .ok_or_else(|| anyhow!(format!("Missing {:?} in results_event", document_type)))?;
-
-    let document = get_document(
-        hasura_transaction,
-        tenant_id,
-        Some(election_event_id.to_string()),
-        &document_id,
-    )
-    .await?
-    .ok_or_else(|| anyhow!("Can't find document {}", document_id))?;
-
-    get_document_as_temp_file(tenant_id, &document).await
-}
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_transmission_package_annotations(
