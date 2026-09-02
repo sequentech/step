@@ -402,7 +402,7 @@ pub struct SetPrivateKeyOutput {
 }
 
 // The main function to restore the private key
-#[instrument(skip(claims))]
+#[instrument(skip(body, claims))]
 #[post("/restore-private-key", format = "json", data = "<body>")]
 pub async fn restore_private_key(
     body: Json<SetPrivateKeyInput>,
