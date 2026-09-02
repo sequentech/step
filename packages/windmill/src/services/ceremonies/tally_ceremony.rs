@@ -11,7 +11,7 @@ use crate::postgres::keys_ceremony;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session,
+    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
     set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
 };
 use crate::postgres::tally_session_contest::{
@@ -603,7 +603,10 @@ pub async fn set_private_key(
     election_event_id: &str,
     tally_session_id: &str,
     private_key_base64: &str,
-) -> Result<bool> {
+) -> Result<RestorePrivateKeyOutcome> {
+    lock_tally_session_for_update(transaction, tenant_id, election_event_id, tally_session_id)
+        .await?;
+
     let tally_session = get_tally_session_by_id(
         transaction,
         &tenant_id,
@@ -640,12 +643,6 @@ pub async fn set_private_key(
         })
         .unwrap_or(TallyExecutionStatus::STARTED);
 
-    if TallyExecutionStatus::STARTED != current_status
-        && TallyExecutionStatus::CONNECTED != current_status
-    {
-        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
-    }
-
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
         transaction,
@@ -669,13 +666,6 @@ pub async fn set_private_key(
         ));
     };
 
-    if TallyTrusteeStatus::WAITING != found_trustee.status {
-        return Err(anyhow!(
-            "Unexpected trustee status {}",
-            found_trustee.status.to_string()
-        ));
-    }
-
     // get the encrypted private key
     let encrypted_private_key = find_trustee_private_key(
         transaction,
@@ -687,8 +677,26 @@ pub async fn set_private_key(
     .await?;
     // FFF tally fix
 
-    if encrypted_private_key != private_key_base64 {
-        return Ok(false);
+    match classify_private_key_restore(
+        &encrypted_private_key,
+        private_key_base64,
+        &found_trustee.status,
+    ) {
+        RestorePrivateKeyOutcome::Restored => {}
+        outcome => return Ok(outcome),
+    }
+
+    if TallyExecutionStatus::STARTED != current_status
+        && TallyExecutionStatus::CONNECTED != current_status
+    {
+        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
+    }
+
+    if TallyTrusteeStatus::WAITING != found_trustee.status {
+        return Err(anyhow!(
+            "Unexpected trustee status {}",
+            found_trustee.status.to_string()
+        ));
     }
     let mut new_status = tally_ceremony_status.clone();
     new_status.logs = append_tally_trustee_log(&new_status.logs, &trustee_name);
@@ -777,7 +785,21 @@ pub async fn set_private_key(
         .await
         .with_context(|| "error posting to the electoral log")?;
 
-    Ok(true)
+    Ok(RestorePrivateKeyOutcome::Restored)
+}
+
+fn classify_private_key_restore(
+    expected_private_key: &str,
+    submitted_private_key: &str,
+    trustee_status: &TallyTrusteeStatus,
+) -> RestorePrivateKeyOutcome {
+    if expected_private_key != submitted_private_key {
+        RestorePrivateKeyOutcome::Invalid
+    } else if trustee_status == &TallyTrusteeStatus::KEY_RESTORED {
+        RestorePrivateKeyOutcome::AlreadyRestored
+    } else {
+        RestorePrivateKeyOutcome::Restored
+    }
 }
 
 #[instrument(err)]
@@ -824,4 +846,45 @@ pub async fn set_tally_session_completed(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn private_key_restore_classifies_new_valid_key() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::Restored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &TallyTrusteeStatus::WAITING
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_classifies_matching_restored_key_as_idempotent() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::AlreadyRestored,
+            classify_private_key_restore(
+                "private-key",
+                "private-key",
+                &TallyTrusteeStatus::KEY_RESTORED,
+            )
+        );
+    }
+
+    #[test]
+    fn private_key_restore_rejects_wrong_key_even_when_already_restored() {
+        assert_eq!(
+            RestorePrivateKeyOutcome::Invalid,
+            classify_private_key_restore(
+                "private-key",
+                "different-key",
+                &TallyTrusteeStatus::KEY_RESTORED,
+            )
+        );
+    }
 }
