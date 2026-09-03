@@ -59,6 +59,12 @@ setup:
   voter_area_name: null  # Optional, defaults to the 1st area in the election event JSON
 
   threshold: 2  # Optional, key ceremony trustee threshold, defaults to 2
+
+  # AUTOMATIC or MANUAL — see the comment on trustee1_password below.
+  # AUTOMATIC needs the target tenant's registered trustees to have live
+  # braid services (true in the devcontainer).
+  ceremony_policy: AUTOMATIC  # Optional, defaults to AUTOMATIC
+
   endpoint_url: "****"  # Mandatory, Hasura GraphQL endpoint, defaults to $HASURA_ENDPOINT
   keycloak_url: "****"  # Mandatory, defaults to $KEYCLOAK_URL
 
@@ -77,10 +83,12 @@ setup:
   # api-key-client -> Credentials.
   keycloak_client_secret: "****"  # Mandatory, defaults to $API_KEY_CLIENT_SECRET
 
+  # Only read when ceremony_policy is MANUAL — an AUTOMATIC ceremony never
+  # logs in as either trustee.
   trustee1_user: trustee1  # Optional, defaults to "trustee1"
-  trustee1_password: "****"  # Mandatory, defaults to $TRUSTEE1_PASSWORD
+  trustee1_password: "****"  # Mandatory (if ceremony_policy: MANUAL), defaults to $TRUSTEE1_PASSWORD
   trustee2_user: trustee2  # Optional, defaults to "trustee2"
-  trustee2_password: "****"  # Mandatory, defaults to $TRUSTEE2_PASSWORD
+  trustee2_password: "****"  # Mandatory (if ceremony_policy: MANUAL), defaults to $TRUSTEE2_PASSWORD
 
   # Where summary.json + the voters CSV land. Keep in sync with
   # telephone_run.run_dir / online_run.run_dir below (whichever matches

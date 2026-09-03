@@ -25,10 +25,14 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import string
+import time
 from pathlib import Path
 
 import load_test_common as common
+
+_CEREMONY_STATUS_RE = re.compile(r"Keys Ceremony status:\s*(\S+)")
 
 
 def rewrite_election_event_alias(election_event_json: Path, out_path: Path) -> tuple[str, str]:
@@ -93,6 +97,35 @@ def area_restricted_election_event(election_event_json: Path, voter_area_name: s
     return data, voter_area_name  # type: ignore[return-value]
 
 
+def wait_for_automatic_ceremony(step_cli_bin: str, election_event_id: str, key_ceremony_id: str, attempts: int = 120, delay: float = 10) -> None:
+    """Polls get-key-ceremony-status until execution_status is SUCCESS. Each
+    trustee's braid service posts its DKG round to the board on its own
+    schedule (same as a manual ceremony); windmill auto-derives SUCCESS once
+    every trustee's public key is on the board, so there's nothing for this
+    script to submit — only to wait for. Refreshes the session's JWT every
+    attempt, since a real DKG round can outlast one access token's lifetime."""
+    for attempt in range(1, attempts + 1):
+        try:
+            common.run_step(step_cli_bin, "refresh-token")
+            out = common.run_step(
+                step_cli_bin, "get-key-ceremony-status",
+                "--election-event-id", election_event_id,
+                "--key-ceremony-id", key_ceremony_id,
+            )
+            match = _CEREMONY_STATUS_RE.search(out)
+            status = match.group(1) if match else None
+        except common.StepCliError:
+            status = None
+        if status == "SUCCESS":
+            return
+        if status == "CANCELLED":
+            common.die(f"key ceremony {key_ceremony_id} was cancelled")
+        if attempt >= attempts:
+            common.die(f"key ceremony {key_ceremony_id} did not reach SUCCESS after {attempts} attempts (last status: {status})")
+        common.log(f"    ceremony status: {status or 'unknown'} — waiting {delay}s (attempt {attempt}/{attempts})")
+        time.sleep(delay)
+
+
 def main() -> None:
     config = common.load_config()
     cfg = common.section(config, "setup")
@@ -117,6 +150,16 @@ def main() -> None:
     voter_area_name = cfg.get("voter_area_name") or None
     threshold = int(cfg.get("threshold") or 2)
 
+    # AUTOMATIC: each trustee's braid service does its DKG round on its own
+    # (same as MANUAL — this doesn't change how the ceremony's cryptography
+    # runs), but the ceremony's completion is derived automatically once the
+    # public key lands on the board, instead of requiring a human/CLI to log
+    # in as each trustee and confirm via complete-key-ceremony. Matches the
+    # Admin Portal's "automatic ceremony" checkbox.
+    ceremony_policy = str(cfg.get("ceremony_policy") or "AUTOMATIC").upper()
+    if ceremony_policy not in ("AUTOMATIC", "MANUAL"):
+        common.die("setup.ceremony_policy must be AUTOMATIC or MANUAL")
+
     endpoint_url = common.req_str(cfg, "endpoint_url", env="HASURA_ENDPOINT")
     keycloak_url = common.req_str(cfg, "keycloak_url", env="KEYCLOAK_URL")
     # Tenant-realm login: a user holding the admin-user role inside this
@@ -139,10 +182,13 @@ def main() -> None:
     # -> Credentials tab.
     keycloak_client_secret = common.req_str(cfg, "keycloak_client_secret", env="API_KEY_CLIENT_SECRET")
 
-    trustee1_user = str(cfg.get("trustee1_user") or "trustee1")
-    trustee1_password = common.req_str(cfg, "trustee1_password", env="TRUSTEE1_PASSWORD")
-    trustee2_user = str(cfg.get("trustee2_user") or "trustee2")
-    trustee2_password = common.req_str(cfg, "trustee2_password", env="TRUSTEE2_PASSWORD")
+    # Only needed for ceremony_policy: MANUAL — an AUTOMATIC ceremony never
+    # calls complete-key-ceremony, so no trustee Keycloak login is required.
+    if ceremony_policy == "MANUAL":
+        trustee1_user = str(cfg.get("trustee1_user") or "trustee1")
+        trustee1_password = common.req_str(cfg, "trustee1_password", env="TRUSTEE1_PASSWORD")
+        trustee2_user = str(cfg.get("trustee2_user") or "trustee2")
+        trustee2_password = common.req_str(cfg, "trustee2_password", env="TRUSTEE2_PASSWORD")
 
     out_dir = common.resolve_path(common.req_str(cfg, "out_dir"))
 
@@ -224,16 +270,23 @@ def main() -> None:
     common.log("[4/7] Bulk-importing voters into the election event")
     common.run_step(step_cli_bin, "import-voters", "--election-event-id", election_event_id, "--file-path", str(voters_csv), "--is-local")
 
-    common.log(f"[5/7] Starting the keys ceremony (threshold={threshold})")
-    out = common.run_step(step_cli_bin, "start-key-ceremony", "--election-event-id", election_event_id, "--threshold", str(threshold))
+    common.log(f"[5/7] Starting the keys ceremony (threshold={threshold}, policy={ceremony_policy})")
+    start_args = [step_cli_bin, "start-key-ceremony", "--election-event-id", election_event_id, "--threshold", str(threshold)]
+    if ceremony_policy == "AUTOMATIC":
+        start_args.append("--automatic")
+    out = common.run_step(*start_args)
     key_ceremony_id = common.extract_id(out)
     common.log(f"    key_ceremony_id={key_ceremony_id}")
 
-    common.log(f"[6/7] Completing the keys ceremony as {trustee1_user}, then {trustee2_user}")
-    configure_as(trustee1_user, trustee1_password)
-    common.retry_step(step_cli_bin, 30, 5, "complete-key-ceremony", "--election-event-id", election_event_id, "--key-ceremony-id", key_ceremony_id)
-    configure_as(trustee2_user, trustee2_password)
-    common.retry_step(step_cli_bin, 30, 5, "complete-key-ceremony", "--election-event-id", election_event_id, "--key-ceremony-id", key_ceremony_id)
+    if ceremony_policy == "AUTOMATIC":
+        common.log("[6/7] Waiting for the automatic keys ceremony to complete")
+        wait_for_automatic_ceremony(step_cli_bin, election_event_id, key_ceremony_id)
+    else:
+        common.log(f"[6/7] Completing the keys ceremony as {trustee1_user}, then {trustee2_user}")
+        configure_as(trustee1_user, trustee1_password)
+        common.retry_step(step_cli_bin, 30, 5, "complete-key-ceremony", "--election-event-id", election_event_id, "--key-ceremony-id", key_ceremony_id)
+        configure_as(trustee2_user, trustee2_password)
+        common.retry_step(step_cli_bin, 30, 5, "complete-key-ceremony", "--election-event-id", election_event_id, "--key-ceremony-id", key_ceremony_id)
 
     common.log(f"[7/7] Publishing and opening the {voting_channel} voting channel")
     configure_as(admin_portal_user, admin_portal_password)

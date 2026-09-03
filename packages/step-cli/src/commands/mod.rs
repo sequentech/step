@@ -22,6 +22,7 @@ pub mod export_cast_votes;
 pub mod export_election_event;
 pub mod generate_preview;
 pub mod generate_voters;
+pub mod get_key_ceremony_status;
 pub mod hash_passwords;
 pub mod import_election_event;
 pub mod import_voters;
