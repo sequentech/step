@@ -738,10 +738,8 @@ impl ElectoralLog {
     /// generation or applying the Sequent-side diff) — see
     /// `windmill::services::external::reconciliation`. Named for the general
     /// capability, not the specific integration (Datafix) that first needed
-    /// it. `artifact` carries the JSON of old/new values applied, for a
-    /// `ChangesApplied` entry (`None` for `PatchGenerated`, which has nothing
-    /// to apply yet).
-    #[instrument(skip(self, artifact), fields(kind = %kind), err)]
+    /// it.
+    #[instrument(skip(self), fields(kind = %kind), err)]
     pub async fn post_external_reconciliation(
         &self,
         event_id: String,
@@ -750,7 +748,6 @@ impl ElectoralLog {
         generated_at: i64,
         input_sha256: String,
         output_sha256: Option<String>,
-        artifact: Option<Vec<u8>>,
         user_id: Option<String>,
         username: Option<String>,
     ) -> Result<()> {
@@ -763,7 +760,6 @@ impl ElectoralLog {
             ExternalReconciliationGeneratedAtString(generated_at.to_string()),
             ExternalReconciliationInputHashString(input_sha256),
             ExternalReconciliationOutputHashString(output_sha256),
-            artifact,
             &self.sd,
             user_id,
             username,

@@ -425,10 +425,8 @@ pub enum StatementBody {
     /// integration (Datafix) that first needed it. Doesn't fit
     /// `ExternalApiRequest`'s shape: there is no HTTP call to the external
     /// system involved, since it is offline for the whole freeze period a
-    /// reconciliation run happens during. The JSON of every applied voter's
-    /// old/new values is carried in `Message.artifact` on the
-    /// `ChangesApplied` entry — there is exactly one entry per phase per run,
-    /// not one per voter.
+    /// reconciliation run happens during. There is exactly one entry per
+    /// phase per run, not one per voter.
     ExternalReconciliation(
         EventIdString,
         ExternalReconciliationKind,
