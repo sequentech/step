@@ -21,25 +21,21 @@ let
   # The wasm-bindgen CLI and the wasm-bindgen crate versions must match exactly.
   # Crates are fetched from the static CDN: crates.io's /api/v1/.../download
   # endpoint answers nix's downloader with HTTP 403.
-  mkWasmBindgenCli = { version, sha256, cargoHash }: pkgsCrates.rustPlatform.buildRustPackage {
+  wasm-bindgen-cli-pinned = pkgsCrates.rustPlatform.buildRustPackage rec {
     pname = "wasm-bindgen-cli";
-    inherit version cargoHash;
+    # Pinned to the wasm-bindgen crate version both Cargo workspaces use
+    # (packages/Cargo.toml and packages/wbraid/Cargo.toml: =0.2.123).
+    version = "0.2.123";
+    cargoHash = "sha256-d7x6gtx5OqEE4MyT6yjYn/qtgjx7GroTpXJewnBV2dU=";
     src = builtins.fetchTarball {
       url = "https://static.crates.io/crates/wasm-bindgen-cli/wasm-bindgen-cli-${version}.crate";
-      inherit sha256;
+      sha256 = "12xdns7cvnz0j26i9kryxggylsslkqs5l2b6lppfkv1bic8q0rya";
     };
     nativeBuildInputs = [ pkgsCrates.pkg-config ];
     buildInputs = [ pkgsCrates.openssl ]
-      ++ pkgsCrates.lib.optionals pkgsCrates.stdenv.isDarwin [ pkgsCrates.curl ];
+      ++ pkgsCrates.lib.optionals pkgsCrates.stdenv.hostPlatform.isDarwin [ pkgsCrates.curl ];
     doCheck = false;
-  };
 
-  # Pinned to the wasm-bindgen crate version both Cargo workspaces use
-  # (packages/Cargo.toml and packages/wbraid/Cargo.toml: =0.2.123).
-  wasm-bindgen-cli-pinned = mkWasmBindgenCli {
-    version = "0.2.123";
-    sha256 = "12xdns7cvnz0j26i9kryxggylsslkqs5l2b6lppfkv1bic8q0rya";
-    cargoHash = "sha256-d7x6gtx5OqEE4MyT6yjYn/qtgjx7GroTpXJewnBV2dU=";
   };
 
 in
