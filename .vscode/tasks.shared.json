@@ -2,1612 +2,1613 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "report.locs",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./scripts/loc.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": false,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "generate.dependency.report",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./scripts/tasks/dependencies/generate-dependency-report.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "security.audit.dependencies",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./scripts/tasks/security/audit-dependencies.sh",
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "check.reuse",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "reuse lint",
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.admin-portal",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn start:admin-portal"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.storybook.ui-essentials",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn storybook:ui-essentials"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.results-portal",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn start:results-portal",
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.docusaurus",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd docs/docusaurus && yarn && yarn start"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.build.docusaurus",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd docs/docusaurus && yarn && yarn build"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "run.claude",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "claude --dangerously-skip-permissions"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "run.spectaql",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd docs/api/graphql && yarn && yarn run generate-full-docs && python -m http.server -d docs"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.build.admin-portal",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.build.results-portal",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:results-portal && yarn start:results-portal",
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.voting-portal",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn start:voting-portal"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.ballot-verifier",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages && yarn start:ballot-verifier"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.hasura",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "graphql-engine"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.keycloak",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop keycloak keycloak-nginx; docker compose build keycloak keycloak-nginx && docker compose up -d --no-deps keycloak && docker compose up -d --no-deps keycloak-nginx && docker compose logs -f --tail 100 keycloak keycloak-nginx"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },        {
-            "label": "rebuild.janitor",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-          "label": "logs.restart.simplesamlphp",
-          "command": "bash",
-          "args": [
-            "-c",
-            "docker compose stop simplesamlphp; docker compose build simplesamlphp && docker compose up -d --no-deps simplesamlphp && docker compose logs -f --tail 100 simplesamlphp"
-          ],
-          "options": {
-            "env": {
-              "COMPOSE_PROJECT_NAME": "step_devcontainer",
-              "COMPOSE_PROFILES": "base"
-            },
-            "cwd": "${workspaceFolder}/.devcontainer"
-          },
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "dedicated",
-            "showReuseMessage": true,
-            "clear": false
-          },
-          "isBackground": true,
-          "runOptions": {
-            "runOn": "default"
-          },
-          "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.hasura",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop graphql-engine; docker compose up -d --no-deps graphql-engine && docker compose logs -f --tail 100 graphql-engine"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.harvest",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "harvest"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.harvest",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.b4",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "b4",
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.b4",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop b4; docker compose up -d --no-deps b4 && docker compose logs -f --tail 100 b4",
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.keycloak",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "keycloak"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.keycloak-nginx",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "keycloak-nginx"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.keycloak-nginx",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop keycloak-nginx; docker compose build keycloak-nginx && docker compose up -d --no-deps keycloak-nginx && docker compose logs -f --tail 100 keycloak-nginx"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.simplesamlphp",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "simplesamlphp"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.beat",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "beat"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.beat",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.windmill",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "windmill"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.windmill",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.trustees",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose logs -f --tail 100 trustee1 trustee2"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.minio",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop minio configure-minio && docker compose up --no-deps --wait --wait-timeout 120 minio && docker compose up --build --no-deps configure-minio && docker compose logs -f --tail 100 configure-minio minio"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.minio",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose logs -f --tail 100 minio"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.reset.minio",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop minio configure-minio && docker compose up --no-deps --wait --wait-timeout 120 minio && docker compose up --build --no-deps configure-minio && docker compose logs -f minio configure-minio",
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.trustees",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop trustee1 trustee2; docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "update.env",
-            "command": "bash",
-            "args": [
-                "./.devcontainer/scripts/initialize-command.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "init.cli",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd /workspaces/step/packages/step-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "update.vscode.settings",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./.devcontainer/scripts/fix-vscode-settings-nix.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "update.graphql",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./.devcontainer/scripts/update-graphql.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "format.code",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./.devcontainer/scripts/format-code.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "build.sequent-core",
-            "type": "shell",
-            "command": "bash",
-            "args": [
-              "-l",
-              "-c",
-              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
-            ],
-            "options": {
-              "cwd": "${workspaceFolder}"
-            },
-            "presentation": {
-              "echo": true,
-              "reveal": "always",
-              "focus": false,
-              "panel": "dedicated",
-              "showReuseMessage": true,
-              "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-              "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "rebuild.sequent-core.full",
-            "type": "shell",
-            "command": "bash",
-            "args": [
-              "-l",
-              "-c",
-              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
-            ],
-            "options": {
-              "cwd": "${workspaceFolder}"
-            },
-            "presentation": {
-              "echo": true,
-              "reveal": "always",
-              "focus": false,
-              "panel": "dedicated",
-              "showReuseMessage": true,
-              "clear": true
-            },
-            "isBackground": false,
-            "runOptions": {
-              "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "rebuild.braid-wasm.full",
-            "type": "shell",
-            "command": "bash",
-            "args": [
-              "-l",
-              "-c",
-              "/workspaces/step/packages/braid/scripts/build-wasm.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn\""
-            ],
-            "options": {
-              "cwd": "${workspaceFolder}"
-            },
-            "presentation": {
-              "echo": true,
-              "reveal": "always",
-              "focus": false,
-              "panel": "dedicated",
-              "showReuseMessage": true,
-              "clear": true
-            },
-            "isBackground": false,
-            "runOptions": {
-              "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.orare",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "orare"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.restart.orare",
-            "command": "bash",
-            "args": [
-                "-c",
-                "docker compose stop openwhisk orare; docker compose up -d --no-deps openwhisk && sleep 10 && docker compose up -d --no-deps orare && docker compose logs -f --tail 100 openwhisk orare"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base",
-                    "PDF_TRANSPORT_NAME": "orare-openwhisk"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.openwhisk",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "openwhisk"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "base"
-                }
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-          "label": "free.space",
-          "command": "devenv",
-          "args": [
-            "shell",
-            "bash",
-            "--",
-            "-c",
-            "./.devcontainer/scripts/free-space.sh"
-          ],
-          "presentation": {
-            "echo": true,
-            "reveal": "always",
-            "focus": false,
-            "panel": "dedicated",
-            "showReuseMessage": true,
-            "clear": false
-          },
-          "isBackground": true,
-          "runOptions": {
-            "runOn": "default"
-          },
-          "problemMatcher": []
-        },
-        {
-            "label": "fix.docker",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "rm -rf /home/vscode/.docker/"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": false,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "update.license.headers",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "python3",
-                "--",
-                "./scripts/update_license_headers.py",
-                ".",
-                "--include-excluded"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "upload.plugins",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "./.devcontainer/scripts/upload_plugins_to_s3.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "build.wbraid-wasm",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && ./build-wasm.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "test.wbraid-wasm",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && ./test-wasm.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "test.wbraid",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && cargo test --release"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "check.wbraid",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && unset RUSTFLAGS && cargo fmt -- --check && cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D warnings && cargo clippy -p vsc --no-deps"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.wbraid-localstack",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && ./localstack.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.wbraid-b4",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && ./b4.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "reset.wbraid-b4",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && ./b4.sh --reset --no-run"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": false,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "start.wbraid-serve",
-            "command": "devenv",
-            "args": [
-                "shell",
-                "bash",
-                "--",
-                "-c",
-                "cd packages/wbraid && ./serve.sh"
-            ],
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "logs.localstack",
-            "command": "docker",
-            "args": [
-                "compose",
-                "logs",
-                "-f",
-                "--tail",
-                "200",
-                "localstack"
-            ],
-            "options": {
-                "env": {
-                    "COMPOSE_PROJECT_NAME": "step_devcontainer",
-                    "COMPOSE_PROFILES": "wbraid"
-                },
-                "cwd": "${workspaceFolder}/.devcontainer"
-            },
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "dedicated",
-                "showReuseMessage": true,
-                "clear": false
-            },
-            "isBackground": true,
-            "runOptions": {
-                "runOn": "default"
-            },
-            "problemMatcher": []
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "report.locs",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./scripts/loc.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "generate.dependency.report",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./scripts/tasks/dependencies/generate-dependency-report.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "security.audit.dependencies",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./scripts/tasks/security/audit-dependencies.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "check.reuse",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "reuse lint"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.admin-portal",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn start:admin-portal"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.storybook.ui-essentials",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn storybook:ui-essentials"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.results-portal",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn start:results-portal"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.docusaurus",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd docs/docusaurus && yarn && yarn start"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.build.docusaurus",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd docs/docusaurus && yarn && yarn build"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run.claude",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "claude --dangerously-skip-permissions"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "run.spectaql",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd docs/api/graphql && yarn && yarn run generate-full-docs && python -m http.server -d docs"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.build.admin-portal",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.build.results-portal",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn && yarn build:ui-core && yarn build:ui-essentials && yarn build:results-portal && yarn start:results-portal"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.voting-portal",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn start:voting-portal"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.ballot-verifier",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages && yarn start:ballot-verifier"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.hasura",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "graphql-engine"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
         }
-    ]
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.keycloak",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop keycloak keycloak-nginx; docker compose build keycloak keycloak-nginx && docker compose up -d --no-deps keycloak && docker compose up -d --no-deps keycloak-nginx && docker compose logs -f --tail 100 keycloak keycloak-nginx"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "rebuild.janitor",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop janitor; docker compose build janitor && docker compose up -d --no-deps janitor"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.simplesamlphp",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop simplesamlphp; docker compose build simplesamlphp && docker compose up -d --no-deps simplesamlphp && docker compose logs -f --tail 100 simplesamlphp"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.hasura",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop graphql-engine; docker compose up -d --no-deps graphql-engine && docker compose logs -f --tail 100 graphql-engine"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.harvest",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "harvest"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.harvest",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop harvest; docker compose up -d --no-deps harvest && docker compose logs -f --tail 100 harvest"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.b4",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "b4"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.b4",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop b4; docker compose up -d --no-deps b4 && docker compose logs -f --tail 100 b4"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.keycloak",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "keycloak"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.keycloak-nginx",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "keycloak-nginx"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.keycloak-nginx",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop keycloak-nginx; docker compose build keycloak-nginx && docker compose up -d --no-deps keycloak-nginx && docker compose logs -f --tail 100 keycloak-nginx"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.simplesamlphp",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "simplesamlphp"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.beat",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "beat"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.beat",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop beat; docker compose up -d --no-deps beat && docker compose logs -f --tail 100 beat"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.windmill",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "windmill"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.windmill",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop windmill; docker compose up -d --no-deps windmill && docker compose logs -f --tail 100 windmill"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.trustees",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose logs -f --tail 100 trustee1 trustee2"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.minio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop minio configure-minio && docker compose up --no-deps --wait --wait-timeout 120 minio && docker compose up --build --no-deps configure-minio && docker compose logs -f --tail 100 configure-minio minio"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.minio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose logs -f --tail 100 minio"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.reset.minio",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop minio configure-minio && docker compose up --no-deps --wait --wait-timeout 120 minio && docker compose up --build --no-deps configure-minio && docker compose logs -f minio configure-minio"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.trustees",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop trustee1 trustee2; docker compose up -d --no-deps trustee1 trustee2 && docker compose logs -f --tail 100 trustee1 trustee2"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "update.env",
+      "command": "bash",
+      "args": [
+        "./.devcontainer/scripts/initialize-command.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "init.cli",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd /workspaces/step/packages/step-cli && cargo build --release && /workspaces/step/.devcontainer/scripts/config-cli.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "update.vscode.settings",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./.devcontainer/scripts/fix-vscode-settings-nix.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "update.graphql",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./.devcontainer/scripts/update-graphql.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "format.code",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./.devcontainer/scripts/format-code.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build.sequent-core",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-l",
+        "-c",
+        "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "rebuild.sequent-core.full",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-l",
+        "-c",
+        "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "rebuild.braid-wasm.full",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-l",
+        "-c",
+        "/workspaces/step/packages/braid/scripts/build-wasm.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.orare",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "orare"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.restart.orare",
+      "command": "bash",
+      "args": [
+        "-c",
+        "docker compose stop openwhisk orare; docker compose up -d --no-deps openwhisk && sleep 10 && docker compose up -d --no-deps orare && docker compose logs -f --tail 100 openwhisk orare"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base",
+          "PDF_TRANSPORT_NAME": "orare-openwhisk"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.openwhisk",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "openwhisk"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "free.space",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./.devcontainer/scripts/free-space.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "fix.docker",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "rm -rf /home/vscode/.docker/"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "update.license.headers",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "python3",
+        "--",
+        "./scripts/update_license_headers.py",
+        ".",
+        "--include-excluded"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "upload.plugins",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "./.devcontainer/scripts/upload_plugins_to_s3.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build.wbraid-wasm",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && ./build-wasm.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test.wbraid-wasm",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && ./test-wasm.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test.wbraid",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && cargo test --release"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "check.wbraid",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && unset RUSTFLAGS && cargo fmt -- --check && cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D warnings && cargo clippy -p vsc --no-deps"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.wbraid-localstack",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && ./localstack.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.wbraid-b4",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && ./b4.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "reset.wbraid-b4",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && ./b4.sh --reset --no-run"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": false,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "start.wbraid-serve",
+      "command": "devenv",
+      "args": [
+        "shell",
+        "bash",
+        "--",
+        "-c",
+        "cd packages/wbraid && ./serve.sh"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "logs.localstack",
+      "command": "docker",
+      "args": [
+        "compose",
+        "logs",
+        "-f",
+        "--tail",
+        "200",
+        "localstack"
+      ],
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "wbraid"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "isBackground": true,
+      "runOptions": {
+        "runOn": "default"
+      },
+      "problemMatcher": []
+    }
+  ]
 }
