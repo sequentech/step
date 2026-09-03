@@ -26,40 +26,9 @@ from __future__ import annotations
 import json
 import random
 import string
-import urllib.parse
 from pathlib import Path
 
 import load_test_common as common
-
-
-def lookup_client_secret(keycloak_url: str, admin_user: str, admin_password: str, tenant_id: str, client_id: str) -> str:
-    common.log(f"Looking up {client_id}'s client secret from Keycloak (master realm admin API)")
-    token_resp = common.http_json(
-        f"{keycloak_url}/realms/master/protocol/openid-connect/token",
-        data={
-            "grant_type": "password",
-            "client_id": "admin-cli",
-            "username": admin_user,
-            "password": admin_password,
-        },
-    )
-    master_token = token_resp.get("access_token")
-    if not master_token:
-        common.die(
-            f"could not obtain a master-realm admin token to look up {client_id}'s secret "
-            "(set setup.keycloak_client_secret explicitly)"
-        )
-    clients = common.http_json(
-        f"{keycloak_url}/admin/realms/tenant-{tenant_id}/clients?clientId={urllib.parse.quote(client_id)}",
-        headers={"Authorization": f"Bearer {master_token}"},
-    )
-    secret = clients[0].get("secret") if clients else None
-    if not secret:
-        common.die(
-            f"could not look up {client_id}'s secret in tenant-{tenant_id} "
-            "(set setup.keycloak_client_secret explicitly)"
-        )
-    return secret  # type: ignore[return-value]
 
 
 def rewrite_election_event_alias(election_event_json: Path, out_path: Path) -> tuple[str, str]:
@@ -150,8 +119,12 @@ def main() -> None:
 
     endpoint_url = common.req_str(cfg, "endpoint_url", env="HASURA_ENDPOINT")
     keycloak_url = common.req_str(cfg, "keycloak_url", env="KEYCLOAK_URL")
-    keycloak_admin_user = common.req_str(cfg, "keycloak_admin_user", env="KEYCLOAK_ADMIN")
-    keycloak_admin_password = common.req_str(cfg, "keycloak_admin_password", env="KEYCLOAK_ADMIN_PASSWORD")
+    # Tenant-realm login: a user holding the admin-user role inside this
+    # tenant's own realm — the same identity that logs into the Admin Portal
+    # to manage this tenant. Used for every election-management step below
+    # (import, publish, open voting).
+    admin_portal_user = common.req_str(cfg, "admin_portal_user", env="ADMIN_PORTAL_TEST_USERNAME")
+    admin_portal_password = common.req_str(cfg, "admin_portal_password", env="ADMIN_PORTAL_TEST_PASSWORD")
     # NOT $KEYCLOAK_CLI_CLIENT_ID: that client (admin-portal in this
     # devcontainer) gets Keycloak's default "silver" acr on direct-grant
     # login, and publish / update-event-voting-status require "gold"
@@ -161,22 +134,19 @@ def main() -> None:
     # docs/docusaurus hardcodes for this same reason.
     keycloak_client_id = common.req_str(cfg, "keycloak_client_id")
     # NOT $KEYCLOAK_CLI_CLIENT_SECRET: that devcontainer env var is
-    # admin-portal's secret, a different client.
-    keycloak_client_secret = cfg.get("keycloak_client_secret") or None
+    # admin-portal's secret, a different client. Find this one in the
+    # tenant's own realm: Keycloak admin console -> Clients -> api-key-client
+    # -> Credentials tab.
+    keycloak_client_secret = common.req_str(cfg, "keycloak_client_secret", env="API_KEY_CLIENT_SECRET")
 
     trustee1_user = str(cfg.get("trustee1_user") or "trustee1")
-    trustee1_password = str(cfg.get("trustee1_password") or "trustee1")
+    trustee1_password = common.req_str(cfg, "trustee1_password", env="TRUSTEE1_PASSWORD")
     trustee2_user = str(cfg.get("trustee2_user") or "trustee2")
-    trustee2_password = str(cfg.get("trustee2_password") or "trustee2")
+    trustee2_password = common.req_str(cfg, "trustee2_password", env="TRUSTEE2_PASSWORD")
 
     out_dir = common.resolve_path(common.req_str(cfg, "out_dir"))
 
     step_cli_bin = common.find_step_cli()
-
-    if not keycloak_client_secret:
-        keycloak_client_secret = lookup_client_secret(
-            keycloak_url, keycloak_admin_user, keycloak_admin_password, tenant_id, keycloak_client_id
-        )
 
     def configure_as(user: str, password: str) -> None:
         common.run_step(
@@ -194,8 +164,8 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     common.log(f"Writing outputs to {out_dir}")
 
-    common.log(f"[1/7] Authenticating as admin ({keycloak_admin_user})")
-    configure_as(keycloak_admin_user, keycloak_admin_password)
+    common.log(f"[1/7] Authenticating as admin-portal user ({admin_portal_user})")
+    configure_as(admin_portal_user, admin_portal_password)
 
     common.log(f"[2/7] Importing election event from {election_event_json}")
     election_event_to_import = out_dir / "election-event-to-import.json"
@@ -266,7 +236,7 @@ def main() -> None:
     common.retry_step(step_cli_bin, 30, 5, "complete-key-ceremony", "--election-event-id", election_event_id, "--key-ceremony-id", key_ceremony_id)
 
     common.log(f"[7/7] Publishing and opening the {voting_channel} voting channel")
-    configure_as(keycloak_admin_user, keycloak_admin_password)
+    configure_as(admin_portal_user, admin_portal_password)
     common.run_step(step_cli_bin, "publish", "--election-event-id", election_event_id)
     common.run_step(
         step_cli_bin, "update-event-voting-status",

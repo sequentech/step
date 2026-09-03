@@ -255,12 +255,8 @@ def main() -> None:
     dev_env_file = common.REPO_ROOT / ".devcontainer" / ".env.development"
     ivr_service_client_id = os.environ.get("KEYCLOAK_IVR_SERVICE_CLIENT_ID") or env_file_get(dev_env_file, "KEYCLOAK_IVR_SERVICE_CLIENT_ID") or "ivr-service"
     ivr_voting_client_id = os.environ.get("KEYCLOAK_IVR_VOTING_CLIENT_ID") or "ivr-voting"
-    ivr_service_client_secret = os.environ.get("KEYCLOAK_IVR_SERVICE_CLIENT_SECRET") or env_file_get(dev_env_file, "KEYCLOAK_IVR_SERVICE_CLIENT_SECRET")
-    ivr_voting_client_secret = os.environ.get("KEYCLOAK_IVR_VOTING_CLIENT_SECRET") or env_file_get(dev_env_file, "KEYCLOAK_IVR_VOTING_CLIENT_SECRET")
-    if not ivr_service_client_secret:
-        common.die(f"KEYCLOAK_IVR_SERVICE_CLIENT_SECRET not set and not found in {dev_env_file}")
-    if not ivr_voting_client_secret:
-        common.die(f"KEYCLOAK_IVR_VOTING_CLIENT_SECRET not set and not found in {dev_env_file}")
+    ivr_service_client_secret = common.req_str(cfg, "keycloak_ivr_service_client_secret", env="KEYCLOAK_IVR_SERVICE_CLIENT_SECRET")
+    ivr_voting_client_secret = common.req_str(cfg, "keycloak_ivr_voting_client_secret", env="KEYCLOAK_IVR_VOTING_CLIENT_SECRET")
 
     # --- Session store (valkey) ---
     valkey_url = resolve_valkey_url(cfg.get("valkey_url") or os.environ.get("VALKEY_URL"), bool(cfg.get("start_valkey", True)))

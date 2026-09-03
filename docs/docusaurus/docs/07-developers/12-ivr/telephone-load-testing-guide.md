@@ -124,8 +124,9 @@ TOKEN=$(curl -sf -X POST "http://keycloak:8090/realms/<realm>/protocol/openid-co
 curl -sf -H "Authorization: Bearer $TOKEN" "http://keycloak:8090/realms/<realm>/ivr-config"
 ```
 
-(`<realm>` and the client secret are in `summary.json` and
-`.devcontainer/.env.development` respectively.)
+(`<realm>` is in `summary.json`; the client secret is
+`telephone_run.keycloak_ivr_service_client_secret` in `layers.yaml` — or
+`.devcontainer/.env.development` for the local devcontainer stack.)
 
 ## 3. Stage 2 — fan out the simulated calls
 

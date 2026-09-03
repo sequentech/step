@@ -39,6 +39,23 @@ def die(message: str) -> None:
     sys.exit(1)
 
 
+# layers.yaml.example marks every required credential with this literal
+# placeholder (never a real secret) instead of `null`, so a diff shows at a
+# glance which fields need a value. Treated identically to `null` wherever a
+# config value is read, so req_str()'s env-var fallback still kicks in —
+# copying the example unedited into layers.yaml keeps working inside the
+# devcontainer, where those env vars are already set.
+MASKED_PLACEHOLDER = "****"
+
+
+def _unmask(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: _unmask(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_unmask(v) for v in value]
+    return None if value == MASKED_PLACEHOLDER else value
+
+
 def load_config() -> dict[str, Any]:
     """Loads and validates layers.yaml, resolving relative paths against
     SCRIPTS_DIR (matching where the *.py scripts themselves live)."""
@@ -50,7 +67,7 @@ def load_config() -> dict[str, Any]:
         config = yaml.safe_load(f) or {}
     if not isinstance(config, dict):
         die(f"{CONFIG_PATH} must be a YAML mapping")
-    return config
+    return _unmask(config)
 
 
 def resolve_path(value: str) -> Path:
@@ -164,10 +181,16 @@ def extract_id(output: str) -> str:
 
 # --- HTTP (stdlib only — no extra dependency for a couple of admin-API calls) --
 
+# urllib's default "Python-urllib/x.y" User-Agent trips Cloudflare's bot-fight
+# mode (error 1010) on Cloudflare-fronted deployments (e.g. the *.sequent.vote
+# test servers) even for legitimate authenticated calls — send a normal
+# browser-like one instead.
+_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) step-cli-load-test"
+
 
 def http_json(url: str, *, data: dict[str, str] | None = None, headers: dict[str, str] | None = None) -> Any:
     body = None
-    req_headers = dict(headers or {})
+    req_headers = {"User-Agent": _USER_AGENT, **(headers or {})}
     if data is not None:
         body = urllib.parse.urlencode(data).encode()
         req_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
@@ -178,7 +201,8 @@ def http_json(url: str, *, data: dict[str, str] | None = None, headers: dict[str
 
 def http_ok(url: str, *, timeout: float = 10) -> bool:
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+        request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+        with urllib.request.urlopen(request, timeout=timeout) as resp:  # noqa: S310
             return 200 <= resp.status < 400
     except (urllib.error.URLError, TimeoutError, ConnectionError):
         return False

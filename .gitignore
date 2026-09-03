@@ -63,6 +63,8 @@ packages/ballot-verifier/logs
 # and docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing)
 packages/step-cli/scripts/telephone-load-test-output/
 packages/step-cli/scripts/online-load-test-output/
+# holds real per-server credentials — copy from layers.yaml.example instead
+packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml
 packages/voting-portal/test-results/
 
 # ignore artifacts for airgapped environments
