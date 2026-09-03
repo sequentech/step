@@ -126,10 +126,14 @@ telephone_run:
   keycloak_url: null  # Optional, defaults to summary.json's keycloak_url
   hasura_url: null  # Optional, defaults to summary.json's hasura_url
 
-  # Client secrets for the realm's ivr-service/ivr-voting Keycloak clients
-  # (used by the IVR auth flow). Set these explicitly for a remote server —
-  # .devcontainer/.env.development only has the local devcontainer stack's
-  # secrets.
+  # Client secrets for the ivr-service/ivr-voting Keycloak clients — these
+  # live in the ELECTION EVENT's own realm (summary.json's keycloak_realm),
+  # created fresh by every Stage 1 run, NOT the tenant realm alongside
+  # api-key-client. Re-fetch after each Stage 1 run (Keycloak admin console
+  # -> that realm -> Clients -> ivr-service/ivr-voting -> Credentials) — a
+  # value from a previous run's election event will not work for a new one.
+  # .devcontainer/.env.development's defaults only match the local
+  # devcontainer's one seeded test election event.
   keycloak_ivr_service_client_secret: "****"  # Mandatory, defaults to $KEYCLOAK_IVR_SERVICE_CLIENT_SECRET
   keycloak_ivr_voting_client_secret: "****"  # Mandatory, defaults to $KEYCLOAK_IVR_VOTING_CLIENT_SECRET
 

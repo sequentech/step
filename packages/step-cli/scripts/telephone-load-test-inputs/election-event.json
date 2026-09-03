@@ -4755,7 +4755,7 @@
       "i18n": {
         "en": {
           "name": "TECUMSEH - UAT 2nd Round",
-          "alias": "TECUMSEH - DATAFIX Test",
+          "alias": "TECUMSEH - Sequent Load Test",
           "startScreen.step1Title": "1. Select your candidates",
           "startScreen.step1Description": "Choose your preferred candidates and answer the ballot questions one by one as they appear. You can edit your ballot until you are ready to proceed.",
           "startScreen.step2Description": "Once you are satisfied with your selections a final list will be provided for your review.",

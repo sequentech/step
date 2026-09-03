@@ -83,6 +83,17 @@ same way — just point `setup.election_event_json` at it in `layers.yaml`. If
 it has more than one area, set `setup.voter_area_name` to pick which one
 voters are generated into (`null` defaults to the first area).
 
+Importing the election event also creates its own Keycloak realm
+(`tenant-<tenant_id>-event-<election_event_id>`, printed as `keycloak_realm`
+in `summary.json`), seeded with its own `ivr-service`/`ivr-voting` clients —
+these are **not** in the tenant's realm alongside `api-key-client`. Since
+every Stage 1 run creates a brand-new election event (and therefore a new
+realm), fetch `telephone_run.keycloak_ivr_service_client_secret`/
+`keycloak_ivr_voting_client_secret` from *this* realm after each run —
+Keycloak admin console → the realm printed above → Clients →
+`ivr-service`/`ivr-voting` → Credentials tab — rather than reusing a value
+from a previous run's election event.
+
 ## 2. Get a DTMF template
 
 `packages/step-cli/scripts/dtmf-template.example.txt` — the default for
@@ -124,9 +135,12 @@ TOKEN=$(curl -sf -X POST "http://keycloak:8090/realms/<realm>/protocol/openid-co
 curl -sf -H "Authorization: Bearer $TOKEN" "http://keycloak:8090/realms/<realm>/ivr-config"
 ```
 
-(`<realm>` is in `summary.json`; the client secret is
-`telephone_run.keycloak_ivr_service_client_secret` in `layers.yaml` — or
-`.devcontainer/.env.development` for the local devcontainer stack.)
+(`<realm>` is `summary.json`'s `keycloak_realm` — the election event's own
+realm, not the tenant's; see the note in [step 1](#1-stage-1--provision-the-election-event-and-voters).
+The client secret goes in `telephone_run.keycloak_ivr_service_client_secret`
+in `layers.yaml` — or `.devcontainer/.env.development` for the local
+devcontainer stack, which always targets the same seeded test election
+event.)
 
 ## 3. Stage 2 — fan out the simulated calls
 
@@ -175,3 +189,9 @@ the setup script makes (see `configure_as` in
 - **Re-running after a dev container restart:** the auto-started `valkey`
   container is reused if it's already there (even if stopped), so you don't
   need to remove it manually between runs.
+- **IVR client secrets are per-election-event, not per-tenant.** Since Stage
+  1 provisions a new election event realm every run, a
+  `keycloak_ivr_service_client_secret`/`keycloak_ivr_voting_client_secret`
+  that worked for a previous run's election event will not work for a new
+  one — re-fetch them from the new realm each time (see the note in
+  [step 1](#1-stage-1--provision-the-election-event-and-voters)).
