@@ -50,11 +50,14 @@ regardless of the test. They differ in the *client* board setup:
   `SqlitePersistence`.
 
 ```sh
-# Terminal 1:  .\localstack.ps1     (S3 via LocalStack)
-# Terminal 2:  .\b4.ps1             (b4 server on :3000)
+# Terminal 1:  .\localstack.ps1     (S3 via LocalStack)      [bash: ./localstack.sh]
+# Terminal 2:  .\b4.ps1             (b4 server on :3000)     [bash: ./b4.sh]
 # Terminal 3:
 cargo test -p braid --release -- --ignored
 ```
+
+Each `.ps1` has a bash twin of the same name for the devcontainer; the flags
+map one-to-one (`.\b4.ps1 -Reset -NoRun` ⇄ `./b4.sh --reset --no-run`).
 
 ### Prerequisites
 
@@ -62,7 +65,15 @@ cargo test -p braid --release -- --ignored
 - For the live-b4 tests: **Docker** + the **AWS CLI** — `localstack.ps1` starts
   LocalStack, creates the `wbraid-messages` bucket, and applies `s3-cors.json` —
   and the **`b4`** server (`b4.ps1` sets the S3 endpoint/credentials and points
-  `DATABASE_URL` at a repo-root `b4.db`).
+  `DATABASE_URL` at a repo-root `b4.db`). In the devcontainer, `localstack.sh`
+  starts the `localstack` compose service instead (opt-in `wbraid` profile in
+  `.devcontainer/docker-compose-base.yml`) and the endpoint is
+  `http://localstack:4566` on the project network — `b4.sh` picks the right
+  endpoint automatically, and falls back to the `amazon/aws-cli` docker image
+  when the AWS CLI is not installed. The image is pinned to
+  `localstack/localstack:4`: from the 2026 releases on, `latest` exits at
+  startup without an auth token, so a fresh pull of `latest` (which
+  `localstack.ps1` does) no longer works.
 
 ## Wasm
 
@@ -84,7 +95,7 @@ provide COOP/COEP) — backed by the native protocol tests above.
 
 ```sh
 # From the repo root (wbraid/), NOT crates/braid.
-.\test-wasm.ps1
+.\test-wasm.ps1         # bash: ./test-wasm.sh
 ```
 
 Runs a `wasm-bindgen-test` (`tests/wasm_indexeddb.rs`) exercising the
@@ -113,6 +124,9 @@ validation that the protocol runs correctly under wasm.
 .\serve.ps1             # clears RUSTFLAGS, builds the wasm client (build-wasm.ps1,
                         # nightly + atomics + wasm-bindgen-rayon), then serves on
                         # :8080 with COOP/COEP (server.py)
+
+# bash: ./localstack.sh / ./b4.sh / ./serve.sh. In the devcontainer :8080 is
+# taken by Hasura, so use e.g. `PORT=8081 ./serve.sh` (server.py honours PORT).
 ```
 
 Then open <http://127.0.0.1:8080/emulator.html> and:
@@ -142,7 +156,8 @@ above).
 - A **nightly** toolchain — for the production wasm build (`build-wasm.ps1` sets a
   nightly override under `crates/braid`, whose `.cargo/config.toml` forces the
   atomics target-features), plus **Python** for `server.py` (the COOP/COEP dev
-  server).
+  server). `build-wasm.sh` instead stays on stable and uses `RUSTC_BOOTSTRAP=1`
+  (the toolchain must ship `rust-src`; the devcontainer's does).
 - For the emulator: **Docker/LocalStack** + **`b4`**, as in the Native live-b4
   prerequisites.
 - **`RUSTFLAGS` caveat** — clear any inherited `RUSTFLAGS` before the headless test

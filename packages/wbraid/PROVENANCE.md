@@ -91,6 +91,53 @@ nightly by enabling the named features:
 `shuffle_scaling` example (mostly `unwrap_used` and pedantic lints in test
 code, identical on nightly); that upstream state is left untouched.
 
+## Local modifications for the devcontainer dev loop and CI
+
+- **Added bash twins of the five PowerShell scripts** (`build-wasm.sh`,
+  `serve.sh`, `test-wasm.sh`, `b4.sh`, `localstack.sh`). The `.ps1` files are
+  unchanged and remain the Windows dev loop. Differences beyond syntax:
+  `build-wasm.sh` stays on the stable toolchain and uses `RUSTC_BOOTSTRAP=1`
+  instead of a nightly override (the approach of
+  `packages/braid/scripts/build-wasm.sh`); both wasm scripts verify that the
+  `wasm-bindgen` CLI on `PATH` matches the version pinned in `Cargo.lock`
+  before building; in the devcontainer, `localstack.sh` runs LocalStack the
+  way every other dev service runs — as the `localstack` compose service
+  (opt-in `wbraid` profile in `.devcontainer/docker-compose-base.yml`, with a
+  `configure-localstack` one-shot creating the bucket and CORS, mirroring
+  `configure-minio`), addressed as `http://localstack:4566` on the project
+  network — while outside a compose project it keeps `localstack.ps1`'s
+  standalone docker-run flow; the image is pinned to `localstack/localstack:4`
+  everywhere (2026-era `latest` exits at startup without an auth token);
+  `b4.sh` defaults `AWS_ENDPOINT_URL` per environment (a pre-set value wins)
+  and falls back to the `amazon/aws-cli` image joined to the project network
+  when no AWS CLI is installed; and
+  `build-wasm.sh`/`serve.sh` clear an inherited `RUSTFLAGS`, which would
+  otherwise override the atomics rustflags in `crates/braid/.cargo/config.toml`
+  entirely (the devcontainer's devenv exports `RUSTFLAGS=-Awarnings`).
+- **`server.py` honours a `PORT` environment variable** (default 8080,
+  unchanged); in the devcontainer 8080 is taken by Hasura.
+- **Ran `cargo fmt`** (rustfmt 1.96.0) over the workspace — the tree was
+  imported unformatted — so CI can gate on `cargo fmt -- --check`.
+- **Fixed the warn-level clippy findings in `braid`, `rnk` and `v2v`** so that
+  `cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D
+  warnings` passes (the CI invocation; `--no-deps` keeps `-D warnings` from
+  leaking into `vsc`, which every workspace clippy run otherwise compiles with
+  the same flags). Mechanical changes: removed clones of `Copy` types and
+  same-type casts, `is_multiple_of`/`filter_map`/needless-borrow cleanups, a
+  `&PathBuf` parameter became `&Path`, a boxed-closure type alias in a test,
+  and a duplicated `allow(dead_code)` removed. Three lints are allowed rather
+  than refactored: `too_many_arguments` on two protocol functions and one
+  spec-shaped RO helper, `items_after_test_module` in `v2v::wire::protinfo`,
+  and `inherent_to_string` in `rnk` (its `to_string` is JSON serialization
+  paired with `from_string`). `crates/vsc` is untouched: its lib passes clippy
+  at upstream's own lint levels (`cargo clippy -p vsc --no-deps`), and its test
+  modules/example still fail those levels as noted above.
+- **Added `.github/workflows/wbraid.yml`**: fmt + clippy (the two invocations
+  above), `cargo test --release`, and a `wasm-core` build for
+  `wasm32-unknown-unknown`, on pushes/PRs touching `packages/wbraid/`. The
+  shared `setup-rust-tests` action gained optional `components`/`targets`
+  inputs for this (defaults unchanged).
+
 ## Local modifications for clippy
 
 The tree was imported with warn-level clippy findings in `braid`, `rnk` and

@@ -165,6 +165,49 @@ services:
       - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
+  # S3 emulator for the wbraid dev loop (packages/wbraid): its b4v6 bulletin
+  # board keeps every message body in S3. Opt-in profile — not started with the
+  # base stack; packages/wbraid/localstack.sh brings it up by name, which
+  # auto-enables the profile.
+  # The image is pinned to the 4.x line: from the 2026 calendar releases on,
+  # localstack/localstack:latest exits at startup without an auth token.
+  localstack:
+    profiles: [ "wbraid" ]
+    container_name: localstack
+    image: localstack/localstack:4
+    ports:
+      - "4566:4566"
+    environment:
+      - HOSTNAME_EXTERNAL=localhost
+      - S3_HOSTNAME=localhost:4566
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health" ]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
+
+  # Creates the wbraid-messages bucket and applies its CORS rules — the twin of
+  # what localstack.ps1 does inline on Windows.
+  configure-localstack:
+    profiles: [ "wbraid" ]
+    container_name: configure-localstack
+    image: amazon/aws-cli
+    volumes:
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: /bin/sh
+    command: >-
+      -c "aws --endpoint-url=http://localstack:4566 s3 mb s3://wbraid-messages 2>/dev/null;
+      aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors
+      --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
+
   # hashicorp vault to store secrets
   # vault:
   #   profiles: ["full", "base"]
