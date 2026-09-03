@@ -7735,7 +7735,7 @@ braces@^2.3.2, braces@^3.0.3, braces@~3.0.2:
 
 "braid-wasm@file:./admin-portal/rust/braid-wasm-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/braid-wasm-0.1.0.tgz#d3dfab19ca27d43bbfffb96654857766709dfd77"
+  resolved "file:./admin-portal/rust/braid-wasm-0.1.0.tgz#e9e3df52efe38dff1c47370611ca226ac3d68143"
 
 brorand@^1.0.1, brorand@^1.1.0:
   version "1.1.0"
@@ -17506,15 +17506,15 @@ sentence-case@^3.0.4:
 
 "sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#cec4ae709ac8734aed975604bd5107bc57d6898a"
+  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#eec08b2d417036637c08bdde56c4712ff4a47cfd"
 
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#cec4ae709ac8734aed975604bd5107bc57d6898a"
+  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#eec08b2d417036637c08bdde56c4712ff4a47cfd"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#cec4ae709ac8734aed975604bd5107bc57d6898a"
+  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#eec08b2d417036637c08bdde56c4712ff4a47cfd"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"
