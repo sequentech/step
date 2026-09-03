@@ -238,12 +238,7 @@ pub fn ro_challenge(hash: Hashfunction, n_v: usize) -> RandomOracle {
 /// digest and then the byte tree: the prefix is **raw bytes**, not a byte tree
 /// node, so it is concatenated ahead of the serialized tree rather than
 /// wrapped with it.
-pub fn oracle_query(
-    hash: Hashfunction,
-    out_bits: usize,
-    rho: &[u8],
-    data: &ByteTree,
-) -> Vec<u8> {
+pub fn oracle_query(hash: Hashfunction, out_bits: usize, rho: &[u8], data: &ByteTree) -> Vec<u8> {
     let tree_bytes = data.to_bytes();
     let mut input = Vec::with_capacity(rho.len() + tree_bytes.len());
     input.extend_from_slice(rho);

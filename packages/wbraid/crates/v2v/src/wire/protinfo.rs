@@ -324,7 +324,9 @@ mod tests {
 
     #[test]
     fn auxsid_comes_from_the_caller_not_the_file() {
-        let params = ProtocolInfo::parse(SAMPLE).unwrap().prefix_params("session7");
+        let params = ProtocolInfo::parse(SAMPLE)
+            .unwrap()
+            .prefix_params("session7");
         assert_eq!(params.auxsid, "session7");
         assert_eq!(params.sid, "braidpoc");
     }
@@ -461,7 +463,10 @@ impl ProtocolInfo {
         element("descr", "");
         element("nopart", &self.parties.to_string());
         element("statdist", &self.n_r.to_string());
-        element("bullboard", "com.verificatum.protocol.com.BullBoardBasicHTTPW");
+        element(
+            "bullboard",
+            "com.verificatum.protocol.com.BullBoardBasicHTTPW",
+        );
         element("thres", &self.threshold.to_string());
         element("pgroup", &self.pgroup);
         element("keywidth", &self.key_width.to_string());

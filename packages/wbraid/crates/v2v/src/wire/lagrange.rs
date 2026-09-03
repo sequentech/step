@@ -123,11 +123,7 @@ pub fn modified_lagrange_coefficient(
 }
 
 /// All modified Lagrange coefficients for Δ, in Δ's order.
-pub fn modified_lagrange_coefficients(
-    delta: &[usize],
-    k: usize,
-    q: &BigUint,
-) -> Vec<BigInt> {
+pub fn modified_lagrange_coefficients(delta: &[usize], k: usize, q: &BigUint) -> Vec<BigInt> {
     delta
         .iter()
         .map(|&index| modified_lagrange_coefficient(delta, index, k, q))
@@ -155,10 +151,7 @@ pub fn p256_order() -> BigUint {
 /// sign matters — these values are deliberately signed (see the module docs) —
 /// so it is returned alongside rather than folded into a modular
 /// representative.
-pub fn p256_modified_lagrange_coefficients(
-    delta: &[usize],
-    k: usize,
-) -> Vec<(bool, [u8; 32])> {
+pub fn p256_modified_lagrange_coefficients(delta: &[usize], k: usize) -> Vec<(bool, [u8; 32])> {
     let q = p256_order();
     modified_lagrange_coefficients(delta, k, &q)
         .into_iter()

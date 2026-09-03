@@ -115,7 +115,11 @@ impl SessionSpec {
                 self.active.len()
             ));
         }
-        if let Some(bad) = self.active.iter().find(|&&p| p < 1 || p > self.info.parties) {
+        if let Some(bad) = self
+            .active
+            .iter()
+            .find(|&&p| p < 1 || p > self.info.parties)
+        {
             return Err(anyhow!(
                 "active party {bad} is outside 1..={}",
                 self.info.parties
@@ -359,7 +363,11 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
     let u: Vec<[P256Element; W]> = mixed.iter().map(|c| c.0[0]).collect();
 
     let scaled: Vec<Option<P256Scalar>> = (1..=K)
-        .map(|party| delta.contains(&party).then(|| secrets[party - 1].mul(&inv_alpha)))
+        .map(|party| {
+            delta
+                .contains(&party)
+                .then(|| secrets[party - 1].mul(&inv_alpha))
+        })
         .collect();
     let factors: Vec<Vec<[P256Element; W]>> = scaled
         .iter()
@@ -437,17 +445,18 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
         .collect();
 
     // --- the plaintexts ------------------------------------------------------
-    let alpha_c: Vec<P256Scalar> = crate::wire::lagrange::p256_modified_lagrange_coefficients(delta, K)
-        .into_iter()
-        .map(|(negative, magnitude)| {
-            let s = P256Scalar::from_bytes_reduced(&magnitude);
-            if negative {
-                s.neg()
-            } else {
-                s
-            }
-        })
-        .collect();
+    let alpha_c: Vec<P256Scalar> =
+        crate::wire::lagrange::p256_modified_lagrange_coefficients(delta, K)
+            .into_iter()
+            .map(|(negative, magnitude)| {
+                let s = P256Scalar::from_bytes_reduced(&magnitude);
+                if negative {
+                    s.neg()
+                } else {
+                    s
+                }
+            })
+            .collect();
     let plaintexts: Vec<[P256Element; W]> = (0..n)
         .map(|i| {
             let mut combined: [P256Element; W] = std::array::from_fn(|_| P256Element::one());
@@ -513,7 +522,10 @@ fn challenges(spec: &SessionSpec, rho: &[u8]) -> VmnChallenges {
     )
 }
 
-fn encrypt_random<const W: usize>(pk: &PublicKey<P256Ctx>, n: usize) -> Vec<Ciphertext<P256Ctx, W>> {
+fn encrypt_random<const W: usize>(
+    pk: &PublicKey<P256Ctx>,
+    n: usize,
+) -> Vec<Ciphertext<P256Ctx, W>> {
     (0..n)
         .map(|_| {
             let m: [<P256Ctx as Context>::Element; W] =

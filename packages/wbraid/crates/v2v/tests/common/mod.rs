@@ -234,7 +234,11 @@ fn script(shape: &Shape, source: &str, out: &str) -> String {
     let restrict = match active {
         None => String::new(),
         Some(set) => {
-            let list = set.iter().map(usize::to_string).collect::<Vec<_>>().join(",");
+            let list = set
+                .iter()
+                .map(usize::to_string)
+                .collect::<Vec<_>>()
+                .join(",");
             format!(
                 "for step in \"sact '{{{list}}}'\" delete mix; do\n\
                  \x20   eval \"./$step\" >> \"$WORK/demo.log\" 2>&1 \\\n\
@@ -427,7 +431,11 @@ fn provision_random_source() -> Option<(PathBuf, PathBuf)> {
 
     // The hash function descriptor the PRG is built from, then the PRG itself;
     // `vog` writes the source and seed as a side effect of the second call.
-    let descriptor = vog(&source, &seed, &["-gen", "HashfunctionHeuristic", "SHA-256"])?;
+    let descriptor = vog(
+        &source,
+        &seed,
+        &["-gen", "HashfunctionHeuristic", "SHA-256"],
+    )?;
     vog(
         &source,
         &seed,

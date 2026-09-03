@@ -47,8 +47,8 @@ pub mod traits;
 pub mod utils;
 pub mod zkp;
 
-pub use custom_warning_macro::warning;
 pub use canonical_derive::Canonical;
+pub use custom_warning_macro::warning;
 
 /// Create the `cryptography` alias that points to `crate`
 ///
@@ -62,10 +62,10 @@ pub use canonical_derive::Canonical;
 extern crate self as cryptography;
 
 /// Debug macro that works in both native and WASM contexts.
-/// 
+///
 /// In WASM builds (when `wasm` feature + `wasm32` target), uses browser `console.log`.
 /// In all other cases, uses `info!`.
-/// 
+///
 /// # Examples
 /// ```ignore
 /// use strand::debug_log;

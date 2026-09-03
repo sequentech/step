@@ -91,7 +91,11 @@ fn every_corpus_byte_tree_roundtrips_exactly() {
         );
     }
 
-    eprintln!("round-tripped {} byte trees from {}", files.len(), dir.display());
+    eprintln!(
+        "round-tripped {} byte trees from {}",
+        files.len(),
+        dir.display()
+    );
 }
 
 /// Structural checks against the documented layout (VMNV §9.1), not just byte
@@ -108,14 +112,17 @@ fn corpus_structures_match_the_specification() {
     // point -- an end-to-end check of the coordinate encoding.
     let pk = ByteTree::from_bytes(&std::fs::read(dir.join("FullPublicKey.bt")).unwrap()).unwrap();
     let parts = pk.as_node_of(2).expect("pk = (g, y)");
-    assert_eq!(parts[0], marshal::p256::generator(), "pk's g is the P-256 generator");
+    assert_eq!(
+        parts[0],
+        marshal::p256::generator(),
+        "pk's g is the P-256 generator"
+    );
     let y = parts[1].as_node_of(2).expect("y is an affine point");
     assert_eq!(y[0].as_leaf().unwrap().len(), width);
 
     // Ciphertexts.bt is an array of width-2 ciphertexts: node(u_arrays, v_arrays),
     // each side transposed into `width` component arrays of N elements.
-    let ciphs =
-        ByteTree::from_bytes(&std::fs::read(dir.join("Ciphertexts.bt")).unwrap()).unwrap();
+    let ciphs = ByteTree::from_bytes(&std::fs::read(dir.join("Ciphertexts.bt")).unwrap()).unwrap();
     let sides = ciphs.as_node_of(2).expect("ciphertext = (u, v)");
     let u_rows = arithm::product_array_rows(&sides[0]).expect("u side transposes");
     let v_rows = arithm::product_array_rows(&sides[1]).expect("v side transposes");
@@ -125,10 +132,8 @@ fn corpus_structures_match_the_specification() {
     assert_eq!(u_rows[0].len(), 2, "width 2");
 
     // tau^pos: node(B, A', B', C', D', F') with |B| = |B'| = N (VMNV §8.3).
-    let tau = ByteTree::from_bytes(
-        &std::fs::read(dir.join("proofs/PoSCommitment01.bt")).unwrap(),
-    )
-    .unwrap();
+    let tau = ByteTree::from_bytes(&std::fs::read(dir.join("proofs/PoSCommitment01.bt")).unwrap())
+        .unwrap();
     let tau = tau.as_node_of(6).expect("tau^pos has 6 components");
     assert_eq!(tau[0].as_node().unwrap().len(), n, "B has N entries");
     assert_eq!(tau[2].as_node().unwrap().len(), n, "B' has N entries");
@@ -138,24 +143,35 @@ fn corpus_structures_match_the_specification() {
     let sigma =
         ByteTree::from_bytes(&std::fs::read(dir.join("proofs/PoSReply01.bt")).unwrap()).unwrap();
     let sigma = sigma.as_node_of(6).expect("sigma^pos has 6 components");
-    assert_eq!(sigma[0].as_leaf().unwrap().len(), width, "k_A is a fixed-width scalar");
+    assert_eq!(
+        sigma[0].as_leaf().unwrap().len(),
+        width,
+        "k_A is a fixed-width scalar"
+    );
     assert_eq!(sigma[1].as_node().unwrap().len(), n, "k_B has N entries");
     assert_eq!(sigma[4].as_node().unwrap().len(), n, "k_E has N entries");
-    assert_eq!(sigma[5].as_node().unwrap().len(), 2, "k_F has omega entries");
+    assert_eq!(
+        sigma[5].as_node().unwrap().len(),
+        2,
+        "k_F has omega entries"
+    );
 
     // The permutation commitment is a flat array of N group elements.
     let mu = ByteTree::from_bytes(
         &std::fs::read(dir.join("proofs/PermutationCommitment01.bt")).unwrap(),
     )
     .unwrap();
-    assert_eq!(mu.as_node().unwrap().len(), n, "mu has N Pedersen commitments");
+    assert_eq!(
+        mu.as_node().unwrap().len(),
+        n,
+        "mu has N Pedersen commitments"
+    );
 
     // CorrectIndices.bt is a boolean array of length k+1 whose true entries are
     // the set Delta (VMNV §9.1 point 20).
-    let indices = ByteTree::from_bytes(
-        &std::fs::read(dir.join("proofs/CorrectIndices.bt")).unwrap(),
-    )
-    .unwrap();
+    let indices =
+        ByteTree::from_bytes(&std::fs::read(dir.join("proofs/CorrectIndices.bt")).unwrap())
+            .unwrap();
     let flags = arithm::bool_array_values(&indices).expect("boolean array");
     assert!(flags.iter().any(|&b| b), "at least one party decrypted");
 
@@ -190,10 +206,9 @@ fn shuffle_challenge_matches_vmn() {
     let rho = reference_rho();
     let seed = hex_bytes(&golden_pos_s);
 
-    let tau_pos = ByteTree::from_bytes(
-        &std::fs::read(dir.join("proofs/PoSCommitment01.bt")).unwrap(),
-    )
-    .unwrap();
+    let tau_pos =
+        ByteTree::from_bytes(&std::fs::read(dir.join("proofs/PoSCommitment01.bt")).unwrap())
+            .unwrap();
 
     let v = v2v::wire::crypto::pos_challenge(
         v2v::wire::crypto::Hashfunction::Sha256,
@@ -228,10 +243,7 @@ fn shuffle_seed_matches_vmn() {
     let Some(dir) = corpus_dir() else {
         return common::skip("Verificatum is unavailable");
     };
-    let (Some(text), Some(vectors)) = (
-        common::shared_raw_vectors(),
-        corpus_vectors(),
-    ) else {
+    let (Some(text), Some(vectors)) = (common::shared_raw_vectors(), corpus_vectors()) else {
         return common::skip("vmnv -t produced no test vectors");
     };
     let golden_pos_s = vectors["PoS.s"].clone();
@@ -248,26 +260,27 @@ fn shuffle_seed_matches_vmn() {
     );
 
     let h = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
-    eprintln!("parsed {} independent generators", h.as_node().unwrap().len());
+    eprintln!(
+        "parsed {} independent generators",
+        h.as_node().unwrap().len()
+    );
 
-    let read_tree = |name: &str| {
-        ByteTree::from_bytes(&std::fs::read(dir.join(name)).unwrap()).unwrap()
-    };
+    let read_tree =
+        |name: &str| ByteTree::from_bytes(&std::fs::read(dir.join(name)).unwrap()).unwrap();
 
     // The key is WIDENED to omega before entering the query -- not the stored
     // FullPublicKey.bt as VMNV §8.3's "pk in C_kappa" would suggest.
-    let wide_pk =
-        v2v::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
+    let wide_pk = v2v::wire::crypto::wide_public_key(&read_tree("FullPublicKey.bt"), 2).unwrap();
 
     let seed = v2v::wire::crypto::pos_seed(
         v2v::wire::crypto::Hashfunction::Sha256,
         &reference_rho(),
-        &marshal::p256::generator(),        // g
-        &h,                                 // h, the independent generators
+        &marshal::p256::generator(),                     // g
+        &h,                                              // h, the independent generators
         &read_tree("proofs/PermutationCommitment01.bt"), // u
-        &wide_pk,                           // pk, widened to omega
-        &read_tree("Ciphertexts.bt"),       // w   = L_0
-        &read_tree("proofs/Ciphertexts01.bt"), // w' = L_1
+        &wide_pk,                                        // pk, widened to omega
+        &read_tree("Ciphertexts.bt"),                    // w   = L_0
+        &read_tree("proofs/Ciphertexts01.bt"),           // w' = L_1
     );
 
     assert_eq!(
@@ -330,7 +343,10 @@ fn decryption_transcript_matches_vmn() {
         v2v::wire::crypto::Hashfunction::Sha256,
         &rho,
         &marshal::p256::generator(),
-        &read_tree(&format!("proofs/Ciphertexts{:02}.bt", meta.active_threshold)),
+        &read_tree(&format!(
+            "proofs/Ciphertexts{:02}.bt",
+            meta.active_threshold
+        )),
         &read_tree("proofs/PolynomialInExponent.bt"),
         &factors,
     );
@@ -384,7 +400,10 @@ fn independent_generators_match_vmn() {
     )
     .expect("derive generators");
 
-    assert_eq!(derived, expected, "derived generators must match vmnv -t bas.h");
+    assert_eq!(
+        derived, expected,
+        "derived generators must match vmnv -t bas.h"
+    );
     eprintln!("derived {count} independent generators matching VMN exactly");
 }
 
@@ -401,13 +420,14 @@ fn shuffle_seed_from_fully_derived_inputs() {
         return common::skip("vmnv -t produced no test vectors");
     };
 
-    let read_tree = |name: &str| {
-        ByteTree::from_bytes(&std::fs::read(dir.join(name)).unwrap()).unwrap()
-    };
+    let read_tree =
+        |name: &str| ByteTree::from_bytes(&std::fs::read(dir.join(name)).unwrap()).unwrap();
     let w = read_tree("Ciphertexts.bt");
     // N is the number of ciphertexts, which also fixes how many generators the
     // shuffle proof needs.
-    let n = arithm::product_array_rows(&w.as_node_of(2).unwrap()[0]).unwrap().len();
+    let n = arithm::product_array_rows(&w.as_node_of(2).unwrap()[0])
+        .unwrap()
+        .len();
 
     let rho = reference_rho();
     let h = v2v::wire::generators::independent_generators(
@@ -472,10 +492,8 @@ fn parse_point_list(text: &str, name: &str) -> Option<ByteTree> {
 /// parameters rather than hardcoded, so this test also re-exercises ρ.
 fn reference_rho() -> Vec<u8> {
     let info = corpus_info().expect("the generated corpus ships its protocol info");
-    let auxsid = std::fs::read_to_string(
-        common::shared().expect("a corpus").nizkp.join("auxsid"),
-    )
-    .expect("read auxsid");
+    let auxsid = std::fs::read_to_string(common::shared().expect("a corpus").nizkp.join("auxsid"))
+        .expect("read auxsid");
     v2v::wire::crypto::global_prefix(
         v2v::wire::crypto::Hashfunction::Sha256,
         &info.prefix_params(auxsid.trim()),

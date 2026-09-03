@@ -34,8 +34,8 @@ use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts
 use crate::messages::newtypes::{
     hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
-use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
+use crate::protocol_manager::ProtocolManager;
 
 use crate::board::persistence::Persistence;
 use crate::board::transport::Transport;
@@ -262,10 +262,7 @@ fn temp_db(tag: &str) -> std::path::PathBuf {
 /// Drive `trustees` over their board `clients` to a fixpoint via the update-first
 /// cycle (§6), sequentially (HTTP latency dominates). Trustee `i` is paired with
 /// client `i`.
-async fn drive<C, T, P>(
-    trustees: &[Trustee<C>],
-    clients: &mut [BoardClient<C, T, P>],
-) -> Result<()>
+async fn drive<C, T, P>(trustees: &[Trustee<C>], clients: &mut [BoardClient<C, T, P>]) -> Result<()>
 where
     C: Context,
     T: Transport<C>,

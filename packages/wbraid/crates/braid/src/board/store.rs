@@ -179,7 +179,10 @@ impl<C: Context> MessageStore<C> {
     /// message (single ballots slot per board). Feeds the tally-scoped
     /// Fiat-Shamir labels of the mix and decrypt phases.
     pub fn tally_id(&self) -> Option<u128> {
-        self.ballots.keys().next().map(|predicate| predicate.tally_id)
+        self.ballots
+            .keys()
+            .next()
+            .map(|predicate| predicate.tally_id)
     }
 
     /// The body bytes of the `Mix` message whose output out-hash is `output`.

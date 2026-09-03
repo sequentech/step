@@ -95,9 +95,9 @@ pub enum Error {
 /// Attaches a contextual string to an Error.
 pub trait ErrorContext<T> {
     /// Attaches a contextual string to an Error.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns the wrapped error with context if the result is an error.
     fn with_context(self, context: &str) -> Result<T, Error>;
 }
@@ -105,10 +105,7 @@ impl<T> ErrorContext<T> for Result<T, Error> {
     /// Attaches a contextual string to an Error.
     fn with_context(self, context: &str) -> Result<T, Error> {
         if let Err(e) = self {
-            Err(Error::WrappedError(
-                context.to_string(),
-                Box::new(e),
-            ))
+            Err(Error::WrappedError(context.to_string(), Box::new(e)))
         } else {
             self
         }

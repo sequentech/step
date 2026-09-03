@@ -100,8 +100,8 @@ impl ByteTree {
             return Err(Error::UnexpectedEnd);
         }
         let (len_bytes, mut rest) = rest.split_at(4);
-        let len = u32::from_be_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]])
-            as usize;
+        let len =
+            u32::from_be_bytes([len_bytes[0], len_bytes[1], len_bytes[2], len_bytes[3]]) as usize;
 
         match tag {
             LEAF_TAG => {

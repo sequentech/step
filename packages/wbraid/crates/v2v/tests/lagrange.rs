@@ -14,8 +14,7 @@ use num_bigint::{BigInt, BigUint};
 use num_traits::{One, Signed, Zero};
 
 use v2v::wire::lagrange::{
-    alpha, correct_set, lcm_up_to, modified_lagrange_coefficient,
-    modified_lagrange_coefficients,
+    alpha, correct_set, lcm_up_to, modified_lagrange_coefficient, modified_lagrange_coefficients,
 };
 
 /// P-256's group order, the modulus these coefficients live in.
@@ -81,7 +80,10 @@ fn coefficients_are_small_signed_integers() {
     // field elements, and negative values are expected.
     assert!(coefficients.iter().any(|c| c.is_negative()));
     for c in &coefficients {
-        assert!(c.magnitude() < &BigUint::from(u64::MAX), "coefficient stayed small");
+        assert!(
+            c.magnitude() < &BigUint::from(u64::MAX),
+            "coefficient stayed small"
+        );
     }
 }
 
@@ -135,8 +137,5 @@ fn a_single_party_is_the_degenerate_case() {
     // above: alpha is 1 and the only coefficient is 1.
     let q = q();
     assert_eq!(alpha(1), BigUint::one());
-    assert_eq!(
-        modified_lagrange_coefficient(&[1], 1, 1, &q),
-        BigInt::one()
-    );
+    assert_eq!(modified_lagrange_coefficient(&[1], 1, 1, &q), BigInt::one());
 }

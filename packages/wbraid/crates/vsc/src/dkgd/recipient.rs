@@ -13,8 +13,8 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
 use crate::zkp::dlogeq::DlogEqProof;
-use std::array;
 use canonical_derive::Canonical;
+use std::array;
 
 /**
  * A recipient in the Joint-Feldman distributed key generation (DKG) protocol.
@@ -135,11 +135,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
     ///
     /// A `Recipient` is created through the [`from_shares`][`Self::from_shares`]
     /// function, which verifies the dealings this constructor trusts.
-    fn new(
-        position: ParticipantPosition<P>,
-        verification_key: C::Element,
-        sk: C::Scalar,
-    ) -> Self {
+    fn new(position: ParticipantPosition<P>, verification_key: C::Element, sk: C::Scalar) -> Self {
         #[allow(path_statements)]
         Self::CHECK;
 
@@ -266,9 +262,8 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
 
         // The raw checking values, for the algebraic checks and the
         // verification-key derivations.
-        let raw: [[C::Element; T]; P] = array::from_fn(|d| {
-            array::from_fn(|j| shares[d].checking_values[j].value.clone())
-        });
+        let raw: [[C::Element; T]; P] =
+            array::from_fn(|d| array::from_fn(|j| shares[d].checking_values[j].value.clone()));
 
         // Round-2 step 2: each share against its dealer's checking values;
         // accumulate the joint public key and this recipient's secret.
@@ -626,7 +621,7 @@ fn batching_exponents<C: Context, const W: usize>(
     proof_context: &[u8],
 ) -> Result<Vec<C::Scalar>, Error> {
     use crate::traits::groups::CryptographicGroup;
-    use crate::utils::hash::{update_hasher, Hasher};
+    use crate::utils::hash::{Hasher, update_hasher};
     use crate::utils::serialization::Serializable as _;
     use sha3::Digest as _;
 
@@ -685,7 +680,10 @@ impl<const P: usize> ParticipantPosition<P> {
     /// Panics if the position is not in the range [1, P].
     #[must_use]
     pub fn new(position: u32) -> Self {
-        #[cfg_attr(feature = "custom-warnings", crate::warning("Possibly avoidable panics"))]
+        #[cfg_attr(
+            feature = "custom-warnings",
+            crate::warning("Possibly avoidable panics")
+        )]
         assert!(position > 0);
         assert!(position as usize <= P);
 
@@ -704,7 +702,10 @@ impl<const P: usize> ParticipantPosition<P> {
     /// Panics if the position is not in the range [1, P].
     #[must_use]
     pub fn from_usize(position: usize) -> Self {
-        #[cfg_attr(feature = "custom-warnings", crate::warning("Possibly avoidable panics"))]
+        #[cfg_attr(
+            feature = "custom-warnings",
+            crate::warning("Possibly avoidable panics")
+        )]
         assert!(position > 0);
         assert!(position <= P);
 

@@ -18,9 +18,9 @@ use crate::utils::error::ErrorContext;
 use crate::utils::hash;
 use crate::utils::serialization::Serializable;
 
+use canonical_derive::Canonical;
 use rand::RngExt;
 use sha3::Digest;
-use canonical_derive::Canonical;
 
 use rayon::prelude::*;
 
@@ -305,7 +305,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             return Err(Error::EmptyShuffle);
         }
         if ciphertexts.len() != self.h_generators.len() {
-            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between ciphertexts and h_generators when mixing");
+            return Err(Error::MismatchedShuffleLength).with_context(
+                "Mismatched length between ciphertexts and h_generators when mixing",
+            );
         }
 
         let big_n = ciphertexts.len();
@@ -537,7 +539,13 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         proof: &ShuffleProof<C, W>,
         context: &[u8],
     ) -> Result<bool, Error> {
-        self.verify_with(ciphertexts, permuted_ciphertexts, proof, context, &NativeChallenges)
+        self.verify_with(
+            ciphertexts,
+            permuted_ciphertexts,
+            proof,
+            context,
+            &NativeChallenges,
+        )
     }
 
     /// As [`verify`](Self::verify), but deriving the challenges through
@@ -565,19 +573,26 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             return Err(Error::EmptyShuffle);
         }
         if ciphertexts.len() != permuted_ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between ciphertexts and permuted ciphertexts");
+            return Err(Error::MismatchedShuffleLength)
+                .with_context("Mismatched length between ciphertexts and permuted ciphertexts");
         }
         if ciphertexts.len() != self.h_generators.len() {
-            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between ciphertexts and h_generators");
+            return Err(Error::MismatchedShuffleLength)
+                .with_context("Mismatched length between ciphertexts and h_generators");
         }
         if proof.commitments.big_b_n.len() != ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between proof commitments big_b_n and ciphertexts");
+            return Err(Error::MismatchedShuffleLength).with_context(
+                "Mismatched length between proof commitments big_b_n and ciphertexts",
+            );
         }
         if proof.commitments.big_b_prime_n.len() != ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between proof commitments big_b_prime_n and ciphertexts");
+            return Err(Error::MismatchedShuffleLength).with_context(
+                "Mismatched length between proof commitments big_b_prime_n and ciphertexts",
+            );
         }
         if proof.commitments.u_n.len() != ciphertexts.len() {
-            return Err(Error::MismatchedShuffleLength).with_context("Mismatched length between proof commitments u_n and ciphertexts");
+            return Err(Error::MismatchedShuffleLength)
+                .with_context("Mismatched length between proof commitments u_n and ciphertexts");
         }
 
         let commitments = &proof.commitments;
@@ -697,11 +712,10 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let w_prime_n = permuted_ciphertexts;
         let w_prime_n_k_e_n = w_prime_n.par_iter().zip(responses.k_e_n.par_iter());
         let w_prime_n_k_e_n = w_prime_n_k_e_n.map(|(w, k)| w.map_ref(|uv| uv.dist_exp(k)));
-        let w_prime_n_k_e_n_fold = fold_values(
-            w_prime_n_k_e_n,
-            <[[C::Element; W]; 2]>::one,
-            |acc, next| acc.mul(next),
-        );
+        let w_prime_n_k_e_n_fold =
+            fold_values(w_prime_n_k_e_n, <[[C::Element; W]; 2]>::one, |acc, next| {
+                acc.mul(next)
+            });
 
         let one = [g, self.pk.y.clone()].map(|gy| gy.repl_exp(&responses.k_f.neg()));
         let rhs_5 = one.mul(&w_prime_n_k_e_n_fold);
@@ -788,7 +802,6 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         b"big_f_prime_n",
         b"shuffle_challenge_input_v_context",
     ];
-
 }
 
 /// Fold the values of a parallel iterator into one, combining with `combine`
@@ -1165,7 +1178,7 @@ impl Permutation {
     }
 
     /// Shuffle the given integers in place, using `SliceRandom` from the rand crate.
-    /// 
+    ///
     /// This function uses the [`SliceRandom`](https://rust-random.github.io/rand/rand/seq/trait.SliceRandom.html#tymethod.shuffle) trait generate the permutation, according
     /// to which
     ///
@@ -1281,8 +1294,7 @@ mod tests {
             let expected = values
                 .iter()
                 .fold(Scalar::zero(), |acc, next| acc.add(next));
-            let actual =
-                super::bounded_combine(&values, Scalar::zero, |acc, next| acc.add(next));
+            let actual = super::bounded_combine(&values, Scalar::zero, |acc, next| acc.add(next));
 
             assert_eq!(expected, actual, "mismatch at len {len}");
         }

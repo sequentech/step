@@ -131,9 +131,7 @@ fn ciphertext_parts<const W: usize>(
 
 /// Decode an array of width-`W` ciphertexts (the inverse of
 /// [`ciphertexts_to_tree`], undoing the transposition).
-pub fn tree_to_ciphertexts<const W: usize>(
-    tree: &ByteTree,
-) -> Result<Vec<Ciphertext<P256Ctx, W>>> {
+pub fn tree_to_ciphertexts<const W: usize>(tree: &ByteTree) -> Result<Vec<Ciphertext<P256Ctx, W>>> {
     let sides = tree
         .as_node_of(2)
         .map_err(|e| anyhow!("ciphertext array is not (u, v): {e}"))?;
@@ -215,9 +213,7 @@ pub fn public_key_to_tree(y: &P256Element) -> Result<ByteTree> {
 /// The shape of `Plaintexts.bt` and of each `DecryptionFactors<l>.bt`: `W`
 /// arrays of `N` components, transposed as in [`ciphertexts_to_tree`], but with
 /// only one side rather than a `(u, v)` pair.
-pub fn component_array_to_tree<const W: usize>(
-    elements: &[[P256Element; W]],
-) -> Result<ByteTree> {
+pub fn component_array_to_tree<const W: usize>(elements: &[[P256Element; W]]) -> Result<ByteTree> {
     let rows = elements
         .iter()
         .map(|e| e.iter().map(element_to_tree).collect::<Result<Vec<_>>>())

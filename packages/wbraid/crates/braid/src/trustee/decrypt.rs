@@ -260,10 +260,9 @@ impl<C: Context> Trustee<C> {
             ));
         }
 
-        let contributions: [AttributedDecryption<C, W, P>; T] =
-            contributions.try_into().map_err(|v: Vec<_>| {
-                anyhow!("expected {} partial decryptions, got {}", T, v.len())
-            })?;
+        let contributions: [AttributedDecryption<C, W, P>; T] = contributions
+            .try_into()
+            .map_err(|v: Vec<_>| anyhow!("expected {} partial decryptions, got {}", T, v.len()))?;
 
         let plaintexts = combine::<C, T, P, W>(&mix.ciphertexts, &contributions, &label)
             .map_err(|e| anyhow!("failed to combine decryption factors: {:?}", e))?;

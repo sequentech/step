@@ -42,7 +42,14 @@ pub trait SignatureScheme<R: CRng> {
     /// The signer type, a private key used for signing.
     type Signer: Signer<Self::Signature> + Serializable + Deserializable + Clone;
     /// The verifier type, a public key used to verify signatures.
-    type Verifier: Verifier<Self::Signature> + Serializable + Deserializable + Clone + PartialEq + Eq + std::hash::Hash + std::fmt::Debug;
+    type Verifier: Verifier<Self::Signature>
+        + Serializable
+        + Deserializable
+        + Clone
+        + PartialEq
+        + Eq
+        + std::hash::Hash
+        + std::fmt::Debug;
     /// The signature type, a digital signature on some data.
     type Signature: Serializable + Deserializable + Clone;
 
@@ -50,45 +57,45 @@ pub trait SignatureScheme<R: CRng> {
     ///
     /// The corresponding public verification key can be obtained with `signing_key.verifying_key()`.
     fn gen_signing_key(rng: &mut R) -> Self::Signer;
-    
+
     /// Gets the verifying key from a signing key.
     fn verifying_key(signer: &Self::Signer) -> Self::Verifier;
-    
+
     /// Serializes a verifying key to a base64-encoded string.
-    /// 
+    ///
     /// This is useful when reading/writing verification keys to/from configuration files
     /// in a generic context.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if serialization fails.
     fn verifier_to_base64_string(verifier: &Self::Verifier) -> Result<String, CryptoError>;
-    
+
     /// Deserializes a verifying key from a base64-encoded string.
     ///
     /// This is the inverse of `verifier_to_base64_string`.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if parsing fails.
     fn verifier_from_base64_string(s: &str) -> Result<Self::Verifier, CryptoError>;
-    
+
     /// Serializes a signing key to a base64-encoded string.
     ///
     /// This is useful when reading/writing signing keys to/from configuration files
     /// in a generic context.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if serialization fails.
     fn signer_to_base64_string(signer: &Self::Signer) -> Result<String, CryptoError>;
-    
+
     /// Deserializes a signing key from a base64-encoded string.
     ///
     /// This is the inverse of `signer_to_base64_string`.
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if parsing fails.
     fn signer_from_base64_string(s: &str) -> Result<Self::Signer, CryptoError>;
 }
@@ -124,53 +131,54 @@ impl<R: CRng> SignatureScheme<R> for Ed25519<R> {
     fn gen_signing_key(rng: &mut R) -> ed25519_dalek::SigningKey {
         Self::Signer::generate(rng)
     }
-    
+
     fn verifying_key(signer: &Self::Signer) -> Self::Verifier {
         signer.verifying_key()
     }
-    
+
     fn verifier_to_base64_string(verifier: &Self::Verifier) -> Result<String, CryptoError> {
-        use base64::{engine::general_purpose, Engine as _};
-        
+        use base64::{Engine as _, engine::general_purpose};
+
         // Ed25519 public keys are 32 bytes
         let bytes = verifier.to_bytes();
         Ok(general_purpose::STANDARD.encode(bytes))
     }
-    
+
     fn verifier_from_base64_string(s: &str) -> Result<Self::Verifier, CryptoError> {
-        use base64::{engine::general_purpose, Engine as _};
-        
-        let bytes = general_purpose::STANDARD
-            .decode(s)
-            .map_err(|e| CryptoError::DeserializationError(format!("Failed to decode base64: {e:?}")))?;
-        
-        let bytes: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| CryptoError::DeserializationError("Invalid key length: expected 32 bytes".to_string()))?;
-        
-        VerifyingKey::from_bytes(&bytes)
-            .map_err(|e| CryptoError::DeserializationError(format!("Failed to parse verifying key: {e:?}")))
+        use base64::{Engine as _, engine::general_purpose};
+
+        let bytes = general_purpose::STANDARD.decode(s).map_err(|e| {
+            CryptoError::DeserializationError(format!("Failed to decode base64: {e:?}"))
+        })?;
+
+        let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
+            CryptoError::DeserializationError("Invalid key length: expected 32 bytes".to_string())
+        })?;
+
+        VerifyingKey::from_bytes(&bytes).map_err(|e| {
+            CryptoError::DeserializationError(format!("Failed to parse verifying key: {e:?}"))
+        })
     }
-    
+
     fn signer_to_base64_string(signer: &Self::Signer) -> Result<String, CryptoError> {
-        use base64::{engine::general_purpose, Engine as _};
-        
+        use base64::{Engine as _, engine::general_purpose};
+
         // Ed25519 secret keys are 32 bytes
         let bytes = signer.to_bytes();
         Ok(general_purpose::STANDARD.encode(bytes))
     }
-    
+
     fn signer_from_base64_string(s: &str) -> Result<Self::Signer, CryptoError> {
-        use base64::{engine::general_purpose, Engine as _};
-        
-        let bytes = general_purpose::STANDARD
-            .decode(s)
-            .map_err(|e| CryptoError::DeserializationError(format!("Failed to decode base64: {e:?}")))?;
-        
-        let bytes: [u8; 32] = bytes
-            .try_into()
-            .map_err(|_| CryptoError::DeserializationError("Invalid key length: expected 32 bytes".to_string()))?;
-        
+        use base64::{Engine as _, engine::general_purpose};
+
+        let bytes = general_purpose::STANDARD.decode(s).map_err(|e| {
+            CryptoError::DeserializationError(format!("Failed to decode base64: {e:?}"))
+        })?;
+
+        let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
+            CryptoError::DeserializationError("Invalid key length: expected 32 bytes".to_string())
+        })?;
+
         Ok(SigningKey::from_bytes(&bytes))
     }
 }
@@ -183,8 +191,9 @@ impl Serializable for SigningKey {
 impl Deserializable for SigningKey {
     fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
         let bytes = take(input, ed25519_dalek::SECRET_KEY_LENGTH)?;
-        let array: [u8; ed25519_dalek::SECRET_KEY_LENGTH] =
-            bytes.try_into().expect("take returns exactly the requested bytes");
+        let array: [u8; ed25519_dalek::SECRET_KEY_LENGTH] = bytes
+            .try_into()
+            .expect("take returns exactly the requested bytes");
         Ok(SigningKey::from_bytes(&array))
     }
 }
@@ -197,8 +206,9 @@ impl Serializable for VerifyingKey {
 impl Deserializable for VerifyingKey {
     fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
         let bytes = take(input, ed25519_dalek::PUBLIC_KEY_LENGTH)?;
-        let array: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] =
-            bytes.try_into().expect("take returns exactly the requested bytes");
+        let array: [u8; ed25519_dalek::PUBLIC_KEY_LENGTH] = bytes
+            .try_into()
+            .expect("take returns exactly the requested bytes");
         Ok(VerifyingKey::from_bytes(&array)?)
     }
 }
@@ -211,8 +221,9 @@ impl Serializable for Signature {
 impl Deserializable for Signature {
     fn read(input: &mut &[u8]) -> Result<Self, CryptoError> {
         let bytes = take(input, ed25519_dalek::SIGNATURE_LENGTH)?;
-        let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] =
-            bytes.try_into().expect("take returns exactly the requested bytes");
+        let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] = bytes
+            .try_into()
+            .expect("take returns exactly the requested bytes");
         Ok(Signature::from_bytes(&array))
     }
 }

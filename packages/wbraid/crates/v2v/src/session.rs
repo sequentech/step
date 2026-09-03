@@ -48,13 +48,13 @@ use cryptography::zkp::shuffle::{Responses, ShuffleCommitments, ShuffleProof, Sh
 
 use crate::challenges::VmnChallenges;
 use crate::decrypt::BatchedDecryptionProof;
+use crate::encode;
 use crate::generators::vmn_generators;
 use crate::verify::{verify_decryption, PartyContribution, SessionParams};
 use crate::wire::arithm::bool_array_values;
 use crate::wire::bytetree::ByteTree;
 use crate::wire::crypto::{global_prefix, Hashfunction};
 use crate::wire::protinfo::ProtocolInfo;
-use crate::encode;
 
 /// The kind of session a proof directory describes (VMNV §9.1, `type`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -177,18 +177,16 @@ pub fn verify_session<const W: usize>(
             continue;
         }
 
-        let output =
-            encode::tree_to_ciphertexts::<W>(&tree(dir, &format!("proofs/Ciphertexts{slot:02}.bt"))?)?;
+        let output = encode::tree_to_ciphertexts::<W>(&tree(
+            dir,
+            &format!("proofs/Ciphertexts{slot:02}.bt"),
+        )?)?;
         let proof = read_shuffle_proof::<W>(dir, slot)?;
 
-        let shuffler = Shuffler::<P256Ctx, W>::new(generators.clone(), PublicKey::<P256Ctx>::new(y));
-        let challenges = VmnChallenges::new(
-            hash,
-            rho.clone(),
-            info.n_e as usize,
-            info.n_v as usize,
-            W,
-        );
+        let shuffler =
+            Shuffler::<P256Ctx, W>::new(generators.clone(), PublicKey::<P256Ctx>::new(y));
+        let challenges =
+            VmnChallenges::new(hash, rho.clone(), info.n_e as usize, info.n_v as usize, W);
         let ok = shuffler
             .verify_with(&current, &output, &proof, &[], &challenges)
             .map_err(|e| anyhow!("shuffle verification failed for mixer {slot}: {e:?}"))?;
@@ -290,10 +288,7 @@ fn read_contribution<const W: usize>(
     ))
 }
 
-fn read_shuffle_proof<const W: usize>(
-    dir: &Path,
-    slot: usize,
-) -> Result<ShuffleProof<P256Ctx, W>> {
+fn read_shuffle_proof<const W: usize>(dir: &Path, slot: usize) -> Result<ShuffleProof<P256Ctx, W>> {
     let u_n = encode::tree_to_elements(&tree(
         dir,
         &format!("proofs/PermutationCommitment{slot:02}.bt"),
@@ -318,11 +313,9 @@ fn read_shuffle_proof<const W: usize>(
                 .collect::<Vec<_>>(),
         ))
     };
-    let f_prime = encode::tree_to_ciphertexts::<W>(&ByteTree::node(vec![
-        wrap(&pair[0])?,
-        wrap(&pair[1])?,
-    ]))?
-    .remove(0);
+    let f_prime =
+        encode::tree_to_ciphertexts::<W>(&ByteTree::node(vec![wrap(&pair[0])?, wrap(&pair[1])?]))?
+            .remove(0);
 
     let commitments = ShuffleCommitments::<P256Ctx, W>::new(
         encode::tree_to_elements(&tau[0])?,

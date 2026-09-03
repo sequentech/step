@@ -23,13 +23,13 @@
 //! ```
 
 use canonical_derive::Canonical;
-use chacha20poly1305::{aead::Aead, aead::Generate, aead::KeyInit, ChaCha20Poly1305, Nonce};
 use chacha20poly1305::aead::Key;
+use chacha20poly1305::{ChaCha20Poly1305, Nonce, aead::Aead, aead::Generate, aead::KeyInit};
 
 use crate::utils::error::Error;
 
 /// Symmetric encryption key for ChaCha20-Poly1305
-/// 
+///
 /// Re-export the Array type from chacha20poly1305's dependency
 pub type SymmetricKey = Key<ChaCha20Poly1305>;
 
@@ -54,9 +54,9 @@ impl EncryptionData {
 }
 
 /// Generate a random symmetric encryption key
-/// 
+///
 /// From crate doc:"Generate random key using the operating system’s secure RNG."
-/// 
+///
 /// # Errors
 ///     
 /// Returns `Error::EncryptionError` if key generation fails
@@ -114,8 +114,9 @@ pub fn decrypt(key: &SymmetricKey, ed: &EncryptionData) -> Result<Vec<u8>, Error
 ///
 /// Returns `Error::DeserializationError` if the byte slice is not exactly 32 bytes
 pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, Error> {
-    let array: [u8; 32] = bytes.try_into()
-        .map_err(|_| Error::DeserializationError("Invalid symmetric key length: expected 32 bytes".to_string()))?;
+    let array: [u8; 32] = bytes.try_into().map_err(|_| {
+        Error::DeserializationError("Invalid symmetric key length: expected 32 bytes".to_string())
+    })?;
     Ok(array.into())
 }
 

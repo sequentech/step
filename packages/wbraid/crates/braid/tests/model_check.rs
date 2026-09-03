@@ -218,8 +218,8 @@ impl BraidModel {
             share_enc_keys,
             PhantomData,
         );
-        let configuration_hash = ConfigurationHash::from_configuration(&configuration)
-            .expect("configuration hash");
+        let configuration_hash =
+            ConfigurationHash::from_configuration(&configuration).expect("configuration hash");
 
         let mut enc_rng = C::get_rng();
         let plaintexts_in: Vec<[Element; W]> = (0..BALLOTS)
@@ -409,7 +409,12 @@ impl BraidModel {
         // Compute outside the lock: the cycle does real work, and another
         // worker asking for a different edge shouldn't wait on it.
         let computed = self.successor(state, turn);
-        self.memo.lock().unwrap().entry(key).or_insert(computed).clone()
+        self.memo
+            .lock()
+            .unwrap()
+            .entry(key)
+            .or_insert(computed)
+            .clone()
     }
 }
 
@@ -481,18 +486,18 @@ impl Model for BraidModel {
             // reachability rather than liveness because the search is depth-capped
             // (see the module note), so "on every path" is not a claim this
             // exploration can support.
-            Property::<Self>::sometimes("plaintexts published correctly", |model, state| {
-                match model.plaintexts_on(state) {
+            Property::<Self>::sometimes(
+                "plaintexts published correctly",
+                |model, state| match model.plaintexts_on(state) {
                     Some(published) => {
                         let expected: HashSet<[Element; W]> =
                             model.plaintexts_in.iter().cloned().collect();
-                        let actual: HashSet<[Element; W]> =
-                            published.0.into_iter().collect();
+                        let actual: HashSet<[Element; W]> = published.0.into_iter().collect();
                         expected == actual
                     }
                     None => false,
-                }
-            }),
+                },
+            ),
         ]
     }
 }

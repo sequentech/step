@@ -45,15 +45,33 @@ fn global_prefix_binds_every_parameter() {
     let base = global_prefix(Hashfunction::Sha256, &reference_params());
 
     let mutations: Vec<(&str, Box<dyn Fn(&mut PrefixParams)>)> = vec![
-        ("version", Box::new(|p: &mut PrefixParams| p.version = "3.1.1".into())),
-        ("sid", Box::new(|p: &mut PrefixParams| p.sid = "other".into())),
-        ("auxsid", Box::new(|p: &mut PrefixParams| p.auxsid = "other".into())),
+        (
+            "version",
+            Box::new(|p: &mut PrefixParams| p.version = "3.1.1".into()),
+        ),
+        (
+            "sid",
+            Box::new(|p: &mut PrefixParams| p.sid = "other".into()),
+        ),
+        (
+            "auxsid",
+            Box::new(|p: &mut PrefixParams| p.auxsid = "other".into()),
+        ),
         ("n_r", Box::new(|p: &mut PrefixParams| p.n_r = 101)),
         ("n_v", Box::new(|p: &mut PrefixParams| p.n_v = 255)),
         ("n_e", Box::new(|p: &mut PrefixParams| p.n_e = 255)),
-        ("prg", Box::new(|p: &mut PrefixParams| p.prg = "SHA-512".into())),
-        ("pgroup", Box::new(|p: &mut PrefixParams| p.pgroup = "ECqPGroup(P-384)::00".into())),
-        ("rohash", Box::new(|p: &mut PrefixParams| p.rohash = "SHA-512".into())),
+        (
+            "prg",
+            Box::new(|p: &mut PrefixParams| p.prg = "SHA-512".into()),
+        ),
+        (
+            "pgroup",
+            Box::new(|p: &mut PrefixParams| p.pgroup = "ECqPGroup(P-384)::00".into()),
+        ),
+        (
+            "rohash",
+            Box::new(|p: &mut PrefixParams| p.rohash = "SHA-512".into()),
+        ),
     ];
 
     for (field, mutate) in mutations {
@@ -95,8 +113,11 @@ fn prg_is_hash_of_seed_and_counter() {
         let mut input = seed.to_vec();
         input.extend_from_slice(&i.to_be_bytes());
         let expected = sha2::Sha256::digest(&input);
-        assert_eq!(&out[i as usize * 32..(i as usize + 1) * 32], &expected[..],
-                   "PRG block {i}");
+        assert_eq!(
+            &out[i as usize * 32..(i as usize + 1) * 32],
+            &expected[..],
+            "PRG block {i}"
+        );
     }
 }
 
@@ -121,7 +142,11 @@ fn random_oracle_prefixes_the_output_length() {
     let b = RandomOracle::new(Hashfunction::Sha256, 512).eval(data);
     assert_eq!(a.len(), 32);
     assert_eq!(b.len(), 64);
-    assert_ne!(a[..], b[..32], "differing n_out must reseed the PRG differently");
+    assert_ne!(
+        a[..],
+        b[..32],
+        "differing n_out must reseed the PRG differently"
+    );
 }
 
 #[test]
@@ -147,7 +172,11 @@ fn random_oracle_masks_leading_bits_for_non_multiples_of_eight() {
 
 #[test]
 fn hashfunction_names_round_trip() {
-    for h in [Hashfunction::Sha256, Hashfunction::Sha384, Hashfunction::Sha512] {
+    for h in [
+        Hashfunction::Sha256,
+        Hashfunction::Sha384,
+        Hashfunction::Sha512,
+    ] {
         assert_eq!(Hashfunction::from_name(h.name()), Some(h));
         assert_eq!(h.outlen() * 8, h.outlen_bits());
     }
@@ -213,10 +242,7 @@ fn the_proof_transcripts_match_the_installed_verificatum() {
             vectors.contains_key(name),
             "vmnv -t should have reported {name} for a mixing session"
         );
-        assert!(
-            !vectors[name].is_empty(),
-            "{name} must not be empty"
-        );
+        assert!(!vectors[name].is_empty(), "{name} must not be empty");
     }
 
     // The values themselves are checked where they are computed --
