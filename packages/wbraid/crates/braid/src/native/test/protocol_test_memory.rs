@@ -34,14 +34,14 @@ use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts
 use crate::messages::newtypes::{
     hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
-use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
+use crate::protocol_manager::ProtocolManager;
 
 use crate::board::persistence::NoOpPersistence;
 use crate::board::transport::{MemoryBoard, MemoryTransport};
 use crate::board::BoardClient;
-use crate::trustee::Trustee;
 use crate::session::Session;
+use crate::trustee::Trustee;
 
 /// Wire `date` for every message the harness posts (§3.1); a fixed value is fine
 /// (M1 does not verify timestamps).
@@ -306,15 +306,8 @@ async fn run_invalid_ballot<C: Context>() -> Result<()> {
     encrypted[1].proof = proof0;
 
     let ballots = Ballots::<C, W>::new(encrypted);
-    let ballots_message = ProtocolMessage::<C>::ballots(
-        &pm,
-        DATE,
-        cfg_hash,
-        pk_hash,
-        mixing_trustees,
-        1,
-        &ballots,
-    );
+    let ballots_message =
+        ProtocolMessage::<C>::ballots(&pm, DATE, cfg_hash, pk_hash, mixing_trustees, 1, &ballots);
     board.push(ballots_message);
 
     let err = drive(&mut sessions)

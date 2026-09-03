@@ -11,13 +11,12 @@
 //! completely different code path — the recipient's share verification — than
 //! the commitments the product is taken over.
 
-
-use v2v::decrypt;
 use cryptography::context::{Context, P256Ctx};
 use cryptography::dkgd::dealer::Dealer;
 use cryptography::dkgd::recipient::{ParticipantPosition, Recipient};
 use cryptography::groups::p256::element::P256Element;
 use cryptography::traits::groups::{CryptographicGroup, GroupElement, GroupScalar};
+use v2v::decrypt;
 
 const T: usize = 2;
 const P: usize = 3;
@@ -29,7 +28,10 @@ fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
     let dealers: Vec<Dealer<P256Ctx, T, P>> = (0..P).map(|_| Dealer::generate()).collect();
     let all_shares: Vec<_> = dealers
         .iter()
-        .map(|d| d.get_verifiable_shares(TEST_DKG_CTX).expect("dealing must succeed"))
+        .map(|d| {
+            d.get_verifiable_shares(TEST_DKG_CTX)
+                .expect("dealing must succeed")
+        })
         .collect();
 
     let commitments: Vec<Vec<P256Element>> = all_shares
@@ -41,7 +43,7 @@ fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
     use cryptography::dkgd::dealer::VerifiableShare;
     let shares_for_first: [VerifiableShare<P256Ctx, T>; P] = std::array::from_fn(|d| {
         VerifiableShare::new(
-            all_shares[d].shares[0].clone(),
+            all_shares[d].shares[0],
             all_shares[d].checking_values.clone(),
         )
     });
@@ -90,10 +92,8 @@ fn factor_conversion_is_the_documented_exponent() {
 
     let braid_factor: [P256Element; W] =
         std::array::from_fn(|_| <P256Ctx as Context>::G::random_element(&mut rng));
-    let converted = decrypt::to_vmn_factor(
-        &braid_factor,
-        &decrypt::negated_inverse_alpha(k).unwrap(),
-    );
+    let converted =
+        decrypt::to_vmn_factor(&braid_factor, &decrypt::negated_inverse_alpha(k).unwrap());
 
     // Undo it: alpha, negated. (x^{-1/a})^{-a} = x.
     let alpha_scalar = {
@@ -120,8 +120,10 @@ fn inactive_factors_are_all_identity() {
     assert_eq!(factors.len(), 7, "one per ciphertext");
     for factor in &factors {
         for component in factor {
-            assert!(component.is_identity(), "every component is the group identity");
+            assert!(
+                component.is_identity(),
+                "every component is the group identity"
+            );
         }
     }
 }
-

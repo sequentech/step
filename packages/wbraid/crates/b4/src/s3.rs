@@ -8,12 +8,12 @@ use std::time::Duration;
 
 pub async fn init_s3_client() -> Client {
     let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    
+
     // Force path-style URLs for LocalStack compatibility
     let s3_config = aws_sdk_s3::config::Builder::from(&config)
         .force_path_style(true)
         .build();
-    
+
     Client::from_conf(s3_config)
 }
 

@@ -19,9 +19,9 @@ use crate::board::transport::{MemoryBoard, MemoryTransport};
 use crate::board::BoardClient;
 use crate::messages::artifact::Configuration;
 use crate::messages::newtypes::{ConfigurationHash, Timestamp};
-use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::ProtocolMessage;
 use crate::native::persistence::SqlitePersistence;
+use crate::protocol_manager::ProtocolManager;
 use crate::trustee::Trustee;
 
 const DATE: Timestamp = 0;

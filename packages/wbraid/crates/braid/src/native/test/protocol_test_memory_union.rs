@@ -36,8 +36,8 @@ use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts
 use crate::messages::newtypes::{
     hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
-use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
+use crate::protocol_manager::ProtocolManager;
 
 use crate::board::persistence::{NoOpPersistence, Persistence};
 use crate::board::transport::{MemoryBoard, MemoryTransport, Transport};
@@ -243,10 +243,7 @@ async fn run_with_width<C: Context, const W: usize>(
 /// clients are advanced. Each round: update every client, `step` every trustee in
 /// parallel over its client view (CPU-bound crypto), then post. A round that
 /// produces nothing is the fixpoint. Trustee `i` is paired with client `i`.
-async fn drive<C, T, P>(
-    trustees: &[Trustee<C>],
-    clients: &mut [BoardClient<C, T, P>],
-) -> Result<()>
+async fn drive<C, T, P>(trustees: &[Trustee<C>], clients: &mut [BoardClient<C, T, P>]) -> Result<()>
 where
     C: Context,
     // `Transport`/`Persistence` are `?Send` (Option B); the parallel step below

@@ -238,12 +238,7 @@ pub fn ro_challenge(hash: Hashfunction, n_v: usize) -> RandomOracle {
 /// digest and then the byte tree: the prefix is **raw bytes**, not a byte tree
 /// node, so it is concatenated ahead of the serialized tree rather than
 /// wrapped with it.
-pub fn oracle_query(
-    hash: Hashfunction,
-    out_bits: usize,
-    rho: &[u8],
-    data: &ByteTree,
-) -> Vec<u8> {
+pub fn oracle_query(hash: Hashfunction, out_bits: usize, rho: &[u8], data: &ByteTree) -> Vec<u8> {
     let tree_bytes = data.to_bytes();
     let mut input = Vec::with_capacity(rho.len() + tree_bytes.len());
     input.extend_from_slice(rho);
@@ -281,6 +276,9 @@ pub fn wide_public_key(pk: &ByteTree, width: usize) -> crate::wire::error::Resul
 /// ```
 ///
 /// Output length is `8 * seedlen(PRG)` bits, i.e. one PRG seed.
+// One parameter per component of the node VMNV §8.3 hashes; bundling them
+// would hide the correspondence with the spec.
+#[expect(clippy::too_many_arguments, reason = "mirrors the spec's node")]
 pub fn pos_seed(
     hash: Hashfunction,
     rho: &[u8],

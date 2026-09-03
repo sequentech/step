@@ -95,8 +95,8 @@ extern crate cfg_if;
 
 pub mod board;
 pub mod datalog;
-pub mod messages;
 pub mod dispatch;
+pub mod messages;
 pub mod protocol_manager;
 pub mod session;
 pub mod trustee;

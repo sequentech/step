@@ -50,12 +50,7 @@ impl IndexedDbPersistence {
         request.set_on_upgrade_needed(Some(
             |evt: &IdbVersionChangeEvent| -> std::result::Result<(), JsValue> {
                 for store in [PREDICATE_STORE, OWN_POST_STORE] {
-                    if evt
-                        .db()
-                        .object_store_names()
-                        .find(|n| n == store)
-                        .is_none()
-                    {
+                    if evt.db().object_store_names().find(|n| n == store).is_none() {
                         evt.db().create_object_store(store)?;
                     }
                 }

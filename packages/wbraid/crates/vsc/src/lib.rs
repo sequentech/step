@@ -26,16 +26,19 @@
 
 #![allow(dead_code)]
 // Only necessary for custom_warning_macro
-#![feature(stmt_expr_attributes)]
+#![cfg_attr(feature = "custom-warnings", feature(stmt_expr_attributes))]
 // Only necessary for custom_warning_macro
-#![feature(proc_macro_hygiene)]
+#![cfg_attr(feature = "custom-warnings", feature(proc_macro_hygiene))]
 #![doc = include_str!("../README.md")]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 /// Defines implementation choices for key cryptographic functionalities.
 pub mod context;
 pub mod cryptosystem;
-#[crate::warning("This module is not optimized.")]
+#[cfg_attr(
+    feature = "custom-warnings",
+    crate::warning("This module is not optimized.")
+)]
 pub mod dkgd;
 pub mod groups;
 /// Abstractions for curve arithmetic, groups, elements and scalars.
@@ -44,8 +47,8 @@ pub mod traits;
 pub mod utils;
 pub mod zkp;
 
-pub use custom_warning_macro::warning;
 pub use canonical_derive::Canonical;
+pub use custom_warning_macro::warning;
 
 /// Create the `cryptography` alias that points to `crate`
 ///
@@ -59,10 +62,10 @@ pub use canonical_derive::Canonical;
 extern crate self as cryptography;
 
 /// Debug macro that works in both native and WASM contexts.
-/// 
+///
 /// In WASM builds (when `wasm` feature + `wasm32` target), uses browser `console.log`.
 /// In all other cases, uses `info!`.
-/// 
+///
 /// # Examples
 /// ```ignore
 /// use strand::debug_log;

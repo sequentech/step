@@ -67,8 +67,8 @@ use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts
 use crate::messages::newtypes::{
     hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex,
 };
-use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
+use crate::protocol_manager::ProtocolManager;
 
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
@@ -413,7 +413,9 @@ fn keys_from_blob(blob: &SetupBlob) -> Result<Keys> {
     );
     let mut signing = Vec::with_capacity(blob.trustee_sks.len());
     for s in &blob.trustee_sks {
-        signing.push(Sig::signer_from_base64_string(s).map_err(|e| anyhow!("decode trustee key: {e}"))?);
+        signing.push(
+            Sig::signer_from_base64_string(s).map_err(|e| anyhow!("decode trustee key: {e}"))?,
+        );
     }
     let mut share = Vec::with_capacity(blob.share_sks.len());
     for s in &blob.share_sks {
@@ -630,7 +632,10 @@ impl Emulator {
     /// refresh always finds the setup as it stood.
     fn save(&self) -> Result<String> {
         let setup = {
-            let inner = self.inner.try_borrow().map_err(|_| anyhow!("emulator is busy"))?;
+            let inner = self
+                .inner
+                .try_borrow()
+                .map_err(|_| anyhow!("emulator is busy"))?;
             Setup {
                 id: self.setup_id.clone(),
                 trustees: self.trustees_n,
@@ -835,8 +840,7 @@ impl Emulator {
         setup: Setup,
         fresh: bool,
     ) -> Result<Emulator, JsValue> {
-        let (cfg, cfg_hash) =
-            configuration_for(&keys, setup.threshold, setup.width).map_err(js)?;
+        let (cfg, cfg_hash) = configuration_for(&keys, setup.threshold, setup.width).map_err(js)?;
         let parent_board = parent_board_name(&setup.id);
         if fresh {
             WasmHttpTransport::create_board(&b4_url, &parent_board)

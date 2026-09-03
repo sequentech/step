@@ -149,14 +149,12 @@ fn vars() -> impl Strategy<Value = Vars> {
 }
 
 fn sink<C: Context>() -> impl Strategy<Value = Sink<C>> {
-    (prims(), vars(), any::<[u32; 3]>(), inner::<C>()).prop_map(|(prims, vars, arr, inner)| {
-        Sink {
-            prims,
-            vars,
-            arr,
-            inner,
-            phantom: PhantomData,
-        }
+    (prims(), vars(), any::<[u32; 3]>(), inner::<C>()).prop_map(|(prims, vars, arr, inner)| Sink {
+        prims,
+        vars,
+        arr,
+        inner,
+        phantom: PhantomData,
     })
 }
 

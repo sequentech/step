@@ -117,8 +117,14 @@ impl<C: Context> Trustee<C> {
             // An empty input yields a null mix: no shuffle, no proof (§8).
             if input_ciphertexts.is_empty() {
                 let mix = Mix::<C, W>::null();
-                let message =
-                    ProtocolMessage::<C>::mix(self, WIRE_DATE, *cfg_hash, *pk_hash, *input_hash, &mix);
+                let message = ProtocolMessage::<C>::mix(
+                    self,
+                    WIRE_DATE,
+                    *cfg_hash,
+                    *pk_hash,
+                    *input_hash,
+                    &mix,
+                );
                 return Ok(vec![message]);
             }
 
@@ -156,7 +162,6 @@ impl<C: Context> Trustee<C> {
         source: &MixSource,
         input_hash: &CiphertextsHash,
         output_hash: &CiphertextsHash,
-        _self_index: TrusteeIndex,
     ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::cryptosystem::elgamal::PublicKey;
         use cryptography::zkp::shuffle::Shuffler;

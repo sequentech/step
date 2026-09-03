@@ -791,8 +791,8 @@ impl SymbolicModel {
             share_enc_keys,
             PhantomData,
         );
-        let configuration_hash = ConfigurationHash::from_configuration(&configuration)
-            .expect("configuration hash");
+        let configuration_hash =
+            ConfigurationHash::from_configuration(&configuration).expect("configuration hash");
 
         let trustees = signing_keys
             .into_iter()
@@ -1122,8 +1122,7 @@ impl SymbolicModel {
         let mut predicates = view.get_predicates();
         predicates.push(self.trustees[i].configuration_valid.clone().into());
 
-        let actions =
-            braid::datalog::composed::run(&predicates).map_err(|e| anyhow::anyhow!(e))?;
+        let actions = braid::datalog::composed::run(&predicates).map_err(|e| anyhow::anyhow!(e))?;
 
         let mut outgoing = Vec::new();
         for action in &actions {
@@ -1214,10 +1213,13 @@ impl SymbolicModel {
                     Some(DishonestKind::SkipsAnchor) | None => (input_voters.clone(), true),
                 };
                 let token = encode_mix(*self_index, input, &output_voters, opaque);
-                vec![ProtocolMessage::<C>::mix(t, DATE, *cfg, *pk, *input, &token)]
+                vec![ProtocolMessage::<C>::mix(
+                    t, DATE, *cfg, *pk, *input, &token,
+                )]
             }
             Action::SignMix(cfg, pk, source, input, output, self_index) => {
-                let signer = ProtocolMessage::<C>::mix_signature(t, DATE, *cfg, *pk, *input, *output);
+                let signer =
+                    ProtocolMessage::<C>::mix_signature(t, DATE, *cfg, *pk, *input, *output);
                 // A mixing-dishonest trustee signs without verifying anything.
                 let blind = matches!(
                     self.dishonest_mixers.get(self_index),
@@ -1427,7 +1429,12 @@ impl SymbolicModel {
             return cached.clone();
         }
         let computed = self.successor(state, turn);
-        self.memo.lock().unwrap().entry(key).or_insert(computed).clone()
+        self.memo
+            .lock()
+            .unwrap()
+            .entry(key)
+            .or_insert(computed)
+            .clone()
     }
 }
 
@@ -1479,8 +1486,7 @@ impl Model for SymbolicModel {
         }
         // The adversarial manager can post a divergent second ballots while
         // its budget lasts (meaningful only once a first ballots exists).
-        if has_ballots && state.faults.ballots_equivocations < self.budgets.ballots_equivocations
-        {
+        if has_ballots && state.faults.ballots_equivocations < self.budgets.ballots_equivocations {
             candidates.push(Turn::EquivocateBallots);
         }
         // Adversarial b4 can begin withholding a whole strand (ballots + its
@@ -1550,9 +1556,10 @@ impl Model for SymbolicModel {
             |model, state| {
                 let board = BoardContents::read(model, state);
                 let bound = state.board.len() + 1;
-                board.decrypted_sets(model.mixing_trustees.len()).iter().all(|set| {
-                    matches!(board.content_at(set, bound), Some((_, opaque)) if opaque)
-                })
+                board
+                    .decrypted_sets(model.mixing_trustees.len())
+                    .iter()
+                    .all(|set| matches!(board.content_at(set, bound), Some((_, opaque)) if opaque))
             },
         ));
 
@@ -1621,9 +1628,10 @@ impl Model for SymbolicModel {
             ));
             // Non-vacuity: the adversary actually acts on some path (else every
             // conditioned property passes without testing the attack).
-            props.push(Property::<Self>::sometimes("an adversary acts", |model, state| {
-                adversarial_acted(model, state)
-            }));
+            props.push(Property::<Self>::sometimes(
+                "an adversary acts",
+                adversarial_acted,
+            ));
         }
         // The halt-on-equivocation guard applies only on a consistent board,
         // where a trustee can see both ballots and halt on the collision. Under
@@ -1773,8 +1781,7 @@ fn view_content_maps(view: &MessageStore<C>) -> (HashMap<CiphertextsHash, Vec<u8
                 }
             }
             Predicate::Mix(m) => {
-                if let Some((out, opaque)) =
-                    view.mix_body_by_output(&m.output).and_then(decode_mix)
+                if let Some((out, opaque)) = view.mix_body_by_output(&m.output).and_then(decode_mix)
                 {
                     mixes.insert(m.output, (m.input, out, opaque));
                 }
@@ -1874,7 +1881,10 @@ fn check(model: SymbolicModel, label: &str) -> usize {
 fn expect_violation(model: SymbolicModel, property: &str) {
     let checker = model.checker().threads(1).spawn_bfs().join();
     assert!(
-        checker.discoveries().iter().any(|(name, _)| *name == property),
+        checker
+            .discoveries()
+            .iter()
+            .any(|(name, _)| *name == property),
         "expected a counterexample for `{property}`, but it held"
     );
 }
