@@ -13,6 +13,8 @@ export interface GlobalSettings {
     BALLOT_VERIFIER_URL: string
     RESULTS_PORTAL_URL: string
     KEYCLOAK_URL: string
+    KIOSK_KEYCLOAK_URL?: string
+    KIOSK_VOTING_PORTAL_URL?: string
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string
