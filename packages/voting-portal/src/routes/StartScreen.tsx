@@ -73,6 +73,9 @@ const StartScreen: React.FC = () => {
     const defaultLanguageCode =
         titleObject?.presentation?.language_conf?.default_language_code ??
         electionEvent?.presentation?.language_conf?.default_language_code
+    const titleDescription = translateFromPresentation(titleObject, "description", i18n.language, {
+        defaultLanguageCode,
+    })
 
     useEffect(() => {
         if (!election || !titleObject) {
@@ -144,17 +147,13 @@ const StartScreen: React.FC = () => {
                     }) ?? "-"}
                 </span>
             </StyledTitle>
-            {titleObject.description ? (
+            {titleDescription ? (
                 <Typography
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(
-                        translateFromPresentation(titleObject, "description", i18n.language, {
-                            defaultLanguageCode,
-                        }) ?? "-"
-                    )}
+                    {stringToHtml(titleDescription)}
                 </Typography>
             ) : null}
             <Typography variant="h5" component="h2">
