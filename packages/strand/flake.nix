@@ -32,16 +32,19 @@
           };
         rust-wasm = configureRustTargets [ "wasm32-unknown-unknown" ];
         rust-system  = configureRustTargets [];
-        # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
-        # The CLI and crate versions must match exactly
-        wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+        # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.123)
+        # The CLI and crate versions must match exactly. Built with the flake's own
+        # toolchain: nixos-25.05's rustc (1.86) predates the 1.88 the CLI's dependencies need.
+        rustPlatform-1_96 = pkgs.makeRustPlatform { cargo = rust-system; rustc = rust-system; };
+        wasm-bindgen-cli-pinned = rustPlatform-1_96.buildRustPackage rec {
           pname = "wasm-bindgen-cli";
-          version = "0.2.104";
+          version = "0.2.123";
           src = builtins.fetchTarball {
-            url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
-            sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+            # static CDN: crates.io's /api/v1 download endpoint answers nix's downloader with HTTP 403
+            url = "https://static.crates.io/crates/${pname}/${pname}-${version}.crate";
+            sha256 = "12xdns7cvnz0j26i9kryxggylsslkqs5l2b6lppfkv1bic8q0rya";
           };
-          cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
+          cargoHash = "sha256-d7x6gtx5OqEE4MyT6yjYn/qtgjx7GroTpXJewnBV2dU=";
           nativeBuildInputs = [ pkgs.pkg-config ];
           buildInputs = [ pkgs.openssl ]
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];

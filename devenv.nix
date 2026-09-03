@@ -14,20 +14,28 @@ let
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
 
-  # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
-  # The CLI and crate versions must match exactly
-  wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+  # The wasm-bindgen CLI and the wasm-bindgen crate versions must match exactly.
+  # Crates are fetched from the static CDN: crates.io's /api/v1/.../download
+  # endpoint answers nix's downloader with HTTP 403.
+  mkWasmBindgenCli = { version, sha256, cargoHash }: pkgs.rustPlatform.buildRustPackage {
     pname = "wasm-bindgen-cli";
-    version = "0.2.104";
+    inherit version cargoHash;
     src = builtins.fetchTarball {
-      url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
-      sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+      url = "https://static.crates.io/crates/wasm-bindgen-cli/wasm-bindgen-cli-${version}.crate";
+      inherit sha256;
     };
-    cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
     nativeBuildInputs = [ pkgs.pkg-config ];
     buildInputs = [ pkgs.openssl ]
       ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
     doCheck = false;
+  };
+
+  # Pinned to the wasm-bindgen crate version both Cargo workspaces use
+  # (packages/Cargo.toml and packages/wbraid/Cargo.toml: =0.2.123).
+  wasm-bindgen-cli-pinned = mkWasmBindgenCli {
+    version = "0.2.123";
+    sha256 = "12xdns7cvnz0j26i9kryxggylsslkqs5l2b6lppfkv1bic8q0rya";
+    cargoHash = "sha256-d7x6gtx5OqEE4MyT6yjYn/qtgjx7GroTpXJewnBV2dU=";
   };
 
 in
