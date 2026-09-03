@@ -100,9 +100,9 @@ fn run_cipher<R: Read, W: Write>(
             .write_all(&out_buf[..written])
             .context("writing output")?;
     }
-    let written = crypter
-        .finalize(&mut out_buf)
-        .map_err(|_| anyhow!("AES-256-CBC finalisation failed: wrong password or corrupted data"))?;
+    let written = crypter.finalize(&mut out_buf).map_err(|_| {
+        anyhow!("AES-256-CBC finalisation failed: wrong password or corrupted data")
+    })?;
     output
         .write_all(&out_buf[..written])
         .context("writing output")?;
@@ -126,8 +126,7 @@ pub fn encrypt_file_aes_256_cbc(
             .with_context(|| format!("opening {input_file_path} for encryption"))?,
     );
     let mut output = BufWriter::new(
-        File::create(output_file_path)
-            .with_context(|| format!("creating {output_file_path}"))?,
+        File::create(output_file_path).with_context(|| format!("creating {output_file_path}"))?,
     );
     output.write_all(MAGIC)?;
     output.write_all(&salt)?;
@@ -154,12 +153,16 @@ pub fn decrypt_file_aes_256_cbc(
         .read_exact(&mut header)
         .with_context(|| format!("{input_file_path} is too short to be an encrypted file"))?;
     if &header[..MAGIC.len()] != MAGIC {
-        return Err(anyhow!("{input_file_path} is not an AES-256-CBC encrypted file"));
+        return Err(anyhow!(
+            "{input_file_path} is not an AES-256-CBC encrypted file"
+        ));
     }
     let salt = &header[MAGIC.len()..];
 
-    let attempts: [(&str, fn(&str, &[u8]) -> Result<KeyIv>); 2] =
-        [("PBKDF2-HMAC-SHA-256", derive_pbkdf2), ("legacy EVP_BytesToKey", derive_legacy)];
+    let attempts: [(&str, fn(&str, &[u8]) -> Result<KeyIv>); 2] = [
+        ("PBKDF2-HMAC-SHA-256", derive_pbkdf2),
+        ("legacy EVP_BytesToKey", derive_legacy),
+    ];
     let mut last_error = None;
     for (index, (name, derive)) in attempts.iter().enumerate() {
         let key_iv = derive(password, salt)?;
@@ -258,7 +261,8 @@ mod tests {
     #[test]
     fn pbkdf2_derivation_matches_openssl() {
         let (key, iv) = derive_pbkdf2(PASSWORD, &SALT).unwrap();
-        let out = openssl::symm::decrypt(Cipher::aes_256_cbc(), &key, Some(&iv), &unhex(CT_PBKDF2)).unwrap();
+        let out = openssl::symm::decrypt(Cipher::aes_256_cbc(), &key, Some(&iv), &unhex(CT_PBKDF2))
+            .unwrap();
         assert_eq!(out, PLAINTEXT);
     }
 }
