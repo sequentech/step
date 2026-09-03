@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 # Check docs/docusaurus/docs/07-developers/11-updates/updating-rust-version.md on how to update rust version.
 let
@@ -6,6 +6,10 @@ let
     url = "https://github.com/oxalica/rust-overlay/archive/107c334f141854f563f8adf1db781dc453d92639.tar.gz";
     sha256 = "138jwq564qji7dc5yav2j2c1c1mr65smqqk00mni9lvqhx0n45w4";
   });
+
+  pkgsCrates = import inputs.nixpkgs-crates {
+    inherit (pkgs.stdenv.hostPlatform) system;
+  };
 
   pkgs' = pkgs.extend rustOverlay;
 
@@ -17,16 +21,16 @@ let
   # The wasm-bindgen CLI and the wasm-bindgen crate versions must match exactly.
   # Crates are fetched from the static CDN: crates.io's /api/v1/.../download
   # endpoint answers nix's downloader with HTTP 403.
-  mkWasmBindgenCli = { version, sha256, cargoHash }: pkgs.rustPlatform.buildRustPackage {
+  mkWasmBindgenCli = { version, sha256, cargoHash }: pkgsCrates.rustPlatform.buildRustPackage {
     pname = "wasm-bindgen-cli";
     inherit version cargoHash;
     src = builtins.fetchTarball {
       url = "https://static.crates.io/crates/wasm-bindgen-cli/wasm-bindgen-cli-${version}.crate";
       inherit sha256;
     };
-    nativeBuildInputs = [ pkgs.pkg-config ];
-    buildInputs = [ pkgs.openssl ]
-      ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+    nativeBuildInputs = [ pkgsCrates.pkg-config ];
+    buildInputs = [ pkgsCrates.openssl ]
+      ++ pkgsCrates.lib.optionals pkgsCrates.stdenv.isDarwin [ pkgsCrates.curl ];
     doCheck = false;
   };
 
@@ -124,7 +128,7 @@ in
     yq
 
     minio-client
-    
+
     # AI. Note, requires allowUnfree: true in devenv.yaml
     claude-code
 
