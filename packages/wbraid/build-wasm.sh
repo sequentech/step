@@ -22,15 +22,23 @@ RESET=$'\e[0m'
 cd "$(dirname "$0")"
 ROOT=$(pwd)
 
+# cargo resolves a relative CARGO_TARGET_DIR against the cwd, and the
+# devcontainer sets a relative one (rust-local-target); anchor it here before
+# cd-ing into crates/braid so this build shares the workspace's target dir.
+case "${CARGO_TARGET_DIR:-}" in
+    "" | /*) ;;
+    *) export CARGO_TARGET_DIR="$ROOT/$CARGO_TARGET_DIR" ;;
+esac
+
 # A RUSTFLAGS in the environment overrides the [target.wasm32-unknown-unknown]
 # rustflags in crates/braid/.cargo/config.toml entirely (env beats config), and
 # the devcontainer's devenv exports RUSTFLAGS=-Awarnings — which silently drops
 # the atomics flags and fails the build inside wasm-bindgen-rayon.
 unset RUSTFLAGS
 
-# wasm-bindgen-cli must match the wasm-bindgen crate version exactly. The
-# devcontainer pins the CLI for the main workspace (a different version), so
-# check before spending minutes on a build whose bindings can't be generated.
+# wasm-bindgen-cli must match the wasm-bindgen crate version exactly (the
+# devcontainer's devenv.nix pins the CLI to it); check before spending minutes
+# on a build whose bindings can't be generated.
 WANT=$(sed -n '/^name = "wasm-bindgen"$/{n;s/^version = "\(.*\)"$/\1/p}' Cargo.lock)
 HAVE=$(wasm-bindgen --version 2>/dev/null | awk '{print $2}' || true)
 if [ "$HAVE" != "$WANT" ]; then

@@ -57,7 +57,12 @@ cargo test -p braid --release -- --ignored
 ```
 
 Each `.ps1` has a bash twin of the same name for the devcontainer; the flags
-map one-to-one (`.\b4.ps1 -Reset -NoRun` ⇄ `./b4.sh --reset --no-run`).
+map one-to-one (`.\b4.ps1 -Reset -NoRun` ⇄ `./b4.sh --reset --no-run`). There,
+`.devcontainer/.env.development` (exported into every devenv shell) moves b4 to
+port 3005 — `WBRAID_B4_BIND` is honoured by `b4v6` and `WBRAID_B4_URL` by the
+two live-b4 tests, since 3000 is the voting portal's — and points `b4.sh` at the
+`localstack` service via `WBRAID_S3_ENDPOINT_URL`. Unset, everything keeps the
+upstream defaults above.
 
 ### Prerequisites
 
@@ -125,9 +130,16 @@ validation that the protocol runs correctly under wasm.
                         # nightly + atomics + wasm-bindgen-rayon), then serves on
                         # :8080 with COOP/COEP (server.py)
 
-# bash: ./localstack.sh / ./b4.sh / ./serve.sh. In the devcontainer :8080 is
-# taken by Hasura, so use e.g. `PORT=8081 ./serve.sh` (server.py honours PORT).
+# bash: ./localstack.sh / ./b4.sh / ./serve.sh. In the devcontainer serve.sh
+# listens on WBRAID_SERVE_PORT (8085 by default) and b4 on 3005 (WBRAID_B4_BIND),
+# so open http://127.0.0.1:8085/emulator.html and set its URL field to
+# http://127.0.0.1:3005.
 ```
+
+In the devcontainer, the presigned S3 URLs that b4 hands the browser point at
+`http://localstack:4566` (the service's name on the project network). For the
+host browser to reach them, map `localstack` to `127.0.0.1` in the host's hosts
+file; the port itself is forwarded by `.devcontainer/devcontainer.json`.
 
 Then open <http://127.0.0.1:8080/emulator.html> and:
 
@@ -151,8 +163,11 @@ above).
 
 - The `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`).
 - **`wasm-bindgen-test-runner`** (ships with `wasm-bindgen-cli`, version-matched to
-  the pinned `wasm-bindgen`) and **Chrome + `chromedriver`** on `PATH` — for the
-  headless test.
+  the pinned `wasm-bindgen`) and a WebDriver on `PATH` — **Chrome +
+  `chromedriver`**, or **Firefox + `geckodriver`** — for the headless test. The
+  devcontainer ships geckodriver and Firefox, and its `devenv.nix` pins the
+  matching `wasm-bindgen-cli` (both Cargo workspaces in the repository pin the
+  same `wasm-bindgen`); `test-wasm.sh` and `build-wasm.sh` check the match.
 - A **nightly** toolchain — for the production wasm build (`build-wasm.ps1` sets a
   nightly override under `crates/braid`, whose `.cargo/config.toml` forces the
   atomics target-features), plus **Python** for `server.py` (the COOP/COEP dev

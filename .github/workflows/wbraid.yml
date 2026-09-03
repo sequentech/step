@@ -72,8 +72,8 @@ jobs:
 
       # The live-b4 protocol tests (test_protocol_http*) and the Verificatum
       # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
-      # JVM with the Verificatum jars. Wiring the live-b4 ones up here is
-      # planned for PR 4.
+      # JVM with the Verificatum jars. The live-b4 ones stay ignored here until
+      # a follow-up gives this job b4 and LocalStack service containers.
       - name: Run tests
         run: cargo test --release
         env:

@@ -23,9 +23,8 @@ if ! ./build-wasm.sh; then
     exit 1
 fi
 
-# In the devcontainer the default port 8080 is taken by Hasura; run e.g.
-# `PORT=8081 ./serve.sh` there.
-PORT="${PORT:-8080}"
+# PORT, else WBRAID_SERVE_PORT, else the wbraid default, 8080.
+PORT="${PORT:-${WBRAID_SERVE_PORT:-8080}}"
 export PORT
 
 echo "${GREEN}Starting development server on http://127.0.0.1:${PORT}${RESET}"

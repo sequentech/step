@@ -174,3 +174,61 @@ run) and is untouched: its lib passes, with upstream's warn-level
   the spec hashes. In `tests/`: needless borrows, a `&PathBuf` parameter that is
   now `&Path`, a duplicated `allow(dead_code)`, and a boxed-closure table that
   is now fn pointers behind a type alias.
+
+## Local modifications for the devcontainer dev loop and CI
+
+- **Ran `cargo fmt`** (rustfmt 1.96.0) over the workspace; the tree was imported
+  unformatted.
+- **Added bash twins of the five PowerShell scripts** (`build-wasm.sh`,
+  `serve.sh`, `test-wasm.sh`, `b4.sh`, `localstack.sh`). The `.ps1` files are
+  unchanged and remain the Windows dev loop; flags map one-to-one
+  (`.\b4.ps1 -Reset -NoRun` ⇄ `./b4.sh --reset --no-run`). Differences beyond
+  syntax:
+  - `build-wasm.sh` stays on the stable toolchain and uses `RUSTC_BOOTSTRAP=1`
+    instead of a nightly override (the approach of
+    `packages/braid/scripts/build-wasm.sh`). It and `serve.sh` clear an
+    inherited `RUSTFLAGS`, which would otherwise replace the atomics rustflags
+    in `crates/braid/.cargo/config.toml` entirely (the devcontainer's devenv
+    exports `RUSTFLAGS=-Awarnings`).
+  - `build-wasm.sh` and `test-wasm.sh` verify that the `wasm-bindgen` CLI on
+    `PATH` matches the `Cargo.lock` pin before building. The main workspace
+    (`strand`, `braid`, `sequent-core`) was moved to this workspace's
+    `=0.2.123` pin, so the single CLI in the repository's `devenv.nix` and
+    `flake.nix` files serves both.
+  - `test-wasm.sh` accepts `geckodriver` as well as `chromedriver`
+    (`wasm-bindgen-test-runner` drives either); the devcontainer ships
+    geckodriver and Firefox.
+  - In the devcontainer, `localstack.sh` runs LocalStack the way every other
+    dev service runs: as the `localstack` compose service (opt-in `wbraid`
+    profile in `.devcontainer/docker-compose-base.yml`, with a
+    `configure-localstack` one-shot creating the bucket and applying CORS,
+    mirroring `configure-minio`), addressed as `http://localstack:4566` on the
+    project network. Outside a compose project it keeps `localstack.ps1`'s
+    standalone docker-run flow. The image is pinned to `localstack/localstack:4`
+    in both paths: from the 2026 releases on, `latest` exits at startup without
+    an auth token.
+  - `b4.sh` defaults `AWS_ENDPOINT_URL` per environment (a pre-set value wins)
+    and, when no AWS CLI is installed, runs the `amazon/aws-cli` image on the
+    project network. Linux unlinks open files without complaint, so the reset
+    refuses to run while a `b4v6` process exists instead of relying on a
+    locked-file error.
+- **`server.py` honours a `PORT` environment variable** (default 8080,
+  unchanged); `serve.sh` falls back to `WBRAID_SERVE_PORT` for it.
+- **Made the b4 listen address and the live tests' b4 URL configurable**:
+  `crates/b4/src/main.rs` honours `WBRAID_B4_BIND` and the two `#[ignore]`d
+  live-b4 tests (`protocol_test_http*.rs`) read `WBRAID_B4_URL`, both keeping
+  the upstream `127.0.0.1:3000` default when unset. The step devcontainer sets
+  them to port 3005 in `.devcontainer/.env.development`, with
+  `WBRAID_SERVE_PORT=8085` and `WBRAID_S3_ENDPOINT_URL=http://localstack:4566`
+  alongside: 3000 is the voting portal's, the host's 8080 is forwarded to
+  Hasura, and S3 is the `localstack` compose service. `emulator.html` keeps its
+  `http://127.0.0.1:3000` default; the URL field is edited by hand.
+- **Added `.github/workflows/wbraid.yml`**, scoped to changes under
+  `packages/wbraid/`: `cargo fmt -- --check`; clippy as the two invocations
+  listed under "Local modifications for clippy"; `cargo test --release`, with
+  the live-b4 tests still `#[ignore]`d until CI has a b4 and LocalStack to run
+  them against; and a `wasm-core` build for `wasm32-unknown-unknown` from the
+  workspace root, where `crates/braid/.cargo/config.toml` does not apply, so
+  plain cargo suffices and no wasm-bindgen CLI is involved. The shared
+  `setup-rust-tests` action gained optional `components`/`targets` inputs for
+  this (defaults unchanged).

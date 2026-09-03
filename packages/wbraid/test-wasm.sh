@@ -7,7 +7,7 @@
 # Bash twin of test-wasm.ps1.
 #
 # Runs the `wasm-core` build (no `wasm-bindgen-rayon`, hence no atomics / shared
-# memory), so it works in plain headless Chrome with no SharedArrayBuffer /
+# memory), so it works in a plain headless browser with no SharedArrayBuffer /
 # COOP-COEP setup. The production browser build is unaffected: `build-wasm.sh`
 # still uses `--features wasm`, which adds the `wasm-bindgen-rayon` thread pool.
 #
@@ -15,7 +15,8 @@
 # atomics `.cargo/config.toml` in crates/braid is not applied.
 #
 # Prerequisites: `wasm-bindgen-test-runner` (ships with wasm-bindgen-cli) and a
-# `chromedriver` matching your Chrome, both on PATH.
+# WebDriver on PATH: `chromedriver` matching your Chrome, or `geckodriver` with
+# Firefox (what the devcontainer ships). The runner takes whichever it finds.
 
 set -euo pipefail
 
@@ -25,8 +26,8 @@ RESET=$'\e[0m'
 
 cd "$(dirname "$0")"
 
-# The test runner must match the wasm-bindgen crate version exactly, and the
-# devcontainer pins the CLI for the main workspace (a different version).
+# The test runner must match the wasm-bindgen crate version exactly (the
+# devcontainer's devenv.nix pins the CLI to it).
 WANT=$(sed -n '/^name = "wasm-bindgen"$/{n;s/^version = "\(.*\)"$/\1/p}' Cargo.lock)
 HAVE=$(wasm-bindgen-test-runner --version 2>/dev/null | awk '{print $2}' || true)
 if [ "$HAVE" != "$WANT" ]; then
@@ -36,12 +37,12 @@ if [ "$HAVE" != "$WANT" ]; then
     echo "  export PATH=~/.wbraid-tools/bin:\$PATH"
     exit 1
 fi
-if ! command -v chromedriver >/dev/null 2>&1; then
-    echo "${RED}chromedriver not found on PATH (needs to match your Chrome/Chromium).${RESET}"
+if ! command -v chromedriver >/dev/null 2>&1 && ! command -v geckodriver >/dev/null 2>&1; then
+    echo "${RED}no WebDriver on PATH: need chromedriver (matching your Chrome) or geckodriver (Firefox).${RESET}"
     exit 1
 fi
 
-echo "${GREEN}Running wasm IndexedDB test in headless Chrome...${RESET}"
+echo "${GREEN}Running wasm IndexedDB test in a headless browser...${RESET}"
 
 export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER="wasm-bindgen-test-runner"
 # Set NO_HEADLESS=1 in your shell to watch the browser.

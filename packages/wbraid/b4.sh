@@ -36,15 +36,18 @@ for arg in "$@"; do
     esac
 done
 
-# The S3 endpoint. In the devcontainer, LocalStack is the `localstack` compose
-# service on the project network (see localstack.sh), so it is addressed by
-# service name like every other dev service; natively it is a standalone
-# container on localhost. A pre-set AWS_ENDPOINT_URL wins over both.
+# The S3 endpoint. A pre-set AWS_ENDPOINT_URL wins; then WBRAID_S3_ENDPOINT_URL
+# (.devcontainer/.env.development, exported by devenv). Without either: inside
+# a compose project LocalStack is the `localstack` service on the project
+# network (see localstack.sh), addressed by service name like every other dev
+# service; natively it is a standalone container on localhost.
 DEV_NET=$(docker inspect "$(hostname)" \
     --format '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' \
     2>/dev/null | head -n 1 || true)
 if [ -z "${AWS_ENDPOINT_URL:-}" ]; then
-    if [ -n "$DEV_NET" ]; then
+    if [ -n "${WBRAID_S3_ENDPOINT_URL:-}" ]; then
+        AWS_ENDPOINT_URL="$WBRAID_S3_ENDPOINT_URL"
+    elif [ -n "$DEV_NET" ]; then
         AWS_ENDPOINT_URL="http://localstack:4566"
     else
         AWS_ENDPOINT_URL="http://localhost:4566"
@@ -90,7 +93,7 @@ if [ "$RESET_DATA" -eq 1 ]; then
     # error, refuse the reset if a b4v6 process is running.
     echo "${CYAN}Clearing b4 data...${RESET}"
 
-    if pgrep -f b4v6 >/dev/null 2>&1; then
+    if pgrep -x b4v6 >/dev/null 2>&1; then
         echo "  ${RED}b4 appears to be running - stop the service and try again.${RESET}"
         echo "  ${GRAY}(nothing was cleared; S3 was left alone so it still matches the database)${RESET}"
         exit 1
@@ -127,5 +130,5 @@ if [ "$RESET_DATA" -eq 1 ]; then
     fi
 fi
 
-# Run the service from workspace root (not crates/b4)
+# Run the service from workspace root.
 cargo run --bin b4v6 --release

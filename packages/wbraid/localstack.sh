@@ -46,7 +46,7 @@ if [ -n "$COMPOSE_PROJECT" ]; then
     # One-shot bucket + CORS provisioning, in the foreground so a failure
     # shows up here
     compose run --rm configure-localstack
-    echo "LocalStack ready at http://localstack:4566 (s3://wbraid-messages with CORS applied)."
+    echo "LocalStack ready at ${WBRAID_S3_ENDPOINT_URL:-http://localstack:4566} (s3://wbraid-messages with CORS applied)."
     exit 0
 fi
 

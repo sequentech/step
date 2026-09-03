@@ -19,7 +19,6 @@ handler.extensions_map.update({
     '.js': 'text/javascript',
 })
 
-# Default 8080; override with PORT where it is taken (Hasura in the devcontainer)
 port = int(os.environ.get('PORT', '8080'))
 
 print(f"Launching server on 127.0.0.1:{port}..")
