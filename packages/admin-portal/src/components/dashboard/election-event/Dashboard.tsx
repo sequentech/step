@@ -210,7 +210,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             globalSettings.KIOSK_VOTING_PORTAL_URL?.trim() || globalSettings.VOTING_PORTAL_URL,
             tenantId ?? "",
             record?.id ?? "",
-            "enroll"
+            "login"
         )
     }, [
         globalSettings.KIOSK_VOTING_PORTAL_URL,
