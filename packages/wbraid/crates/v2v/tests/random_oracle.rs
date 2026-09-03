@@ -38,40 +38,25 @@ fn reference_params() -> PrefixParams {
     }
 }
 
+/// A field of [`PrefixParams`], named for the assertion, and a change to it.
+type Mutation = (&'static str, fn(&mut PrefixParams));
+
 /// ρ must be sensitive to every field it commits to — a prefix that ignored one
 /// would still pass the equality test above while failing to separate sessions.
 #[test]
 fn global_prefix_binds_every_parameter() {
     let base = global_prefix(Hashfunction::Sha256, &reference_params());
 
-    let mutations: Vec<(&str, Box<dyn Fn(&mut PrefixParams)>)> = vec![
-        (
-            "version",
-            Box::new(|p: &mut PrefixParams| p.version = "3.1.1".into()),
-        ),
-        (
-            "sid",
-            Box::new(|p: &mut PrefixParams| p.sid = "other".into()),
-        ),
-        (
-            "auxsid",
-            Box::new(|p: &mut PrefixParams| p.auxsid = "other".into()),
-        ),
-        ("n_r", Box::new(|p: &mut PrefixParams| p.n_r = 101)),
-        ("n_v", Box::new(|p: &mut PrefixParams| p.n_v = 255)),
-        ("n_e", Box::new(|p: &mut PrefixParams| p.n_e = 255)),
-        (
-            "prg",
-            Box::new(|p: &mut PrefixParams| p.prg = "SHA-512".into()),
-        ),
-        (
-            "pgroup",
-            Box::new(|p: &mut PrefixParams| p.pgroup = "ECqPGroup(P-384)::00".into()),
-        ),
-        (
-            "rohash",
-            Box::new(|p: &mut PrefixParams| p.rohash = "SHA-512".into()),
-        ),
+    let mutations: Vec<Mutation> = vec![
+        ("version", |p| p.version = "3.1.1".into()),
+        ("sid", |p| p.sid = "other".into()),
+        ("auxsid", |p| p.auxsid = "other".into()),
+        ("n_r", |p| p.n_r = 101),
+        ("n_v", |p| p.n_v = 255),
+        ("n_e", |p| p.n_e = 255),
+        ("prg", |p| p.prg = "SHA-512".into()),
+        ("pgroup", |p| p.pgroup = "ECqPGroup(P-384)::00".into()),
+        ("rohash", |p| p.rohash = "SHA-512".into()),
     ];
 
     for (field, mutate) in mutations {

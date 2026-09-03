@@ -162,7 +162,6 @@ impl<C: Context> Trustee<C> {
         source: &MixSource,
         input_hash: &CiphertextsHash,
         output_hash: &CiphertextsHash,
-        _self_index: TrusteeIndex,
     ) -> Result<Vec<ProtocolMessage<C>>> {
         use cryptography::cryptosystem::elgamal::PublicKey;
         use cryptography::zkp::shuffle::Shuffler;

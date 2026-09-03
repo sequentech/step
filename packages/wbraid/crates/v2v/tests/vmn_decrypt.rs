@@ -43,7 +43,7 @@ fn run_dkg() -> (Vec<Vec<P256Element>>, P256Element) {
     use cryptography::dkgd::dealer::VerifiableShare;
     let shares_for_first: [VerifiableShare<P256Ctx, T>; P] = std::array::from_fn(|d| {
         VerifiableShare::new(
-            all_shares[d].shares[0].clone(),
+            all_shares[d].shares[0],
             all_shares[d].checking_values.clone(),
         )
     });

@@ -310,10 +310,7 @@ pub fn mixing<const W: usize, const K: usize, const T: usize>(
     let mut joint_key = None;
     for party in 1..=K {
         let shares: [VerifiableShare<P256Ctx, T>; K] = std::array::from_fn(|d| {
-            VerifiableShare::new(
-                dealt[d].shares[party - 1].clone(),
-                dealt[d].checking_values.clone(),
-            )
+            VerifiableShare::new(dealt[d].shares[party - 1], dealt[d].checking_values.clone())
         });
         let (recipient, joint_pk, _vks) = Recipient::<P256Ctx, T, K>::from_shares(
             ParticipantPosition::from_usize(party),

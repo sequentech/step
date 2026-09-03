@@ -205,7 +205,7 @@ impl BraidModel {
             trustee_vks.push(Sig::verifying_key(&sk));
             signing_keys.push(sk);
             let keypair = KeyPair::<C>::generate();
-            share_enc_keys.push(keypair.pkey.y.clone());
+            share_enc_keys.push(keypair.pkey.y);
             share_keypairs.push(keypair);
         }
 
@@ -364,7 +364,7 @@ impl BraidModel {
             Turn::PostBallots => {
                 use cryptography::cryptosystem::naoryung;
                 let (dkg_pk, pk_hash) = self.public_key_on(state)?;
-                let pk = PublicKey::<C>::new(dkg_pk.pk.clone());
+                let pk = PublicKey::<C>::new(dkg_pk.pk);
                 let ctx_enc = braid::trustee::ballot_encryption_context::<C>(
                     self.configuration.id,
                     &dkg_pk.pk,

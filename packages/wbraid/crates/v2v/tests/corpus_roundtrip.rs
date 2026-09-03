@@ -251,7 +251,7 @@ fn shuffle_seed_matches_vmn() {
     // Diagnostic: `bas.pk` is printed in the same point-list format AND stored
     // on disk as FullPublicKey.bt, so parsing it and comparing against the file
     // isolates the parser from everything else.
-    let parsed_pk = parse_point_list(&text, "bas.pk").expect("bas.pk in test vectors");
+    let parsed_pk = parse_point_list(text, "bas.pk").expect("bas.pk in test vectors");
     let file_pk =
         ByteTree::from_bytes(&std::fs::read(dir.join("FullPublicKey.bt")).unwrap()).unwrap();
     assert_eq!(
@@ -259,7 +259,7 @@ fn shuffle_seed_matches_vmn() {
         "point-list parser must reproduce FullPublicKey.bt exactly"
     );
 
-    let h = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
+    let h = parse_point_list(text, "bas.h").expect("bas.h in test vectors");
     eprintln!(
         "parsed {} independent generators",
         h.as_node().unwrap().len()
@@ -388,7 +388,7 @@ fn independent_generators_match_vmn() {
     let Some(text) = common::shared_raw_vectors() else {
         return common::skip("vmnv -t produced no test vectors");
     };
-    let expected = parse_point_list(&text, "bas.h").expect("bas.h in test vectors");
+    let expected = parse_point_list(text, "bas.h").expect("bas.h in test vectors");
     let count = expected.as_node().unwrap().len();
 
     let derived = v2v::wire::generators::independent_generators(
@@ -476,7 +476,7 @@ fn parse_point_list(text: &str, name: &str) -> Option<ByteTree> {
         .map(str::trim)
         .filter(|t| !t.is_empty() && t.chars().all(|c| c.is_ascii_hexdigit()))
         .collect();
-    if coords.is_empty() || coords.len() % 2 != 0 {
+    if coords.is_empty() || !coords.len().is_multiple_of(2) {
         return None;
     }
 
@@ -504,7 +504,7 @@ fn reference_rho() -> Vec<u8> {
 /// (the printed test vectors trim leading zeros).
 fn hex_bytes(s: &str) -> Vec<u8> {
     let padded;
-    let s = if s.len() % 2 == 0 {
+    let s = if s.len().is_multiple_of(2) {
         s
     } else {
         padded = format!("0{s}");

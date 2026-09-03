@@ -362,7 +362,7 @@ impl Corpus {
             .arg(classpath()?)
             .arg("com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool")
             .args(["vmnv"])
-            .arg(&source)
+            .arg(source)
             .arg(&seed)
             .args(["-mix", "-t", "par,der,bas,PoS,Dec,u", "-wd"])
             // Unique per call: concurrent vmnv runs sharing a working directory

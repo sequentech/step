@@ -276,6 +276,9 @@ pub fn wide_public_key(pk: &ByteTree, width: usize) -> crate::wire::error::Resul
 /// ```
 ///
 /// Output length is `8 * seedlen(PRG)` bits, i.e. one PRG seed.
+// One parameter per component of the node VMNV §8.3 hashes; bundling them
+// would hide the correspondence with the spec.
+#[expect(clippy::too_many_arguments, reason = "mirrors the spec's node")]
 pub fn pos_seed(
     hash: Hashfunction,
     rho: &[u8],

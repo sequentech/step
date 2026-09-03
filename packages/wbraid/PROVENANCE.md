@@ -86,7 +86,44 @@ nightly by enabling the named features:
   written by cargo because `packages/.cargo/config.toml` (an ancestor config)
   declares that patch for the main workspace; it is inert here.
 
-`cargo clippy --workspace` passes on stable. `cargo clippy --workspace
+`cargo clippy --workspace` passes on stable. `cargo clippy -p vsc
 --all-targets` fails inside `crates/vsc`'s test modules and the
 `shuffle_scaling` example (mostly `unwrap_used` and pedantic lints in test
 code, identical on nightly); that upstream state is left untouched.
+
+## Local modifications for clippy
+
+The tree was imported with warn-level clippy findings in `braid`, `rnk` and
+`v2v`, so a `-D warnings` gate failed. The following changes make
+
+```
+cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D warnings
+cargo clippy -p vsc --no-deps
+```
+
+pass on stable 1.96.0. `crates/vsc` is linted separately at upstream's own
+levels (`--no-deps` keeps `-D warnings` from reaching it through the workspace
+run) and is untouched: its lib passes, with upstream's warn-level
+`indexing_slicing` findings.
+
+- **`crates/braid`**: dropped the same-type casts of `PROTOCOL_MANAGER_INDEX`
+  and a `clone()` of the `Copy` type `MessageType`; `AccumulatorSet::extract`
+  is `flatten().cloned()`. Two functions were over the argument limit:
+  `Trustee::sign_mix` lost its unused `_self_index` parameter;
+  `compute_partial_decryptions_inner` keeps its eight under
+  `#[expect(clippy::too_many_arguments)]`, since it exists as a monomorphized
+  call target for the dispatching function and takes exactly that function's
+  locals. In `tests/model_check*.rs`: two `clone()`s of `Copy` group elements
+  and a redundant closure.
+- **`crates/rnk`**: the seven value types' inherent `to_string()` methods
+  (`inherent_to_string`) became `fmt::Display` impls producing the same JSON.
+  `.to_string()` callers are unaffected; the `unwrap()` on serialization is
+  gone.
+- **`crates/v2v`**: `is_multiple_of` for the `% 2` checks, a `clone()` of a
+  `Copy` scalar, and the test module of `wire/protinfo.rs` moved to the end of
+  the file (`items_after_test_module`, it had sat between the parse and emit
+  halves). `wire::crypto::pos_seed` keeps its eight parameters under
+  `#[expect(clippy::too_many_arguments)]`: they map one-to-one onto the node
+  the spec hashes. In `tests/`: needless borrows, a `&PathBuf` parameter that is
+  now `&Path`, a duplicated `allow(dead_code)`, and a boxed-closure table that
+  is now fn pointers behind a type alias.

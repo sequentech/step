@@ -88,10 +88,6 @@ impl<T: Ord + std::fmt::Debug + Clone> AccumulatorSet<T> {
 
     /// Extract all present values in trustee-index order.
     pub(crate) fn extract(&self) -> Vec<T> {
-        self.values
-            .iter()
-            .filter(|t| t.is_some())
-            .map(|t| t.clone().expect("t.is_some() == true"))
-            .collect()
+        self.values.iter().flatten().cloned().collect()
     }
 }

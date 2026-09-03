@@ -41,12 +41,11 @@
 //! exactly like `-shuffle`, so it is not a safe way to check the mixing phase
 //! alone.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 // Shared with the other interop tests: locating Verificatum, and the random
 // source it refuses to start without.
-#[allow(dead_code)]
 mod common;
 
 // The shipped emitter, so these tests exercise what the tool ships rather
@@ -199,7 +198,7 @@ fn vmnv_accepts(env: &Env, dir: &PathBuf) -> bool {
 
 /// Rewrite a proof directory to claim the output is the input, i.e. that nothing
 /// was shuffled. The proof is then invalid for that statement.
-fn claim_no_shuffling_happened(dir: &PathBuf) {
+fn claim_no_shuffling_happened(dir: &Path) {
     let input = std::fs::read(dir.join("Ciphertexts.bt")).unwrap();
     std::fs::write(dir.join("ShuffledCiphertexts.bt"), &input).unwrap();
     std::fs::write(dir.join("proofs/Ciphertexts01.bt"), &input).unwrap();

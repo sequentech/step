@@ -100,7 +100,7 @@ impl<C: Context> Trustee<C> {
         let position = configuration
             .get_trustee_position(&self_pk)
             .ok_or_else(|| anyhow!("this trustee's key is not part of the configuration"))?;
-        if position == PROTOCOL_MANAGER_INDEX as usize {
+        if position == PROTOCOL_MANAGER_INDEX {
             return Err(anyhow!("the protocol manager does not run a trustee"));
         }
         // 0-based configuration position -> 1-based trustee index (§4.3).
@@ -151,8 +151,8 @@ impl<C: Context> Trustee<C> {
             Action::ComputeMix(cfg, public_key, source, input, self_index) => {
                 self.compute_mix(view, cfg, public_key, source, input, *self_index)
             }
-            Action::SignMix(cfg, public_key, source, input, output, self_index) => {
-                self.sign_mix(view, cfg, public_key, source, input, output, *self_index)
+            Action::SignMix(cfg, public_key, source, input, output, _self_index) => {
+                self.sign_mix(view, cfg, public_key, source, input, output)
             }
             Action::ComputePartialDecryptions(
                 cfg,

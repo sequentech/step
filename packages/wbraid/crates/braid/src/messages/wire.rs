@@ -255,7 +255,7 @@ impl<C: Context> Clone for ProtocolMessage<C> {
         ProtocolMessage {
             sender: self.sender.clone(),
             signature: self.signature.clone(),
-            message_type: self.message_type.clone(),
+            message_type: self.message_type,
             head: self.head.clone(),
             body: self.body.clone(),
         }

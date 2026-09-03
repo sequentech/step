@@ -1630,7 +1630,7 @@ impl Model for SymbolicModel {
             // conditioned property passes without testing the attack).
             props.push(Property::<Self>::sometimes(
                 "an adversary acts",
-                |model, state| adversarial_acted(model, state),
+                adversarial_acted,
             ));
         }
         // The halt-on-equivocation guard applies only on a consistent board,
