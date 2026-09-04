@@ -336,7 +336,7 @@ username and password login page. On the registration form an attribute declarin
 
 Renders the password box as fixed-length digit groups. It remains the voter's ordinary Keycloak
 password, and applies to the login page and to the registration form in login mode with a password
-field. Set `credential-input-policy` to `structured` to enable it; the pattern, placeholder, input
+field. Set `credential-input-policy` to `structured` (or its equivalent alias `pattern`) to enable it; the pattern, placeholder, input
 behaviour and rollout steps are covered in
 [Structured PIN login](../../07-developers/06-keycloak/structured_pin_login.md).
 

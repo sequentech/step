@@ -35,6 +35,7 @@ services:
     restart: always
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
+      MASTER_SECRET: ${KEYCLOAK_MASTER_SECRET:-}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}

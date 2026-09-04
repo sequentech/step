@@ -7,7 +7,9 @@ use crate::services::database::{get_keycloak_pool, PgConfig};
 use crate::services::election::{get_election_event_elections, ElectionHead};
 use crate::services::users::ListUsersFilter;
 use crate::services::users::{list_users, list_users_with_vote_info};
-use crate::services::voter_secret_attributes::get_secret_attribute_config;
+use crate::services::voter_secret_attributes::{
+    get_secret_attribute_config, VoterSecretAttributeDecryptor,
+};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Transaction;
@@ -66,21 +68,6 @@ pub enum ExportBody {
     TenantUsers {
         tenant_id: String,
     },
-}
-
-pub fn ensure_no_secret_export(body: &ExportBody) -> Result<()> {
-    if matches!(
-        body,
-        ExportBody::Users {
-            include_secret_attributes: true,
-            ..
-        }
-    ) {
-        return Err(Error::String(
-            "Exporting decrypted voter attributes is not supported".into(),
-        ));
-    }
-    Ok(())
 }
 
 #[instrument(level = "trace")]
@@ -197,7 +184,6 @@ pub async fn export_users_file(
     hasura_transaction: &Transaction<'_>,
     body: ExportBody,
 ) -> Result<TempPath> {
-    ensure_no_secret_export(&body)?;
     let realm = match &body {
         ExportBody::Users {
             tenant_id,
@@ -254,6 +240,18 @@ pub async fn export_users_file(
         .get_user_profile_attributes(&realm)
         .await
         .map_err(|e| anyhow!("Error obtaining Keycloak User Profile Attributes: {e:?}"))?;
+    let secret_export_scope = match &body {
+        ExportBody::Users {
+            tenant_id,
+            election_event_id: Some(election_event_id),
+            include_secret_attributes: true,
+            ..
+        } => Some((tenant_id.as_str(), election_event_id.as_str())),
+        _ => None,
+    };
+    let include_secret_attributes = secret_export_scope.is_some();
+    // A decrypted export needs a valid configuration; an ordinary export only
+    // needs to know which columns to leave out.
     let configured_secret_names = match &body {
         ExportBody::Users {
             tenant_id,
@@ -263,17 +261,31 @@ pub async fn export_users_file(
             let config = get_secret_attribute_config(tenant_id, election_event_id)
                 .await
                 .with_context(|| "Error reading the secret-attribute configuration")?;
-            config.redacted_names().clone()
+            if include_secret_attributes {
+                config.validated_names()?
+            } else {
+                config.redacted_names().clone()
+            }
         }
         _ => HashSet::new(),
+    };
+    let secret_decryptor = if include_secret_attributes {
+        Some(
+            VoterSecretAttributeDecryptor::new()
+                .await
+                .with_context(|| "Error obtaining the voter secret-attribute master key")?,
+        )
+    } else {
+        None
     };
     let attributes = profile_attributes
         .into_iter()
         .filter(|attribute| {
-            attribute
-                .name
-                .as_ref()
-                .is_none_or(|name| !configured_secret_names.contains(name))
+            include_secret_attributes
+                || attribute
+                    .name
+                    .as_ref()
+                    .is_none_or(|name| !configured_secret_names.contains(name))
         })
         .collect::<Vec<_>>();
     let headers = get_headers(&elections, &attributes);
@@ -346,7 +358,24 @@ pub async fn export_users_file(
         offset += users.len() as i32;
 
         // Write each user record to the CSV file
-        for user in &users {
+        for mut user in users.clone() {
+            if let (Some(decryptor), Some((tenant_id, election_event_id))) =
+                (&secret_decryptor, secret_export_scope)
+            {
+                decryptor
+                    .decrypt_user_attributes(
+                        &mut user,
+                        tenant_id,
+                        election_event_id,
+                        &configured_secret_names,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "Error decrypting secret attributes for voter {}",
+                            user.id.as_deref().unwrap_or("unknown")
+                        )
+                    })?;
+            }
             let record = get_user_record(&elections, &areas_by_id, &user, &attributes);
             writer
                 .write_record(&record)
@@ -378,31 +407,6 @@ pub async fn export_users_file(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn decrypted_voter_exports_are_rejected_even_for_legacy_task_payloads() {
-        for election_event_id in [None, Some("event".to_string())] {
-            let mut body = ExportBody::Users {
-                tenant_id: "tenant".to_string(),
-                election_event_id,
-                election_id: None,
-                include_secret_attributes: true,
-            };
-            assert!(ensure_no_secret_export(&body).is_err());
-            if let ExportBody::Users {
-                include_secret_attributes,
-                ..
-            } = &mut body
-            {
-                *include_secret_attributes = false;
-            }
-            assert!(ensure_no_secret_export(&body).is_ok());
-        }
-        assert!(ensure_no_secret_export(&ExportBody::TenantUsers {
-            tenant_id: "tenant".into()
-        })
-        .is_ok());
-    }
 
     fn attribute(name: &str) -> UserProfileAttribute {
         UserProfileAttribute {
@@ -518,5 +522,32 @@ mod tests {
         assert_eq!(headers.len(), record.len());
         assert!(!record.iter().any(|value| value.starts_with("seqenc:v1:")));
         assert!(record.contains(&"public-value".to_string()));
+    }
+
+    #[test]
+    fn opted_in_csv_preserves_secret_values_and_multi_value_import_format() {
+        let mut secret = attribute("login-code");
+        secret.multivalued = Some(true);
+        let attributes = vec![secret];
+        let user = User {
+            attributes: Some(HashMap::from([(
+                "login-code".to_string(),
+                vec!["first-secret".to_string(), "second-secret".to_string()],
+            )])),
+            ..Default::default()
+        };
+        let headers = get_headers(&None, &attributes);
+        let record = get_user_record(&None, &None, &user, &attributes);
+        let index = headers
+            .iter()
+            .position(|name| name == "login-code")
+            .unwrap();
+        assert_eq!(
+            record[index],
+            user.get_attribute_multival(&"login-code".to_string()).unwrap()
+        );
+        assert!(record[index].contains("first-secret"));
+        assert!(record[index].contains("second-secret"));
+        assert!(!record[index].contains("seqenc:"));
     }
 }

@@ -30,6 +30,46 @@ second identifying attribute is available.
 
 ## Prerequisites
 
+### Optional: use an encrypted voter attribute as the credential
+
+The default **Credential verification policy** is `PASSWORD`; existing flows do not change.
+To authenticate with a secret voter field instead of a Keycloak password:
+
+1. Configure a custom User Profile attribute, such as `login-code`, with `sequent.secret=true`,
+   then populate it using the authorized voter editor or CSV importer. Do not enter plaintext
+   directly into Keycloak's attribute editor.
+2. Explicitly provision Keycloak's `MASTER_SECRET` environment variable with the same 64-character
+   hex key used by Harvest/Windmill. In the supplied Compose configurations, set the optional
+   `KEYCLOAK_MASTER_SECRET` deployment variable. Keycloak must be redeployed to receive it; no
+   automatic key generation or realm-wide authentication change occurs.
+3. On this authenticator's configuration, set **Credential verification policy** to
+   `SECRET_ATTRIBUTE` and **Encrypted credential attribute** to `login-code`. Keep ordinary
+   identifying attributes in **User attributes to match**, not the secret attribute.
+4. Keep **Multiple-candidate match policy** at `REJECT_AMBIGUOUS`. `FIRST_MATCH` is rejected in
+   this mode. For IVR, set the same two options on **Multi-Attribute + Password Direct Grant**;
+   its existing single `kind=secret`/`maps_to=password` input carries this credential.
+
+The form remains `login.ftl`, and voters enter the credential in the existing `password` field.
+Credential placement, masking/show-hide, autofocus, and `credential-input-policy: "pattern"` keep
+their existing behavior. Pattern formatting is presentation: store the exact submitted credential
+(for digit patterns, the digits, not visual separators). Do not add a second input. A Keycloak
+password is not required or consulted in this mode; password-reset and password-policy operations
+still manage the separate Keycloak password and do not replace this encrypted attribute.
+
+Verification decrypts only the selected attribute of bounded candidates, binds each envelope to
+the tenant/event/voter/attribute, compares fixed-size SHA-256 digests in constant time, and examines
+all stored values. It does not trim or change credential case. Missing, malformed or tampered
+envelopes, missing/wrong keys, disabled/locked accounts and ambiguous matches fail closed without
+password fallback. At most 100 stored values per attribute and 150 UTF-8 bytes per submitted
+credential are accepted. Existing tuple throttling and Keycloak account brute-force protection
+remain active; guessed credentials are never included in the tuple throttle key.
+
+Treat this field as a login credential: anyone authorized to reveal or export it can impersonate
+its voter. Choose high-entropy values, restrict secret-read/write access, enable realm brute-force
+protection, and avoid sending it in report previews, logs or untrusted message transports.
+
+### Standard prerequisites
+
 - Access to the Keycloak Admin Console.
 - The `sequent.message-otp-authenticator.jar` extension deployed in Keycloak's `providers/`
   directory (included in the Sequent Keycloak Docker image by default).

@@ -496,6 +496,14 @@ mod tests {
     }
 
     #[test]
+    fn pattern_alias_uses_the_same_credential_formatting() {
+        assert_eq!(
+            credential_for_presentation("12345678", Some("pattern"), Some("dddd-dddd")),
+            "1234-5678"
+        );
+    }
+
+    #[test]
     fn leaves_credentials_unchanged_without_a_pattern() {
         assert_eq!(
             credential_for_presentation("1234567890123456", Some("structured"), None),

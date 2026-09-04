@@ -14,6 +14,11 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+use windmill::services::voter_secret_attributes::get_secret_attribute_config;
 use windmill::services::{password, tasks_execution::*};
 use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
@@ -60,7 +65,52 @@ pub async fn export_election_event_route(
         || export_config.reports
         || export_config.applications;
 
+    if (export_config.include_voters || export_config.s3_files)
+        && export_config.encrypt_with_password
+    {
+        let has_secret_attributes = export_config.s3_files
+            || !get_secret_attribute_config(&tenant_id, &election_event_id)
+                .await
+                .map_err(|error| {
+                    (Status::InternalServerError, format!("{error:#}"))
+                })?
+                .validated_names()
+                .map_err(|error| (Status::BadRequest, error.to_string()))?
+                .is_empty();
+
+        if has_secret_attributes {
+            export_config.contains_voter_secrets = authorize(
+                &claims,
+                true,
+                Some(tenant_id.clone()),
+                vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+            )
+            .is_ok();
+        }
+    }
+
     let document_id = Uuid::new_v4().to_string();
+    if export_config.contains_voter_secrets {
+        post_voter_secret_attribute_audit(
+            &tenant_id,
+            &election_event_id,
+            &ElectoralLogAdminContext::from_claims(&claims),
+            VoterSecretAttributeAction::Export,
+            VoterSecretAttributeAudit {
+                voter_id: None,
+                voter_username: None,
+                attribute_names: &[],
+                document_id: Some(&document_id),
+            },
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
+            )
+        })?;
+    }
 
     // Insert the task execution record
     let task_execution = post_with_annotations(

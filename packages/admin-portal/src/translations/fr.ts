@@ -1184,6 +1184,9 @@ const frenchTranslation: TranslationType = {
                     reveal: "Afficher",
                     hide: "Masquer",
                     revealError: "Le champ chiffré de l'électeur n'a pas pu être affiché",
+                    includeInExport: "Inclure les champs secrets déchiffrés de l'électeur",
+                    exportWarning:
+                        "Exportation sensible : le CSV téléchargé contiendra ces champs en texte clair.",
                     clear: "Effacer",
                     add: "Ajouter une valeur",
                     remove: "Supprimer la valeur",

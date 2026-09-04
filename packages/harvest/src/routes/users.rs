@@ -1852,12 +1852,6 @@ pub async fn export_users_f(
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = body.tenant_id.clone();
-    if body.include_secret_attributes {
-        return Err((
-            Status::BadRequest,
-            "Exporting decrypted voter attributes is not supported".into(),
-        ));
-    }
     let executer_name = claims
         .name
         .clone()
@@ -1876,8 +1870,44 @@ pub async fn export_users_f(
         vec![required_perm],
     )?;
 
-    let may_read_secret_attributes = false;
+    let may_read_secret_attributes = if body.include_secret_attributes {
+        if body.election_event_id.is_none() {
+            return Err((
+                Status::BadRequest,
+                "Secret attributes can only be included in an election-event voter export"
+                    .to_string(),
+            ));
+        }
+        authorize(
+            &claims,
+            true,
+            Some(body.tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+        true
+    } else {
+        false
+    };
+
     let document_id = Uuid::new_v4().to_string();
+    if let (true, Some(election_event_id)) = (
+        may_read_secret_attributes,
+        body.election_event_id.as_deref(),
+    ) {
+        audit_secret_attributes(
+            &claims,
+            &body.tenant_id,
+            election_event_id,
+            VoterSecretAttributeAction::Export,
+            VoterSecretAttributeAudit {
+                voter_id: None,
+                voter_username: None,
+                attribute_names: &[],
+                document_id: Some(&document_id),
+            },
+        )
+        .await?;
+    }
 
     // Authorize before creating the task row, then persist a task-bound grant.
     // The worker reloads this row and never trusts a broker-supplied boolean.

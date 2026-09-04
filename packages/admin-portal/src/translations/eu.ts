@@ -1176,6 +1176,9 @@ const basqueTranslation: TranslationType = {
                     reveal: "Erakutsi",
                     hide: "Ezkutatu",
                     revealError: "Ezin izan da bozkatzailearen eremu zifratua erakutsi",
+                    includeInExport: "Sartu deszifratutako bozkatzailearen eremu sekretuak",
+                    exportWarning:
+                        "Esportazio sentikorra: deskargatutako CSVak eremu hauek testu arruntean izango ditu.",
                     clear: "Garbitu",
                     add: "Gehitu balioa",
                     remove: "Kendu balioa",

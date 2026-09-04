@@ -461,6 +461,71 @@ mod tests {
     use super::*;
     use strand::symm::gen_key;
 
+    #[test]
+    fn keycloak_v1_compatibility_fixture() {
+        // Shared with Java; fixed public test key and deterministic nonce, never production data.
+        let v: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../keycloak-extensions/message-otp-authenticator/src/test/resources/voter-secret-v1.json"
+        )).unwrap();
+        let key_bytes = hex::decode(v["master"].as_str().unwrap()).unwrap();
+        let key = SymmetricKey::clone_from_slice(&key_bytes);
+        let scope = VoterSecretAttributeScope {
+            tenant_id: v["tenant"].as_str().unwrap(),
+            election_event_id: v["event"].as_str().unwrap(),
+            user_id: v["user"].as_str().unwrap(),
+            attribute_name: v["attribute"].as_str().unwrap(),
+        };
+        assert_eq!(
+            decrypt_with_master_secret(&key, &scope, v["envelope"].as_str().unwrap()).unwrap(),
+            v["plaintext"].as_str().unwrap()
+        );
+    }
+
+    #[test]
+    fn exported_multi_values_can_be_reencrypted_for_an_import_destination() {
+        let master = gen_key();
+        let values = vec!["first-secret".to_string(), "second-secret".to_string()];
+        let encrypted = values
+            .iter()
+            .map(|value| {
+                encrypt_with_master_secret(&master, &scope("original-voter"), value).unwrap()
+            })
+            .collect::<Vec<_>>();
+        let decryptor = VoterSecretAttributeDecryptor {
+            master_secret: master,
+        };
+        let mut user = User {
+            id: Some("original-voter".into()),
+            attributes: Some(HashMap::from([("mobile-number".into(), encrypted)])),
+            ..Default::default()
+        };
+        decryptor
+            .decrypt_user_attributes(
+                &mut user,
+                "tenant",
+                "event",
+                &HashSet::from(["mobile-number".into()]),
+            )
+            .unwrap();
+        assert_eq!(user.attributes.as_ref().unwrap()["mobile-number"], values);
+        for value in &user.attributes.unwrap()["mobile-number"] {
+            let destination = scope("imported-voter");
+            let envelope =
+                encrypt_with_master_secret(&decryptor.master_secret, &destination, value).unwrap();
+            assert_eq!(
+                decrypt_with_master_secret(&decryptor.master_secret, &destination, &envelope)
+                    .unwrap(),
+                *value
+            );
+            assert!(decrypt_with_master_secret(
+                &decryptor.master_secret,
+                &scope("original-voter"),
+                &envelope
+            )
+            .is_err());
+        }
+    }
+
     fn scope<'a>(user_id: &'a str) -> VoterSecretAttributeScope<'a> {
         VoterSecretAttributeScope {
             tenant_id: "tenant",

@@ -11,13 +11,15 @@ use uuid::Uuid;
 
 pub struct DocumentWrapper(pub Document);
 
-/// Snapshot of documents safe to include in an ordinary event archive.
+/// Snapshot of documents allowed in the event archive. Secret documents require
+/// the worker's validated task-bound grant and password-protected archive.
 /// Unknown/uncommitted documents are not allowlisted, including reports being uploaded.
 #[instrument(skip_all, err)]
 pub async fn get_exportable_document_ids(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    include_voter_secrets: bool,
 ) -> Result<std::collections::HashSet<String>> {
     let rows = transaction.query(
         "SELECT id, annotations FROM sequent_backend.document WHERE tenant_id = $1 AND election_event_id = $2",
@@ -29,7 +31,9 @@ pub async fn get_exportable_document_ids(
         let access = annotations
             .map(serde_json::from_value::<DocumentAnnotations>)
             .transpose()?;
-        if !access.is_some_and(|value| value.requires_voter_secret_attribute_read()) {
+        if include_voter_secrets
+            || !access.is_some_and(|value| value.requires_voter_secret_attribute_read())
+        {
             ids.insert(row.try_get::<_, Uuid>("id")?.to_string());
         }
     }

@@ -1157,6 +1157,9 @@ const englishTranslation = {
                     reveal: "Reveal",
                     hide: "Hide",
                     revealError: "The encrypted voter field could not be revealed",
+                    includeInExport: "Include decrypted secret voter fields",
+                    exportWarning:
+                        "Sensitive export: the downloaded CSV will contain these fields in plaintext.",
                     clear: "Clear",
                     add: "Add value",
                     remove: "Remove value",

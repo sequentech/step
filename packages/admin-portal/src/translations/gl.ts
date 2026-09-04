@@ -1181,6 +1181,9 @@ const galegoTranslation: TranslationType = {
                     reveal: "Mostrar",
                     hide: "Ocultar",
                     revealError: "Non se puido mostrar o campo cifrado do votante",
+                    includeInExport: "Incluír campos secretos descifrados do votante",
+                    exportWarning:
+                        "Exportación sensible: o CSV descargado conterá estes campos en texto plano.",
                     clear: "Borrar",
                     add: "Engadir valor",
                     remove: "Eliminar valor",

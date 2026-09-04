@@ -567,8 +567,13 @@ pub async fn process_export_zip(
         let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
-        let exportable_document_ids =
-            get_exportable_document_ids(&hasura_transaction, tenant_id, election_event_id).await?;
+        let exportable_document_ids = get_exportable_document_ids(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            contains_voter_secrets,
+        )
+        .await?;
 
         let s3_files =
             s3::get_files_from_s3(bucket, documents_prefix.clone(), &exportable_document_ids)

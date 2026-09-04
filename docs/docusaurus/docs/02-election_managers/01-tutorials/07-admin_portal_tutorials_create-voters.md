@@ -44,7 +44,11 @@ state; the voter list continues to receive only redacted values.
 
 Select **Export** from the Voters tab to generate a CSV.
 
-Secret columns are always omitted. Neither plaintext values nor encrypted envelopes are exported.
+- The default export omits every configured secret column. It does not export encrypted envelopes.
+- A user with `voter-secret-attribute-read` can select **Include decrypted secret voter fields** in
+  the confirmation dialog. This adds the secret columns with plaintext values.
+- Treat a decrypted export as sensitive data. The generated document remains protected by the
+  secret-read permission when it is downloaded.
 
 For the complete permission combinations, see
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#secret-voter-field-permissions).

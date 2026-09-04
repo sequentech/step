@@ -40,7 +40,7 @@ fn validate_voter_secret_export(export_config: &ExportOptions) -> Result<()> {
         Some(password) => !password.is_empty(),
         None => false,
     };
-    let is_authorized_password_export = export_config.include_voters
+    let is_authorized_password_export = (export_config.include_voters || export_config.s3_files)
         && export_config.encrypt_with_password
         && export_config.is_encrypted
         && has_password;
@@ -275,6 +275,20 @@ mod tests {
     #[test]
     fn accepts_authorized_password_encrypted_voter_secrets() {
         assert!(validate_voter_secret_export(&authorized_secret_export()).is_ok());
+    }
+
+    #[test]
+    fn secret_report_artifacts_require_the_same_password_and_grant() {
+        let mut config = authorized_secret_export();
+        config.include_voters = false;
+        assert!(validate_voter_secret_export(&config).is_err());
+        config.s3_files = true;
+        assert!(validate_voter_secret_export(&config).is_ok());
+        config.password = None;
+        assert!(validate_voter_secret_export(&config).is_err());
+        config.password = Some("test-password".into());
+        config.encrypt_with_password = false;
+        assert!(validate_voter_secret_export(&config).is_err());
     }
 
     #[test]

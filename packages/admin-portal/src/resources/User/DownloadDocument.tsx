@@ -12,6 +12,7 @@ import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {downloadUrl} from "@sequentech/ui-core"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
+import {ReportPasswordDialog} from "../Reports/ReportPasswordDialog"
 
 export interface DownloadDocumentProps {
     onDownload: () => void
@@ -20,6 +21,7 @@ export interface DownloadDocumentProps {
     electionEventId?: string
     withProgress?: boolean
     onSuccess?: () => void
+    showReportPasswordDialog?: boolean
 }
 
 export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
@@ -29,8 +31,10 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     electionEventId,
     withProgress,
     onSuccess,
+    showReportPasswordDialog = false,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
+    const [showPassword, setShowPassword] = React.useState(false)
     const downloadStarted = useRef(false)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
@@ -87,16 +91,30 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
             data?.fetchDocument?.url &&
             !downloaded &&
             !downloadStarted.current &&
+            (!showReportPasswordDialog || document) &&
             (fileName || document)
         ) {
             downloadStarted.current = true
             onSuccess?.()
             console.log("setting downloaded true")
 
-            let name = fileName || document?.name || "file"
+            // Keep the real extension (.epdf for encrypted reports), needed for decryption.
+            let name = showReportPasswordDialog
+                ? document?.name || fileName || "file"
+                : fileName || document?.name || "file"
             console.log("calling downloadUrl")
             downloadUrl(data.fetchDocument.url, name)
-                .then(() => onDownload())
+                .then(() => {
+                    if (
+                        showReportPasswordDialog &&
+                        (document?.annotations?.access?.password_secret_id ||
+                            name.endsWith(".epdf"))
+                    ) {
+                        setShowPassword(true)
+                    } else {
+                        onDownload()
+                    }
+                })
                 .finally(() => {
                     setDownloaded(true)
                 })
@@ -109,10 +127,25 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         document,
         fileName,
         downloaded,
+        showReportPasswordDialog,
         setDownloaded,
         onDownload,
         downloadUrl,
     ])
 
-    return withProgress ? <CircularProgress /> : <></>
+    return showPassword ? (
+        <ReportPasswordDialog
+            key={`${tenantId}:${documentId}`}
+            documentId={documentId}
+            access={document?.annotations?.access}
+            onClose={() => {
+                setShowPassword(false)
+                onDownload()
+            }}
+        />
+    ) : withProgress && !downloaded ? (
+        <CircularProgress />
+    ) : (
+        <></>
+    )
 }

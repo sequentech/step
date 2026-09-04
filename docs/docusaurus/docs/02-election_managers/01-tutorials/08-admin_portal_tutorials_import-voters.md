@@ -42,7 +42,7 @@ After import:
 
 - ordinary voter views and exports do not return the secret value or its encrypted envelope;
 - users with secret-read permission can reveal it from the voter editor;
-- exports always omit secret fields, including password-protected election-event archives.
+- a decrypted export can include it only when explicitly requested by an authorized user.
 
 See [Protecting a Voter Attribute as Secret](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret)
 for configuration restrictions, and

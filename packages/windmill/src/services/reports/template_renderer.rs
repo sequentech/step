@@ -764,6 +764,11 @@ pub trait TemplateRenderer: Debug {
             final_file_path, file_size, final_report_name, mimetype
         );
 
+        let mut annotations = if contains_voter_secrets {
+            DocumentAnnotations::voter_secret_export()
+        } else {
+            DocumentAnnotations::default()
+        };
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
@@ -791,6 +796,21 @@ pub trait TemplateRenderer: Debug {
                 )
                 .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
+                // Bind the actual password used to this document. Editing the report's
+                // configured password later must not break downloads of earlier reports.
+                let password_secret_id = crate::services::document_password::save_password(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    document_id,
+                    &encryption_password,
+                )
+                .await?;
+                annotations
+                    .access
+                    .get_or_insert_with(Default::default)
+                    .password_secret_id = Some(password_secret_id);
+
                 Some(enc_temp_path)
             } else {
                 None
@@ -799,11 +819,6 @@ pub trait TemplateRenderer: Debug {
             None
         };
 
-        let annotations = if contains_voter_secrets {
-            DocumentAnnotations::voter_secret_export()
-        } else {
-            DocumentAnnotations::default()
-        };
         if let Some(enc_temp_path) = encrypted_temp_data {
             let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
             let enc_temp_size = get_file_size(encrypted_temp_path.as_str())

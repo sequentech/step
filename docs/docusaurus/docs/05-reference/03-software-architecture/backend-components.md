@@ -86,10 +86,10 @@ attribute does not produce a valid value. Envelopes are randomized, so secret fi
 searched, sorted, filtered, or compared by their encrypted representation.
 
 Harvest enforces the synchronous create, edit, reveal, and permission boundaries. Windmill uses the
-same codec for voter imports, communications, and per-voter reports.
-User responses and all voter exports remove secret fields rather than returning ciphertext.
+same codec for voter imports, authorized opt-in exports, communications, and per-voter reports.
+Ordinary user responses and default voter exports remove secret fields rather than returning ciphertext.
 
-Every reveal, set, clear, import, and use of a secret attribute in a
+Every reveal, set, clear, import, decrypted export, and use of a secret attribute in a
 communication or per-voter report is recorded in the election event's electoral log as an
 admin-signed `VOTER_SECRET_ATTRIBUTE` entry. The entry names the administrator, the voter where
 one is involved, the attribute names and, for generated reports, the document id. It never contains a value.
@@ -102,7 +102,22 @@ Console message transports reject templates that declare secret fields, and deli
 do not contain rendered subjects or bodies.
 
 Only Harvest and the Windmill workers that perform these operations should be able to read the
-configured `master_secret`. Keycloak, Hasura, the Admin Portal, and browser clients must not receive
-that credential. Losing or replacing the master secret makes existing voter envelopes unreadable;
+configured `master_secret` by default. Keycloak additionally needs the same 32-byte hex key in its
+`MASTER_SECRET` environment variable **only** when encrypted-attribute login is explicitly enabled.
+The Compose files map optional `KEYCLOAK_MASTER_SECRET` to this variable; leaving it empty disables
+that capability without changing ordinary password login. Never send the master key to Hasura,
+the Admin Portal, or browser clients. Losing or replacing the master secret makes existing voter envelopes unreadable;
 master-secret rotation therefore requires a coordinated re-encryption migration and must not be
 performed as an isolated secret replacement.
+
+Decrypted exports retain a task-bound authorization grant in PostgreSQL. Workers reload the trusted
+task row and check document, tenant, event and expiry before decrypting. The lifetime is controlled
+by `WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS` (default 86400) on Harvest and Windmill.
+Explicitly password-encrypted event archives may include classified S3 documents under the same
+grant; ordinary archives still exclude them and unknown/uncommitted document objects.
+
+Generated encrypted reports save the exact password used in a document-bound vault entry and
+keep its id in access annotations (not the password). Downloads from Reports and Tasks use the
+existing password dialog and permission-checked `get_document_password` API. Older encrypted
+reports without this entry still show decryption instructions and use their previously supplied
+password. Changing a report configuration does not change earlier documents' passwords.

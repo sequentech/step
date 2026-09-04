@@ -107,14 +107,24 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     List<String> attributesToMatch =
         effectiveMatchAttributes(matchAttributes, submittedValues, optionalAttributes);
     MultiAttributeCredentialResolver.Resolution result =
-        resolveAuthenticatedUser(
-            context.getSession(),
-            context.getRealm(),
-            attributesToMatch,
-            submittedValues,
-            password,
-            throttleConfig,
-            matchPolicy);
+        EncryptedAttributeCredential.usesPassword(context.getAuthenticatorConfig())
+            ? resolveAuthenticatedUser(
+                context.getSession(),
+                context.getRealm(),
+                attributesToMatch,
+                submittedValues,
+                password,
+                throttleConfig,
+                matchPolicy)
+            : MultiAttributeCredentialResolver.resolveAuthenticatedUser(
+                context.getSession(),
+                context.getRealm(),
+                attributesToMatch,
+                submittedValues,
+                password,
+                throttleConfig,
+                matchPolicy,
+                context.getAuthenticatorConfig());
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -292,7 +302,9 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     LoginFormsProvider form = context.form();
 
     if (formData.size() > 0) {
-      form.setFormData(formData);
+      MultivaluedMap<String, String> safeFormData = new MultivaluedHashMap<>(formData);
+      safeFormData.remove(FIELD_PASSWORD);
+      form.setFormData(safeFormData);
     }
     if (error != null) {
       form.setError(error);
@@ -396,6 +408,8 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH.name()));
 
     return List.of(
+        EncryptedAttributeCredential.policyProperty(),
+        EncryptedAttributeCredential.attributeProperty(),
         new ProviderConfigProperty(
             Utils.MATCH_ATTRIBUTES,
             "User attributes to match",

@@ -32,7 +32,18 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
+import {
+    Box,
+    Button,
+    Checkbox,
+    Chip,
+    FormControlLabel,
+    Menu,
+    MenuItem,
+    Skeleton,
+    Stack,
+    Typography,
+} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -170,6 +181,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
+    const [includeSecretAttributes, setIncludeSecretAttributes] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -351,6 +363,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canReadVoterSecretAttributes,
         canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
@@ -785,6 +798,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
+        setIncludeSecretAttributes(false)
         setOpenExport(true)
     }
 
@@ -801,6 +815,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                         tenantId,
                         electionEventId,
                         electionId,
+                        includeSecretAttributes,
                     },
                 })
                 if (errors || !exportUsersData) {
@@ -1661,6 +1676,30 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }}
             >
                 {t("common.export")}
+                {electionEventId &&
+                    canReadVoterSecretAttributes &&
+                    visibleUserAttributes?.some(isSecretAttribute) && (
+                        <Box sx={{mt: 2}}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={includeSecretAttributes}
+                                        onChange={(event) =>
+                                            setIncludeSecretAttributes(event.target.checked)
+                                        }
+                                    />
+                                }
+                                label={String(
+                                    t("usersAndRolesScreen.voters.secretAttribute.includeInExport")
+                                )}
+                            />
+                            {includeSecretAttributes && (
+                                <Typography color="warning.main" variant="body2">
+                                    {t("usersAndRolesScreen.voters.secretAttribute.exportWarning")}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
                 {exporting ? (
                     <FormStyles.ReservedProgressSpace>
                         <FormStyles.ShowProgress />
