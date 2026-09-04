@@ -13,7 +13,7 @@
 //! SQLite persistence path and the union seed against a real board.
 //!
 //! `#[ignore]`d (see `tests/test_protocol.rs`): it requires a running b4 at
-//! [`HTTP_URL`] backed by S3/LocalStack.
+//! [`http_url`] backed by S3/LocalStack.
 
 use anyhow::{anyhow, Result};
 use log::info;
@@ -45,8 +45,10 @@ use crate::native::http_transport::HttpTransport;
 use crate::native::persistence::SqlitePersistence;
 use crate::trustee::Trustee;
 
-/// b4 server endpoint the test drives against (must be running, with S3).
-const HTTP_URL: &str = "http://127.0.0.1:3000";
+/// b4 url the test drives against. `WBRAID_B4_URL` when set, otherwise port `3000`.
+fn http_url() -> String {
+    std::env::var("WBRAID_B4_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string())
+}
 
 /// Wire `date` for every message the harness posts (§3.1).
 const DATE: Timestamp = 0;
@@ -125,8 +127,8 @@ async fn run_with_width<C: Context, const W: usize>(
 
     // --- phase 1: DKG on the shared parent board (with SQLite persistence) ---
     info!("Creating DKG board {} on b4", dkg_board);
-    HttpTransport::create_board(HTTP_URL, &dkg_board).await?;
-    let dkg_manager_tx = HttpTransport::new(HTTP_URL, &dkg_board);
+    HttpTransport::create_board(&http_url(), &dkg_board).await?;
+    let dkg_manager_tx = HttpTransport::new(&http_url(), &dkg_board);
     Transport::<C>::publish(&dkg_manager_tx, &cfg_message).await?;
 
     let mut dkg_clients: Vec<BoardClient<C, HttpTransport, SqlitePersistence>> =
@@ -135,7 +137,7 @@ async fn run_with_width<C: Context, const W: usize>(
         let path = temp_db(&format!("dkg_{}_{}", run_id, i));
         dkg_clients.push(
             BoardClient::connect(
-                HttpTransport::new(HTTP_URL, &dkg_board),
+                HttpTransport::new(&http_url(), &dkg_board),
                 SqlitePersistence::open(&path)?,
             )
             .await?,
@@ -174,7 +176,7 @@ async fn run_with_width<C: Context, const W: usize>(
     for tally in 0..tallies {
         let tally_board = format!("uniontally_{}_{}", run_id, tally);
         info!("Creating tally board {} on b4", tally_board);
-        HttpTransport::create_board(HTTP_URL, &tally_board).await?;
+        HttpTransport::create_board(&http_url(), &tally_board).await?;
 
         // Manager encrypts a fresh ciphertext set and posts the ballots.
         let mut enc_rng = C::get_rng();
@@ -197,7 +199,7 @@ async fn run_with_width<C: Context, const W: usize>(
             1 + tally as u128,
             &ballots,
         );
-        let tally_manager_tx = HttpTransport::new(HTTP_URL, &tally_board);
+        let tally_manager_tx = HttpTransport::new(&http_url(), &tally_board);
         Transport::<C>::publish(&tally_manager_tx, &ballots_message).await?;
 
         // One union client per trustee: child (tally) ∪ parent (DKG), seeded with
@@ -208,8 +210,8 @@ async fn run_with_width<C: Context, const W: usize>(
             let path = temp_db(&format!("tally_{}_{}_{}", run_id, tally, i));
             tally_clients.push(
                 BoardClient::connect_union(
-                    HttpTransport::new(HTTP_URL, &tally_board),
-                    HttpTransport::new(HTTP_URL, &dkg_board),
+                    HttpTransport::new(&http_url(), &tally_board),
+                    HttpTransport::new(&http_url(), &dkg_board),
                     SqlitePersistence::open(&path)?,
                     seed.clone(),
                 )

@@ -128,7 +128,7 @@ reuse lint                           # Every file must have SPDX headers
   // SPDX-License-Identifier: AGPL-3.0-only
   ```
 - **Vendored Cargo dependencies**: `packages/vendor/` — Cargo.toml uses `[source.vendored-sources]`
-- **Pinned crate**: `wasm-bindgen` 0.2.104 — do not change
+- **Pinned crate**: `wasm-bindgen` 0.2.123 (`=0.2.123` in strand, braid, sequent-core and `packages/wbraid`) — the CLI pins in `devenv.nix` and the three `flake.nix` files must move with it
 - **Forked crate**: `celery` uses a custom fork (Findeton/rusty-celery)
 - **Hasura changes must go through** `hasura console` (not the web UI directly) for migrations to be tracked
 - **Rust toolchain**: 1.96.0 stable, WASM targets: `wasm32-unknown-unknown`

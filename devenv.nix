@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 
 # Check docs/docusaurus/docs/07-developers/11-updates/updating-rust-version.md on how to update rust version.
 let
@@ -7,6 +7,10 @@ let
     sha256 = "138jwq564qji7dc5yav2j2c1c1mr65smqqk00mni9lvqhx0n45w4";
   });
 
+  pkgsCrates = import inputs.nixpkgs-crates {
+    inherit (pkgs.stdenv.hostPlatform) system;
+  };
+
   pkgs' = pkgs.extend rustOverlay;
 
   rustStable = pkgs'.rust-bin.stable."1.96.0".default.override {
@@ -14,20 +18,27 @@ let
     extensions = [ "rust-src" "rust-analyzer-preview" ];
   };
 
-  # Pin wasm-bindgen-cli to match the wasm-bindgen crate version in Cargo.toml (=0.2.104)
-  # The CLI and crate versions must match exactly
-  wasm-bindgen-cli-pinned = pkgs.rustPlatform.buildRustPackage rec {
+  # wasm-bindgen has no semver guarantee, so the CLI must match the crate
+  # version exactly (=0.2.123). Not in nixpkgs, so this is a source build.
+  # Built entirely against pkgsCrates (nixos-26.05): the crate vendorer in
+  # our main pin sends a default python-requests User-Agent, which crates.io
+  # answers with HTTP 403. The rustc that builds the CLI is 26.05's and need
+  # not match our 1.96.0 — only the CLI *version* must match the crate.
+  wasm-bindgen-cli-pinned = pkgsCrates.rustPlatform.buildRustPackage rec {
     pname = "wasm-bindgen-cli";
-    version = "0.2.104";
+    # Pinned to the wasm-bindgen crate version both Cargo workspaces use
+    # (packages/Cargo.toml and packages/wbraid/Cargo.toml: =0.2.123).
+    version = "0.2.123";
+    cargoHash = "sha256-d7x6gtx5OqEE4MyT6yjYn/qtgjx7GroTpXJewnBV2dU=";
     src = builtins.fetchTarball {
-      url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
-      sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
+      url = "https://static.crates.io/crates/wasm-bindgen-cli/wasm-bindgen-cli-${version}.crate";
+      sha256 = "12xdns7cvnz0j26i9kryxggylsslkqs5l2b6lppfkv1bic8q0rya";
     };
-    cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";
-    nativeBuildInputs = [ pkgs.pkg-config ];
-    buildInputs = [ pkgs.openssl ]
-      ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl ];
+    nativeBuildInputs = [ pkgsCrates.pkg-config ];
+    buildInputs = [ pkgsCrates.openssl ]
+      ++ pkgsCrates.lib.optionals pkgsCrates.stdenv.hostPlatform.isDarwin [ pkgsCrates.curl ];
     doCheck = false;
+
   };
 
 in
@@ -116,7 +127,7 @@ in
     yq
 
     minio-client
-    
+
     # AI. Note, requires allowUnfree: true in devenv.yaml
     claude-code
 

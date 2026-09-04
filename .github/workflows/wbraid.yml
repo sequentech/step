@@ -1,0 +1,107 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: wbraid
+
+# packages/wbraid is its own Cargo workspace (see packages/wbraid/PROVENANCE.md),
+# so it gets its own workflow, scoped to changes under that subtree.
+on:
+  pull_request:
+    paths:
+      - 'packages/wbraid/**'
+      - '.github/workflows/wbraid.yml'
+      - '.github/actions/setup-rust-tests/**'
+  push:
+    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    paths:
+      - 'packages/wbraid/**'
+      - '.github/workflows/wbraid.yml'
+      - '.github/actions/setup-rust-tests/**'
+
+defaults:
+  run:
+    working-directory: packages/wbraid
+
+jobs:
+  lint:
+    name: Format and lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-lint
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+          components: rustfmt, clippy
+
+      - name: Check formatting
+        run: cargo fmt -- --check
+
+      # vsc is a vendored fork with its own strict lint levels; its test modules
+      # and the shuffle_scaling example fail those upstream levels (identically
+      # on nightly, see PROVENANCE.md), and under -D warnings its warn-level
+      # lints (indexing_slicing) would fail too. --no-deps keeps -D warnings
+      # from leaking into vsc through the workspace wrapper; the second
+      # invocation lints vsc's lib at exactly the levels upstream chose.
+      - name: Clippy (workspace except vsc, all targets)
+        run: cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D warnings
+
+      - name: Clippy (vsc lib, upstream lint levels)
+        run: cargo clippy -p vsc --no-deps
+
+  test:
+    name: Run tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-test
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+
+      # The live-b4 protocol tests (test_protocol_http*) and the Verificatum
+      # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
+      # JVM with the Verificatum jars. The live-b4 ones stay ignored here until
+      # a follow-up gives this job b4 and LocalStack service containers.
+      - name: Run tests
+        run: cargo test --release
+        env:
+          RUST_BACKTRACE: 'full'
+
+  build-wasm-core:
+    name: Build wasm-core
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-wasm
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+          targets: wasm32-unknown-unknown
+
+      # Run from the workspace root so crates/braid/.cargo/config.toml (atomics
+      # + build-std, which need RUSTC_BOOTSTRAP on stable) does not apply; the
+      # wasm-core feature needs neither, and the build stops before bindings,
+      # so no wasm-bindgen-cli is required. The full atomics `wasm` feature
+      # build stays a dev-loop concern (build-wasm.sh / build-wasm.ps1).
+      - name: Build braid wasm-core
+        run: >-
+          cargo build -p braid --lib --release
+          --target wasm32-unknown-unknown
+          --no-default-features --features wasm-core
