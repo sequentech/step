@@ -2,12 +2,16 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# The WebAssembly toolchain (ALC-06, Section 2.2), at the versions the workspace pins.
-# The controlled production build supplies the publishers' archives from the accepted
-# external inputs with `--build-context wasm-toolchain=<directory holding the four archives
-# below>`, which replaces the wasm-toolchain stage and leaves the download unbuilt; their
-# digests are the ones recorded in the CM system's inputs configuration and verified at
-# import. A build outside that workflow downloads them from their publishers.
+# Every input the stages below obtain from a network has a stage of its own that the controlled
+# production build replaces with the accepted external input, `--build-context <stage>=<directory>`,
+# leaving the download unbuilt; a build outside that workflow downloads it from its publisher.
+# `wasm-toolchain` holds the four archives of the WebAssembly toolchain (ALC-06, Section 2.2),
+# whose digests are recorded in the CM system's inputs configuration and verified at import;
+# `debs-wasm-build` the Debian packages of the wasm-build stage, authenticated by apt against the
+# keyring of the base image when downloaded; `cargo-vendor` the crate sources of Cargo.lock,
+# which cargo reads through the [source] configuration the production job appends to
+# .cargo/config.toml; `yarn-offline-mirror` the npm packages of yarn.lock; `apks-nginx` the
+# Alpine packages of the runtime stage, whose signatures apk verifies when it installs them.
 ARG WASM_PACK_VERSION=0.15.0
 ARG WASM_BINDGEN_VERSION=0.2.104
 ARG BINARYEN_VERSION=123
@@ -42,23 +46,41 @@ RUN set -eux; \
 FROM scratch AS wasm-toolchain
 COPY --from=wasm-toolchain-download /archives/ /
 
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS debs-wasm-build-download
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    clang \
+    m4 \
+    make
+
+FROM scratch AS debs-wasm-build
+COPY --from=debs-wasm-build-download /debs/*.deb /
+
+FROM scratch AS cargo-vendor
+
+FROM scratch AS yarn-offline-mirror
+
+FROM nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913 AS apks-nginx-download
+RUN mkdir -p /apks && apk fetch --no-cache --recursive --output /apks jq
+
+FROM scratch AS apks-nginx
+COPY --from=apks-nginx-download /apks/*.apk /
+
 # The WebAssembly module of sequent-core that every single-page application consumes.
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-build
 ARG RUST_VERSION
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    clang \
-    m4 \
-    make \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=debs-wasm-build / /tmp/debs/
+RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs
 COPY --from=wasm-toolchain / /archives/
 RUN set -eux; \
     tar -xzf /archives/wasm-pack.tar.gz -C /usr/local/bin --strip-components=1 --wildcards '*/wasm-pack'; \
     tar -xzf /archives/wasm-bindgen.tar.gz -C /usr/local/bin --strip-components=1 --wildcards '*/wasm-bindgen*'; \
     tar -xzf /archives/binaryen.tar.gz -C /usr/local --strip-components=1 --wildcards '*/bin/wasm-opt' '*/lib/*'; \
-    rustlib="$(dirname "$(rustc --print target-libdir)")"; \
-    tar -xzf /archives/rust-std-wasm32.tar.gz -C "${rustlib}" --strip-components=5 \
-      "rust-std-${RUST_VERSION}-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown"; \
-    rm -rf /archives; \
+    mkdir -p /tmp/rust-std; \
+    tar -xzf /archives/rust-std-wasm32.tar.gz -C /tmp/rust-std --strip-components=1; \
+    /tmp/rust-std/install.sh --prefix="$(rustc --print sysroot)" --disable-ldconfig; \
+    rm -rf /tmp/rust-std /archives; \
     wasm-pack --version; wasm-bindgen --version; wasm-opt --version
 
 WORKDIR /app
@@ -80,6 +102,7 @@ COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
+COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/sequent-core
 RUN wasm-pack build --mode no-install --release --target web --out-name index \
@@ -106,6 +129,8 @@ COPY --from=wasm-build /app/sequent-core/pkg ./admin-portal/rust/pkg
 COPY --from=wasm-build /app/sequent-core/pkg ./ballot-verifier/rust/pkg
 
 # Install dependencies
+COPY --from=yarn-offline-mirror / /usr/src/yarn-offline-mirror/
+RUN printf 'yarn-offline-mirror "/usr/src/yarn-offline-mirror"\n' > .yarnrc
 RUN yarn install --frozen-lockfile --non-interactive
 
 ARG SPA_NAME
@@ -119,7 +144,8 @@ RUN yarn build:${SPA_NAME}
 
 FROM nginx:alpine@sha256:db35bfc6b2951e7f8a72db5db120288c127ffaeeb4a6d4b95a26fead017d5913
 # Install dependencies
-RUN apk add --no-cache jq
+COPY --from=apks-nginx / /tmp/apks/
+RUN apk add --no-network /tmp/apks/*.apk && rm -rf /tmp/apks
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
 # Copy custom NGINX config

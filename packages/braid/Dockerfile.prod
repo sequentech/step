@@ -2,26 +2,46 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 as builder
+# The Debian packages the two stages below install, and the vendored crates the build reads.
+# The controlled production build supplies each from the accepted external inputs with
+# `--build-context <stage>=<directory>`, which replaces the stage of that name and leaves the
+# download unbuilt: `debs-builder` and `debs-runtime` hold the .deb files of the packages
+# their download stages name, `cargo-vendor` the crate sources of Cargo.lock, which cargo
+# reads through the [source] configuration the production job appends to .cargo/config.toml.
+# A build outside that workflow downloads the packages from the Debian archive, authenticated
+# by apt against the keyring of the base image, and resolves the crates from crates.io.
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS debs-builder-download
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    protobuf-compiler \
+    libprotobuf-dev \
+    m4 \
+    make
+
+FROM scratch AS debs-builder
+COPY --from=debs-builder-download /debs/*.deb /
+
+FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443 AS debs-runtime-download
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    libssl3 \
+    ca-certificates \
+    curl \
+    unzip
+
+FROM scratch AS debs-runtime
+COPY --from=debs-runtime-download /debs/*.deb /
+
+FROM scratch AS cargo-vendor
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends debian-archive-keyring \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        protobuf-compiler \
-        libprotobuf-dev \
-        m4 \
-        make \
-        unzip \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=debs-builder / /tmp/debs/
+RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs
 
-
-# copy projects
-#TODO: Copy only necessary files
-WORKDIR /app
 COPY ./braid ./braid
 COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
@@ -41,24 +61,21 @@ COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
+COPY --from=cargo-vendor / ./vendor/
 
-# build projects
 WORKDIR /app/braid
 RUN cargo build --release --locked
 
-
-
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
-# Some shared libraries (extra-runtime-dependencies) may need to be installed:
+
+COPY --from=debs-runtime / /tmp/debs/
+RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs
+
 # Installing also AWS CLI and Vault CLI for trustee configuration
 # Set the default Vault version (put 'latest' for automatic substitution)
 ARG VAULT_VERSION=1.15.5
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libssl3 \
-    ca-certificates \
-    curl \
-    unzip \
-    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
     && unzip -o awscliv2.zip \
     && ./aws/install \
     && rm -f awscliv2.zip \
@@ -67,14 +84,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fi \
     && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
     && unzip vault.zip -d /usr/local/bin/ \
-    && rm -f vault.zip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -f vault.zip
 
 COPY --from=builder /app/target/release/main /usr/bin/trustee
 COPY --from=builder /app/target/release/verify /usr/bin/verify
 COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
-COPY --from=builder /app/target/release/main /usr/bin/trustee
 COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
 RUN mkdir -p /opt/braid/
 
