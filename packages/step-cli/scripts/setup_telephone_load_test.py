@@ -6,16 +6,16 @@
 """Stage 1 of the load tests: provisions the same election event into one or
 more tenants, bulk-creates DTMF-safe voters, runs the keys ceremony,
 publishes, and opens the requested voting channel (TELEPHONE or ONLINE — see
-the 'setup:' section of telephone-load-test-inputs/layers.yaml) — in every
-target tenant. Writes one summary.json + voters CSV per tenant that Stage 2
-consumes — run_telephone_load_test.py (driving `ivr-cli` calls) for
+the 'setup:' section of telephone-load-test-inputs/config/layers.yaml) — in
+every target tenant. Writes one summary.json + voters CSV per tenant that
+Stage 2 consumes — run_telephone_load_test.py (driving `ivr-cli` calls) for
 TELEPHONE, run_online_load_test.py (driving Playwright browsers) for ONLINE.
 See docs/docusaurus/docs/07-developers/12-ivr/telephone-load-testing-design.md
 and docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md
 for the full designs, and the guide next to each for a walkthrough.
 
 Takes no command-line arguments — every setting lives in
-telephone-load-test-inputs/layers.yaml.
+telephone-load-test-inputs/config/layers.yaml.
 
 Requires the `step-cli` binary on PATH (cd packages/step-cli && cargo build
 --release -p step-cli).
@@ -194,7 +194,13 @@ def provision_tenant(
         "election_id": "",
         "generate_voters": {
             "csv_file_name": "voters",
-            "fields": ["username", "area_name", "password", "email", "email_verified", "dateOfBirth"],
+            # authorized-election-ids is required: without it, a voter can
+            # log in but fails the IVR/portal eligibility check with
+            # "missing session variable: x-hasura-authorized-election-ids"
+            # (Hasura derives that session variable from this Keycloak user
+            # attribute). authorized_elections_count: 0 below means "all of
+            # this area's elections", which is what gets written here.
+            "fields": ["username", "area_name", "password", "email", "email_verified", "dateOfBirth", "authorized-election-ids"],
             "excluded_columns": [],
             "email_prefix": "telephone-load-test",
             "domain": "example.invalid",
@@ -446,15 +452,16 @@ def main() -> None:
             configure_as(admin_portal_user, admin_portal_password, new_tenant_id)
 
             common.log(f"    importing tenant {tenant_id}'s Keycloak/roles config into {new_tenant_id}")
-            # First authenticated call against a freshly created tenant: its
-            # realm's JWKS may not have propagated to every backend instance
-            # yet, which manifests as a JWT signature verification failure
-            # despite a perfectly valid token — retry rather than treat that
-            # as fatal.
+            # A freshly created (or freshly re-authenticated-into) tenant's
+            # realm JWKS may not have propagated to every backend instance
+            # yet, which manifests as a JWT signature verification failure on
+            # an otherwise-valid token — and this can persist across more
+            # than just the first call, so retry every authenticated call in
+            # this block rather than just the first one.
             out = common.retry_step(step_cli_bin, 10, 3, "upload-document", "--file-path", str(export_zip_path))
             tenant_scoped_document_id = common.extract_id(out)
-            common.run_step(
-                step_cli_bin, "import-tenant-config",
+            common.retry_step(
+                step_cli_bin, 10, 3, "import-tenant-config",
                 "--tenant-id", new_tenant_id, "--document-id", tenant_scoped_document_id,
             )
             # The import may have regenerated api-key-client's secret again
@@ -468,7 +475,7 @@ def main() -> None:
 
             common.log(f"    seeding {len(trustees_to_seed)} trustee(s) into {new_tenant_id}")
             for name, public_key in trustees_to_seed:
-                common.run_step(step_cli_bin, "create-trustee", "--name", name, "--public-key", public_key)
+                common.retry_step(step_cli_bin, 10, 3, "create-trustee", "--name", name, "--public-key", public_key)
             configure_as(admin_portal_user, admin_portal_password, tenant_id)
 
             target_tenant_ids.append(new_tenant_id)

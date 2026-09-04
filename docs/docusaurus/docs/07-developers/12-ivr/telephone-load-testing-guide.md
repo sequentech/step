@@ -30,10 +30,20 @@ between steps.
 
 `setup_telephone_load_test.py`, `run_telephone_load_test.py` and
 `run_online_load_test.py` take **no command-line arguments** — every setting
-lives in
-[`packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml),
+lives in `packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml`,
 under the `setup:` / `telephone_run:` / `online_run:` sections respectively.
-Edit that file before each run instead of passing flags. A field left as
+`config/` is gitignored (it holds real per-server credentials); copy the
+tracked
+[`layers.yaml.example`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml.example)
+template there first:
+
+```bash
+mkdir -p packages/step-cli/scripts/telephone-load-test-inputs/config
+cp packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml.example \
+  packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml
+```
+
+Edit that copy before each run instead of passing flags. A field left as
 `null` falls back to the environment variable named in the comment beside
 it (already exported in this repo's devcontainer).
 

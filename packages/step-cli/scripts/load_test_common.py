@@ -7,7 +7,7 @@
 Imported by setup_telephone_load_test.py, run_telephone_load_test.py and
 run_online_load_test.py — not meant to be run directly. All three scripts
 take no command-line arguments: every configurable knob lives in
-telephone-load-test-inputs/layers.yaml, loaded here.
+telephone-load-test-inputs/config/layers.yaml, loaded here.
 """
 
 from __future__ import annotations
@@ -25,7 +25,11 @@ from typing import Any
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPTS_DIR.parents[2]
-CONFIG_PATH = SCRIPTS_DIR / "telephone-load-test-inputs" / "layers.yaml"
+INPUTS_DIR = SCRIPTS_DIR / "telephone-load-test-inputs"
+# config/ is gitignored (holds real per-server credentials) — copy
+# layers.yaml.example there before first use.
+CONFIG_PATH = INPUTS_DIR / "config" / "layers.yaml"
+CONFIG_EXAMPLE_PATH = INPUTS_DIR / "layers.yaml.example"
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
@@ -43,8 +47,8 @@ def die(message: str) -> None:
 # placeholder (never a real secret) instead of `null`, so a diff shows at a
 # glance which fields need a value. Treated identically to `null` wherever a
 # config value is read, so req_str()'s env-var fallback still kicks in —
-# copying the example unedited into layers.yaml keeps working inside the
-# devcontainer, where those env vars are already set.
+# copying the example unedited into config/layers.yaml keeps working inside
+# the devcontainer, where those env vars are already set.
 MASKED_PLACEHOLDER = "****"
 
 
@@ -57,12 +61,15 @@ def _unmask(value: Any) -> Any:
 
 
 def load_config() -> dict[str, Any]:
-    """Loads and validates layers.yaml, resolving relative paths against
-    SCRIPTS_DIR (matching where the *.py scripts themselves live)."""
+    """Loads and validates config/layers.yaml, resolving relative paths
+    against SCRIPTS_DIR (matching where the *.py scripts themselves live)."""
     import yaml  # local import: only needed once config loading actually runs
 
     if not CONFIG_PATH.is_file():
-        die(f"no config file at {CONFIG_PATH}")
+        die(
+            f"no config file at {CONFIG_PATH}. Copy the tracked template and fill in your own "
+            f"credentials:\n    mkdir -p {CONFIG_PATH.parent}\n    cp {CONFIG_EXAMPLE_PATH} {CONFIG_PATH}"
+        )
     with CONFIG_PATH.open() as f:
         config = yaml.safe_load(f) or {}
     if not isinstance(config, dict):

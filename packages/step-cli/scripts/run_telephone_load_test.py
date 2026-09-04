@@ -21,7 +21,7 @@ the identifier/PIN entries with {{PIN}}, plus whichever of {{VOTER_ID}} /
 per realm, e.g. voter_id+pin vs dateOfBirth+pin).
 
 Takes no command-line arguments — every setting lives in
-telephone-load-test-inputs/layers.yaml, under 'telephone_run:'.
+telephone-load-test-inputs/config/layers.yaml, under 'telephone_run:'.
 
 Requires the `ivr-cli` binary (cd beyond/packages && cargo build --release -p
 ivr-cli) and a Redis-compatible session store; if none is reachable this

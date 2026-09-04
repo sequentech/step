@@ -10,9 +10,12 @@
 # and docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md
 # for the full designs, and the guide next to each for a walkthrough.
 #
-# This is the tracked template — copy it to layers.yaml (gitignored) before
-# editing; layers.yaml is where real credentials for a given target server
-# belong, never in this file.
+# This is the tracked template. Once you've filled in your own credentials,
+# move (don't copy) it into the gitignored config/ folder next to this file:
+#     mkdir -p telephone-load-test-inputs/config
+#     cp telephone-load-test-inputs/layers.yaml.example telephone-load-test-inputs/config/layers.yaml
+# The scripts read config/layers.yaml specifically — real credentials for a
+# given target server belong there, never in this tracked template.
 #
 # Every field below is tagged "Optional" or "Mandatory":
 #   - Optional fields have a sensible default that works everywhere (or are
@@ -23,9 +26,10 @@
 #     is treated the same as `null`: it falls back to the environment
 #     variable named in the comment, then dies with a clear error if that's
 #     also unset. Every one of those env vars is already exported in this
-#     repo's devcontainer, so copying this file to layers.yaml unedited and
-#     running it there works out of the box — no field needs editing until
-#     you point these scripts at a server other than the devcontainer stack.
+#     repo's devcontainer, so copying this file to config/layers.yaml
+#     unedited and running it there works out of the box — no field needs
+#     editing until you point these scripts at a server other than the
+#     devcontainer stack.
 
 # --- Stage 1: setup_telephone_load_test.py -------------------------------
 #

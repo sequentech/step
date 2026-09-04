@@ -29,8 +29,9 @@ stubbed, intercepted, or blocked.
 
 All three scripts (setup and both Stage 2 runners) take no command-line
 arguments; every setting lives in
-`packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml`, loaded by
-a shared `load_test_common.py` module.
+`packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml`
+(gitignored — copied from the tracked `layers.yaml.example` next to it),
+loaded by a shared `load_test_common.py` module.
 
 ## Two stages
 

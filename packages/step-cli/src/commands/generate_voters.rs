@@ -22,6 +22,30 @@ use std::path::PathBuf;
 
 use crate::utils::read_config::load_external_config;
 
+/// An election's alias lives at presentation.i18n.<lang>.alias, not as a
+/// top-level "alias" field — prefers "en", falls back to any other language
+/// with an alias set, then to that language's name, then "Unknown".
+fn election_alias(el: &Value) -> String {
+    let Some(i18n) = el
+        .get("presentation")
+        .and_then(|p| p.get("i18n"))
+        .and_then(Value::as_object)
+    else {
+        return "Unknown".to_string();
+    };
+    let field = |lang: &str, key: &str| {
+        i18n.get(lang)
+            .and_then(|v| v.get(key))
+            .and_then(Value::as_str)
+    };
+    field("en", "alias")
+        .or_else(|| field("en", "name"))
+        .or_else(|| i18n.values().find_map(|v| v.get("alias").and_then(Value::as_str)))
+        .or_else(|| i18n.values().find_map(|v| v.get("name").and_then(Value::as_str)))
+        .unwrap_or("Unknown")
+        .to_string()
+}
+
 #[derive(Args)]
 #[command(about)]
 pub struct GenerateVoters {
@@ -160,7 +184,7 @@ impl GenerateVoters {
         let mut election_map = std::collections::HashMap::new();
         for el in elections {
             if let Some(e_id) = el.get("id").and_then(Value::as_str) {
-                let alias = el.get("alias").and_then(Value::as_str).unwrap_or("Unknown");
+                let alias = election_alias(el);
                 let cluster_prec = el
                     .get("annotations")
                     .and_then(|ann| ann.get("clustered_precint_id"))
@@ -306,6 +330,7 @@ impl GenerateVoters {
                 .unwrap_or(&[]);
 
             let mut election_aliases = Vec::new();
+            let mut election_ids = Vec::new();
             let mut precincts = Vec::new();
 
             for cid in assigned_cids {
@@ -317,9 +342,11 @@ impl GenerateVoters {
                 let default_value = (String::from("Unknown"), String::from("Unknown"));
                 let (alias, cluster_prec) = election_map.get(&e_id).unwrap_or(&default_value);
                 election_aliases.push(alias.clone());
+                election_ids.push(e_id);
                 precincts.push(cluster_prec.clone());
             }
             election_aliases = self.deduplicate_preserve_order(&election_aliases);
+            election_ids = self.deduplicate_preserve_order(&election_ids);
             precincts = self.deduplicate_preserve_order(&precincts);
 
             let election_country_candidate = if let Some(first_alias) = election_aliases.first() {
@@ -342,17 +369,22 @@ impl GenerateVoters {
                 .get(&lookup_key)
                 .cloned()
                 .unwrap_or_else(|| (election_country_candidate.clone(), "Unknown".to_string()));
-            let joined_aliases = if !election_aliases.is_empty() {
+            // Hasura's ballot-style/eligibility permissions filter
+            // election_id _in X-Hasura-Authorized-Election-Ids (see
+            // sequent_backend_ballot_style.yaml), so this needs actual
+            // election ids — not the human-readable alias used for the
+            // country/embassy lookup above.
+            let joined_election_ids = if !election_ids.is_empty() {
                 if authorized_elections_count > 0 {
                     let amount =
-                        std::cmp::min(authorized_elections_count as usize, election_aliases.len());
-                    election_aliases
+                        std::cmp::min(authorized_elections_count as usize, election_ids.len());
+                    election_ids
                         .choose_multiple(&mut rand::thread_rng(), amount)
                         .cloned()
                         .collect::<Vec<String>>()
                         .join("|")
                 } else {
-                    election_aliases.join("|")
+                    election_ids.join("|")
                 }
             } else {
                 "Unknown".to_string()
@@ -407,7 +439,7 @@ impl GenerateVoters {
                     "clusteredPrecinct" => joined_precincts.clone(),
                     "overseasReferences" => overseas_reference.to_string(),
                     "area_name" => area_name.to_string(),
-                    "authorized-election-ids" => joined_aliases.clone(),
+                    "authorized-election-ids" => joined_election_ids.clone(),
                     "password" => password.clone(),
                     "email" => email.clone(),
                     "password_salt" => password_salt.to_string(),

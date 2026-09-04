@@ -30,10 +30,15 @@ steps.
 
 `setup_telephone_load_test.py`, `run_telephone_load_test.py` and
 `run_online_load_test.py` take **no command-line arguments** — every setting
-lives in
-[`packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml),
+lives in `packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml`,
 under the `setup:` / `telephone_run:` / `online_run:` sections respectively.
-Edit that file before each run instead of passing flags — in particular, set
+`config/` is gitignored (it holds real per-server credentials); copy the
+tracked
+[`layers.yaml.example`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml.example)
+template there first — see the
+[telephone guide's Configuration section](../../../12-ivr/telephone-load-testing-guide.md#configuration)
+for the exact commands. Edit that copy before each run instead of passing
+flags — in particular, set
 `setup.voting_channel: ONLINE` and `setup.out_dir:
 online-load-test-output/run` before Stage 1 (the tracked example already
 ships with `TELEPHONE`/`telephone-load-test-output/run` as the default,

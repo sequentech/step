@@ -16,7 +16,7 @@ browsers are expensive. See
 docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md.
 
 Takes no command-line arguments — every setting lives in
-telephone-load-test-inputs/layers.yaml, under 'online_run:'.
+telephone-load-test-inputs/config/layers.yaml, under 'online_run:'.
 
 Requires Node dependencies installed (`yarn` from packages/) and the
 Playwright Chromium browser (`yarn --cwd packages/voting-portal playwright
