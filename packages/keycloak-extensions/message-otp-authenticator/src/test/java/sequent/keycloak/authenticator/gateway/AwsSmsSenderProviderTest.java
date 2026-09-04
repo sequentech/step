@@ -24,8 +24,7 @@ class AwsSmsSenderProviderTest {
     Map<String, MessageAttributeValue> attributes =
         AwsSmsSenderProvider.buildMessageAttributes("SEQUENT", "+13433160806");
 
-    assertEquals(
-        "+13433160806", attributes.get("AWS.MM.SMS.OriginationNumber").stringValue());
+    assertEquals("+13433160806", attributes.get("AWS.MM.SMS.OriginationNumber").stringValue());
     assertFalse(attributes.containsKey("AWS.SNS.SMS.SenderID"));
     assertEquals("Transactional", attributes.get("AWS.SNS.SMS.SMSType").stringValue());
   }
