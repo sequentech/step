@@ -2,18 +2,19 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# The election-verifier part of the TOE: the `verify` binary of the braid crate
+# (packages/braid/src/bin/verify.rs) in its own image, built by the same
+# `cargo build --release --locked` as the braid part.
+
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium \
     protobuf-compiler \
     libprotobuf-dev \
     m4 \
     make \
-    pkg-config \
-    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY ./braid ./braid
@@ -30,28 +31,22 @@ COPY ./e2e ./e2e
 COPY ./step-cli ./step-cli
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
-COPY ./braid/scripts ./braid/scripts
 COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
-WORKDIR /app/windmill
+WORKDIR /app/braid
 RUN cargo build --release --locked
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
-# Install any necessary runtime dependencies for production
-
-RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    ca-certificates \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-RUN update-ca-certificates
 
-# Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=builder /app/target/release/main /usr/local/bin/main
-COPY --from=builder /app/target/release/beat /usr/local/bin/beat
-WORKDIR /usr/local/bin
-# Run the windmill binary, it's possible to run 'beat' as well
-CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]
+COPY --from=builder /app/target/release/verify /usr/bin/verify
+
+ENTRYPOINT ["/usr/bin/verify"]

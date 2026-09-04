@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #TODO: Copy only necessary files
 WORKDIR /app
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
@@ -38,8 +38,8 @@ COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
 # build projects
-WORKDIR /app/b3
-RUN cargo build --features=server --release --locked
+WORKDIR /app/b4
+RUN cargo build --features=native --release --locked
 
 
 
@@ -66,9 +66,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/server /usr/bin/b3
+COPY --from=builder /app/target/release/b4 /usr/bin/b4
 
 # init index db
 RUN mkdir /tmp/cache
 
-ENTRYPOINT ["/usr/bin/b3"]
+ENTRYPOINT ["/usr/bin/b4"]

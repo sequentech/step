@@ -46,13 +46,27 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         ! -name '*-tests.jar' \
         -exec cp -t /build/keycloak-provider-jars/ {} +
 
-# Build the oid4vp extension from source (requires Java 21)
-FROM maven:3-amazoncorretto-21@sha256:81de222c1f34ac467bf968e1800b73fb41e714427c0212ba004296ea972e808a AS oid4vp-build
+# The source archive of the oid4vp extension. The controlled production build supplies it
+# from the accepted external inputs with `--build-context oid4vp-src=<directory holding
+# oid4vp.tar.gz>`, which replaces this stage and leaves the download below unbuilt. Without
+# that override the archive is downloaded from its publisher and checked against
+# OID4VP_SHA256, which is what a build outside the production workflow does.
+FROM maven:3-amazoncorretto-21@sha256:81de222c1f34ac467bf968e1800b73fb41e714427c0212ba004296ea972e808a AS oid4vp-download
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
 RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
     https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v${OID4VP_VERSION}.tar.gz \
- && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
+ && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c -
+
+FROM scratch AS oid4vp-src
+COPY --from=oid4vp-download /tmp/oid4vp.tar.gz /oid4vp.tar.gz
+
+# Build the oid4vp extension from source (requires Java 21)
+FROM maven:3-amazoncorretto-21@sha256:81de222c1f34ac467bf968e1800b73fb41e714427c0212ba004296ea972e808a AS oid4vp-build
+ARG OID4VP_VERSION
+ARG OID4VP_SHA256
+COPY --from=oid4vp-src /oid4vp.tar.gz /tmp/oid4vp.tar.gz
+RUN echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
  && mkdir -p /build \
  && tar -xzf /tmp/oid4vp.tar.gz -C /build \
  && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
