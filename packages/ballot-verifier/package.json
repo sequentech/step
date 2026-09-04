@@ -21,7 +21,7 @@
     "@reduxjs/toolkit": "1.9.5",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
+    "sequent-core": "file:./rust/pkg",
     "@sequentech/ui-essentials": "*",
     "@sequentech/ui-core": "*",
     "web-vitals": "^5.1.0"

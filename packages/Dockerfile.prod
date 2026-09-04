@@ -2,6 +2,88 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+# The WebAssembly toolchain (ALC-06, Section 2.2), at the versions the workspace pins.
+# The controlled production build supplies it from the accepted external inputs with
+# `--build-context wasm-toolchain=<directory>`, which replaces the wasm-toolchain stage and
+# leaves the download below unbuilt; a build outside that workflow downloads it from its
+# publishers. wasm-bindgen must be the version the wasm-bindgen crate of Cargo.toml pins.
+ARG WASM_PACK_VERSION=0.15.0
+ARG WASM_BINDGEN_VERSION=0.2.104
+ARG BINARYEN_VERSION=123
+ARG RUST_VERSION=1.96.0
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-toolchain-download
+ARG WASM_PACK_VERSION
+ARG WASM_BINDGEN_VERSION
+ARG BINARYEN_VERSION
+ARG RUST_VERSION
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) arch=x86_64 ;; \
+      arm64) arch=aarch64 ;; \
+      *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    mkdir -p /toolchain/bin /toolchain/rust-std; \
+    curl -fsSL "https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/wasm-pack-v${WASM_PACK_VERSION}-${arch}-unknown-linux-musl.tar.gz" \
+      | tar -xz -C /tmp; \
+    cp "/tmp/wasm-pack-v${WASM_PACK_VERSION}-${arch}-unknown-linux-musl/wasm-pack" /toolchain/bin/; \
+    curl -fsSL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${WASM_BINDGEN_VERSION}/wasm-bindgen-${WASM_BINDGEN_VERSION}-${arch}-unknown-linux-musl.tar.gz" \
+      | tar -xz -C /tmp; \
+    cp /tmp/wasm-bindgen-${WASM_BINDGEN_VERSION}-${arch}-unknown-linux-musl/wasm-bindgen* /toolchain/bin/; \
+    curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-${arch}-linux.tar.gz" \
+      | tar -xz -C /tmp; \
+    cp "/tmp/binaryen-version_${BINARYEN_VERSION}/bin/wasm-opt" /toolchain/bin/; \
+    curl -fsSL "https://static.rust-lang.org/dist/rust-std-${RUST_VERSION}-wasm32-unknown-unknown.tar.gz" \
+      | tar -xz -C /tmp; \
+    cp -a "/tmp/rust-std-${RUST_VERSION}-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown" /toolchain/rust-std/
+
+FROM scratch AS wasm-toolchain
+COPY --from=wasm-toolchain-download /toolchain/ /
+
+# The WebAssembly module of sequent-core that every single-page application consumes.
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-build
+ARG RUST_VERSION
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    clang \
+    m4 \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=wasm-toolchain /bin/ /usr/local/bin/
+COPY --from=wasm-toolchain /rust-std/wasm32-unknown-unknown /tmp/wasm32-unknown-unknown
+RUN set -eux; \
+    rustlib="$(dirname "$(rustc --print target-libdir)")"; \
+    mv /tmp/wasm32-unknown-unknown "${rustlib}/wasm32-unknown-unknown"; \
+    wasm-pack --version; wasm-bindgen --version; wasm-opt --version
+
+WORKDIR /app
+COPY ./braid ./braid
+COPY ./b4 ./b4
+COPY ./electoral-log ./electoral-log
+COPY ./harvest ./harvest
+COPY ./strand ./strand
+COPY ./immu-board ./immu-board
+COPY ./immudb-rs ./immudb-rs
+COPY ./sequent-core ./sequent-core
+COPY ./velvet ./velvet
+COPY ./windmill ./windmill
+COPY ./e2e ./e2e
+COPY ./step-cli ./step-cli
+COPY ./orare ./orare
+COPY ./wrap-map-err ./wrap-map-err
+COPY ./plugins ./plugins
+COPY ./Cargo.toml ./Cargo.toml
+COPY ./Cargo.lock ./Cargo.lock
+COPY ./.cargo ./.cargo
+
+WORKDIR /app/sequent-core
+RUN wasm-pack build --mode no-install --release --target web --out-name index \
+    --features=wasm,default_features
+
 FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 as builder
 WORKDIR /usr/src/app/
 
@@ -15,6 +97,12 @@ COPY ./ballot-verifier ./ballot-verifier
 COPY ./results-portal ./results-portal
 COPY ./package.json ./package.json
 COPY ./yarn.lock ./yarn.lock
+
+# The WebAssembly module each of them depends on, built above rather than committed
+COPY --from=wasm-build /app/sequent-core/pkg ./ui-core/rust/pkg
+COPY --from=wasm-build /app/sequent-core/pkg ./voting-portal/rust/pkg
+COPY --from=wasm-build /app/sequent-core/pkg ./admin-portal/rust/pkg
+COPY --from=wasm-build /app/sequent-core/pkg ./ballot-verifier/rust/pkg
 
 # Install dependencies
 RUN yarn install --frozen-lockfile --non-interactive

@@ -53,7 +53,7 @@
     "react-js-cron": "^5.0.1",
     "react-redux": "8.1.2",
     "react-router": "7.12.0",
-    "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
+    "sequent-core": "file:./rust/pkg",
     "braid-wasm": "file:./rust/braid-wasm-0.1.0.tgz",
     "sql.js": "^1.13.0",
     "stream-browserify": "^3.0.0",
