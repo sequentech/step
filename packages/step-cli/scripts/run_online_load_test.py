@@ -68,9 +68,14 @@ def main() -> None:
     cfg = common.section(config, "online_run")
 
     run_dir = common.resolve_path(common.req_str(cfg, "run_dir"))
-    summary_json = run_dir / "summary.json"
-    if not summary_json.is_file():
-        common.die(f"no summary.json in {run_dir} — run setup_telephone_load_test.py with setup.voting_channel: ONLINE first")
+    tenants_json = run_dir / "tenants.json"
+    if not tenants_json.is_file():
+        common.die(f"no tenants.json in {run_dir} — run setup_telephone_load_test.py with setup.voting_channel: ONLINE first")
+    with tenants_json.open() as f:
+        tenants_index = json.load(f)
+    tenants = tenants_index.get("tenants") or []
+    if not tenants:
+        common.die(f"{tenants_json} lists no tenants")
 
     voter_offset = int(cfg.get("voter_offset") or 0)
     if voter_offset < 0:
@@ -89,49 +94,63 @@ def main() -> None:
         common.log("headed is a debugging mode; forcing concurrency to 1")
         concurrency = 1
 
-    # --- Read Stage 1's summary.json ---
-    with summary_json.open() as f:
-        summary = json.load(f)
+    # --- Read every tenant's summary.json ---
+    tenant_infos = []
+    for tenant in tenants:
+        tenant_summary_json = run_dir / tenant["dir"] / "summary.json"
+        with tenant_summary_json.open() as f:
+            summary = json.load(f)
 
-    tenant_id = summary.get("tenant_id")
-    election_event_id = summary.get("election_event_id")
-    keycloak_realm = summary.get("keycloak_realm")
-    keycloak_url = cfg.get("keycloak_url") or summary.get("keycloak_url")
-    hasura_url = (cfg.get("hasura_url") or summary.get("hasura_url") or "").removesuffix("/v1/graphql")
-    voters_csv = Path(summary.get("voters_csv", ""))
-    voting_channel = summary.get("voting_channel")
-    voting_portal_url = cfg.get("voting_portal_url") or summary.get("voting_portal_url")
-    for name, value in [
-        ("tenant_id", tenant_id), ("election_event_id", election_event_id), ("keycloak_realm", keycloak_realm),
-        ("keycloak_url", keycloak_url), ("hasura_url", hasura_url),
-    ]:
-        if not value:
-            common.die(f"could not read {name} from {summary_json}")
-    if voting_channel != "ONLINE":
-        common.die(
-            f"{summary_json} was provisioned for the {voting_channel or 'TELEPHONE'} channel — re-run "
-            "setup_telephone_load_test.py with setup.voting_channel: ONLINE (the portal's eligibility "
-            "check gates on the ONLINE channel being open)"
-        )
-    if not voting_portal_url:
-        common.die(f"could not read voting_portal_url from {summary_json} (set online_run.voting_portal_url)")
-    voting_portal_url = voting_portal_url.rstrip("/")
-    login_url = f"{voting_portal_url}/tenant/{tenant_id}/event/{election_event_id}/login"
-    if not voters_csv.is_file():
-        # Stage 1 writes voters_csv as an absolute path; tolerate a
-        # moved/copied run dir (e.g. rsync'ed to another load machine).
-        voters_csv = run_dir / voters_csv.name
-    if not voters_csv.is_file():
-        common.die(f"voters CSV not found: {summary.get('voters_csv')}")
-    common.log(f"Election event {election_event_id} (tenant {tenant_id}), voters: {voters_csv}")
-    common.log(f"Login URL: {login_url}")
+        tenant_id = summary.get("tenant_id")
+        election_event_id = summary.get("election_event_id")
+        keycloak_realm = summary.get("keycloak_realm")
+        keycloak_url = cfg.get("keycloak_url") or summary.get("keycloak_url")
+        hasura_url = (cfg.get("hasura_url") or summary.get("hasura_url") or "").removesuffix("/v1/graphql")
+        voters_csv = Path(summary.get("voters_csv", ""))
+        voting_channel = summary.get("voting_channel")
+        voting_portal_url = cfg.get("voting_portal_url") or summary.get("voting_portal_url")
+        for name, value in [
+            ("tenant_id", tenant_id), ("election_event_id", election_event_id), ("keycloak_realm", keycloak_realm),
+            ("keycloak_url", keycloak_url), ("hasura_url", hasura_url),
+        ]:
+            if not value:
+                common.die(f"could not read {name} from {tenant_summary_json}")
+        if voting_channel != "ONLINE":
+            common.die(
+                f"{tenant_summary_json} was provisioned for the {voting_channel or 'TELEPHONE'} channel — re-run "
+                "setup_telephone_load_test.py with setup.voting_channel: ONLINE (the portal's eligibility "
+                "check gates on the ONLINE channel being open)"
+            )
+        if not voting_portal_url:
+            common.die(f"could not read voting_portal_url from {tenant_summary_json} (set online_run.voting_portal_url)")
+        voting_portal_url = voting_portal_url.rstrip("/")
+        login_url = f"{voting_portal_url}/tenant/{tenant_id}/event/{election_event_id}/login"
+        if not voters_csv.is_file():
+            # Stage 1 writes voters_csv as an absolute path; tolerate a
+            # moved/copied run dir (e.g. rsync'ed to another load machine).
+            voters_csv = tenant_summary_json.parent / voters_csv.name
+        if not voters_csv.is_file():
+            common.die(f"voters CSV not found: {summary.get('voters_csv')}")
+        common.log(f"Election event {election_event_id} (tenant {tenant_id}), voters: {voters_csv}")
+        common.log(f"Login URL: {login_url}")
+        tenant_infos.append({
+            "tenant_id": tenant_id, "election_event_id": election_event_id, "keycloak_realm": keycloak_realm,
+            "keycloak_url": keycloak_url, "hasura_url": hasura_url, "voters_csv": voters_csv,
+            "voting_portal_url": voting_portal_url, "login_url": login_url,
+        })
 
     # --- Preflight: every dependency checked before any load is generated ---
+    # Every tenant shares the same portal/Keycloak/Hasura deployment (only
+    # the realm differs), so it's enough to preflight against the first.
+    first = tenant_infos[0]
+    voting_portal_url, keycloak_url, keycloak_realm, hasura_url = (
+        first["voting_portal_url"], first["keycloak_url"], first["keycloak_realm"], first["hasura_url"],
+    )
     if not common.http_ok(f"{voting_portal_url}/"):
         common.die(f"voting portal not reachable at {voting_portal_url} — start it with 'yarn start:voting-portal' (or set online_run.voting_portal_url)")
     if not common.http_ok(f"{keycloak_url}/realms/{keycloak_realm}/.well-known/openid-configuration"):
         if common.http_ok(f"{keycloak_url}/realms/master/.well-known/openid-configuration"):
-            common.die(f"Keycloak is up at {keycloak_url} but realm {keycloak_realm} does not exist — was the election event deleted, or is {summary_json} stale?")
+            common.die(f"Keycloak is up at {keycloak_url} but realm {keycloak_realm} does not exist — was the election event deleted, or is {run_dir} stale?")
         else:
             common.die(f"Keycloak not reachable at {keycloak_url} — is the stack running? (set online_run.keycloak_url to override summary.json's URL on another machine)")
     if not common.http_ok(f"{hasura_url}/healthz"):
@@ -200,7 +219,15 @@ def main() -> None:
         maybe_forward_local_port(9002, "minio-proxy:9002")
 
     try:
-        _run(cfg, run_dir, out_dir, login_url, voters_csv, voter_offset, max_votes, concurrency, vote_timeout, candidates_pattern, headed, playwright_bin, env, election_event_id, tenant_id)
+        tenant_summaries = []
+        for i, info in enumerate(tenant_infos):
+            common.log(f"=== Tenant {i + 1}/{len(tenant_infos)}: {info['tenant_id']} ===")
+            tenant_out_dir = out_dir / f"tenant-{info['tenant_id']}"
+            tenant_summaries.append(_run(
+                cfg, tenant_out_dir, info["login_url"], info["voters_csv"], voter_offset, max_votes,
+                concurrency, vote_timeout, candidates_pattern, headed, playwright_bin, env,
+                info["election_event_id"], info["tenant_id"],
+            ))
     finally:
         for proc in forward_procs:
             proc.terminate()
@@ -210,10 +237,25 @@ def main() -> None:
             except subprocess.TimeoutExpired:
                 proc.kill()
 
+    total_votes = sum(s["total_votes"] for s in tenant_summaries)
+    total_cast = sum(s["cast"] for s in tenant_summaries)
+    total_failed = sum(s["failed"] for s in tenant_summaries)
+    summary_out_path = out_dir / "summary.json"
+    common.write_json(summary_out_path, {
+        "run_dir": str(run_dir),
+        "tenants": tenant_summaries,
+        "total_votes": total_votes,
+        "cast": total_cast,
+        "failed": total_failed,
+    })
+    common.log(f"Done: {total_cast}/{total_votes} voters cast a ballot across {len(tenant_infos)} tenant(s) ({total_failed} did not)")
+    common.log(f"Run summary: {summary_out_path}")
+    if total_failed > 0:
+        sys.exit(1)
+
 
 def _run(
     cfg: dict[str, Any],
-    run_dir: Path,
     out_dir: Path,
     login_url: str,
     voters_csv: Path,
@@ -227,7 +269,7 @@ def _run(
     env: dict[str, str],
     election_event_id: str,
     tenant_id: str,
-) -> None:
+) -> dict:
     # --- Output layout ---
     out_dir.mkdir(parents=True, exist_ok=True)
     common.log(f"Writing manifest/report/results to {out_dir}")
@@ -323,11 +365,9 @@ def _run(
     if cast + failed != count:
         common.log(f"WARNING: expected {count} voters but the report covers {cast + failed}")
 
-    summary_out_path = out_dir / "summary.json"
-    common.write_json(summary_out_path, {
-        "run_dir": str(run_dir),
-        "election_event_id": election_event_id,
+    tenant_summary = {
         "tenant_id": tenant_id,
+        "election_event_id": election_event_id,
         "login_url": login_url,
         "concurrency": concurrency,
         "voter_offset": voter_offset,
@@ -340,14 +380,13 @@ def _run(
         "failed": failed,
         "results_csv": str(results_path),
         "traces_dir": str(out_dir / "traces"),
-    })
+    }
+    common.write_json(out_dir / "summary.json", tenant_summary)
 
-    common.log(f"Done in {elapsed}s: {cast}/{count} voters cast a ballot ({failed} did not)")
+    common.log(f"Tenant {tenant_id} done in {elapsed}s: {cast}/{count} voters cast a ballot ({failed} did not)")
     common.log(f"Per-voter results: {results_path}")
     common.log(f"Failure traces:    {out_dir / 'traces'}/ (open with: yarn --cwd packages/voting-portal playwright show-trace <trace.zip>)")
-    common.log(f"Run summary:       {summary_out_path}")
-    if failed > 0:
-        sys.exit(1)
+    return tenant_summary
 
 
 if __name__ == "__main__":

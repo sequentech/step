@@ -46,7 +46,21 @@ setup:
   # this to the publicly reachable URL.
   voting_portal_url: http://localhost:3000  # Optional, only used by Stage 2 ONLINE — irrelevant for TELEPHONE runs
 
+  # Identity used to log in and, when new_tenants > 0, to create the new
+  # tenants — see new_tenants below for whether it's ALSO one of the tenants
+  # that receives the election event.
   tenant_id: "****"  # Mandatory, defaults to $SUPER_ADMIN_TENANT_ID
+
+  # How many brand-new tenants to create and provision the SAME election
+  # event into (each gets its own independent import/voters/ceremony/publish
+  # — see run_telephone_load_test.py, which then places calls across all of
+  # them). 0 = provision tenant_id itself, unchanged. null (the default)
+  # resolves to 0 if tenant_id is set above, or 1 if it's left "****"/unset
+  # (replicating the old "no tenant_id -> creates a new tenant" behavior).
+  # Set explicitly to provision N new tenants regardless of whether
+  # tenant_id is given.
+  new_tenants: null  # Optional, defaults to 0 if tenant_id is set, else 1
+
   num_voters: 20  # Optional, defaults to 20
   voter_pin_digits: 6  # Optional, numeric PIN length (max 8, the DTMF limit), defaults to 6
 
@@ -74,6 +88,14 @@ setup:
   # publish, open voting).
   admin_portal_user: "****"  # Mandatory, defaults to $ADMIN_PORTAL_TEST_USERNAME
   admin_portal_password: "****"  # Mandatory, defaults to $ADMIN_PORTAL_TEST_PASSWORD
+
+  # Keycloak platform/master-realm admin — only read when new_tenants > 0,
+  # to look up each freshly created tenant's api-key-client secret (a new
+  # tenant's realm gets its own, randomly regenerated one; there's no way to
+  # know it ahead of time). NOT the same identity as admin_portal_user
+  # above, which is scoped to one tenant's own realm.
+  keycloak_admin_user: "****"  # Mandatory (if new_tenants > 0), defaults to $KEYCLOAK_ADMIN
+  keycloak_admin_password: "****"  # Mandatory (if new_tenants > 0), defaults to $KEYCLOAK_ADMIN_PASSWORD
 
   # Needs "gold" acr for publish/voting-status; the devcontainer's
   # $KEYCLOAK_CLI_CLIENT_ID is a lower tier and will 403 on those two steps.
@@ -133,9 +155,21 @@ telephone_run:
   # -> that realm -> Clients -> ivr-service/ivr-voting -> Credentials) — a
   # value from a previous run's election event will not work for a new one.
   # .devcontainer/.env.development's defaults only match the local
-  # devcontainer's one seeded test election event.
-  keycloak_ivr_service_client_secret: "****"  # Mandatory, defaults to $KEYCLOAK_IVR_SERVICE_CLIENT_SECRET
-  keycloak_ivr_voting_client_secret: "****"  # Mandatory, defaults to $KEYCLOAK_IVR_VOTING_CLIENT_SECRET
+  # devcontainer's one seeded test election event. Used as the fallback for
+  # any tenant not listed in tenant_ivr_secrets below — with only one
+  # tenant (setup.new_tenants: 0, the default) these two are all you need.
+  keycloak_ivr_service_client_secret: "****"  # Mandatory (unless every tenant is in tenant_ivr_secrets), defaults to $KEYCLOAK_IVR_SERVICE_CLIENT_SECRET
+  keycloak_ivr_voting_client_secret: "****"  # Mandatory (unless every tenant is in tenant_ivr_secrets), defaults to $KEYCLOAK_IVR_VOTING_CLIENT_SECRET
+
+  # Per-tenant overrides for a multi-tenant run (setup.new_tenants > 1) —
+  # each tenant's election event gets its own, different ivr-service/
+  # ivr-voting secrets, so the flat defaults above can cover at most one of
+  # them. Keyed by tenant_id; example:
+  #   tenant_ivr_secrets:
+  #     8dcd2cf1-79e2-4f19-8eb9-570a728039df:
+  #       keycloak_ivr_service_client_secret: ...
+  #       keycloak_ivr_voting_client_secret: ...
+  tenant_ivr_secrets: {}  # Optional, defaults to {} (every tenant uses the flat secrets above)
 
   call_timeout: 300  # Optional, per-call timeout in seconds, defaults to 300
   system_number: "+111111111111"  # Optional, number the simulated callers dial

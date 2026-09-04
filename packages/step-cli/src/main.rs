@@ -29,6 +29,7 @@ enum MainCommand {
 #[derive(Subcommand)]
 enum StepCommands {
     Config(commands::configure::Config),
+    CreateTenant(commands::create_tenant::CreateTenant),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
     CreateContest(commands::create_contest::CreateContest),
@@ -67,6 +68,12 @@ enum StepCommands {
     ConfigureResultsWebsite(commands::results_publication::ConfigureResultsWebsite),
     PublishResults(commands::results_publication::PublishResults),
     RevokeResultsPublication(commands::results_publication::RevokeResultsPublication),
+    ExportTenantConfig(commands::export_tenant_config::ExportTenantConfig),
+    ImportTenantConfig(commands::import_tenant_config::ImportTenantConfig),
+    ListTrustees(commands::get_trustees::ListTrustees),
+    CreateTrustee(commands::create_trustee::CreateTrustee),
+    DownloadDocument(commands::download_document::DownloadDocument),
+    UploadDocument(commands::upload_document::UploadDocument),
 }
 
 fn main() {
@@ -75,6 +82,7 @@ fn main() {
     match &cli.command {
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::CreateTenant(create_tenant) => create_tenant.run(),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),
             StepCommands::CreateContest(create_contest) => create_contest.run(),
@@ -119,6 +127,12 @@ fn main() {
             StepCommands::RevokeResultsPublication(revoke_results_publication) => {
                 revoke_results_publication.run()
             }
+            StepCommands::ExportTenantConfig(export) => export.run(),
+            StepCommands::ImportTenantConfig(import) => import.run(),
+            StepCommands::ListTrustees(list) => list.run(),
+            StepCommands::CreateTrustee(create) => create.run(),
+            StepCommands::DownloadDocument(download) => download.run(),
+            StepCommands::UploadDocument(upload) => upload.run(),
         },
     }
 }

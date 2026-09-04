@@ -80,19 +80,28 @@ python3 packages/step-cli/scripts/setup_telephone_load_test.py
 This imports the tracked example election event, generates 20 voters (all
 placed in the same area, with unique numeric username/PIN each), runs the
 keys ceremony, publishes, and opens `ONLINE` voting. Outputs land in
-`setup.out_dir`: `summary.json` (including the portal `login_url`) and the
-voters CSV.
+`setup.out_dir`: a top-level `tenants.json` index, and one
+`tenant-<tenant_id>/` subdirectory per provisioned tenant holding that
+tenant's own `summary.json` (including the portal `login_url`) and voters
+CSV. By default there's exactly one tenant — see the equivalent note in the
+[telephone guide's Stage 1](../../../12-ivr/telephone-load-testing-guide.md#1-stage-1--provision-the-election-event-and-voters)
+for `setup.new_tenants`, which works the same way here.
 
 ## 2. Smoke-test one voter (optional but recommended)
 
 Before fanning out, watch a single voter cast a ballot in a headed browser —
-this catches a wrong URL, a closed channel, or changed selectors immediately:
+this catches a wrong URL, a closed channel, or changed selectors immediately.
+Find your tenant's output subdirectory first:
 
 ```bash
-LOGIN_URL=$(python3 -c 'import json; print(json.load(open("packages/step-cli/scripts/online-load-test-output/run/summary.json"))["login_url"])')
-VOTER_USERNAME=$(awk -F, 'NR==2 {print $1}' packages/step-cli/scripts/online-load-test-output/run/voters_20.csv)
-VOTER_PASSWORD=$(awk -F, 'NR==2 {print $3}' packages/step-cli/scripts/online-load-test-output/run/voters_20.csv)
-VOTER_DATE_OF_BIRTH=$(awk -F, 'NR==2 {print $6}' packages/step-cli/scripts/online-load-test-output/run/voters_20.csv)
+TENANT_DIR=$(python3 -c 'import json; run_dir="packages/step-cli/scripts/online-load-test-output/run"; print(f"{run_dir}/{json.load(open(f\"{run_dir}/tenants.json\"))[\"tenants\"][0][\"dir\"]}")')
+```
+
+```bash
+LOGIN_URL=$(python3 -c "import json; print(json.load(open('$TENANT_DIR/summary.json'))['login_url'])")
+VOTER_USERNAME=$(awk -F, 'NR==2 {print $1}' "$TENANT_DIR/voters_20.csv")
+VOTER_PASSWORD=$(awk -F, 'NR==2 {print $3}' "$TENANT_DIR/voters_20.csv")
+VOTER_DATE_OF_BIRTH=$(awk -F, 'NR==2 {print $6}' "$TENANT_DIR/voters_20.csv")
 LOGIN_URL="$LOGIN_URL" VOTER_USERNAME="$VOTER_USERNAME" VOTER_PASSWORD="$VOTER_PASSWORD" \
   VOTER_DATE_OF_BIRTH="$VOTER_DATE_OF_BIRTH" \
   yarn --cwd packages/voting-portal playwright test --config playwright.load.config.ts --headed
@@ -114,12 +123,12 @@ python3 packages/step-cli/scripts/run_online_load_test.py
 ```
 
 This checks every dependency up front (portal, Keycloak realm, Hasura,
-Playwright — each failure prints the exact command that fixes it), renders a
-voter manifest, and runs one Playwright invocation with
-`online_run.concurrency` workers, each voter a fresh browser context casting
-a real ballot. Results land in `results.csv`
-(`voter_id,status,duration_ms,ballot_id`), failure traces under `traces/`,
-and a run `summary.json` under `online_run.out_dir`.
+Playwright — each failure prints the exact command that fixes it), then runs
+once per tenant `tenants.json` lists (a single tenant by default), casting
+every one of that tenant's voters. Per-tenant results land in
+`tenant-<tenant_id>/results.csv` (`voter_id,status,duration_ms,ballot_id`)
+under `online_run.out_dir`, with failure traces under that tenant's
+`traces/`; a top-level `summary.json` aggregates totals across every tenant.
 
 Inspect a failed voter's trace with:
 
@@ -139,19 +148,14 @@ deployed portal for bigger runs, or spread the load across machines (see
 in short: copy the Stage-1 `setup.out_dir` to each machine and give each one a
 disjoint `online_run.voter_offset`/`online_run.max_votes` slice).
 
-## 4. Clean up: delete the election event
+## 4. Clean up: delete the election event(s)
 
-```bash
-ELECTION_EVENT_ID=$(python3 -c 'import json; print(json.load(open("packages/step-cli/scripts/online-load-test-output/run/summary.json"))["election_event_id"])')
-step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
-```
-
-The command blocks and polls until the async teardown task finishes, so a
-`Success!` means cleanup is actually done. It reuses the admin session Stage
-1 left in `config/configuration.json` next to the `step-cli` binary; if that
-token has expired, re-authenticate with the same `step config` call the
-setup script makes (see `configure_as` in
-`packages/step-cli/scripts/setup_telephone_load_test.py`).
+One election event per tenant `tenants.json` lists — see the equivalent
+[telephone guide's cleanup step](../../../12-ivr/telephone-load-testing-guide.md#4-clean-up-delete-the-election-events)
+for the full per-tenant loop (list tenant/election-event id pairs, then
+`step config` + `delete-election-event` for each). The command blocks and
+polls until the async teardown task finishes, so a `Success!` means cleanup
+is actually done.
 
 ## Notes
 
