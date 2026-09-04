@@ -58,3 +58,6 @@ anyhow = "1"
 [[bench]]
 name = "pdf_generation"
 harness = false
+
+[lints.rust]
+unsafe_code = "forbid"

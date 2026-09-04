@@ -39,3 +39,6 @@ lambda_runtime = { version = "0.13", features = ["anyhow"] }
 default = ["openwhisk"]
 aws_lambda = ["orare/aws_lambda", "sequent-core/s3"]
 openwhisk = ["orare/openwhisk"]
+
+[lints.rust]
+unsafe_code = "forbid"

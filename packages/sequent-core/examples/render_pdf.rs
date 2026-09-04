@@ -14,13 +14,9 @@ use tokio::runtime::Runtime;
 async fn main() -> Result<(), Error> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "lambda_inplace")] {
-            unsafe {
-                env::set_var("DOC_RENDERER_BACKEND", "inplace");
-            }
+            env::set_var("DOC_RENDERER_BACKEND", "inplace");
         } else if #[cfg(feature = "lambda_openwhisk")] {
-            unsafe {
-                env::set_var("DOC_RENDERER_BACKEND", "openwhisk");
-            }
+            env::set_var("DOC_RENDERER_BACKEND", "openwhisk");
             match env::var("OPENWHISK_DOC_RENDERER_ENDPOINT") {
                 Ok(endpoint) => println!("OpenWhisk doc renderer endpoint '{endpoint}' will be used"),
                 Err(_) => {
@@ -31,9 +27,7 @@ async fn main() -> Result<(), Error> {
                 },
             }
         } else if #[cfg(feature = "lambda_aws_lambda")] {
-            unsafe {
-                env::set_var("DOC_RENDERER_BACKEND", "aws_lambda");
-            }
+            env::set_var("DOC_RENDERER_BACKEND", "aws_lambda");
             match env::var("AWS_LAMBDA_DOC_RENDERER_ENDPOINT") {
                 Ok(endpoint) => println!("AWS Lambda doc renderer endpoint '{endpoint}' will be used"),
                 Err(_) => println!("Please, set envvar AWS_LAMBDA_DOC_RENDERER_ENDPOINT and try again")

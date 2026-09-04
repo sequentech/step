@@ -111,3 +111,6 @@ name = "verify_ballot"
 harness = false
 # remove this to run benchmark
 # bench = false
+
+[lints.rust]
+unsafe_code = "forbid"

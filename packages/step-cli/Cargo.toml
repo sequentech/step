@@ -45,3 +45,6 @@ url = "2"
 [[bin]]
 name = "step-cli"
 path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
