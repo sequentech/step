@@ -161,9 +161,9 @@ async fn resolve_area_ids_bulk(
 }
 
 /// Bulk-inserts every `VOTER_ADDED` voter in `voters` directly into
-/// Keycloak's tables. Returns the same `(applied_items, row_failures)` shape
-/// `run_apply_reconciliation_patch` already collects from the sequential
-/// Admin-API path, so the two paths merge into one report.
+/// Keycloak's tables. Returns the same `(voter_username, reason)` row
+/// failures `run_apply_reconciliation_patch` already collects from the
+/// sequential Admin-API path, so the two paths merge into one report.
 #[instrument(skip_all, fields(voter_count = voters.len()), err)]
 pub async fn apply_voters_added_bulk(
     hasura_transaction: &Transaction<'_>,
@@ -173,12 +173,11 @@ pub async fn apply_voters_added_bulk(
     realm: &str,
     voter_group_name: &str,
     voters: &HashMap<String, Vec<DiffItem>>,
-) -> Result<(Vec<DiffItem>, Vec<(String, String)>)> {
-    let mut applied_items = Vec::new();
+) -> Result<Vec<(String, String)>> {
     let mut row_failures: Vec<(String, String)> = Vec::new();
 
     if voters.is_empty() {
-        return Ok((applied_items, row_failures));
+        return Ok(row_failures);
     }
 
     let mut pending = Vec::with_capacity(voters.len());
@@ -245,7 +244,7 @@ pub async fn apply_voters_added_bulk(
     }
 
     if ready.is_empty() {
-        return Ok((applied_items, row_failures));
+        return Ok(row_failures);
     }
 
     let realm_id = get_realm_id(keycloak_transaction, realm.to_string())
@@ -258,11 +257,7 @@ pub async fn apply_voters_added_bulk(
         {
             Ok(inserted_usernames) => {
                 for (candidate, _area_id) in batch {
-                    if inserted_usernames.contains(&candidate.voter_username) {
-                        if let Some(items) = voters.get(&candidate.voter_username) {
-                            applied_items.extend(items.clone());
-                        }
-                    } else {
+                    if !inserted_usernames.contains(&candidate.voter_username) {
                         row_failures.push((
                             candidate.voter_username.clone(),
                             "Voter already existed in Keycloak (skipped by ON CONFLICT)"
@@ -283,7 +278,7 @@ pub async fn apply_voters_added_bulk(
         }
     }
 
-    Ok((applied_items, row_failures))
+    Ok(row_failures)
 }
 
 #[instrument(skip(keycloak_transaction), err)]

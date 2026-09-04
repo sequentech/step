@@ -91,10 +91,6 @@ impl Message {
     /// `StatementBody::ExternalReconciliation`. Named for the general
     /// capability, not the specific integration (Datafix) that first needed
     /// it.
-    /// Unlike most `Message::*_message` constructors, this calls [`Self::sign`]
-    /// directly instead of [`Self::from_body`] so `artifact` (the JSON of
-    /// old/new values applied, for a `ChangesApplied` entry) can be carried —
-    /// `from_body` always signs with `artifact: None`.
     #[instrument(skip_all, err)]
     pub fn external_reconciliation_message(
         event_id: EventIdString,
@@ -103,7 +99,6 @@ impl Message {
         generated_at: ExternalReconciliationGeneratedAtString,
         input_hash: ExternalReconciliationInputHashString,
         output_hash: ExternalReconciliationOutputHashString,
-        artifact: Option<Vec<u8>>,
         sd: &SigningData,
         user_id: Option<String>,
         username: Option<String>,
@@ -116,21 +111,10 @@ impl Message {
             input_hash,
             output_hash,
         );
-        let head = StatementHead::from_body(event_id, &body);
-        let statement = Statement::new(head, body);
 
-        Message::sign(
-            statement,
-            artifact,
-            &sd.sender_sk,
-            &sd.sender_name,
-            &sd.system_sk,
-            user_id,
-            username,
-            None, /* election_id: a reconciliation run is event-wide, not tied to one election */
-            None, /* area_id */
-            None, /* ballot_id */
-        )
+        // A reconciliation run is event-wide, so no election, area or ballot
+        // id is attached.
+        Message::from_body(event_id, body, sd, user_id, username, None, None, None)
     }
 
     pub fn cast_vote_message(

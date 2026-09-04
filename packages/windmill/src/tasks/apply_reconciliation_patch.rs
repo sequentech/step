@@ -21,7 +21,6 @@ use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::reconciliation::apply::{apply_voter_changes, VoterApplyOutcome};
 use crate::services::external::reconciliation::bulk_create::apply_voters_added_bulk;
 use crate::services::external::reconciliation::diff::{DiffItem, ReconciliationApplyEnvelope};
-use crate::services::external::reconciliation::patch::DiffItemArrayWriter;
 use crate::services::external::types::{ReconciliationChangeCategory, ReconciliationPatchSource};
 use crate::services::external::utils::set_datafix_reconciliation_state;
 use crate::services::protocol_manager::get_event_board;
@@ -36,7 +35,7 @@ use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Write};
+use std::io::BufReader;
 use tracing::{info, instrument};
 
 const VOTER_ADD_APPLY_BATCH_SIZE: usize = 5_000;
@@ -348,17 +347,6 @@ async fn run_apply_reconciliation_patch(
     let mut applied_voters_count: usize = 0;
     let mut pending_voters_added: HashMap<String, Vec<DiffItem>> = HashMap::new();
 
-    // Applied old/new values are also streamed to disk. The electoral-log
-    // API ultimately needs one byte artifact, but no second Vec<DiffItem> is
-    // retained while the apply itself runs.
-    let audit_temp = tempfile::NamedTempFile::new()
-        .map_err(|err| format!("Error creating reconciliation audit artifact: {err}"))?;
-    let audit_file = audit_temp
-        .reopen()
-        .map_err(|err| format!("Error opening reconciliation audit artifact: {err}"))?;
-    let mut audit_writer = DiffItemArrayWriter::start(BufWriter::new(audit_file))
-        .map_err(|err| format!("Error starting reconciliation audit artifact: {err}"))?;
-
     // Consume one contiguous voter group at a time. `VoterGroupTracker`
     // rejects any voter that reappears after its first group, making the
     // generator/apply ordering contract self-enforcing.
@@ -398,7 +386,6 @@ async fn run_apply_reconciliation_patch(
             voter_username,
             current_items,
             &mut pending_voters_added,
-            &mut audit_writer,
             &mut applied_voters_count,
             &mut row_failures,
         )
@@ -411,23 +398,13 @@ async fn run_apply_reconciliation_patch(
         &realm,
         &voter_group_name,
         &mut pending_voters_added,
-        &mut audit_writer,
         &mut applied_voters_count,
         &mut row_failures,
     )
     .await?;
 
     // Electoral log: every apply attempt gets a run-level entry, including a
-    // run where every row failed. The artifact contains only old/new items
-    // that were actually applied.
-    let mut audit_file = audit_writer
-        .finish()
-        .map_err(|err| format!("Error finishing reconciliation audit artifact: {err}"))?;
-    audit_file
-        .flush()
-        .map_err(|err| format!("Error flushing reconciliation audit artifact: {err}"))?;
-    let artifact = std::fs::read(audit_temp.path())
-        .map_err(|err| format!("Error reading reconciliation audit artifact: {err}"))?;
+    // run where every row failed.
     let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
     let electoral_log = ElectoralLog::new(
@@ -446,7 +423,6 @@ async fn run_apply_reconciliation_patch(
             envelope.generated_at,
             envelope.source_sha256.clone(),
             None,
-            Some(artifact),
             Some(body.applied_by_user_id.clone()),
             body.applied_by_username.clone(),
         )
@@ -479,7 +455,7 @@ async fn run_apply_reconciliation_patch(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn process_voter_group<W: Write>(
+async fn process_voter_group(
     hasura_transaction: &deadpool_postgres::Transaction<'_>,
     keycloak_transaction: &deadpool_postgres::Transaction<'_>,
     body: &ApplyReconciliationPatchBody,
@@ -488,7 +464,6 @@ async fn process_voter_group<W: Write>(
     voter_username: String,
     voter_items: Vec<DiffItem>,
     pending_voters_added: &mut HashMap<String, Vec<DiffItem>>,
-    audit_writer: &mut DiffItemArrayWriter<W>,
     applied_voters_count: &mut usize,
     row_failures: &mut RowFailureSummary,
 ) -> std::result::Result<(), String> {
@@ -523,7 +498,6 @@ async fn process_voter_group<W: Write>(
                 realm,
                 voter_group_name,
                 pending_voters_added,
-                audit_writer,
                 applied_voters_count,
                 row_failures,
             )
@@ -542,12 +516,7 @@ async fn process_voter_group<W: Write>(
     )
     .await
     {
-        Ok(VoterApplyOutcome::Applied) => {
-            *applied_voters_count += 1;
-            audit_writer
-                .write_batch(voter_items.iter())
-                .map_err(|err| format!("Error writing reconciliation audit artifact: {err}"))?;
-        }
+        Ok(VoterApplyOutcome::Applied) => *applied_voters_count += 1,
         Ok(VoterApplyOutcome::Failed { reason }) => {
             row_failures.record(voter_username, reason);
         }
@@ -557,14 +526,13 @@ async fn process_voter_group<W: Write>(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn flush_voters_added<W: Write>(
+async fn flush_voters_added(
     hasura_transaction: &deadpool_postgres::Transaction<'_>,
     keycloak_transaction: &deadpool_postgres::Transaction<'_>,
     body: &ApplyReconciliationPatchBody,
     realm: &str,
     voter_group_name: &str,
     pending_voters_added: &mut HashMap<String, Vec<DiffItem>>,
-    audit_writer: &mut DiffItemArrayWriter<W>,
     applied_voters_count: &mut usize,
     row_failures: &mut RowFailureSummary,
 ) -> std::result::Result<(), String> {
@@ -573,7 +541,7 @@ async fn flush_voters_added<W: Write>(
     }
     let voters_added = std::mem::take(pending_voters_added);
     let voters_added_count = voters_added.len();
-    let (bulk_applied, bulk_failures) = apply_voters_added_bulk(
+    let bulk_failures = apply_voters_added_bulk(
         hasura_transaction,
         keycloak_transaction,
         &body.tenant_id,
@@ -585,9 +553,6 @@ async fn flush_voters_added<W: Write>(
     .await
     .map_err(|err| format!("Error bulk-creating added voters: {err:?}"))?;
     *applied_voters_count += voters_added_count - bulk_failures.len();
-    audit_writer
-        .write_batch(bulk_applied.iter())
-        .map_err(|err| format!("Error writing reconciliation audit artifact: {err}"))?;
     row_failures.extend(bulk_failures);
     Ok(())
 }

@@ -490,7 +490,6 @@ async fn run_generate_reconciliation_patches(
             meta.generated_at,
             source_sha256.clone(),
             external_patch_sha256.clone(),
-            None,
             Some(body.requested_by_user_id.clone()),
             body.requested_by_username.clone(),
         )
