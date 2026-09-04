@@ -428,7 +428,7 @@ async fn run_apply_reconciliation_patch(
     audit_file
         .flush()
         .map_err(|err| format!("Error flushing reconciliation audit artifact: {err}"))?;
-    let artifact = std::fs::read(audit_temp.path())
+    let _artifact = std::fs::read(audit_temp.path())
         .map_err(|err| format!("Error reading reconciliation audit artifact: {err}"))?;
     let slug = std::env::var("ENV_SLUG").map_err(|err| format!("Missing ENV_SLUG: {err}"))?;
     let board_name = get_event_board(&body.tenant_id, &body.election_event_id, &slug);
@@ -448,7 +448,7 @@ async fn run_apply_reconciliation_patch(
             envelope.generated_at,
             envelope.source_sha256.clone(),
             None,
-            Some(artifact),
+            None, // Avoid unexpected behavior when artifacts become too large
             Some(body.applied_by_user_id.clone()),
             body.applied_by_username.clone(),
         )

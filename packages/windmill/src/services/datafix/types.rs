@@ -181,6 +181,10 @@ pub struct PasswordPolicy {
     base: BasePolicy,
     size: usize,
     characters: CharactersPolicy,
+    /// Whether the generated PIN is a Keycloak temporary credential (forcing
+    /// a change on next login). `None` when the annotation omits it; callers
+    /// decide their own default rather than relying on Keycloak's.
+    pub temporary: Option<bool>,
 }
 
 impl PasswordPolicy {
