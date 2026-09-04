@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Online Load Testing — Design | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-design"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Online Load Testing — Design | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3140/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-design"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-design" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-design" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Online Load Testing — Design","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-design"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3140/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.72c4dca5.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.30330cf0.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3140/assets/js/main.c7c985a4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -30,8 +30,9 @@ ballot encryption, the cast mutation) is exercised for real — nothing is
 stubbed, intercepted, or blocked.</p>
 <p>All three scripts (setup and both Stage 2 runners) take no command-line
 arguments; every setting lives in
-<code>packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml</code>, loaded by
-a shared <code>load_test_common.py</code> module.</p>
+<code>packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml</code>
+(gitignored — copied from the tracked <code>layers.yaml.example</code> next to it),
+loaded by a shared <code>load_test_common.py</code> module.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="two-stages">Two stages<a href="#two-stages" class="hash-link" aria-label="Direct link to Two stages" title="Direct link to Two stages" translate="no">​</a></h2>
 <ol>
 <li class=""><strong>Stage 1 — Provisioning</strong> (<code>step-cli</code>, network calls to Hasura/Keycloak

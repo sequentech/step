@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Online Load Testing Guide | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Online Load Testing Guide | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3140/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Online Load Testing Guide","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/cli/tutorials/load-testing/online-load-testing-guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3140/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.72c4dca5.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.30330cf0.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3140/assets/js/main.c7c985a4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -28,10 +28,15 @@ steps.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="configuration">Configuration<a href="#configuration" class="hash-link" aria-label="Direct link to Configuration" title="Direct link to Configuration" translate="no">​</a></h2>
 <p><code>setup_telephone_load_test.py</code>, <code>run_telephone_load_test.py</code> and
 <code>run_online_load_test.py</code> take <strong>no command-line arguments</strong> — every setting
-lives in
-<a href="https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml" target="_blank" rel="noopener noreferrer" class=""><code>packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml</code></a>,
+lives in <code>packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml</code>,
 under the <code>setup:</code> / <code>telephone_run:</code> / <code>online_run:</code> sections respectively.
-Edit that file before each run instead of passing flags — in particular, set
+<code>config/</code> is gitignored (it holds real per-server credentials); copy the
+tracked
+<a href="https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml.example" target="_blank" rel="noopener noreferrer" class=""><code>layers.yaml.example</code></a>
+template there first — see the
+<a class="" href="/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide#configuration">telephone guide&#x27;s Configuration section</a>
+for the exact commands. Edit that copy before each run instead of passing
+flags — in particular, set
 <code>setup.voting_channel: ONLINE</code> and <code>setup.out_dir: online-load-test-output/run</code> before Stage 1 (the tracked example already
 ships with <code>TELEPHONE</code>/<code>telephone-load-test-output/run</code> as the default,
 shared with the <a class="" href="/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide">telephone load test</a>).
