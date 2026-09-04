@@ -3883,7 +3883,7 @@
     },
     "defaultSignatureAlgorithm": "RS256",
     "directGrantFlow": "direct grant",
-    "displayName": "Tecumseh - UAT - 2nd Round",
+    "displayName": "Loadtests Tenant",
     "displayNameHtml": "<span style=\"display: inline-block; background-color: rgba(255, 255, 255, 0.55); padding: 3px 8px; border-radius: 3px;\">   Tecumseh Municipal Elections 2026 </span>",
     "dockerAuthenticationFlow": "docker auth",
     "duplicateEmailsAllowed": false,
