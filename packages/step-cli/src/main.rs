@@ -29,6 +29,7 @@ enum MainCommand {
 #[derive(Subcommand)]
 enum StepCommands {
     Config(commands::configure::Config),
+    CreateTenant(commands::create_tenant::CreateTenant),
     CreateElectionEvent(commands::create_election_event::CreateElectionEventCLI),
     CreateElection(commands::create_election::CreateElection),
     CreateContest(commands::create_contest::CreateContest),
@@ -36,14 +37,18 @@ enum StepCommands {
     CreateArea(commands::create_area::CreateArea),
     CreateAreaContest(commands::create_area_contest::CreateAreaContest),
     CreateVoter(commands::create_voter::CreateVoter),
+    DeleteElectionEvent(commands::delete_election_event::DeleteElectionEventCLI),
+    DeleteTenant(commands::delete_tenant::DeleteTenantCLI),
     ExportCastVotes(commands::export_cast_votes::ExportCastVotes),
     ExportElectionEvent(commands::export_election_event::ExportElectionEventCommand),
     UpdateVoter(commands::update_voter::UpdateVoter),
     ImportElection(commands::import_election_event::ImportElectionEventFile),
+    ImportVoters(commands::import_voters::ImportVoters),
     Publish(commands::publish_changes::PublishChanges),
     RefreshToken(commands::refresh_token::Refresh),
     StartKeyCeremony(commands::start_key_ceremony::StartKeyCeremony),
     CompleteKeyCeremony(commands::complete_key_ceremony::Complete),
+    GetKeyCeremonyStatus(commands::get_key_ceremony_status::GetKeyCeremonyStatus),
     StartTally(commands::start_tally::StartTallyCeremony),
     UpdateTally(commands::update_tally_status::UpdateTallyStatus),
     SubmitTallyResolution(commands::submit_tally_resolution::SubmitTallyResolution),
@@ -64,6 +69,12 @@ enum StepCommands {
     ConfigureResultsWebsite(commands::results_publication::ConfigureResultsWebsite),
     PublishResults(commands::results_publication::PublishResults),
     RevokeResultsPublication(commands::results_publication::RevokeResultsPublication),
+    ExportTenantConfig(commands::export_tenant_config::ExportTenantConfig),
+    ImportTenantConfig(commands::import_tenant_config::ImportTenantConfig),
+    ListTrustees(commands::get_trustees::ListTrustees),
+    CreateTrustee(commands::create_trustee::CreateTrustee),
+    DownloadDocument(commands::download_document::DownloadDocument),
+    UploadDocument(commands::upload_document::UploadDocument),
 }
 
 fn main() {
@@ -72,6 +83,7 @@ fn main() {
     match &cli.command {
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::CreateTenant(create_tenant) => create_tenant.run(),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),
             StepCommands::CreateContest(create_contest) => create_contest.run(),
@@ -81,12 +93,16 @@ fn main() {
             StepCommands::ExportCastVotes(export_cast_votes) => export_cast_votes.run(),
             StepCommands::ExportElectionEvent(export_election_event) => export_election_event.run(),
             StepCommands::ImportElection(import) => import.run(),
+            StepCommands::ImportVoters(import_voters) => import_voters.run(),
             StepCommands::CreateVoter(create_voter) => create_voter.run(),
+            StepCommands::DeleteElectionEvent(delete_event) => delete_event.run(),
+            StepCommands::DeleteTenant(delete_tenant) => delete_tenant.run(),
             StepCommands::UpdateVoter(update_voter) => update_voter.run(),
             StepCommands::Publish(publish_ballot) => publish_ballot.run(),
             StepCommands::RefreshToken(refresh) => refresh.run(),
             StepCommands::StartKeyCeremony(start) => start.run(),
             StepCommands::CompleteKeyCeremony(complete) => complete.run(),
+            StepCommands::GetKeyCeremonyStatus(status) => status.run(),
             StepCommands::StartTally(start) => start.run(),
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::SubmitTallyResolution(submit) => submit.run(),
@@ -113,6 +129,12 @@ fn main() {
             StepCommands::RevokeResultsPublication(revoke_results_publication) => {
                 revoke_results_publication.run()
             }
+            StepCommands::ExportTenantConfig(export) => export.run(),
+            StepCommands::ImportTenantConfig(import) => import.run(),
+            StepCommands::ListTrustees(list) => list.run(),
+            StepCommands::CreateTrustee(create) => create.run(),
+            StepCommands::DownloadDocument(download) => download.run(),
+            StepCommands::UploadDocument(upload) => upload.run(),
         },
     }
 }

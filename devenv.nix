@@ -95,6 +95,7 @@ in
 
     python3
     python3Packages.virtualenvwrapper
+    python3Packages.pyyaml
 
     # for parsing docker-compose.yml
     yq

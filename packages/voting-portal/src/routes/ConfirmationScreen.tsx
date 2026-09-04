@@ -534,6 +534,7 @@ const ConfirmationScreen: React.FC = () => {
                                 />
                             </DecorativeIconBox>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
                                 sx={{display: {xs: "none", sm: "block"}}}
@@ -542,6 +543,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {ballotId.current}
                             </BallotIdLink>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
                                 sx={{display: {xs: "block", sm: "none"}}}
