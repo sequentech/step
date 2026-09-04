@@ -8,6 +8,9 @@ name: wbraid
 # so it gets its own workflow, scoped to changes under that subtree.
 on:
   pull_request:
+    # `labeled` so that adding the `wbraid-live-b4` label (see the live-b4 job)
+    # runs that job on the spot rather than on the next push.
+    types: [ opened, synchronize, reopened, labeled ]
     paths:
       - 'packages/wbraid/**'
       - '.github/workflows/wbraid.yml'
@@ -72,8 +75,8 @@ jobs:
 
       # The live-b4 protocol tests (test_protocol_http*) and the Verificatum
       # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
-      # JVM with the Verificatum jars. The live-b4 ones stay ignored here until
-      # a follow-up gives this job b4 and LocalStack service containers.
+      # JVM with the Verificatum jars. The live-b4 ones run in the opt-in
+      # live-b4 job below.
       - name: Run tests
         run: cargo test --release
         env:
@@ -105,3 +108,77 @@ jobs:
           cargo build -p braid --lib --release
           --target wasm32-unknown-unknown
           --no-default-features --features wasm-core
+
+  live-b4:
+    name: Live b4 protocol tests
+    # Opt-in: a release build of b4 and braid plus two full protocol runs
+    # against a real b4 and the S3 emulator is slow, so only pull requests
+    # carrying the `wbraid-live-b4` label run it. The same two tests run in
+    # the devcontainer with `cargo test -p braid --release -- --ignored`
+    # (TESTING.md, "Live-b4 tests").
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'wbraid-live-b4')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    services:
+      localstack:
+        image: localstack/localstack:4
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 25
+    env:
+      # b4 only presigns against this endpoint; the tests, on the same runner,
+      # fetch the bodies from it. Credentials are LocalStack's dummies.
+      AWS_ENDPOINT_URL: http://localhost:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+      S3_BUCKET_NAME: wbraid-messages
+      WBRAID_B4_BIND: 127.0.0.1:3005
+      WBRAID_B4_URL: http://127.0.0.1:3005
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: wbraid-test
+          cargo-build-path: packages/wbraid/target
+          cargo-lock-path: packages/wbraid/Cargo.lock
+
+      # What localstack.sh / configure-localstack do in the dev loop.
+      - name: Create the S3 bucket and apply its CORS rules
+        run: |
+          aws s3 mb s3://wbraid-messages
+          aws s3api put-bucket-cors --bucket wbraid-messages --cors-configuration file://s3-cors.json
+
+      - name: Build b4v6
+        run: cargo build --release --bin b4v6
+
+      - name: Start b4v6
+        run: |
+          DATABASE_URL="sqlite:${RUNNER_TEMP}/b4.db?mode=rwc" RUST_LOG=b4=info \
+            nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "b4v6 did not come up" >&2
+          cat "${RUNNER_TEMP}/b4v6.log"
+          exit 1
+
+      - name: Run the live-b4 protocol tests
+        run: cargo test -p braid --release --test test_protocol -- --ignored test_protocol_http
+        env:
+          RUST_BACKTRACE: 'full'
+
+      - name: Show the b4v6 log
+        if: always()
+        run: cat "${RUNNER_TEMP}/b4v6.log"

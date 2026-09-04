@@ -13,12 +13,25 @@
 //! is retained for the exact-match boundary check (§10.1); the `inline_data`/
 //! `s3_key` split is a pure transport detail (§8.1).
 
-use anyhow::Result;
-use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
+use anyhow::{Context, Result};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
+use sqlx::SqlitePool;
 use std::env;
 use std::path::PathBuf;
+use std::str::FromStr;
+use std::time::Duration;
 
 use crate::api_types::{ContentType, MessageBlob};
+
+/// Names the database as a sqlx SQLite URL (`sqlite:<path>?mode=rwc`). Unset,
+/// b4 uses `b4.db` in the current directory.
+pub const DATABASE_URL_ENV: &str = "DATABASE_URL";
+const DEFAULT_DATABASE_FILE: &str = "b4.db";
+
+/// How long a connection waits for SQLite's single write lock before the
+/// statement fails with `SQLITE_BUSY`.
+const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_CONNECTIONS: u32 = 5;
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -27,20 +40,55 @@ pub struct Board {
     pub status: String,
 }
 
-pub async fn init_db() -> Result<SqlitePool> {
-    // Use DATABASE_URL env var if set, otherwise default to b4.db in current directory
-    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+/// The database URL from [`DATABASE_URL_ENV`], or the default file.
+pub fn database_url_from_env() -> String {
+    env::var(DATABASE_URL_ENV).unwrap_or_else(|_| {
         let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        path.push("b4.db");
-        // Add mode=rwc to create the file if it doesn't exist
+        path.push(DEFAULT_DATABASE_FILE);
+        // mode=rwc creates the file if it doesn't exist
         format!("sqlite:{}?mode=rwc", path.display())
-    });
+    })
+}
 
+/// The options every connection in the pool is opened with. Left to sqlx 0.8,
+/// a connection gets `foreign_keys=ON` and a 5 s busy timeout and nothing
+/// else — sqlx stopped setting a journal mode so as not to switch an existing
+/// database into or out of WAL — so the rest is spelled out here:
+///
+/// - **WAL** (§8): readers and the writer do not block each other, so the
+///   trustees' fetches proceed while a confirm is being written; under the
+///   default rollback journal the pool's connections serialize on one lock.
+/// - **`synchronous=FULL`**: a confirm is fsynced before b4 acknowledges it.
+///   The trustee mailbox marks a message sent on that acknowledgement (§6.4),
+///   so a row lost to a power cut after a 200 would stall the protocol; one
+///   fsync per confirm is nothing at a board's message rate.
+/// - **busy timeout**: concurrent confirms queue on the write lock instead of
+///   failing at once.
+/// - **foreign keys on** — sqlx's default too: a message can
+///   never reference a board that does not exist.
+/// - **create if missing**: b4 owns its file.
+pub fn connect_options(db_url: &str) -> Result<SqliteConnectOptions> {
+    let options = SqliteConnectOptions::from_str(db_url)
+        .with_context(|| format!("invalid {DATABASE_URL_ENV} {db_url:?}"))?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .synchronous(SqliteSynchronous::Full)
+        .busy_timeout(BUSY_TIMEOUT)
+        .foreign_keys(true);
+    Ok(options)
+}
+
+pub async fn init_db() -> Result<SqlitePool> {
+    init_db_at(&database_url_from_env()).await
+}
+
+/// Open the database at `db_url`, creating it if needed, and ensure the schema.
+pub async fn init_db_at(db_url: &str) -> Result<SqlitePool> {
     tracing::info!("Connecting to database: {}", db_url);
 
     let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&db_url)
+        .max_connections(MAX_CONNECTIONS)
+        .connect_with(connect_options(db_url)?)
         .await?;
 
     // Boards are independent (no lineage, §8.2): just a name + creation time.
@@ -289,4 +337,140 @@ pub async fn get_messages_after(
         .collect();
 
     Ok((messages, truncated))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    /// A fresh database file per test, in the OS temp dir, removed on drop. A
+    /// file rather than `:memory:`: in-memory databases report
+    /// `journal_mode=memory`, so the WAL check needs a real one.
+    struct TempDb {
+        path: PathBuf,
+    }
+
+    impl TempDb {
+        fn new() -> Self {
+            let path = env::temp_dir().join(format!("b4-db-test-{}.db", Uuid::new_v4()));
+            Self { path }
+        }
+
+        fn url(&self) -> String {
+            format!("sqlite:{}?mode=rwc", self.path.display())
+        }
+    }
+
+    impl Drop for TempDb {
+        fn drop(&mut self) {
+            for suffix in ["", "-wal", "-shm"] {
+                let _ = std::fs::remove_file(format!("{}{}", self.path.display(), suffix));
+            }
+        }
+    }
+
+    async fn pragma_text(pool: &SqlitePool, name: &str) -> String {
+        let sql = format!("PRAGMA {name}");
+        sqlx::query_scalar(&sql).fetch_one(pool).await.unwrap()
+    }
+
+    async fn pragma_int(pool: &SqlitePool, name: &str) -> i64 {
+        let sql = format!("PRAGMA {name}");
+        sqlx::query_scalar(&sql).fetch_one(pool).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn connections_run_in_wal_with_foreign_keys_and_full_sync() {
+        let db = TempDb::new();
+        let pool = init_db_at(&db.url()).await.unwrap();
+
+        assert_eq!(pragma_text(&pool, "journal_mode").await, "wal");
+        assert_eq!(pragma_int(&pool, "foreign_keys").await, 1);
+        // 2 = FULL
+        assert_eq!(pragma_int(&pool, "synchronous").await, 2);
+
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn a_message_cannot_reference_a_missing_board() {
+        let db = TempDb::new();
+        let pool = init_db_at(&db.url()).await.unwrap();
+
+        let err = insert_message(&pool, "ghost", Some(b"x"), None, "1")
+            .await
+            .unwrap_err();
+
+        assert!(
+            err.to_string().to_lowercase().contains("foreign key"),
+            "{err}"
+        );
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn boards_and_messages_round_trip_in_id_order() {
+        let db = TempDb::new();
+        let pool = init_db_at(&db.url()).await.unwrap();
+
+        assert!(get_board(&pool, "dkg1").await.unwrap().is_none());
+        let board = create_board(&pool, "dkg1").await.unwrap();
+        assert_eq!(board.status, "active");
+        assert_eq!(
+            get_board(&pool, "dkg1").await.unwrap().unwrap().name,
+            "dkg1"
+        );
+        assert_eq!(list_boards(&pool).await.unwrap().len(), 1);
+
+        let first = insert_message(&pool, "dkg1", Some(&[1, 2, 3]), None, "1")
+            .await
+            .unwrap();
+        let second = insert_message(&pool, "dkg1", None, Some("dkg1/messages/abc"), "1")
+            .await
+            .unwrap();
+        assert!(second > first);
+
+        let all = list_messages(&pool, "dkg1").await.unwrap();
+        let ids: Vec<&str> = all.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, [first.to_string(), second.to_string()]);
+        match &all[0].content_type {
+            ContentType::Inline { data } => assert_eq!(data, &[1, 2, 3]),
+            other => panic!("expected inline content, got {other:?}"),
+        }
+        match &all[1].content_type {
+            ContentType::S3 { key } => assert_eq!(key, "dkg1/messages/abc"),
+            other => panic!("expected an s3 key, got {other:?}"),
+        }
+
+        let one = get_message(&pool, "dkg1", second).await.unwrap().unwrap();
+        assert_eq!(one.id, second.to_string());
+        assert!(get_message(&pool, "dkg1", second + 1)
+            .await
+            .unwrap()
+            .is_none());
+
+        // The incremental cursor (§8.5): everything after `first`, and the
+        // truncation flag when the limit cuts the page short.
+        let (after, truncated) = get_messages_after(&pool, "dkg1", first, 10).await.unwrap();
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].id, second.to_string());
+        assert!(!truncated);
+
+        let (page, truncated) = get_messages_after(&pool, "dkg1", 0, 1).await.unwrap();
+        assert_eq!(page.len(), 1);
+        assert!(truncated);
+
+        pool.close().await;
+    }
+
+    #[test]
+    fn board_names_are_restricted_to_a_safe_alphabet() {
+        assert!(validate_board_name("dkg-1_tally").is_ok());
+        assert!(validate_board_name("").is_err());
+        assert!(validate_board_name(&"a".repeat(256)).is_err());
+        for bad in ["a/b", "a b", "a.b", "../x"] {
+            assert!(validate_board_name(bad).is_err(), "{bad}");
+        }
+    }
 }
