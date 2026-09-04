@@ -70,7 +70,38 @@ This imports the tracked example election event, generates 20 voters (all
 placed in the same area, with unique numeric username/PIN/date-of-birth
 each), runs the keys ceremony, publishes, and opens `TELEPHONE` voting.
 Outputs land in `setup.out_dir` (`telephone-load-test-output/run` by
-default): `summary.json` and the voters CSV.
+default): a top-level `tenants.json` index, and one `tenant-<tenant_id>/`
+subdirectory per provisioned tenant holding that tenant's own `summary.json`
+and voters CSV (with a single tenant, that's just one subdirectory).
+
+By default Stage 1 provisions `setup.tenant_id` itself. Set
+`setup.new_tenants: N` to instead create `N` brand-new tenants and import
+the *same* election event into each — Stage 2 then places calls (or casts
+online votes) across every tenant `tenants.json` lists. Leaving `tenant_id`
+unset defaults `new_tenants` to `1`, so omitting it entirely provisions one
+fresh tenant instead of reusing an existing one (creating a tenant needs
+`setup.keycloak_admin_user`/`keycloak_admin_password` — a Keycloak
+master-realm admin, distinct from `admin_portal_user` — to look up each new
+tenant's freshly generated `api-key-client` secret).
+
+A brand-new tenant starts blank — no trustees, and Keycloak/roles config
+from the generic default template rather than `tenant_id`'s own. For each
+one, the script: exports `tenant_id`'s Keycloak/roles config
+(`export-tenant-config`), downloads it and re-uploads it so the new tenant
+owns its own copy (documents are tenant-owned records — a document can't be
+imported into a tenant that doesn't own it), imports that copy
+(`import-tenant-config`), then copies `tenant_id`'s registered trustees
+(`list-trustees` / `create-trustee`) so the keys ceremony has trustees to
+work with at all. None of this needs configuring — it's automatic whenever
+`new_tenants > 0`.
+
+The keys ceremony defaults to `setup.ceremony_policy: AUTOMATIC`: each
+trustee's `braid` service still does its DKG round the same way, but nothing
+needs to log in as `trustee1`/`trustee2` to confirm it — the ceremony's
+status flips to done on its own once every trustee's public key is on the
+board, matching the Admin Portal's "automatic ceremony" option. Set it to
+`MANUAL` to instead drive `complete-key-ceremony` as each configured
+trustee, as the CLI always did previously.
 
 Each run appends a random 5-character suffix to the election event's alias
 (e.g. `TECUMSEH - DATAFIX Test - K3F9Q`) — the admin portal's election event
@@ -156,25 +187,45 @@ session store if none is reachable (reused across runs; disable with
 per-call logs under `telephone_run.out_dir` (`telephone-load-test-output/calls`
 by default).
 
-## 4. Clean up: delete the election event
+## 4. Clean up: delete the election event(s)
+
+Stage 1's `tenants.json` lists every tenant it provisioned into (one, unless
+`setup.new_tenants` was set); each has its own election event to delete, and
+each needs `step-cli` re-authenticated against *that* tenant first (a
+session is scoped to one tenant at a time):
 
 ```bash
-ELECTION_EVENT_ID=$(python3 -c 'import json; print(json.load(open("packages/step-cli/scripts/telephone-load-test-output/run/summary.json"))["election_event_id"])')
+python3 -c '
+import json
+run_dir = "packages/step-cli/scripts/telephone-load-test-output/run"
+tenants = json.load(open(f"{run_dir}/tenants.json"))["tenants"]
+for t in tenants:
+    summary = json.load(open(f"{run_dir}/{t[\"dir\"]}/summary.json"))
+    print(t["tenant_id"], summary["election_event_id"])
+'
+```
+
+For each `(tenant_id, election_event_id)` pair printed above:
+
+```bash
+step-cli step config --tenant-id "$TENANT_ID" --endpoint-url ... --keycloak-url ... \
+  --keycloak-user "$ADMIN_PORTAL_USER" --keycloak-password "$ADMIN_PORTAL_PASSWORD" \
+  --keycloak-client-id api-key-client --keycloak-client-secret "$API_KEY_CLIENT_SECRET"
 step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
 ```
 
-This calls the `delete_election_event` GraphQL mutation, which queues an
-async task tearing down the election event's Postgres/Hasura rows, its
-Keycloak realm, and its ImmuDB and document-store data — the command blocks
-and polls until that task finishes (or fails/times out after 5 minutes), so
-a `Success!` means cleanup is actually done, not just queued.
+(matching the same `config` call `configure_as` makes in
+`packages/step-cli/scripts/setup_telephone_load_test.py`, with that
+tenant's own `layers.yaml` values.) `delete-election-event` calls the
+`delete_election_event` GraphQL mutation, which queues an async task tearing
+down the election event's Postgres/Hasura rows, its Keycloak realm, and its
+ImmuDB and document-store data — the command blocks and polls until that
+task finishes (or fails/times out after 5 minutes), so a `Success!` means
+cleanup is actually done, not just queued.
 
-It reuses the session `step-cli` already has in `config/configuration.json`
-next to the binary (left there authenticated as admin by
-[Stage 1](#1-stage-1--provision-the-election-event-and-voters)). If that
-token has expired, re-authenticate first with the same `step config` call
-the setup script makes (see `configure_as` in
-`packages/step-cli/scripts/setup_telephone_load_test.py`).
+A tenant Stage 1 auto-created (`setup.new_tenants`) isn't deleted by this —
+only its election event is. There's no `delete-tenant` command; removing the
+tenant itself (if desired) is a manual Keycloak/Hasura cleanup.
 
 ## Notes
 
@@ -194,4 +245,8 @@ the setup script makes (see `configure_as` in
   `keycloak_ivr_service_client_secret`/`keycloak_ivr_voting_client_secret`
   that worked for a previous run's election event will not work for a new
   one — re-fetch them from the new realm each time (see the note in
-  [step 1](#1-stage-1--provision-the-election-event-and-voters)).
+  [step 1](#1-stage-1--provision-the-election-event-and-voters)). With more
+  than one tenant (`setup.new_tenants > 1`), the flat
+  `telephone_run.keycloak_ivr_service_client_secret`/
+  `keycloak_ivr_voting_client_secret` can cover at most one of them — set
+  `telephone_run.tenant_ivr_secrets` (keyed by `tenant_id`) for the rest.

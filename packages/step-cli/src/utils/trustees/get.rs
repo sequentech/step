@@ -15,7 +15,7 @@ use graphql_client::{GraphQLQuery, Response};
 pub struct GetTrustees;
 
 impl GetTrustees {
-    pub fn get_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    fn fetch() -> Result<Vec<get_trustees::GetTrusteesSequentBackendTrustee>, Box<dyn std::error::Error>> {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
@@ -34,12 +34,7 @@ impl GetTrustees {
         if response.status().is_success() {
             let response_body: Response<get_trustees::ResponseData> = response.json()?;
             if let Some(data) = response_body.data {
-                let names: Vec<String> = data
-                    .sequent_backend_trustee
-                    .iter()
-                    .filter_map(|trustee| trustee.name.clone())
-                    .collect();
-                Ok(names)
+                Ok(data.sequent_backend_trustee)
             } else if let Some(errors) = response_body.errors {
                 let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
                 Err(Box::from(error_messages.join(", ")))
@@ -52,5 +47,21 @@ impl GetTrustees {
             let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
             Err(Box::from(error))
         }
+    }
+
+    pub fn get_names() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        Ok(Self::fetch()?
+            .iter()
+            .filter_map(|trustee| trustee.name.clone())
+            .collect())
+    }
+
+    /// Returns (name, public_key) pairs for every trustee with both set —
+    /// used to replicate a tenant's trustee registrations into another one.
+    pub fn get_all() -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+        Ok(Self::fetch()?
+            .into_iter()
+            .filter_map(|trustee| Some((trustee.name?, trustee.public_key?)))
+            .collect())
     }
 }

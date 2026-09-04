@@ -147,23 +147,25 @@ def run_step(step_cli_bin: str, *args: str) -> str:
     return out
 
 
-def retry_step(step_cli_bin: str, attempts: int, delay: float, *args: str) -> None:
+def retry_step(step_cli_bin: str, attempts: int, delay: float, *args: str) -> str:
     """The trustee containers complete the key ceremony asynchronously
     (polling the bulletin board on their own schedule, running an actual DKG
     protocol round), so complete-key-ceremony can legitimately fail if called
     before a trustee has caught up to a just-started ceremony. Retry with
-    backoff instead of treating the first failure as fatal."""
+    backoff instead of treating the first failure as fatal. Also useful right
+    after authenticating against a freshly created tenant, whose realm JWKS
+    may not have propagated to every backend instance yet."""
     import time
 
     for attempt in range(1, attempts + 1):
         try:
-            run_step(step_cli_bin, *args)
-            return
+            return run_step(step_cli_bin, *args)
         except StepCliError:
             if attempt >= attempts:
                 die(f"step-cli step {' '.join(args)} did not succeed after {attempts} attempts")
             log(f"Retrying in {delay}s (attempt {attempt + 1}/{attempts})...")
             time.sleep(delay)
+    raise AssertionError("unreachable")  # die() exits, but satisfies type checkers
 
 
 _ID_RE = re.compile(r"ID:? +([A-Za-z0-9._-]+)")
@@ -206,6 +208,38 @@ def http_ok(url: str, *, timeout: float = 10) -> bool:
             return 200 <= resp.status < 400
     except (urllib.error.URLError, TimeoutError, ConnectionError):
         return False
+
+
+def lookup_client_secret(keycloak_url: str, admin_user: str, admin_password: str, tenant_id: str, client_id: str) -> str:
+    """Looks up client_id's secret in tenant_id's realm via Keycloak's
+    master-realm admin API. Only needed for a tenant whose client secret
+    isn't already known — e.g. a freshly auto-created tenant, whose clients
+    get a randomly regenerated secret unless the server has a fixed one
+    configured for that specific client id."""
+    log(f"Looking up {client_id}'s client secret from Keycloak (master realm admin API)")
+    token_resp = http_json(
+        f"{keycloak_url}/realms/master/protocol/openid-connect/token",
+        data={
+            "grant_type": "password",
+            "client_id": "admin-cli",
+            "username": admin_user,
+            "password": admin_password,
+        },
+    )
+    master_token = token_resp.get("access_token")
+    if not master_token:
+        die(
+            f"could not obtain a master-realm admin token to look up {client_id}'s secret "
+            "(check setup.keycloak_admin_user/keycloak_admin_password)"
+        )
+    clients = http_json(
+        f"{keycloak_url}/admin/realms/tenant-{tenant_id}/clients?clientId={urllib.parse.quote(client_id)}",
+        headers={"Authorization": f"Bearer {master_token}"},
+    )
+    secret = clients[0].get("secret") if clients else None
+    if not secret:
+        die(f"could not look up {client_id}'s secret in tenant-{tenant_id}")
+    return secret  # type: ignore[return-value]
 
 
 def write_json(path: Path, data: Any) -> None:
