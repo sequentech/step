@@ -208,6 +208,67 @@ services:
       aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors
       --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
 
+  # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
+  # run from the mounted checkout like the other Rust services: cargo-watch
+  # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
+  # localstack; packages/wbraid/b4.sh brings it up by name. Reachable as
+  # http://b4v6:3005 on the project network (WBRAID_B4_URL for the live tests)
+  # and, forwarded by devcontainer.json, as http://127.0.0.1:3005 on the host
+  # for emulator.html.
+  # b4 only presigns S3 URLs, it never calls S3 itself, so AWS_ENDPOINT_URL is
+  # the address the *clients* fetch bodies from: the localstack service name,
+  # which the host browser resolves through a hosts-file entry (TESTING.md).
+  # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  b4v6:
+    profiles: [ "wbraid" ]
+    container_name: b4v6
+    image: sequentech.local/cargo-packages
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    restart: unless-stopped
+    working_dir: /workspaces/step/packages/wbraid
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      "--watch", "crates/b4",
+      "--watch", "Cargo.toml",
+      "--watch", "Cargo.lock",
+      "-x",
+      "run --bin b4v6 --release",
+    ]
+    volumes_from:
+      - devcontainer
+    volumes:
+      - b4v6_data:/var/lib/b4v6
+    depends_on:
+      devcontainer:
+        condition: service_started
+      localstack:
+        condition: service_healthy
+      configure-localstack:
+        condition: service_completed_successfully
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      RUST_LOG: b4=info
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      DATABASE_URL: sqlite:/var/lib/b4v6/b4.db?mode=rwc
+      AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      S3_BUCKET_NAME: wbraid-messages
+    healthcheck:
+      # The first start compiles a release build; give it time before failing.
+      test: [ "CMD-SHELL", "curl -sf http://127.0.0.1:3005/boards" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 900s
+
   # hashicorp vault to store secrets
   # vault:
   #   profiles: ["full", "base"]
