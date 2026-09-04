@@ -1,3 +1,6 @@
 package-lock.json
 yarn-error.log
 b4/b4.db
+
+# vendored crate sources of the offline production build (packages/.cargo/config.toml)
+vendor/

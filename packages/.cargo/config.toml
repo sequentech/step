@@ -3,3 +3,12 @@
 # Due to https://github.com/rust-headless-chrome/rust-headless-chrome/issues/535.
 # Use the exact version 0.4.4 as published to crates.io (https://github.com/mdrokz/auto_generate_cdp/commit/634e636fd8edbe032d7191326527c721a2b51106)
 auto_generate_cdp = { git = 'https://github.com/mdrokz/auto_generate_cdp', rev = '634e636fd8edbe032d7191326527c721a2b51106' }
+
+# Offline production build: the crate sources of Cargo.lock are vendored into
+# packages/vendor by the controlled import of the external inputs, and the build
+# resolves nothing over a network. The source replacement that activates the
+# directory is the [source] configuration `cargo vendor` prints, appended to this
+# file with the vendor directory; declaring the source here without a
+# replace-with leaves a checkout that has no vendor directory untouched.
+[source.vendored-sources]
+directory = "vendor"
