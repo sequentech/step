@@ -197,25 +197,36 @@ session store if none is reachable (reused across runs; disable with
 per-call logs under `telephone_run.out_dir` (`telephone-load-test-output/calls`
 by default).
 
-## 4. Clean up: delete the election event(s)
+## 4. Stage 3 — clean up: delete the election event(s) and auto-created tenant(s)
 
-Stage 1's `tenants.json` lists every tenant it provisioned into (one, unless
-`setup.new_tenants` was set); each has its own election event to delete, and
-each needs `step-cli` re-authenticated against *that* tenant first (a
-session is scoped to one tenant at a time):
+`cleanup_telephone_load_test.py` automates this stage: it reads Stage 1's
+`tenants.json` (every tenant it provisioned into — one, unless
+`setup.new_tenants` was set) and each tenant's `summary.json`, then for each
+`(tenant_id, election_event_id)` pair re-authenticates `step-cli` against
+that tenant (a session is scoped to one tenant at a time) and calls
+`delete-election-event`. Once every election event is gone, it also deletes
+every tenant `setup.new_tenants` auto-created (never the bootstrap tenant
+itself — see below):
 
 ```bash
-python3 -c '
-import json
-run_dir = "packages/step-cli/scripts/telephone-load-test-output/run"
-tenants = json.load(open(f"{run_dir}/tenants.json"))["tenants"]
-for t in tenants:
-    summary = json.load(open(f"{run_dir}/{t[\"dir\"]}/summary.json"))
-    print(t["tenant_id"], summary["election_event_id"])
-'
+python3 packages/step-cli/scripts/cleanup_telephone_load_test.py
 ```
 
-For each `(tenant_id, election_event_id)` pair printed above:
+It reads the same `setup:` section of `layers.yaml` Stage 1 used. For the
+bootstrap tenant (`setup.tenant_id`) it reuses the already-known
+`setup.keycloak_client_secret`; for any tenant `setup.new_tenants`
+auto-created, it looks up that tenant's own `api-key-client` secret via
+`setup.keycloak_admin_user`/`keycloak_admin_password` first — the same
+Keycloak master-realm admin lookup `setup_telephone_load_test.py` did when
+creating it.
+
+`delete-election-event` calls the `delete_election_event` GraphQL mutation,
+which queues an async task tearing down the election event's Postgres/Hasura
+rows, its Keycloak realm, and its ImmuDB and document-store data — the
+command blocks and polls until that task finishes (or fails/times out after
+5 minutes), so a `Success!` means cleanup is actually done, not just queued.
+
+To do this by hand instead, for each pair the script would print:
 
 ```bash
 step-cli step config --tenant-id "$TENANT_ID" --endpoint-url ... --keycloak-url ... \
@@ -224,18 +235,23 @@ step-cli step config --tenant-id "$TENANT_ID" --endpoint-url ... --keycloak-url 
 step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
 ```
 
-(matching the same `config` call `configure_as` makes in
-`packages/step-cli/scripts/setup_telephone_load_test.py`, with that
-tenant's own `layers.yaml` values.) `delete-election-event` calls the
-`delete_election_event` GraphQL mutation, which queues an async task tearing
-down the election event's Postgres/Hasura rows, its Keycloak realm, and its
-ImmuDB and document-store data — the command blocks and polls until that
-task finishes (or fails/times out after 5 minutes), so a `Success!` means
-cleanup is actually done, not just queued.
+`delete-tenant` deletes a tenant outright — its Postgres/Hasura rows (trustees,
+templates, election types, any tenant-level documents), its Keycloak realm,
+and its remaining S3 documents — via the `delete_tenant` GraphQL mutation,
+polled the same way as `delete-election-event`. It refuses to run while the
+tenant still has any election events, and it's a super-admin-only action: the
+caller must be authenticated as the bootstrap tenant (`setup.tenant_id`), not
+as the tenant being deleted — matching how `create-tenant` itself is
+authorized. To do this by hand:
 
-A tenant Stage 1 auto-created (`setup.new_tenants`) isn't deleted by this —
-only its election event is. There's no `delete-tenant` command; removing the
-tenant itself (if desired) is a manual Keycloak/Hasura cleanup.
+```bash
+step-cli step config --tenant-id "$BOOTSTRAP_TENANT_ID" ... # as above, but the bootstrap tenant
+step-cli step delete-tenant --tenant-id "$TENANT_ID"
+```
+
+The bootstrap tenant itself is never deleted, even once its election event is
+gone — it's the persistent identity these scripts authenticate as, meant to
+be reused across runs, not a disposable one Stage 1 created.
 
 ## Notes
 

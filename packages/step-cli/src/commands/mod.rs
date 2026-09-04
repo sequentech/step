@@ -18,6 +18,7 @@ pub mod create_tenant;
 pub mod create_trustee;
 pub mod create_voter;
 pub mod delete_election_event;
+pub mod delete_tenant;
 pub mod download_document;
 pub mod download_tally_results;
 pub mod duplicate_votes;

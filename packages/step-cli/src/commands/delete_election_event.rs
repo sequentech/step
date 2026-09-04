@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::types::hasura_types::*;
-use crate::utils::read_config::read_config;
+use crate::utils::read_config::{read_config, refresh_and_save_token};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
@@ -51,6 +51,15 @@ fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Erro
     let polling_interval = Duration::from_secs(3);
 
     loop {
+        // The teardown task this polls for can run close to the full
+        // timeout below, which matches the access token's own lifespan in
+        // some realms — refresh before each poll (best-effort; a stale
+        // token just gets retried next iteration) so a slow deletion
+        // doesn't fail on an expired token. Same idea as
+        // wait_for_automatic_ceremony in setup_telephone_load_test.py.
+        if let Err(err) = refresh_and_save_token() {
+            eprintln!("Warning: failed to refresh auth token: {}", err);
+        }
         match crate::utils::tasks::get_task_status(task_execution_id) {
             Ok(status) if status == "SUCCESS" => return Ok(()),
             Ok(status) if status == "FAILED" => {

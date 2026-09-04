@@ -143,6 +143,10 @@ type Mutation {
 }
 
 type Mutation {
+    delete_tenant(tenant_id: String!): DeleteTenant
+}
+
+type Mutation {
     delete_permission(
         tenant_id: String!
         permission_name: String!
@@ -1672,6 +1676,12 @@ type SetCustomUrlsOutput {
 }
 
 type DeleteElectionEvent {
+    id: String
+    task_execution: tasks_execution_type
+    error_msg: String
+}
+
+type DeleteTenant {
     id: String
     task_execution: tasks_execution_type
     error_msg: String
