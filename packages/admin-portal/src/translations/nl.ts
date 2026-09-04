@@ -1181,9 +1181,9 @@ const dutchTranslation: TranslationType = {
                     reveal: "Tonen",
                     hide: "Verbergen",
                     revealError: "Het versleutelde kiezersveld kon niet worden getoond",
-                    includeInExport: "Ontsleutelde geheime kiezersvelden opnemen",
-                    exportWarning:
-                        "Gevoelige export: de gedownloade CSV bevat deze velden als platte tekst.",
+                    clear: "Wissen",
+                    add: "Waarde toevoegen",
+                    remove: "Waarde verwijderen",
                 },
                 review: {
                     title: "Wijzigingen controleren",

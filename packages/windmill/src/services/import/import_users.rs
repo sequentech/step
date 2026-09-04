@@ -7,8 +7,8 @@ use crate::postgres::keycloak_realm;
 use crate::postgres::keycloak_realm::get_duplicate_emails_allowed;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::electoral_log::{
-    post_voter_secret_attribute_audit, ElectoralLogAdminContext, VoterSecretAttributeAction,
-    VoterSecretAttributeAudit,
+    post_voter_secret_attribute_audit_with_transaction, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::services::voter_secret_attributes::{
@@ -651,7 +651,8 @@ pub async fn import_users_file(
                 "Importing encrypted voter attributes requires an identified initiator".to_string(),
             )
         })?;
-        post_voter_secret_attribute_audit(
+        post_voter_secret_attribute_audit_with_transaction(
+            hasura_transaction,
             &tenant_id,
             event_id,
             initiator,

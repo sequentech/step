@@ -1184,9 +1184,9 @@ const catalanTranslation: TranslationType = {
                     reveal: "Mostra",
                     hide: "Amaga",
                     revealError: "No s'ha pogut mostrar el camp xifrat del votant",
-                    includeInExport: "Inclou els camps secrets desxifrats del votant",
-                    exportWarning:
-                        "Exportació sensible: el CSV descarregat contindrà aquests camps en text pla.",
+                    clear: "Esborra",
+                    add: "Afegeix un valor",
+                    remove: "Elimina el valor",
                 },
                 review: {
                     title: "Revisar canvis",

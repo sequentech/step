@@ -12,6 +12,19 @@ use tracing::{event, instrument, Level};
 
 type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn console_transport_rejects_confidential_messages() {
+        assert!(SmsSender {
+            transport: SmsTransport::Console
+        }
+        .ensure_confidential_transport()
+        .is_err());
+    }
+}
+
 pub enum SmsTransport {
     AwsSns((AwsSnsClient, MessageAttributes)),
     Console,
@@ -22,6 +35,17 @@ pub struct SmsSender {
 }
 
 impl SmsSender {
+    /// Console delivery prints rendered content and must never receive voter secrets.
+    pub fn ensure_confidential_transport(&self) -> Result<()> {
+        if matches!(self.transport, SmsTransport::Console) {
+            return Err(anyhow!(
+                "Secret voter attributes cannot be sent through the console transport"
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     #[instrument(err)]
     pub async fn new() -> Result<Self> {
         let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")

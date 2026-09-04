@@ -34,7 +34,7 @@ The permissions to reveal and edit these fields are independent:
 - Both operations also require the corresponding ordinary voter read or write permission.
 
 When editing a voter, an existing unrevealed value is displayed as `••••••••`. Leaving it untouched
-preserves the encrypted value. If you reveal a value, clearing the field and saving removes it.
+preserves the encrypted value. Use **Clear** and save to remove a value without revealing it. For multivalued fields, each value can be edited, added, or removed separately.
 Review screens mask new and changed secret values rather than repeating them.
 
 Revealed values are limited to the open voter editor. Closing the editor removes them from its
@@ -44,11 +44,7 @@ state; the voter list continues to receive only redacted values.
 
 Select **Export** from the Voters tab to generate a CSV.
 
-- The default export omits every configured secret column. It does not export encrypted envelopes.
-- A user with `voter-secret-attribute-read` can select **Include decrypted secret voter fields** in
-  the confirmation dialog. This adds the secret columns with plaintext values.
-- Treat a decrypted export as sensitive data. The generated document remains protected by the
-  secret-read permission when it is downloaded.
+Secret columns are always omitted. Neither plaintext values nor encrypted envelopes are exported.
 
 For the complete permission combinations, see
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md#secret-voter-field-permissions).

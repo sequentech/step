@@ -86,20 +86,20 @@ attribute does not produce a valid value. Envelopes are randomized, so secret fi
 searched, sorted, filtered, or compared by their encrypted representation.
 
 Harvest enforces the synchronous create, edit, reveal, and permission boundaries. Windmill uses the
-same codec for voter imports, explicitly decrypted exports, communications, and per-voter reports.
-Ordinary user responses and exports remove secret fields rather than returning ciphertext.
+same codec for voter imports, communications, and per-voter reports.
+User responses and all voter exports remove secret fields rather than returning ciphertext.
 
-Every reveal, set, clear, import, decrypted export, and use of a secret attribute in a
+Every reveal, set, clear, import, and use of a secret attribute in a
 communication or per-voter report is recorded in the election event's electoral log as an
 admin-signed `VOTER_SECRET_ATTRIBUTE` entry. The entry names the administrator, the voter where
-one is involved, the attribute names and, for exports, the document id. It never contains a value.
+one is involved, the attribute names and, for generated reports, the document id. It never contains a value.
 The entry is written before the action takes effect, so an action that cannot be audited does not
 happen.
 
-Decrypted exports run asynchronously. The authenticated request persists a grant on the task
-execution row (document id, permission flag and expiry); the worker reloads that row and refuses to
-start decrypting once the grant has expired. The grant lifetime is
-`WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS` (default 86400) on both Harvest and Windmill.
+Secret-bearing reports use private storage and require secret-read permission at download, including
+password retrieval. Ordinary document writers cannot update or delete their access metadata.
+Console message transports reject templates that declare secret fields, and delivery audit entries
+do not contain rendered subjects or bodies.
 
 Only Harvest and the Windmill workers that perform these operations should be able to read the
 configured `master_secret`. Keycloak, Hasura, the Admin Portal, and browser clients must not receive

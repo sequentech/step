@@ -20,7 +20,7 @@ without necessarily being able to see it.
 
 | Permission | Allows |
 |---|---|
-| `voter-secret-attribute-read` | Explicitly reveal a secret value, include decrypted secret fields in a voter export, use declared secret variables in voter-level communications or reports, and download restricted decrypted voter exports. |
+| `voter-secret-attribute-read` | Explicitly reveal a secret value, use declared secret variables in voter-level communications or reports, and download restricted secret-bearing reports. |
 | `voter-secret-attribute-write` | Set, replace, clear, or import a secret voter value. It does not allow revealing an existing value. |
 
 These permissions supplement the ordinary permission for the operation:
@@ -30,11 +30,10 @@ These permissions supplement the ordinary permission for the operation:
 | Reveal a value | Voter read access and `voter-secret-attribute-read` |
 | Create or edit a secret value | The corresponding voter create/write access and `voter-secret-attribute-write` |
 | Import a CSV containing a secret column | Voter import/create access and `voter-secret-attribute-write` |
-| Export decrypted secret columns | Normal voter export access and `voter-secret-attribute-read` |
 | Send or generate an output that declares secret fields | The normal communication/report permission and `voter-secret-attribute-read` |
 
 A standard voter list or export never needs either secret permission because secret columns are
-omitted. A decrypted voter-export document remains restricted: downloading it checks
+omitted. A secret-bearing report remains restricted: downloading it checks
 `voter-secret-attribute-read` again.
 
 Assign read and write independently where duties require it. For example, an import operator can

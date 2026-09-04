@@ -30,12 +30,9 @@ import {
     Grid,
     TextField,
     Button,
-    IconButton,
-    InputAdornment,
-    Tooltip,
 } from "@mui/material"
-import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined"
-import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined"
+import {SecretAttributeInput} from "./SecretAttributeInput"
+import {useSecretRevealGuard} from "./useSecretRevealGuard"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     CreateUserMutation,
@@ -372,6 +369,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const savingRef = useRef(false)
     const revealingSecretAttributesRef = useRef<Set<string>>(new Set())
     const closedRef = useRef(false)
+    const beginSecretReveal = useSecretRevealGuard(
+        JSON.stringify([tenantId, electionEventId, id]),
+        canReadVoterSecretAttributes
+    )
 
     const [step, setStep] = useState<"edit" | "review">("edit")
     const baselineRef = useRef<UserBaseline>({
@@ -394,7 +395,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         const secretAttributeChanges = Object.fromEntries(
             Array.from(dirtySecretAttributes).map((name) => [
                 name,
-                secretAttributeValues[name] ?? [],
+                (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
             ])
         )
         const userRows = computeUserDiff(
@@ -444,6 +445,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         if (canReadVoterSecretAttributes) {
             return
         }
+        revealingSecretAttributesRef.current.clear()
+        setRevealingSecretAttributes(new Set())
         setRevealedSecretAttributes(new Set())
         setSecretAttributeValues((previous) =>
             Object.fromEntries(
@@ -720,7 +723,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             const secretAttributes = Object.fromEntries(
                 Array.from(dirtySecretAttributes).map((name) => [
                     name,
-                    secretAttributeValues[name] ?? [],
+                    (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
                 ])
             )
             const {data} = await createUser({
@@ -794,7 +797,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 secretAttributeChanges: Object.fromEntries(
                     Array.from(dirtySecretAttributes).map((name) => [
                         name,
-                        secretAttributeValues[name] ?? [],
+                        (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
                     ])
                 ),
             },
@@ -861,7 +864,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     secret_attributes: Object.fromEntries(
                         Array.from(dirtySecretAttributes).map((name) => [
                             name,
-                            secretAttributeValues[name] ?? [],
+                            (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
                         ])
                     ),
                 },
@@ -1040,11 +1043,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
-    const commitSecretAttribute = (attribute: UserProfileAttribute, value: string) => {
+    const commitSecretAttribute = (attribute: UserProfileAttribute, values: string[]) => {
         const name = attribute.name
         if (!name) return
-        validateAttribute(attribute)(value)
-        setSecretAttributeValues((previous) => ({...previous, [name]: value ? [value] : []}))
+        const message = (values.length ? values : [""])
+            .map((value) => attributeError(attribute, value))
+            .find(Boolean)
+        setLengthErrors((previous) => {
+            const {[name]: _removed, ...rest} = previous
+            return message ? {...rest, [name]: message} : rest
+        })
+        setSecretAttributeValues((previous) => ({...previous, [name]: values}))
         setDirtySecretAttributes((previous) => new Set(previous).add(name))
     }
 
@@ -1066,6 +1075,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
 
         if (!Object.prototype.hasOwnProperty.call(secretAttributeValues, name)) {
             if (!tenantId || !electionEventId || !id) return
+            const isCurrent = beginSecretReveal()
+            if (!isCurrent() || closedRef.current) return
             if (revealingSecretAttributesRef.current.has(name)) return
             revealingSecretAttributesRef.current.add(name)
             setRevealingSecretAttributes((previous) => new Set(previous).add(name))
@@ -1078,22 +1089,26 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         attributeName: name,
                     },
                 })
+                if (!isCurrent() || closedRef.current) return
                 setSecretAttributeValues((previous) => ({
                     ...previous,
                     [name]: data?.reveal_voter_secret_attribute.values ?? [],
                 }))
             } catch {
+                if (!isCurrent() || closedRef.current) return
                 notify(t("usersAndRolesScreen.voters.secretAttribute.revealError"), {
                     type: "error",
                 })
                 return
             } finally {
-                revealingSecretAttributesRef.current.delete(name)
-                setRevealingSecretAttributes((previous) => {
-                    const next = new Set(previous)
-                    next.delete(name)
-                    return next
-                })
+                if (isCurrent() && !closedRef.current) {
+                    revealingSecretAttributesRef.current.delete(name)
+                    setRevealingSecretAttributes((previous) => {
+                        const next = new Set(previous)
+                        next.delete(name)
+                        return next
+                    })
+                }
             }
         }
 
@@ -1135,68 +1150,37 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 if (isSecretAttribute(attr)) {
                     const name = attr.name
                     const stored = Boolean(user?.attributes?.[name]?.length)
-                    const value = secretAttributeValues[name]?.[0] ?? ""
-                    const revealed = revealedSecretAttributes.has(name)
-                    const revealing = revealingSecretAttributes.has(name)
-                    const locallyChanged = dirtySecretAttributes.has(name)
-                    const mayToggleVisibility =
-                        locallyChanged || (stored && canReadVoterSecretAttributes)
-                    const mayWrite = canWriteVoterSecretAttributes && (createMode || canEditVoters)
-                    const visibilityLabel = t(
-                        revealed
-                            ? "usersAndRolesScreen.voters.secretAttribute.hide"
-                            : "usersAndRolesScreen.voters.secretAttribute.reveal"
-                    )
                     return (
-                        <Box key={`${name}-${revealed}`} sx={{width: "100%"}}>
-                            <FormStyles.TextField
-                                type={revealed ? "text" : "password"}
-                                label={getTranslationLabel(name, attr.display_name, t)}
-                                defaultValue={value}
-                                placeholder={stored && !value ? "••••••••" : undefined}
-                                onBlur={(event) => {
-                                    if (event.target.value !== value) {
-                                        commitSecretAttribute(attr, event.target.value)
-                                    }
-                                }}
-                                disabled={!mayWrite}
-                                error={!!lengthErrors[name]}
-                                helperText={lengthErrors[name] ?? lengthHint(attr)}
-                                required={isRequired && (createMode || !stored)}
-                                fullWidth
-                                slotProps={{
-                                    inputLabel: stored && !value ? {shrink: true} : undefined,
-                                    input: {
-                                        endAdornment: mayToggleVisibility ? (
-                                            <InputAdornment position="end">
-                                                <Tooltip title={visibilityLabel}>
-                                                    <IconButton
-                                                        type="button"
-                                                        edge="end"
-                                                        size="small"
-                                                        aria-label={visibilityLabel}
-                                                        aria-busy={revealing}
-                                                        disabled={revealing}
-                                                        onMouseDown={(event) =>
-                                                            event.preventDefault()
-                                                        }
-                                                        onClick={() =>
-                                                            void toggleSecretAttributeReveal(name)
-                                                        }
-                                                    >
-                                                        {revealed ? (
-                                                            <VisibilityOffOutlinedIcon fontSize="small" />
-                                                        ) : (
-                                                            <VisibilityOutlinedIcon fontSize="small" />
-                                                        )}
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </InputAdornment>
-                                        ) : undefined,
-                                    },
-                                }}
-                            />
-                        </Box>
+                        <SecretAttributeInput
+                            key={name}
+                            label={getTranslationLabel(name, attr.display_name, t)}
+                            values={secretAttributeValues[name] ?? []}
+                            stored={stored}
+                            editable={
+                                canWriteVoterSecretAttributes &&
+                                (createMode || canEditVoters) &&
+                                !saving
+                            }
+                            multivalued={Boolean(attr.multivalued)}
+                            canReveal={
+                                dirtySecretAttributes.has(name) ||
+                                (stored && canReadVoterSecretAttributes)
+                            }
+                            revealed={revealedSecretAttributes.has(name)}
+                            revealing={revealingSecretAttributes.has(name) || saving}
+                            required={isRequired && (createMode || !stored)}
+                            error={!!lengthErrors[name]}
+                            helperText={lengthErrors[name] ?? lengthHint(attr)}
+                            labels={{
+                                reveal: t("usersAndRolesScreen.voters.secretAttribute.reveal"),
+                                hide: t("usersAndRolesScreen.voters.secretAttribute.hide"),
+                                clear: t("usersAndRolesScreen.voters.secretAttribute.clear"),
+                                add: t("usersAndRolesScreen.voters.secretAttribute.add"),
+                                remove: t("usersAndRolesScreen.voters.secretAttribute.remove"),
+                            }}
+                            onChange={(values) => commitSecretAttribute(attr, values)}
+                            onReveal={() => void toggleSecretAttributeReveal(name)}
+                        />
                     )
                 }
                 if (attr.annotations?.inputType === "select") {
@@ -1492,6 +1476,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             secretAttributeValues,
             dirtySecretAttributes,
             revealedSecretAttributes,
+            revealingSecretAttributes,
+            saving,
+            toggleSecretAttributeReveal,
+            commitSecretAttribute,
             canReadVoterSecretAttributes,
             canWriteVoterSecretAttributes,
             canEditVoters,

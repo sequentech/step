@@ -8,7 +8,7 @@ use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::certificate_authority::get_certificate_authorities_pem;
 use crate::postgres::contest::export_contests;
-use crate::postgres::document::get_document;
+use crate::postgres::document::{get_document, get_exportable_document_ids};
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
@@ -567,10 +567,13 @@ pub async fn process_export_zip(
         let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
+        let exportable_document_ids =
+            get_exportable_document_ids(&hasura_transaction, tenant_id, election_event_id).await?;
 
-        let s3_files = s3::get_files_from_s3(bucket, documents_prefix.clone())
-            .await
-            .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
+        let s3_files =
+            s3::get_files_from_s3(bucket, documents_prefix.clone(), &exportable_document_ids)
+                .await
+                .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
 
         for file_path in s3_files {
             let file_name = file_path

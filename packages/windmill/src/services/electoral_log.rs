@@ -395,6 +395,58 @@ pub async fn post_voter_secret_attribute_audit(
         .transaction()
         .await
         .context("Failed to start secret-attribute electoral-log transaction")?;
+    let prepared = prepare_voter_secret_attribute_audit(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        admin,
+        action,
+        audit,
+    )
+    .await?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit the secret-attribute electoral-log transaction")?;
+    prepared
+        .post()
+        .await
+        .context("Failed to post the secret-attribute electoral-log entry")
+}
+
+/// Imports create their event and signing context in the caller's transaction.
+/// Build the audit there so those uncommitted records are visible.
+#[instrument(skip_all, err)]
+pub async fn post_voter_secret_attribute_audit_with_transaction(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    admin: &ElectoralLogAdminContext,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<()> {
+    prepare_voter_secret_attribute_audit(
+        transaction,
+        tenant_id,
+        election_event_id,
+        admin,
+        action,
+        audit,
+    )
+    .await?
+    .post()
+    .await
+    .context("Failed to post the secret-attribute electoral-log entry")
+}
+
+async fn prepare_voter_secret_attribute_audit(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    admin: &ElectoralLogAdminContext,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<PreparedVoterPasswordChangeLog> {
     let election_event = get_election_event_by_id(&transaction, tenant_id, election_event_id)
         .await
         .context("Failed to get election event for the secret-attribute electoral log")?;
@@ -423,14 +475,7 @@ pub async fn post_voter_secret_attribute_audit(
             None,
         )
         .context("Failed to build the secret-attribute electoral-log entry")?;
-    transaction
-        .commit()
-        .await
-        .context("Failed to commit the secret-attribute electoral-log transaction")?;
-    PreparedVoterPasswordChangeLog { board, message }
-        .post()
-        .await
-        .context("Failed to post the secret-attribute electoral-log entry")
+    Ok(PreparedVoterPasswordChangeLog { board, message })
 }
 
 pub struct ElectoralLog {

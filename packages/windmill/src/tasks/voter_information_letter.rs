@@ -253,8 +253,13 @@ async fn generate(
         write_into_named_temp_file(&encrypted_pdf, "voter-information-letter-", ".pdf")
             .context("Failed to create encrypted PDF temporary file")?;
     let document_name = format!("voter-information-letter-{voter_id}.pdf");
-    let document_annotations =
+    let mut document_annotations =
         DocumentAnnotations::password_protected(password_secret_id.to_string());
+    if may_read_secret_attributes {
+        if let Some(access) = document_annotations.access.as_mut() {
+            access.voter_secret_attributes = true;
+        }
+    }
     upload_and_return_document_with_annotations(
         &hasura_transaction,
         &path,

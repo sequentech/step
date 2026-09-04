@@ -1182,9 +1182,9 @@ const tagalogTranslation: TranslationType = {
                     reveal: "Ipakita",
                     hide: "Itago",
                     revealError: "Hindi maipakita ang naka-encrypt na field ng botante",
-                    includeInExport: "Isama ang na-decrypt na mga lihim na field ng botante",
-                    exportWarning:
-                        "Sensitibong export: ang na-download na CSV ay maglalaman ng mga field na ito bilang plain text.",
+                    clear: "Burahin",
+                    add: "Magdagdag ng halaga",
+                    remove: "Alisin ang halaga",
                 },
                 review: {
                     title: "Suriin ang mga Pagbabago",

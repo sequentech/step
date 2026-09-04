@@ -1182,9 +1182,9 @@ const spanishTranslation: TranslationType = {
                     reveal: "Mostrar",
                     hide: "Ocultar",
                     revealError: "No se pudo mostrar el campo cifrado del votante",
-                    includeInExport: "Incluir campos secretos descifrados del votante",
-                    exportWarning:
-                        "Exportación sensible: el CSV descargado contendrá estos campos en texto plano.",
+                    clear: "Borrar",
+                    add: "Añadir valor",
+                    remove: "Eliminar valor",
                 },
                 review: {
                     title: "Revisar cambios",

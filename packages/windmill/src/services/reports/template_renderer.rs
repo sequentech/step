@@ -9,7 +9,7 @@ use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::upload_and_return_document;
+use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -29,7 +29,7 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     ReportOptions, SendTemplateBody, SmsConfig,
@@ -630,6 +630,8 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
+        let contains_voter_secrets =
+            generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
@@ -797,12 +799,17 @@ pub trait TemplateRenderer: Debug {
             None
         };
 
+        let annotations = if contains_voter_secrets {
+            DocumentAnnotations::voter_secret_export()
+        } else {
+            DocumentAnnotations::default()
+        };
         if let Some(enc_temp_path) = encrypted_temp_data {
             let encrypted_temp_path = enc_temp_path.to_string_lossy().to_string();
             let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
-            let _document = upload_and_return_document(
+            let _document = upload_and_return_document_with_annotations(
                 hasura_transaction,
                 &encrypted_temp_path,
                 enc_temp_size,
@@ -811,7 +818,8 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &enc_report_name,
                 Some(document_id.to_string()),
-                true,
+                !contains_voter_secrets,
+                &annotations,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
@@ -842,7 +850,7 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
             }
         } else {
-            let _document = upload_and_return_document(
+            let _document = upload_and_return_document_with_annotations(
                 hasura_transaction,
                 &final_file_path,
                 file_size,
@@ -851,7 +859,8 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &final_report_name,
                 Some(document_id.to_string()),
-                true,
+                !contains_voter_secrets,
+                &annotations,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;

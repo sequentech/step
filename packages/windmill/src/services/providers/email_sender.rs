@@ -43,7 +43,31 @@ pub struct EmailSender {
     email_from: String,
 }
 
+#[cfg(test)]
+mod confidentiality_tests {
+    use super::*;
+    #[test]
+    fn console_transport_rejects_confidential_messages() {
+        let sender = EmailSender {
+            transport: EmailTransport::Console,
+            email_from: "test@example.invalid".into(),
+        };
+        assert!(sender.ensure_confidential_transport().is_err());
+    }
+}
+
 impl EmailSender {
+    /// Console delivery prints rendered content and must never receive voter secrets.
+    pub fn ensure_confidential_transport(&self) -> Result<()> {
+        if matches!(self.transport, EmailTransport::Console) {
+            return Err(anyhow!(
+                "Secret voter attributes cannot be sent through the console transport"
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     #[instrument(err)]
     pub async fn new() -> Result<Self> {
         let email_from = std::env::var("EMAIL_FROM")
