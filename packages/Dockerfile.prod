@@ -3,10 +3,11 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # The WebAssembly toolchain (ALC-06, Section 2.2), at the versions the workspace pins.
-# The controlled production build supplies it from the accepted external inputs with
-# `--build-context wasm-toolchain=<directory>`, which replaces the wasm-toolchain stage and
-# leaves the download below unbuilt; a build outside that workflow downloads it from its
-# publishers. wasm-bindgen must be the version the wasm-bindgen crate of Cargo.toml pins.
+# The controlled production build supplies the publishers' archives from the accepted
+# external inputs with `--build-context wasm-toolchain=<directory holding the four archives
+# below>`, which replaces the wasm-toolchain stage and leaves the download unbuilt; their
+# digests are the ones recorded in the CM system's inputs configuration and verified at
+# import. A build outside that workflow downloads them from their publishers.
 ARG WASM_PACK_VERSION=0.15.0
 ARG WASM_BINDGEN_VERSION=0.2.104
 ARG BINARYEN_VERSION=123
@@ -28,22 +29,18 @@ RUN set -eux; \
       arm64) arch=aarch64 ;; \
       *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
-    mkdir -p /toolchain/bin /toolchain/rust-std; \
-    curl -fsSL "https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/wasm-pack-v${WASM_PACK_VERSION}-${arch}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /tmp; \
-    cp "/tmp/wasm-pack-v${WASM_PACK_VERSION}-${arch}-unknown-linux-musl/wasm-pack" /toolchain/bin/; \
-    curl -fsSL "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${WASM_BINDGEN_VERSION}/wasm-bindgen-${WASM_BINDGEN_VERSION}-${arch}-unknown-linux-musl.tar.gz" \
-      | tar -xz -C /tmp; \
-    cp /tmp/wasm-bindgen-${WASM_BINDGEN_VERSION}-${arch}-unknown-linux-musl/wasm-bindgen* /toolchain/bin/; \
-    curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-${arch}-linux.tar.gz" \
-      | tar -xz -C /tmp; \
-    cp "/tmp/binaryen-version_${BINARYEN_VERSION}/bin/wasm-opt" /toolchain/bin/; \
-    curl -fsSL "https://static.rust-lang.org/dist/rust-std-${RUST_VERSION}-wasm32-unknown-unknown.tar.gz" \
-      | tar -xz -C /tmp; \
-    cp -a "/tmp/rust-std-${RUST_VERSION}-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown" /toolchain/rust-std/
+    mkdir -p /archives; \
+    curl -fsSL -o /archives/wasm-pack.tar.gz \
+      "https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/wasm-pack-v${WASM_PACK_VERSION}-${arch}-unknown-linux-musl.tar.gz"; \
+    curl -fsSL -o /archives/wasm-bindgen.tar.gz \
+      "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/${WASM_BINDGEN_VERSION}/wasm-bindgen-${WASM_BINDGEN_VERSION}-${arch}-unknown-linux-musl.tar.gz"; \
+    curl -fsSL -o /archives/binaryen.tar.gz \
+      "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-${arch}-linux.tar.gz"; \
+    curl -fsSL -o /archives/rust-std-wasm32.tar.gz \
+      "https://static.rust-lang.org/dist/rust-std-${RUST_VERSION}-wasm32-unknown-unknown.tar.gz"
 
 FROM scratch AS wasm-toolchain
-COPY --from=wasm-toolchain-download /toolchain/ /
+COPY --from=wasm-toolchain-download /archives/ /
 
 # The WebAssembly module of sequent-core that every single-page application consumes.
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-build
@@ -53,11 +50,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     m4 \
     make \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=wasm-toolchain /bin/ /usr/local/bin/
-COPY --from=wasm-toolchain /rust-std/wasm32-unknown-unknown /tmp/wasm32-unknown-unknown
+COPY --from=wasm-toolchain / /archives/
 RUN set -eux; \
+    tar -xzf /archives/wasm-pack.tar.gz -C /usr/local/bin --strip-components=1 --wildcards '*/wasm-pack'; \
+    tar -xzf /archives/wasm-bindgen.tar.gz -C /usr/local/bin --strip-components=1 --wildcards '*/wasm-bindgen*'; \
+    tar -xzf /archives/binaryen.tar.gz -C /usr/local --strip-components=1 --wildcards '*/bin/wasm-opt' '*/lib/*'; \
     rustlib="$(dirname "$(rustc --print target-libdir)")"; \
-    mv /tmp/wasm32-unknown-unknown "${rustlib}/wasm32-unknown-unknown"; \
+    tar -xzf /archives/rust-std-wasm32.tar.gz -C "${rustlib}" --strip-components=5 \
+      "rust-std-${RUST_VERSION}-wasm32-unknown-unknown/rust-std-wasm32-unknown-unknown/lib/rustlib/wasm32-unknown-unknown"; \
+    rm -rf /archives; \
     wasm-pack --version; wasm-bindgen --version; wasm-opt --version
 
 WORKDIR /app
