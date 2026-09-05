@@ -60,7 +60,7 @@ function exportGuidance({site, selection, out}) {
   if (built.schema !== 1 || built.source_dirty || built.source_commit !== selection.commit || git('rev-parse','HEAD') !== selection.commit ||
       git('status','--porcelain','--','.',':(exclude).yarnrc')) throw Error('Guidance build requires the clean selected source revision');
   for (const [name, digest] of Object.entries(built.files)) {
-    if (sha(fs.readFileSync(inside(repo,name))) !== digest || sha(execFileSync('git',['-C',repo,'cat-file','blob',`${selection.commit}:${name}`])) !== digest)
+    if (sha(fs.readFileSync(inside(repo,name))) !== digest || execFileSync('git',['-C',repo,'hash-object','--no-filters',inside(repo,name)],{encoding:'utf8'}).trim() !== git('rev-parse','--verify',`${selection.commit}:${name}`))
       throw Error('Source or renderer changed since the documentation build: '+name);
   }
   const build = path.join(site,'build');

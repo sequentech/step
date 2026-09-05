@@ -82,3 +82,11 @@ test('refuses unfinished source, unrendered diagrams and MDX components',()=>usi
     assert.throws(f.run,/placeholder|rendering adapter/);assert.equal(fs.existsSync(f.out),false);
   }
 }));
+
+test('checks committed media larger than a subprocess output buffer',()=>using(f=>{
+  const name='docs/docusaurus/static/large.bin';f.write(name,Buffer.alloc(2*1024*1024,7));
+  f.git('add',name);f.git('-c','user.name=Test','-c','user.email=test@example.invalid','-c','commit.gpgSign=false','commit','-qm','Synthetic large media');
+  f.selection.commit=f.git('rev-parse','HEAD');f.manifest.source_commit=f.selection.commit;
+  f.manifest.files[name]=sha(fs.readFileSync(path.join(f.root,name)));f.record();
+  assert.equal(f.run().documents.length,4);assert.equal(fs.existsSync(path.join(f.out,'large.bin')),false);
+}));
