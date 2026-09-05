@@ -74,7 +74,7 @@ impl RawBallotCodec for Contest {
         plaintext: &DecodedVoteContest,
     ) -> Result<RawBallotContest, String> {
         let context = ContestCodecContext::new(self)?;
-        let mut bases = context.single_contest_bases();
+        let mut bases = context.single_contest_bases()?;
         let mut choices: Vec<u64> = vec![];
 
         let char_map = self.get_char_map();
