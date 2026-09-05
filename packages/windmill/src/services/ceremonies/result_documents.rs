@@ -279,8 +279,7 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
             let all_reports_clone = all_reports.clone();
 
             // Encrypt the tar.gz folder if necessary before uploading
-            let mut upload_path = original_tarfile_path.clone();
-            upload_path = encrypt_directory_contents_sql(
+            let upload_path = encrypt_directory_contents_sql(
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,
@@ -343,10 +342,8 @@ impl GenerateResultDocuments for Vec<ElectionReportDataComputed> {
 
             let (_tarfile_temp_path, tarfile_path, tarfile_size) = result;
 
-            let mut upload_path = tarfile_path.clone();
-
             // Encrypt the tar.gz folder if necessary before uploading
-            upload_path = encrypt_directory_contents_sql(
+            let upload_path = encrypt_directory_contents_sql(
                 hasura_transaction,
                 &tenant_id,
                 &election_event_id,

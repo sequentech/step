@@ -32,6 +32,8 @@ use sequent_core::{
 };
 use std::{future::Future, pin::Pin};
 use tempfile::TempPath;
+
+use super::tally_csv::write_json_record;
 use tracing::{info, instrument};
 
 type ExportResult = Result<(String, TempPath), anyhow::Error>;
@@ -57,7 +59,7 @@ pub async fn export_tally_session(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -74,17 +76,11 @@ pub async fn export_tally_session(
         "configuration".to_string(),
         "tally_type".to_string(),
         "permission_label".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for tally_session in event_tally_sessions {
-        let values: Vec<String> = serde_json::to_value(tally_session)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert tally_session to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, tally_session)?;
     }
 
     writer
@@ -118,7 +114,7 @@ pub async fn export_tally_session_execution(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -131,17 +127,13 @@ pub async fn export_tally_session_execution(
         "session_ids".to_string(),
         "status".to_string(),
         "results_event_id".to_string(),
-    ])?;
+        "documents".to_string(),
+        "run_reason".to_string(),
+    ];
+    writer.write_record(&headers)?;
 
     for tally_session_execution in event_tally_sessions_executions {
-        let values: Vec<String> = serde_json::to_value(tally_session_execution)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert tally_session_execution to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, tally_session_execution)?;
     }
 
     writer
@@ -175,7 +167,7 @@ pub async fn export_tally_session_contest(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -188,17 +180,11 @@ pub async fn export_tally_session_contest(
         "annotations".to_string(),
         "tally_session_id".to_string(),
         "election_id".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for tally_session_contest in event_tally_sessions_contests {
-        let values: Vec<String> = serde_json::to_value(tally_session_contest)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert tally_session_contest to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, tally_session_contest)?;
     }
 
     writer
@@ -230,7 +216,7 @@ pub async fn export_results_event(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -240,17 +226,11 @@ pub async fn export_results_event(
         "annotations".to_string(),
         "labels".to_string(),
         "documents".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for results_event in results_events {
-        let values: Vec<String> = serde_json::to_value(results_event)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert results_event to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_event)?;
     }
 
     writer
@@ -284,7 +264,7 @@ pub async fn export_results_election_area(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -295,17 +275,13 @@ pub async fn export_results_election_area(
         "last_updated_at".to_string(),
         "documents".to_string(),
         "name".to_string(),
-    ])?;
+        "blank_ballots".to_string(),
+        "blank_ballots_percent".to_string(),
+    ];
+    writer.write_record(&headers)?;
 
     for results_election_area in results_election_areas {
-        let values: Vec<String> = serde_json::to_value(results_election_area)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert results_election_area to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_election_area)?;
     }
 
     writer
@@ -337,7 +313,7 @@ pub async fn export_results_election(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -352,17 +328,13 @@ pub async fn export_results_election(
         "annotations".to_string(),
         "total_voters_percent".to_string(),
         "documents".to_string(),
-    ])?;
+        "blank_ballots".to_string(),
+        "blank_ballots_percent".to_string(),
+    ];
+    writer.write_record(&headers)?;
 
     for results_election in results_elections {
-        let values: Vec<String> = serde_json::to_value(results_election)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert results_election to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_election)?;
     }
 
     writer
@@ -394,7 +366,7 @@ pub async fn export_results_contest(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -428,17 +400,11 @@ pub async fn export_results_contest(
         "documents".to_string(),
         "total_auditable_votes".to_string(),
         "total_auditable_votes_percent".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for results_contest in results_contests {
-        let values: Vec<String> = serde_json::to_value(results_contest)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert results_contest to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_contest)?;
     }
 
     writer
@@ -472,7 +438,7 @@ pub async fn export_results_contest_candidate(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -489,17 +455,11 @@ pub async fn export_results_contest_candidate(
         "annotations".to_string(),
         "cast_votes_percent".to_string(),
         "documents".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for results_contests_candidate in results_contests_candidates {
-        let values: Vec<String> = serde_json::to_value(results_contests_candidate)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert results_contests_candidate to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_contests_candidate)?;
     }
 
     writer
@@ -533,7 +493,7 @@ pub async fn export_results_area_contest(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -565,17 +525,11 @@ pub async fn export_results_area_contest(
         "documents".to_string(),
         "total_auditable_votes".to_string(),
         "total_auditable_votes_percent".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for results_area_contest in results_area_contests {
-        let values: Vec<String> = serde_json::to_value(results_area_contest)?
-            .as_object()
-            .ok_or_else(|| anyhow!("Failed to convert results_area_contest to JSON object"))?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_area_contest)?;
     }
 
     writer
@@ -609,7 +563,7 @@ pub async fn export_results_area_contest_candidate(
         generate_temp_file(&file_name, ".csv").with_context(|| "Error creating temporary file")?,
     );
 
-    writer.write_record(&[
+    let headers = [
         "id".to_string(),
         "tenant_id".to_string(),
         "election_event_id".to_string(),
@@ -627,19 +581,11 @@ pub async fn export_results_area_contest_candidate(
         "annotations".to_string(),
         "cast_votes_percent".to_string(),
         "documents".to_string(),
-    ])?;
+    ];
+    writer.write_record(&headers)?;
 
     for results_area_contests_candidate in results_area_contests_candidates {
-        let values: Vec<String> = serde_json::to_value(results_area_contests_candidate)?
-            .as_object()
-            .ok_or_else(|| {
-                anyhow!("Failed to convert results_area_contests_candidate to JSON object")
-            })?
-            .values()
-            .map(|value| value.to_string())
-            .collect();
-
-        writer.write_record(&values);
+        write_json_record(&mut writer, &headers, results_area_contests_candidate)?;
     }
 
     writer

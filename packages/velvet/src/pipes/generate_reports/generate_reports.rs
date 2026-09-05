@@ -1160,7 +1160,7 @@ impl Pipe for GenerateReports {
                     .collect::<Result<Vec<ReportData>>>()?; // Collect contest-level reports
 
                 // add summary election report
-                let election_census = election_input.clone().census;
+                let election_census = election_input.census;
                 let total_votes = election_input.total_votes.clone();
 
                 let is_decline_to_vote_enabled = multi_contest_encrypt

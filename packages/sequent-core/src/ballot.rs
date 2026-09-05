@@ -2815,12 +2815,7 @@ impl Area {
     ) -> Result<Option<AreaAnnotations>, Error<serde_json::Error>> {
         self.annotations
             .as_ref()
-            .map(|v| {
-                deserialize_value::<AreaAnnotations>(v.clone()).map_err(|e| {
-                    anyhow!("failed to deserialize AreaAnnotations: error={e} raw={v}");
-                    e
-                })
-            })
+            .map(|v| deserialize_value::<AreaAnnotations>(v.clone()))
             .transpose()
     }
 }

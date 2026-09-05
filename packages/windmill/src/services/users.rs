@@ -1780,7 +1780,6 @@ pub async fn count_have_voted(
         let clause = format!("election_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_id_uuid));
-        next_param_number += 1;
     }
     let filter_clause = filter_clauses.join(" AND\n                    ");
 

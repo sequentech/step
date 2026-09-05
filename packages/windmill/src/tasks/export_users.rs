@@ -36,7 +36,8 @@ pub async fn export_users(
         Ok(client) => client,
         Err(err) => {
             if let Some(task_execution) = &task_execution {
-                update_fail(task_execution, "Failed to get Hasura DB pool").await;
+                // update_fail logs its own error; preserve the original operation failure.
+                let _ = update_fail(task_execution, "Failed to get Hasura DB pool").await;
             }
             return Err(Error::String(format!(
                 "Error getting Hasura DB pool: {}",

@@ -26,7 +26,8 @@ pub async fn export_application(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Error sending export_application task: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
     }

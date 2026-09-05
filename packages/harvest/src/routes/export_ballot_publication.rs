@@ -69,7 +69,8 @@ pub async fn export_ballot_publication_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_WRITE],
     ) {
-        update_fail(
+        // update_fail logs its own error; preserve the original operation failure.
+        let _ = update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {:?}", error),
         )
@@ -90,7 +91,8 @@ pub async fn export_ballot_publication_route(
     ))
     .await {
         Err(error) =>  {
-            update_fail(&task_execution, &format!("Failed to send task to the queue: {error:?}")).await;
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(&task_execution, &format!("Failed to send task to the queue: {error:?}")).await;
             return Err((
                 Status::InternalServerError,
                 format!("Error sending export_election_event task: {error:?}")
