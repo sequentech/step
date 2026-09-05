@@ -38,7 +38,7 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
     fi; \
     rm -rf "${keycloak_extensions_dir}"/target "${keycloak_extensions_dir}"/*/target; \
     rm -rf "${beyond_keycloak_extensions_dir}"/target "${beyond_keycloak_extensions_dir}"/*/target; \
-    mvn -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    mvn --offline -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
     mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
     cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
     provider_dirs="${keycloak_extensions_dir}"; \
@@ -78,7 +78,7 @@ RUN echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
  && mkdir -p /build \
  && tar -xzf /tmp/oid4vp.tar.gz -C /build \
  && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
- && mvn -B clean package -DskipTests
+ && mvn --offline -B clean package -DskipTests
 
 FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad AS builder
 ARG OID4VP_VERSION

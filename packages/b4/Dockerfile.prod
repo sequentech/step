@@ -25,9 +25,7 @@ FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c
 RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
     -o Dir::Cache::archives=/debs \
     libssl3 \
-    ca-certificates \
-    curl \
-    unzip
+    ca-certificates
 
 FROM scratch AS debs-runtime
 COPY --from=debs-runtime-download /debs/*.deb /
@@ -39,7 +37,7 @@ FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b
 WORKDIR /app
 
 COPY --from=debs-builder / /tmp/debs/
-RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 
 COPY ./braid ./braid
@@ -64,27 +62,16 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/b4
-RUN cargo build --features=native --release --locked
+RUN cargo build --features=native --release --locked --offline
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
 COPY --from=debs-runtime / /tmp/debs/
-RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 
-# Installing also AWS CLI and Vault CLI for trustee configuration
-# Set the default Vault version (put 'latest' for automatic substitution)
-ARG VAULT_VERSION=1.15.5
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip -o awscliv2.zip \
-    && ./aws/install \
-    && rm -f awscliv2.zip \
-    && if [ "${VAULT_VERSION}" = "latest" ]; then \
-        VAULT_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | grep -oP 'vault/\K[0-9.]+(?=/")' | head -n 1); \
-    fi \
-    && curl -o vault.zip https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip \
-    && unzip vault.zip -d /usr/local/bin/ \
-    && rm -f vault.zip
+# Cloud secret CLIs are optional deployment inputs, not downloaded by the build.
+# uniWAHL uses a mounted trustee configuration / EnvVarMasterSecret and S3-compatible storage.
 
 COPY --from=builder /app/target/release/b4 /usr/bin/b4
 

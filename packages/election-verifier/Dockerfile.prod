@@ -4,7 +4,7 @@
 
 # The election-verifier part of the TOE: the `verify` binary of the braid crate
 # (packages/braid/src/bin/verify.rs) in its own image, built by the same
-# `cargo build --release --locked` as the braid part.
+# `cargo build --release --locked --offline` as the braid part.
 
 # The Debian packages the two stages below install, and the vendored crates the build reads.
 # The controlled production build supplies each from the accepted external inputs with
@@ -41,7 +41,7 @@ FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b
 WORKDIR /app
 
 COPY --from=debs-builder / /tmp/debs/
-RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 
 COPY ./braid ./braid
@@ -65,12 +65,12 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/braid
-RUN cargo build --release --locked
+RUN cargo build --release --locked --offline
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
 COPY --from=debs-runtime / /tmp/debs/
-RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 
 COPY --from=builder /app/target/release/verify /usr/bin/verify

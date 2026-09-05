@@ -70,7 +70,7 @@ COPY --from=apks-nginx-download /apks/*.apk /
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-build
 ARG RUST_VERSION
 COPY --from=debs-wasm-build / /tmp/debs/
-RUN apt-get install -y --no-install-recommends /tmp/debs/*.deb \
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 COPY --from=wasm-toolchain / /archives/
 RUN set -eux; \
@@ -131,7 +131,7 @@ COPY --from=wasm-build /app/sequent-core/pkg ./ballot-verifier/rust/pkg
 # Install dependencies
 COPY --from=yarn-offline-mirror / /usr/src/yarn-offline-mirror/
 RUN printf 'yarn-offline-mirror "/usr/src/yarn-offline-mirror"\n' > .yarnrc
-RUN yarn install --frozen-lockfile --non-interactive
+RUN yarn install --offline --frozen-lockfile --non-interactive
 
 ARG SPA_NAME
 
