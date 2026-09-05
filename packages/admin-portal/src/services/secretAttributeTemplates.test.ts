@@ -10,7 +10,7 @@ describe("getReferencedSecretAttributeNames", () => {
     it("declares attributes used as template variables", () => {
         const contents = JSON.stringify({
             email: {body: "<p>Your reference is {{user.customerReference}}.</p>"},
-            sms: {message: "PIN {{lookup user.attributes \"pin\"}}"},
+            sms: {message: 'PIN {{lookup user.attributes "pin"}}'},
         })
 
         expect(getReferencedSecretAttributeNames(contents, names)).toEqual([
@@ -21,7 +21,9 @@ describe("getReferencedSecretAttributeNames", () => {
 
     it("ignores names that only appear in prose", () => {
         const contents = JSON.stringify({
-            email: {body: "<p>Keep your customerReference and pin private. Hi {{user.username}}.</p>"},
+            email: {
+                body: "<p>Keep your customerReference and pin private. Hi {{user.username}}.</p>",
+            },
         })
 
         expect(getReferencedSecretAttributeNames(contents, names)).toEqual([])

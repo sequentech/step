@@ -28,15 +28,19 @@ jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({isAuthorized: () => true}),
 }))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
-jest.mock("@sequentech/ui-essentials", () => ({
-    Dialog: ({children, handleClose}: React.PropsWithChildren<{handleClose: () => void}>) =>
-        require("react").createElement(
-            "div",
-            {},
-            children,
-            require("react").createElement("button", {onClick: handleClose}, "Close")
-        ),
-}))
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        Dialog: ({children, handleClose}: React.PropsWithChildren<{handleClose: () => void}>) =>
+            require("react").createElement(
+                "div",
+                {},
+                children,
+                require("react").createElement("button", {onClick: handleClose}, "Close")
+            ),
+    }),
+    {virtual: true}
+)
 jest.mock("@/components/election-event/export-data/PasswordDialog", () => ({
     PasswordDialog: ({
         password,
