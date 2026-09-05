@@ -544,7 +544,8 @@ mod tests {
             .unwrap();
         assert_eq!(
             record[index],
-            user.get_attribute_multival(&"login-code".to_string()).unwrap()
+            user.get_attribute_multival(&"login-code".to_string())
+                .unwrap()
         );
         assert!(record[index].contains("first-secret"));
         assert!(record[index].contains("second-secret"));
