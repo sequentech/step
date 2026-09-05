@@ -46,10 +46,14 @@ import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserCredentialModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
+import org.keycloak.models.UserSessionModel;
+import org.keycloak.models.UserSessionProvider;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.representations.userprofile.config.UPConfig;
 import org.keycloak.services.managers.BruteForceProtector;
+import org.keycloak.sessions.AuthenticationSessionModel;
+import org.keycloak.sessions.RootAuthenticationSessionModel;
 import org.keycloak.userprofile.AttributeMetadata;
 import org.keycloak.userprofile.Attributes;
 import org.keycloak.userprofile.UserProfile;
@@ -1399,6 +1403,74 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
+  void authenticate_terminatePolicyWorksWithBothCredentialPolicies() {
+    for (String credentialPolicy : List.of("PASSWORD", "SECRET_ATTRIBUTE")) {
+      AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+      AuthenticatorConfigModel authConfig = new AuthenticatorConfigModel();
+      authConfig.setConfig(
+          Map.of(
+              "existingUserSessionPolicy",
+              "TERMINATE_BEFORE_LOGIN",
+              EncryptedAttributeCredential.POLICY,
+              credentialPolicy));
+      lenient().when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+      UserSessionModel existingSession = mock(UserSessionModel.class);
+      UserSessionProvider userSessions = mock(UserSessionProvider.class);
+      AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+      RootAuthenticationSessionModel rootSession = mock(RootAuthenticationSessionModel.class);
+      lenient().when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+      lenient().when(context.getSession()).thenReturn(session);
+      lenient().when(context.getRealm()).thenReturn(realm);
+      lenient().when(authenticationSession.getParentSession()).thenReturn(rootSession);
+      lenient().when(rootSession.getId()).thenReturn("browser-session");
+      lenient().when(session.sessions()).thenReturn(userSessions);
+      lenient()
+          .when(userSessions.getUserSession(realm, "browser-session"))
+          .thenReturn(existingSession);
+      Response challengeResponse = mock(Response.class);
+
+      challengeAuthenticator(challengeResponse).authenticate(context);
+
+      InOrder inOrder = inOrder(context, userSessions);
+      inOrder.verify(userSessions).removeUserSession(realm, existingSession);
+      inOrder.verify(context).challenge(challengeResponse);
+    }
+  }
+
+  @Test
+  void authenticate_defaultPolicyKeepsExistingSession() {
+    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    AuthenticatorConfigModel authConfig = new AuthenticatorConfigModel();
+    authConfig.setConfig(Map.of());
+    lenient().when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    Response challengeResponse = mock(Response.class);
+
+    challengeAuthenticator(challengeResponse).authenticate(context);
+
+    verify(context, never()).getAuthenticationSession();
+    verify(context).challenge(challengeResponse);
+  }
+
+  @Test
+  void factory_configPropertiesIncludeSessionAndCredentialPolicies() {
+    var properties = authenticator.getConfigProperties();
+    ProviderConfigProperty policyProperty =
+        properties.stream()
+            .filter(property -> "existingUserSessionPolicy".equals(property.getName()))
+            .findFirst()
+            .orElse(null);
+    assertTrue(policyProperty != null);
+    assertEquals(ProviderConfigProperty.LIST_TYPE, policyProperty.getType());
+    assertEquals("KEEP", policyProperty.getDefaultValue());
+    assertEquals(List.of("KEEP", "TERMINATE_BEFORE_LOGIN"), policyProperty.getOptions());
+    assertTrue(
+        properties.stream().anyMatch(p -> EncryptedAttributeCredential.POLICY.equals(p.getName())));
+    assertTrue(
+        properties.stream()
+            .anyMatch(p -> EncryptedAttributeCredential.ATTRIBUTE.equals(p.getName())));
+  }
+
+  @Test
   void action_failureClearsAttributedUserAfterSignalingFailure() {
     AuthenticationFlowContext context = mockActionContext();
     UserModel attributableUser = mock(UserModel.class);
@@ -1512,6 +1584,18 @@ class MultiAttributePasswordAuthenticatorTest {
     when(context.getRealm()).thenReturn(realm);
     lenient().when(context.getEvent()).thenReturn(mock(EventBuilder.class));
     return context;
+  }
+
+  private MultiAttributePasswordAuthenticator challengeAuthenticator(Response challengeResponse) {
+    return new MultiAttributePasswordAuthenticator() {
+      @Override
+      protected Response challenge(
+          AuthenticationFlowContext context,
+          MultivaluedMap<String, String> formData,
+          String error) {
+        return challengeResponse;
+      }
+    };
   }
 
   private MultiAttributePasswordAuthenticator actionAuthenticator(
