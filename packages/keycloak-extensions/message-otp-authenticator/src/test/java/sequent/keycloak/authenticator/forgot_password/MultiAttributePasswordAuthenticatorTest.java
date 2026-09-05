@@ -1403,70 +1403,71 @@ class MultiAttributePasswordAuthenticatorTest {
   }
 
   @Test
-  void authenticate_terminatePolicyRemovesExistingSessionBeforeShowingLoginForm() {
-    AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
-    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
-    when(authConfig.getConfig())
-        .thenReturn(
-            Map.of(
-                MultiAttributePasswordAuthenticator.EXISTING_USER_SESSION_POLICY,
-                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN
-                    .name()));
-    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
-    UserSessionModel existingSession = mock(UserSessionModel.class);
-    UserSessionProvider userSessions = mock(UserSessionProvider.class);
-    configureBrowserSession(context, existingSession, userSessions);
-    when(context.getRealm()).thenReturn(realm);
-    Response challengeResponse = mock(Response.class);
-    MultiAttributePasswordAuthenticator kioskAuthenticator =
-        challengeAuthenticator(challengeResponse);
+  void authenticate_terminatePolicyWorksWithBothCredentialPolicies() {
+    for (String credentialPolicy : List.of("PASSWORD", "SECRET_ATTRIBUTE")) {
+      AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+      AuthenticatorConfigModel authConfig = new AuthenticatorConfigModel();
+      authConfig.setConfig(
+          Map.of(
+              "existingUserSessionPolicy",
+              "TERMINATE_BEFORE_LOGIN",
+              EncryptedAttributeCredential.POLICY,
+              credentialPolicy));
+      lenient().when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+      UserSessionModel existingSession = mock(UserSessionModel.class);
+      UserSessionProvider userSessions = mock(UserSessionProvider.class);
+      AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
+      RootAuthenticationSessionModel rootSession = mock(RootAuthenticationSessionModel.class);
+      lenient().when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+      lenient().when(context.getSession()).thenReturn(session);
+      lenient().when(context.getRealm()).thenReturn(realm);
+      lenient().when(authenticationSession.getParentSession()).thenReturn(rootSession);
+      lenient().when(rootSession.getId()).thenReturn("browser-session");
+      lenient().when(session.sessions()).thenReturn(userSessions);
+      lenient()
+          .when(userSessions.getUserSession(realm, "browser-session"))
+          .thenReturn(existingSession);
+      Response challengeResponse = mock(Response.class);
 
-    kioskAuthenticator.authenticate(context);
+      challengeAuthenticator(challengeResponse).authenticate(context);
 
-    InOrder inOrder = inOrder(context, userSessions);
-    inOrder.verify(userSessions).removeUserSession(realm, existingSession);
-    inOrder.verify(context).challenge(challengeResponse);
+      InOrder inOrder = inOrder(context, userSessions);
+      inOrder.verify(userSessions).removeUserSession(realm, existingSession);
+      inOrder.verify(context).challenge(challengeResponse);
+    }
   }
 
   @Test
   void authenticate_defaultPolicyKeepsExistingSession() {
     AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
-    AuthenticatorConfigModel authConfig = mock(AuthenticatorConfigModel.class);
-    when(authConfig.getConfig()).thenReturn(Map.of());
-    when(context.getAuthenticatorConfig()).thenReturn(authConfig);
+    AuthenticatorConfigModel authConfig = new AuthenticatorConfigModel();
+    authConfig.setConfig(Map.of());
+    lenient().when(context.getAuthenticatorConfig()).thenReturn(authConfig);
     Response challengeResponse = mock(Response.class);
-    MultiAttributePasswordAuthenticator portalAuthenticator =
-        challengeAuthenticator(challengeResponse);
 
-    portalAuthenticator.authenticate(context);
+    challengeAuthenticator(challengeResponse).authenticate(context);
 
     verify(context, never()).getAuthenticationSession();
     verify(context).challenge(challengeResponse);
   }
 
   @Test
-  void factory_configPropertiesIncludeExistingSessionPolicyDefaultingToKeep() {
-    MultiAttributePasswordAuthenticator factory = new MultiAttributePasswordAuthenticator();
+  void factory_configPropertiesIncludeSessionAndCredentialPolicies() {
+    var properties = authenticator.getConfigProperties();
     ProviderConfigProperty policyProperty =
-        factory.getConfigProperties().stream()
-            .filter(
-                property ->
-                    MultiAttributePasswordAuthenticator.EXISTING_USER_SESSION_POLICY.equals(
-                        property.getName()))
+        properties.stream()
+            .filter(property -> "existingUserSessionPolicy".equals(property.getName()))
             .findFirst()
             .orElse(null);
-
     assertTrue(policyProperty != null);
     assertEquals(ProviderConfigProperty.LIST_TYPE, policyProperty.getType());
-    assertEquals(
-        MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.KEEP.name(),
-        policyProperty.getDefaultValue());
+    assertEquals("KEEP", policyProperty.getDefaultValue());
+    assertEquals(List.of("KEEP", "TERMINATE_BEFORE_LOGIN"), policyProperty.getOptions());
     assertTrue(
-        policyProperty
-            .getOptions()
-            .contains(
-                MultiAttributePasswordAuthenticator.ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN
-                    .name()));
+        properties.stream().anyMatch(p -> EncryptedAttributeCredential.POLICY.equals(p.getName())));
+    assertTrue(
+        properties.stream()
+            .anyMatch(p -> EncryptedAttributeCredential.ATTRIBUTE.equals(p.getName())));
   }
 
   @Test
@@ -1583,20 +1584,6 @@ class MultiAttributePasswordAuthenticatorTest {
     when(context.getRealm()).thenReturn(realm);
     lenient().when(context.getEvent()).thenReturn(mock(EventBuilder.class));
     return context;
-  }
-
-  private void configureBrowserSession(
-      AuthenticationFlowContext context,
-      UserSessionModel existingSession,
-      UserSessionProvider userSessions) {
-    AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
-    RootAuthenticationSessionModel rootSession = mock(RootAuthenticationSessionModel.class);
-    when(context.getAuthenticationSession()).thenReturn(authenticationSession);
-    when(context.getSession()).thenReturn(session);
-    when(authenticationSession.getParentSession()).thenReturn(rootSession);
-    when(rootSession.getId()).thenReturn("browser-session");
-    when(session.sessions()).thenReturn(userSessions);
-    when(userSessions.getUserSession(realm, "browser-session")).thenReturn(existingSession);
   }
 
   private MultiAttributePasswordAuthenticator actionAuthenticator(

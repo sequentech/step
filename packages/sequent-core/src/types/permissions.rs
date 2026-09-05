@@ -37,6 +37,10 @@ pub enum Permissions {
     VOTER_READ,
     #[strum(serialize = "voter-write")]
     VOTER_WRITE,
+    #[strum(serialize = "voter-secret-attribute-read")]
+    VOTER_SECRET_ATTRIBUTE_READ,
+    #[strum(serialize = "voter-secret-attribute-write")]
+    VOTER_SECRET_ATTRIBUTE_WRITE,
     #[strum(serialize = "user-create")]
     USER_CREATE,
     #[strum(serialize = "user-read")]

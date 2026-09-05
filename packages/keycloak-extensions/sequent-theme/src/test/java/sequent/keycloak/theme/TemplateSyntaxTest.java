@@ -40,6 +40,14 @@ class TemplateSyntaxTest {
   }
 
   @Test
+  void patternAliasRendersExactlyTheExistingStructuredPasswordForm()
+      throws IOException, TemplateException {
+    assertEquals(
+        renderVotingPortalLogin(baseModel("structured")),
+        renderVotingPortalLogin(baseModel("pattern")));
+  }
+
+  @Test
   void loginTemplateEscapesHostileRealmPatternAndLocalizationOverrides()
       throws IOException, TemplateException {
     Path child = THEME_ROOT.resolve("sequent.voting-portal/login");

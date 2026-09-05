@@ -722,6 +722,21 @@ actions:
           - role: admin-user
           - role: voter-read
           - role: user-read
+    - name: reveal_voter_secret_attribute
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/reveal-voter-secret-attribute
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: voter-read
+          - role: voter-secret-attribute-read
+          - role: admin-user
     - name: fetchDocument
       definition:
           kind: ""
@@ -1889,6 +1904,7 @@ custom_types:
         - name: TallySheetOutput
         - name: PrepareBallotPublicationPreviewOutput
         - name: ExportUsersOutput
+        - name: RevealVoterSecretAttributeOutput
         - name: SetUserRoleOutput
         - name: AcknowledgeSupportMaterialsOutput
         - name: GetSupportMaterialsAcknowledgmentOutput
