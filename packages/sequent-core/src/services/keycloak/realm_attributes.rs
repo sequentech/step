@@ -309,6 +309,7 @@ mod tests {
         for (policy, pattern) in [
             ("standard", "dddd-dddd-dddd-dddd"),
             ("structured", "ddd-ddd"),
+            ("pattern", "ddd-ddd"),
             ("structured", "dd-dddd-dd"),
             ("structured", "dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd"),
         ] {

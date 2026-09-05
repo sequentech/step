@@ -44,7 +44,6 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {CustomApolloContextProvider} from "@/providers/ApolloContextProvider"
 import {
     GenerateReportMutation,
-    ReportEncryptionPolicy,
     Sequent_Backend_Election,
     Sequent_Backend_Report,
     Sequent_Backend_Template,
@@ -70,11 +69,8 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 import {useReportsPermissions} from "./useReportsPermissions"
 import {set} from "lodash"
 import {isArray} from "@sequentech/ui-core"
-import {DecryptHelp} from "@/components/election-event/export-data/PasswordDialog"
 import {EventProcessors} from "../ScheduledEvents/CreateScheduledEvent"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
-
-export const decryptionCommand = `openssl enc -d -aes-256-cbc -in <encrypted_file> -out <decrypted_file> -pass pass:<password>  -md md5`
 
 const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -127,6 +123,8 @@ const ActionsPopUp: React.FC<ActionsPopUpProps> = ({actions, report, canWriteRep
 
 // filter by permission-labels
 
+export {reportDecryptionCommand as decryptionCommand} from "./ReportPasswordDialog"
+
 const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const {t} = useTranslation()
     const [openCreateReport, setOpenCreateReport] = useState<boolean>(false)
@@ -134,7 +132,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
     const [documentId, setDocumentId] = useState<string | undefined>(undefined)
     const [electionList, setElectionList] = useState<string[]>([])
     const [selectedReportId, setSelectedReportId] = useState<Identifier | null>(null)
-    const [isDecryptModalOpen, setIsDecryptModalOpen] = useState<boolean>(false)
     const {globalSettings} = useContext(SettingsContext)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [tenantId] = useTenantStore()
@@ -207,7 +204,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
 
     const handleGenerateReport = async (id: Identifier, mode: EGenerateReportMode) => {
         setDocumentId(undefined)
-        setIsDecryptModalOpen(false)
         const currWidget: WidgetProps = addWidget(ETasksExecution.GENERATE_REPORT, undefined)
         try {
             let generateReportResponse = await generateReport({
@@ -221,8 +217,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             let response = generateReportResponse.data?.generate_report
             let taskId = response?.task_execution?.id
             let generatedDocumentId = response?.document_id
-            let isEncrypted =
-                response?.encryption_policy == ReportEncryptionPolicy.ConfiguredPassword
 
             if (!generatedDocumentId) {
                 updateWidgetFail(currWidget.identifier)
@@ -231,12 +225,11 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                 return
             }
             setDocumentId(generatedDocumentId)
-            setWidgetTaskId(currWidget.identifier, taskId, () => setIsDecryptModalOpen(isEncrypted))
+            setWidgetTaskId(currWidget.identifier, taskId)
         } catch (e) {
             updateWidgetFail(currWidget.identifier)
             setSelectedReportId(null)
             setDocumentId(undefined)
-            setIsDecryptModalOpen(false)
         }
     }
 
@@ -447,6 +440,7 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                     setSelectedReportId(null)
                 }}
                 fileName={fileName}
+                showReportPasswordDialog
                 documentId={documentId}
                 electionEventId={electionEventId}
             />
@@ -563,21 +557,6 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
             </Drawer>
             {renderDeleteModal()}
             {renderDownloadDocumentHelper()}
-            <Dialog
-                variant="info"
-                open={isDecryptModalOpen}
-                handleClose={(results) => {
-                    if (results) {
-                        setIsDecryptModalOpen(false)
-                    }
-                    setIsDecryptModalOpen(false)
-                }}
-                aria-labelledby="password-dialog-title"
-                title={String(t("reportsScreen.messages.decryptFileTitle"))}
-                ok={"Ok"}
-            >
-                <DecryptHelp decryptionCommand={decryptionCommand} />
-            </Dialog>
         </>
     )
 }

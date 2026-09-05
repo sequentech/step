@@ -157,6 +157,8 @@ pub struct SendTemplateBody {
     pub alias: Option<String>,
     pub pdf_options: Option<PrintToPdfOptionsLocal>,
     pub report_options: Option<ReportOptions>,
+    #[serde(default)]
+    pub secret_attribute_names: Vec<String>,
 }
 
 /// Struct for the DEFAULT extra_config JSON file.
