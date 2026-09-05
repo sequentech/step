@@ -1,4 +1,5 @@
-# syntax=docker/dockerfile:1.7
+# Use the accepted Docker Engine's bundled BuildKit frontend; no frontend image
+# is downloaded when the controlled offline build reads this definition.
 
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
