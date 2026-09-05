@@ -50,7 +50,7 @@ impl KeycloakAdminClient {
         let group_representations: Vec<GroupRepresentation> = self
             .client
             .realm_groups_get(
-                realm.clone(),
+                realm,
                 Some(false),
                 None,
                 None,
@@ -63,16 +63,11 @@ impl KeycloakAdminClient {
             .map_err(|err| anyhow!("{:?}", err))?;
 
         let count = group_representations.len();
-        let start = offset.unwrap_or(0);
-        let end = match limit {
-            Some(num) => usize::min(count, start + num),
-            None => count,
-        };
-        let slized_group_representations = &group_representations[start..end];
-        let roles = slized_group_representations
-            .into_iter()
-            .map(|role| role.clone().into())
-            .collect();
+        let roles =
+            super::pagination::page(&group_representations, offset, limit)
+                .iter()
+                .map(|role| role.clone().into())
+                .collect();
         Ok((roles, count))
     }
 

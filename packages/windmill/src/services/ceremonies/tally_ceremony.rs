@@ -869,7 +869,7 @@ pub async fn set_private_key(
     // enough trustees connected, so change tally execution status to connected
     if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(
-            transaction.clone(),
+            transaction,
             &tenant_id,
             &election_event_id,
             &tally_session_id,

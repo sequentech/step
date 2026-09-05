@@ -170,7 +170,7 @@ pub mod sync {
             let mut delay = Duration::from_millis(100);
 
             loop {
-                let mut builder = client.post(endpoint.clone()).json(&payload);
+                let mut builder = client.post(endpoint).json(&payload);
                 if let Some(ref basic_auth) = basic_auth {
                     let parts: Vec<&str> = basic_auth.split(':').collect();
                     if parts.len() != 2 {

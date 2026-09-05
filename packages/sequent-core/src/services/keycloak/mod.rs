@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 mod admin_client;
+mod pagination;
 mod permission;
 mod realm;
 mod realm_attributes;

@@ -290,7 +290,7 @@ impl KeycloakAdminClient {
         let user_representations: Vec<UserRepresentation> = self
             .client
             .realm_users_get(
-                realm.clone(),
+                realm,
                 Some(false),
                 email.clone(),
                 None,

@@ -13,7 +13,7 @@ use zip::write::{FileOptions, SimpleFileOptions};
 
 #[instrument(skip_all, err)]
 pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
-    let path = src_dir.clone();
+    let path = src_dir;
     let file = File::create(dst_file)
         .with_context(|| format!("Failed to create destination file: {:?}", dst_file))?;
     let mut zip = zip::ZipWriter::new(file);
