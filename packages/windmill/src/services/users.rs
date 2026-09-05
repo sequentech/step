@@ -1706,7 +1706,7 @@ pub async fn get_username_by_id(
     }
 }
 
-#[instrument(err, skip_all(keycloak_transaction))]
+#[instrument(err, skip_all)]
 pub async fn get_user_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,

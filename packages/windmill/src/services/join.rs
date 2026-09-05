@@ -739,7 +739,7 @@ mod tests {
     /// ------------------------------------------------------------------
     /// Voter-weighted voting
     /// ------------------------------------------------------------------
-
+    ///
     /// Runs the merge in voter-weighted mode. The voters file is
     /// `voter_id,vote_weight`.
     fn run_merge_join_weights_test(

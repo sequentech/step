@@ -45,7 +45,7 @@ impl TestFixture {
             temp_folder.join(format!("velvet/test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(&config_path)?;
 
         writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
@@ -74,7 +74,7 @@ impl TestFixture {
         ));
         let mut file = fs::OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(&config_path)?;
 
         writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;

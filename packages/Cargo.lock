@@ -1335,6 +1335,7 @@ dependencies = [
  "sequent-core",
  "serde",
  "serde_json",
+ "serial_test",
  "strand",
  "strum 0.27.2",
  "tokio",

@@ -113,6 +113,7 @@ async fn create_config(
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(&config_path)?;
 
     writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;

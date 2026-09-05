@@ -11,7 +11,6 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/check_private_key.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct CheckPrivateKey;
 
 impl CheckPrivateKey {

@@ -88,7 +88,6 @@ pub fn generate_ballots(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -315,7 +314,6 @@ pub fn generate_mcballots_with_blank(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -453,7 +451,6 @@ pub fn generate_mcballots_with_blank(
                 .join(format!("area__{}", key.0));
 
             let mut file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(file.join(BALLOTS_FILE))?;
@@ -988,7 +985,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1092,7 +1088,6 @@ mod tests {
             .join(format!("area__{}", &area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1201,7 +1196,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1436,7 +1430,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1543,7 +1536,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1710,7 +1702,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1862,7 +1853,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -2061,7 +2051,6 @@ mod tests {
             println!("ballots_path={ballots_path:?}");
 
             let mut ballots_csv_file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(ballots_path)?;

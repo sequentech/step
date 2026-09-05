@@ -5,10 +5,8 @@
 
 use anyhow::{anyhow, Error};
 use core::result::Result;
-#[cfg(feature = "default_features")]
 use sequent_core::services::pdf::PdfRenderer;
 use std::env;
-use tokio::runtime::Runtime;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -32,10 +30,11 @@ async fn main() -> Result<(), Error> {
                 Ok(endpoint) => println!("AWS Lambda doc renderer endpoint '{endpoint}' will be used"),
                 Err(_) => println!("Please, set envvar AWS_LAMBDA_DOC_RENDERER_ENDPOINT and try again")
             }
-        } else {
-            compile_error!("Either feature lambda_inplace, lambda_openwhisk or lambda_aws_lambda has to be provided");
         }
     }
+
+    // With no example-specific backend feature, use DOC_RENDERER_BACKEND and the
+    // renderer's normal local Chromium default.
 
     match PdfRenderer::render_pdf("Hello, world!".to_string(), None).await {
         Ok(data) => {
