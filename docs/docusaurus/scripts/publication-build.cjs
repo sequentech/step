@@ -19,8 +19,12 @@ module.exports = function publicationBuild(context) {
     ])),
   });
   const before = snapshot();
+  let versions = [];
   return {
     name:'publication-build',
+    async allContentLoaded({allContent}) {
+      versions = allContent['docusaurus-plugin-content-docs']?.default?.loadedVersions || [];
+    },
     async postBuild({outDir}) {
       if (JSON.stringify(before) !== JSON.stringify(snapshot()))
         throw new Error('Public documentation inputs changed during the build');
@@ -38,8 +42,29 @@ module.exports = function publicationBuild(context) {
         artifacts[name] = {source:`${prefix}/${source}`, output:file,
           sha256:sha(fs.readFileSync(path.join(outDir, file)))};
       }
+      const pages = [];
+      for (const version of versions) {
+        for (const doc of version.docs || []) {
+          if (doc.draft || !doc.source.startsWith('@site/')) continue;
+          const relative = doc.permalink.slice(context.siteConfig.baseUrl.length).replace(/\/$/, '');
+          let output = relative + '.html';
+          if (!fs.existsSync(path.join(outDir, output))) output = relative + '/index.html';
+          pages.push({source:`${prefix}/${doc.source.slice(6)}`, title:doc.title,
+            permalink:doc.permalink, output, sha256:sha(fs.readFileSync(path.join(outDir, output)))});
+        }
+      }
+      const assets = {};
+      function images(dir) {
+        for (const item of fs.readdirSync(dir, {withFileTypes:true})) {
+          const file = path.join(dir, item.name);
+          if (item.isDirectory()) images(file);
+          else if (item.isFile() && /\.(?:png|jpe?g|gif|webp|avif)$/i.test(item.name))
+            assets[path.relative(outDir, file).split(path.sep).join('/')] = sha(fs.readFileSync(file));
+        }
+      }
+      images(outDir);
       fs.writeFileSync(path.join(site, '.docusaurus/publication-build.json'), JSON.stringify({
-        schema:1, base_url:context.siteConfig.baseUrl, ...before, artifacts,
+        schema:1, base_url:context.siteConfig.baseUrl, ...before, artifacts, pages, assets,
       }, null, 2) + '\n');
     },
   };

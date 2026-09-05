@@ -26,7 +26,8 @@
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "^3.8.1",
-    "@docusaurus/types": "^3.8.1"
+    "@docusaurus/types": "^3.8.1",
+    "cheerio": "1.0.0-rc.12"
   },
   "browserslist": {
     "production": [

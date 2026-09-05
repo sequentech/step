@@ -60,3 +60,15 @@ test('hashes the generated offline-mirror routing separately from Git sources', 
   fs.appendFileSync(path.join(f.site,'.yarnrc'),'changed');
   await assert.rejects(() => p.postBuild({outDir:f.outDir}), /inputs changed/);
 }));
+test('binds selected-doc route identity and local raster bytes to the actual build', () => using(async f => {
+  const p=plugin(f.context);
+  const file=path.join(f.outDir,'assets/example.png');fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,'synthetic image bytes');
+  await p.allContentLoaded({allContent:{'docusaurus-plugin-content-docs':{default:{loadedVersions:[{docs:[{
+    source:'@site/docs/06-technology/06-vulnerability-disclosure-policy.md',title:'Synthetic policy',permalink:'/docusaurus/main/docs/technology/vulnerability-disclosure-policy',draft:false,
+  }]}]}}}});
+  await p.postBuild({outDir:f.outDir});
+  const r=JSON.parse(fs.readFileSync(path.join(f.site,'.docusaurus/publication-build.json')));
+  assert.equal(r.pages.length,1);assert.equal(r.pages[0].source,'docs/docusaurus/docs/06-technology/06-vulnerability-disclosure-policy.md');
+  assert.equal(r.pages[0].sha256,r.artifacts['vulnerability-disclosure-policy'].sha256);
+  assert.match(r.assets['assets/example.png'],/^[0-9a-f]{64}$/);
+}));
