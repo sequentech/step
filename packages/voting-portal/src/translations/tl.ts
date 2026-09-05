@@ -45,6 +45,12 @@ const tagalogTranslation: TranslationType = {
         footer: {
             poweredBy: "Pinapagana ng <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "Ang paligsahang ito ay napagpasyahan sa pamamagitan ng aklamasyon. Ang mga kandidato nito ay nahalal nang walang botohan, kaya walang opsyong mapipili at walang botong naitatala.",
+            },
+        },
         votingScreen: {
             backButton: "Bumalik",
             reviewButton: "Susunod",
@@ -102,6 +108,18 @@ const tagalogTranslation: TranslationType = {
                 "I-submit ang iyong balota: Sa wakas, maaari mo nang i-submit ang iyong balota upang ito ay tamang maitala. Maaari mo ring piliing i-audit at tiyakin na ang iyong balota ay tama ang pagkakalista at pagkaka-encrypt.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                helpDialog: {
+                    title: "Impormasyon: Aklamasyon",
+                    content:
+                        "Ipinapakita sa screen na ito ang napagpasyahan sa pamamagitan ng aklamasyon. Dahil walang opsyong mapipili, walang balotang isusumite at walang maberipika pagkatapos.",
+                    ok: "OK",
+                },
+                description:
+                    "Suriin ang napagpasyahan sa pamamagitan ng aklamasyon sa halalang ito. Walang balotang isusumite.",
+                finishButton: "Tapusin",
+            },
             title: "Suriin ang iyong balota",
             description:
                 "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba.",
@@ -239,6 +257,17 @@ const tagalogTranslation: TranslationType = {
             blankBallot: "Blangkong balota",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                description:
+                    "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon, kaya walang balotang isinumite at walang ballot ID na masusubaybayan.",
+                helpDialog: {
+                    title: "Impormasyon: Aklamasyon",
+                    content:
+                        "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon: ang mga kandidato nito ay nahalal nang walang botohan. Dahil walang balotang isinumite, walang ballot ID, resibo, o QR code na maaaring i-verify.",
+                    ok: "OK",
+                },
+            },
             title: "Ang iyong boto ay nai-submit na",
             description:
                 "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
@@ -352,6 +381,10 @@ const tagalogTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Ang kaganapan ng halalan ay hindi pa nailathala. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
             },
+            materialsGate: {
+                instructions:
+                    "Kailangan mong basahin ang <MaterialsLink>{{materialsTitle}}</MaterialsLink> bago ka makaboto.",
+            },
         },
         errors: {
             page: {
@@ -369,6 +402,12 @@ const tagalogTranslation: TranslationType = {
                 back: "Bumalik sa Listahan ng mga Balota",
                 close: "Isara",
                 preview: "Silipin",
+                download: "I-download",
+            },
+            mandatory: {
+                checkboxLabel: "Nabasa ko na ang Mga Pangsuportang Materyales",
+                continueButton: "Magpatuloy",
+                error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
         ballotLocator: {

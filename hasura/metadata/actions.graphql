@@ -57,6 +57,19 @@ type Mutation {
 }
 
 type Mutation {
+    acknowledge_support_materials(
+        election_event_id: uuid!
+        document_ids: [String!]!
+    ): AcknowledgeSupportMaterialsOutput
+}
+
+type Query {
+    get_support_materials_acknowledgment(
+        election_event_id: uuid!
+    ): GetSupportMaterialsAcknowledgmentOutput!
+}
+
+type Mutation {
     create_ballot_receipt(
         ballot_id: String!
         ballot_tracker_url: String!
@@ -1497,6 +1510,15 @@ type createBallotReceiptOutput {
     id: uuid!
     ballot_id: String
     status: String
+}
+
+type AcknowledgeSupportMaterialsOutput {
+    election_event_id: uuid!
+    document_ids: [String!]!
+}
+
+type GetSupportMaterialsAcknowledgmentOutput {
+    document_ids: [String!]!
 }
 
 type OptionalImportEvent {

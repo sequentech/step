@@ -46,6 +46,12 @@ const galegoTranslation: TranslationType = {
         footer: {
             poweredBy: "Desenvolvido por <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
+            },
+        },
         votingScreen: {
             backButton: "Volver",
             reviewButton: "Seguinte",
@@ -103,6 +109,18 @@ const galegoTranslation: TranslationType = {
                 "Emite a túa papeleta: finalmente, podes emitir a túa papeleta para que quede rexistrada correctamente. Alternativamente, podes optar por auditala e confirmar que a túa papeleta foi correctamente capturada e encriptada.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Resolto por aclamación",
+                helpDialog: {
+                    title: "Información: Aclamación",
+                    content:
+                        "Esta pantalla mostra o que se resolveu por aclamación. Como non se puido seleccionar ningunha opción, non se emite ningunha papeleta e non hai nada que verificar despois.",
+                    ok: "Aceptar",
+                },
+                description:
+                    "Revisa o que se resolveu por aclamación nesta elección. Non se emitirá ningunha papeleta.",
+                finishButton: "Rematar",
+            },
             title: "Revisa a túa papeleta",
             description:
                 "Para facer cambios nas túas seleccións, fai clic no botón “<b>Editar papeleta</b>”; para confirmar as túas seleccións, fai clic no botón “<b>Emitir a túa papeleta</b>” abaixo; e para auditar a túa papeleta, fai clic no botón “<b>Auditar Papeleta</b>” abaixo.",
@@ -240,6 +258,17 @@ const galegoTranslation: TranslationType = {
             blankBallot: "Papeleta en branco",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Resolto por aclamación",
+                description:
+                    "Todos os concursos desta elección resolvéronse por aclamación, polo que non se emitiu ningunha papeleta e non hai identificador de papeleta que consultar.",
+                helpDialog: {
+                    title: "Información: Aclamación",
+                    content:
+                        "Todos os concursos desta elección resolvéronse por aclamación: as súas candidaturas resultan elixidas sen votación. Como non se emitiu ningunha papeleta, non hai identificador de papeleta, comprobante nin código QR que verificar.",
+                    ok: "Aceptar",
+                },
+            },
             title: "O teu voto foi emitido",
             description:
                 "O código de confirmación abaixo verifica que <b>o teu voto foi emitido correctamente</b>. Podes usar este código para verificar que a túa papeleta foi contada.",
@@ -352,6 +381,10 @@ const galegoTranslation: TranslationType = {
                 electionEventNotPublished:
                     "O evento electoral aínda non foi publicado. Inténteo de novo máis tarde ou contacte co soporte para obter asistencia.",
             },
+            materialsGate: {
+                instructions:
+                    "Debes ler <MaterialsLink>{{materialsTitle}}</MaterialsLink> antes de poder votar.",
+            },
         },
         errors: {
             page: {
@@ -369,6 +402,12 @@ const galegoTranslation: TranslationType = {
                 back: "Voltar á Lista de Papeletas",
                 close: "Pechar",
                 preview: "Previsualizar",
+                download: "Descargar",
+            },
+            mandatory: {
+                checkboxLabel: "Lin os Materiais de apoio",
+                continueButton: "Continuar",
+                error: "Houbo un problema ao rexistrar a túa confirmación. Inténtao de novo.",
             },
         },
         ballotLocator: {

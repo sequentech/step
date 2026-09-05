@@ -255,6 +255,7 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
                 CREATE_ELECTION_EVENT: "Sortu Hauteskunde Gertaera",
@@ -555,12 +556,23 @@ const basqueTranslation: TranslationType = {
                 language: "Hizkuntza",
                 votingChannels: "Bozketa Kanalak",
                 materialActivated: "Laguntza Materialak Aktibatuta",
+                supportMaterialsPolicy: {
+                    label: "Laguntza Materialen Politika",
+                    helperText:
+                        "Bozkatzeko Derrigorrezkoa aukeratzen bada, bozkatzaileek boto bat eman ahal izan aurretik Laguntza Material bakoitza ireki eta irakurri dutela berretsi beharko dute.",
+                    options: {
+                        off: "Desaktibatuta",
+                        optional: "Aukerakoa",
+                        mandatory_for_voting: "Bozkatzeko Derrigorrezkoa",
+                    },
+                },
                 materialTitle: "Izenburua",
                 materialSubTitle: "Azpititulua",
                 logoUrl: "Logo URLa",
                 userVerification:
                     "Bozkatzaileak eskuz egiaztatzeko erabiliko den txantiloi pertsonalizatu bat sar dezakezu",
                 redirectFinishUrl: "Berbideratu Amaiera URLa",
+                kioskRedirectFinishUrl: "Kioskoaren amaierako berbideratze URLa",
                 css: "CSS Pertsonalizatua",
                 skipElectionList: "Saltatu Hauteskunde Zerrenda Pantaila",
                 showUserProfile: "Erakutsi Erabiltzaile Profila",
@@ -1112,6 +1124,7 @@ const basqueTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Bozkatu du",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Botoaren pisua",
                     "voted-channel": "Boto-kanala",
                     "disable-comment": "Desgaitzeko iruzkina",
@@ -1938,6 +1951,11 @@ const basqueTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Orri Izena",
             },
+            isAcclaimed: {
+                label: "Aklamazioz erabakia",
+                helperText:
+                    "Botoemaileek lehiaketa hau ikusten dute baina ezin dute ezer hautatu, ez da ezer erregistratzen eta hautagai guztiak irabazle gisa jasotzen dira zero bozkarekin. Ezarri hau boto-txartelak argitaratu aurretik: ondoren aldatzeak dagoeneko emandako boto-txartelak baliogabetzen ditu.",
+            },
             allowWriteins: {
                 label: "Eskuzko hautagaitzak baimendu",
             },
@@ -2315,6 +2333,8 @@ const basqueTranslation: TranslationType = {
                 channel_paper: "Papera",
                 channel_postal: "Posta",
                 channel_in_person: "Aurrez aurre",
+                acclamation_note:
+                    "Aklamazioz hautatua. Lehiaketa hau bozketarik gabe erabaki zen, beraz, ez zen bozkarik erregistratu.",
             },
             pendingResolutions: {
                 round: "Txanda {{round}}",

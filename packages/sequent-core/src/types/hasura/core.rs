@@ -12,7 +12,7 @@ use crate::{
     ballot::{
         ConsolidatedReportPolicy, ContestEncryptionPolicy,
         DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
-        WeightedVotingPolicy,
+        ElectionEventMaterials, SupportMaterialsPolicy, WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
     types::{
@@ -120,6 +120,18 @@ impl ElectionEvent {
             .unwrap_or_else(|| AutomaticRecountPolicy::DISABLED.to_string())
             .parse::<AutomaticRecountPolicy>()
             .unwrap_or(AutomaticRecountPolicy::DISABLED)
+    }
+
+    pub fn effective_support_materials_policy(&self) -> SupportMaterialsPolicy {
+        let presentation = self.presentation.as_ref().unwrap_or(&Value::Null);
+        presentation
+            .get("materials")
+            .and_then(|value: &Value| {
+                serde_json::from_value::<ElectionEventMaterials>(value.clone())
+                    .ok()
+            })
+            .map(|materials| materials.effective_policy())
+            .unwrap_or_default()
     }
 }
 

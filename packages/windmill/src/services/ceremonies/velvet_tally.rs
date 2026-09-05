@@ -42,8 +42,7 @@ use sequent_core::sqlite::election_event::create_election_event_sqlite;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
-    Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySessionContest,
-    TallySheet,
+    Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySheet,
 };
 use sequent_core::types::participation::VotesByChannel;
 use sequent_core::types::scheduled_event::ScheduledEvent;
@@ -75,7 +74,6 @@ use velvet::pipes::pipe_name::PipeName;
 #[derive(Debug, Clone)]
 pub struct AreaContestDataType {
     pub plaintexts: Vec<<RistrettoCtx as Ctx>::P>,
-    pub last_tally_session_execution: TallySessionContest,
     pub contest: Contest,
     pub ballot_style: BallotStyle,
     pub eligible_voters: u64,
@@ -134,7 +132,7 @@ pub fn prepare_tally_for_area_contest(
         .clone()
         .unwrap_or_default()
         .get_contest_encryption_policy();
-    let area_id = area_contest.last_tally_session_execution.area_id.clone();
+    let area_id = area_contest.area.id.clone();
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
         .get(&(area_id.clone(), contest_id.clone()))
@@ -190,15 +188,33 @@ pub fn prepare_tally_for_area_contest(
         "{DEFAULT_DIR_CONFIGS}/election__{election_id}/contest__{contest_id}/area__{area_id}/area-config.json"
     ));
 
+    // Nobody votes in an acclaimed contest, so it reports no participation at
+    // all. Reporting the electorate here would print it as a 0% turnout
+    // contest, and the per-channel counts of the surrounding election would
+    // not add up to its (zero) participation total, which the tally rejects.
+    let is_acclaimed = area_contest.contest.is_acclaimed();
+
     let area_config = AreaConfig {
         id: parse_uuid_v4(&area_id)?,
         name: area_contest.area.name.clone().unwrap_or("".into()),
         tenant_id: parse_uuid_v4(&area_contest.contest.tenant_id)?,
         election_event_id: parse_uuid_v4(&area_contest.contest.election_event_id)?,
         election_id: parse_uuid_v4(&election_id)?,
-        census: area_contest.eligible_voters as u64,
-        auditable_votes: area_contest.auditable_votes as u64,
-        votes_by_channel: area_contest.votes_by_channel.clone(),
+        census: if is_acclaimed {
+            0
+        } else {
+            area_contest.eligible_voters as u64
+        },
+        auditable_votes: if is_acclaimed {
+            0
+        } else {
+            area_contest.auditable_votes as u64
+        },
+        votes_by_channel: if is_acclaimed {
+            None
+        } else {
+            area_contest.votes_by_channel.clone()
+        },
         parent_id: area_contest
             .area
             .parent_id
@@ -226,7 +242,9 @@ pub fn prepare_tally_for_area_contest(
     writeln!(contest_config_file, "{}", serde_json::to_string(&contest)?)?;
 
     //// create tally sheets files
-    if relevant_sheets.len() > 0 {
+    // An acclaimed contest reports no votes from any channel, so a tally
+    // sheet left over for it is not counted.
+    if !is_acclaimed && relevant_sheets.len() > 0 {
         for tally_sheet in relevant_sheets {
             let Some(content) = tally_sheet.content.clone() else {
                 continue;

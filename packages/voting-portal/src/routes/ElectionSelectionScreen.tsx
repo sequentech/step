@@ -4,7 +4,7 @@
 
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {useTranslation} from "react-i18next"
+import {Trans, useTranslation} from "react-i18next"
 import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
     isString,
@@ -19,6 +19,8 @@ import {
     EResultsWebsiteStatus,
     parseResultsWebsitePolicy,
     formatVotingPortalDateTime,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
 } from "@sequentech/ui-core"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {faCircleQuestion} from "@fortawesome/free-solid-svg-icons"
@@ -39,7 +41,7 @@ import {
     CastVoteStatus,
     selectCastVotesByElectionId,
 } from "../store/castVotes/castVotesSlice"
-import {useLocation, useNavigate, useParams} from "react-router-dom"
+import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client/react"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {
@@ -48,6 +50,7 @@ import {
     GetElectionEventQuery,
     GetElectionsQuery,
     GetSupportMaterialsQuery,
+    GetSupportMaterialsAcknowledgmentQuery,
 } from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
@@ -67,10 +70,16 @@ import {
 } from "../store/electionEvents/electionEventsSlice"
 import {TenantEventType} from ".."
 import Stepper from "../components/Stepper"
-import {clearIsVoted, selectBypassChooser, setBypassChooser} from "../store/extra/extraSlice"
+import {
+    clearIsVoted,
+    isAcclaimedElectionCompleted,
+    selectBypassChooser,
+    setBypassChooser,
+} from "../store/extra/extraSlice"
 import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import {GET_SUPPORT_MATERIALS} from "../queries/GetSupportMaterials"
+import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMaterialsAcknowledgment"
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
 
@@ -91,6 +100,12 @@ const ElectionContainer = styled(Box)`
     flex-direction: column;
     gap: 30px;
     margin-bottom: 30px;
+`
+
+const MaterialsGateLink = styled(RouterLink)`
+    color: inherit;
+    font-weight: 500;
+    text-decoration: underline;
 `
 
 const TitleSection = styled(Box)`
@@ -138,6 +153,7 @@ interface ElectionWrapperProps {
     electionId: string
     bypassChooser: boolean
     canVoteTest: boolean
+    materialsGate: boolean
 }
 
 const isElectionEventOnlineVotingOpen = (electionEvent?: IElectionEvent): boolean => {
@@ -180,6 +196,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
     bypassChooser,
     canVoteTest,
+    materialsGate,
 }) => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -190,6 +207,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     const election = useAppSelector(selectElectionById(electionId))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(electionId))
     const castVotes = useAppSelector(selectCastVotesByElectionId(String(electionId)))
+    const isAcclaimedCompleted = useAppSelector(isAcclaimedElectionCompleted(electionId))
     const [visitedBypassChooser, setVisitedBypassChooser] = useState(false)
     const authContext = useContext(AuthContext)
     const {globalSettings} = useContext(SettingsContext)
@@ -247,7 +265,15 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
 
     const isPreview = sessionStorage.getItem("isDemo") === "true"
     const canVote = () => {
+        if (materialsGate) {
+            return false
+        }
+
         if (!canVoteTest && !election.name?.includes("TEST")) {
+            return false
+        }
+
+        if (isAcclaimedCompleted) {
             return false
         }
 
@@ -374,7 +400,17 @@ const ElectionSelectionScreen: React.FC = () => {
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
-    const [isMaterialsActivated, setIsMaterialsActivated] = useState<boolean>(false)
+    // Derived directly from the published ballot style snapshot (not the live
+    // election event) on every render, so a policy change only takes effect
+    // after the next publication, and the correct value is available as soon
+    // as oneBallotStyle is - no extra render cycle lag through a state+effect
+    // pair that would otherwise let a stale "Off" default flash through
+    // (visible in particular on a hard page refresh).
+    const materialsPolicy = getEffectiveSupportMaterialsPolicy(
+        oneBallotStyle?.ballot_eml.election_event_presentation?.materials
+    )
+    const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
+    const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
     const bypassChooser = useAppSelector(selectBypassChooser())
     const [errorMsg, setErrorMsg] = useState<ElectionScreenErrorType>()
     const [errorMsgElectionIds, setErrorMsgElectionIds] = useState<string | undefined>(undefined)
@@ -435,8 +471,46 @@ const ElectionSelectionScreen: React.FC = () => {
             electionEventId: eventId || "",
             tenantId: tenantId || "",
         },
-        skip: globalSettings.DISABLE_AUTH || !isMaterialsActivated, // Skip query if in demo mode
+        skip: globalSettings.DISABLE_AUTH || !isMaterialsVisible, // Skip query if in demo mode
     })
+
+    const {
+        data: dataMaterialsAcknowledgment,
+        error: errorMaterialsAcknowledgment,
+        loading: loadingMaterialsAcknowledgment,
+    } = useQuery<GetSupportMaterialsAcknowledgmentQuery>(GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT, {
+        variables: {
+            electionEventId: eventId || "",
+        },
+        // Support Materials writes the acknowledgment straight into the Apollo
+        // cache on Continue (see SupportMaterialsScreen), so the default
+        // cache-first policy already reflects it instantly on return here
+        // instead of re-gating the Ballot list behind a fresh network round trip.
+        skip: globalSettings.DISABLE_AUTH || !isMaterialsMandatory,
+    })
+
+    // Whether we have a definitive answer yet. On a fresh page load the Apollo
+    // cache starts empty, so these queries are genuinely loading for a moment -
+    // default to "not yet known" rather than "not acknowledged" so voting
+    // stays blocked (safe) without flashing the gate banner (misleading) for a
+    // voter who has, in fact, already acknowledged.
+    const hasAcknowledgmentLoaded =
+        !isMaterialsMandatory ||
+        (dataMaterialsAcknowledgment !== undefined && dataMaterials !== undefined)
+
+    const acknowledgedDocumentIds = new Set(
+        dataMaterialsAcknowledgment?.get_support_materials_acknowledgment?.document_ids ?? []
+    )
+
+    // Acknowledging is per-document, so a material published after the
+    // voter's last acknowledgment must gate voting again - checking the
+    // acknowledged count alone would let that new material slip through.
+    const hasAcknowledgedSupportMaterials =
+        !isMaterialsMandatory ||
+        (dataMaterials?.sequent_backend_support_material.every(
+            (material) => !material.document_id || acknowledgedDocumentIds.has(material.document_id)
+        ) ??
+            false)
 
     const {
         data: castVotes,
@@ -447,8 +521,16 @@ const ElectionSelectionScreen: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH,
     })
 
+    const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
+    const materialsTitle =
+        (electionEvent &&
+            translateFromPresentation(electionEvent, "materialsTitle", i18n.language, {
+                defaultLanguageCode: eventDefaultLanguageCode,
+            })) ||
+        t("materials.common.label")
+
     const handleNavigateMaterials = () => {
-        navigate(`/tenant/${tenantId}/event/${eventId}/materials${location.search}`)
+        navigate(materialsPath)
     }
 
     const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
@@ -458,14 +540,14 @@ const ElectionSelectionScreen: React.FC = () => {
     )
 
     useEffect(() => {
-        if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsActivated) {
+        if (!dataMaterials || globalSettings.DISABLE_AUTH || !isMaterialsVisible) {
             return
         }
 
         for (let material of dataMaterials.sequent_backend_support_material) {
             dispatch(setSupportMaterial(material))
         }
-    }, [dataMaterials, globalSettings.DISABLE_AUTH, isMaterialsActivated])
+    }, [dataMaterials, globalSettings.DISABLE_AUTH, isMaterialsVisible])
 
     // Errors handling
     useEffect(() => {
@@ -592,10 +674,6 @@ const ElectionSelectionScreen: React.FC = () => {
     }, [dataElectionEvent, dispatch])
 
     useEffect(() => {
-        setIsMaterialsActivated(electionEvent?.presentation?.materials?.activated || false)
-    }, [electionEvent?.presentation?.materials?.activated])
-
-    useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
             const castVoteList = castVotes.sequent_backend_cast_vote
             dispatch(addCastVotes(castVoteList))
@@ -656,6 +734,17 @@ const ElectionSelectionScreen: React.FC = () => {
             ? t(`electionSelectionScreen.alerts.${alertMsg}`)
             : undefined
 
+    // Block voting until we positively know the voter has acknowledged.
+    const materialsGate =
+        isMaterialsMandatory && !(hasAcknowledgmentLoaded && hasAcknowledgedSupportMaterials)
+
+    // Only show the instruction banner once acknowledgment status is
+    // positively known to be missing - never while it's still loading, so a
+    // page refresh doesn't flash it before the "already acknowledged" result
+    // arrives.
+    const showMaterialsGateBanner =
+        isMaterialsMandatory && hasAcknowledgmentLoaded && !hasAcknowledgedSupportMaterials
+
     if (loadingElectionEvent || loadingElections || loadingBallotStyles)
         return <CircularProgress aria-label={t("a11y.loading")} />
 
@@ -713,14 +802,30 @@ const ElectionSelectionScreen: React.FC = () => {
                             {t("electionSelectionScreen.resultsButton")}
                         </Button>
                     ) : null}
-                    {isMaterialsActivated ? (
-                        <Button onClick={handleNavigateMaterials}>
-                            {t("materials.common.label")}
-                        </Button>
+                    {isMaterialsVisible && electionEvent ? (
+                        <Button onClick={handleNavigateMaterials}>{materialsTitle}</Button>
                     ) : null}
                 </PageActions>
             </TitleSection>
-            <ElectionContainer className="elections-list">
+            {showMaterialsGateBanner ? (
+                <Alert
+                    severity="warning"
+                    className="materials-gate-banner"
+                    sx={{marginBottom: "16px"}}
+                >
+                    <Trans
+                        i18nKey="electionSelectionScreen.materialsGate.instructions"
+                        values={{materialsTitle}}
+                        components={{
+                            MaterialsLink: <MaterialsGateLink to={materialsPath} />,
+                        }}
+                    />
+                </Alert>
+            ) : null}
+            <ElectionContainer
+                className="elections-list"
+                role={hasNoElections ? undefined : "list"}
+            >
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper
@@ -728,6 +833,7 @@ const ElectionSelectionScreen: React.FC = () => {
                             key={electionId}
                             bypassChooser={bypassChooser}
                             canVoteTest={canVoteTest}
+                            materialsGate={materialsGate}
                         />
                     ))
                 ) : (

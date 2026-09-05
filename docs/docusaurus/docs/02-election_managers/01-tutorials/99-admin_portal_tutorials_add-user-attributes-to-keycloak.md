@@ -231,6 +231,9 @@ Authorized operators may explicitly include decrypted secrets in
 Anyone who can reveal or export a secret used for login can authenticate as that voter; grant
 secret-read permission accordingly. CSV imports accept plaintext and encrypt it for storage.
 
+Combining `hidden=true` with `sequent.secret=true` keeps the field out of the editor, but it remains
+available to authorized secret exports and explicitly declared communication templates.
+
 Users need separate permissions to reveal or modify secret values. See
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md) and
 [Create Voters](./07-admin_portal_tutorials_create-voters.md#secret-voter-fields).

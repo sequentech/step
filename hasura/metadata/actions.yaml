@@ -133,6 +133,34 @@ actions:
       permissions:
           - role: admin-user
       comment: create scheduled event
+    - name: acknowledge_support_materials
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/acknowledge-support-materials
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: acknowledge_support_materials
+    - name: get_support_materials_acknowledgment
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/get-support-materials-acknowledgment
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
+      comment: get_support_materials_acknowledgment
     - name: create_ballot_receipt
       definition:
           kind: synchronous
@@ -1878,6 +1906,8 @@ custom_types:
         - name: ExportUsersOutput
         - name: RevealVoterSecretAttributeOutput
         - name: SetUserRoleOutput
+        - name: AcknowledgeSupportMaterialsOutput
+        - name: GetSupportMaterialsAcknowledgmentOutput
         - name: CreateTallyOutput
         - name: StartTallyOutput
         - name: PublishBallotOutput

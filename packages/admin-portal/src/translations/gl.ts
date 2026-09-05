@@ -254,6 +254,7 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
@@ -558,12 +559,23 @@ const galegoTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canles de Votación",
                 materialActivated: "Materiais de Soporte Activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiais de Soporte",
+                    helperText:
+                        "A opción Obrigatorio para Votar require que os votantes abran cada Material de Soporte e confirmen que o leron antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obrigatorio para Votar",
+                    },
+                },
                 materialTitle: "Título",
                 materialSubTitle: "Subtítulo",
                 logoUrl: "URL do Logo",
                 userVerification:
                     "Pode introducir un modelo personalizado que se utilizará para verificar manualmente os votantes",
                 redirectFinishUrl: "URL de Redirección ao Finalizar",
+                kioskRedirectFinishUrl: "URL de Redirección ao Finalizar do Quiosco",
                 css: "CSS Personalizado",
                 skipElectionList: "Omitir Pantalla de Lista de Eleccións",
                 showUserProfile: "Mostrar Perfil do Usuario",
@@ -1115,6 +1127,7 @@ const galegoTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Votou",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Peso do voto",
                     "voted-channel": "Canle de voto",
                     "disable-comment": "Comentario de desactivación",
@@ -1944,6 +1957,11 @@ const galegoTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nome da Páxina",
             },
+            isAcclaimed: {
+                label: "Resolto por aclamación",
+                helperText:
+                    "Os votantes ven este concurso pero non poden seleccionar nada, non se rexistra nada e todas as candidaturas se declaran gañadoras con cero votos. Configúreo antes de publicar as papeletas: cambialo despois invalida as papeletas xa emitidas.",
+            },
             allowWriteins: {
                 label: "Permitir candidaturas manuais",
             },
@@ -2322,6 +2340,8 @@ const galegoTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elixido por aclamación. Este concurso resolveuse sen votación, polo que non se rexistrou ningún voto.",
             },
             pendingResolutions: {
                 round: "Rolda {{round}}",

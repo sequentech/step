@@ -46,6 +46,12 @@ const englishTranslation = {
         footer: {
             poweredBy: "Powered by <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "This contest was decided by acclamation. Its candidates are elected without a vote, so no option can be selected and no vote is recorded for it.",
+            },
+        },
         votingScreen: {
             backButton: "Back",
             reviewButton: "Next",
@@ -103,6 +109,18 @@ const englishTranslation = {
                 "Cast your ballot: Finally, you can cast your ballot so it is properly registered. Alternatively, you can opt to audit and confirm that your ballot was correctly captured and encrypted.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "This screen shows what was decided by acclamation. Because no option could be selected, no ballot is cast and there is nothing to verify afterwards.",
+                    ok: "OK",
+                },
+                description:
+                    "Review what was decided by acclamation in this election. No ballot will be cast.",
+                finishButton: "Finish",
+            },
             title: "Review your ballot",
             description:
                 "To make changes in your selections, click “<b>Edit ballot</b>” button, to confirm your selections, click “<b>Cast your ballot</b>” button below, and to audit your ballot click the “<b>Audit Ballot</b>” button below.",
@@ -237,6 +255,17 @@ const englishTranslation = {
             blankBallot: "Blank ballot",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Decided by acclamation",
+                description:
+                    "Every contest in this election was decided by acclamation, so no ballot was cast and there is no ballot ID to track.",
+                helpDialog: {
+                    title: "Information: Acclamation",
+                    content:
+                        "Every contest in this election was decided by acclamation: its candidates are elected without a vote. Because no ballot was cast, there is no ballot ID, receipt or QR code to verify.",
+                    ok: "OK",
+                },
+            },
             title: "Your vote has been cast",
             description:
                 "The confirmation code below verifies that <b>your ballot has been cast successfully</b>. You can use this code to verify that your ballot has been counted.",
@@ -348,6 +377,10 @@ const englishTranslation = {
                 electionEventNotPublished:
                     "The election event hasn’t been published yet. Please try again later or contact support for assistance.",
             },
+            materialsGate: {
+                instructions:
+                    "You must read the <MaterialsLink>{{materialsTitle}}</MaterialsLink> before you can vote.",
+            },
         },
         errors: {
             page: {
@@ -368,6 +401,12 @@ const englishTranslation = {
                 back: "Back to Ballot List",
                 close: "Close",
                 preview: "Preview",
+                download: "Download",
+            },
+            mandatory: {
+                checkboxLabel: "I have read the Support Materials",
+                continueButton: "Continue",
+                error: "There was a problem recording your acknowledgment. Please try again.",
             },
         },
         ballotLocator: {

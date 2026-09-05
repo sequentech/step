@@ -20,6 +20,8 @@ import {
     EBlankBallotsPolicy,
     BallotSelection,
     getDefaultVotingScreenBackPolicy,
+    areAllContestsAcclaimed,
+    isAcclaimedContest,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -341,6 +343,9 @@ const VotingScreen: React.FC = () => {
     const defaultLanguageCode =
         election?.presentation?.language_conf?.default_language_code ??
         ballotStyle?.ballot_eml.election_event_presentation?.language_conf?.default_language_code
+    const electionDescription = translateFromPresentation(election, "description", i18n.language, {
+        defaultLanguageCode,
+    })
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -391,7 +396,11 @@ const VotingScreen: React.FC = () => {
     }
 
     const isWholeBallotBlank = (): boolean => {
-        const contests = ballotStyle?.ballot_eml.contests ?? []
+        // Acclaimed contests are never encoded and never blank, so a ballot is
+        // wholly blank when every contest the voter could actually fill in is.
+        const contests = (ballotStyle?.ballot_eml.contests ?? []).filter(
+            (contest) => !isAcclaimedContest(contest)
+        )
         if (contests.length === 0 || !isBlankBallotsPolicyEnabled()) {
             return false
         }
@@ -420,6 +429,13 @@ const VotingScreen: React.FC = () => {
     const finallyEncryptAndReview = () => {
         if (isUndefined(selectionState) || !ballotStyle) {
             return
+        }
+
+        // A fully acclaimed election produces no ballot, so there is nothing
+        // to encrypt: the voter reviews what was decided by acclamation and
+        // moves on.
+        if (areAllContestsAcclaimed(ballotStyle.ballot_eml.contests)) {
+            return submit(null, {method: "post"})
         }
 
         dispatch(clearDeclinedToVoteForElection(ballotStyle.election_id))
@@ -543,18 +559,14 @@ const VotingScreen: React.FC = () => {
                     {stringToHtml(t("votingScreen.ballotHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            {election.description ? (
+            {electionDescription ? (
                 <Typography
                     className="description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(
-                        translateFromPresentation(election, "description", i18n.language, {
-                            defaultLanguageCode,
-                        }) ?? "-"
-                    )}
+                    {stringToHtml(electionDescription)}
                 </Typography>
             ) : null}
 

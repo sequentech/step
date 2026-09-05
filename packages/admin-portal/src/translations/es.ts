@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
@@ -558,12 +559,23 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
                 materialActivated: "Materiales de Soporte activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiales de Soporte",
+                    helperText:
+                        "La opción Obligatorio para Votar requiere que los votantes abran cada Material de Soporte y confirmen que lo han leído antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obligatorio para Votar",
+                    },
+                },
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "Logo URL",
                 userVerification:
                     "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
+                kioskRedirectFinishUrl: "URL de redirección al finalizar del quiosco",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
@@ -1116,6 +1128,7 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
@@ -1945,6 +1958,11 @@ const spanishTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nombre de la página",
             },
+            isAcclaimed: {
+                label: "Resuelto por aclamación",
+                helperText:
+                    "Los votantes ven esta votación pero no pueden seleccionar nada, no se registra nada y todas las candidaturas se declaran ganadoras con cero votos. Configúrelo antes de publicar las papeletas: cambiarlo después invalida las papeletas ya emitidas.",
+            },
             allowWriteins: {
                 label: "Permitir candidaturas manuales",
             },
@@ -2323,6 +2341,8 @@ const spanishTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",

@@ -48,6 +48,7 @@ fn get_contest_plurality() -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
+        is_acclaimed: None,
         annotations: None,
         candidates: vec![
             Candidate {
@@ -400,6 +401,7 @@ pub fn get_writein_ballot_style() -> BallotStyle {
             voting_type: Some("first-past-the-post".into()),
             counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
             is_encrypted: (true),
+            is_acclaimed: None,
             annotations: None,
             candidates: vec![
                 Candidate {
@@ -666,6 +668,7 @@ pub fn get_test_contest() -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
+        is_acclaimed: None,
         annotations: None,
         candidates: vec![
             Candidate {
@@ -825,6 +828,7 @@ pub(crate) fn get_configurable_contest(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
+        is_acclaimed: None,
         annotations: None,
         candidates: vec![
             Candidate {
@@ -1131,6 +1135,7 @@ pub(crate) fn get_contest_candidates_n(num_candidates: usize) -> Contest {
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: (true),
+        is_acclaimed: None,
         candidates,
         tie_breaking_policy: None,
         presentation: Some(ContestPresentation {
@@ -1307,6 +1312,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {
@@ -1513,6 +1519,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {
@@ -1717,6 +1724,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {
@@ -1913,6 +1921,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {
@@ -2083,6 +2092,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {
@@ -2263,6 +2273,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {
@@ -2442,6 +2453,7 @@ pub fn get_fixtures() -> Vec<BallotCodecFixture> {
                 voting_type: Some("first-past-the-post".into()),
                 counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
                 is_encrypted: (true),
+                is_acclaimed: None,
                 annotations: None,
                 candidates: vec![
                     Candidate {

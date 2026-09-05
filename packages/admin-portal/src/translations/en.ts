@@ -252,6 +252,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
                 IMPORT_ELECTION_EVENT: "Import Election Event",
@@ -552,12 +553,23 @@ const englishTranslation = {
                 language: "Language",
                 votingChannels: "Voting Channels",
                 materialActivated: "Support Materials Activated",
+                supportMaterialsPolicy: {
+                    label: "Support Materials Policy",
+                    helperText:
+                        "Mandatory for Voting requires voters to open each Support Material and acknowledge that they have read them before they can vote.",
+                    options: {
+                        off: "Off",
+                        optional: "Optional",
+                        mandatory_for_voting: "Mandatory for Voting",
+                    },
+                },
                 materialTitle: "Title",
                 materialSubTitle: "Subtitle",
                 logoUrl: "Logo URL",
                 userVerification:
                     "You can introduce a custom template that will be used to manually verify the voters",
                 redirectFinishUrl: "Redirect Finish URL",
+                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Skip Election List Screen",
                 showUserProfile: "Show User Profile",
@@ -1105,6 +1117,7 @@ const englishTranslation = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Vote Weight",
                     "voted-channel": "Voted Channel",
                     "disable-comment": "Disable Comment",
@@ -1921,6 +1934,11 @@ const englishTranslation = {
             paginationPolicy: {
                 label: "Page Name",
             },
+            isAcclaimed: {
+                label: "Decided by acclamation",
+                helperText:
+                    "Voters see this contest but cannot select anything, nothing is recorded for it, and every candidate is reported as a winner with zero votes. Set this before publishing ballots: changing it afterwards invalidates ballots already cast.",
+            },
             allowWriteins: {
                 label: "Allow Write-Ins",
             },
@@ -2297,6 +2315,8 @@ const englishTranslation = {
                 channel_paper: "Paper",
                 channel_postal: "Postal",
                 channel_in_person: "In person",
+                acclamation_note:
+                    "Won by acclamation. This contest was decided without a vote, so no votes were recorded for it.",
             },
             pendingResolutions: {
                 round: "Round {{round}}",
@@ -2661,7 +2681,7 @@ const englishTranslation = {
             updateMaterialError: "Error updating support material",
             common: {
                 title: "Support Material",
-                subtitle: "Enter suppot material data.",
+                subtitle: "Enter support material data.",
             },
             error: {
                 title: "Title is required",

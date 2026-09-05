@@ -282,6 +282,13 @@ export const isSecretAttribute = (attribute: UserProfileAttribute): boolean => {
     return secret === true || (typeof secret === "string" && secret.toLowerCase() === "true")
 }
 
+export const getConfiguredSecretAttributeNames = (
+    attributes: UserProfileAttribute[] | null | undefined
+): string[] =>
+    attributes
+        ?.filter(isSecretAttribute)
+        .flatMap((attribute) => (attribute.name ? [attribute.name] : [])) ?? []
+
 /**
  * The largest maximum worth stating under a field. Keycloak's own base
  * attributes carry maxima in the hundreds as scaffolding rather than as a rule

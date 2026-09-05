@@ -21,6 +21,7 @@ export interface GlobalSettings {
     DEFAULT_DOCUMENT: {[langCode: string]: string}
     PUBLIC_BUCKET_URL: string
     VOTING_PORTAL_URL: string
+    KIOSK_VOTING_PORTAL_URL?: string
     RESULTS_PORTAL_URL: string
     IVR_EMULATOR_BASE_URL: string
     ACTIVATE_MIRU_EXPORT: boolean
@@ -85,7 +86,7 @@ const defaultSettingsValues: SettingsContextValues = {
   {{{data.qrcode}}}
 </div>`,
         },
-        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
+        PUBLIC_BUCKET_URL: "http://localhost:9002/public/",
         VOTING_PORTAL_URL: "http://localhost:3000",
         RESULTS_PORTAL_URL: "http://localhost:3004",
         IVR_EMULATOR_BASE_URL: "/wasm/ivr_emulator_wasm",

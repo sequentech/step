@@ -1586,6 +1586,11 @@ class MultiAttributePasswordAuthenticatorTest {
     return context;
   }
 
+  private MultiAttributePasswordAuthenticator actionAuthenticator(
+      Resolution resolution, Response challengeResponse) {
+    return actionAuthenticator(resolution, challengeResponse, null);
+  }
+
   private MultiAttributePasswordAuthenticator challengeAuthenticator(Response challengeResponse) {
     return new MultiAttributePasswordAuthenticator() {
       @Override
@@ -1596,11 +1601,6 @@ class MultiAttributePasswordAuthenticatorTest {
         return challengeResponse;
       }
     };
-  }
-
-  private MultiAttributePasswordAuthenticator actionAuthenticator(
-      Resolution resolution, Response challengeResponse) {
-    return actionAuthenticator(resolution, challengeResponse, null);
   }
 
   private MultiAttributePasswordAuthenticator actionAuthenticator(

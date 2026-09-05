@@ -45,6 +45,12 @@ const catalanTranslation: TranslationType = {
         footer: {
             poweredBy: "Funciona amb <1></1>",
         },
+        contest: {
+            acclamation: {
+                description:
+                    "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
+            },
+        },
         votingScreen: {
             backButton: "Enrere",
             reviewButton: "Següent",
@@ -102,6 +108,18 @@ const catalanTranslation: TranslationType = {
                 "Envia la teva papereta: Finalment, pots enviar la teva papereta perquè es registri correctament. Alternativament, pots optar per auditar i confirmar que la teva papereta va ser capturada i xifrada correctament.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Resolt per aclamació",
+                helpDialog: {
+                    title: "Informació: Aclamació",
+                    content:
+                        "Aquesta pantalla mostra el que s'ha resolt per aclamació. Com que no s'ha pogut seleccionar cap opció, no s'emet cap papereta i no hi ha res a verificar després.",
+                    ok: "D'acord",
+                },
+                description:
+                    "Revisi el que s'ha resolt per aclamació en aquesta elecció. No s'emetrà cap papereta.",
+                finishButton: "Finalitzar",
+            },
             title: "Revisa el teu vot",
             description:
                 "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar papereta</b>” a sota.",
@@ -242,6 +260,17 @@ const catalanTranslation: TranslationType = {
             blankBallot: "Papereta en blanc",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Resolt per aclamació",
+                description:
+                    "Totes les votacions d'aquesta elecció s'han resolt per aclamació, per la qual cosa no s'ha emès cap papereta i no hi ha identificador de papereta per consultar.",
+                helpDialog: {
+                    title: "Informació: Aclamació",
+                    content:
+                        "Totes les votacions d'aquesta elecció s'han resolt per aclamació: les seves candidatures resulten elegides sense votació. Com que no s'ha emès cap papereta, no hi ha identificador de papereta, comprovant ni codi QR per verificar.",
+                    ok: "D'acord",
+                },
+            },
             title: "El seu vot ha estat emès",
             description:
                 "El codi de confirmació que apareix a continuació verifica que <b>el seu vot s'ha emès correctament</b>. Pot utilitzar aquest codi per verificar que el seu vot ha estat comptabilitzat.",
@@ -354,6 +383,10 @@ const catalanTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
+            materialsGate: {
+                instructions:
+                    "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
+            },
         },
         errors: {
             page: {
@@ -371,6 +404,12 @@ const catalanTranslation: TranslationType = {
                 back: "Tornar a la Llista de Votacions",
                 close: "Tancar",
                 preview: "Vista prèvia",
+                download: "Descarregar",
+            },
+            mandatory: {
+                checkboxLabel: "He llegit els Materials de Suport",
+                continueButton: "Continua",
+                error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
             },
         },
         ballotLocator: {

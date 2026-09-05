@@ -255,6 +255,7 @@ const tagalogTranslation: TranslationType = {
                 logs: "Mga Log",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
                 CREATE_ELECTION_EVENT: "Lumikha ng Kaganapan ng Halalan",
@@ -560,12 +561,23 @@ const tagalogTranslation: TranslationType = {
                 language: "Wika",
                 votingChannels: "Mga Channel ng Pagboto",
                 materialActivated: "Mga Karagdagang Materyales na Gumagana",
+                supportMaterialsPolicy: {
+                    label: "Patakaran sa Mga Pangsuportang Materyales",
+                    helperText:
+                        "Ang Kinakailangan para Bumoto ay nangangailangan sa mga botante na buksan ang bawat Pangsuportang Materyal at kumpirmahin na nabasa na nila ito bago sila makaboto.",
+                    options: {
+                        off: "Naka-off",
+                        optional: "Opsyonal",
+                        mandatory_for_voting: "Kinakailangan para Bumoto",
+                    },
+                },
                 materialTitle: "Pamagat",
                 materialSubTitle: "Subtitle",
                 logoUrl: "URL ng Logo",
                 userVerification:
                     "Puede kang mag-introdusir nin sarong pasadyang plantilya na gagamiton tanganing mano-manong ma-verify an mga botante",
                 redirectFinishUrl: "Redirect Finish URL",
+                kioskRedirectFinishUrl: "Kiosk Redirect Finish URL",
                 css: "Custom CSS",
                 skipElectionList: "Laktawan ang Screen ng Listahan ng Halalan",
                 showUserProfile: "Ipakita ang Profile ng Gumagamit",
@@ -1115,6 +1127,7 @@ const tagalogTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Nakaboto",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Bigat ng Boto",
                     "voted-channel": "Channel ng pagboto",
                     "disable-comment": "Komento sa pag-disable",
@@ -1949,6 +1962,11 @@ const tagalogTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Pangalan ng Pahina",
             },
+            isAcclaimed: {
+                label: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                helperText:
+                    "Nakikita ng mga botante ang paligsahang ito ngunit walang mapipili, walang naitatala, at lahat ng kandidato ay iniuulat na nanalo na may zero na boto. Itakda ito bago ilathala ang mga balota: ang pagbabago pagkatapos ay magpapawalang-bisa sa mga balotang naisumite na.",
+            },
             allowWriteins: {
                 label: "Payagan ang Mga Manu-manong Kandidato",
             },
@@ -2326,6 +2344,8 @@ const tagalogTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Koreo",
                 channel_in_person: "Personal",
+                acclamation_note:
+                    "Nanalo sa pamamagitan ng aklamasyon. Ang paligsahang ito ay napagpasyahan nang walang botohan, kaya walang naitalang boto.",
             },
             pendingResolutions: {
                 round: "Ikot {{round}}",

@@ -420,4 +420,6 @@ pub enum Permissions {
 pub enum VoterPermissions {
     #[strum(serialize = "user")]
     CAST_VOTE,
+    #[strum(serialize = "ack-support-materials")]
+    ACK_SUPPORT_MATERIALS,
 }

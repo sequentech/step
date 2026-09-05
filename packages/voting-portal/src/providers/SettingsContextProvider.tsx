@@ -13,6 +13,8 @@ export interface GlobalSettings {
     BALLOT_VERIFIER_URL: string
     RESULTS_PORTAL_URL: string
     KEYCLOAK_URL: string
+    KIOSK_KEYCLOAK_URL?: string
+    KIOSK_VOTING_PORTAL_URL?: string
     HASURA_URL: string
     APP_VERSION: string
     APP_HASH: string
@@ -43,7 +45,7 @@ const defaultSettingsValues: SettingsContextValues = {
         APP_HASH: "-",
         BALLOT_VERIFIER_URL: "http://127.0.0.1:3001/",
         RESULTS_PORTAL_URL: "http://127.0.0.1:3004",
-        PUBLIC_BUCKET_URL: "http://127.0.0.1:9002/public/",
+        PUBLIC_BUCKET_URL: "http://localhost:9002/public/",
         KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
         POLLING_DURATION_TIMEOUT: 12000,
     },

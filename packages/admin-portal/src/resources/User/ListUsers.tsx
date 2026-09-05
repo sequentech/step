@@ -69,6 +69,7 @@ import {
     ManualVerificationMutation,
     GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
@@ -79,6 +80,8 @@ import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {
     EElectionEventWeightedVotingPolicy,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
     IElectionEventPresentation,
     IRole,
     IUser,
@@ -99,6 +102,7 @@ import {
     getTranslationLabel,
     isHiddenAttribute,
     isSecretAttribute,
+    getConfiguredSecretAttributeNames,
     userBasicInfo,
 } from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
@@ -130,6 +134,7 @@ import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
+export const SUPPORT_MATERIALS_ACKNOWLEDGED = "support-materials-acknowledged"
 export const VOTE_WEIGHT = "vote-weight"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
@@ -174,6 +179,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         {enabled: Boolean(electionEventId && tenantId)}
     )
     const isDatafixEvent = isDatafixElectionEvent(electionEventRecord)
+    const isSupportMaterialsMandatory =
+        getEffectiveSupportMaterialsPolicy(electionEventRecord?.presentation?.materials) ===
+        ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
+
+    // A voter has "viewed" Support Materials only once they've acknowledged
+    // every currently visible material for this Election Event, so the
+    // Voters list column/filter needs the full current set to compare
+    // against each voter's attributes['support-materials-acknowledged'].
+    const {data: supportMaterialsList} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                is_hidden: false,
+            },
+        },
+        {enabled: Boolean(electionEventId && tenantId && isSupportMaterialsMandatory)}
+    )
+    const requiredSupportMaterialDocumentIds = useMemo(
+        () =>
+            (supportMaterialsList ?? [])
+                .map((material) => material.document_id)
+                .filter((documentId): documentId is string => Boolean(documentId)),
+        [supportMaterialsList]
+    )
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
@@ -256,6 +288,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const userAttributeGroups =
         userProfileConfiguration?.get_user_profile_configuration.groups ?? []
 
+    const secretAttributeNames = useMemo(
+        () => getConfiguredSecretAttributeNames(userAttributes?.get_user_profile_attributes),
+        [userAttributes]
+    )
+
     const visibleUserAttributes = useMemo(() => {
         // Attributes hidden from the voter-facing forms are also kept out of
         // the admin columns, filters, and forms. Username is the exception: it
@@ -280,7 +317,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         let filters: ReactElement[] = []
         if (visibleUserAttributes) {
             filters = visibleUserAttributes
-                .filter((attr) => !isSecretAttribute(attr))
+                // Has its own dedicated boolean column/handling, not a generic
+                // text filter.
+                .filter(
+                    (attr) =>
+                        !isSecretAttribute(attr) && attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED
+                )
                 .map((attr) => {
                     //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                     const source = attr.name?.replaceAll(".", "%")
@@ -1137,6 +1179,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
+            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
+                // Has its own dedicated boolean column below; must not be
+                // auto-omitted like other Keycloak-attribute-derived columns.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
@@ -1239,6 +1284,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
         return false
+    }
+
+    const checkSupportMaterialsViewed = (record: IUser) => {
+        const acknowledgedIds = record?.attributes?.[SUPPORT_MATERIALS_ACKNOWLEDGED] ?? []
+        return (
+            requiredSupportMaterialDocumentIds.length > 0 &&
+            requiredSupportMaterialDocumentIds.every((documentId) =>
+                acknowledgedIds.includes(documentId)
+            )
+        )
     }
 
     const checkIsVoted = (record: IUser) => {
@@ -1387,6 +1442,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
+                        {electionEventId && isSupportMaterialsMandatory && (
+                            <FunctionField<IUser>
+                                source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.support_materials_viewed")
+                                )}
+                                render={(record, source) => {
+                                    let newRecord = {
+                                        support_materials_viewed:
+                                            checkSupportMaterialsViewed(record),
+                                        ...record,
+                                    }
+                                    return source ? (
+                                        <BooleanField
+                                            record={newRecord}
+                                            source="support_materials_viewed"
+                                        />
+                                    ) : null
+                                }}
+                            />
+                        )}
                         {!canEditVoters &&
                         !canDeleteVoters &&
                         !canSendTemplates &&
@@ -1505,11 +1581,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
                     close={handleClose}
-                    secretAttributeNames={
-                        visibleUserAttributes
-                            ?.filter(isSecretAttribute)
-                            .flatMap((attribute) => (attribute.name ? [attribute.name] : [])) ?? []
-                    }
+                    secretAttributeNames={secretAttributeNames}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
@@ -1678,7 +1750,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 {t("common.export")}
                 {electionEventId &&
                     canReadVoterSecretAttributes &&
-                    visibleUserAttributes?.some(isSecretAttribute) && (
+                    secretAttributeNames.length > 0 && (
                         <Box sx={{mt: 2}}>
                             <FormControlLabel
                                 control={

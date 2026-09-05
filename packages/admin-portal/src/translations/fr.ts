@@ -255,6 +255,7 @@ const frenchTranslation: TranslationType = {
                 logs: "Journaux",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
@@ -558,12 +559,23 @@ const frenchTranslation: TranslationType = {
                 language: "Langue",
                 votingChannels: "Canaux de Vote",
                 materialActivated: "Matériaux de Support activés",
+                supportMaterialsPolicy: {
+                    label: "Politique des Matériaux de Support",
+                    helperText:
+                        "L'option Obligatoire pour Voter exige que les électeurs ouvrent chaque Matériau de Support et confirment qu'ils l'ont lu avant de pouvoir voter.",
+                    options: {
+                        off: "Désactivé",
+                        optional: "Facultatif",
+                        mandatory_for_voting: "Obligatoire pour Voter",
+                    },
+                },
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
                 userVerification:
                     "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
+                kioskRedirectFinishUrl: "URL de redirection à la fin du vote en kiosque",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
@@ -1118,6 +1130,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
@@ -1957,6 +1970,11 @@ const frenchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la page",
             },
+            isAcclaimed: {
+                label: "Acquis par acclamation",
+                helperText:
+                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+            },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
             },
@@ -2337,6 +2355,8 @@ const frenchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
+                acclamation_note:
+                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",

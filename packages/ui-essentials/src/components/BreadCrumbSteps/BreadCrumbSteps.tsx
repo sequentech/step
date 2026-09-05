@@ -120,11 +120,15 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
 
     return (
         <StepItem islast={isLast.toString()} aria-current={isSelected ? "step" : undefined}>
+            {/* Decorative: role="list" + <li> already gives AT the item's
+                position (e.g. "1 of 4"), so reading this digit too doubled
+                every step's announcement. */}
             <StepNumber
                 className="step-number"
                 variant={variant}
                 isselected={(isSelected || colorStep).toString()}
                 warning={(!!warning).toString()}
+                aria-hidden="true"
             >
                 {index + 1}
             </StepNumber>

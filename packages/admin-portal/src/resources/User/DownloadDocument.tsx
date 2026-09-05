@@ -3,16 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useContext, useEffect, useRef} from "react"
-import {FetchDocumentQuery, GetDocumentQuery, Sequent_Backend_Document} from "@/gql/graphql"
+import {FetchDocumentQuery, GetDocumentQuery} from "@/gql/graphql"
 import {useQuery} from "@apollo/client"
 import {FETCH_DOCUMENT} from "@/queries/FetchDocument"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {CircularProgress} from "@mui/material"
-import {useGetOne} from "react-admin"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {downloadUrl} from "@sequentech/ui-core"
 import {GET_DOCUMENT} from "@/queries/GetDocument"
-import {ReportPasswordDialog} from "../Reports/ReportPasswordDialog"
+import {ReportDocumentAccess, ReportPasswordDialog} from "../Reports/ReportPasswordDialog"
 
 export interface DownloadDocumentProps {
     onDownload: () => void
@@ -34,23 +33,23 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
     showReportPasswordDialog = false,
 }) => {
     const [downloaded, setDownloaded] = React.useState(false)
-    const [showPassword, setShowPassword] = React.useState(false)
+    const [passwordDocument, setPasswordDocument] = React.useState<{
+        scope: string
+        access?: ReportDocumentAccess
+    }>()
     const downloadStarted = useRef(false)
     const {globalSettings} = useContext(SettingsContext)
     const [tenantId] = useTenantStore()
+    const documentScope = JSON.stringify([tenantId, documentId])
 
-    const {
-        data: documents,
-        refetch: hasuraRefetch,
-        stopPolling,
-    } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
+    const {data: documents, stopPolling} = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
         variables: {
             id: documentId,
             tenantId: tenantId,
         },
         skip: !documentId || !tenantId || downloaded,
         pollInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
-        onError: (error: any) => {
+        onError: (error) => {
             console.log(`error downloading doc: ${error.message}`)
         },
         onCompleted: (data) => {
@@ -110,7 +109,11 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
                         (document?.annotations?.access?.password_secret_id ||
                             name.endsWith(".epdf"))
                     ) {
-                        setShowPassword(true)
+                        // Apollo clears metadata when the completed download skips its query.
+                        setPasswordDocument({
+                            scope: documentScope,
+                            access: document?.annotations?.access,
+                        })
                     } else {
                         onDownload()
                     }
@@ -125,6 +128,7 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         error,
         loading,
         document,
+        documentScope,
         fileName,
         downloaded,
         showReportPasswordDialog,
@@ -133,13 +137,13 @@ export const DownloadDocument: React.FC<DownloadDocumentProps> = ({
         downloadUrl,
     ])
 
-    return showPassword ? (
+    return passwordDocument?.scope === documentScope ? (
         <ReportPasswordDialog
             key={`${tenantId}:${documentId}`}
             documentId={documentId}
-            access={document?.annotations?.access}
+            access={passwordDocument.access}
             onClose={() => {
-                setShowPassword(false)
+                setPasswordDocument(undefined)
                 onDownload()
             }}
         />

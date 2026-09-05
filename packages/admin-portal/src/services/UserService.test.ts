@@ -6,6 +6,7 @@ import {UserProfileAttribute} from "@/gql/graphql"
 import {
     getAttributeLengthBounds,
     getAttributeViolation,
+    getConfiguredSecretAttributeNames,
     getInputOptionLabels,
     getSelectOptionLabel,
     getStatedLengthBounds,
@@ -23,6 +24,30 @@ describe("isSecretAttribute", () => {
     it("rejects unset and false annotations", () => {
         expect(isSecretAttribute(attribute({annotations: {"sequent.secret": false}}))).toBe(false)
         expect(isSecretAttribute(attribute({annotations: {}}))).toBe(false)
+    })
+})
+
+describe("getConfiguredSecretAttributeNames", () => {
+    it("includes hidden and visible secrets without including ordinary attributes", () => {
+        expect(
+            getConfiguredSecretAttributeNames([
+                attribute({
+                    name: "hiddenSecret",
+                    annotations: {"hidden": true, "sequent.secret": true},
+                }),
+                attribute({name: "visibleSecret", annotations: {"sequent.secret": "true"}}),
+                attribute({name: "ordinary", annotations: {hidden: true}}),
+            ])
+        ).toEqual(["hiddenSecret", "visibleSecret"])
+    })
+
+    it("returns no names before the profile loads or for unnamed attributes", () => {
+        expect(getConfiguredSecretAttributeNames(undefined)).toEqual([])
+        expect(
+            getConfiguredSecretAttributeNames([
+                attribute({name: null, annotations: {"sequent.secret": true}}),
+            ])
+        ).toEqual([])
     })
 })
 

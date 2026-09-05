@@ -11,6 +11,7 @@ import {
     EStartScreenTitlePolicy,
     EElectionEventContestEncryptionPolicy,
     EDeclineToVotePolicy,
+    areAllContestsAcclaimed,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {useLocation, useNavigate, useParams} from "react-router-dom"
@@ -72,6 +73,9 @@ const StartScreen: React.FC = () => {
     const defaultLanguageCode =
         titleObject?.presentation?.language_conf?.default_language_code ??
         electionEvent?.presentation?.language_conf?.default_language_code
+    const titleDescription = translateFromPresentation(titleObject, "description", i18n.language, {
+        defaultLanguageCode,
+    })
 
     useEffect(() => {
         if (!election || !titleObject) {
@@ -96,8 +100,12 @@ const StartScreen: React.FC = () => {
     const isMultiContest =
         ballotStyle?.ballot_eml.election_event_presentation?.contest_encryption_policy ===
         EElectionEventContestEncryptionPolicy.MULTIPLE_CONTESTS
+    // Declining is casting a ballot, and a fully acclaimed election has no
+    // ballot to cast.
     const isDeclineToVotePolicyEnabled =
-        declineToVotePolicy === EDeclineToVotePolicy.ENABLED && isMultiContest
+        declineToVotePolicy === EDeclineToVotePolicy.ENABLED &&
+        isMultiContest &&
+        !areAllContestsAcclaimed(ballotStyle?.ballot_eml.contests)
 
     const confirmDeclineToVote = () => {
         if (!ballotStyle || !election) {
@@ -139,17 +147,13 @@ const StartScreen: React.FC = () => {
                     }) ?? "-"}
                 </span>
             </StyledTitle>
-            {titleObject.description ? (
+            {titleDescription ? (
                 <Typography
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
-                    {stringToHtml(
-                        translateFromPresentation(titleObject, "description", i18n.language, {
-                            defaultLanguageCode,
-                        }) ?? "-"
-                    )}
+                    {stringToHtml(titleDescription)}
                 </Typography>
             ) : null}
             <Typography variant="h5" component="h2">

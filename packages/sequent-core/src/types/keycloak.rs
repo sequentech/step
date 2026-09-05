@@ -32,6 +32,21 @@ pub const ATTR_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
 
+/// List of Support Material document ids the voter has acknowledged (opened
+/// and confirmed reading), recorded when `SupportMaterialsPolicy` is
+/// `MandatoryForVoting`. Mirrors `VOTED_CHANNEL`: a plain Keycloak user
+/// attribute, scoped per voter per Election Event since each Election Event
+/// has its own realm.
+///
+/// The realm's declarative User Profile (`GET/PUT
+/// /admin/realms/{realm}/users/profile`) must list this attribute, or the
+/// Keycloak Admin REST API silently drops it on write. It is declared in
+/// `packages/step-cli/data/{mock,test-election-template}.json`'s
+/// `keycloak_event_realm.components["org.keycloak.userprofile.UserProfileProvider"]`;
+/// any other event-realm provisioning path needs the same declaration.
+pub const SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME: &str =
+    "support-materials-acknowledged";
+
 /// Per-voter vote weight, used when the election event weighted voting policy
 /// is `voters-weighted-voting`. A voter without this attribute votes with
 /// `DEFAULT_VOTE_WEIGHT`.

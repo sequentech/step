@@ -27,9 +27,22 @@ use uuid::Uuid;
 use super::PubKeycloakAdmin;
 
 const VOTING_PORTAL_CLIENT_ID: &str = "voting-portal";
+const KIOSK_VOTING_PORTAL_CLIENT_ID: &str = "voting-portal-kiosk";
 const ONSITE_VOTING_PORTAL_CLIENT_ID: &str = "onsite-voting-portal";
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
 const CONDITIONAL_CLIENT_ID: &str = "conditional-client";
+
+fn kiosk_voting_portal_url(
+    voting_portal_url: &str,
+    configured_kiosk_url: Option<String>,
+) -> String {
+    configured_kiosk_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|url| !url.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| voting_portal_url.to_string())
+}
 
 fn voting_portal_redirect_uris(ballot_verifier_url: &str) -> Vec<String> {
     vec![
@@ -652,11 +665,22 @@ impl KeycloakAdminClient {
 
         let voting_portal_url_env = env::var("VOTING_PORTAL_URL")
             .with_context(|| "Error fetching VOTING_PORTAL_URL env var")?;
-        let login_url = if let Some(election_event_id) = election_event_id {
+        let kiosk_voting_portal_url_env = kiosk_voting_portal_url(
+            &voting_portal_url_env,
+            env::var("KIOSK_VOTING_PORTAL_URL").ok(),
+        );
+        let login_url = if let Some(election_event_id) =
+            election_event_id.as_ref()
+        {
             Some(format!("{voting_portal_url_env}/tenant/{tenant_id}/event/{election_event_id}/login"))
         } else {
             None
         };
+        let kiosk_login_url = election_event_id.as_ref().map(|event_id| {
+            format!(
+                "{kiosk_voting_portal_url_env}/tenant/{tenant_id}/event/{event_id}/login?kiosk"
+            )
+        });
         let ballot_verifier_url = env::var("BALLOT_VERIFIER_URL")
             .with_context(|| "Error fetching BALLOT_VERIFIER_URL env var")?;
         let results_portal_url = env::var("RESULTS_PORTAL_URL").ok();
@@ -674,6 +698,12 @@ impl KeycloakAdminClient {
                 | Some(ONSITE_VOTING_PORTAL_CLIENT_ID) => {
                     client.root_url = Some(voting_portal_url_env.clone());
                     client.base_url = login_url.clone();
+                    client.redirect_uris =
+                        Some(voting_portal_redirect_uris(&ballot_verifier_url));
+                }
+                Some(KIOSK_VOTING_PORTAL_CLIENT_ID) => {
+                    client.root_url = Some(kiosk_voting_portal_url_env.clone());
+                    client.base_url = kiosk_login_url.clone();
                     client.redirect_uris =
                         Some(voting_portal_redirect_uris(&ballot_verifier_url));
                 }
@@ -784,7 +814,7 @@ impl KeycloakAdminClient {
 #[cfg(test)]
 mod tests {
     use super::{
-        include_results_portal_in_client_condition,
+        include_results_portal_in_client_condition, kiosk_voting_portal_url,
         results_portal_redirect_uris, voting_portal_redirect_uris,
     };
 
@@ -801,6 +831,28 @@ mod tests {
         assert_eq!(
             results_portal_redirect_uris("https://results.example.test/"),
             vec!["https://results.example.test/*"]
+        );
+    }
+
+    #[test]
+    fn kiosk_voting_portal_url_uses_configured_url() {
+        assert_eq!(
+            kiosk_voting_portal_url(
+                "https://voting.example.test",
+                Some("https://voting-kiosk.example.test".to_string()),
+            ),
+            "https://voting-kiosk.example.test"
+        );
+    }
+
+    #[test]
+    fn kiosk_voting_portal_url_falls_back_to_voting_portal_url() {
+        assert_eq!(
+            kiosk_voting_portal_url(
+                "https://voting.example.test",
+                Some("  ".to_string()),
+            ),
+            "https://voting.example.test"
         );
     }
 
