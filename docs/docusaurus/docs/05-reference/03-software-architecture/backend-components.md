@@ -78,7 +78,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 An election-event Keycloak User Profile attribute annotated with `sequent.secret=true` is encrypted
 before Step writes it to Keycloak. Keycloak stores a versioned `seqenc:v1:` authenticated-encryption
-envelope and does not have access to the plaintext or the master secret.
+envelope. By default Keycloak has neither the master key nor plaintext access. The explicit
+encrypted-attribute login option described below grants the authentication extension the key so
+it can decrypt the configured credential server-side; stored attributes remain encrypted.
 
 The encryption key is derived from the existing Step `master_secret` and the tenant, election
 event, voter ID, and attribute name. Consequently, moving an envelope to another voter, event, or

@@ -66,3 +66,17 @@ or election-event configuration must carry the declaration themselves.
 Running an output with a non-empty declaration requires `voter-secret-attribute-read` in addition
 to the normal send or report permission. Treat the rendered message or report as sensitive data
 and apply its normal document and delivery access controls.
+
+Email and SMS bodies are not password-encrypted: recipients receive readable messages, including
+any declared secret values. File reports follow their configured encryption policy and private
+document access controls. Delivery audit records do not contain the rendered subject or body.
+
+### Test-only Console delivery
+
+Explicitly setting `EMAIL_TRANSPORT_NAME=Console` or `SMS_TRANSPORT_NAME=Console` prints the full
+rendered message to the Windmill worker console instead of sending it. This includes decrypted
+secret attributes, so it can be used to inspect a test login code.
+
+Use synthetic voters and credentials only. Do not enable Console transport in production or send
+these logs to an unrestricted destination. Real delivery transports do not log message bodies;
+an unknown transport name fails instead of silently falling back to Console.

@@ -1,6 +1,6 @@
 ---
 id: admin_portal_tutorials_multi_attribute_password_login
-title: Logging In Without a Username (Attribute + Password)
+title: Logging In Without a Username (Attribute + Password or Secret)
 ---
 
 <!--
@@ -14,11 +14,13 @@ By default, voters log in with a username and password. Some elections instead i
 attributes they already know - a date of birth, a national ID - without asking them to remember a
 separate username. This tutorial explains how to configure the **Multi-Attribute + Password Form**
 authenticator so voters log in with one or more configured user attributes plus a password,
-instead of a username.
+instead of a username. The password box can verify either the normal Keycloak password (the
+default) or an explicitly configured encrypted voter attribute.
 
 The authenticator finds every user whose configured attribute(s) match the submitted value(s) -
 **all** configured attributes must match the same user - then checks the submitted password
-against that candidate. Login succeeds only when **exactly one** candidate's password matches.
+against those candidates. With the default `REJECT_AMBIGUOUS` match policy, login succeeds only
+when **exactly one** candidate's credential matches and that account is enabled and not locked out.
 
 A single attribute like date of birth is not unique on its own (many voters share a birth date).
 This still works: the authenticator collects every user with that birth date as candidates and
@@ -35,7 +37,7 @@ second identifying attribute is available.
 The default **Credential verification policy** is `PASSWORD`; existing flows do not change.
 To authenticate with a secret voter field instead of a Keycloak password:
 
-1. Configure a custom User Profile attribute, such as `login-code`, with `sequent.secret=true`,
+1. Configure a custom User Profile attribute, such as `mysecret`, with `sequent.secret=true`,
    then populate it using the authorized voter editor or CSV importer. Do not enter plaintext
    directly into Keycloak's attribute editor.
 2. Explicitly provision Keycloak's `MASTER_SECRET` environment variable with the same 64-character
@@ -43,11 +45,25 @@ To authenticate with a secret voter field instead of a Keycloak password:
    `KEYCLOAK_MASTER_SECRET` deployment variable. Keycloak must be redeployed to receive it; no
    automatic key generation or realm-wide authentication change occurs.
 3. On this authenticator's configuration, set **Credential verification policy** to
-   `SECRET_ATTRIBUTE` and **Encrypted credential attribute** to `login-code`. Keep ordinary
+   `SECRET_ATTRIBUTE` and **Encrypted credential attribute** to `mysecret`. Keep ordinary
    identifying attributes in **User attributes to match**, not the secret attribute.
 4. Keep **Multiple-candidate match policy** at `REJECT_AMBIGUOUS`. `FIRST_MATCH` is rejected in
    this mode. For IVR, set the same two options on **Multi-Attribute + Password Direct Grant**;
    its existing single `kind=secret`/`maps_to=password` input carries this credential.
+
+For example, to ask for a date of birth and use `mysecret` as the password:
+
+| Authenticator setting | Value |
+|---|---|
+| User attributes to match | `dateOfBirth` |
+| Credential verification policy | `SECRET_ATTRIBUTE` |
+| Encrypted credential attribute | `mysecret` |
+| Multiple-candidate match policy | `REJECT_AMBIGUOUS` |
+
+Use the exact attribute **name**, not its display label. The secret is the credential, not a lookup
+attribute: do not add `mysecret` to **User attributes to match**. The
+[secret-attribute setup guide](./99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret)
+explains the required annotation, permissions and validator restrictions.
 
 The form remains `login.ftl`, and voters enter the credential in the existing `password` field.
 Credential placement, masking/show-hide, autofocus, and `credential-input-policy: "pattern"` keep
@@ -67,6 +83,9 @@ remain active; guessed credentials are never included in the tuple throttle key.
 Treat this field as a login credential: anyone authorized to reveal or export it can impersonate
 its voter. Choose high-entropy values, restrict secret-read/write access, enable realm brute-force
 protection, and avoid sending it in report previews, logs or untrusted message transports.
+Email/SMS delivery remains readable; declaring a secret does not encrypt the message. The explicit
+[Console test transport](../02-reference/user-manual/templates/admin_portal_reference_user-manual_templates.md#test-only-console-delivery)
+also prints decrypted values, so use only synthetic credentials when that transport is enabled.
 
 ### Standard prerequisites
 
@@ -167,23 +186,25 @@ and explains where realm attributes are edited.
 | No user matches all configured attributes | Generic "invalid credentials" error. |
 | Exactly one candidate, correct password | Login succeeds. |
 | Exactly one candidate, wrong password | Generic "invalid credentials" error - this attempt **is** counted toward that account's Brute Force Detection lockout, same as a standard login. |
-| Exactly one candidate, currently locked out by Brute Force Detection | "Account temporarily/permanently disabled" - no password check is even attempted. |
+| Exactly one candidate, currently locked out by Brute Force Detection | Generic "invalid credentials" error; the locked account cannot log in. |
 | Multiple candidates share the configured attribute(s), and the password matches exactly one | Login succeeds as that user. |
 | Multiple candidates match the password (or none do) | Generic "invalid credentials" error - see the brute-force note below. |
 
-The error is always the same generic message regardless of cause, so a failed attempt never
-reveals which attribute, or the password, was wrong. Every "no match" outcome above (blank field,
-no candidates, wrong password) takes the same time to respond, including a real password-hash
-computation on paths that never actually found a candidate to check - so response time doesn't
-reveal whether any account has the submitted attribute value.
+Authentication failures use a generic message rather than identifying the incorrect attribute or
+credential. Dummy password-hash work on early rejection paths helps reduce timing differences;
+it does **not** guarantee identical response times for an entire login request. In
+`SECRET_ATTRIBUTE` mode, fixed-size digest comparison is constant-time, while database lookup,
+the number of candidates and decryption still contribute to total request time.
 
 > **Note on brute-force protection:** Keycloak's built-in per-account lockout only engages once
 > resolution narrows to a single candidate - the same account that ends up locked out is also the
 > one whose failed attempts get counted, matching how the standard username/password form behaves.
 > When more than one candidate still shares the configured attribute(s), there is no single
 > account a failed attempt can honestly be attributed to, so the counter can't engage for that
-> specific request (a locked-out account among several ambiguous candidates still can't have its
-> password probed, though - it's excluded from consideration before any password is checked).
+> specific request. In `PASSWORD` mode, locked accounts are excluded before password verification.
+> In `SECRET_ATTRIBUTE` mode, enabled but locked accounts still participate in ambiguity detection:
+> locking one account must not make a shared secret authenticate as another voter. A locked
+> account itself can never authenticate.
 > Configuring more attributes narrows the candidate set before the password check, making the
 > single-candidate (fully protected) case the common one; keep **Brute Force Detection** enabled
 > at the realm level regardless.
@@ -239,6 +260,9 @@ touching hash strength.
 
 When more than one candidate shares the configured attribute value(s) (e.g. several voters born on
 the same date), **Multiple-candidate match policy** governs how the submitted password picks one:
+
+`SECRET_ATTRIBUTE` mode requires `REJECT_AMBIGUOUS`; the `FIRST_MATCH` option below applies only
+to ordinary `PASSWORD` verification.
 
 - **`REJECT_AMBIGUOUS`** (default): checks every candidate's password. Only succeeds if the
   submitted password matches **exactly one** of them; if it matches more than one, the request

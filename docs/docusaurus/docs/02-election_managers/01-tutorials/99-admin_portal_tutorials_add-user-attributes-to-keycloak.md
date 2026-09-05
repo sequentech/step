@@ -176,7 +176,8 @@ way of rendering an attribute as a hidden input on a form rather than keeping it
 
 An election-event attribute can be stored as an encrypted **secret voter attribute**. Use this for
 data that administrators or voter-level outputs need, but which must not be exposed in ordinary
-voter lists or exports.
+voter lists or default exports. An eligible custom secret can also serve as the credential for
+the explicitly configured **Multi-Attribute + Password** authenticators.
 
 In **Annotations** > **Add annotation**, set:
 
@@ -190,9 +191,14 @@ attributes are supported only in election-event realms.
 Before enabling the annotation:
 
 - Restrict the User Profile attribute's view and edit permissions to administrators. Do not use a
-  secret attribute in voter registration, login matching, token mappers, reconciliation, filters,
+  secret attribute in voter registration, identity-attribute login matching, token mappers, reconciliation, filters,
   sorting, uniqueness checks, or voter self-service. Keycloak stores ciphertext, so those features
   cannot use its original value.
+  The supported authentication exception is
+  [encrypted-attribute credential verification](./101-admin_portal_tutorials_multi-attribute-password-login.md#optional-use-an-encrypted-voter-attribute-as-the-credential):
+  the extension decrypts it server-side and verifies the existing password input. This requires
+  `SECRET_ATTRIBUTE` policy and the matching master key in Keycloak; the annotation alone does
+  not change login behavior.
 - Do not configure a Keycloak value validator on the attribute. The
   `person-name-prohibited-characters` validator is the only supported exception because it accepts
   the encrypted envelope. A **Required field** rule is supported.
@@ -219,6 +225,11 @@ Secret and hidden are different classifications. A hidden attribute is omitted f
 its plaintext can still reach the browser and ordinary exports. A secret attribute is encrypted at
 rest, removed from ordinary list/filter/export paths, and represented by a masked value in the
 voter editor.
+
+Authorized operators may explicitly include decrypted secrets in
+[voter CSV and password-protected event exports](./20-admin_portal_tutorials_export-data.md).
+Anyone who can reveal or export a secret used for login can authenticate as that voter; grant
+secret-read permission accordingly. CSV imports accept plaintext and encrypt it for storage.
 
 Users need separate permissions to reveal or modify secret values. See
 [Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md) and

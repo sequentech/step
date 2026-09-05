@@ -37,6 +37,11 @@ When editing a voter, an existing unrevealed value is displayed as `••••
 preserves the encrypted value. Use the **Clear** (×) icon at the right of the field and save to remove a value without revealing it. Required fields still need a value. For multivalued fields, each value can be edited, added, or removed separately.
 Review screens mask new and changed secret values rather than repeating them.
 
+A secret can also be used as the login credential with the
+[Multi-Attribute + Password Form](./101-admin_portal_tutorials_multi-attribute-password-login.md#optional-use-an-encrypted-voter-attribute-as-the-credential).
+In that mode, fill the configured secret field (for example, **Mysecret**); the separate Keycloak
+password and password-reset controls do not set or reset that secret.
+
 Revealed values are limited to the open voter editor. Closing the editor removes them from its
 state; the voter list continues to receive only redacted values.
 
