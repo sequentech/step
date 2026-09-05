@@ -440,6 +440,25 @@ pub async fn encrypt_secret_attribute_map(
     secret_names: &HashSet<String>,
     values: HashMap<String, Option<Vec<String>>>,
 ) -> Result<HashMap<String, Vec<String>>> {
+    let master_secret = get_master_secret().await?;
+    encrypt_secret_attribute_map_with_key(
+        &master_secret,
+        tenant_id,
+        election_event_id,
+        user_id,
+        secret_names,
+        values,
+    )
+}
+
+fn encrypt_secret_attribute_map_with_key(
+    master_secret: &SymmetricKey,
+    tenant_id: &str,
+    election_event_id: &str,
+    user_id: &str,
+    secret_names: &HashSet<String>,
+    values: HashMap<String, Option<Vec<String>>>,
+) -> Result<HashMap<String, Vec<String>>> {
     let mut encrypted = HashMap::new();
     for (name, values) in values {
         if !secret_names.contains(&name) {
@@ -450,7 +469,24 @@ pub async fn encrypt_secret_attribute_map(
         let values = values.unwrap_or_default();
         encrypted.insert(
             name.clone(),
-            encrypt_attribute_values(tenant_id, election_event_id, user_id, &name, &values).await?,
+            values
+                .iter()
+                // An encrypted empty string would incorrectly satisfy Keycloak's
+                // required-field check. Preserve its blank-as-missing semantics.
+                .filter(|value| !value.trim().is_empty())
+                .map(|value| {
+                    encrypt_with_master_secret(
+                        master_secret,
+                        &VoterSecretAttributeScope {
+                            tenant_id,
+                            election_event_id,
+                            user_id,
+                            attribute_name: &name,
+                        },
+                        value,
+                    )
+                })
+                .collect::<Result<Vec<_>>>()?,
         );
     }
     Ok(encrypted)
@@ -460,6 +496,62 @@ pub async fn encrypt_secret_attribute_map(
 mod tests {
     use super::*;
     use strand::symm::gen_key;
+
+    #[test]
+    fn creation_ciphertext_preserves_missing_values_and_is_bound_to_user_id() {
+        let key = gen_key();
+        let names = HashSet::from(["mobile-number".to_string()]);
+        for values in [None, Some(vec![]), Some(vec!["".into(), "  ".into()])] {
+            let encrypted = encrypt_secret_attribute_map_with_key(
+                &key,
+                "tenant",
+                "event",
+                "provisional",
+                &names,
+                HashMap::from([("mobile-number".into(), values)]),
+            )
+            .unwrap();
+            assert!(
+                encrypted["mobile-number"].is_empty(),
+                "Missing plaintext must stay missing for required-field validation"
+            );
+        }
+        let plaintext = HashMap::from([("mobile-number".into(), Some(vec!["test-secret".into()]))]);
+        let provisional = encrypt_secret_attribute_map_with_key(
+            &key,
+            "tenant",
+            "event",
+            "provisional",
+            &names,
+            plaintext.clone(),
+        )
+        .unwrap();
+        let final_values = encrypt_secret_attribute_map_with_key(
+            &key,
+            "tenant",
+            "event",
+            "created-voter",
+            &names,
+            plaintext,
+        )
+        .unwrap();
+        assert!(provisional["mobile-number"][0].starts_with(ENCRYPTED_VALUE_PREFIX));
+        assert!(decrypt_with_master_secret(
+            &key,
+            &scope("created-voter"),
+            &provisional["mobile-number"][0]
+        )
+        .is_err());
+        assert_eq!(
+            decrypt_with_master_secret(
+                &key,
+                &scope("created-voter"),
+                &final_values["mobile-number"][0]
+            )
+            .unwrap(),
+            "test-secret"
+        );
+    }
 
     #[test]
     fn keycloak_v1_compatibility_fixture() {

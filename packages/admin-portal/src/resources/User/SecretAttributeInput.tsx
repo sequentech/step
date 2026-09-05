@@ -5,6 +5,7 @@ import React from "react"
 import {Box, Button, IconButton, InputAdornment, Stack, Tooltip} from "@mui/material"
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined"
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined"
+import ClearIcon from "@mui/icons-material/Clear"
 import {FormStyles} from "@/components/styles/FormStyles"
 
 export interface SecretAttributeInputProps {
@@ -42,6 +43,7 @@ export const SecretAttributeInput: React.FC<SecretAttributeInputProps> = ({
 }) => {
     const displayedValues = values.length ? values : [""]
     const visibilityLabel = revealed ? labels.hide : labels.reveal
+    const canClear = editable && (stored || values.length > 0)
     return (
         <Stack spacing={1} sx={{width: "100%"}}>
             {displayedValues.map((value, index) => (
@@ -66,27 +68,44 @@ export const SecretAttributeInput: React.FC<SecretAttributeInputProps> = ({
                             input: {
                                 readOnly: !editable,
                                 endAdornment:
-                                    index === 0 && canReveal ? (
+                                    index === 0 && (canReveal || canClear) ? (
                                         <InputAdornment position="end">
-                                            <Tooltip title={visibilityLabel}>
-                                                <span>
-                                                    <IconButton
-                                                        type="button"
-                                                        edge="end"
-                                                        size="small"
-                                                        aria-label={visibilityLabel}
-                                                        aria-busy={revealing}
-                                                        disabled={revealing}
-                                                        onClick={onReveal}
-                                                    >
-                                                        {revealed ? (
-                                                            <VisibilityOffOutlinedIcon fontSize="small" />
-                                                        ) : (
-                                                            <VisibilityOutlinedIcon fontSize="small" />
-                                                        )}
-                                                    </IconButton>
-                                                </span>
-                                            </Tooltip>
+                                            {canReveal && (
+                                                <Tooltip title={visibilityLabel}>
+                                                    <span>
+                                                        <IconButton
+                                                            type="button"
+                                                            size="small"
+                                                            aria-label={visibilityLabel}
+                                                            aria-busy={revealing}
+                                                            disabled={revealing}
+                                                            onClick={onReveal}
+                                                        >
+                                                            {revealed ? (
+                                                                <VisibilityOffOutlinedIcon fontSize="small" />
+                                                            ) : (
+                                                                <VisibilityOutlinedIcon fontSize="small" />
+                                                            )}
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                            )}
+                                            {canClear && (
+                                                <Tooltip title={labels.clear}>
+                                                    <span>
+                                                        <IconButton
+                                                            type="button"
+                                                            edge="end"
+                                                            size="small"
+                                                            aria-label={labels.clear}
+                                                            disabled={revealing}
+                                                            onClick={() => onChange([])}
+                                                        >
+                                                            <ClearIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </span>
+                                                </Tooltip>
+                                            )}
                                         </InputAdornment>
                                     ) : undefined,
                             },
@@ -103,22 +122,15 @@ export const SecretAttributeInput: React.FC<SecretAttributeInputProps> = ({
                     )}
                 </Box>
             ))}
-            {editable && (
+            {editable && multivalued && (
                 <Stack direction="row" spacing={1}>
-                    {multivalued && (
-                        <Button
-                            type="button"
-                            disabled={revealing}
-                            onClick={() => onChange([...displayedValues, ""])}
-                        >
-                            {labels.add}
-                        </Button>
-                    )}
-                    {(stored || values.length > 0) && (
-                        <Button type="button" disabled={revealing} onClick={() => onChange([])}>
-                            {labels.clear}
-                        </Button>
-                    )}
+                    <Button
+                        type="button"
+                        disabled={revealing}
+                        onClick={() => onChange([...displayedValues, ""])}
+                    >
+                        {labels.add}
+                    </Button>
                 </Stack>
             )}
         </Stack>

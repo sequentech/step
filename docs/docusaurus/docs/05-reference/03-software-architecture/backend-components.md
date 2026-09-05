@@ -89,6 +89,11 @@ Harvest enforces the synchronous create, edit, reveal, and permission boundaries
 same codec for voter imports, authorized opt-in exports, communications, and per-voter reports.
 Ordinary user responses and default voter exports remove secret fields rather than returning ciphertext.
 
+Creating a voter with secrets uses two audited writes: Keycloak first validates a disabled voter
+with ciphertext under a provisional scope, then Harvest re-encrypts the values against the ID
+returned in Keycloak's `Location` header and restores the requested enabled state. If finalization
+fails, the voter stays disabled. Required fields are validated on both writes; blank input stays missing.
+
 Every reveal, set, clear, import, decrypted export, and use of a secret attribute in a
 communication or per-voter report is recorded in the election event's electoral log as an
 admin-signed `VOTER_SECRET_ATTRIBUTE` entry. The entry names the administrator, the voter where

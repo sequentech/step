@@ -58,7 +58,10 @@ it("replaces one value without discarding the other values", () => {
 
 it("clears an unrevealed stored value with write permission alone", () => {
     const {onChange, onReveal} = setup({values: [], canReveal: false, revealed: false})
-    fireEvent.click(screen.getByRole("button", {name: "Clear"}))
+    const clear = screen.getByRole("button", {name: "Clear"})
+    expect(clear.textContent).toBe("")
+    expect(clear.closest(".MuiInputAdornment-positionEnd")).not.toBeNull()
+    fireEvent.click(clear)
     expect(onChange).toHaveBeenCalledWith([])
     expect(onReveal).not.toHaveBeenCalled()
 })

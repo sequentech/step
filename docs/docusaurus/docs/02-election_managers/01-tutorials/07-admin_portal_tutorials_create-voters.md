@@ -34,7 +34,7 @@ The permissions to reveal and edit these fields are independent:
 - Both operations also require the corresponding ordinary voter read or write permission.
 
 When editing a voter, an existing unrevealed value is displayed as `••••••••`. Leaving it untouched
-preserves the encrypted value. Use **Clear** and save to remove a value without revealing it. For multivalued fields, each value can be edited, added, or removed separately.
+preserves the encrypted value. Use the **Clear** (×) icon at the right of the field and save to remove a value without revealing it. Required fields still need a value. For multivalued fields, each value can be edited, added, or removed separately.
 Review screens mask new and changed secret values rather than repeating them.
 
 Revealed values are limited to the open voter editor. Closing the editor removes them from its

@@ -158,7 +158,9 @@ fn secret_change_names(
     let mut set = Vec::new();
     let mut cleared = Vec::new();
     for (name, values) in secret_attributes {
-        if values.as_ref().is_some_and(|values| !values.is_empty()) {
+        if values.as_ref().is_some_and(|values| {
+            values.iter().any(|value| !value.trim().is_empty())
+        }) {
             set.push(name.clone());
         } else {
             cleared.push(name.clone());
@@ -171,7 +173,7 @@ async fn audit_secret_changes(
     claims: &jwt::JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
-    voter_id: &str,
+    voter_id: Option<&str>,
     voter_username: Option<&str>,
     secret_attributes: &HashMap<String, Option<Vec<String>>>,
 ) -> Result<(), (Status, String)> {
@@ -189,7 +191,7 @@ async fn audit_secret_changes(
             election_event_id,
             action,
             VoterSecretAttributeAudit {
-                voter_id: Some(voter_id),
+                voter_id,
                 voter_username,
                 attribute_names: &names,
                 document_id: None,
@@ -933,7 +935,7 @@ pub async fn create_user(
         )
     };
 
-    let user_attributes =
+    let mut user_attributes =
         match (&tenant_id_attribute, input.user.attributes.clone()) {
             (Some(tenant_id_attribute), Some(user_attributes)) => {
                 let mut attributes = tenant_id_attribute.clone();
@@ -955,10 +957,55 @@ pub async fn create_user(
     user.email_verified = Some(true);
     let requested_enabled = user.enabled.unwrap_or(true);
     if has_secret_attributes {
-        // Do not expose a voter whose secret attributes have not been stored
-        // yet. If the second Keycloak write fails, the incomplete voter stays
-        // disabled and cannot authenticate.
+        // Keycloak validates required attributes before assigning the user id.
+        // Supply encrypted values under a provisional scope, then bind them to
+        // the assigned id below. An incomplete voter must remain disabled.
         user.enabled = Some(false);
+        let election_event_id =
+            input.election_event_id.as_deref().ok_or_else(|| {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    "Encrypted attributes require an election event",
+                    ErrorCode::UnknownError,
+                )
+            })?;
+        if let Some(secret_attributes) = input.secret_attributes.as_ref() {
+            let provisional_id = Uuid::new_v4().to_string();
+            let encrypted = encrypt_secret_attribute_map(
+                &input.tenant_id,
+                election_event_id,
+                &provisional_id,
+                &secret_names,
+                secret_attributes.clone(),
+            )
+            .await
+            .map_err(|error| {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &error.to_string(),
+                    ErrorCode::UnknownError,
+                )
+            })?;
+            audit_secret_changes(
+                &claims,
+                &input.tenant_id,
+                election_event_id,
+                None,
+                user.username.as_deref(),
+                secret_attributes,
+            )
+            .await
+            .map_err(|(status, message)| {
+                ErrorResponse::new(
+                    status,
+                    &message,
+                    ErrorCode::InternalServerError,
+                )
+            })?;
+            user_attributes
+                .get_or_insert_with(HashMap::new)
+                .extend(encrypted);
+        }
     }
 
     let mut user = client
@@ -1016,7 +1063,7 @@ pub async fn create_user(
                 &claims,
                 &input.tenant_id,
                 election_event_id,
-                &user_id,
+                Some(&user_id),
                 user.username.as_deref(),
                 &secret_attributes,
             )
@@ -1453,7 +1500,7 @@ pub async fn edit_user(
             &claims,
             &input.tenant_id,
             election_event_id,
-            &input.user_id,
+            Some(&input.user_id),
             input.username.as_deref(),
             secret_attributes,
         )
@@ -2126,6 +2173,17 @@ pub async fn get_user_profile_configuration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn blank_secret_values_are_audited_as_clears() {
+        let attributes = std::collections::HashMap::from([
+            ("blank".into(), Some(vec!["".into(), "  ".into()])),
+            ("value".into(), Some(vec!["".into(), " actual ".into()])),
+        ]);
+        let (set, cleared) = super::secret_change_names(&attributes);
+        assert_eq!(set, vec!["value"]);
+        assert_eq!(cleared, vec!["blank"]);
+    }
+
     #[test]
     fn secret_query_guard_matches_sql_attribute_normalization() {
         let names =
