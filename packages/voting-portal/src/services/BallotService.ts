@@ -12,6 +12,8 @@ import {
     isPreferential,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
+    filterVisibleMessages,
+    selectionCapped,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,
@@ -56,6 +58,13 @@ export interface IBallotService {
         contestSelection: IDecodedVoteContest,
         election: IBallotStyle
     ) => number
+    filterVisibleMessages: (
+        contest: IContest,
+        contestSelection: IDecodedVoteContest,
+        isReview: boolean,
+        isTouched: boolean
+    ) => IDecodedVoteContest
+    selectionCapped: (contest: IContest, contestSelection: IDecodedVoteContest) => boolean
     decodeAuditableBallot: (
         auditableBallot: IAuditableSingleBallot
     ) => Array<IDecodedVoteContest> | null
@@ -86,6 +95,8 @@ export const provideBallotService = (): IBallotService => ({
     interpretContestSelection,
     interpretMultiContestSelection,
     getWriteInAvailableCharacters,
+    filterVisibleMessages,
+    selectionCapped,
     decodeAuditableBallot,
     decodeAuditableMultiBallot,
     checkIsBlank,

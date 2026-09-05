@@ -62,8 +62,6 @@ export interface AnswersListProps {
     isInvalidWriteIns?: boolean
     isRadioSelection?: boolean
     contest: IContest
-    selectedChoicesSum: number
-    setSelectedChoicesSum: (num: number) => void
     disableSelect: boolean
     explicitBlank: boolean
     setExplicitBlank: (value: boolean) => void
@@ -85,8 +83,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     isInvalidWriteIns,
     isRadioSelection,
     contest,
-    selectedChoicesSum,
-    setSelectedChoicesSum,
     disableSelect,
     explicitBlank,
     setExplicitBlank,
@@ -247,8 +243,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                                     isInvalidVote={false}
                                     isInvalidWriteIns={isInvalidWriteIns}
                                     contest={contest}
-                                    selectedChoicesSum={selectedChoicesSum}
-                                    setSelectedChoicesSum={setSelectedChoicesSum}
                                     disableSelect={disableSelect}
                                     iconCheckboxPolicy={iconCheckboxPolicy}
                                     explicitBlank={explicitBlank}
@@ -277,8 +271,6 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                         isInvalidVote={false}
                         isInvalidWriteIns={isInvalidWriteIns}
                         contest={contest}
-                        selectedChoicesSum={selectedChoicesSum}
-                        setSelectedChoicesSum={setSelectedChoicesSum}
                         disableSelect={disableSelect}
                         iconCheckboxPolicy={iconCheckboxPolicy}
                         explicitBlank={explicitBlank}

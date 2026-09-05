@@ -12,7 +12,6 @@ import {
     isAcclaimedContest,
     IContest,
     CandidatesOrder,
-    EOverVotePolicy,
     ECandidatesIconCheckboxPolicy,
     BallotSelection,
     ECollapsibleLists,
@@ -140,14 +139,12 @@ export const Question: React.FC<IQuestionProps> = ({
 }) => {
     // THIS IS A CONTEST COMPONENT
     const {i18n, t} = useTranslation()
-    const {isPreferential} = provideBallotService()
+    const {isPreferential, selectionCapped} = provideBallotService()
     const isPreferentialVote = isPreferential(question.counting_algorithm)
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const [explicitBlank, setExplicitBlank] = useState<boolean>(false)
     let [categoriesMapOrder, setCategoriesMapOrder] = useState<CategoriesMap | null>(null)
     let [isInvalidWriteIns, setIsInvalidWriteIns] = useState(false)
-    let [selectedChoicesSum, setSelectedChoicesSum] = useState(0)
-    let [disableSelect, setDisableSelect] = useState(false)
     let {invalidOrBlankCandidates, noCategoryCandidates, categoriesMap} =
         categorizeCandidates(question)
     // An acclaimed contest is display-only: nothing can be selected, so it
@@ -222,15 +219,6 @@ export const Question: React.FC<IQuestionProps> = ({
     let hasWriteIns = checkAllowWriteIns(question) && !!question.candidates.find(checkIsWriteIn)
 
     useEffect(() => {
-        // Calculating the number of selected candidates
-        let selectedChoicesCount = contestState?.is_explicit_invalid ? 1 : 0
-        contestState?.choices.forEach((choice) => {
-            choice.selected >= 0 && selectedChoicesCount++
-        })
-        setSelectedChoicesSum(selectedChoicesCount)
-    }, [contestState])
-
-    useEffect(() => {
         setExplicitBlank(
             !!contestState?.choices.some(
                 (choice) => explicitBlankCandidateIds.has(choice.id) && choice.selected > -1
@@ -238,23 +226,14 @@ export const Question: React.FC<IQuestionProps> = ({
         )
     }, [contestState, explicitBlankCandidateIds])
 
-    const maxVotesNum = question.max_votes
-    const overVoteDisableMode =
-        question.presentation?.over_vote_policy === EOverVotePolicy.NOT_ALLOWED_WITH_MSG_AND_DISABLE
+    // Whether the contest has taken all the selections it will accept is a
+    // validation rule: sequent-core decides it, from the same selection
+    // count the other rules use.
+    const disableSelect = contestState ? selectionCapped(question, contestState) : false
     const iconCheckboxPolicy =
         question.presentation?.candidates_icon_checkbox_policy ??
         ECandidatesIconCheckboxPolicy.SQUARE_CHECKBOX
     const columnCount = question.presentation?.columns ?? 1
-
-    useEffect(() => {
-        if (overVoteDisableMode) {
-            if (selectedChoicesSum >= maxVotesNum) {
-                setDisableSelect(true)
-            } else {
-                setDisableSelect(false)
-            }
-        }
-    }, [selectedChoicesSum])
 
     const shuffleCategories = checkShuffleCategories(question)
     const shuffleCategoryList = checkShuffleCategoryList(question)
@@ -441,8 +420,6 @@ export const Question: React.FC<IQuestionProps> = ({
                                         isExplicitBlankVote={checkIsExplicitBlankVote(answer)}
                                         isRadioSelection={isRadioSelection}
                                         contest={question}
-                                        selectedChoicesSum={selectedChoicesSum}
-                                        setSelectedChoicesSum={setSelectedChoicesSum}
                                         disableSelect={disableSelect}
                                         iconCheckboxPolicy={iconCheckboxPolicy}
                                         explicitBlank={explicitBlank}
@@ -472,8 +449,6 @@ export const Question: React.FC<IQuestionProps> = ({
                                             isInvalidWriteIns={isInvalidWriteIns}
                                             isRadioSelection={isRadioSelection}
                                             contest={question}
-                                            selectedChoicesSum={selectedChoicesSum}
-                                            setSelectedChoicesSum={setSelectedChoicesSum}
                                             disableSelect={disableSelect}
                                             iconCheckboxPolicy={iconCheckboxPolicy}
                                             explicitBlank={explicitBlank}
@@ -512,8 +487,6 @@ export const Question: React.FC<IQuestionProps> = ({
                                             isReview={isReview}
                                             isRadioSelection={isRadioSelection}
                                             contest={question}
-                                            selectedChoicesSum={selectedChoicesSum}
-                                            setSelectedChoicesSum={setSelectedChoicesSum}
                                             disableSelect={disableSelect}
                                             iconCheckboxPolicy={iconCheckboxPolicy}
                                             explicitBlank={explicitBlank}
@@ -542,8 +515,6 @@ export const Question: React.FC<IQuestionProps> = ({
                                         isInvalidWriteIns={false}
                                         isRadioSelection={isRadioSelection}
                                         contest={question}
-                                        selectedChoicesSum={selectedChoicesSum}
-                                        setSelectedChoicesSum={setSelectedChoicesSum}
                                         disableSelect={disableSelect}
                                         iconCheckboxPolicy={iconCheckboxPolicy}
                                         explicitBlank={explicitBlank}

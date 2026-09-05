@@ -5,6 +5,7 @@
 use super::Result;
 use crate::pipes::do_tally::ExtendedMetricsContest;
 use sequent_core::plaintext::DecodedVoteContest;
+use sequent_core::validation::ContestValidator;
 use sequent_core::{
     ballot::{BallotStyle, Candidate, Contest, Weight},
     types::ceremonies::{CountingAlgType, TallyOperation},
@@ -14,15 +15,7 @@ use std::str::FromStr;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BallotClass {
-    ExplicitInvalid,
-    ImplicitInvalid,
-    ExplicitBlank,
-    ImplicitBlank,
-    Declined,
-    Valid,
-}
+pub use sequent_core::validation::BallotClass;
 
 pub fn get_explicit_blank_candidate_ids(contest: &Contest) -> HashSet<String> {
     contest
@@ -78,41 +71,13 @@ pub fn has_selected_non_explicit_blank_choice(
     explicit_blank_selection_flags(vote, explicit_blank_candidate_ids).1
 }
 
-pub fn classify_ballot(
-    vote: &DecodedVoteContest,
-    explicit_blank_candidate_ids: &HashSet<String>,
-) -> BallotClass {
-    // Decline-to-vote takes precedence over the invalid checks: a declined
-    // ballot is intentionally empty, so it must not be reclassified as
-    // invalid. A declined ballot with actual content (selections, an
-    // explicit invalid marker or policy errors) is not blank and classifies
-    // as implicit invalid.
-    if vote.is_decline_to_vote() {
-        if vote.is_blank() {
-            BallotClass::Declined
-        } else {
-            BallotClass::ImplicitInvalid
-        }
-    } else if vote.is_invalid() {
-        if vote.is_explicit_invalid {
-            BallotClass::ExplicitInvalid
-        } else {
-            BallotClass::ImplicitInvalid
-        }
-    } else {
-        let (has_explicit_blank, has_non_explicit_blank_selection) =
-            explicit_blank_selection_flags(vote, explicit_blank_candidate_ids);
-
-        if has_explicit_blank && has_non_explicit_blank_selection {
-            BallotClass::ImplicitInvalid
-        } else if has_explicit_blank {
-            BallotClass::ExplicitBlank
-        } else if vote.is_blank() {
-            BallotClass::ImplicitBlank
-        } else {
-            BallotClass::Valid
-        }
-    }
+/// Classifies one ballot for the tally.
+///
+/// The rules live in `sequent_core::validation`, where ballot decoding and
+/// the voting screen evaluate them too, so the tally cannot classify a
+/// ballot in a way that contradicts what the voter was told about it.
+pub fn classify_ballot(vote: &DecodedVoteContest, validator: &ContestValidator) -> BallotClass {
+    validator.classify(vote)
 }
 
 fn count_actual_votes(
@@ -350,12 +315,12 @@ mod tests {
     #[test]
     fn classifies_explicit_invalid() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
         let mut explicit_invalid = vote(false, false);
         explicit_invalid.is_explicit_invalid = true;
 
         assert_eq!(
-            classify_ballot(&explicit_invalid, &explicit_blank_candidate_ids),
+            classify_ballot(&explicit_invalid, &validator),
             BallotClass::ExplicitInvalid
         );
     }
@@ -363,12 +328,12 @@ mod tests {
     #[test]
     fn classifies_implicit_invalid_from_errors() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
         let mut implicit_invalid = vote(false, false);
         implicit_invalid.invalid_errors = vec![implicit_invalid_error()];
 
         assert_eq!(
-            classify_ballot(&implicit_invalid, &explicit_blank_candidate_ids),
+            classify_ballot(&implicit_invalid, &validator),
             BallotClass::ImplicitInvalid
         );
     }
@@ -376,12 +341,12 @@ mod tests {
     #[test]
     fn classifies_declined_blank_ballot() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
         let mut declined = vote(false, false);
         declined.is_decline_to_vote = true;
 
         assert_eq!(
-            classify_ballot(&declined, &explicit_blank_candidate_ids),
+            classify_ballot(&declined, &validator),
             BallotClass::Declined
         );
     }
@@ -389,12 +354,12 @@ mod tests {
     #[test]
     fn classifies_declined_non_blank_ballot_as_implicit_invalid() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
         let mut declined = vote(true, false);
         declined.is_decline_to_vote = true;
 
         assert_eq!(
-            classify_ballot(&declined, &explicit_blank_candidate_ids),
+            classify_ballot(&declined, &validator),
             BallotClass::ImplicitInvalid
         );
     }
@@ -405,13 +370,13 @@ mod tests {
         // declined ballot carrying an explicit invalid marker is not blank,
         // so it classifies as implicit invalid (not explicit invalid).
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
         let mut declined = vote(false, false);
         declined.is_decline_to_vote = true;
         declined.is_explicit_invalid = true;
 
         assert_eq!(
-            classify_ballot(&declined, &explicit_blank_candidate_ids),
+            classify_ballot(&declined, &validator),
             BallotClass::ImplicitInvalid
         );
     }
@@ -419,10 +384,10 @@ mod tests {
     #[test]
     fn classifies_mixed_explicit_blank_as_implicit_invalid() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
 
         assert_eq!(
-            classify_ballot(&vote(true, true), &explicit_blank_candidate_ids),
+            classify_ballot(&vote(true, true), &validator),
             BallotClass::ImplicitInvalid
         );
     }
@@ -430,10 +395,10 @@ mod tests {
     #[test]
     fn classifies_explicit_blank() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
 
         assert_eq!(
-            classify_ballot(&vote(false, true), &explicit_blank_candidate_ids),
+            classify_ballot(&vote(false, true), &validator),
             BallotClass::ExplicitBlank
         );
     }
@@ -441,10 +406,10 @@ mod tests {
     #[test]
     fn classifies_implicit_blank() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
 
         assert_eq!(
-            classify_ballot(&vote(false, false), &explicit_blank_candidate_ids),
+            classify_ballot(&vote(false, false), &validator),
             BallotClass::ImplicitBlank
         );
     }
@@ -452,10 +417,10 @@ mod tests {
     #[test]
     fn classifies_regular_valid_vote() {
         let contest = contest();
-        let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(&contest);
+        let validator = ContestValidator::for_contest(&contest);
 
         assert_eq!(
-            classify_ballot(&vote(true, false), &explicit_blank_candidate_ids),
+            classify_ballot(&vote(true, false), &validator),
             BallotClass::Valid
         );
     }

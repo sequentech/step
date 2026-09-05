@@ -17,6 +17,7 @@ use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::{
     ScopeOperation, TallyOperation, TallySessionResolutionData, TieBreakingMethod,
 };
+use sequent_core::validation::ContestValidator;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::cmp;
@@ -68,6 +69,9 @@ impl BallotsStatus<'_> {
         contest: &Contest,
     ) -> BallotsStatus<'a> {
         let explicit_blank_candidate_ids = get_explicit_blank_candidate_ids(contest);
+        // Built once per contest: the marker-id sets it derives do not
+        // change from ballot to ballot.
+        let validator = ContestValidator::for_contest(contest);
         let mut count_invalid_votes = InvalidVotes::default();
         let mut blank_votes = BlankVotes::default();
         let mut extended_metrics = ExtendedMetricsContest::default();
@@ -81,7 +85,7 @@ impl BallotsStatus<'_> {
                 count_blank_ballots = count_blank_ballots.saturating_add(1);
             }
 
-            let status = match classify_ballot(vote, &explicit_blank_candidate_ids) {
+            let status = match classify_ballot(vote, &validator) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
                     BallotStatus::Invalid
