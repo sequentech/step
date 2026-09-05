@@ -42,7 +42,7 @@ const Footer: React.FC<PaperProps> = (args) => {
     if (!poweredByString.includes("<0>") && !poweredByString.includes("<1>")) {
         return (
             <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
-                <Typography variant="subtitle2" fontStyle="italic" color="error">
+                <Typography component="p" variant="subtitle2" fontStyle="italic" color="error">
                     Error: Invalid translation for footer.poweredBy. It must contain `&lt;1
                     &gt;``&lt;1 /&gt;`.
                 </Typography>
@@ -52,7 +52,7 @@ const Footer: React.FC<PaperProps> = (args) => {
 
     return (
         <StyledPaper role="contentinfo" component="footer" className="footer-class" {...args}>
-            <Typography variant="subtitle2" fontStyle="italic">
+            <Typography component="p" variant="subtitle2" fontStyle="italic">
                 <Trans
                     i18nKey="footer.poweredBy"
                     components={[
