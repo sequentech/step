@@ -6,10 +6,10 @@ schema {
 
 """whether this query should be cached (Hasura Cloud only)"""
 directive @cached(
-  """refresh the cache entry"""
-  refresh: Boolean! = false
   """measured in seconds"""
   ttl: Int! = 60
+  """refresh the cache entry"""
+  refresh: Boolean! = false
 ) on QUERY
 
 type AcknowledgeSupportMaterialsOutput {
@@ -241,7 +241,6 @@ input EditUsersInput {
   groups: [String!]
   last_name: String
   password: String
-  secret_attributes: jsonb
   temporary: Boolean
   tenant_id: String!
   user_id: String!
@@ -347,7 +346,6 @@ input ExportOptions {
   activity_logs: Boolean
   applications: Boolean
   bulletin_board: Boolean
-  encrypt_with_password: Boolean
   include_certificates: Boolean
   include_voters: Boolean
   is_encrypted: Boolean
@@ -880,11 +878,6 @@ enum ResultsWebsiteVisibilityScope {
   full_event
 }
 
-type RevealVoterSecretAttributeOutput {
-  attribute_name: String!
-  values: [String!]!
-}
-
 type RevokeResultsPublicationOutput {
   publication_id: String!
   publication_status: ResultsPublicationStatus!
@@ -1258,7 +1251,7 @@ type mutation_root {
   """create_tally_sheet_import"""
   create_tally_sheet_import(document_id: String!, election_event_id: String!, selected_channel: String!, sha256: String, source_format: String!): TallySheetImportActionOutput
   create_transmission_package(area_id: uuid!, election_event_id: uuid!, election_id: uuid!, force: Boolean!, tally_session_id: uuid!): createTransmissionPackageOutput
-  create_user(election_event_id: String, secret_attributes: jsonb, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
+  create_user(election_event_id: String, tenant_id: String!, user: KeycloakUser2!, user_roles_ids: [String!]): KeycloakUser!
   """Delete a certificate authority by id"""
   delete_certificate_authority(election_event_id: uuid!, ids: [uuid!]!): DeleteCertificateAuthorityOutput
   delete_election_event(election_event_id: String!): DeleteElectionEvent
@@ -1758,7 +1751,7 @@ type mutation_root {
   export_template(election_event_id: String, election_id: String, tenant_id: String!): ExportTemplateOutput
   export_tenant_config(tenant_id: String): documentTaskOutput
   export_tenant_users(tenant_id: String!): ExportTenantUsersOutput
-  export_users(election_event_id: String, election_id: String, include_secret_attributes: Boolean, tenant_id: String!): ExportUsersOutput
+  export_users(election_event_id: String, election_id: String, tenant_id: String!): ExportUsersOutput
   generate_ballot_publication(election_event_id: uuid!, election_id: uuid): GenerateBallotPublicationOutput
   """generate Google Meet link for election events"""
   generate_google_meet(attendee_emails: [String!]!, description: String!, end_date_time: String!, start_date_time: String!, summary: String!, time_zone: String!): GenerateGoogleMeetOutput
@@ -5052,7 +5045,6 @@ type query_root {
   Resolve the active results website publication for authenticated viewers
   """
   resolveResultsPublication(ee_id: String!, election_id: String): ResolveResultsPublicationOutput
-  reveal_voter_secret_attribute(attribute_name: String!, election_event_id: String!, tenant_id: String!, user_id: String!): RevealVoterSecretAttributeOutput!
   """
   fetch data from the table: "sequent_backend.applications"
   """
