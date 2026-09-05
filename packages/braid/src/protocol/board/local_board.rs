@@ -592,7 +592,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         };
 
         loop {
-            if self.statements.get(&sei).is_none() {
+            if !self.statements.contains_key(&sei) {
                 break;
             }
             sei.batch = sei.batch + 1;

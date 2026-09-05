@@ -10,7 +10,7 @@ use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::ceremonies::velvet_tally::call_velvet;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
-use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
+use crate::services::consolidation::tally_download::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
@@ -113,6 +113,7 @@ async fn create_config(
     let mut file = fs::OpenOptions::new()
         .write(true)
         .create(true)
+        .truncate(true)
         .open(&config_path)?;
 
     writeln!(file, "{}", serde_json::to_string(&velvet_config)?)?;

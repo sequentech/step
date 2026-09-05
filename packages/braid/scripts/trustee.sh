@@ -5,13 +5,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 set -e
-set -x
+umask 077
 
 # Set default values
 cd /opt/braid
 #bb_helper --cache-dir /tmp/cache -s "$IMMUDB_URL" -b defaultboard -u "$IMMUDB_USER" -p "$IMMUDB_PASSWORD" upsert-board-db -l debug
 TRUSTEE_CONFIG_PATH=${TRUSTEE_CONFIG_PATH:-"/opt/braid/trustee.toml"} # Skipping secretsService if TRUSTEE_CONFIG_PATH is set
-SECRETS_BACKEND=${SECRETS_BACKEND:-"Awssecretsmanager"} # Default to Awssecretsmanager if not set
+SECRETS_BACKEND=${SECRETS_BACKEND:-"EnvVarMasterSecret"}
 SECRETS_BACKEND_LOWER=$(echo "$SECRETS_BACKEND" | tr '[:upper:]' '[:lower:]')
 if [ -z "$TRUSTEE_NAME" ] && [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
     echo "Error: TRUSTEE_NAME must be set." #Avoid secrets overwriting
@@ -39,9 +39,29 @@ if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
     SECRET_KEY_NAME="${AWS_SM_KEY_PREFIX}${SECRET_KEY_NAME}"
 fi
 
-# Export Vault environment variables (Consumed internally by vault binary)
-export VAULT_ADDR="${VAULT_SERVER_URL}"
-export VAULT_TOKEN="${VAULT_TOKEN}"
+# Fail before generating or changing a trustee key when an optional backend is unavailable.
+# An explicitly supplied configuration file does not need a cloud secret service.
+if [ ! -f "$TRUSTEE_CONFIG_PATH" ]; then
+    case "$SECRETS_BACKEND_LOWER" in
+        awssecretsmanager|hashicorpvault)
+            if [ "${CLOUD_SECRET_BACKENDS:-disabled}" != "enabled" ]; then
+                echo "Error: cloud secret backends are disabled in this image configuration." >&2
+                exit 1
+            fi
+            if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
+                command -v aws >/dev/null || { echo "Error: reviewed AWS CLI input missing." >&2; exit 1; }
+            else
+                # OpenBao implements the Vault KV interface used below.
+                VAULT_CLI=${VAULT_CLI:-bao}
+                command -v "$VAULT_CLI" >/dev/null || { echo "Error: reviewed Vault-compatible CLI input missing." >&2; exit 1; }
+            fi
+            ;;
+    esac
+fi
+
+# Export Vault-compatible client environment variables
+export VAULT_ADDR="${VAULT_SERVER_URL:-${VAULT_ADDR:-}}"
+export VAULT_TOKEN="${VAULT_TOKEN:-}"
 
 # Function to log messages
 log() {
@@ -55,7 +75,7 @@ fetch_secret_aws() {
 
 # Fetch secret from HashiCorp Vault
 fetch_secret_vault() {
-    vault kv get -field=value "$1"
+    "$VAULT_CLI" kv get -field=value "$1"
 }
 
 # Store secret in AWS Secrets Manager
@@ -65,7 +85,7 @@ store_secret_aws() {
 
 # Store secret in HashiCorp Vault
 store_secret_vault() {
-    vault kv put "$1" value="$2"
+    "$VAULT_CLI" kv put "$1" value="$2"
 }
 
 # Main function to handle the config
@@ -80,22 +100,26 @@ handle_trustee_config() {
         case "$SECRETS_BACKEND_LOWER" in
             "envvarmastersecret")
                 if [ -z "$TRUSTEE_CONFIG" ]; then
-                    log "TRUSTEE_CONFIG empty, generating ephemeral config"
+                    if [ "${TRUSTEE_ALLOW_EPHEMERAL:-false}" != "true" ]; then
+                        echo "Error: provide a persistent trustee configuration file or TRUSTEE_CONFIG." >&2
+                        exit 1
+                    fi
+                    log "Explicit test mode: generating ephemeral config"
                     config_content=$(gen_trustee_config)
                 else
-                    config_content=$(echo -e "$TRUSTEE_CONFIG")
+                    config_content=$TRUSTEE_CONFIG
                 fi
                 ;;
             "awssecretsmanager")
                 config_content=$(fetch_secret_aws "$SECRET_KEY_NAME" 2>/dev/null) || {
-                    log "Failed to fetch from AWS Secrets Manager"
-                    config_content=""
+                    log "Failed to fetch from AWS Secrets Manager; no key created or replaced"
+                    exit 1
                 }
                 ;;
             "hashicorpvault")
                 config_content=$(fetch_secret_vault "$SECRET_KEY_NAME" 2>/dev/null) || {
-                    log "Failed to fetch from HashiCorp Vault"
-                    config_content=""
+                    log "Failed to fetch from Vault-compatible service; no key created or replaced"
+                    exit 1
                 }
                 ;;
             *)
@@ -105,18 +129,13 @@ handle_trustee_config() {
         esac
 
         if [ -z "$config_content" ]; then
-            log "Config does not exist, generating..."
-            config_content=$(gen_trustee_config)
-            if [ "$SECRETS_BACKEND_LOWER" = "awssecretsmanager" ]; then
-                store_secret_aws "$SECRET_KEY_NAME" "$config_content"
-            elif [ "$SECRETS_BACKEND_LOWER" = "hashicorpvault" ]; then
-                store_secret_vault "$SECRET_KEY_NAME" "$config_content"
-            fi
+            echo "Error: retrieved trustee configuration is empty; provision it explicitly before startup." >&2
+            exit 1
         fi
     fi
 
     if [ ! -f "$TRUSTEE_CONFIG_PATH" ] || [ "$(cat "$TRUSTEE_CONFIG_PATH")" != "$config_content" ]; then
-        printf "%b" "$config_content" > "$TRUSTEE_CONFIG_PATH"
+        printf "%s\n" "$config_content" > "$TRUSTEE_CONFIG_PATH"
         log "Wrote config to $TRUSTEE_CONFIG_PATH"
     fi
     grep key_pk "$TRUSTEE_CONFIG_PATH"

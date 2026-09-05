@@ -143,7 +143,7 @@ pub trait TemplateRenderer: Debug {
     ///
     /// For reports generated from a export button:
     /// No template_alias is provided from the UI at the moment, then it must be retrieved from postgres as well.
-
+    ///
     /// Default implementation, can be overridden in specific reports that have
     /// election_id
     #[instrument(skip(self))]

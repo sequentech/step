@@ -142,7 +142,9 @@ pub struct IndexedDbStorage {
 // SAFETY: WASM is single-threaded, so RefCell is safe to share across "threads"
 // (which don't actually exist in WASM). This allows IndexedDbStorage to implement
 // LocalBoardStorage which requires Send + Sync.
+#[allow(unsafe_code)]
 unsafe impl Send for IndexedDbStorage {}
+#[allow(unsafe_code)]
 unsafe impl Sync for IndexedDbStorage {}
 
 impl IndexedDbStorage {

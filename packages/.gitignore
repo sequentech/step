@@ -1,3 +1,10 @@
 package-lock.json
 yarn-error.log
 b4/b4.db
+
+# vendored crate sources of the offline production build (packages/.cargo/config.toml)
+vendor/
+
+# the WebAssembly package of sequent-core, built by the build definitions and the
+# devcontainer script rather than committed
+*/rust/pkg/

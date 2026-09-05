@@ -17690,17 +17690,14 @@ sentence-case@^3.0.4:
     tslib "^2.0.3"
     upper-case-first "^2.0.2"
 
-"sequent-core@file:./admin-portal/rust/sequent-core-0.1.0.tgz":
+"sequent-core@file:./admin-portal/rust/pkg":
   version "0.1.0"
-  resolved "file:./admin-portal/rust/sequent-core-0.1.0.tgz#c1d193b5172c8c46bd1048b165f3f40c845433a1"
 
-"sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
+"sequent-core@file:./ballot-verifier/rust/pkg":
   version "0.1.0"
-  resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#c1d193b5172c8c46bd1048b165f3f40c845433a1"
 
-"sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
+"sequent-core@file:./voting-portal/rust/pkg":
   version "0.1.0"
-  resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#c1d193b5172c8c46bd1048b165f3f40c845433a1"
 
 serialize-javascript@^6.0.0, serialize-javascript@^6.0.2:
   version "6.0.2"
@@ -19768,7 +19765,7 @@ webpack-virtual-modules@^0.6.0, webpack-virtual-modules@^0.6.2:
   resolved "https://registry.yarnpkg.com/webpack-virtual-modules/-/webpack-virtual-modules-0.6.2.tgz#057faa9065c8acf48f24cb57ac0e77739ab9a7e8"
   integrity sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==
 
-webpack@5, webpack@5.94.0, webpack@^5.94.0:
+webpack@5, webpack@^5.94.0:
   version "5.105.1"
   resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.105.1.tgz#c05cb3621196c76fa3b3a9bea446d14616b83778"
   integrity sha512-Gdj3X74CLJJ8zy4URmK42W7wTZUJrqL+z8nyGEr4dTN0kb3nVs+ZvjbTOqRYPD7qX4tUmwyHL9Q9K6T1seW6Yw==

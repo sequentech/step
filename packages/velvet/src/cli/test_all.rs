@@ -88,7 +88,6 @@ pub fn generate_ballots(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -315,7 +314,6 @@ pub fn generate_mcballots_with_blank(
                 }
 
                 let mut file = fs::OpenOptions::new()
-                    .write(true)
                     .append(true)
                     .create(true)
                     .open(file.join(BALLOTS_FILE))?;
@@ -453,7 +451,6 @@ pub fn generate_mcballots_with_blank(
                 .join(format!("area__{}", key.0));
 
             let mut file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(file.join(BALLOTS_FILE))?;
@@ -604,6 +601,9 @@ mod tests {
         Ok(())
     }
 
+    // Exercises the Miru multi-contest receipts pipeline, which is not part
+    // of the evaluated TOE build (feature `miru`, off by default).
+    #[cfg(feature = "miru")]
     #[test]
     fn test_pipes_exec_mcballots() -> Result<()> {
         //sequent_core::util::init_log::init_log(true);
@@ -750,7 +750,8 @@ mod tests {
         state.exec_next()?; // DecodeBallots
         state.exec_next()?; // DecodeMCBallots
         state.exec_next()?; // BallotImages
-        state.exec_next()?; // MultiBallotReceipts
+        #[cfg(feature = "miru")]
+        state.exec_next()?; // MultiBallotReceipts (miru builds only)
         state.exec_next()?; // DoTally
         state.exec_next()?; // MarkWinners
         state.exec_next()?; // GenerateReports
@@ -984,7 +985,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1088,7 +1088,6 @@ mod tests {
             .join(format!("area__{}", &area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1197,7 +1196,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1432,7 +1430,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1539,7 +1536,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1706,7 +1702,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -1858,7 +1853,6 @@ mod tests {
             .join(format!("area__{}", area_config.id));
 
         let mut file = fs::OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(ballot_file.join("ballots.csv"))?;
@@ -2057,7 +2051,6 @@ mod tests {
             println!("ballots_path={ballots_path:?}");
 
             let mut ballots_csv_file = fs::OpenOptions::new()
-                .write(true)
                 .append(true)
                 .create(true)
                 .open(ballots_path)?;

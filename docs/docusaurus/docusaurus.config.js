@@ -22,6 +22,8 @@ const config = {
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
+  plugins: [require.resolve('./scripts/publication-build.cjs')],
+
   // i18n, if you ever need it:
   i18n: {
     defaultLocale: 'en',

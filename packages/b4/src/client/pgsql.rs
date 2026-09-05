@@ -872,12 +872,7 @@ async fn insert_messages(
     messages: &Vec<B3MessageRow>,
 ) -> Result<()> {
     for chunk in messages.chunks(PG_DEFAULT_ENTRIES_TX_LIMIT) {
-        cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
-            insert_copy(client, board_name, chunk).await?;
-        }
-        else {
-            insert(client, board_name, chunk).await?;
-        }}
+        insert(client, board_name, chunk).await?;
     }
     Ok(())
 }
@@ -1102,120 +1097,6 @@ async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3
         Ok(None)
     }
 }
-
-cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
-
-    use futures::pin_mut;
-    use tokio_postgres::binary_copy::BinaryCopyInWriter;
-    use tokio_postgres::types::{ToSql, Type};
-
-    // Uses the COPY postgresql command
-    // Note: For partitioned tables, COPY goes to the partition directly via messages_{board_name}
-    async fn insert_copy(
-        client: &mut Client,
-        board_name: &str,
-        messages: &[B3MessageRow],
-    ) -> Result<()> {
-        // Start a new transaction
-        let transaction = client.transaction().await?;
-        let types: Vec<Type> = vec![
-            Type::VARCHAR,  // board_name
-            Type::TIMESTAMP, // created
-            Type::INT8,      // timestamp (b4 compat)
-            Type::VARCHAR,
-            Type::TIMESTAMP,
-            Type::VARCHAR,
-            Type::INT4,
-            Type::INT4,
-            Type::BYTEA,
-            Type::VARCHAR,
-        ];
-        let stmt = format!("COPY {} (board_name, created, timestamp, sender_pk, statement_timestamp, statement_kind, batch, mix_number, message, version) FROM STDIN BINARY", MESSAGES_TABLE);
-
-        // http://disq.us/p/2ficy6c
-        // https://stackoverflow.com/questions/52432459/postgresql-serialized-inserts-interleaving-sequence-numbers
-        let lock = format!("select pg_advisory_xact_lock(hashtext($1))");
-        transaction.execute(&lock, &[&board_name]).await?;
-        let sink = transaction.copy_in(&stmt).await?;
-        let writer = BinaryCopyInWriter::new(sink, &types);
-        let batches = _write(writer, board_name, &messages).await?;
-        transaction.commit().await?;
-
-        // We do not care if any of these operations fail, they are statistics
-        if let Some(last) = messages.last() {
-            let Ok(transaction) = client.transaction().await else {
-                return Ok(());
-            };
-
-            let message_sql = format!(
-                r#"
-            UPDATE {}
-            SET
-            last_message_kind = $1,
-            message_count = (SELECT COUNT(*) FROM {} WHERE board_name = $3),
-            batch_count = batch_count + $2,
-            last_updated = localtimestamp
-            WHERE board_name = $3
-            "#,
-                BOARDS_TABLE, MESSAGES_TABLE,
-            );
-
-            let Ok(_) = transaction
-                .execute(&message_sql, &[&last.statement_kind, &batches, &board_name])
-                .await
-            else {
-                return Ok(());
-            };
-
-            let _ = transaction.commit().await;
-        }
-
-        Ok(())
-    }
-
-    async fn _write(writer: BinaryCopyInWriter, board_name: &str, messages: &[B3MessageRow]) -> Result<i32> {
-        pin_mut!(writer);
-
-        let mut row: Vec<&'_ (dyn ToSql + Sync)> = vec![];
-        let mut ts: Vec<(SystemTime, SystemTime)> = vec![];
-        let mut batches = 0;
-
-        for message in messages {
-            if message.statement_kind == StatementType::Ballots.to_string() {
-                batches = batches + 1;
-            }
-
-            let created = crate::system_time_from_timestamp(message.created).ok_or(anyhow!(
-                "Could not extract system time from 'created' value"
-            ))?;
-            let statement_timestamp = crate::system_time_from_timestamp(message.created).ok_or(
-                anyhow!("Could not extract system time from 'statement_timestamp' value"),
-            )?;
-
-            ts.push((created, statement_timestamp));
-        }
-        for (i, message) in messages.iter().enumerate() {
-            let timestamp_i64 = message.created as i64;
-            row.clear();
-            row.push(&board_name);  // board_name first
-            row.push(&ts[i].0);     // created
-            row.push(&timestamp_i64); // timestamp
-            row.push(&message.sender_pk);
-            row.push(&ts[i].1);     // statement_timestamp
-            row.push(&message.statement_kind);
-            row.push(&message.batch);
-            row.push(&message.mix_number);
-            row.push(&message.message);
-            row.push(&message.version);
-
-            writer.as_mut().write(&row).await?;
-        }
-
-        writer.finish().await?;
-
-        Ok(batches)
-    }
-}}
 
 // Run ignored tests with
 // cargo test <test_name> -- --include-ignored

@@ -52,7 +52,6 @@ pub enum ApplicationRejectReason {
     Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
 )]
 pub enum ApplicationsError {
-    #[strum(serialize = "Approved_Voter")]
     #[strum(to_string = "Approved_Voter")]
     APPROVED_VOTER,
 }

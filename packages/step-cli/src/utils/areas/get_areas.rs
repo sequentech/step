@@ -11,7 +11,6 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_areas.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct GetAreas;
 
 impl GetAreas {

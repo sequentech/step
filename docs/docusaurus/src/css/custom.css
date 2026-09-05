@@ -164,3 +164,10 @@ body.home .navbar__brand .navbar__title {
   width: 190px;
   height: 190px;
 }
+
+
+@media print {
+  .theme-edit-this-page {
+    display: none;
+  }
+}

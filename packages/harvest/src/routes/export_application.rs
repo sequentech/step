@@ -80,7 +80,8 @@ pub async fn export_application_route(
         .await
     {
         Err(error) => {
-            update_fail(
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(
                 &task_execution,
                 &format!("Error sending export_application task: {error:?}"),
             )

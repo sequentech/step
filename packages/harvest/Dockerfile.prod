@@ -2,24 +2,53 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM rust:1.96.0-slim-bookworm as builder
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# The Debian packages the two stages below install, and the vendored crates the build reads.
+# The controlled production build supplies each from the accepted external inputs with
+# `--build-context <stage>=<directory>`, which replaces the stage of that name and leaves the
+# download unbuilt: `debs-builder` and `debs-runtime` hold the .deb files of the packages
+# their download stages name, `cargo-vendor` the crate sources of Cargo.lock, which cargo
+# reads through the [source] configuration the production job appends to .cargo/config.toml.
+# A build outside that workflow downloads the packages from the Debian archive, authenticated
+# by apt against the keyring of the base image, and resolves the crates from crates.io.
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS debs-builder-download
+RUN mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
     chromium \
     protobuf-compiler \
     libprotobuf-dev \
     m4 \
     make \
     pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libssl-dev
 
+FROM scratch AS debs-builder
+COPY --from=debs-builder-download /debs/*.deb /
 
-#TODO: Copy only necessary files
+FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443 AS debs-runtime-download
+RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
+    && mkdir -p /debs && apt-get update && apt-get install -y --no-install-recommends --download-only \
+    -o Dir::Cache::archives=/debs \
+    libssl3 \
+    chromium \
+    ca-certificates \
+    wget \
+    software-properties-common
+
+FROM scratch AS debs-runtime
+COPY --from=debs-runtime-download /debs/*.deb /
+
+FROM scratch AS cargo-vendor
+
+FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS builder
+
+WORKDIR /app
+
+COPY --from=debs-builder / /tmp/debs/
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs
+
 COPY ./braid ./braid
-COPY ./b3 ./b3
+COPY ./b4 ./b4
 COPY ./electoral-log ./electoral-log
 COPY ./harvest ./harvest
 COPY ./strand ./strand
@@ -37,65 +66,23 @@ COPY ./plugins ./plugins
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
-
-RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
+COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/harvest
-RUN cargo build --release --locked
+RUN cargo build --release --locked --offline
 
-
-FROM debian:bookworm
+FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 ENV ROCKET_ADDRESS=0.0.0.0
 ENV ROCKET_PORT=8400
 EXPOSE 8400
-# Some shared libraries (extra-runtime-dependencies) may need to be installed:
-# Install any necessary runtime dependencies for production
 
-RUN echo "deb http://deb.debian.org/debian/ bookworm-proposed-updates main" >> /etc/apt/sources.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends libssl3 chromium ca-certificates wget software-properties-common \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=debs-runtime / /tmp/debs/
+RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
+    && rm -rf /tmp/debs
 RUN update-ca-certificates
 
-# Use Docker build arguments to determine the architecture
-ARG TARGETARCH
-
-# Set Java version
-ENV JAVA_VERSION=22.0.2
-ENV JAVA_BUILD=c9ecb94cd31b495da20a27d4581645e8/9
-
-# Default to linux-x64, which is the most common.
-# This will be overridden by the conditional logic below.
-ENV JAVA_OS_ARCH=linux-x64
-ENV JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz
-
-# Conditional logic to set the correct download URL and filename based on architecture
-RUN case "${TARGETARCH}" in \
-    "amd64") \
-        export JAVA_OS_ARCH=linux-x64; \
-        export JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-x64_bin.tar.gz; \
-        ;; \
-    "arm64") \
-        export JAVA_OS_ARCH=linux-aarch64; \
-        export JAVA_FILENAME=openjdk-${JAVA_VERSION}_linux-aarch64_bin.tar.gz; \
-        ;; \
-    *) \
-        echo "Unsupported architecture: ${TARGETARCH}"; \
-        exit 1; \
-        ;; \
-    esac; \
-    echo "Downloading OpenJDK for ${JAVA_OS_ARCH}"; \
-    echo "Download url https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME}"; \
-    echo "JAVA_FILENAME=${JAVA_FILENAME}" >> /etc/profile.d/java.sh; \
-    wget https://download.java.net/java/GA/jdk${JAVA_VERSION}/${JAVA_BUILD}/GPL/${JAVA_FILENAME} \
-    && tar xvf ${JAVA_FILENAME} \
-    && mv jdk-${JAVA_VERSION} /usr/local/ \
-    && update-alternatives --install /usr/bin/java java /usr/local/jdk-${JAVA_VERSION}/bin/java 1 \
-    && update-alternatives --install /usr/bin/javac javac /usr/local/jdk-${JAVA_VERSION}/bin/javac 1 \
-    && curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
 # Copy the compiled binary from the builder stage
 COPY --from=builder /app/target/release/harvest /usr/local/bin/harvest
-COPY --from=builder /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 
 WORKDIR /usr/local/bin
 

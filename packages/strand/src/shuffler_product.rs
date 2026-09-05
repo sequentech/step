@@ -289,12 +289,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 "N != h_generators.len()".to_string(),
             ));
         }
-        if N <= 0 {
+        if N == 0 {
             return Err(StrandError::Generic(
                 "Cannot shuffle 0 ciphertexts".to_string(),
             ));
         }
-        if width <= 0 {
+        if width == 0 {
             return Err(StrandError::Generic(
                 "Cannot shuffle 0-width ciphertexts".to_string(),
             ));
@@ -540,12 +540,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 "N != h_generators.len()".to_string(),
             ));
         }
-        if N <= 0 {
+        if N == 0 {
             return Err(StrandError::Generic(
                 "Cannot check proof on 0 ciphertexts".to_string(),
             ));
         }
-        if width <= 0 {
+        if width == 0 {
             return Err(StrandError::Generic(
                 "Cannot check proof on 0-width ciphertexts".to_string(),
             ));

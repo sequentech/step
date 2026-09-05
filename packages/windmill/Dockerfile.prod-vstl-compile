@@ -25,9 +25,6 @@ COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
 
-
-RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
-
 WORKDIR /app/windmill
 #RUN cargo vendor
 RUN cargo build --release --locked --frozen --offline

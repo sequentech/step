@@ -1706,7 +1706,7 @@ pub async fn get_username_by_id(
     }
 }
 
-#[instrument(err, skip_all(keycloak_transaction))]
+#[instrument(err, skip_all)]
 pub async fn get_user_area_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
@@ -1780,7 +1780,6 @@ pub async fn count_have_voted(
         let clause = format!("election_id = ${next_param_number}");
         filter_clauses.push(clause);
         params.push(Box::new(election_id_uuid));
-        next_param_number += 1;
     }
     let filter_clause = filter_clauses.join(" AND\n                    ");
 

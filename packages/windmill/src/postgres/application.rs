@@ -432,8 +432,7 @@ pub async fn count_applications(
     }
 
     use serde_json::Value as JsonValue;
-    let mut role_json: JsonValue = JsonValue::Array(Vec::new());
-    // let role_json_value: Json<serde_json::Value>;
+    let role_json: JsonValue;
 
     // Handle the role condition if provided
     if let Some(role) = role {
@@ -444,8 +443,7 @@ pub async fn count_applications(
         query.push_str(&format!(
             " AND (annotations->>'verified_by_role')::jsonb @> ${place}::jsonb"
         ));
-        // Push the actual String, not a reference
-        params.push(&role_json); // Now `role_json` is moved into `params`, not borrowed
+        params.push(&role_json);
         current_param_place += 1;
     }
 

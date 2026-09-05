@@ -454,11 +454,7 @@ pub async fn create_tally_ceremony(
         .filter(|election| {
             if election_ids.contains(&election.id) {
                 let status = get_election_status(election.status.clone()).unwrap_or_default();
-                if let Some(is_published) = status.is_published {
-                    is_published // Include only if `is_published` is true
-                } else {
-                    false
-                }
+                status.is_published.unwrap_or_default()
             } else {
                 false
             }
@@ -873,7 +869,7 @@ pub async fn set_private_key(
     // enough trustees connected, so change tally execution status to connected
     if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(
-            transaction.clone(),
+            transaction,
             &tenant_id,
             &election_event_id,
             &tally_session_id,

@@ -5,22 +5,16 @@
 
 use anyhow::{anyhow, Error};
 use core::result::Result;
-#[cfg(feature = "default_features")]
 use sequent_core::services::pdf::PdfRenderer;
 use std::env;
-use tokio::runtime::Runtime;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     cfg_if::cfg_if! {
         if #[cfg(feature = "lambda_inplace")] {
-            unsafe {
-                env::set_var("DOC_RENDERER_BACKEND", "inplace");
-            }
+            env::set_var("DOC_RENDERER_BACKEND", "inplace");
         } else if #[cfg(feature = "lambda_openwhisk")] {
-            unsafe {
-                env::set_var("DOC_RENDERER_BACKEND", "openwhisk");
-            }
+            env::set_var("DOC_RENDERER_BACKEND", "openwhisk");
             match env::var("OPENWHISK_DOC_RENDERER_ENDPOINT") {
                 Ok(endpoint) => println!("OpenWhisk doc renderer endpoint '{endpoint}' will be used"),
                 Err(_) => {
@@ -31,17 +25,16 @@ async fn main() -> Result<(), Error> {
                 },
             }
         } else if #[cfg(feature = "lambda_aws_lambda")] {
-            unsafe {
-                env::set_var("DOC_RENDERER_BACKEND", "aws_lambda");
-            }
+            env::set_var("DOC_RENDERER_BACKEND", "aws_lambda");
             match env::var("AWS_LAMBDA_DOC_RENDERER_ENDPOINT") {
                 Ok(endpoint) => println!("AWS Lambda doc renderer endpoint '{endpoint}' will be used"),
                 Err(_) => println!("Please, set envvar AWS_LAMBDA_DOC_RENDERER_ENDPOINT and try again")
             }
-        } else {
-            compile_error!("Either feature lambda_inplace, lambda_openwhisk or lambda_aws_lambda has to be provided");
         }
     }
+
+    // With no example-specific backend feature, use DOC_RENDERER_BACKEND and the
+    // renderer's normal local Chromium default.
 
     match PdfRenderer::render_pdf("Hello, world!".to_string(), None).await {
         Ok(data) => {

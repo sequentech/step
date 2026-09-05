@@ -4,7 +4,7 @@
 use crate::postgres::document::get_document;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
-use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
+use crate::services::consolidation::tally_download::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::tasks_execution::{update_complete, update_fail};

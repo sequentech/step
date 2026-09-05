@@ -45,7 +45,7 @@ impl TestFixture {
             temp_folder.join(format!("velvet/test-velvet-config-{}.json", Uuid::new_v4()));
         let mut file = fs::OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(&config_path)?;
 
         writeln!(file, "{}", serde_json::to_string(&get_config()?)?)?;
@@ -74,7 +74,7 @@ impl TestFixture {
         ));
         let mut file = fs::OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .open(&config_path)?;
 
         writeln!(file, "{}", serde_json::to_string(&get_config_mcballots()?)?)?;
@@ -309,48 +309,57 @@ pub fn get_config_mcballots() -> Result<Config> {
         map.insert(
             "main".to_string(),
             config::Stage {
-                pipeline: vec![
-                    config::PipeConfig {
-                        id: "decode-ballots".to_string(),
-                        pipe: PipeName::DecodeBallots,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "decode-multi-ballots".to_string(),
-                        pipe: PipeName::DecodeMCBallots,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "ballot-images".to_string(),
-                        pipe: PipeName::BallotImages,
-                        config: Some(serde_json::to_value(ballot_images_pipe_config)?),
-                    },
-                    config::PipeConfig {
+                pipeline: {
+                    let mut pipeline = vec![
+                        config::PipeConfig {
+                            id: "decode-ballots".to_string(),
+                            pipe: PipeName::DecodeBallots,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "decode-multi-ballots".to_string(),
+                            pipe: PipeName::DecodeMCBallots,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "ballot-images".to_string(),
+                            pipe: PipeName::BallotImages,
+                            config: Some(serde_json::to_value(ballot_images_pipe_config)?),
+                        },
+                    ];
+                    // The Miru receipts stage exists only in a `miru` build. The
+                    // evaluated TOE build omits it (see velvet/src/pipes/pipes.rs),
+                    // so the fixture pipeline must omit it there too.
+                    #[cfg(feature = "miru")]
+                    pipeline.push(config::PipeConfig {
                         id: "multi-ballot-images".to_string(),
                         pipe: PipeName::MCBallotReceipts,
                         config: Some(serde_json::to_value(mcballot_images_pipe_config)?),
-                    },
-                    config::PipeConfig {
-                        id: "do-tally".to_string(),
-                        pipe: PipeName::DoTally,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "mark-winners".to_string(),
-                        pipe: PipeName::MarkWinners,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "gen-report".to_string(),
-                        pipe: PipeName::GenerateReports,
-                        config: Some(serde_json::Value::Null),
-                    },
-                    config::PipeConfig {
-                        id: "gen-db".to_string(),
-                        pipe: PipeName::GenerateDatabase,
-                        config: Some(serde_json::to_value(database_pipe_config)?),
-                    },
-                ],
+                    });
+                    pipeline.extend([
+                        config::PipeConfig {
+                            id: "do-tally".to_string(),
+                            pipe: PipeName::DoTally,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "mark-winners".to_string(),
+                            pipe: PipeName::MarkWinners,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "gen-report".to_string(),
+                            pipe: PipeName::GenerateReports,
+                            config: Some(serde_json::Value::Null),
+                        },
+                        config::PipeConfig {
+                            id: "gen-db".to_string(),
+                            pipe: PipeName::GenerateDatabase,
+                            config: Some(serde_json::to_value(database_pipe_config)?),
+                        },
+                    ]);
+                    pipeline
+                },
             },
         );
         map

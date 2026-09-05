@@ -15,7 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [[example]]
 name = "render_pdf"
-required-features = ["reports"]
+required-features = ["reports", "default_features"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -134,9 +134,14 @@ ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
 
 [features]
-wasmtest = ["wasm", "dep:web-sys", "strand/wasmtest"]
-wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen"]
+wasmtest = ["wasm", "strand/wasmtest"]
+# web-sys carries the console binding that the console_log! macro of util/console_log.rs
+# uses whenever this feature is on, so it belongs to the binding, not to the test harness
+wasm = ["dep:wasm-bindgen", "areas", "dep:serde-wasm-bindgen", "dep:web-sys"]
 signatures=["dep:tracing"]
+# The Miru results-transmission integration: the wrapper around the external
+# ECIES tool (java -jar ecies-tool.jar). Not part of the evaluated TOE.
+miru = []
 default = []
 areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
@@ -159,3 +164,6 @@ jwt = ["time", "tracing"]
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
+
+[lints.rust]
+unsafe_code = "forbid"

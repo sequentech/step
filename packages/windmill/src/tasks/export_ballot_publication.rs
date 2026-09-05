@@ -28,7 +28,8 @@ pub async fn export_ballot_publication(
         Ok(client) => client,
         Err(err) => {
             let err_str = format!("Error getting Hasura DB pool: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
     };
@@ -37,7 +38,8 @@ pub async fn export_ballot_publication(
         Ok(transaction) => transaction,
         Err(err) => {
             let err_str = format!("Failed to start Hasura transaction: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
     };
@@ -97,7 +99,8 @@ pub async fn export_ballot_publication(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Commit failed: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
     };
