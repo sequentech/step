@@ -111,12 +111,15 @@ rendered message, including decrypted secret values, is printed to the worker co
 being sent. Use synthetic data and do not enable Console transport in production. Unknown transport
 names fail rather than silently falling back to Console. Real delivery transports do not log bodies.
 
-Only Harvest and the Windmill workers that perform these operations should be able to read the
-configured `master_secret` by default. Keycloak additionally needs the same 32-byte hex key in its
-`MASTER_SECRET` environment variable **only** when encrypted-attribute login is explicitly enabled.
-The Compose files map optional `KEYCLOAK_MASTER_SECRET` to this variable; leaving it empty disables
-that capability without changing ordinary password login. Never send the master key to Hasura,
-the Admin Portal, or browser clients. Losing or replacing the master secret makes existing voter envelopes unreadable;
+Harvest and the Windmill workers use the configured `master_secret` for these operations. Keycloak
+needs the same 32-byte key, encoded as 64 hexadecimal characters in its `MASTER_SECRET` environment
+variable, to verify encrypted login attributes. The supplied Compose files pass one shared
+`MASTER_SECRET` deployment value to Keycloak, Harvest and Windmill. Keycloak therefore receives
+the key whenever it is configured for the stack, but encrypted-attribute login still requires an
+explicit `SECRET_ATTRIBUTE` credential policy; ordinary `PASSWORD` verification remains the default.
+For external-vault deployments, inject the same existing vault master key into Keycloak.
+Never send the master key to Hasura, the Admin Portal, or browser clients.
+Losing or replacing the master secret makes existing voter envelopes unreadable;
 master-secret rotation therefore requires a coordinated re-encryption migration and must not be
 performed as an isolated secret replacement.
 

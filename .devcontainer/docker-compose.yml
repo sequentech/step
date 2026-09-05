@@ -21,8 +21,8 @@ services:
       - 8090:8090
     environment:
       AMQP_ADDR: ${AMQP_ADDR}
-      # Optional: explicitly grant Keycloak the voter-secret decryption capability.
-      MASTER_SECRET: ${KEYCLOAK_MASTER_SECRET:-}
+      # Use the same voter-secret encryption key as Harvest and Windmill.
+      MASTER_SECRET: ${MASTER_SECRET}
       KC_HOSTNAME: ${KC_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KC_HOSTNAME_STRICT}
       KC_HTTP_PORT: ${KC_HTTP_PORT}

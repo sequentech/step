@@ -40,10 +40,12 @@ To authenticate with a secret voter field instead of a Keycloak password:
 1. Configure a custom User Profile attribute, such as `mysecret`, with `sequent.secret=true`,
    then populate it using the authorized voter editor or CSV importer. Do not enter plaintext
    directly into Keycloak's attribute editor.
-2. Explicitly provision Keycloak's `MASTER_SECRET` environment variable with the same 64-character
-   hex key used by Harvest/Windmill. In the supplied Compose configurations, set the optional
-   `KEYCLOAK_MASTER_SECRET` deployment variable. Keycloak must be redeployed to receive it; no
-   automatic key generation or realm-wide authentication change occurs.
+2. Provision the same 64-character hex master key used by Harvest/Windmill in Keycloak's
+   `MASTER_SECRET` environment variable. The supplied Compose configurations pass the single
+   `MASTER_SECRET` deployment variable to all three services. If Harvest/Windmill use an external
+   vault, inject that vault's existing master key into Keycloak, not a newly generated key.
+   Recreate Keycloak after provisioning the environment variable. Receiving the key does not
+   enable encrypted-attribute login by itself; ordinary `PASSWORD` verification remains the default.
 3. On this authenticator's configuration, set **Credential verification policy** to
    `SECRET_ATTRIBUTE` and **Encrypted credential attribute** to `mysecret`. Keep ordinary
    identifying attributes in **User attributes to match**, not the secret attribute.
