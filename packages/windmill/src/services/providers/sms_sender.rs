@@ -15,13 +15,15 @@ type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn console_transport_rejects_confidential_messages() {
-        assert!(SmsSender {
-            transport: SmsTransport::Console
-        }
-        .ensure_confidential_transport()
-        .is_err());
+    #[tokio::test]
+    async fn explicit_console_accepts_test_messages_but_typos_fail() {
+        let sender = SmsSender::from_transport_name("Console").await.unwrap();
+        assert!(matches!(sender.transport, SmsTransport::Console));
+        sender
+            .send("synthetic-recipient".into(), "synthetic-secret".into())
+            .await
+            .unwrap();
+        assert!(SmsSender::from_transport_name("AwsSNS").await.is_err());
     }
 }
 
@@ -35,17 +37,6 @@ pub struct SmsSender {
 }
 
 impl SmsSender {
-    /// Console delivery prints rendered content and must never receive voter secrets.
-    pub fn ensure_confidential_transport(&self) -> Result<()> {
-        if matches!(self.transport, SmsTransport::Console) {
-            return Err(anyhow!(
-                "Secret voter attributes cannot be sent through the console transport"
-            )
-            .into());
-        }
-        Ok(())
-    }
-
     #[instrument(err)]
     pub async fn new() -> Result<Self> {
         let sms_transport_name = std::env::var("SMS_TRANSPORT_NAME")
@@ -55,8 +46,12 @@ impl SmsSender {
             Level::INFO,
             "SmsTransport: sms_transport_name={sms_transport_name}"
         );
+        Self::from_transport_name(&sms_transport_name).await
+    }
+
+    async fn from_transport_name(sms_transport_name: &str) -> Result<Self> {
         Ok(SmsSender {
-            transport: match sms_transport_name.as_str() {
+            transport: match sms_transport_name {
                 "AwsSns" => {
                     let shared_config = get_from_env_aws_config().await?;
                     let client = AwsSnsClient::new(&shared_config);
@@ -85,7 +80,13 @@ impl SmsSender {
                     );
                     SmsTransport::AwsSns((client, messsage_attributes))
                 }
-                _ => SmsTransport::Console,
+                "Console" => SmsTransport::Console,
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported SMS_TRANSPORT_NAME; expected AwsSns or Console"
+                    )
+                    .into())
+                }
             },
         })
     }

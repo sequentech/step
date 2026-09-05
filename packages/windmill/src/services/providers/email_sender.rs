@@ -46,28 +46,36 @@ pub struct EmailSender {
 #[cfg(test)]
 mod confidentiality_tests {
     use super::*;
-    #[test]
-    fn console_transport_rejects_confidential_messages() {
-        let sender = EmailSender {
-            transport: EmailTransport::Console,
-            email_from: "test@example.invalid".into(),
-        };
-        assert!(sender.ensure_confidential_transport().is_err());
+    #[tokio::test]
+    async fn explicit_console_accepts_test_messages_but_typos_fail() {
+        let subscriber = tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_test_writer()
+            .finish();
+        let _guard = tracing::subscriber::set_default(subscriber);
+        let sender = EmailSender::from_transport_name("Console", "test@example.invalid".into())
+            .await
+            .unwrap();
+        let body = format!("{}synthetic-secret-at-end", "x".repeat(300));
+        sender
+            .send(
+                vec!["recipient@example.invalid".into()],
+                "Test".into(),
+                body.clone(),
+                Some(body),
+                vec![],
+            )
+            .await
+            .unwrap();
+        assert!(
+            EmailSender::from_transport_name("AwsSES", "test@example.invalid".into())
+                .await
+                .is_err()
+        );
     }
 }
 
 impl EmailSender {
-    /// Console delivery prints rendered content and must never receive voter secrets.
-    pub fn ensure_confidential_transport(&self) -> Result<()> {
-        if matches!(self.transport, EmailTransport::Console) {
-            return Err(anyhow!(
-                "Secret voter attributes cannot be sent through the console transport"
-            )
-            .into());
-        }
-        Ok(())
-    }
-
     #[instrument(err)]
     pub async fn new() -> Result<Self> {
         let email_from = std::env::var("EMAIL_FROM")
@@ -80,7 +88,11 @@ impl EmailSender {
             "EmailTransport: from_address={email_from}, email_transport_name={email_transport_name}"
         );
 
-        let transport = match email_transport_name.as_str() {
+        Self::from_transport_name(&email_transport_name, email_from).await
+    }
+
+    async fn from_transport_name(email_transport_name: &str, email_from: String) -> Result<Self> {
+        let transport = match email_transport_name {
             "AwsSes" => {
                 let shared_config = get_from_env_aws_config().await?;
                 EmailTransport::AwsSes(AwsSesClient::new(&shared_config))
@@ -110,7 +122,13 @@ impl EmailSender {
 
                 EmailTransport::Smtp(smtp_transport)
             }
-            _ => EmailTransport::Console,
+            "Console" => EmailTransport::Console,
+            _ => {
+                return Err(anyhow!(
+                    "Unsupported EMAIL_TRANSPORT_NAME; expected AwsSes, smtp or Console"
+                )
+                .into())
+            }
         };
 
         Ok(EmailSender {
@@ -247,7 +265,7 @@ impl EmailSender {
                 // an enrollment or login link locally.
                 event!(
                     Level::INFO,
-                    "EmailTransport::Console: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body:.255}\n\t - html_body={html_body:.255}",
+                    "EmailTransport::Console: Sending email:\n\t - receivers={receivers:?}\n\t - subject={subject}\n\t - plaintext_body={plaintext_body}\n\t - html_body={html_body}",
                     html_body = html_body.clone().unwrap_or_default(),
                 );
                 if !attachments.is_empty() {

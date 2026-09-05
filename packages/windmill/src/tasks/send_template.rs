@@ -508,14 +508,6 @@ pub async fn send_template(
             return Err(Error::String("Missing template method".into()));
         };
 
-        if !requested_secret_names.is_empty() {
-            match communication_method {
-                TemplateMethod::EMAIL => email_sender.ensure_confidential_transport()?,
-                TemplateMethod::SMS => sms_sender.ensure_confidential_transport()?,
-                TemplateMethod::DOCUMENT => {}
-            }
-        }
-
         for user in filtered_users.iter() {
             let mut render_user = user.clone();
             if let Some(event_id) = election_event_id.as_deref() {

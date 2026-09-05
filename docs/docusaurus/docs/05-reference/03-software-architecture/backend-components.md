@@ -103,8 +103,11 @@ happen.
 
 Secret-bearing reports use private storage and require secret-read permission at download, including
 password retrieval. Ordinary document writers cannot update or delete their access metadata.
-Console message transports reject templates that declare secret fields, and delivery audit entries
-do not contain rendered subjects or bodies.
+Delivery audit entries do not contain rendered subjects or bodies. Explicitly selecting
+`EMAIL_TRANSPORT_NAME=Console` or `SMS_TRANSPORT_NAME=Console` enables test-only delivery: the full
+rendered message, including decrypted secret values, is printed to the worker console instead of
+being sent. Use synthetic data and do not enable Console transport in production. Unknown transport
+names fail rather than silently falling back to Console. Real delivery transports do not log bodies.
 
 Only Harvest and the Windmill workers that perform these operations should be able to read the
 configured `master_secret` by default. Keycloak additionally needs the same 32-byte hex key in its
