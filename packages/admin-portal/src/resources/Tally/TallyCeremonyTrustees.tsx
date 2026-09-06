@@ -17,12 +17,7 @@ import {useGetList, useGetOne, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {RESTORE_PRIVATE_KEY} from "@/queries/RestorePrivateKey"
 import {useMutation} from "@apollo/client"
-import {
-    ICeremonyStatus,
-    ITallyExecutionStatus,
-    ITallyTrusteeStatus,
-    ITrusteeStatus,
-} from "@/types/ceremonies"
+import {ITallyCeremonyStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
 import {Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
@@ -34,6 +29,7 @@ import {
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {canTrusteeRestorePrivateKey} from "./utils"
 
 const WizardSteps = {
     Start: 0,
@@ -48,14 +44,14 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
 
-    const [page, setPage] = useState<number>(WizardSteps.Start)
+    const [page, setPage] = useState<number>(WizardSteps.Status)
     const [selectedElections, setSelectedElections] = useState<string[]>([])
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
-    const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
+    const [trusteeStatus, setTrusteeStatus] = useState<ITallyTrusteeStatus | null>(null)
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
@@ -122,25 +118,23 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     useEffect(() => {
         if (tallySessionExecutions) {
-            const username = authContext?.username
-            const ceremonyStatus: ICeremonyStatus | undefined = tallySessionExecutions?.[0]?.status
+            const trusteeName = authContext?.trustee
+            const ceremonyStatus: ITallyCeremonyStatus | undefined =
+                tallySessionExecutions?.[0]?.status
             const trusteeStatus = ceremonyStatus?.trustees.find(
-                (item) => item.name === username
+                (item) => item.name === trusteeName
             )?.status
             setTrusteeStatus(trusteeStatus ?? null)
         }
-    }, [tallySessionExecutions])
+    }, [authContext?.trustee, tallySessionExecutions])
 
     useEffect(() => {
         setPage(
-            !trusteeStatus && tally?.execution_status !== ITallyExecutionStatus.CANCELLED
+            canTrusteeRestorePrivateKey(trusteeStatus, tally?.execution_status)
                 ? WizardSteps.Start
-                : trusteeStatus === ITrusteeStatus.WAITING &&
-                    tally?.execution_status !== ITallyExecutionStatus.CANCELLED
-                  ? WizardSteps.Start
-                  : WizardSteps.Status
+                : WizardSteps.Status
         )
-    }, [trusteeStatus])
+    }, [tally?.execution_status, trusteeStatus])
 
     const CancelButton = styled(Button)`
         background-color: ${({theme}) => theme.palette.white};
