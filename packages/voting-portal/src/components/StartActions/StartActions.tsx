@@ -22,11 +22,6 @@ const ActionsContainer = styled(Box)`
     gap: 8px;
 `
 
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-`
-
 const StyledButton = styled(Button)`
     display: flex;
     padding: 5px;
@@ -37,7 +32,7 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 export interface StartActionsProps {
     election: IElection
@@ -83,14 +78,14 @@ export const StartActions: React.FC<StartActionsProps> = ({
                         {t("startScreen.startButton")}
                     </StyledButton>
                 ) : (
-                    <StyledLink
+                    <StyledButton
+                        component={RouterLink}
+                        className="start-voting-button"
                         to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
                         sx={{margin: "auto 0", width: "100%"}}
                     >
-                        <StyledButton className="start-voting-button" sx={{width: "100%"}}>
-                            {t("startScreen.startButton")}
-                        </StyledButton>
-                    </StyledLink>
+                        {t("startScreen.startButton")}
+                    </StyledButton>
                 )}
                 {isDeclineToVotePolicyEnabled ? (
                     <StyledButton

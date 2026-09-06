@@ -84,11 +84,6 @@ import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDa
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-`
-
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
@@ -115,7 +110,7 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 const StyledIcon = styled(Icon)`
     min-width: 14px;
@@ -501,15 +496,14 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 />
             ) : null}
             <ActionsContainer className="actions-container">
-                <StyledLink
+                <StyledButton
+                    component={RouterLink}
                     to={backNavigateTo}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("reviewScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
+                    <Icon icon={faAngleLeft} size="sm" />
+                    <Box>{t("reviewScreen.backButton")}</Box>
+                </StyledButton>
                 {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW && !isFullyAcclaimed ? (
                     <AuditButton onClick={() => setAuditBallotHelp(true)} />
                 ) : null}
@@ -810,12 +804,14 @@ export const ReviewScreen: React.FC = () => {
                         marginTop: "16px",
                     }}
                 >
-                    <StyledLink to={backLink} sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                            <Icon icon={faAngleLeft} size="sm" />
-                            <Box>{t("reviewScreen.backButton")}</Box>
-                        </StyledButton>
-                    </StyledLink>
+                    <StyledButton
+                        component={RouterLink}
+                        to={backLink}
+                        sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    >
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box>{t("reviewScreen.backButton")}</Box>
+                    </StyledButton>
                 </Box>
             </Box>
         ) : (

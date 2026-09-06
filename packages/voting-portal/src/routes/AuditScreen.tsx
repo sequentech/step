@@ -61,18 +61,13 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
     gap: 16px;
-`
-
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
 `
 
 const Step1Container = styled(Box)`
@@ -96,12 +91,14 @@ const ActionButtons: React.FC = () => {
                 <Icon icon={faPrint} size="sm" />
                 <Box>{t("auditScreen.printButton")}</Box>
             </StyledButton>
-            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Box>{t("auditScreen.restartButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
-                </StyledButton>
-            </StyledLink>
+            <StyledButton
+                component={RouterLink}
+                to={backLink}
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            >
+                <Box>{t("auditScreen.restartButton")}</Box>
+                <Icon icon={faAngleRight} size="sm" />
+            </StyledButton>
         </ActionsContainer>
     )
 }
