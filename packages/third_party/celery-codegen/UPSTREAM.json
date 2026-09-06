@@ -1,0 +1,13 @@
+{
+  "repository": "https://github.com/Findeton/rusty-celery.git",
+  "revision": "b4145925aaaf742b7ba54499fff45313bcadfca1",
+  "directory": "celery-codegen",
+  "license_file": "LICENSE from repository root",
+  "unmodified_sha256": {
+    "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "Cargo.toml": "71546f617cdc2d1f9b288a0d69e13e14389841a630e462c17dc5cbd05bdcb057",
+    "src/error.rs": "fd730c7cec8e666bfc66b23e57acf3b5ad2d5093210fc3b6aaf01dd792e7f478",
+    "src/lib.rs": "38d22d89bb10344012bd7c6c82feb6378f5448165fd906e82e1ec84b804a9940",
+    "src/task.rs": "14f66212844ae75b2e2a9c92d379405d20ee4e02c9a20c89dcfa4d972e7ec1b3"
+  }
+}

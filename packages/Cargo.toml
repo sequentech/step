@@ -4,6 +4,7 @@
 
 [workspace]
 resolver = "2"
+exclude = ["third_party/celery-codegen"]
 
 members = [
     "braid",
@@ -34,3 +35,6 @@ anyhow = "1.0"
 
 [patch.crates-io]
 celery = { git = "https://github.com/Findeton/rusty-celery.git", rev = "b4145925aaaf742b7ba54499fff45313bcadfca1" }
+
+[patch."https://github.com/Findeton/rusty-celery.git"]
+celery-codegen = { path = "third_party/celery-codegen" }
