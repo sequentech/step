@@ -35,6 +35,7 @@ COPY ./wrap-map-err/Cargo.toml ./wrap-map-err/Cargo.toml
 COPY ./braid/scripts/Cargo.toml ./braid/scripts/Cargo.toml
 COPY ./orare/Cargo.toml ./orare/Cargo.toml
 COPY ./orare/doc_renderer/Cargo.toml ./orare/doc_renderer/Cargo.toml
+COPY ./third_party ./third_party
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo
