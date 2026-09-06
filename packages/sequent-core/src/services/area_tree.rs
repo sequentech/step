@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::types::hasura::core::{Area, AreaContest, Contest};
+use crate::types::hasura::core::{Area, AreaContest};
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -57,8 +57,7 @@ where
         let sub_children: Vec<TreeNodeArea> = self
             .children
             .iter()
-            .map(|child| child.get_all_children())
-            .flatten()
+            .flat_map(|child| child.get_all_children())
             .collect();
         children.extend(sub_children);
         children
@@ -92,7 +91,7 @@ where
         }
 
         // Ensure all parent_ids are valid
-        for (parent_id, _) in &parent_map {
+        for parent_id in parent_map.keys() {
             if !nodes.contains_key(parent_id) {
                 return Err(anyhow!(
                     "Parent id {} not found in the tree structure",
@@ -159,7 +158,7 @@ where
     // find an area in the tree
     pub fn find_area(&self, area_id: &str) -> Option<TreeNode<T>> {
         if let Some(area) = self.area.clone() {
-            if &area.id == area_id {
+            if area.id == area_id {
                 return Some(self.clone());
             }
         }
@@ -196,7 +195,7 @@ where
         }
 
         // Check if the current node is the target node
-        if node.area.as_ref().map_or(false, |area| area.id == area_id) {
+        if node.area.as_ref().is_some_and(|area| area.id == area_id) {
             return true;
         }
 
@@ -218,7 +217,7 @@ where
     // note that areas spread down the tree
     pub fn get_contests_data_tree(
         &self,
-        area_contests: &Vec<AreaContest>,
+        area_contests: &[AreaContest],
     ) -> TreeNode<ContestsData> {
         // Map<area_id, Set<contest_id>>
         let mut areas_map: HashMap<String, HashSet<String>> = HashMap::new();
@@ -259,22 +258,21 @@ where
             .map(|child| {
                 child.contests_data_tree(
                     &data, // Map<area_id, Set<contest_id>>
-                    &areas_map,
+                    areas_map,
                 )
             })
             .collect();
         TreeNode::<ContestsData> {
             area: self.area.clone(),
-            children: children,
-            data: data,
+            children,
+            data,
         }
     }
 }
 
 impl TreeNode<ContestsData> {
-    // For a given TreeNode of type ContestsData, return all
-    // area-contests. Note that this will include
-    // indirect/inherited ones.
+    // Return area-contest assignments for the requested contests, including
+    // assignments inherited from ancestors. An empty selection matches none.
     pub fn get_contest_matches(
         &self,
         contest_ids: &HashSet<String>,
@@ -285,6 +283,7 @@ impl TreeNode<ContestsData> {
                 .data
                 .contest_ids
                 .iter()
+                .filter(|contest_id| contest_ids.contains(*contest_id))
                 .map(|contest_id| AreaContest {
                     id: area.id.clone(),
                     area_id: area.id.clone(),
@@ -321,7 +320,7 @@ impl<'a, T> Iterator for TreeNodeIter<'a, T> {
 }
 
 impl<T> TreeNode<T> {
-    pub fn iter(&self) -> TreeNodeIter<T> {
+    pub fn iter(&self) -> TreeNodeIter<'_, T> {
         let mut queue = VecDeque::new();
         queue.push_back(self);
         TreeNodeIter { queue }
