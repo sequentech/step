@@ -169,7 +169,7 @@ const DatesUrlWrap = styled(Box)`
     }
 `
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     font-size: 18px;
     line-height: 20px;
     margin-top: 0;
@@ -315,7 +315,9 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 is-start={String(!!isStarted)}
             >
                 <TextContainer className="election-info">
-                    <StyledTitle className="election-title">{title}</StyledTitle>
+                    <StyledTitle component="h2" className="election-title">
+                        {title}
+                    </StyledTitle>
                     {electionHomeUrl && (
                         <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
                             <StyledLink href={electionHomeUrl} target="_blank">
