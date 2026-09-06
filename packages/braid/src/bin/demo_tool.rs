@@ -11,7 +11,6 @@ use std::fs::File;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::path::Path;
-use std::path::PathBuf;
 use tokio_postgres::NoTls;
 use tracing::{info, instrument};
 
@@ -36,7 +35,7 @@ use strand::symm;
 type DbPool = Pool<PostgresConnectionManager<NoTls>>;
 
 /// The default board if none specified.
-const TEST_BOARD: &'static str = "test";
+const TEST_BOARD: &str = "test";
 /// The root directory from which the demo directories will be created.
 const DEMO_DIR: &str = "./demo";
 const PROTOCOL_MANAGER: &str = "pm.toml";
@@ -209,10 +208,12 @@ async fn main() -> Result<()> {
         }
         Command::InitProtocol => {
             let path = Path::new(DEMO_DIR).join(CONFIG);
-            let cfg_bytes = fs::read(&path).expect(&format!(
-                "Should have been able to read session configuration file at '{:?}'",
-                path
-            ));
+            let cfg_bytes = fs::read(&path).unwrap_or_else(|_| {
+                panic!(
+                    "Should have been able to read session configuration file at '{:?}'",
+                    path
+                )
+            });
             let configuration = Configuration::<RistrettoCtx>::strand_deserialize(&cfg_bytes)
                 .map_err(|e| anyhow!("Could not deserialize configuration {}", e))?;
 
@@ -283,10 +284,10 @@ async fn main() -> Result<()> {
 ///        * signing_key_pk: base64 encoding of a der encoded spki
 ///        * encryption_key: base64 encoding of a sign::SymmetricKey
 ///    * Generate .toml config for the protocol manager:
-///        signing_key: base64 encoding of a der encoded pkcs#8 v1
+///      signing_key: base64 encoding of a der encoded pkcs#8 v1
 ///    * Generate a .bin config for a session, a serialized Configuration artifact
-///        This configuration artifact includes the protocol manager and trustee information
-///        of the previous items.
+///      This configuration artifact includes the protocol manager and trustee information
+///      of the previous items.
 ///    * Generates default a run script for each trustee.
 ///
 ///    These files are created in a demo directory with the following layout,
@@ -362,10 +363,10 @@ fn gen_configs<C: Ctx>(n_trustees: usize, threshold: usize) -> Result<()> {
 /// Initializes the bulletin board with the necessary information to start a protocol run.
 ///
 /// This information will be taken from the demo directory created in the gen-config step.
-#[instrument(skip(pool, s3_client))]
+#[instrument(skip(pool, _s3_client))]
 async fn init<C: Ctx>(
     pool: &DbPool,
-    s3_client: &S3Client,
+    _s3_client: &S3Client,
     bucket: &str,
     board_name: &str,
     configuration: Configuration<C>,
@@ -431,6 +432,10 @@ async fn init<C: Ctx>(
 /// present on the board, an error will be returned. A protocol run can always be reset
 /// with the init-protocol command.
 #[instrument(skip(pool, s3_client))]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the demo ballot-posting helper aligned with its database, object storage and protocol configuration inputs"
+)]
 async fn post_ballots<C: Ctx>(
     pool: &DbPool,
     s3_client: &S3Client,
@@ -468,7 +473,7 @@ async fn post_ballots<C: Ctx>(
     let configuration = Configuration::<C>::strand_deserialize(&contents)
         .map_err(|e| anyhow!("Could not read configuration {e:?}"))?;
 
-    let trustee_pk = configuration.trustees.get(0).unwrap();
+    let trustee_pk = configuration.trustees.first().unwrap();
     let trustee_pk_b64 = trustee_pk.to_der_b64_string()?;
 
     info!("Looking for PublicKey from trustee: {}", trustee_pk_b64);
@@ -815,34 +820,5 @@ async fn create_board(pool: &DbPool, name: &str) -> Result<()> {
     )
     .await?;
     info!("Created board: {}", name);
-    Ok(())
-}
-
-/// Drops the entire database file.
-#[instrument()]
-async fn drop_database(database_url: &Option<String>) -> Result<()> {
-    let db_path = database_url
-        .clone()
-        .or_else(|| env::var("DATABASE_URL").ok())
-        .unwrap_or_else(|| {
-            let mut path = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            path.push("b4.db");
-            path.display().to_string()
-        });
-
-    // Remove sqlite: prefix if present
-    let file_path = db_path
-        .trim_start_matches("sqlite:")
-        .split('?')
-        .next()
-        .unwrap();
-
-    if Path::new(file_path).exists() {
-        fs::remove_file(file_path)?;
-        info!("Dropped database: {}", file_path);
-    } else {
-        info!("Database file not found: {}", file_path);
-    }
-
     Ok(())
 }

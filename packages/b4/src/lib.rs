@@ -18,7 +18,9 @@ pub mod s3;
 pub mod state;
 
 use crate::messages::newtypes::Timestamp;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(feature = "client")]
+use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn timestamp() -> Timestamp {
@@ -36,11 +38,13 @@ pub fn timestamp() -> Timestamp {
     (js_sys::Date::now() / 1000.0) as u64
 }
 
+#[cfg(feature = "client")]
 pub(crate) fn system_time_from_timestamp(seconds: Timestamp) -> Option<SystemTime> {
     let duration = Duration::from_secs(seconds);
     UNIX_EPOCH.checked_add(duration)
 }
 
+#[cfg(feature = "client")]
 pub(crate) fn timestamp_from_system_time(system_time: &SystemTime) -> Timestamp {
     let since_the_epoch = system_time
         .duration_since(UNIX_EPOCH)

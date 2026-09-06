@@ -30,10 +30,10 @@ use crate::protocol::board::Board;
 use crate::native::session::Session;
 use crate::protocol::trustee::Trustee;
 
-const HTTP_URL: &'static str = "http://127.0.0.1:3000";
-const TEST_BOARD: &'static str = "protocoltest";
-const S3_ENDPOINT: &'static str = "http://127.0.0.1:4566";
-const BUCKET_NAME: &'static str = "wbraid-messages";
+const HTTP_URL: &str = "http://127.0.0.1:3000";
+const TEST_BOARD: &str = "protocoltest";
+const S3_ENDPOINT: &str = "http://127.0.0.1:4566";
+const BUCKET_NAME: &str = "wbraid-messages";
 
 pub async fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
     let n_trustees = rand::rng().random_range(2..13);
@@ -218,7 +218,7 @@ async fn run_protocol_test_http<C: Ctx + 'static>(
         let board_params = HttpB3BoardParams::new(HTTP_URL).await;
         let mut temp_board = board_params.create_board(TEST_BOARD, None);
         temp_board
-            .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])
+            .insert_messages(TEST_BOARD, vec![message])
             .await?;
     }
 
@@ -371,7 +371,7 @@ pub async fn create_protocol_test<C: Ctx>(
     let board_params = HttpB3BoardParams::new(HTTP_URL).await;
     let mut temp_board = board_params.create_board(TEST_BOARD, None);
     temp_board
-        .insert_messages(TEST_BOARD, vec![message.try_into().unwrap()])
+        .insert_messages(TEST_BOARD, vec![message])
         .await?;
 
     Ok(ProtocolTest {

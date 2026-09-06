@@ -10,6 +10,8 @@ use anyhow::Result;
 use rayon::prelude::*;
 use strand::{serialization::StrandVector, zkp::ChaumPedersen};
 
+type ProvenDecryptionFactor<C> = (<C as Ctx>::E, ChaumPedersen<C>);
+
 /// Computes the decryption factors using this trustee's secret share.
 ///
 /// The plaintexts can be calculated from a threshold number of
@@ -51,7 +53,7 @@ pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::Loca
             .get_shares(&SharesHash(share_h), sender)
             .add_context("Computing decryption factors")?;
 
-        let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
+        let sk = trustee.decrypt_share_sk(&my_channel, cfg)?;
 
         let share = ctx.decrypt_exp(&share_.encrypted_shares[*self_p], sk)?;
 
@@ -74,13 +76,13 @@ pub(super) fn compute_decryption_factors<C: Ctx, S: crate::protocol::board::Loca
 
     let zkp = strand::zkp::Zkp::new(&ctx);
 
-    let result: Result<Vec<(C::E, ChaumPedersen<C>)>, ProtocolError> = ciphertexts
+    let result: Result<Vec<ProvenDecryptionFactor<C>>, ProtocolError> = ciphertexts
         .ciphertexts
         .0
         .par_iter()
         .map(|c| {
             let (base, proof) =
-                strand::threshold::decryption_factor(&c, &secret, &vk, &label, &zkp, &ctx)?;
+                strand::threshold::decryption_factor(c, &secret, &vk, &label, &zkp, &ctx)?;
 
             // FIXME removed self-verify
             // let ok = zkp.verify_decryption(&vk, &base, &c.mhr, &c.gr, &proof, &label);
@@ -194,9 +196,9 @@ pub(super) fn sign_plaintexts<C: Ctx, S: crate::protocol::board::LocalBoardStora
 
         Ok(vec![m])
     } else {
-        Err(ProtocolError::VerificationError(format!(
-            "Mismatch when comparing plaintexts with retrieved ones"
-        )))
+        Err(ProtocolError::VerificationError(
+            "Mismatch when comparing plaintexts with retrieved ones".to_string(),
+        ))
     }
 }
 
@@ -276,14 +278,14 @@ fn compute_plaintexts_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
                 .into_par_iter()
                 .map(|((df, proof), c)| {
                     let ok = strand::threshold::verify_decryption_factor(
-                        &c, &vk, &df, &proof, &label, &zkp,
+                        c, &vk, df, proof, &label, &zkp,
                     )?;
                     if ok {
-                        Ok(ctx.emod_pow(&df, &lagrange))
+                        Ok(ctx.emod_pow(df, &lagrange))
                     } else {
-                        Err(ProtocolError::VerificationError(format!(
-                            "Failed to verify decryption proof"
-                        )))
+                        Err(ProtocolError::VerificationError(
+                            "Failed to verify decryption proof".to_string(),
+                        ))
                     }
                 })
                 .collect();

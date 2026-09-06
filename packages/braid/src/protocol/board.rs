@@ -95,7 +95,7 @@ pub trait BoardMulti: Sized {
     /// HttpBoardMessages are a list of messages for one board.
     fn get_messages_multi(
         &self,
-        requests: &Vec<(String, i64)>,
+        requests: &[(String, i64)],
     ) -> impl std::future::Future<Output = Result<(Vec<b4::HttpBoardMessages>, bool)>> + Send;
 
     fn insert_messages_multi(

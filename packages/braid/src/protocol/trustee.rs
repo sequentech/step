@@ -46,7 +46,7 @@ const RETRIEVE_ALL_MESSAGES_PERIOD: i64 = 60 * 60;
 /// 2) Update LocalBoard with Statements and Artifacts
 /// 3) Derive Predicates from Statements on LocalBoard
 /// 4) Invoke Datalog with input predicates
-///      4.1) Pass output predicates from 4) to subsequent datalog Phases
+///    4.1) Pass output predicates from 4) to subsequent datalog Phases
 /// 5) Run Actions resulting from 4)
 /// 6) Return resulting Messages for subsequent posting on RemoteBoard
 ///
@@ -158,17 +158,14 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// The protocol main loop is reactive: it will not advance until the necessary
     /// messages are present in the board.
     #[instrument(name = "Trustee::step", skip(remote_messages, self), level = "trace")]
-    pub fn step(
-        &mut self,
-        remote_messages: &Vec<HttpB3Message>,
-    ) -> Result<StepResult, ProtocolError> {
+    pub fn step(&mut self, remote_messages: &[HttpB3Message]) -> Result<StepResult, ProtocolError> {
         // When retrieving all messages, some of them will already exist in
         // the local store: this is not an error
         let ignore_existing = self.step_counter % RETRIEVE_ALL_MESSAGES_PERIOD == 0;
         // Store messages and retrieve them with IDs (persistent: local IDs, no-op: external IDs)
         let parsed_messages = self
             .local_board
-            .store_and_return_messages(&remote_messages, ignore_existing)
+            .store_and_return_messages(remote_messages, ignore_existing)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))?;
 
         // Update the in-memory board with parsed messages. Returns count of added messages.
@@ -213,7 +210,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &[HttpB3Message]) -> Result<(), ProtocolError> {
         self.local_board
             .update_store(messages, false)
             .map_err(|e| ProtocolError::BoardError(format!("{}", e)))
@@ -292,15 +289,15 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         // Sanity check: field cfg_hash must exist at this point
         let cfg_hash = self.local_board.get_cfg_hash();
         if cfg_hash.is_none() {
-            return Err(ProtocolError::InternalError(format!(
-                "Local field cfg_hash not set"
-            )));
+            return Err(ProtocolError::InternalError(
+                "Local field cfg_hash not set".to_string(),
+            ));
         }
 
         let cfg_hash = cfg_hash.expect("impossible");
         // Show the latest message received
-        if messages.len() > 0 {
-            let (last_message, id) = messages.get(messages.len() - 1).expect("impossible");
+        if !messages.is_empty() {
+            let (last_message, id) = messages.last().expect("impossible");
             trace!(
                 "Update: last message is {:?} ({})",
                 last_message.statement.get_kind(),
@@ -318,9 +315,9 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
             })?;
 
             if verified.statement.get_cfg_h() != cfg_hash {
-                return Err(ProtocolError::MessageConfigurationMismatch(format!(
-                    "Message has mismatched configuration hash"
-                )));
+                return Err(ProtocolError::MessageConfigurationMismatch(
+                    "Message has mismatched configuration hash".to_string(),
+                ));
             }
 
             let stmt = verified.statement.clone();
@@ -349,9 +346,9 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
 
         trace!("Configuration not present in board, getting first remote message");
         if messages.is_empty() {
-            return Err(ProtocolError::BootstrapError(format!(
-                "Zero messages received, cannot retrieve configuration"
-            )));
+            return Err(ProtocolError::BootstrapError(
+                "Zero messages received, cannot retrieve configuration".to_string(),
+            ));
         }
         let (zero, last_id) = messages.remove(0);
 
@@ -363,9 +360,9 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         }
 
         if zero.artifact.is_none() {
-            return Err(ProtocolError::BootstrapError(format!(
-                "No artifact for configuration message"
-            )));
+            return Err(ProtocolError::BootstrapError(
+                "No artifact for configuration message".to_string(),
+            ));
         }
 
         let artifact = zero.artifact.as_ref().expect("impossible");
@@ -479,7 +476,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
 
         let ret_actions = actions.clone();
 
-        if actions.len() == 0 {
+        if actions.is_empty() {
             trace!("-- Idle --");
         }
 
@@ -488,7 +485,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
         let actions: Vec<Action> = if let Some(max) = self.max_concurrent_actions {
             actions.into_iter().take(max).collect()
         } else {
-            Vec::from_iter(actions.into_iter())
+            Vec::from_iter(actions)
         };
 
         // Cross-Action parallelism (which in effect is cross-batch parallelism)
@@ -691,7 +688,7 @@ impl<C: Ctx, S: LocalBoardStorage> Trustee<C, S> {
     /// Trustee signing public keys are also used to
     /// identify trustees in protocol Configurations.
     pub fn get_pk(&self) -> Result<StrandSignaturePk, StrandError> {
-        Ok(StrandSignaturePk::from_sk(&self.signing_key)?)
+        StrandSignaturePk::from_sk(&self.signing_key)
     }
 
     pub(crate) fn encrypt_share_sk(

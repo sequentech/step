@@ -165,12 +165,9 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         let cfg_hash = message.statement.get_cfg_h();
 
         if self.configuration.is_none() {
-            let artifact_bytes =
-                &message
-                    .artifact
-                    .ok_or(ProtocolError::BootstrapError(format!(
-                        "Missing artifact in configuration message"
-                    )))?;
+            let artifact_bytes = &message.artifact.ok_or(ProtocolError::BootstrapError(
+                "Missing artifact in configuration message".to_string(),
+            ))?;
 
             let configuration = Configuration::<C>::strand_deserialize(artifact_bytes);
 
@@ -186,8 +183,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
                 );
                 return Err(configuration
                     .add_context("Bootstrapping, deserializing configuration")
-                    .err()
-                    .expect("impossible"));
+                    .expect_err("impossible"));
             }
         }
 
@@ -199,9 +195,9 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
             warn!("Configuration received when identical present, ignored");
             Ok(())
         } else {
-            Err(ProtocolError::BoardOverwriteAttempt(format!(
-                "Configuration"
-            )))
+            Err(ProtocolError::BoardOverwriteAttempt(
+                "Configuration".to_string(),
+            ))
         }
     }
 
@@ -367,7 +363,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Channel<C>, ProtocolError> {
         let bytes = self.get_dkg_artifact(StatementType::Channel, channel_h.0, signer_position)?;
-        Ok(Channel::<C>::strand_deserialize(&bytes)?)
+        Ok(Channel::<C>::strand_deserialize(bytes)?)
     }
 
     /// Gets a Share, with a hash check.
@@ -377,7 +373,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Shares<C>, ProtocolError> {
         let bytes = self.get_dkg_artifact(StatementType::Shares, shares_h.0, signer_position)?;
-        Ok(Shares::strand_deserialize(&bytes)?)
+        Ok(Shares::strand_deserialize(bytes)?)
     }
 
     /// Gets the DkgPublicKey, with a hash check.
@@ -387,7 +383,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<DkgPublicKey<C>, ProtocolError> {
         let bytes = self.get_dkg_artifact(StatementType::PublicKey, pk_h.0, signer_position)?;
-        Ok(DkgPublicKey::<C>::strand_deserialize(&bytes)?)
+        Ok(DkgPublicKey::<C>::strand_deserialize(bytes)?)
     }
 
     /// Gets Ballots, with a hash check.
@@ -398,7 +394,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Ballots<C>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Ballots, b_h.0, signer_position, batch)?;
-        Ok(Ballots::<C>::strand_deserialize(&bytes)?)
+        Ok(Ballots::<C>::strand_deserialize(bytes)?)
     }
 
     /// Gets a Mix, with a hash check.
@@ -409,7 +405,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Mix<C>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Mix, m_h.0, signer_position, batch)?;
-        Ok(Mix::<C>::strand_deserialize(&bytes)?)
+        Ok(Mix::<C>::strand_deserialize(bytes)?)
     }
 
     /// Gets DecryptionFactors, with a hash check.
@@ -425,7 +421,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
             signer_position,
             batch,
         )?;
-        Ok(DecryptionFactors::<C>::strand_deserialize(&bytes)?)
+        Ok(DecryptionFactors::<C>::strand_deserialize(bytes)?)
     }
 
     /// Gets Plaintexts, with a hash check.
@@ -436,7 +432,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
         signer_position: TrusteePosition,
     ) -> Result<Plaintexts<C>, ProtocolError> {
         let bytes = self.get_artifact(StatementType::Plaintexts, p_h.0, signer_position, batch)?;
-        Ok(Plaintexts::<C>::strand_deserialize(&bytes)?)
+        Ok(Plaintexts::<C>::strand_deserialize(bytes)?)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -595,7 +591,7 @@ impl<C: Ctx, S: LocalBoardStorage> LocalBoard<C, S> {
             if !self.statements.contains_key(&sei) {
                 break;
             }
-            sei.batch = sei.batch + 1;
+            sei.batch += 1;
         }
 
         let n = cfg.trustees.len();

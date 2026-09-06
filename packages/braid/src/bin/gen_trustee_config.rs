@@ -45,7 +45,7 @@ fn main() {
     let args = Cli::parse();
 
     match &args.command {
-        Command::Trustee => gen_trustee_config::<RistrettoCtx>(),
+        Command::Trustee => gen_trustee_config(),
         Command::ProtocolManager => gen_protocol_manager_config::<RistrettoCtx>(),
     }
 }
@@ -53,7 +53,7 @@ fn main() {
 /// Generates a trustee configuration with cryptographic secrets.
 ///
 /// Prints configuration to standard out.
-fn gen_trustee_config<C: Ctx>() {
+fn gen_trustee_config() {
     let sk = StrandSignatureSk::generate().unwrap();
     let pk = StrandSignaturePk::from_sk(&sk).unwrap();
     let encryption_key: symm::SymmetricKey = symm::gen_key();

@@ -56,7 +56,7 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// call is still required because there may be messages in the
     /// message_store whose required Actions have not yet executed,
     /// leading to a possible protocol hang.
-    pub fn step(&mut self, messages: &Vec<HttpB3Message>) -> Result<Vec<Message>, ProtocolError> {
+    pub fn step(&mut self, messages: &[HttpB3Message]) -> Result<Vec<Message>, ProtocolError> {
         // NOTE: we must call step even if there are no new remote messages
         // because there may be actions pending in the trustees LocalBoard.
         let step_result = self.trustee.step(messages)?;
@@ -77,7 +77,7 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> SessionM<C, S> {
     /// Used when the remote bulletin board returns a truncated response
     /// indicating that a further request must be made before inferring any
     /// new Actions.
-    pub(crate) fn update_store(&self, messages: &Vec<HttpB3Message>) -> Result<(), ProtocolError> {
+    pub(crate) fn update_store(&self, messages: &[HttpB3Message]) -> Result<(), ProtocolError> {
         self.trustee.update_store(messages)
     }
 }
@@ -122,7 +122,7 @@ impl SessionFactory {
     ) -> Result<SessionM<RistrettoCtx, SqliteStorage>> {
         info!("* Creating new session for board '{}'..", board_name);
 
-        let storage = SqliteStorage::new(self.store_root.join(&board_name), None);
+        let storage = SqliteStorage::new(self.store_root.join(board_name), None);
         let trustee = Trustee::new(
             self.trustee_name.clone(),
             board_name.to_string(),

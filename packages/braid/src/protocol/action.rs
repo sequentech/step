@@ -5,17 +5,17 @@
 use anyhow::Result;
 use strum::Display;
 
-pub(self) use log::{debug, info, trace};
-pub(self) use strand::context::Ctx;
-pub(self) use strand::context::Element;
-pub(self) use strand::context::Exponent;
+use log::{debug, info, trace};
+use strand::context::Ctx;
+use strand::context::Element;
+use strand::context::Exponent;
 
-pub(self) use crate::protocol::datalog::NULL_HASH;
-pub(self) use crate::protocol::trustee::Trustee;
-pub(self) use crate::util::{ProtocolContext, ProtocolError};
-pub(self) use b4::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
-pub(self) use b4::messages::message::Message;
-pub(self) use b4::messages::newtypes::*;
+use crate::protocol::datalog::NULL_HASH;
+use crate::protocol::trustee::Trustee;
+use crate::util::{ProtocolContext, ProtocolError};
+use b4::messages::artifact::{DecryptionFactors, DkgPublicKey, Mix, Plaintexts, Shares};
+use b4::messages::message::Message;
+use b4::messages::newtypes::*;
 
 // Used by submodules
 use crate::util::dbg_hash;
@@ -141,11 +141,11 @@ impl Action {
     ///
     /// 1) Dispatch action to target function (pattern match on self)
     /// 2) The target function will: retrieve necessary input artifacts
-    /// from trustee (LocalBoard)
+    ///    from trustee (LocalBoard)
     /// 3) Compute necessary data
     /// 4) Create messages through Message static functions
-    ///      4.1) Message::<function> Computes hashes and artifact data
-    ///      4.2) Trustee::<message> Signs the statement and returns Message
+    ///    4.1) Message::<function> Computes hashes and artifact data
+    ///    4.2) Trustee::<message> Signs the statement and returns Message
     pub(crate) fn run<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         &self,
         trustee: &Trustee<C, S>,

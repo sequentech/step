@@ -27,7 +27,7 @@ const PROTOCOL_MANAGER: &str = "pm.toml";
 ///      * signing_key_pk: base64 encoding of a der encoded spki
 ///      * encryption_key: base64 encoding of a sign::SymmetricKey
 /// * Generate .toml config for the protocol manager:
-///      signing_key: base64 encoding of a der encoded pkcs#8 v1
+///   signing_key: base64 encoding of a der encoded pkcs#8 v1
 /// * Generate a .bin config for a session, a serialized Configuration artifact
 ///
 /// FIXME: made obsolete by demo_tool.
