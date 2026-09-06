@@ -59,7 +59,7 @@ impl<C: Ctx> Configuration<C> {
 
     pub fn get_trustee_position(&self, trustee_pk: &StrandSignaturePk) -> Option<usize> {
         if trustee_pk == &self.protocol_manager {
-            Some(PROTOCOL_MANAGER_INDEX as usize)
+            Some(PROTOCOL_MANAGER_INDEX)
         } else {
             self.trustees.iter().position(|t| t == trustee_pk)
         }

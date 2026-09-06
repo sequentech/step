@@ -345,11 +345,11 @@ impl Message {
 
         // Artifact present
 
-        let artifact_hash = strand::hash::hash_to_array(&artifact)?;
+        let artifact_hash = strand::hash::hash_to_array(artifact)?;
         // If the cfg_h field matches the artifact, the artifact must be Configuration
         if st_cfg_h == artifact_hash {
             assert!(kind == StatementType::Configuration);
-            if trustee != PROTOCOL_MANAGER_INDEX as usize {
+            if trustee != PROTOCOL_MANAGER_INDEX {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
 
@@ -364,13 +364,11 @@ impl Message {
             // If the statement type were configuration, cfg_hash should have matched the artifact above
             assert!(kind != StatementType::Configuration);
 
-            if kind == StatementType::Ballots {
-                if trustee != PROTOCOL_MANAGER_INDEX as usize {
-                    return Err(anyhow!("Ballots must be signed by protocol manager"));
-                }
+            if kind == StatementType::Ballots && trustee != PROTOCOL_MANAGER_INDEX {
+                return Err(anyhow!("Ballots must be signed by protocol manager"));
             }
 
-            let _ = verify_artifact(&configuration, &kind, &artifact)?;
+            verify_artifact(configuration, &kind, artifact)?;
             // FIXME remove this potentially expensive clone
             // See above line: let artifact = self.artifact.take().unwrap();
             Ok(VerifiedMessage::new(

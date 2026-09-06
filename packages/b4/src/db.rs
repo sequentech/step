@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::api_types::Message;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use bb8_postgres::{bb8::Pool, PostgresConnectionManager};
 use std::env;
 use tokio_postgres::NoTls;
@@ -251,6 +251,10 @@ pub async fn list_boards(pool: &DbPool) -> Result<Vec<Board>> {
         .collect())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing message storage API with explicit payload, storage location and signed statement metadata"
+)]
 pub async fn insert_message(
     pool: &DbPool,
     board_name: &str,

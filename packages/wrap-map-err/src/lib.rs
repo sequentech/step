@@ -6,7 +6,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_quote, ItemFn, ReturnType, Type};
+use syn::{ItemFn, ReturnType, Type};
 
 /// The `wrap_map_err` attribute macro transforms a function that returns a
 /// `Result<T, E>` into one that returns a `Result<T, ProvidedError>` by mapping

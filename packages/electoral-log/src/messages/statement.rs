@@ -193,7 +193,7 @@ impl StatementHead {
                 ..default_head
             },
             StatementBody::KeycloakUserEvent(error_message_string, error_message_type) => {
-                let mut description = format!("{}", error_message_type.0);
+                let mut description = error_message_type.0.to_string();
                 let log_type = if error_message_type.0.contains("ERROR") {
                     // Leave the first word in error_message_string which should be the error code.
                     description = format!(
