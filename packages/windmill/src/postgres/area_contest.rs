@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::AreaContest;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct AreaContestWrapper(pub AreaContest);
@@ -258,8 +258,8 @@ pub async fn get_area_contests_by_area_contest_ids(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_ids: &Vec<String>,
-    contest_ids: &Vec<String>,
+    area_ids: &[String],
+    contest_ids: &[String],
 ) -> Result<Vec<AreaContest>> {
     let uuid_tenant_id = parse_uuid_v4(tenant_id)?;
     let uuid_election_event_id = parse_uuid_v4(election_event_id)?;

@@ -7,7 +7,6 @@ use crate::postgres::candidate::export_candidate_csv;
 use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
 use crate::postgres::election::{export_elections, get_elections, get_elections_by_ids};
 use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::reports::ReportType;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::ElectionCastVotes;
 #[cfg(feature = "miru")]
@@ -40,15 +39,14 @@ use sequent_core::sqlite::candidate::{create_candidate_sqlite, import_candidate_
 use sequent_core::sqlite::contests::create_contest_sqlite;
 use sequent_core::sqlite::election::create_election_sqlite;
 use sequent_core::sqlite::election_event::create_election_event_sqlite;
+use sequent_core::types::ceremonies::TallySessionResolutionData;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::ceremonies::{TallySessionResolution, TallySessionResolutionData};
 use sequent_core::types::hasura::core::{
-    Area, Election, ElectionEvent, TallySession, TallySessionConfiguration, TallySessionContest,
-    TallySheet,
+    Area, Election, ElectionEvent, TallySession, TallySessionContest, TallySheet,
 };
 use sequent_core::types::participation::VotesByChannel;
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::types::templates::{PrintToPdfOptionsLocal, ReportExtraConfig, SendTemplateBody};
+use sequent_core::types::templates::PrintToPdfOptionsLocal;
 pub use sequent_core::util::date_time::get_date_and_time;
 use sequent_core::util::temp_path::get_public_assets_path_env_var;
 use serde::Serialize;
@@ -57,7 +55,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
-use tempfile::{NamedTempFile, TempPath};
+use tempfile::NamedTempFile;
 use tokio::runtime::Handle;
 use tokio::task;
 use tracing::{event, info, instrument, warn, Level};
@@ -139,7 +137,7 @@ pub fn prepare_tally_for_area_contest(
     let contest_id = area_contest.contest.id.clone();
     let relevant_sheets = tally_sheets
         .get(&(area_id.clone(), contest_id.clone()))
-        .map(|val| val.clone())
+        .cloned()
         .unwrap_or(vec![]);
     let election_id = area_contest.contest.election_id.clone();
 
@@ -206,12 +204,12 @@ pub fn prepare_tally_for_area_contest(
         census: if is_acclaimed {
             0
         } else {
-            area_contest.eligible_voters as u64
+            area_contest.eligible_voters
         },
         auditable_votes: if is_acclaimed {
             0
         } else {
-            area_contest.auditable_votes as u64
+            area_contest.auditable_votes
         },
         votes_by_channel: if is_acclaimed {
             None
@@ -247,7 +245,7 @@ pub fn prepare_tally_for_area_contest(
     //// create tally sheets files
     // An acclaimed contest reports no votes from any channel, so a tally
     // sheet left over for it is not counted.
-    if !is_acclaimed && relevant_sheets.len() > 0 {
+    if !is_acclaimed && !relevant_sheets.is_empty() {
         for tally_sheet in relevant_sheets {
             let Some(content) = tally_sheet.content.clone() else {
                 continue;
@@ -267,12 +265,16 @@ pub fn prepare_tally_for_area_contest(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all, err)]
 pub fn create_election_configs_blocking(
     base_tempdir: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
-    cast_votes_count: &Vec<ElectionCastVotes>,
-    scheduled_events: &Vec<ScheduledEvent>,
+    cast_votes_count: &[ElectionCastVotes],
+    scheduled_events: &[ScheduledEvent],
     elections_single_map: HashMap<String, Election>,
     areas: Vec<TreeNodeArea>,
     default_lang: String,
@@ -284,11 +286,11 @@ pub fn create_election_configs_blocking(
         .annotations
         .clone()
         .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
-        .unwrap_or(Default::default());
+        .unwrap_or_default();
     for area_contest in area_contests {
         let election_id = area_contest.contest.election_id.clone();
-        let election_event_id = area_contest.contest.election_event_id.clone();
-        let tenant_id = area_contest.contest.tenant_id.clone();
+        let _election_event_id = area_contest.contest.election_event_id.clone();
+        let _tenant_id = area_contest.contest.tenant_id.clone();
 
         let election_opt = elections_single_map.get(&election_id);
 
@@ -308,7 +310,7 @@ pub fn create_election_configs_blocking(
                     .map(|annotations| deserialize_value(annotations).unwrap_or(Default::default()))
                     .unwrap_or(Default::default())
             })
-            .unwrap_or(Default::default());
+            .unwrap_or_default();
 
         let election_presentation =
             election_opt.map(|election| election.get_presentation().unwrap_or_default());
@@ -319,7 +321,7 @@ pub fn create_election_configs_blocking(
 
         let election_dates = if let Some(election) = election_opt {
             Some(
-                get_election_dates(&election, scheduled_events.clone())
+                get_election_dates(election, scheduled_events.to_owned())
                     .map_err(|e| anyhow::anyhow!("Error getting election dates {e}"))?,
             )
         } else {
@@ -359,7 +361,7 @@ pub fn create_election_configs_blocking(
 
     // deduplicate the ballot styles
     event!(Level::INFO, "elections_map len {}", elections_map.len());
-    for (key, value) in &elections_map {
+    for value in elections_map.values() {
         let mut velvet_election: ElectionConfig = value.clone();
         velvet_election
             .ballot_styles
@@ -394,9 +396,9 @@ pub fn create_election_configs_blocking(
 #[instrument(skip_all, err)]
 pub async fn create_election_configs(
     base_tempdir: PathBuf,
-    area_contests: &Vec<AreaContestDataType>,
-    cast_votes_count: &Vec<ElectionCastVotes>,
-    basic_areas: &Vec<TreeNodeArea>,
+    area_contests: &[AreaContestDataType],
+    cast_votes_count: &[ElectionCastVotes],
+    basic_areas: &[TreeNodeArea],
     election_event: &ElectionEvent,
 ) -> Result<()> {
     // aggregate all ballot styles for each election
@@ -431,10 +433,10 @@ pub async fn create_election_configs(
         .iter()
         .map(|election| (election.id.clone(), election.clone()))
         .collect();
-    let area_contests_r = area_contests.clone();
-    let cast_votes_count_r = cast_votes_count.clone();
+    let area_contests_r = area_contests.to_owned();
+    let cast_votes_count_r = cast_votes_count.to_owned();
 
-    let areas_clone = basic_areas.clone();
+    let areas_clone = basic_areas.to_owned();
 
     // Fetch election event data
     let scheduled_events = find_scheduled_event_by_election_event_id(
@@ -672,7 +674,7 @@ pub async fn create_config_file(
     let minio_endpoint_base = s3::get_minio_url()?;
 
     let gen_report_pipe_config = build_reports_pipe_config(
-        &tally_session,
+        tally_session,
         minio_endpoint_base,
         public_asset_path,
         report_content_template,
@@ -763,7 +765,7 @@ async fn populate_sqlite_election_event_data(
     let velvet_input_dir = base_tempdir.join("input");
 
     let base_database_path = velvet_input_dir.join(format!("{DEFAULT_DIR_DATABASE}/"));
-    let database_path = base_database_path.join(format!("results.db"));
+    let database_path = base_database_path.join("results.db");
 
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
@@ -893,23 +895,27 @@ async fn populate_sqlite_election_event_data(
     Ok(document_id)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all, err)]
 pub async fn run_velvet_tally(
     base_tally_path: PathBuf,
     area_contests: &Vec<AreaContestDataType>,
-    cast_votes_count: &Vec<ElectionCastVotes>,
+    cast_votes_count: &[ElectionCastVotes],
     tally_sheets: &Vec<TallySheet>,
     report_content_template: Option<String>,
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
-    areas: &Vec<Area>,
+    areas: &[Area],
     hasura_transaction: &Transaction<'_>,
     election_event: &ElectionEvent,
     tally_session: &TallySession,
     tally_type: TallyType,
     tie_resolutions: HashMap<String, Vec<TallySessionResolutionData>>,
 ) -> Result<State> {
-    let basic_areas: Vec<TreeNodeArea> = areas.into_iter().map(|area| area.into()).collect();
+    let basic_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
     // map<(area_id,contest_id), tally_sheet>
     let tally_sheet_map = create_tally_sheets_map(tally_sheets);
     for area_contest in area_contests {
@@ -930,7 +936,7 @@ pub async fn run_velvet_tally(
     )
     .await?;
 
-    let database_document_id = populate_sqlite_election_event_data(
+    let _database_document_id = populate_sqlite_election_event_data(
         base_tally_path.as_path(),
         hasura_transaction,
         tally_session,

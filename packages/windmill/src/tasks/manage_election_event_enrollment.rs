@@ -7,19 +7,16 @@ use crate::postgres::election_event::{
 };
 use crate::postgres::scheduled_event::*;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::voting_status::{self};
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use async_trait::async_trait;
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ElectionEventPresentation, Enrollment};
-use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
+use sequent_core::serialization::deserialize_with_path::{self};
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
-use serde::{Deserialize, Serialize};
+use tracing::info;
 use tracing::instrument;
-use tracing::{error, event, info, Level};
 
 pub async fn update_keycloak_otp(
     tenant_id: Option<String>,
@@ -86,7 +83,7 @@ pub async fn update_keycloak_enrollment(
     };
 
     let realm_name = get_event_realm(
-        &tenant_id,
+        tenant_id,
         election_event_id
             .as_ref()
             .ok_or("scheduled event missing election_event_id")?
@@ -106,7 +103,7 @@ pub async fn update_keycloak_enrollment(
         .upsert_realm(
             &realm_name,
             &serde_json::to_string(&realm)?,
-            &tenant_id,
+            tenant_id,
             false,
             None,
             None,
@@ -150,13 +147,13 @@ pub async fn manage_election_event_enrollment_wrapped(
     update_keycloak_enrollment(
         scheduled_event.tenant_id.clone(),
         scheduled_event.election_event_id.clone(),
-        enable_enrollment.clone(),
+        enable_enrollment,
     )
     .await?;
 
     if let Some(election_event_presentation) = election_event.presentation {
         let election_event_presentation = ElectionEventPresentation {
-            enrollment: if (enable_enrollment) {
+            enrollment: if enable_enrollment {
                 Some(Enrollment::ENABLED)
             } else {
                 Some(Enrollment::DISABLED)
@@ -172,7 +169,7 @@ pub async fn manage_election_event_enrollment_wrapped(
         .await?;
     }
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
 
@@ -187,7 +184,7 @@ pub async fn manage_election_event_enrollment(
     election_event_id: String,
     scheduled_event_id: String,
 ) -> Result<()> {
-    let res = provide_hasura_transaction(|hasura_transaction| {
+    provide_hasura_transaction(|hasura_transaction| {
         let tenant_id = tenant_id.clone();
         let election_event_id = election_event_id.clone();
         let scheduled_event_id = scheduled_event_id.clone();
@@ -204,7 +201,7 @@ pub async fn manage_election_event_enrollment(
     })
     .await?;
 
-    info!("result: {:?}", res);
+    info!("result: {:?}", ());
 
-    Ok(res)
+    Ok(())
 }

@@ -14,19 +14,15 @@ pub struct EnrollmentFilters {
     pub status: ApplicationStatus,
     pub verification_type: Option<ApplicationType>,
 }
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Application;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 // use tokio_postgres::types::ToSql;
-use chrono::DateTime;
-use chrono::Local;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use serde::Serialize;
-use serde_json::json;
-use tokio_postgres::types::{Json, ToSql};
-use tracing::{event, instrument, Level};
+use tokio_postgres::types::ToSql;
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct ApplicationWrapper(pub Application);
@@ -106,6 +102,10 @@ pub async fn get_permission_label_from_post(
     Ok((permission_label, area_id))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip_all)]
 pub async fn insert_application(
     hasura_transaction: &Transaction<'_>,
@@ -175,6 +175,10 @@ pub async fn insert_application(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip_all)]
 pub async fn update_application_status(
     hasura_transaction: &Transaction<'_>,
@@ -283,12 +287,9 @@ pub async fn update_application_status(
         .collect::<Result<Vec<Application>>>()?;
 
     // Return the updated application or error if none found
-    let application = results
-        .get(0)
-        .map(|element: &Application| element.clone())
-        .ok_or(anyhow!(
-            "Error updating application: No application with id {id} found."
-        ))?;
+    let application = results.first().cloned().ok_or(anyhow!(
+        "Error updating application: No application with id {id} found."
+    ))?;
 
     Ok(application)
 }
@@ -347,14 +348,14 @@ pub async fn get_applications(
     let lim;
     if let Some(limit) = limit {
         query.push_str(&format!(" LIMIT ${}", param_index));
-        lim = limit.clone();
+        lim = limit;
         params.push(&lim);
         param_index += 1;
     }
     let off;
     if let Some(offset) = offset {
         query.push_str(&format!(" OFFSET ${}", param_index));
-        off = offset.clone();
+        off = offset;
         params.push(&off);
     }
 
@@ -397,9 +398,9 @@ pub async fn count_applications(
 ) -> Result<i64> {
     let mut current_param_place = 3;
     let area_clause = match area_id {
-        Some(area_id) => {
+        Some(_area_id) => {
             current_param_place += 1;
-            format!("AND area_id = $3 ")
+            "AND area_id = $3 ".to_string()
         }
         None => "".to_string(),
     };
@@ -494,9 +495,9 @@ pub async fn get_applications_by_election(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    election_id: Option<&str>,
+    _election_id: Option<&str>,
 ) -> Result<Vec<Application>> {
-    let mut query = r#"
+    let query = r#"
         SELECT *
         FROM sequent_backend.applications
         WHERE tenant_id = $1
@@ -507,7 +508,7 @@ pub async fn get_applications_by_election(
     let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
     let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
-    let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
+    let params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
 
     let statement = hasura_transaction
         .prepare(&query)

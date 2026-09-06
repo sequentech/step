@@ -6,13 +6,11 @@ use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::process_export_ballot_publication;
 use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]

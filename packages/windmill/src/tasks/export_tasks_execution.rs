@@ -2,14 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::services::database::get_hasura_pool;
 use crate::services::export::export_tasks_execution::process_export;
 use crate::types::error::{Error, Result};
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction as _};
-use serde::{Deserialize, Serialize};
-use std::io::{BufWriter, Write};
-use tracing::{debug, info, instrument};
+use deadpool_postgres::Client as DbClient;
+use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]

@@ -10,10 +10,9 @@ use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::{ResultDocuments, ResultsElectionArea};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -24,9 +23,8 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsElectionAreaWrapper(ResultsElectionArea {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -51,6 +49,10 @@ impl TryFrom<Row> for ResultsElectionAreaWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction, documents), err)]
 pub async fn insert_results_election_area_documents(
     hasura_transaction: &Transaction<'_>,
@@ -65,16 +67,16 @@ pub async fn insert_results_election_area_documents(
     blank_ballots_percent: Option<f64>,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
     // blank_ballots_percent is a Postgres `numeric` column; tokio-postgres
     // only maps f64 to `float8`, so bind the value as the same Decimal type
     // the read path (ResultsElectionAreaWrapper) already uses.
@@ -100,7 +102,7 @@ pub async fn insert_results_election_area_documents(
             "#,
         )
         .await?;
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[

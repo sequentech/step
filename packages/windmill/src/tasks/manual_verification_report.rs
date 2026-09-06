@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::reports::Report;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -12,7 +12,7 @@ use crate::types::error::Error;
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
 use tracing::instrument;
 
 #[instrument(err)]
@@ -59,9 +59,9 @@ pub async fn generate_report(
 
     report
         .execute_report(
-            &document_id,
-            &tenant_id,
-            &election_event_id,
+            document_id,
+            tenant_id,
+            election_event_id,
             /* is_scheduled_task */ false,
             /* recipients */ vec![],
             GenerateReportMode::REAL,

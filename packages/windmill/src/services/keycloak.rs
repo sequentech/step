@@ -5,16 +5,14 @@
 use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use keycloak::types::{GroupRepresentation, RealmRepresentation, RoleRepresentation};
-use keycloak::{KeycloakAdmin, KeycloakAdminToken};
-use rocket::http::Status;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::RoleAction;
 use sequent_core::services::s3::{get_file_from_s3, get_private_bucket};
-use sequent_core::{services::keycloak::KeycloakAdminClient, types::keycloak::Role};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 fn normalize_realm_config_s3_key(s3_key_env_var: &str, s3_key: &str) -> anyhow::Result<String> {
@@ -86,7 +84,7 @@ pub fn map_realm_data(
         .realm
         .unwrap_or(vec![]);
     let existing_groups = realm.groups.clone().unwrap_or(vec![]);
-    return (container_id, existing_groups, existing_roles);
+    (container_id, existing_groups, existing_roles)
 }
 
 #[instrument(err)]
@@ -159,8 +157,8 @@ pub fn find_group_by_name(
 ) -> Option<GroupRepresentation> {
     groups
         .iter()
+        .find(|&group| group.name.as_deref() == Some(group_name))
         .cloned()
-        .find(|group| group.name.as_deref() == Some(group_name))
 }
 
 #[instrument(err, skip_all)]
@@ -220,7 +218,7 @@ pub async fn read_roles_config_file(
         if let Some(group) = find_group_by_name(&existing_realm_groups, &role) {
             let current_group_roles = keycloak_client
                 .get_group_assigned_roles(
-                    &tenant_id,
+                    tenant_id,
                     group.id.as_deref().unwrap_or_default(),
                     &keycloak_pub_client,
                 )
@@ -261,7 +259,7 @@ pub async fn read_roles_config_file(
             // Add missing roles
             keycloak_client
                 .add_roles_to_group(
-                    &tenant_id,
+                    tenant_id,
                     &keycloak_pub_client,
                     group.id.as_deref().unwrap_or_default(),
                     &to_add,
@@ -278,7 +276,7 @@ pub async fn read_roles_config_file(
             // Remove unnecessary roles
             keycloak_client
                 .add_roles_to_group(
-                    &tenant_id,
+                    tenant_id,
                     &keycloak_pub_client,
                     group.id.as_deref().unwrap_or_default(),
                     &to_remove,
@@ -294,26 +292,23 @@ pub async fn read_roles_config_file(
         } else {
             // Create new group and assign permissions
             let new_group_id = keycloak_client
-                .create_new_group(&tenant_id, &role, &keycloak_pub_client)
+                .create_new_group(tenant_id, &role, &keycloak_pub_client)
                 .await
                 .with_context(|| {
                     format!("Error creating group '{}' and assigning permissions", role)
                 })?;
 
-            match new_group_id {
-                Some(group_id) => {
-                    keycloak_client
-                        .add_roles_to_group(
-                            &tenant_id,
-                            &keycloak_pub_client,
-                            &group_id,
-                            &realm_roles,
-                            RoleAction::Add,
-                        )
-                        .await
-                        .with_context(|| format!("Error adding roles to new group '{}'", role))?;
-                }
-                None => {}
+            if let Some(group_id) = new_group_id {
+                keycloak_client
+                    .add_roles_to_group(
+                        tenant_id,
+                        &keycloak_pub_client,
+                        &group_id,
+                        &realm_roles,
+                        RoleAction::Add,
+                    )
+                    .await
+                    .with_context(|| format!("Error adding roles to new group '{}'", role))?;
             }
         }
     }

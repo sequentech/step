@@ -68,8 +68,7 @@ pub async fn download_sqlite_database(
         } else {
             return Err(anyhow!(
             "Could not recover documents from tally session execution with id {tally_session_id}"
-        )
-            .into());
+        ));
         };
 
     let sqlite_database_document_id = if let Some(id) = documents.sqlite {
@@ -77,20 +76,19 @@ pub async fn download_sqlite_database(
     } else {
         return Err(anyhow!(
             "Could not recover sqlite database from tally session execution with id {tally_session_id}"
-        )
-        .into());
+        ));
     };
 
     let document = get_document(
-        &hasura_transaction,
-        &tenant_id,
+        hasura_transaction,
+        tenant_id,
         Some(election_event_id.to_string()),
         &sqlite_database_document_id,
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", sqlite_database_document_id))?;
 
-    let sqlite_database = get_document_as_temp_file(&tenant_id, &document).await?;
+    let sqlite_database = get_document_as_temp_file(tenant_id, &document).await?;
 
     Ok(sqlite_database)
 }

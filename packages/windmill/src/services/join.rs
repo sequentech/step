@@ -448,7 +448,7 @@ mod tests {
     #[test]
     fn test_large_scale_auditable_count() -> Result<()> {
         const TOTAL_ENTRIES: u64 = 500;
-        const EXPECTED_AUDITABLE_COUNT: u64 = (TOTAL_ENTRIES / 2) as u64; // We will add only even users, so odds are auditable.
+        const EXPECTED_AUDITABLE_COUNT: u64 = TOTAL_ENTRIES / 2; // We will add only even users, so odds are auditable.
 
         let mut ballots_csv = String::new();
         let mut users_csv = String::new();

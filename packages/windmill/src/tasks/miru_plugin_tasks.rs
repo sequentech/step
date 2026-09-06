@@ -46,8 +46,7 @@ pub async fn create_transmission_package_task(
                             err.backtrace()
                         );
                         update_fail(&task_execution_clone, &err.to_string()).await?;
-                        Err(anyhow::Error::from(err)
-                            .context("Failed to create transmission package"))
+                        Err(err.context("Failed to create transmission package"))
                     }
                 }
             })

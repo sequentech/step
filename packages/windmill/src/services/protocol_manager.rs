@@ -71,7 +71,7 @@ pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
 
 #[instrument]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
-    let pmc = ProtocolManagerConfig::from(&pm);
+    let pmc = ProtocolManagerConfig::from(pm);
     toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
@@ -120,11 +120,11 @@ pub async fn add_config_to_board<C: Ctx>(
 
 #[instrument(err)]
 pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
-    let mut board = get_b3_pgsql_client().await?;
+    let board = get_b3_pgsql_client().await?;
 
     let b3 = board.get_messages(board_name, -1).await?;
 
-    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
+    let valid_statements = [StatementType::PublicKey, StatementType::PublicKeySigned];
     let messages: Vec<Message> = b3
         .into_iter()
         .filter_map(|board_message| Message::strand_deserialize(&board_message.message).ok())
@@ -135,7 +135,7 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
     config
         .trustees
         .into_iter()
-        .map(|trustee_signature| {
+        .try_for_each(|trustee_signature| {
             let trustee_pk = messages.iter().any(|message| {
                 message.sender.pk == trustee_signature
                     && valid_statements.contains(&message.statement.get_kind())
@@ -148,8 +148,7 @@ pub async fn get_board_public_key<C: Ctx>(board_name: &str) -> Result<C::E> {
                     trustee_signature
                 ))
             }
-        })
-        .collect::<Result<()>>()?;
+        })?;
 
     let pks_message = messages
         .into_iter()
@@ -183,7 +182,7 @@ pub async fn check_configuration_exists(board_name: &str) -> Result<bool> {
 pub async fn get_board_public_key_messages(board_name: &str) -> Result<Vec<Message>> {
     let board = get_b3_pgsql_client().await?;
 
-    let valid_statements = vec![
+    let valid_statements = [
         StatementType::Configuration,
         StatementType::ConfigurationSigned,
         StatementType::Channel,
@@ -261,7 +260,7 @@ pub async fn get_trustee_encrypted_private_key<C: Ctx>(
 }
 
 #[instrument(skip_all, err)]
-pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuration<C>> {
+pub fn get_configuration<C: Ctx>(messages: &[Message]) -> Result<Configuration<C>> {
     let configuration_msg = messages
         .iter()
         .find(|message| {
@@ -278,7 +277,7 @@ pub fn get_configuration<C: Ctx>(messages: &Vec<Message>) -> Result<Configuratio
 }
 
 #[instrument(skip_all, err)]
-pub fn get_public_key_hash<C: Ctx>(messages: &Vec<Message>) -> Result<PublicKeyHash> {
+pub fn get_public_key_hash<C: Ctx>(messages: &[Message]) -> Result<PublicKeyHash> {
     let public_key_message = messages
         .iter()
         .find(|message| {
@@ -315,15 +314,13 @@ pub fn generate_trustee_set<C: Ctx>(
             }
         })
         .collect();
-    for i in 0..trustee_ids.len() {
-        selected_trustees[i] = trustee_ids[i];
-    }
+    selected_trustees[..trustee_ids.len()].copy_from_slice(&trustee_ids);
     event!(Level::INFO, "TrusteeSet: {:?}", selected_trustees);
     selected_trustees
 }
 
 #[instrument(skip_all, err)]
-pub fn convert_b3(b3: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
+pub fn convert_b3(b3: &[B3MessageRow]) -> Result<Vec<Message>> {
     let messages: Vec<Message> = b3
         .iter()
         .map(|board_message| Message::strand_deserialize(&board_message.message))
@@ -371,11 +368,15 @@ pub async fn get_b3<C: Ctx>(
     ),
     err
 )]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the ballot publication API and its explicit board, session, policy and transaction inputs."
+)]
 pub async fn add_ballots_to_board<C: Ctx>(
     pm: &ProtocolManager<C>,
     b3_client: &mut PgsqlB3Client,
     board_name: &str,
-    messages: &Vec<Message>,
+    messages: &[Message],
     configuration: &Configuration<C>,
     public_key_hash: PublicKeyHash,
     selected_trustees: TrusteeSet,
@@ -487,7 +488,7 @@ pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> Str
         .collect()
 }
 
-pub fn convert_board_messages(board_messages: &Vec<B3MessageRow>) -> Result<Vec<Message>> {
+pub fn convert_board_messages(board_messages: &[B3MessageRow]) -> Result<Vec<Message>> {
     let messages: Vec<Message> = board_messages
         .iter()
         .map(|m| Message::strand_deserialize(&m.message))

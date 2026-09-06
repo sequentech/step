@@ -11,7 +11,6 @@ use sequent_core::types::tally_sheets::{
     AreaContestResults, CandidateResults, InvalidVotes, VotingChannel,
 };
 use serde::Deserialize;
-use serde_json::Value;
 use tracing::instrument;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]

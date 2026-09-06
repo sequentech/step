@@ -11,17 +11,14 @@ use crate::services::tasks_execution::*;
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction as _};
+use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::{GenericClient, Transaction};
-use sequent_core::services::keycloak::get_client_credentials;
-use sequent_core::services::s3;
-use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use serde::{Deserialize, Serialize};
 use std::io::Seek;
 use tempfile::NamedTempFile;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument};
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportUsersBody {
     pub tenant_id: String,
@@ -150,7 +147,6 @@ pub async fn import_users(body: ImportUsersBody, task_execution: TasksExecution)
             // Execute database maintenance
             info!("Performing mainteinance after users import.");
             vacuum_analyze_direct().await?;
-            ()
         }
         Err(err) => {
             update_fail(&task_execution, &err.to_string()).await?;

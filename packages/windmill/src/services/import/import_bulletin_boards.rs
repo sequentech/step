@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
-use crate::services::export::export_bulletin_boards::*;
 use crate::services::protocol_manager::get_b3_pgsql_client;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::vault;
@@ -17,7 +16,6 @@ use base64::Engine;
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use std::collections::HashMap;
-use std::collections::HashSet;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
@@ -60,19 +58,19 @@ fn get_board_record(record: StringRecord) -> Result<(String, B3MessageRow)> {
     let version = fields[9].clone();
 
     let row = B3MessageRow {
-        id: id,
-        created: created,
+        id,
+        created,
         // Base64 encoded spki der representation.
-        sender_pk: sender_pk,
-        statement_timestamp: statement_timestamp,
-        statement_kind: statement_kind,
-        batch: batch,
+        sender_pk,
+        statement_timestamp,
+        statement_kind,
+        batch,
         // When signing mixes, specifies which mix in the chain is being signed.
         // This allows creating a unique index for which otherwise there would be duplicate
         // mix signature messages
-        mix_number: mix_number,
-        message: message,
-        version: version,
+        mix_number,
+        message,
+        version,
     };
 
     Ok((election_id, row))
@@ -142,7 +140,7 @@ pub async fn import_protocol_manager_keys(
         }
 
         let election_id = fields[0].clone();
-        let new_election_id = if election_id.trim().len() > 0 {
+        let new_election_id = if !election_id.trim().is_empty() {
             Some(
                 replacement_map
                     .get(&election_id)
@@ -242,13 +240,13 @@ pub async fn import_bulletin_boards(
         // Add board_record to the vector in boards_map, indexed by election_id
         boards_map
             .entry(election_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(board_record);
     }
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
 
     for (election_id, records) in boards_map {
-        let new_election_id = if election_id.trim().len() > 0 {
+        let new_election_id = if !election_id.trim().is_empty() {
             Some(
                 replacement_map
                     .get(&election_id)

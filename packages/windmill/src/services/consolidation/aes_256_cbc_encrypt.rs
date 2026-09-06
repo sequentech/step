@@ -18,6 +18,8 @@
 //!
 //! Everything runs in-process through the OpenSSL library (`openssl` crate):
 //! no external program is started and the password never leaves memory.
+type KeyDerivation = fn(&str, &[u8]) -> Result<KeyIv>;
+
 use anyhow::{anyhow, Context, Result};
 use openssl::hash::MessageDigest;
 use openssl::pkcs5::{bytes_to_key, pbkdf2_hmac};
@@ -159,7 +161,7 @@ pub fn decrypt_file_aes_256_cbc(
     }
     let salt = &header[MAGIC.len()..];
 
-    let attempts: [(&str, fn(&str, &[u8]) -> Result<KeyIv>); 2] = [
+    let attempts: [(&str, KeyDerivation); 2] = [
         ("PBKDF2-HMAC-SHA-256", derive_pbkdf2),
         ("legacy EVP_BytesToKey", derive_legacy),
     ];

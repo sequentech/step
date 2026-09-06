@@ -10,7 +10,7 @@ use crate::services::tasks_execution;
 use crate::tasks::generate_report::generate_report;
 use crate::types::error::Result;
 use crate::types::tasks::ETasksExecution;
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use celery::error::TaskError;
 use chrono::{DateTime, Duration, Local, NaiveDateTime, Utc};
 use croner::Cron;
@@ -22,9 +22,7 @@ use uuid::Uuid;
 /// Returns the next run time if it is due within the current time window.
 #[instrument]
 pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
-    let Some(cron_config) = report.cron_config.clone() else {
-        return None;
-    };
+    let cron_config = report.cron_config.clone()?;
     info!("Cron config: {:?}", cron_config);
     let cron_expression = cron_config.cron_expression.clone();
 
@@ -66,7 +64,7 @@ pub fn get_next_scheduled_time(report: &Report) -> Option<DateTime<Local>> {
     };
 
     info!("Next run: {:?}", next_run);
-    return Some(next_run.with_timezone(&Local));
+    Some(next_run.with_timezone(&Local))
 }
 
 fn parse_last_document_produced(date_str: &str) -> Option<DateTime<Utc>> {
@@ -110,7 +108,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
     let to_be_run_now = active_reports
         .iter()
         .filter(|report| {
-            let Some(formatted_date) = get_next_scheduled_time(&report) else {
+            let Some(formatted_date) = get_next_scheduled_time(report) else {
                 return false;
             };
             formatted_date < nsecs_later
@@ -172,7 +170,7 @@ pub async fn scheduled_reports(rate_seconds: u64) -> Result<()> {
         );
     }
 
-    let _commit = hasura_transaction
+    hasura_transaction
         .commit()
         .await
         .map_err(|err| anyhow!("Error committing hasura transaction: {err:?}"))?;

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::tenant::update_tenant;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use regex::Regex;
@@ -16,7 +16,6 @@ use std::fs::File;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 pub static HEADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to compile header regex"));
@@ -36,7 +35,7 @@ pub async fn upsert_tenant(
 
     let headers = rdr
         .headers()
-        .map(|headers| headers.clone())
+        .cloned()
         .map_err(|err| anyhow!("Error reading CSV headers: {err:?}"))?;
 
     for header in headers.iter() {
@@ -83,8 +82,7 @@ pub async fn process_record(
         .and_then(|s| deserialize_str::<JsonValue>(s).ok());
     let is_active: bool = record
         .get(6)
-        .map(|val| deserialize_str::<bool>(val).ok())
-        .flatten()
+        .and_then(|val| deserialize_str::<bool>(val).ok())
         .ok_or_else(|| anyhow!("Error deserializing is_active"))?;
     let voting_channels = record
         .get(7)

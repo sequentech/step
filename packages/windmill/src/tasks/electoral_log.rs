@@ -11,7 +11,7 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_board_client;
 use crate::services::users::get_user_area_id;
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
@@ -21,7 +21,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, info, instrument};
+use tracing::{info, instrument};
 
 use lapin::{
     options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
@@ -125,7 +125,7 @@ pub struct LogEventInput {
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
-pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
+pub async fn enqueue_electoral_log_event(_input: LogEventInput) -> Result<()> {
     // By calling this task, the event is enqueued into the electoral_log_batch_queue.
     Ok(())
 }
@@ -206,7 +206,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                         .with_context(|| "Error building send template message")?;
                     messages_by_board
                         .entry(board_name.clone())
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push(send_template_msg);
                 }
 
@@ -225,7 +225,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
 
         messages_by_board
             .entry(board_name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(event_message);
     }
 

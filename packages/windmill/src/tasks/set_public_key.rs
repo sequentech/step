@@ -7,7 +7,6 @@ use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::serialize_logs::generate_logs;
 use crate::services::ceremonies::serialize_logs::sort_logs;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::get_election_event_board;
 use crate::services::protocol_manager;
 use crate::services::public_keys;
 use crate::types::error::Result;
@@ -15,9 +14,8 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b4::messages::message::Message;
 use b4::messages::statement::StatementType;
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::date::{get_now_utc_unix_ms, ISO8601};
-use sequent_core::services::keycloak;
+use deadpool_postgres::Client as DbClient;
+use sequent_core::services::date::get_now_utc_unix_ms;
 use sequent_core::types::ceremonies::{
     CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee as BasicTrustee,
     TrusteeStatus,
@@ -26,13 +24,13 @@ use sequent_core::types::hasura::core::Trustee;
 use serde_json::Value;
 use std::collections::HashSet;
 use strand::signature::StrandSignaturePk;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 
 #[instrument(skip(trustees_hasura, messages), err)]
 fn get_trustee_status(
     trustee_name: &str,
-    trustees_hasura: &Vec<Trustee>,
-    messages: &Vec<Message>,
+    trustees_hasura: &[Trustee],
+    messages: &[Message],
 ) -> Result<TrusteeStatus> {
     let Some(found_trustee) = trustees_hasura
         .iter()
@@ -45,7 +43,7 @@ fn get_trustee_status(
     };
     let pk = StrandSignaturePk::from_der_b64_string(&pk_str)?;
 
-    let valid_statements = vec![StatementType::PublicKey, StatementType::PublicKeySigned];
+    let valid_statements = [StatementType::PublicKey, StatementType::PublicKeySigned];
 
     let found_message = messages.iter().find(|message| {
         valid_statements.contains(&message.statement.get_kind()) && message.sender.pk == pk
@@ -124,7 +122,7 @@ pub async fn set_public_key_impl(
         .timestamp() as u64;
 
     let messages = protocol_manager::get_board_public_key_messages(&board_name).await?;
-    let mut new_logs = generate_logs(&messages, next_timestamp, &vec![0])?;
+    let mut new_logs = generate_logs(&messages, next_timestamp, &[0])?;
     let mut logs = current_status.logs.clone();
     logs.append(&mut new_logs);
 

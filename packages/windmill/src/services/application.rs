@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+pub type ApplicationMismatchSummary = (usize, usize, HashMap<String, bool>, HashMap<String, bool>);
+
 use super::users::{lookup_users, FilterOption, ListUsersFilter};
 use crate::postgres::application::get_permission_label_from_post;
-use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
@@ -67,11 +68,15 @@ struct ApplicationCommunication {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-struct ApplicationCommunicationChannels {
+pub struct ApplicationCommunicationChannels {
     email: EmailConfig,
     sms: SmsConfig,
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
+)]
 #[instrument(skip_all, err)]
 pub async fn verify_application(
     hasura_transaction: &Transaction<'_>,
@@ -96,7 +101,7 @@ pub async fn verify_application(
         None,
         realm,
         None,
-        &annotations,
+        annotations,
         applicant_data,
     )?;
 
@@ -105,7 +110,7 @@ pub async fn verify_application(
     debug!("Found users before verification: {:?}", users);
 
     // Finds an user from the list of found possible users
-    let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
+    let result = automatic_verification(users.clone(), annotations, applicant_data)?;
     info!("Verification result: {:?}", result);
 
     // Set the annotations
@@ -183,14 +188,18 @@ async fn get_permission_label_and_area_from_applicant_data(
 
     return get_permission_label_from_post(
         hasura_transaction,
-        &post_name,
-        &post_description,
+        post_name,
+        post_description,
         tenant_id,
         election_event_id,
     )
     .await;
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
+)]
 #[instrument(err, skip_all)]
 fn get_filter_from_applicant_data(
     tenant_id: String,
@@ -217,22 +226,22 @@ fn get_filter_from_applicant_data(
             "firstName" => {
                 first_name = applicant_data
                     .get("firstName")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "lastName" => {
                 last_name = applicant_data
                     .get("lastName")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "username" => {
                 username = applicant_data
                     .get("username")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "email" => {
                 email = applicant_data
                     .get("email")
-                    .and_then(|value| Some(FilterOption::IsEqualNormalized(value.to_string())));
+                    .map(|value| FilterOption::IsEqualNormalized(value.to_string()));
             }
             "embassy" => {
                 // Ignore embassy to speed up user lookup
@@ -441,18 +450,10 @@ fn automatic_verification(
                 rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
                 rejection_message = None;
             }
-        } else if mismatches == 2 && !fields_match.get("embassy").unwrap_or(&false) {
-            matched_user = None;
-            matched_status = ApplicationStatus::PENDING;
-            matched_type = ApplicationType::MANUAL;
-            verification_mismatches = Some(mismatches);
-            verification_fields_match = Some(fields_match);
-            verification_attributes_unset = Some(attributes_unset);
-            rejection_reason = Some(ApplicationRejectReason::NO_VOTER);
-            rejection_message = None;
         } else if mismatches == 2
-            && !fields_match.get("middleName").unwrap_or(&false)
-            && !fields_match.get("lastName").unwrap_or(&false)
+            && (!fields_match.get("embassy").unwrap_or(&false)
+                || (!fields_match.get("middleName").unwrap_or(&false)
+                    && !fields_match.get("lastName").unwrap_or(&false)))
         {
             matched_user = None;
             matched_status = ApplicationStatus::PENDING;
@@ -503,7 +504,7 @@ fn check_mismatches(
     applicant_data: &HashMap<String, String>,
     fields_to_check: String,
     fields_to_check_unset: String,
-) -> Result<(usize, usize, HashMap<String, bool>, HashMap<String, bool>)> {
+) -> Result<ApplicationMismatchSummary> {
     let mut match_result = HashMap::new();
     let mut unset_result = HashMap::new();
     let mut mismatches = 0;
@@ -626,7 +627,7 @@ fn check_mismatches(
         };
 
         let user_field_value = user_field_value.clone().map(|value| value.to_lowercase());
-        let is_set = user_field_value.unwrap_or_default().trim().len() > 0;
+        let is_set = !user_field_value.unwrap_or_default().trim().is_empty();
 
         // match is true only if the field is NOT set
         unset_result.insert(field_to_check.to_string(), !is_set);
@@ -694,15 +695,11 @@ pub async fn get_i18n_application_communication(
     presentation: ElectionEventPresentation,
     lang: &str,
     app_status: ApplicationStatus,
-    communication_method: TemplateMethod,
+    _communication_method: TemplateMethod,
 ) -> Result<ApplicationCommunicationChannels> {
     let mut application_channels =
-        get_i18n_default_application_communication(&lang, app_status.clone()).await?;
-    let Some(localization_map) = presentation
-        .i18n
-        .map(|val| val.get(lang).cloned())
-        .flatten()
-    else {
+        get_i18n_default_application_communication(lang, app_status.clone()).await?;
+    let Some(localization_map) = presentation.i18n.and_then(|val| val.get(lang).cloned()) else {
         return Ok(application_channels);
     };
     let key_prefix = format!("application.{}", app_status.to_string().to_lowercase());
@@ -776,6 +773,10 @@ pub async fn get_application_response_communication(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
+)]
 #[instrument(skip_all, err)]
 pub async fn confirm_application(
     hasura_transaction: &Transaction<'_>,
@@ -933,6 +934,10 @@ pub async fn confirm_application(
     Ok((application, user))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing application identity, actor and verification inputs explicit at the established service boundary."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn reject_application(
     hasura_transaction: &Transaction<'_>,
@@ -958,7 +963,7 @@ pub async fn reject_application(
         rejection_reason,
         rejection_message,
         admin_name,
-        &group_names,
+        group_names,
     )
     .await
     .map_err(|err| anyhow!("Error updating application: {}", err))?;
@@ -1120,7 +1125,7 @@ pub async fn get_group_names(realm: &str, user_id: &str) -> Result<Vec<String>> 
 
     // Fetch user groups from Keycloak
     let _groups = client
-        .get_user_groups(&realm, user_id)
+        .get_user_groups(realm, user_id)
         .await
         .map_err(|err| anyhow!("Error fetch group names: {err}"))?;
 

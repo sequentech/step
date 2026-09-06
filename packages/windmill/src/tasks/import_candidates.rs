@@ -266,10 +266,8 @@ fn get_contest_from_postcode(contests: &Vec<Contest>, postcode: &str) -> Result<
                 let contest_presentation: ContestPresentation = deserialize_value(presentation)?;
                 if let Some(i18n) = contest_presentation.i18n.clone() {
                     if let Some(en) = i18n.get("en") {
-                        if let Some(en_alias_opt) = en.get("alias").clone() {
-                            if en_alias_opt.clone().unwrap_or("".to_string())
-                                == contest_name.to_string()
-                            {
+                        if let Some(en_alias_opt) = en.get("alias") {
+                            if en_alias_opt.clone().unwrap_or("".to_string()) == contest_name {
                                 return Ok(Some(contest.id.clone()));
                             }
                         }
@@ -398,7 +396,7 @@ pub async fn import_candidates_task(
                     .i18n
                     .get_or_insert_with(HashMap::new)
                     .entry(lang.to_string())
-                    .or_insert_with(HashMap::new)
+                    .or_default()
                     .insert(
                         "name".to_string(),
                         Some(format!("{name_on_ballot} ({ext})")),

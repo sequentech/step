@@ -24,7 +24,7 @@ use std::mem;
 use strand::serialization::StrandDeserialize;
 use strum_macros::EnumString;
 use tempfile::NamedTempFile;
-use tracing::{debug, info, instrument, warn};
+use tracing::{info, instrument};
 
 #[derive(Serialize, Deserialize, Debug, Clone, EnumString, PartialEq, Copy)]
 pub enum ReportFormat {
@@ -110,7 +110,7 @@ impl ActivityLogsTemplate {
                 let mut row: ElectoralLogRow = entry
                     .try_into()
                     .map_err(|e| anyhow!("Error converting log entry to row: {e:?}"))?;
-                row.message = row.message.replace('\n', " ").replace('\r', " ");
+                row.message = row.message.replace(['\n', '\r'], " ");
                 csv_writer
                     .serialize(row)
                     .map_err(|e| anyhow!("Error serializing to CSV: {e:?}"))?;
@@ -328,8 +328,8 @@ impl TemplateRenderer for ActivityLogsTemplate {
         &self,
         rendered_user_template: String,
     ) -> Result<Self::SystemData> {
-        let public_asset_path = get_public_assets_path_env_var()?;
-        let minio_endpoint_base =
+        let _public_asset_path = get_public_assets_path_env_var()?;
+        let _minio_endpoint_base =
             get_minio_url().with_context(|| "Error getting minio endpoint")?;
 
         Ok(SystemData {
@@ -454,14 +454,14 @@ pub async fn generate_export_data(
 ) -> Result<NamedTempFile> {
     // Create a temporary file to write CSV data
     let mut temp_file =
-        generate_temp_file(&name, ".csv").with_context(|| "Error creating named temp file")?;
+        generate_temp_file(name, ".csv").with_context(|| "Error creating named temp file")?;
     let mut csv_writer = WriterBuilder::new().from_writer(temp_file.as_file_mut());
 
     for item in act_log {
         let mut item_clean = item.clone();
 
         // Replace newline characters in the message field
-        item_clean.message = item_clean.message.replace('\n', " ").replace('\r', " ");
+        item_clean.message = item_clean.message.replace(['\n', '\r'], " ");
         // Serialize each item to CSV
         csv_writer
             .serialize(item_clean)
@@ -481,7 +481,7 @@ mod tests {
     use super::*;
     use crate::services::protocol_manager::get_event_board;
     use crate::services::reports::template_renderer::ReportOriginatedFrom;
-    use chrono::Utc;
+
     use electoral_log::BoardClient;
     use sequent_core::util::external_config::load_external_config;
     use std::env;

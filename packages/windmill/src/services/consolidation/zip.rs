@@ -4,12 +4,12 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self};
 use std::path::Path;
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 use zip::read::ZipArchive;
-use zip::write::{FileOptions, SimpleFileOptions};
+use zip::write::SimpleFileOptions;
 
 #[instrument(skip_all, err)]
 pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
@@ -38,7 +38,7 @@ pub fn compress_folder_to_zip(src_dir: &Path, dst_file: &Path) -> Result<()> {
                 .with_context(|| format!("Failed to open file: {:?}", entry_path))?;
             io::copy(&mut f, &mut zip)
                 .with_context(|| format!("Failed to write file to zip: {:?}", entry_path))?;
-        } else if name.as_os_str().len() != 0 {
+        } else if !name.as_os_str().is_empty() {
             zip.add_directory_from_path(name, options)
                 .with_context(|| format!("Failed to add directory to zip: {:?}", entry_path))?;
         }
@@ -59,7 +59,7 @@ pub fn unzip_file(src_file: &Path, dst_dir: &Path) -> Result<()> {
         let mut file = archive
             .by_index(i)
             .with_context(|| format!("Failed to access file in archive at index: {}", i))?;
-        let out_path = dst_dir.join(file.sanitized_name());
+        let out_path = dst_dir.join(file.mangled_name());
 
         if file.name().ends_with('/') {
             fs::create_dir_all(&out_path)

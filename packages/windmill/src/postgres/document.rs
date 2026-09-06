@@ -6,7 +6,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{Document, DocumentAnnotations, SupportMaterial};
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct DocumentWrapper(pub Document);
@@ -124,7 +124,7 @@ pub async fn get_document(
         .collect::<Result<Vec<Document>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    Ok(documents.get(0).cloned())
+    Ok(documents.first().cloned())
 }
 
 #[instrument(err, skip(hasura_transaction, document_ids))]
@@ -234,6 +234,10 @@ pub async fn get_support_material_documents(
     Ok(Some(documents))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip(hasura_transaction))]
 pub async fn insert_document(
     hasura_transaction: &Transaction<'_>,
@@ -259,6 +263,10 @@ pub async fn insert_document(
     .await
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip(hasura_transaction, annotations))]
 pub async fn insert_document_with_annotations(
     hasura_transaction: &Transaction<'_>,
@@ -347,7 +355,7 @@ pub async fn insert_document_with_annotations(
         .with_context(|| "Error converting rows into documents")?;
 
     documents
-        .get(0)
-        .map(|val| val.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Row not inserted"))
 }

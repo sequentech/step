@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use anyhow::{anyhow, Result};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_value,
@@ -13,8 +13,8 @@ use sequent_core::{
 };
 use serde::Serialize;
 use serde_json::value::Value;
-use tokio_postgres::{row::Row, types::ToSql};
-use tracing::{event, instrument, Level};
+use tokio_postgres::row::Row;
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TallySessionWrapper(pub TallySession);
@@ -55,7 +55,7 @@ impl TryFrom<Row> for TallySessionWrapper {
             threshold: item.try_get::<_, i32>("threshold")? as i64,
             configuration: item
                 .try_get::<_, Option<Value>>("configuration")?
-                .map(|val| deserialize_value(val))
+                .map(deserialize_value)
                 .transpose()?,
             tally_type: item.try_get("tally_type")?,
             permission_label: item.get::<_, Option<Vec<String>>>("permission_label"),
@@ -63,6 +63,10 @@ impl TryFrom<Row> for TallySessionWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tally_session(
     hasura_transaction: &Transaction<'_>,
@@ -84,11 +88,11 @@ pub async fn insert_tally_session(
         .transpose()?;
     let election_uuids: Vec<Uuid> = election_ids
         .iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
-        .map(|id| parse_uuid_v4(&id).map_err(|err| anyhow!("{:?}", err)))
+        .map(|id| parse_uuid_v4(id).map_err(|err| anyhow!("{:?}", err)))
         .collect::<Result<Vec<Uuid>>>()?;
     let statement = hasura_transaction
         .prepare(
@@ -286,8 +290,8 @@ pub async fn get_tally_session_by_id(
         .collect::<Result<Vec<TallySession>>>()?;
 
     elements
-        .get(0)
-        .map(|tally_session: &TallySession| tally_session.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Tally Session {tally_session_id} not found"))
 }
 
@@ -357,14 +361,14 @@ pub async fn update_tally_session_annotation(
         )
         .await?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[
                 &annotations,
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -380,8 +384,7 @@ pub async fn get_tally_sessions_by_election_id(
     election_event_id: &str,
     election_id: &str,
 ) -> Result<Vec<TallySession>> {
-    let query = format!(
-        r#"
+    let query = r#"
         SELECT
             *
         FROM
@@ -393,7 +396,7 @@ pub async fn get_tally_sessions_by_election_id(
         ORDER BY
             created_at DESC;
         "#
-    );
+    .to_string();
 
     let statement = hasura_transaction.prepare(&query).await?;
 
@@ -403,8 +406,8 @@ pub async fn get_tally_sessions_by_election_id(
             &statement,
             &[
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
-                &parse_uuid_v4(&election_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(election_id)?,
             ],
         )
         .await?;
@@ -450,7 +453,7 @@ pub async fn update_tally_session_status(
                 &execution_status.to_string(),
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
                 &is_execution_completed,
             ],
         )
@@ -488,7 +491,7 @@ pub async fn set_post_tally_task_completed(
             &[
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await
@@ -529,7 +532,7 @@ pub async fn set_tally_session_completed(
                 &execution_status.to_string(),
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(&election_event_id)?,
+                &parse_uuid_v4(election_event_id)?,
             ],
         )
         .await

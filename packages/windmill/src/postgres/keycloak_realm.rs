@@ -2,15 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::database::PgConfig;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::types::keycloak::*;
-use std::convert::From;
 use tokio_postgres::row::Row;
-use tokio_postgres::types::ToSql;
-use tracing::{event, instrument, Level};
-use uuid::Uuid;
+use tracing::instrument;
 
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn get_realm_id(
@@ -37,9 +32,8 @@ pub async fn get_realm_id(
     let realm_ids: Vec<String> = rows
         .into_iter()
         .map(|row| -> Result<String> {
-            Ok(row
-                .try_get::<&str, String>("id")
-                .map_err(|err| anyhow!("Error getting the realm id from a row: {}", err))?)
+            row.try_get::<&str, String>("id")
+                .map_err(|err| anyhow!("Error getting the realm id from a row: {}", err))
         })
         .collect::<Result<Vec<String>>>()
         .map_err(|err| anyhow!("Error getting the realm ids: {}", err))?;

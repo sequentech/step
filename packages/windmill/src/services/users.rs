@@ -3,27 +3,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::area::get_areas;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::{get_users_with_vote_info, CastVoteStatus};
 use crate::services::database::PgConfig;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
-use keycloak::types::GroupRepresentation;
-use keycloak::KeycloakError;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::services::keycloak::{KeycloakAdminClient, PubKeycloakAdmin};
 use sequent_core::types::keycloak::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::cmp::min;
-use std::env;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::{
-    collections::{HashMap, HashSet},
-    convert::From,
-};
 use strum_macros::{Display, EnumString};
 
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
@@ -33,7 +25,6 @@ use tokio::io::{copy, AsyncWriteExt, BufWriter};
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
 use tokio_util::io::StreamReader;
-use tracing::error;
 use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
@@ -230,7 +221,7 @@ async fn get_area_ids(
     area_id: Option<String>,
     param_number: i32,
 ) -> Result<(Option<Vec<String>>, String, String)> {
-    let tenant_uuid = parse_uuid_v4(&tenant_id)?;
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
     let election_event_uuid: Option<Uuid> = election_event_id
         .map(|val| parse_uuid_v4(&val))
         .transpose()
@@ -284,9 +275,8 @@ async fn get_area_ids(
             let area_ids: Vec<String> = rows
                 .into_iter()
                 .map(|row| -> Result<String> {
-                    Ok(row
-                        .try_get::<&str, String>("id")
-                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))?)
+                    row.try_get::<&str, String>("id")
+                        .map_err(|err| anyhow!("Error getting the area id of a row: {}", err))
                 })
                 .collect::<Result<Vec<String>>>()
                 .map_err(|err| anyhow!("Error getting the areas ids: {}", err))?;
@@ -445,9 +435,8 @@ pub async fn list_keycloak_enabled_users_by_area_id_and_authorized_elections(
 
     let reader = keycloak_transaction.copy_out(&copy_out_query).await?;
 
-    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
-        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
-    };
+    let adapt_pg_error_to_io_error =
+        |pg_err: tokio_postgres::Error| std::io::Error::other(pg_err.to_string());
     let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
 
     let async_reader = StreamReader::new(io_error_stream);
@@ -528,7 +517,7 @@ impl FilterOption {
                 format!(
                     r#"(normalize_text({col_name}) = normalize_text(${param_number})){operator} "#,
                 ),
-                Some(format!("{}", pattern)),
+                Some(pattern.to_string()),
             ),
 
             Self::IsNotLike(pattern) => (
@@ -952,20 +941,17 @@ pub async fn list_users(
         ("username", &filter.username),
     ] {
         let (col_name, filter_option) = tuple;
-        match filter_option {
-            Some(filter_obj) => {
-                let (clause, param) = filter_obj.get_sql_filter_clause(
-                    col_name,
-                    next_param_number,
-                    SqlBooleanOperator::And,
-                );
-                filters_clause.push_str(&clause);
-                if let Some(param) = param {
-                    next_param_number += 1;
-                    filter_params.push(param.to_string());
-                }
+        if let Some(filter_obj) = filter_option {
+            let (clause, param) = filter_obj.get_sql_filter_clause(
+                col_name,
+                next_param_number,
+                SqlBooleanOperator::And,
+            );
+            filters_clause.push_str(&clause);
+            if let Some(param) = param {
+                next_param_number += 1;
+                filter_params.push(param.to_string());
             }
-            None => {}
         }
     }
     for filt_param in filter_params.iter() {
@@ -1126,7 +1112,7 @@ pub async fn list_users(
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     let realm: &str = &filter.realm;
@@ -1188,23 +1174,21 @@ pub async fn list_users(
         .with_context(|| "can't find areas by ids")?;
         let get_area = |user: &User| {
             let area_id = user.get_area_id()?;
-            return areas_by_ids.iter().find_map(|area| {
-                let Some(ref area_dot_id) = area.id else {
-                    return None;
-                };
+            areas_by_ids.iter().find_map(|area| {
+                let area_dot_id = area.id.as_ref()?;
                 if area_dot_id == &area_id {
                     Some(area.clone())
                 } else {
                     None
                 }
-            });
+            })
         };
         let users_with_area = users
             .into_iter()
             .map(|user| {
                 let area = get_area(&user);
                 User {
-                    area: area,
+                    area,
                     ..user.clone()
                 }
             })
@@ -1228,8 +1212,8 @@ pub async fn list_users_with_vote_info(
         .ok_or(anyhow!("Election event id is empty"))?;
     let election_id = filter.election_id.clone();
 
-    let filter_by_has_voted = filter.has_voted.clone();
-    let (mut users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
+    let filter_by_has_voted = filter.has_voted;
+    let (users, users_count) = list_users(hasura_transaction, keycloak_transaction, filter)
         .await
         .with_context(|| "Error listing users")?;
 
@@ -1314,30 +1298,27 @@ pub async fn lookup_users(
         ("username", &filter.username),
     ] {
         let (col_name, filter_option) = tuple;
-        match filter_option {
-            Some(filter_obj) => {
-                let (clause, param) = filter_obj.get_sql_filter_clause(
-                    col_name,
-                    next_param_number,
-                    SqlBooleanOperator::None,
-                );
-                let clause = format!(
-                    r#"
-                    SELECT
-                        ue.id, "{col_name}"
-                    FROM user_entity ue
-                    WHERE
-                        {clause}
-                    UNION ALL
-                    "#
-                );
-                filters_clause.push_str(&clause);
-                if let Some(param) = param {
-                    next_param_number += 1;
-                    filter_params.push(param.to_string());
-                }
+        if let Some(filter_obj) = filter_option {
+            let (clause, param) = filter_obj.get_sql_filter_clause(
+                col_name,
+                next_param_number,
+                SqlBooleanOperator::None,
+            );
+            let clause = format!(
+                r#"
+                SELECT
+                    ue.id, "{col_name}"
+                FROM user_entity ue
+                WHERE
+                    {clause}
+                UNION ALL
+                "#
+            );
+            filters_clause.push_str(&clause);
+            if let Some(param) = param {
+                next_param_number += 1;
+                filter_params.push(param.to_string());
             }
-            None => {}
         }
     }
     for filt_param in filter_params.iter() {
@@ -1424,7 +1405,7 @@ pub async fn lookup_users(
 
     let statement = keycloak_transaction.prepare(statement_str.as_str()).await?;
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
     let realm: &str = &filter.realm;
@@ -1449,23 +1430,21 @@ pub async fn lookup_users(
         .with_context(|| "can't find areas by ids")?;
         let get_area = |user: &User| {
             let area_id = user.get_area_id()?;
-            return areas_by_ids.iter().find_map(|area| {
-                let Some(ref area_dot_id) = area.id else {
-                    return None;
-                };
+            areas_by_ids.iter().find_map(|area| {
+                let area_dot_id = area.id.as_ref()?;
                 if area_dot_id == &area_id {
                     Some(area.clone())
                 } else {
                     None
                 }
-            });
+            })
         };
         let users_with_area = users
             .into_iter()
             .map(|user| {
                 let area = get_area(&user);
                 User {
-                    area: area,
+                    area,
                     ..user.clone()
                 }
             })
@@ -1567,15 +1546,6 @@ pub async fn count_keycloak_enabled_users_by_attrs(
     Ok(user_count)
 }
 
-// use std::error::Error;
-// use reqwest::Client;
-
-#[derive(Debug, Deserialize)]
-struct Group {
-    id: String,
-    name: String,
-}
-
 #[instrument(skip(keycloak_transaction), err)]
 pub async fn check_is_user_verified(
     keycloak_transaction: &Transaction<'_>,
@@ -1624,7 +1594,7 @@ pub async fn get_users_by_username(
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &username];
 
     let statement = keycloak_transaction
-        .prepare(&format!(
+        .prepare(
             r#"
         SELECT 
             u.id
@@ -1643,11 +1613,11 @@ pub async fn get_users_by_username(
             ra.name = $1
             AND u.username = $2
         "#,
-        ))
+        )
         .await?;
 
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{}", err))?;
 
@@ -1669,7 +1639,7 @@ pub async fn get_username_by_id(
     let params: Vec<&(dyn ToSql + Sync)> = vec![&realm, &user_id];
 
     let statement = keycloak_transaction
-        .prepare(&format!(
+        .prepare(
             r#"
         SELECT
             u.username
@@ -1688,11 +1658,11 @@ pub async fn get_username_by_id(
             ra.name = $1
             AND u.id = $2
         "#,
-        ))
+        )
         .await?;
 
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{err:?}"))?;
 
@@ -1741,7 +1711,7 @@ pub async fn get_user_area_id(
         .await?;
 
     let rows: Vec<Row> = keycloak_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("{err:?}"))?;
 
@@ -1759,7 +1729,7 @@ pub async fn count_have_voted(
     hasura_transaction: &Transaction<'_>,
     filter: &ListUsersFilter,
     tenant_id: &str,
-) -> Result<(i32)> {
+) -> Result<i32> {
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
     let mut params: Vec<Box<dyn ToSql + Send + Sync>> = vec![
         Box::new(tenant_uuid),
@@ -1827,11 +1797,7 @@ pub async fn list_users_has_voted(
     let count_total_voters =
         count_keycloak_enabled_users(keycloak_transaction, &filter.realm).await? as usize;
     info!("count_total_voters: {count_total_voters}, count_total_voted: {count_total_voted}");
-    let count_total_not_voted = if count_total_voted <= count_total_voters {
-        count_total_voters - count_total_voted
-    } else {
-        0usize
-    };
+    let count_total_not_voted = count_total_voters.saturating_sub(count_total_voted);
 
     // This will only store the final page of users.
     let mut final_users = Vec::with_capacity(limit);
@@ -1857,7 +1823,7 @@ pub async fn list_users_has_voted(
 
         let mut batch_filter = filter.clone();
         batch_filter.offset = Some(fetch_offset);
-        batch_filter.limit = Some(batch_size as i32);
+        batch_filter.limit = Some(batch_size);
 
         let (mut voters, count_voters) =
             list_users_with_vote_info(hasura_transaction, keycloak_transaction, batch_filter)

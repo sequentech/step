@@ -6,9 +6,7 @@ use crate::postgres::scheduled_event::*;
 use crate::services::election_event_status::get_election_event_status;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{
-    EInitializeReportPolicy, ElectionEventStatus, PeriodDates, StringifiedPeriodDates,
-};
+use sequent_core::ballot::{ElectionEventStatus, PeriodDates, StringifiedPeriodDates};
 use sequent_core::types::hasura::core::Election;
 use sequent_core::types::scheduled_event::*;
 use std::str::FromStr;
@@ -32,12 +30,12 @@ pub async fn manage_dates(
     .await
     .map_err(|e| anyhow!("election not found: {e:?}"))?;
 
-    let Some(election) = found_election else {
+    let Some(_election) = found_election else {
         return Err(anyhow!("Election not found"));
     };
 
-    let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
-        .map_err(|err| {
+    let event_processor_val: EventProcessors =
+        EventProcessors::from_str(event_processor).map_err(|err| {
             anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")
         })?;
 

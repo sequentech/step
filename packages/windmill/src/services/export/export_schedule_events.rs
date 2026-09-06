@@ -7,11 +7,11 @@ use crate::services::providers::transactions_provider::provide_hasura_transactio
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use csv::Writer;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, info, instrument, Level};
+use tempfile::TempPath;
+use tracing::instrument;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
@@ -35,8 +35,8 @@ pub async fn write_export_document(
     tenant_id: &str,
     election_event_id: &str,
     to_upload: bool,
-) -> Result<(TempPath)> {
-    let headers = if let Some(example_event) = data.get(0) {
+) -> Result<TempPath> {
+    let headers = if let Some(example_event) = data.first() {
         serde_json::to_value(example_event)?
             .as_object()
             .ok_or_else(|| anyhow!("Failed to convert ScheduledEvent to JSON object for headers"))?
@@ -116,13 +116,12 @@ pub async fn process_export(
 
         Box::pin(async move {
             // Fetch the data and reformat it
-            let data =
-                read_export_data(&hasura_transaction, &tenant_id, &election_event_id).await?;
+            let data = read_export_data(hasura_transaction, &tenant_id, &election_event_id).await?;
 
             // Pass the temp file to the write_export_document function
             write_export_document(
                 data,
-                &hasura_transaction,
+                hasura_transaction,
                 &document_id,
                 &tenant_id,
                 &election_event_id,

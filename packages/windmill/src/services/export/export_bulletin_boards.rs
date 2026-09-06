@@ -3,27 +3,23 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
-use crate::postgres::trustee::get_all_trustees;
+use crate::services::protocol_manager::get_b3_pgsql_client;
 use crate::services::protocol_manager::{
     get_election_board, get_event_board, get_protocol_manager_secret_path,
 };
 use crate::services::vault;
-use crate::services::{
-    ceremonies::keys_ceremony::get_keys_ceremony_board, protocol_manager::get_b3_pgsql_client,
-};
 use anyhow::{anyhow, Context, Result};
 use b4::client::pgsql::B3MessageRow;
 use base64::engine::general_purpose;
 use base64::Engine;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use futures::future::try_join_all;
+use deadpool_postgres::Transaction;
 use regex::Regex;
 use sequent_core::util::aws::get_max_upload_size;
 use sequent_core::util::temp_path::generate_temp_file;
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, info, instrument, Level};
+use tempfile::TempPath;
+use tracing::instrument;
 
 pub static HEADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9._-]+$").expect("Failed to build header regex"));
@@ -95,7 +91,11 @@ async fn create_boards_csv(boards_map: HashMap<String, Vec<B3MessageRow>>) -> Re
 
     let size = temp_path.metadata()?.len();
     if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+        return Err(anyhow!(
+            "File too large: {} > {}",
+            size,
+            get_max_upload_size()?
+        ));
     }
 
     Ok(temp_path)
@@ -107,7 +107,7 @@ pub async fn read_election_event_boards(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<TempPath> {
-    let keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
+    let _keys_ceremonies = get_keys_ceremonies(transaction, tenant_id, election_event_id).await?;
     let b3_client = get_b3_pgsql_client().await?;
     let mut boards_map: HashMap<String, Vec<B3MessageRow>> = HashMap::new();
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
@@ -193,7 +193,11 @@ pub async fn read_protocol_manager_keys(
 
     let size = temp_path.metadata()?.len();
     if size > get_max_upload_size()? as u64 {
-        return Err(anyhow!("File too large: {} > {}", size, get_max_upload_size()?).into());
+        return Err(anyhow!(
+            "File too large: {} > {}",
+            size,
+            get_max_upload_size()?
+        ));
     }
 
     Ok(temp_path)

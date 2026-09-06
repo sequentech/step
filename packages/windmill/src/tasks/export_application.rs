@@ -6,10 +6,9 @@ use crate::{
     services::{export::export_application::process_export, tasks_execution::update_fail},
     types::error::{Error, Result},
 };
-use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]

@@ -62,7 +62,7 @@ pub async fn insert_tenant_db(
         return Ok(());
     }
 
-    let _ = insert_tenant(hasura_transaction, tenant_id, slug).await?;
+    insert_tenant(hasura_transaction, tenant_id, slug).await?;
 
     Ok(())
 }

@@ -31,9 +31,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, TasksExecution};
-use sequent_core::types::keycloak::{
-    User, ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
-};
+use sequent_core::types::keycloak::{User, ATTR_RESET_VALUE, VOTED_CHANNEL};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, info, instrument};
@@ -539,6 +537,7 @@ async fn apply_datafix_voter_edit(body: &EditUserTaskBody) -> std::result::Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sequent_core::types::keycloak::VOTED_CHANNEL_INTERNET_VALUE;
 
     #[test]
     fn disable_requires_an_enabled_to_disabled_transition() {

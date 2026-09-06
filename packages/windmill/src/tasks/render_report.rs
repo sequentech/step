@@ -4,8 +4,7 @@
 use crate::postgres::render_report::render_report_task;
 use crate::services::database::get_hasura_pool;
 use crate::services::tasks_semaphore::acquire_semaphore;
-use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use crate::types::error::Result;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use serde::{Deserialize, Serialize};
@@ -51,10 +50,9 @@ pub async fn render_report(
                         return Err(format!("Error starting Hasura transaction: {err}"));
                     }
                 };
-                let _ =
-                    render_report_task(&hasura_transaction, input, tenant_id, election_event_id)
-                        .await
-                        .map_err(|err| format!("{}", err))?;
+                render_report_task(&hasura_transaction, input, tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| format!("{}", err))?;
 
                 match hasura_transaction.commit().await {
                     Ok(_) => (),

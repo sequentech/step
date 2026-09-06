@@ -4,7 +4,6 @@
 use crate::postgres::application::get_applications_by_election;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
-use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::certificate_authority::get_certificate_authorities_pem;
 use crate::postgres::contest::export_contests;
@@ -18,9 +17,7 @@ use crate::services::database::get_hasura_pool;
 use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
-use crate::services::reports::template_renderer::{
-    ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
-};
+use crate::services::reports::template_renderer::{ReportOriginatedFrom, ReportOrigins};
 use crate::services::reports_vault::get_password;
 use crate::tasks::export_election_event::ExportOptions;
 use crate::types::documents::EDocuments;
@@ -43,9 +40,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use strand::hash::hash_sha256_file;
 use tempfile::{NamedTempFile, TempPath};
-use tokio::io::{self, AsyncWriteExt};
-use tracing::{event, info, instrument, Level};
-use uuid::Uuid;
+use tokio::io::AsyncWriteExt;
+use tracing::{info, instrument};
 use zip::write::FileOptions;
 
 use super::export_bulletin_boards;
@@ -55,7 +51,6 @@ use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::documents::upload_and_return_document;
-use crate::services::password;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
@@ -80,16 +75,16 @@ pub async fn read_export_data(
         trustees,
         applications,
     ) = try_join!(
-        get_election_event_by_id(&transaction, tenant_id, election_event_id),
-        export_elections(&transaction, tenant_id, election_event_id),
-        export_contests(&transaction, tenant_id, election_event_id),
-        export_candidates(&transaction, tenant_id, election_event_id),
-        get_event_areas(&transaction, tenant_id, election_event_id),
-        export_area_contests(&transaction, tenant_id, election_event_id),
-        get_reports_by_election_event_id(&transaction, tenant_id, election_event_id),
-        get_keys_ceremonies(&transaction, tenant_id, election_event_id),
-        get_all_trustees(&transaction, tenant_id),
-        get_applications_by_election(&transaction, tenant_id, election_event_id, None),
+        get_election_event_by_id(transaction, tenant_id, election_event_id),
+        export_elections(transaction, tenant_id, election_event_id),
+        export_contests(transaction, tenant_id, election_event_id),
+        export_candidates(transaction, tenant_id, election_event_id),
+        get_event_areas(transaction, tenant_id, election_event_id),
+        export_area_contests(transaction, tenant_id, election_event_id),
+        get_reports_by_election_event_id(transaction, tenant_id, election_event_id),
+        get_keys_ceremonies(transaction, tenant_id, election_event_id),
+        get_all_trustees(transaction, tenant_id),
+        get_applications_by_election(transaction, tenant_id, election_event_id, None),
     )?;
 
     // map keys ceremonies to names
@@ -148,14 +143,14 @@ pub async fn read_export_data(
     let import_election_event_schema = ImportElectionEventSchema {
         // parse_uuid_v4 still runs: the schema now carries a String, but an
         // export must not emit a tenant id that is not a UUID.
-        tenant_id: parse_uuid_v4(&tenant_id)?.to_string(),
+        tenant_id: parse_uuid_v4(tenant_id)?.to_string(),
         keycloak_event_realm: Some(serde_json::to_value(realm)?),
-        election_event: election_event,
+        election_event,
         elections: export_elections,
         contests: contests.clone(),
         candidates: candidates.clone(),
-        areas: areas,
-        area_contests: area_contests,
+        areas,
+        area_contests,
         scheduled_events: None,
         reports: export_reports,
         keys_ceremonies: Some(export_keys_ceremonies),
@@ -164,7 +159,7 @@ pub async fn read_export_data(
     };
 
     let images_files_path =
-        process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
+        process_event_images(transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
 }
@@ -176,7 +171,7 @@ pub async fn generate_encrypted_zip(
     password: String,
 ) -> Result<()> {
     encrypt_file_aes_256_cbc(&temp_path_string, &encrypted_temp_file_string, &password)
-        .map_err(|e| anyhow!("Failed encrypting the ZIP file"))?;
+        .map_err(|_e| anyhow!("Failed encrypting the ZIP file"))?;
 
     Ok(())
 }
@@ -382,7 +377,7 @@ pub async fn process_export_zip(
     std::io::copy(&mut election_event_file, &mut zip_writer)
         .map_err(|e| anyhow!("Error copying election event file to ZIP: {e:?}"))?;
 
-    let images_folder_name = format!("{}", EDocuments::IMAGES.to_file_name());
+    let images_folder_name = EDocuments::IMAGES.to_file_name().to_string();
 
     for file_path in event_images_files_path {
         let file_name = file_path
@@ -451,7 +446,7 @@ pub async fn process_export_zip(
             .map_err(|e| anyhow!("Error creating temporary reports file: {e:?}"))?;
         {
             let mut wtr = csv::Writer::from_writer(&temp_reports_file);
-            wtr.write_record(&[
+            wtr.write_record([
                 "ID",
                 "Election ID",
                 "Report Type",
@@ -538,7 +533,7 @@ pub async fn process_export_zip(
 
     // Add the S3 files to the ZIP archive
     if export_config.s3_files {
-        let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
+        let s3_folder_name = EDocuments::S3_FILES.to_file_name().to_string();
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
 
@@ -680,7 +675,7 @@ pub async fn process_export_zip(
     // Add boards info
     let keys_ceremonies =
         get_keys_ceremonies(&hasura_transaction, tenant_id, election_event_id).await?;
-    if export_config.bulletin_board && keys_ceremonies.len() > 0 {
+    if export_config.bulletin_board && !keys_ceremonies.is_empty() {
         // read boards
         let bulletin_boards_filename = format!(
             "{}-{}.csv",
@@ -706,7 +701,7 @@ pub async fn process_export_zip(
     }
 
     if export_config.tally {
-        let tally_folder_name = format!("{}", EDocuments::TALLY.to_file_name());
+        let tally_folder_name = EDocuments::TALLY.to_file_name().to_string();
 
         let tally_data =
             export_tally::read_tally_data(&hasura_transaction, tenant_id, election_event_id)
@@ -755,11 +750,11 @@ pub async fn process_export_zip(
 
     // Encrypt ZIP file if required
     let encryption_password = export_config.password.unwrap_or("".to_string());
-    if 0 == encryption_password.len() && (export_config.bulletin_board || export_config.reports) {
+    if encryption_password.is_empty() && (export_config.bulletin_board || export_config.reports) {
         return Err(anyhow!("Bulletin Board requires password"));
     }
     let encrypted_zip_path = zip_path.with_extension("ezip");
-    if encryption_password.len() > 0 {
+    if !encryption_password.is_empty() {
         generate_encrypted_zip(
             zip_path.to_string_lossy().to_string(),
             encrypted_zip_path.to_string_lossy().to_string(),
@@ -769,20 +764,20 @@ pub async fn process_export_zip(
     }
 
     // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
-    let upload_path = if encryption_password.len() > 0 && encrypted_zip_path.exists() {
+    let upload_path = if !encryption_password.is_empty() && encrypted_zip_path.exists() {
         &encrypted_zip_path
     } else {
         &zip_path
     };
 
-    let zip_size = std::fs::metadata(&upload_path)
+    let zip_size = std::fs::metadata(upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
     let export_event_filename = get_export_election_event_filename(
         election_event_id,
         upload_path,
-        encryption_password.len() > 0,
+        !encryption_password.is_empty(),
     )
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 
@@ -794,7 +789,7 @@ pub async fn process_export_zip(
             .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
         zip_size,
         "application/zip",
-        &tenant_id.to_string(),
+        tenant_id,
         Some(election_event_id.to_string()),
         &export_event_filename,
         Some(document_id.to_string()),

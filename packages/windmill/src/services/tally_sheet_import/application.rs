@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Area, Candidate, Contest, TallySheet};
 use sequent_core::types::tally_sheet_import::{
@@ -75,6 +75,10 @@ fn presentation_display_name(presentation: &Option<Value>) -> Option<String> {
         })
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep source identity, canonical bytes, actor and validation context explicit in the existing tally-import API."
+)]
 #[instrument(skip_all, err)]
 pub async fn preview_tally_sheet_import(
     transaction: &Transaction<'_>,
@@ -324,6 +328,10 @@ pub async fn preview_tally_sheet_import(
     })
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep source identity, canonical bytes, actor and validation context explicit in the existing tally-import API."
+)]
 #[instrument(skip_all, err)]
 pub async fn create_tally_sheet_import(
     transaction: &Transaction<'_>,

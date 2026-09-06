@@ -34,7 +34,7 @@ use sequent_core::{
 use serde_json::Value;
 use std::{collections::HashMap, fs::File};
 use tempfile::NamedTempFile;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[instrument(err, skip_all)]
@@ -143,13 +143,10 @@ pub async fn get_string_or_null_item(
 
 #[instrument(err, skip_all)]
 pub async fn get_opt_date(record: &StringRecord, index: usize) -> Result<Option<DateTime<Local>>> {
-    let item = record
-        .get(index)
-        .map(|s| {
-            let s = s.trim_matches('"');
-            ISO8601::to_date(s).ok()
-        })
-        .flatten();
+    let item = record.get(index).and_then(|s| {
+        let s = s.trim_matches('"');
+        ISO8601::to_date(s).ok()
+    });
     Ok(item)
 }
 
@@ -182,7 +179,7 @@ async fn process_event_results_file(
             .get(8)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
+            .map(deserialize_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -243,7 +240,7 @@ async fn process_results_election_file(
             .get(13)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
+            .map(deserialize_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -315,11 +312,11 @@ pub async fn process_tally_session_record(
 ) -> Result<TallySession> {
     let tally_session_id = get_replaced_id(record, 0, &replacement_map).await?;
 
-    let created_at = get_opt_date(&record, 3).await?;
-    let last_updated_at = get_opt_date(&record, 4).await?;
+    let created_at = get_opt_date(record, 3).await?;
+    let last_updated_at = get_opt_date(record, 4).await?;
 
-    let labels = get_opt_json_value_item(&record, 5).await?;
-    let annotations = get_opt_json_value_item(&record, 6).await?;
+    let labels = get_opt_json_value_item(record, 5).await?;
+    let annotations = get_opt_json_value_item(record, 6).await?;
     let election_ids = process_uuids(record.get(7), replacement_map.clone()).await?;
     let area_ids = process_uuids(record.get(8), replacement_map.clone()).await?;
 
@@ -481,7 +478,7 @@ async fn process_tally_session_execution_file(
             .get(9)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str::<Vec<i32>>(s))
+            .map(deserialize_str::<Vec<i32>>)
             .transpose()
             .map_err(|err| anyhow!("Error parsing session_ids: {:?}", err))?;
 
@@ -562,7 +559,7 @@ async fn process_results_election_area_file(
             .get(8)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
+            .map(deserialize_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -657,7 +654,7 @@ async fn process_results_contest_candidate_file(
             .get(15)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
+            .map(deserialize_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -712,12 +709,12 @@ pub async fn process_results_contest_record(
     let explicit_blank_votes = get_opt_i64_item(record, 11).await?;
     let implicit_blank_votes = get_opt_i64_item(record, 12).await?;
 
-    let voting_type: Option<String> = get_string_or_null_item(&record, 13).await?;
-    let counting_algorithm: Option<String> = get_string_or_null_item(&record, 14).await?;
-    let name: Option<String> = get_string_or_null_item(&record, 15).await?;
+    let voting_type: Option<String> = get_string_or_null_item(record, 13).await?;
+    let counting_algorithm: Option<String> = get_string_or_null_item(record, 14).await?;
+    let name: Option<String> = get_string_or_null_item(record, 15).await?;
 
-    let created_at = get_opt_date(&record, 16).await?;
-    let last_updated_at = get_opt_date(&record, 17).await?;
+    let created_at = get_opt_date(record, 16).await?;
+    let last_updated_at = get_opt_date(record, 17).await?;
 
     let labels = get_opt_json_value_item(record, 18).await?;
 
@@ -741,7 +738,7 @@ pub async fn process_results_contest_record(
         .get(30)
         .map(str::trim)
         .filter(|s| *s != "null" && *s != "\"null\"")
-        .map(|s| deserialize_str(s))
+        .map(deserialize_str)
         .transpose()
         .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -832,7 +829,7 @@ async fn process_results_area_contest_file(
             .get(28)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
+            .map(deserialize_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -914,7 +911,7 @@ async fn process_results_area_contest_candidate_file(
             .get(16)
             .map(str::trim)
             .filter(|s| *s != "null" && *s != "\"null\"")
-            .map(|s| deserialize_str(s))
+            .map(deserialize_str)
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
@@ -964,7 +961,7 @@ pub async fn process_tally_file(
     election_event_id: &str,
     replacement_map: HashMap<String, String>,
 ) -> Result<()> {
-    if file_name == ETallyDocuments::TALLY_SESSION.to_file_name().to_string() {
+    if file_name == ETallyDocuments::TALLY_SESSION.to_file_name() {
         process_tally_session_file(
             hasura_transaction,
             temp_file,
@@ -973,11 +970,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name
-        == ETallyDocuments::TALLY_SESSION_CONTEST
-            .to_file_name()
-            .to_string()
-    {
+    } else if file_name == ETallyDocuments::TALLY_SESSION_CONTEST.to_file_name() {
         process_tally_session_contest_file(
             hasura_transaction,
             temp_file,
@@ -986,7 +979,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name == ETallyDocuments::RESULTS_EVENT.to_file_name().to_string() {
+    } else if file_name == ETallyDocuments::RESULTS_EVENT.to_file_name() {
         process_event_results_file(
             hasura_transaction,
             temp_file,
@@ -995,11 +988,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name
-        == ETallyDocuments::TALLY_SESSION_EXECUTION
-            .to_file_name()
-            .to_string()
-    {
+    } else if file_name == ETallyDocuments::TALLY_SESSION_EXECUTION.to_file_name() {
         process_tally_session_execution_file(
             hasura_transaction,
             temp_file,
@@ -1008,7 +997,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name == ETallyDocuments::RESULTS_ELECTION.to_file_name().to_string() {
+    } else if file_name == ETallyDocuments::RESULTS_ELECTION.to_file_name() {
         process_results_election_file(
             hasura_transaction,
             temp_file,
@@ -1017,11 +1006,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_ELECTION_AREA
-            .to_file_name()
-            .to_string()
-    {
+    } else if file_name == ETallyDocuments::RESULTS_ELECTION_AREA.to_file_name() {
         process_results_election_area_file(
             hasura_transaction,
             temp_file,
@@ -1030,7 +1015,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name == ETallyDocuments::RESULTS_CONTEST.to_file_name().to_string() {
+    } else if file_name == ETallyDocuments::RESULTS_CONTEST.to_file_name() {
         process_results_contest_file(
             hasura_transaction,
             temp_file,
@@ -1039,11 +1024,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_CONTEST_CANDIDATE
-            .to_file_name()
-            .to_string()
-    {
+    } else if file_name == ETallyDocuments::RESULTS_CONTEST_CANDIDATE.to_file_name() {
         process_results_contest_candidate_file(
             hasura_transaction,
             temp_file,
@@ -1052,11 +1033,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_AREA_CONTEST
-            .to_file_name()
-            .to_string()
-    {
+    } else if file_name == ETallyDocuments::RESULTS_AREA_CONTEST.to_file_name() {
         process_results_area_contest_file(
             hasura_transaction,
             temp_file,
@@ -1065,11 +1042,7 @@ pub async fn process_tally_file(
             replacement_map.clone(),
         )
         .await?;
-    } else if file_name
-        == ETallyDocuments::RESULTS_AREA_CONTEST_CANDIDATE
-            .to_file_name()
-            .to_string()
-    {
+    } else if file_name == ETallyDocuments::RESULTS_AREA_CONTEST_CANDIDATE.to_file_name() {
         process_results_area_contest_candidate_file(
             hasura_transaction,
             temp_file,

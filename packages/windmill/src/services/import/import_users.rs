@@ -2,9 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub type UserImportStatements = (String, String, String, Vec<String>, Vec<String>, Vec<Type>);
+
 use crate::postgres::area::get_areas_by_name;
 use crate::postgres::keycloak_realm;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::database::get_keycloak_pool;
 use crate::services::sql_utils::{escape_sql_identifier, escape_sql_literal};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
@@ -12,8 +14,7 @@ use base64::prelude::*;
 use csv::StringRecord;
 use deadpool_postgres::Transaction;
 use futures::pin_mut;
-use rand::prelude::*;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use regex::Regex;
 use ring::{digest, pbkdf2};
 use sequent_core::services::keycloak::{
@@ -28,8 +29,8 @@ use std::num::NonZeroU32;
 use std::sync::LazyLock;
 use tempfile::NamedTempFile;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
-use tokio_postgres::types::{ToSql, Type};
-use tracing::{debug, info, instrument, warn};
+use tokio_postgres::types::Type;
+use tracing::{info, instrument, warn};
 use uuid::Uuid;
 
 pub static HEADER_RE: LazyLock<Regex> =
@@ -78,7 +79,7 @@ fn validate_vote_weight(value: &str, row: usize) -> Result<u64> {
     Ok(weight)
 }
 
-fn sanitize_db_key(key: &String) -> String {
+fn sanitize_db_key(key: &str) -> String {
     key.replace(".", "_").replace("-", "_")
 }
 
@@ -92,7 +93,7 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
         &mut output,
     );
 
-    let generated_hash = BASE64_STANDARD.encode(&output);
+    let generated_hash = BASE64_STANDARD.encode(output);
     Ok(generated_hash)
 }
 
@@ -129,9 +130,7 @@ fn hash_password(password: &String, salt: &[u8]) -> Result<String> {
  *  - password: string: Example "secret-password"
  */
 #[instrument(ret)]
-fn get_copy_from_query(
-    headers: &StringRecord,
-) -> anyhow::Result<(String, String, String, Vec<String>, Vec<String>, Vec<Type>)> {
+fn get_copy_from_query(headers: &StringRecord) -> anyhow::Result<UserImportStatements> {
     let random_number: u64 = rand::random();
 
     let temp_table_name = format!("temp_voters_{}", random_number);
@@ -159,23 +158,21 @@ fn get_copy_from_query(
             column_name if column_name == NUMBER_OF_ITERATIONS_COL_NAME => None,
             _ => Some(column_name.clone()),
         })
-        .chain(if headers_vec.iter().any(|s| s == PASSWORD_COL_NAME) {
-            vec![
-                SALT_COL_NAME.to_string(),
-                HASHED_PASSWORD_COL_NAME.to_string(),
-                NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
-            ]
-            .into_iter()
-        } else if headers_vec.iter().any(|s| s == HASHED_PASSWORD_COL_NAME) {
-            vec![
-                SALT_COL_NAME.to_string(),
-                HASHED_PASSWORD_COL_NAME.to_string(),
-                NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
-            ]
-            .into_iter()
-        } else {
-            Vec::new().into_iter()
-        })
+        .chain(
+            if headers_vec
+                .iter()
+                .any(|s| s == PASSWORD_COL_NAME || s == HASHED_PASSWORD_COL_NAME)
+            {
+                vec![
+                    SALT_COL_NAME.to_string(),
+                    HASHED_PASSWORD_COL_NAME.to_string(),
+                    NUMBER_OF_ITERATIONS_COL_NAME.to_string(),
+                ]
+                .into_iter()
+            } else {
+                Vec::new().into_iter()
+            },
+        )
         // note that in this case, username is at the end
         .chain(if !headers_vec.iter().any(|s| s == USERNAME_COL_NAME) {
             vec![USERNAME_COL_NAME.to_string()].into_iter()
@@ -271,7 +268,7 @@ fn get_insert_user_query(
     let voters_table = escape_sql_identifier(&voters_table);
 
     // Build the INSERT query for user_entity
-    let user_entity_columns = vec![
+    let user_entity_columns = [
         "id",
         "email",
         "email_constraint",
@@ -560,7 +557,7 @@ pub async fn import_users_file(
     let areas_map = if !is_admin {
         match election_event_id {
             Some(ref event_id) => {
-                match get_areas_by_name(&hasura_transaction, tenant_id.as_str(), event_id.as_str())
+                match get_areas_by_name(hasura_transaction, tenant_id.as_str(), event_id.as_str())
                     .await
                 {
                     Ok(areas) => Some(areas),
@@ -755,7 +752,7 @@ pub async fn import_users_file(
 
         if let Some(some_password) = password {
             let mut salt_bytes: Credential = Default::default();
-            thread_rng().fill(&mut salt_bytes);
+            rng().fill(&mut salt_bytes);
 
             password_salt = Some(BASE64_STANDARD.encode(salt_bytes));
             hashed_password = Some(

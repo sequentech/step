@@ -17,30 +17,22 @@ use crate::types::error::Error;
 use deadpool_postgres::{Client as DbClient, Transaction};
 
 use anyhow::{anyhow, Context};
-use aws_sdk_sesv2::types::{Body, Content, Destination, EmailContent, Message as AwsMessage};
-use aws_sdk_sesv2::Client as AwsSesClient;
-use aws_sdk_sns::{types::MessageAttributeValue, Client as AwsSnsClient};
 use celery::error::TaskError;
-use lettre::message::MultiPart;
-use lettre::Message;
-use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::generate_urls::get_auth_url;
 use sequent_core::services::generate_urls::AuthAction;
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
+use sequent_core::services::reports;
 use sequent_core::services::translations::Name;
-use sequent_core::services::{keycloak, reports};
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::{User, UserArea, AREA_ID_ATTR_NAME};
 use sequent_core::types::templates::{
     AudienceSelection, EmailConfig, SendTemplateBody, SmsConfig, TemplateMethod,
 };
-use sequent_core::util::aws::get_from_env_aws_config;
 use serde_json::json;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::default::Default;
-use strand::info;
-use tracing::{event, info, instrument, Level};
+use tracing::{event, instrument, Level};
 
 #[instrument(skip_all, err)]
 fn get_variables(
@@ -80,7 +72,7 @@ fn get_variables(
             "vote_url".to_string(),
             json!(get_auth_url(
                 std::env::var("VOTING_PORTAL_URL")
-                    .map_err(|err| anyhow!("VOTING_PORTAL_URL env var missing"))?
+                    .map_err(|_err| anyhow!("VOTING_PORTAL_URL env var missing"))?
                     .as_str(),
                 &tenant_id,
                 &election_event.id,
@@ -241,11 +233,11 @@ fn update_metrics(
 
 async fn update_stats(
     hasura_transaction: &Transaction<'_>,
-    tenant_id: &String,
+    tenant_id: &str,
     election_event_id: &Option<String>,
     metrics: &Metrics,
 ) -> Result<()> {
-    let &Some(ref election_event_id) = election_event_id else {
+    let Some(election_event_id) = election_event_id else {
         return Ok(());
     };
     let totals = metrics.election_event.num_emails_sent + metrics.election_event.num_sms_sent;
@@ -254,7 +246,7 @@ async fn update_stats(
 
         update_election_event_statistics(
             hasura_transaction,
-            tenant_id.as_str(),
+            tenant_id,
             election_event_id.as_str(),
             /* inc_emails_sent */ metrics.election_event.num_emails_sent,
             /* inc_sms_sent */ metrics.election_event.num_sms_sent,
@@ -267,7 +259,7 @@ async fn update_stats(
         if totals > 0 {
             update_election_statistics(
                 hasura_transaction,
-                tenant_id.as_str(),
+                tenant_id,
                 election_event_id.as_str(),
                 election_id.as_str(),
                 /* inc_emails_sent */ metrics.election_event.num_emails_sent,
@@ -280,6 +272,10 @@ async fn update_stats(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing communication helper inputs, including actor, recipient and selected provider context."
+)]
 async fn on_success_send_message(
     hasura_transaction: &Transaction<'_>,
     election_event: Option<ElectionEvent>,
@@ -337,9 +333,9 @@ pub async fn send_template(
     admin_id: String,
     election_event_id: Option<String>,
 ) -> Result<()> {
-    let celery_app = get_celery_app().await;
+    let _celery_app = get_celery_app().await;
     let realm = match election_event_id {
-        Some(ref election_event_id) => get_event_realm(&tenant_id, &election_event_id),
+        Some(ref election_event_id) => get_event_realm(&tenant_id, election_event_id),
         None => get_tenant_realm(&tenant_id),
     };
 
@@ -454,12 +450,12 @@ pub async fn send_template(
             AudienceSelection::NOT_VOTED => filtered_users.retain(|user| {
                 user.votes_info
                     .as_ref()
-                    .map_or(false, |vote_info| vote_info.is_empty())
+                    .is_some_and(|vote_info| vote_info.is_empty())
             }),
             AudienceSelection::VOTED => filtered_users.retain(|user| {
                 user.votes_info
                     .as_ref()
-                    .map_or(false, |vote_info| !vote_info.is_empty())
+                    .is_some_and(|vote_info| !vote_info.is_empty())
             }),
             _ => {}
         };
@@ -481,7 +477,7 @@ pub async fn send_template(
         for user in filtered_users.iter() {
             let success = send_template_email_or_sms(
                 &hasura_transaction,
-                &user,
+                user,
                 &election_event,
                 &tenant_id,
                 Some(admin_id.clone()),
@@ -495,7 +491,7 @@ pub async fn send_template(
             update_metrics(
                 &mut metrics,
                 &elections_by_area,
-                &user,
+                user,
                 /* communication_method */ &communication_method,
                 /* success */ success.is_ok(),
             );
@@ -539,6 +535,10 @@ pub async fn send_template(
 ///
 /// In the case of acceptance:
 /// All the fields are required.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing communication helper inputs, including actor, recipient and selected provider context."
+)]
 #[instrument(skip_all, err)]
 pub async fn send_template_email_or_sms(
     hasura_transaction: &Transaction<'_>,
@@ -575,10 +575,10 @@ pub async fn send_template_email_or_sms(
     match communication_method {
         Some(TemplateMethod::EMAIL) => {
             let sending_result = send_template_email(
-                &user.email,   // receiver user email
-                email_config,  // Template content: EmailConfig
-                &variables,    // Variables for the template
-                &email_sender, // Sender client to send emails: EmailSender
+                &user.email,  // receiver user email
+                email_config, // Template content: EmailConfig
+                &variables,   // Variables for the template
+                email_sender, // Sender client to send emails: EmailSender
             )
             .await;
             match sending_result {
@@ -589,7 +589,7 @@ pub async fn send_template_email_or_sms(
                         user.id.clone(),
                         user.username.clone(),
                         &message,
-                        &tenant_id,
+                        tenant_id,
                         &admin_id,
                         user_area_id,
                     )
@@ -615,7 +615,7 @@ pub async fn send_template_email_or_sms(
                 /* receiver */ &user.get_mobile_phone(),
                 /* template */ sms_config,
                 /* variables */ &variables,
-                /* sender */ &sms_sender,
+                /* sender */ sms_sender,
             )
             .await;
             match sending_result {

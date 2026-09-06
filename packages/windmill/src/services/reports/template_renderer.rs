@@ -4,27 +4,24 @@
 
 use super::utils::get_public_asset_template;
 use crate::postgres::reports::{get_template_alias_for_report, Report, ReportType};
-use crate::postgres::{election_event, template};
+use crate::postgres::template;
 use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::consolidation::zip::compress_folder_to_zip;
-use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
 use futures::executor::block_on;
-use futures::future::join_all;
 use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
-use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
+use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::templates::{
@@ -36,8 +33,8 @@ use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs;
-use std::path::{Path, PathBuf};
-use strum_macros::{Display, EnumString, IntoStaticStr};
+use std::path::PathBuf;
+use strum_macros::{Display, EnumString};
 use tempfile::tempdir;
 use tempfile::{NamedTempFile, TempPath};
 use tokio::runtime::Runtime;
@@ -108,15 +105,15 @@ pub trait TemplateRenderer: Debug {
     /// or from other place than the reports TAB.
     fn get_initial_template_alias(&self) -> Option<String>;
 
-    async fn count_items(&self, hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
+    async fn count_items(&self, _hasura_transaction: &Transaction<'_>) -> Result<Option<i64>> {
         Ok(None)
     }
     async fn prepare_user_data_batch(
         &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
-        offset: &mut i64,
-        limit: i64,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
+        _offset: &mut i64,
+        _limit: i64,
     ) -> Result<Self::UserData> {
         Err(anyhow!(
             "prepare_user_data_batch is not implemented for this report type"
@@ -340,7 +337,7 @@ pub trait TemplateRenderer: Debug {
             debug!("user data in template renderer: {user_data_map:#?}");
         }
         let rendered_user_template =
-            reports::render_template_text(&user_tpl_document, user_data_map)
+            reports::render_template_text(user_tpl_document, user_data_map)
                 .map_err(|e| anyhow!("Error rendering user template: {e:?}"))?;
 
         // Prepare system data
@@ -470,6 +467,10 @@ pub trait TemplateRenderer: Debug {
     // Inner implementation for `execute_report()` so that implementors of the
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the report trait method signature shared by its implementations, including separate database and task contexts."
+    )]
     #[instrument(err, skip_all)]
     async fn execute_report_inner(
         &self,
@@ -500,7 +501,7 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
-        let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
+        let items_count = self.count_items(hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
             .max_items_per_report
@@ -631,7 +632,7 @@ pub trait TemplateRenderer: Debug {
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
-                    get_report_secret_key(&tenant_id, &election_event_id, Some(report.id.clone()));
+                    get_report_secret_key(tenant_id, election_event_id, Some(report.id.clone()));
                 let encryption_password = vault::read_secret(
                     hasura_transaction,
                     tenant_id,
@@ -741,7 +742,7 @@ pub trait TemplateRenderer: Debug {
                         email_config.html_body,
                         vec![Attachment {
                             filename: final_report_name,
-                            mimetype: mimetype,
+                            mimetype,
                             content: final_file_bytes,
                         }],
                     )
@@ -773,7 +774,7 @@ pub trait TemplateRenderer: Debug {
                 generate_mode,
                 hasura_transaction,
                 keycloak_transaction,
-                &user_tpl_document,
+                user_tpl_document,
                 &mut None,
                 None,
             )
@@ -818,6 +819,10 @@ pub trait TemplateRenderer: Debug {
         ))
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the report trait method signature shared by its implementations, including separate database and task contexts."
+    )]
     #[instrument(err, skip_all)]
     async fn execute_report(
         &self,
@@ -854,7 +859,7 @@ pub trait TemplateRenderer: Debug {
         tenant_id: &str,
         election_event_id: &str,
     ) -> Result<Vec<String>> {
-        if recipients.len() > 0 {
+        if !recipients.is_empty() {
             Ok(recipients) // If recipients are provided, use them
         } else {
             // Fetch email via voter_id if recipients are not provided

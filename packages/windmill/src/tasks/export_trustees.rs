@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::export::export_trustees::read_trustees_config;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::types::error::{Error, Result as TaskResult};
-use anyhow::{anyhow, Context, Result};
+use crate::types::error::Result as TaskResult;
+use anyhow::Result;
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::hasura::core::TasksExecution;
-use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err)]
 async fn export_trustees_service(

@@ -264,7 +264,8 @@ async fn run_apply_reconciliation_patch(
     // own last-applied `Sequence` per event annotation — a future
     // non-Datafix source would keep its own independent tracking here
     // instead, under its own arm, without touching the generic apply below.
-    if let ReconciliationPatchSource::Datafix { .. } = &body.source {
+    let ReconciliationPatchSource::Datafix { .. } = &body.source;
+    {
         let election_event = get_election_event_by_id(
             &hasura_transaction,
             &body.tenant_id,
@@ -453,7 +454,8 @@ async fn run_apply_reconciliation_patch(
         .await
         .map_err(|err| format!("Error storing reconciliation electoral log: {err:?}"))?;
 
-    if let ReconciliationPatchSource::Datafix { .. } = &body.source {
+    let ReconciliationPatchSource::Datafix { .. } = &body.source;
+    {
         set_datafix_reconciliation_state(
             &hasura_transaction,
             &body.tenant_id,

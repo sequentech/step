@@ -1,15 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::VotingStatus;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::ElectionEvent as ElectionEventData;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct ElectionEventDatafix(pub ElectionEventData);
@@ -82,7 +80,7 @@ pub async fn insert_election_event(
                 &election_event
                     .audit_election_event_id
                     .as_ref()
-                    .and_then(|s| parse_uuid_v4(&s).ok()),
+                    .and_then(|s| parse_uuid_v4(s).ok()),
                 &election_event.public_key,
                 &election_event.statistics,
                 &election_event.external_id,
@@ -133,8 +131,8 @@ pub async fn get_election_event_by_id(
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
     election_events
-        .get(0)
-        .map(|election_event| election_event.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Election event {election_event_id} not found"))
 }
 
@@ -176,10 +174,8 @@ pub async fn get_election_event_by_id_if_exist(
         })
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
-    let election_event = election_events
-        .get(0)
-        .map(|election_event| election_event.clone());
-    Ok((election_event))
+    let election_event = election_events.first().cloned();
+    Ok(election_event)
 }
 
 /// Returns all the Election events as ElectionEventDatafix
@@ -422,8 +418,8 @@ pub async fn get_election_event_by_election_area(
         .collect::<Result<Vec<ElectionEventData>>>()?;
 
     election_events
-        .get(0)
-        .map(|election_event| election_event.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Election event not found"))
 }
 

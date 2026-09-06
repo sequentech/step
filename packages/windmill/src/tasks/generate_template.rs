@@ -8,7 +8,6 @@ use crate::postgres::tally_session::get_tally_session_by_id;
 use crate::services::ceremonies::encrypter::encrypt_file;
 use crate::services::ceremonies::velvet_tally::build_ballot_images_pipe_config;
 use crate::services::ceremonies::velvet_tally::call_velvet;
-use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
 use crate::services::consolidation::tally_download::download_tally_tar_gz_to_file;
 use crate::services::consolidation::zip::compress_folder_to_zip;
@@ -22,14 +21,12 @@ use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::{Client as DbClient, Transaction};
-use hex;
 use sequent_core::ballot::ContestEncryptionPolicy;
-use sequent_core::services::{pdf, s3};
+use sequent_core::services::s3;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::hasura::core::TallySession;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
-use sequent_core::util::path::get_folder_name;
 use sequent_core::util::path::list_subfolders;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
@@ -38,9 +35,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
-use strand::hash::hash_sha256;
-use tempfile::tempdir;
-use tracing::{info, instrument};
+use tracing::instrument;
 use velvet::config::ballot_images_config::PipeConfigBallotImages;
 use velvet::pipes::pipe_name::PipeName;
 use velvet::pipes::pipe_name::PipeNameOutputDir;
@@ -73,8 +68,8 @@ async fn create_config(
     let minio_endpoint_base = s3::get_minio_url()?;
 
     let ballot_images_pipe_config: PipeConfigBallotImages = build_ballot_images_pipe_config(
-        &tally_session,
-        &hasura_transaction,
+        tally_session,
+        hasura_transaction,
         minio_endpoint_base.clone(),
         public_asset_path.clone(),
     )
@@ -164,7 +159,7 @@ async fn generate_template_document(
 
     let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
-    let tally_path_path = tally_path.into_path();
+    let tally_path_path = tally_path.keep();
 
     let pipe_name = if contest_encryption_policy == ContestEncryptionPolicy::MULTIPLE_CONTESTS {
         PipeNameOutputDir::MCBallotImages
@@ -201,18 +196,16 @@ async fn generate_template_document(
     let subfolders = list_subfolders(&election_path);
     for subfolder in subfolders {
         let entries = fs::read_dir(subfolder)?;
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    continue;
-                }
-                let Ok(name) = entry.file_name().into_string() else {
-                    continue;
-                };
-                if name.ends_with(".html") {
-                    fs::remove_file(&path)?;
-                }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                continue;
+            }
+            let Ok(name) = entry.file_name().into_string() else {
+                continue;
+            };
+            if name.ends_with(".html") {
+                fs::remove_file(&path)?;
             }
         }
     }
@@ -229,7 +222,7 @@ async fn generate_template_document(
                 && report
                     .election_id
                     .as_ref()
-                    .map_or(true, |id| *id == election_id)
+                    .is_none_or(|id| *id == election_id)
         })
         .cloned();
 
@@ -255,7 +248,7 @@ async fn generate_template_document(
     let otuput_doc_name = format!("election-{election_id}-ballot-images.{file_extension}");
 
     let _document = upload_and_return_document(
-        &hasura_transaction,
+        hasura_transaction,
         &final_zipped_file,
         file_size,
         mime_type,

@@ -46,7 +46,7 @@ pub async fn get_tally_pdf_config(
 
     let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
-    let tally_path_path = tally_path.into_path();
+    let tally_path_path = tally_path.keep();
 
     let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
 

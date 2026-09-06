@@ -10,7 +10,6 @@ use anyhow::Context;
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
-use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 
 #[instrument(err)]

@@ -6,7 +6,6 @@ use deadpool_postgres::{GenericClient, Object, Transaction};
 use serde_json::{Value, Map};
 use tokio_postgres::types::ToSql;
 use tokio_postgres::Row;
-use core::result::Result::Err;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -194,7 +193,7 @@ impl Host for PluginTransactionsManager {
         sql: String,
         params: Vec<String>,
     ) -> Result<String, String> {
-        let mut manager = self.hasura_manager.lock().await;
+        let manager = self.hasura_manager.lock().await;
 
         let parsed_params: Vec<Box<dyn ToSql + Send + Sync>> = params
             .iter()
@@ -237,7 +236,7 @@ impl Host for PluginTransactionsManager {
         sql: String,
         params: Vec<String>,
     ) -> Result<String, String> {
-        let mut manager = self.keycloak_manager.lock().await;
+        let manager = self.keycloak_manager.lock().await;
 
         let parsed_params: Vec<Box<dyn ToSql + Send + Sync>> = params
             .iter()

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
@@ -11,7 +11,7 @@ use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::ResultDocuments;
 use sequent_core::types::results::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
@@ -24,9 +24,8 @@ impl TryFrom<Row> for ResultsElectionWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsElectionWrapper(ResultsElection {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -75,13 +74,13 @@ pub async fn update_results_election_documents(
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
     let json_hash_value = serde_json::Value::String(json_hash.to_string()); // Convert json_hash to JSON
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -172,7 +171,7 @@ pub async fn insert_results_elections(
                 name: election.name.clone(),
                 elegible_census: election.elegible_census,
                 total_voters: election.total_voters,
-                total_voters_percent: election.total_voters_percent.clone().map(|n| n.into()),
+                total_voters_percent: election.total_voters_percent.map(|n| n.into()),
                 blank_ballots: election.blank_ballots,
                 blank_ballots_percent: election.blank_ballots_percent.map(|n| n.into()),
             })
@@ -321,8 +320,8 @@ pub async fn get_results_election_by_results_event_id(
         .collect::<Result<Vec<ResultsElection>>>()?;
 
     results
-        .get(0)
-        .map(|val| val.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Results election not found"))
 }
 

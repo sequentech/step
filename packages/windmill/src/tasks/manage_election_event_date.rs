@@ -6,18 +6,17 @@ use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_status::update_event_voting_status;
 use crate::services::pg_lock::PgLock;
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use anyhow::{anyhow, Result as AnyhowResult};
 use celery::error::TaskError;
 use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, InitReport, VotingStatus, VotingStatusChannel};
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
-use serde::{Deserialize, Serialize};
+use tracing::info;
 use tracing::instrument;
-use tracing::{event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -49,13 +48,12 @@ pub async fn manage_election_event_date_wrapped(
         EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
             return Ok(());
         }
     };
     update_event_voting_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         None,
         None,
@@ -65,7 +63,7 @@ pub async fn manage_election_event_date_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
 
     Ok(())
 }
@@ -102,7 +100,7 @@ pub async fn manage_election_event_date(
     .await;
 
     match res {
-        Ok(data) => {
+        Ok(_data) => {
             let commit = hasura_transaction
                 .commit()
                 .await

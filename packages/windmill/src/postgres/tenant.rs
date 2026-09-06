@@ -6,7 +6,7 @@ use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::Tenant;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TenantWrapper(pub Tenant);
@@ -66,10 +66,7 @@ pub async fn get_tenant_by_id(
         .collect::<Result<Vec<_>, _>>()
         .context("Error converting database rows to Tenant")?;
 
-    let tenant = tenants
-        .get(0)
-        .map(|tenant| tenant.clone())
-        .context("Error obtaining Tenant")?;
+    let tenant = tenants.first().cloned().context("Error obtaining Tenant")?;
     Ok(tenant)
 }
 
@@ -157,7 +154,7 @@ pub async fn insert_tenant(
         .map_err(|err| anyhow!("Error preparing update_tenant statement: {}", err))?;
 
     let _rows = hasura_transaction
-        .execute(&statement, &[&parse_uuid_v4(&id)?, &slug])
+        .execute(&statement, &[&parse_uuid_v4(id)?, &slug])
         .await
         .context("Failed to execute update tenant")?;
 
@@ -195,7 +192,7 @@ pub async fn get_tenant_by_id_if_exist(
         .await
         .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
 
-    if (rows.is_empty()) {
+    if rows.is_empty() {
         return Ok(None);
     }
 
@@ -205,10 +202,7 @@ pub async fn get_tenant_by_id_if_exist(
         .collect::<Result<Vec<_>, _>>()
         .context("Error converting database rows to Tenant")?;
 
-    let tenant = tenants
-        .get(0)
-        .map(|tenant| tenant.clone())
-        .context("Error obtaining Tenant")?;
+    let tenant = tenants.first().cloned().context("Error obtaining Tenant")?;
     Ok(Some(tenant))
 }
 
@@ -235,7 +229,7 @@ pub async fn get_tenant_by_slug_if_exist(
         .await
         .map_err(|err| anyhow!("Error fetching Tenants: {}", err))?;
 
-    if (rows.is_empty()) {
+    if rows.is_empty() {
         return Ok(None);
     }
 
@@ -245,9 +239,6 @@ pub async fn get_tenant_by_slug_if_exist(
         .collect::<Result<Vec<_>, _>>()
         .context("Error converting database rows to Tenant")?;
 
-    let tenant = tenants
-        .get(0)
-        .map(|tenant| tenant.clone())
-        .context("Error obtaining Tenant")?;
+    let tenant = tenants.first().cloned().context("Error obtaining Tenant")?;
     Ok(Some(tenant))
 }

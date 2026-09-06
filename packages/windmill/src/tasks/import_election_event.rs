@@ -9,11 +9,10 @@ use crate::{
     services::import::import_election_event::{self as import_election_event_service},
     types::error::Result,
 };
-use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 
 #[derive(Deserialize, Debug, Clone, Serialize)]
 pub struct ImportElectionEventBody {
@@ -59,10 +58,7 @@ pub async fn import_election_event(
             Ok(())
         }
         Err(error) => {
-            let err_str = format!(
-                "Error process election event document: {}",
-                error.to_string()
-            );
+            let err_str = format!("Error process election event document: {}", error);
             let _ = update_fail(&task_execution, &err_str).await;
             Err(err_str.into())
         }

@@ -5,10 +5,8 @@
 use anyhow::Result;
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotPublication;
-use tokio::try_join;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -86,9 +84,7 @@ pub async fn get_ballot_publication_by_id(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 pub async fn update_ballot_publication_status(
@@ -139,9 +135,7 @@ pub async fn update_ballot_publication_status(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 pub async fn update_ballot_publication(
@@ -191,9 +185,7 @@ pub async fn update_ballot_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -336,9 +328,7 @@ pub async fn insert_ballot_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results
-        .get(0)
-        .map(|element: &BallotPublication| element.clone()))
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -397,7 +387,7 @@ pub async fn get_previous_publication_election(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results.get(0).cloned())
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -454,7 +444,7 @@ pub async fn get_previous_publication(
         })
         .collect::<Result<Vec<BallotPublication>>>()?;
 
-    Ok(results.get(0).cloned())
+    Ok(results.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]

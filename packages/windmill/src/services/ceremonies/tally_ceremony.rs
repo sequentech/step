@@ -1,11 +1,18 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+pub type TallySessionData = (
+    TallySessionExecution,
+    TallySession,
+    Vec<TallySessionContest>,
+    Vec<BallotStyle>,
+);
+
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
 use crate::postgres::contest::export_contests;
-use crate::postgres::election::{export_elections, get_election_by_id};
+use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::tally_session::{
@@ -32,8 +39,8 @@ use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
 use futures::try_join;
 use sequent_core::ballot::{
-    AllowTallyStatus, BallotStyle as SequentBallotStyle, ContestEncryptionPolicy,
-    DecodedBallotsInclusionPolicy, DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
+    BallotStyle as SequentBallotStyle, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+    DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
 };
 use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -41,12 +48,12 @@ use sequent_core::services::area_tree::ContestsData;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::*;
+use sequent_core::types::hasura::core::Contest;
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::hasura::core::{AreaContest, TallySessionConfiguration};
 use sequent_core::types::hasura::core::{
     BallotStyle, Election, TallySession, TallySessionContest, TallySessionExecution,
 };
-use sequent_core::types::hasura::core::{Contest, ElectionEvent};
 use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -62,14 +69,7 @@ pub async fn find_last_tally_session_execution_and_all_related_data(
     election_event_id: String,
     tally_session_id: String,
     election_ids: Vec<String>,
-) -> Result<
-    Option<(
-        TallySessionExecution,
-        TallySession,
-        Vec<TallySessionContest>,
-        Vec<BallotStyle>,
-    )>,
-> {
+) -> Result<Option<TallySessionData>> {
     // get all data for the execution: the last tally session execution,
     // the list of tally_session_contest, and the ballot styles
 
@@ -145,7 +145,7 @@ pub async fn find_keys_ceremony(
         .collect();
 
     if 1 != keys_ceremonies_set.len() {
-        if 0 == keys_ceremonies_set.len() {
+        if keys_ceremonies_set.is_empty() {
             return Err(anyhow!("Elections don't have  any keys ceremony"));
         } else {
             return Err(anyhow!("Elections have different keys ceremonies"));
@@ -156,13 +156,9 @@ pub async fn find_keys_ceremony(
         return Err(anyhow!("Election has no keys ceremony"));
     };
 
-    let keys_ceremony = get_keys_ceremony_by_id(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        &keys_ceremony_id,
-    )
-    .await?;
+    let keys_ceremony =
+        get_keys_ceremony_by_id(transaction, tenant_id, election_event_id, &keys_ceremony_id)
+            .await?;
 
     let status_str = keys_ceremony.execution_status.clone().unwrap_or_default();
     if KeysCeremonyExecutionStatus::from_str(&status_str).ok()
@@ -240,12 +236,12 @@ pub async fn insert_tally_session_contests(
                 election_event_id,
                 &area_contest.area_id,
                 None,
-                batch.clone(),
-                &tally_session_id,
+                batch,
+                tally_session_id,
                 &election_id,
             )
             .await?;
-            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
+            batch += VOTE_WEIGHT_BATCHES as BatchNumber;
         }
     } else if ContestEncryptionPolicy::SINGLE_CONTEST == contest_encryption_policy {
         for area_contest in relevant_area_contests {
@@ -258,12 +254,12 @@ pub async fn insert_tally_session_contests(
                 election_event_id,
                 &area_contest.area_id,
                 Some(area_contest.contest_id.clone()),
-                batch.clone(),
-                &tally_session_id,
+                batch,
+                tally_session_id,
                 &contest.election_id,
             )
             .await?;
-            batch = batch + VOTE_WEIGHT_BATCHES as BatchNumber;
+            batch += VOTE_WEIGHT_BATCHES as BatchNumber;
         }
     }
     Ok(())
@@ -272,7 +268,7 @@ pub async fn insert_tally_session_contests(
 fn get_area_contests_for_election_ids(
     contests_map: &HashMap<String, Contest>,
     area_contests_tree: &TreeNode<ContestsData>,
-    election_ids: &Vec<String>,
+    election_ids: &[String],
 ) -> HashSet<AreaContest> {
     let contest_ids: HashSet<String> = contests_map
         .values()
@@ -282,6 +278,10 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -295,11 +295,11 @@ pub async fn create_tally_ceremony(
     username: String,
 ) -> Result<String> {
     let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
-        get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
-        export_elections(&transaction, &tenant_id, &election_event_id),
-        export_contests(&transaction, &tenant_id, &election_event_id),
-        get_event_areas(&transaction, &tenant_id, &election_event_id),
-        export_area_contests(&transaction, &tenant_id, &election_event_id),
+        get_election_event_by_id(transaction, &tenant_id, &election_event_id),
+        export_elections(transaction, &tenant_id, &election_event_id),
+        export_contests(transaction, &tenant_id, &election_event_id),
+        get_event_areas(transaction, &tenant_id, &election_event_id),
+        export_area_contests(transaction, &tenant_id, &election_event_id),
     )?;
     let contest_encryption_policy = election_event.get_contest_encryption_policy();
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
@@ -342,7 +342,7 @@ pub async fn create_tally_ceremony(
         // -- withdraw the sheet -- that destroys that other election's paper
         // count.
         let approved_tally_sheets: Vec<_> =
-            get_approved_tally_sheets_by_event(&transaction, &tenant_id, &election_event_id)
+            get_approved_tally_sheets_by_event(transaction, &tenant_id, &election_event_id)
                 .await?
                 .into_iter()
                 // An empty list needs no fallback: a session that names no
@@ -368,7 +368,7 @@ pub async fn create_tally_ceremony(
         // republishing would otherwise satisfy the check while the tally still
         // double-counted every ballot.
         let published_ballot_styles = get_ballot_styles_by_elections(
-            &transaction,
+            transaction,
             &tenant_id,
             &election_event_id,
             &election_ids,
@@ -521,7 +521,7 @@ pub async fn create_tally_ceremony(
         .map(|area_contest| area_contest.area_id.clone())
         .collect::<HashSet<String>>()
         .iter()
-        .map(|val| val.clone())
+        .cloned()
         .collect();
 
     let keys_ceremony =
@@ -694,7 +694,7 @@ pub async fn update_tally_ceremony(
     println!("new_execution_status:: {:?}", &new_execution_status);
 
     update_tally_session_status(
-        &hasura_transaction,
+        hasura_transaction,
         &tenant_id,
         &election_event_id,
         &tally_session.id,
@@ -711,7 +711,7 @@ pub async fn update_tally_ceremony(
         // Save this in the electoral log
         let board_name: String = get_event_board(&tenant_id, &election_event_id, &slug);
         let electoral_log = ElectoralLog::for_admin_user(
-            &hasura_transaction,
+            hasura_transaction,
             board_name.as_str(),
             &tenant_id,
             &election_event_id,
@@ -745,13 +745,9 @@ pub async fn set_private_key(
     tally_session_id: &str,
     private_key_base64: &str,
 ) -> Result<bool> {
-    let tally_session = get_tally_session_by_id(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
-    )
-    .await?;
+    let tally_session =
+        get_tally_session_by_id(transaction, tenant_id, election_event_id, tally_session_id)
+            .await?;
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
@@ -784,14 +780,14 @@ pub async fn set_private_key(
     if TallyExecutionStatus::STARTED != current_status
         && TallyExecutionStatus::CONNECTED != current_status
     {
-        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
+        return Err(anyhow!("Unexpected status {}", current_status));
     }
 
     // get the keys ceremonies for this election event
     let keys_ceremony = get_keys_ceremony_by_id(
         transaction,
-        &tenant_id,
-        &election_event_id,
+        tenant_id,
+        election_event_id,
         &tally_session.keys_ceremony_id,
     )
     .await?;
@@ -813,15 +809,15 @@ pub async fn set_private_key(
     if TallyTrusteeStatus::WAITING != found_trustee.status {
         return Err(anyhow!(
             "Unexpected trustee status {}",
-            found_trustee.status.to_string()
+            found_trustee.status
         ));
     }
 
     // get the encrypted private key
     let encrypted_private_key = find_trustee_private_key(
         transaction,
-        &tenant_id,
-        &election_event_id,
+        tenant_id,
+        election_event_id,
         &trustee_name,
         &keys_ceremony,
     )
@@ -848,10 +844,10 @@ pub async fn set_private_key(
         .collect();
     insert_tally_session_execution(
         transaction,
-        &tenant_id,
-        &election_event_id,
+        tenant_id,
+        election_event_id,
         tally_session_execution.current_message_id,
-        &tally_session_id,
+        tally_session_id,
         Some(new_status.clone()),
         None,
         None,
@@ -870,9 +866,9 @@ pub async fn set_private_key(
     if connected_trustees.len() as i64 >= keys_ceremony.threshold {
         update_tally_session_status(
             transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session_id,
+            tenant_id,
+            election_event_id,
+            tally_session_id,
             TallyExecutionStatus::CONNECTED,
             false,
         )
@@ -881,7 +877,7 @@ pub async fn set_private_key(
     println!("after update status");
     // get the election event
     let election_event =
-        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
+        get_election_event_by_id(transaction, tenant_id, election_event_id).await?;
 
     // Save this in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
@@ -896,7 +892,7 @@ pub async fn set_private_key(
     let electoral_log = ElectoralLog::for_admin_user(
         transaction,
         &board_name,
-        &tenant_id,
+        tenant_id,
         election_event_id,
         user_id,
         username.clone(),
@@ -927,7 +923,7 @@ pub async fn set_tally_session_completed(
 ) -> Result<()> {
     let execution_status = TallyExecutionStatus::SUCCESS;
 
-    let is_updated = match set_tally_session_completed_in_db(
+    let is_updated = set_tally_session_completed_in_db(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -935,10 +931,7 @@ pub async fn set_tally_session_completed(
         execution_status,
     )
     .await
-    {
-        Ok(_) => true,
-        Err(_) => false,
-    };
+    .is_ok();
 
     if is_updated {
         let election_event =

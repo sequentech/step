@@ -6,19 +6,16 @@ use crate::postgres::ballot_style::export_event_ballot_styles;
 use crate::services::ballot_styles::ballot_style::EVENT_CONFIG_FILE_NAME;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Context, Result};
-use csv::Writer;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::s3::{
     get_object_into_temp_file, get_public_bucket, get_public_election_event_document_name_key,
 };
-use sequent_core::types::hasura::core::Document;
-use sequent_core::types::hasura::core::{BallotPublication, Template};
+use sequent_core::types::hasura::core::BallotPublication;
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use tempfile::TempPath;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 
 #[instrument(err, skip(transaction, data))]
 pub async fn write_export_document(
@@ -64,10 +61,9 @@ pub async fn process_export_ballot_publication(
     to_upload: bool,
 ) -> Result<TempPath> {
     let mut ballot_designs = vec![];
-    let event_styles =
-        export_event_ballot_styles(&hasura_transaction, &tenant_id, &election_event_id)
-            .await
-            .with_context(|| "Error obtaining ballot styles")?;
+    let event_styles = export_event_ballot_styles(hasura_transaction, tenant_id, election_event_id)
+        .await
+        .with_context(|| "Error obtaining ballot styles")?;
     for ballot_publication in ballot_publications {
         let ballot_publication_id = ballot_publication.id.clone();
         let ballot_styles = event_styles
@@ -101,7 +97,7 @@ pub async fn process_export_ballot_publication(
 
     // Write the JSON data to a file
     let temp_path = write_export_document(
-        &hasura_transaction,
+        hasura_transaction,
         data,
         document_id,
         election_event_id,
@@ -125,15 +121,15 @@ pub async fn export_ballot_publications(
     election_event_id: &str,
 ) -> Result<TempPath> {
     let ballot_publications_data =
-        get_ballot_publication(&hasura_transaction, tenant_id, election_event_id)
+        get_ballot_publication(hasura_transaction, tenant_id, election_event_id)
             .await
             .map_err(|e| anyhow!("Error reading ballot publications data: {e:?}"))?;
 
     let temp_path = process_export_ballot_publication(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &document_id,
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        document_id,
         &ballot_publications_data,
         false,
     )
@@ -160,7 +156,7 @@ pub async fn export_election_event_config_file(
     let file = get_object_into_temp_file(
         s3_bucket.as_str(),
         document_s3_key.as_str(),
-        &document_name,
+        document_name,
         ".tmp",
     )
     .await

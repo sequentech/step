@@ -39,7 +39,7 @@ impl SmsSender {
 
                     let base_message_attributes: HashMap<String, String> = deserialize_str(
                         &std::env::var("AWS_SNS_ATTRIBUTES")
-                            .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
+                            .map_err(|_err| anyhow!("AWS_SNS_ATTRIBUTES env var missing"))?,
                     )
                     .map_err(|err| anyhow!("AWS_SNS_ATTRIBUTES env var parse error: {err:?}"))?;
                     let messsage_attributes = Some(

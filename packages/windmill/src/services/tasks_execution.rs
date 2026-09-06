@@ -28,7 +28,7 @@ pub async fn post(
     let task = insert_tasks_execution(
         tenant_id,
         election_event_id,
-        &task_type.to_name(),
+        task_type.to_name(),
         &task_type.to_string(),
         TasksExecutionStatus::IN_PROGRESS,
         None,
@@ -85,7 +85,7 @@ pub async fn update_complete(
     let new_msg = "Task completed successfully";
     let new_logs = serde_json::to_value(append_general_log(&logs, new_msg))?;
 
-    update(&task.tenant_id, &task_id, new_status, new_logs, document_id)
+    update(&task.tenant_id, task_id, new_status, new_logs, document_id)
         .await
         .context("Failed to update task execution record")?;
     Ok(())

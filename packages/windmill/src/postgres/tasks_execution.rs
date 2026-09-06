@@ -4,16 +4,11 @@
 use crate::services::database::get_hasura_pool;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use sequent_core::types::{
-    ceremonies::Log,
-    hasura::{core::TasksExecution, extra::TasksExecutionStatus},
-};
+use sequent_core::types::hasura::{core::TasksExecution, extra::TasksExecutionStatus};
 use serde_json::value::Value;
-use std::collections::HashMap;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct TasksExecutionWrapper(pub TasksExecution);
@@ -43,6 +38,10 @@ impl TryFrom<Row> for TasksExecutionWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(annotations, labels, logs), err)]
 pub async fn insert_tasks_execution(
     tenant_id: &str,

@@ -17,7 +17,6 @@ use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use std::io::Seek;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 #[instrument(err)]
 pub async fn import_templates(

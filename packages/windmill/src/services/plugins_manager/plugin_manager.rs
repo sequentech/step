@@ -172,7 +172,7 @@ impl PluginManager {
                 )
                 .await
                 .map_err(|e| anyhow!("Failed to call hook {handler}: {e}"))?;
-            if let Some(result_hook_value) = results.get(0) {
+            if let Some(result_hook_value) = results.first() {
                 let results_json = result_hook_value
                     .as_results_json()
                     .map_err(|e| anyhow!("Failed to convert hook return value to JSON: {e}"))?;
@@ -181,7 +181,7 @@ impl PluginManager {
                 Err(anyhow!("Route {path} handler did not return a string"))
             }
         } else {
-            return Err(anyhow!("Route {path} not found"));
+            Err(anyhow!("Route {path} not found"))
         }
     }
 

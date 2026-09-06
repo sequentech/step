@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
 #[derive(
-    Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
+    Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames, Serialize, Deserialize,
 )]
 pub enum ApplicationStatus {
     PENDING,
@@ -15,7 +15,7 @@ pub enum ApplicationStatus {
 }
 
 #[derive(
-    Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
+    Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames, Serialize, Deserialize,
 )]
 pub enum ApplicationType {
     AUTOMATIC,
@@ -24,16 +24,7 @@ pub enum ApplicationType {
 
 #[allow(non_camel_case_types)]
 #[derive(
-    Display,
-    Default,
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    EnumString,
-    EnumVariantNames,
-    Serialize,
-    Deserialize,
+    Display, Default, Debug, PartialEq, Eq, Clone, EnumString, VariantNames, Serialize, Deserialize,
 )]
 pub enum ApplicationRejectReason {
     #[strum(to_string = "insufficient-information")]
@@ -49,7 +40,7 @@ pub enum ApplicationRejectReason {
 
 #[allow(non_camel_case_types)]
 #[derive(
-    Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames, Serialize, Deserialize,
+    Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames, Serialize, Deserialize,
 )]
 pub enum ApplicationsError {
     #[strum(to_string = "Approved_Voter")]

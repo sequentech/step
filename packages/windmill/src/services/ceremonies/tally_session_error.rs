@@ -4,12 +4,11 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
-use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 use super::tally_ceremony::get_tally_ceremony_status;
 
@@ -51,7 +50,7 @@ pub async fn handle_tally_session_error(
         log_text: error.to_string(),
     };
     let mut last_log = new_logs.pop().unwrap_or(new_log.clone());
-    if last_log.log_text == error.to_string() {
+    if last_log.log_text == error {
         last_log.created_date = ISO8601::to_string(&now);
         new_logs.push(last_log);
     } else {

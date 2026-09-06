@@ -4,11 +4,9 @@
 
 use super::cloudflare::{get_cloudflare_vars, ApiResponse, CloudflareError};
 use reqwest::Client;
-use rocket::futures::stream::Forward;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::fmt;
 use tracing::{error, info, instrument};
 
 #[derive(Debug, Deserialize)]
@@ -68,13 +66,13 @@ enum ActionValue {
     ForwardURL(ForwardURL),
 }
 #[derive(Debug, Serialize, Deserialize)]
-struct Action {
+pub struct Action {
     id: String,
     value: ActionValue,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct DnsRecord {
+pub struct DnsRecord {
     #[serde(rename = "type")]
     record_type: String,
     name: String,
@@ -132,7 +130,7 @@ pub async fn set_custom_url(
     match current_dns_record {
         Some(dns_record) => {
             if let Err(e) = update_dns_record(&dns_record.id, redirect_to, dns_prefix).await {
-                let error_message = format!("Failed to update DNS record: {}", e.to_string());
+                let error_message = format!("Failed to update DNS record: {}", e);
                 error!("{}", error_message);
                 return Err(error_message.into());
             }
@@ -140,7 +138,7 @@ pub async fn set_custom_url(
         }
         None => {
             if let Err(e) = create_dns_record(redirect_to, dns_prefix).await {
-                let error_message = format!("Failed to create DNS record: {}", e.to_string());
+                let error_message = format!("Failed to create DNS record: {}", e);
                 error!("{}", error_message);
                 return Err(error_message.into());
             }
@@ -163,7 +161,7 @@ pub async fn set_custom_url(
     match current_page_rule {
         Some(page_rule) => {
             if let Err(e) = update_page_rule(&page_rule.id, redirect_to, origin).await {
-                let error_message = format!("Failed to update page rule: {}", e.to_string());
+                let error_message = format!("Failed to update page rule: {}", e);
                 error!("{}", error_message);
                 return Err(error_message.into());
             }
@@ -171,7 +169,7 @@ pub async fn set_custom_url(
         }
         None => {
             if let Err(e) = create_page_rule(redirect_to, origin).await {
-                let error_message = format!("Failed to create page rule: {}", e.to_string());
+                let error_message = format!("Failed to create page rule: {}", e);
                 error!("{}", error_message);
                 return Err(error_message.into());
             }
@@ -191,7 +189,7 @@ async fn get_all_page_rules() -> Result<Vec<PageRule>, Box<dyn Error>> {
     let client = Client::new();
 
     let response = client
-        .get(&format!(
+        .get(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))
@@ -229,7 +227,7 @@ async fn get_all_dns_records() -> Result<Vec<DnsRecord>, Box<dyn Error>> {
     let client = Client::new();
 
     let response = client
-        .get(&format!(
+        .get(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/dns_records",
             &zone_id,
         ))
@@ -329,7 +327,7 @@ fn create_dns_payload(origin: &str) -> CreateDNSRecordRequest {
     }
 }
 
-pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
+pub async fn create_dns_record(_redirect_to: &str, dns_prefix: &str) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
     let (zone_id, api_key) = match get_cloudflare_vars() {
         Ok(vars) => vars,
@@ -377,7 +375,7 @@ pub async fn create_dns_record(redirect_to: &str, dns_prefix: &str) -> Result<()
 
 pub async fn update_dns_record(
     id: &str,
-    redirect_to: &str,
+    _redirect_to: &str,
     dns_prefix: &str,
 ) -> Result<(), Box<dyn Error>> {
     let client = Client::new();
@@ -437,7 +435,7 @@ async fn update_page_rule(
     info!("Existing page rules: {:?}", page_rules);
 
     let response = client
-        .put(&format!(
+        .put(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules/{}",
             zone_id, rule_id
         ))
@@ -452,10 +450,10 @@ async fn update_page_rule(
     } else {
         let error_text = response.text().await?;
         info!("Failed to update page rule: {}", error_text);
-        Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Failed to update page rule: {}", error_text),
-        )))
+        Err(Box::new(std::io::Error::other(format!(
+            "Failed to update page rule: {}",
+            error_text
+        ))))
     }
 }
 
@@ -465,7 +463,7 @@ async fn create_page_rule(redirect_to: &str, origin: &str) -> Result<(), Box<dyn
     info!("create_page_rule");
     let request_body = create_payload(redirect_to, origin);
     let response = client
-        .post(&format!(
+        .post(format!(
             "https://api.cloudflare.com/client/v4/zones/{}/pagerules",
             &zone_id,
         ))

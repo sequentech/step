@@ -4,7 +4,6 @@
 
 use crate::postgres::election_event::update_bulletin_board;
 use crate::services::database::get_hasura_pool;
-use crate::services::election_event_board::BoardSerializable;
 use crate::services::import::import_election_event::insert_election_event_db;
 use crate::services::import::import_election_event::upsert_b3_and_elog;
 use crate::services::import::import_election_event::upsert_keycloak_realm;
@@ -12,19 +11,11 @@ use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
-use deadpool_postgres::Transaction;
-use keycloak::types::RealmRepresentation;
 use sequent_core;
-use sequent_core::services::connection;
-use sequent_core::services::keycloak::get_event_realm;
-use sequent_core::services::keycloak::{get_client_credentials, KeycloakAdminClient};
 use sequent_core::types::hasura::core::{TasksExecution, VotingChannels};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::env;
-use std::fs;
-use tokio_postgres::row::Row;
-use tracing::{event, instrument, Level};
+use serde_json::Value;
+use tracing::instrument;
 
 #[instrument(err)]
 pub async fn insert_election_event_anyhow(
@@ -40,7 +31,7 @@ pub async fn insert_election_event_anyhow(
         Ok(client) => client,
         Err(err) => {
             update_fail(&task_execution, "Failed to get Hasura DB pool").await?;
-            return Err(anyhow!("Failed to get Hasura DB pool: {err}").into());
+            return Err(anyhow!("Failed to get Hasura DB pool: {err}"));
         }
     };
 
@@ -48,7 +39,7 @@ pub async fn insert_election_event_anyhow(
         Ok(transaction) => transaction,
         Err(err) => {
             update_fail(&task_execution, "Failed to start Hasura transaction").await?;
-            return Err(anyhow!("Failed to start Hasura transaction: {err}").into());
+            return Err(anyhow!("Failed to start Hasura transaction: {err}"));
         }
     };
 
@@ -57,7 +48,7 @@ pub async fn insert_election_event_anyhow(
         final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
     }
 
-    match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
+    match upsert_keycloak_realm(tenant_id.as_str(), id.as_ref(), None, None).await {
         Ok(realm) => Some(realm),
         Err(err) => {
             update_fail(
@@ -79,40 +70,35 @@ pub async fn insert_election_event_anyhow(
                 "Failed to update task execution status to COMPLETED",
             )
             .await?;
-            return Err(
-                anyhow!("Failed to update task execution status to COMPLETED {err}").into(),
-            );
+            return Err(anyhow!(
+                "Failed to update task execution status to COMPLETED {err}"
+            ));
         }
     };
 
     let board = upsert_b3_and_elog(
         &hasura_transaction,
         tenant_id.as_str(),
-        &id.as_ref(),
+        id.as_ref(),
         &vec![],
         false,
     )
     .await?;
 
-    update_bulletin_board(
-        &hasura_transaction,
-        tenant_id.as_str(),
-        &id.as_ref(),
-        &board,
-    )
-    .await
-    .with_context(|| {
-        format!(
+    update_bulletin_board(&hasura_transaction, tenant_id.as_str(), id.as_ref(), &board)
+        .await
+        .with_context(|| {
+            format!(
             "Error updating bulletin board reference for tenant ID {} and election event ID {:?}",
             tenant_id, &id,
         )
-    })?;
+        })?;
 
     match hasura_transaction.commit().await {
         Ok(_) => (),
         Err(err) => {
             update_fail(&task_execution, "Failed to commit Hasura transaction").await?;
-            return Err(anyhow!("Failed to commit Hasura transaction: {err}").into());
+            return Err(anyhow!("Failed to commit Hasura transaction: {err}"));
         }
     };
 

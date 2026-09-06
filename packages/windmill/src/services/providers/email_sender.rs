@@ -15,7 +15,6 @@ use tracing::{event, instrument, Level};
 // Import required for SMTP transport
 use config::{Config, File, FileFormat};
 use lettre::transport::smtp::SmtpTransport;
-use lettre::transport::smtp::SmtpTransportBuilder;
 use lettre::Transport;
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde::Deserialize;
@@ -142,12 +141,10 @@ impl EmailSender {
             let mut mixed = MultiPart::mixed().multipart(alternative);
 
             for attachment in &attachments {
-                let content_type = ContentType::from(
-                    attachment
-                        .mimetype
-                        .parse()
-                        .map_err(|err| anyhow!("invalid mimetype: {:?}", err))?,
-                );
+                let content_type: ContentType = attachment
+                    .mimetype
+                    .parse()
+                    .map_err(|err| anyhow!("invalid mimetype: {:?}", err))?;
                 let attachment_part = SinglePart::builder()
                     .header(content_type)
                     .header(ContentDisposition::attachment(&attachment.filename))

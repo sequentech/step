@@ -44,15 +44,18 @@ pub async fn check_master_secret() -> Result<()> {
     Ok(())
 }
 
+// Parse external vault data without panicking or including key material in errors.
+fn decode_master_secret(secret: &str) -> Result<SymmetricKey> {
+    let bytes = hex::decode(secret).map_err(|_| anyhow!("Invalid master secret encoding"))?;
+    SymmetricKey::try_from(bytes.as_slice()).map_err(|_| anyhow!("Invalid master secret length"))
+}
+
 #[instrument]
 async fn initialize_master_secret() -> Result<SymmetricKey> {
     let vault = get_vault().with_context(|| "Failed to initialize vault")?;
 
     match vault.read_secret(MASTER_SECRET_KEY_NAME.to_string()).await {
-        Ok(Some(secret)) => {
-            let bytes = hex::decode(secret).expect("Failed to decode master secret");
-            Ok(SymmetricKey::from_slice(&bytes).to_owned())
-        }
+        Ok(Some(secret)) => decode_master_secret(&secret),
         Ok(None) => {
             let new_key = gen_key();
             let hex_key = hex::encode(new_key.as_slice());
@@ -68,7 +71,7 @@ async fn initialize_master_secret() -> Result<SymmetricKey> {
 #[instrument]
 pub async fn get_master_secret() -> Result<SymmetricKey> {
     if let Some(secret) = MASTER_SECRET.get() {
-        return Ok(secret.clone());
+        return Ok(*secret);
     }
     initialize_master_secret().await
 }
@@ -85,7 +88,7 @@ pub fn get_vault() -> Result<Box<dyn Vault + Send>> {
     let mut vault_name = std::env::var("SECRETS_BACKEND")
         .unwrap_or(VaultManagerType::EnvVarMasterSecret.to_string());
 
-    if LOWER_AWS_SECRETS_MANAGER.to_string() == vault_name.to_lowercase() {
+    if LOWER_AWS_SECRETS_MANAGER == vault_name.to_lowercase() {
         vault_name = VaultManagerType::AwsSecretManager.to_string();
     }
 
@@ -197,7 +200,7 @@ pub async fn get_admin_user_signing_key(
     elections_ids: Option<String>,
     user_area_id: Option<String>,
 ) -> Result<StrandSignatureSk> {
-    let lookup_key = admin_vault_lookup_key(&tenant_id, &user_id);
+    let lookup_key = admin_vault_lookup_key(tenant_id, user_id);
     let sk_der_b64 = read_secret(hasura_transaction, tenant_id, None, &lookup_key).await?;
 
     let sk = if let Some(sk_der_b64) = sk_der_b64 {
@@ -235,10 +238,37 @@ pub async fn get_admin_user_signing_key(
     Ok(sk)
 }
 
-fn voter_vault_lookup_key(tenant_id: &str, event_id: &str, user_id: &str) -> String {
-    format!("voter_signing_key-{}-{}-{}", tenant_id, event_id, user_id)
-}
-
 fn admin_vault_lookup_key(tenant_id: &str, user_id: &str) -> String {
     format!("admin_signing_key-{}-{}", tenant_id, user_id)
+}
+
+#[cfg(test)]
+mod master_secret_tests {
+    use super::*;
+
+    #[test]
+    fn master_secret_decoding_preserves_key_bytes() {
+        let bytes = [0x5a; 32];
+        let key = decode_master_secret(&hex::encode(bytes)).unwrap();
+        assert_eq!(key.as_slice(), bytes);
+    }
+
+    #[test]
+    fn malformed_master_secrets_return_errors_without_key_material() {
+        for (encoded, expected) in [
+            (
+                "synthetic-invalid-hex".to_string(),
+                "Invalid master secret encoding",
+            ),
+            (String::new(), "Invalid master secret length"),
+            (hex::encode([0x5a; 31]), "Invalid master secret length"),
+            (hex::encode([0x5a; 33]), "Invalid master secret length"),
+        ] {
+            let result = std::panic::catch_unwind(|| decode_master_secret(&encoded));
+            let error = result
+                .expect("vault data must not panic")
+                .expect_err("invalid key must fail");
+            assert_eq!(format!("{error:?}"), expected);
+        }
+    }
 }

@@ -4,11 +4,10 @@
 // use crate::hasura::trustee::get_trustees_by_name;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::get_elections;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
-use crate::services::cast_votes::{find_area_ballots, CastVote};
+use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
 use crate::services::join::MultiplicitySource;
@@ -20,24 +19,16 @@ use crate::services::users::{
 use crate::services::weight_batches::{reconcile_batch, weight_batch_offsets, BatchReconciliation};
 use anyhow::{anyhow, Context, Result};
 use b4::messages::artifact::Ballots;
-use b4::messages::message::Message;
 use b4::messages::newtypes::BatchNumber;
 use b4::messages::newtypes::TrusteeSet;
 use b4::messages::statement::StatementType;
-use base64::{
-    alphabet,
-    engine::{self, general_purpose},
-    Engine as _,
-};
 use chrono::{DateTime, Utc};
-use csv::WriterBuilder;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{
     ContestEncryptionPolicy, DelegatedVotingPolicy, ElectionPresentation, HashableBallot,
     WeightedVotingPolicy,
 };
 use sequent_core::multi_ballot::HashableMultiBallot;
-use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
@@ -46,24 +37,26 @@ use sequent_core::types::hasura::core::{TallySessionContest, TallySessionContest
 use sequent_core::types::keycloak::{
     MAX_TOTAL_VOTE_WEIGHT, MIN_WEIGHT_BATCH_ANONYMITY, VOTE_WEIGHT_BATCHES,
 };
-use serde_json::json;
 use std::collections::HashMap;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::signature::StrandSignaturePk;
 use tempfile::NamedTempFile;
-use tokio::task::JoinHandle;
 use tracing::{event, instrument, Level};
 
 use deadpool_postgres::Client as DbClient;
 
 use std::sync::Arc; // Add this import
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all, err)]
 pub async fn insert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
-    keycloak_transaction: &Transaction<'_>,
+    _keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     board_name: &str,
@@ -84,7 +77,7 @@ pub async fn insert_ballots_messages(
              on the same election event"
         ));
     }
-    let trustees = get_trustees_by_name(hasura_transaction, &tenant_id, &trustee_names).await?;
+    let trustees = get_trustees_by_name(hasura_transaction, tenant_id, &trustee_names).await?;
 
     event!(Level::INFO, "trustees len: {:?}", trustees.len());
 
@@ -106,7 +99,7 @@ pub async fn insert_ballots_messages(
         deserialized_trustee_pks.len()
     );
 
-    let realm = get_event_realm(&tenant_id, &election_event_id);
+    let realm = get_event_realm(tenant_id, election_event_id);
     // Wrap protocol_manager in an Arc
     let protocol_manager = Arc::new(
         get_protocol_manager(
@@ -117,16 +110,16 @@ pub async fn insert_ballots_messages(
         )
         .await?,
     );
-    let mut board_client = get_b3_pgsql_client().await?;
+    let board_client = get_b3_pgsql_client().await?;
     let board_messages =
-        Arc::new(get_board_messages::<RistrettoCtx>(board_name, &mut board_client).await?);
+        Arc::new(get_board_messages::<RistrettoCtx>(board_name, &board_client).await?);
     let configuration = get_configuration(&board_messages)?;
     let public_key_hash = get_public_key_hash::<RistrettoCtx>(&board_messages)?;
     let selected_trustees: TrusteeSet =
         generate_trustee_set(&configuration, deserialized_trustee_pks.clone());
 
     let election_ids_alias: HashMap<String, String> =
-        get_election_event_elections(&hasura_transaction, tenant_id, election_event_id)
+        get_election_event_elections(hasura_transaction, tenant_id, election_event_id)
             .await?
             .into_iter()
             .filter_map(|election| election.external_id.map(|x| (election.id.clone(), x)))
@@ -146,8 +139,8 @@ pub async fn insert_ballots_messages(
             let board_name_clone = board_name.to_string();
             let protocol_manager_arc_clone = Arc::clone(&protocol_manager); // Clone the Arc
             let configuration_clone = configuration.clone(); // Assuming Configuration can be cloned
-            let public_key_hash_clone = public_key_hash.clone(); // Assuming PublicKeyHash can be cloned
-            let selected_trustees_clone = selected_trustees.clone();
+            let public_key_hash_clone = public_key_hash; // Assuming PublicKeyHash can be cloned
+            let selected_trustees_clone = selected_trustees;
             let election_ids_alias_clone = election_ids_alias.clone();
             let contest_encryption_policy_clone = contest_encryption_policy.clone();
             let realm_clone = realm.clone();
@@ -401,9 +394,9 @@ pub async fn insert_ballots_messages(
                         election_event_id: tally_session_contest.election_event_id.clone(),
                         area_id: tally_session_contest.area_id.clone(),
                         contest_id: tally_session_contest.contest_id.clone(),
-                        session_id: tally_session_contest.session_id.clone(),
-                        created_at: tally_session_contest.created_at.clone(),
-                        last_updated_at: tally_session_contest.last_updated_at.clone(),
+                        session_id: tally_session_contest.session_id,
+                        created_at: tally_session_contest.created_at,
+                        last_updated_at: tally_session_contest.last_updated_at,
                         labels: tally_session_contest.labels.clone(),
                         annotations: Some(annotations),
                         tally_session_id: tally_session_contest.tally_session_id.clone(),
@@ -585,8 +578,8 @@ pub async fn insert_ballots_messages(
                                 &board_name_clone,
                                 &board_messages_clone, // Use the cloned board_messages
                                 &configuration_clone,
-                                public_key_hash_clone.clone(),
-                                selected_trustees_clone.clone(),
+                                public_key_hash_clone,
+                                selected_trustees_clone,
                                 ciphertexts,
                                 base_batch + bit as BatchNumber,
                             )
@@ -629,19 +622,15 @@ pub async fn get_elections_end_dates(
             let election_presentation: ElectionPresentation = election
                 .presentation
                 .clone()
-                .map(|presentation| deserialize_value(presentation))
+                .map(deserialize_value)
                 .transpose()
                 .map_err(|err| anyhow!("Error parsing election presentation {:?}", err))?
                 .unwrap_or(Default::default());
-            let current_dates = election_presentation
-                .dates
-                .clone()
-                .unwrap_or(Default::default());
+            let current_dates = election_presentation.dates.clone().unwrap_or_default();
             let end_date = current_dates
                 .end_date
                 .clone()
-                .map(|val| ISO8601::to_date_utc(&val).ok())
-                .flatten();
+                .and_then(|val| ISO8601::to_date_utc(&val).ok());
             Ok((election.id, end_date))
         })
         .collect::<Result<HashMap<_, _>>>()

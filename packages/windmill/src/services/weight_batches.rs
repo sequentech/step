@@ -259,7 +259,7 @@ mod tests {
     /// A handful of distinct ciphertexts, built once per test so that the same
     /// index yields the same value and different indices do not.
     fn pool() -> Vec<Ciphertext<RistrettoCtx>> {
-        let ctx = RistrettoCtx::default();
+        let ctx = RistrettoCtx;
         let mut rng = ctx.get_rng();
         (0..4)
             .map(|_| Ciphertext {

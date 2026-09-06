@@ -10,9 +10,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use regex::Regex;
 use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::{info, instrument};
 use walkdir::WalkDir;
 
@@ -42,7 +40,7 @@ pub async fn traversal_find_secrets_for_files(
     folder_path: &Path,
     tenant_id: &str,
     election_event_id: &str,
-    all_reports: &Vec<Report>,
+    all_reports: &[Report],
 ) -> Result<HashMap<String, String>> {
     let mut report_secrets_map: HashMap<String, String> = HashMap::new();
 
@@ -79,7 +77,7 @@ pub async fn traversal_find_secrets_for_files(
                         .find(|report| {
                             report.report_type == report_type.to_string() && {
                                 if let Some(election_id) = &report.election_id {
-                                    election_ids.contains(&election_id)
+                                    election_ids.contains(election_id)
                                 } else {
                                     false
                                 }
@@ -120,7 +118,7 @@ pub async fn traversal_find_secrets_for_files(
 pub async fn traversal_encrypt_files(
     report_secrets_map: HashMap<String, String>,
     folder_path: &Path,
-    all_reports: &Vec<Report>,
+    all_reports: &[Report],
 ) -> Result<()> {
     if !folder_path.is_dir() {
         return Err(anyhow!("The provided path is not a directory"));
@@ -154,7 +152,7 @@ pub async fn traversal_encrypt_files(
                         &report_secrets_map,
                         Some(election_ids),
                         report_type,
-                        &path.to_string_lossy().to_string(),
+                        path.to_string_lossy().as_ref(),
                         all_reports,
                     )
                     .await
@@ -175,7 +173,7 @@ pub async fn encrypt_directory_contents_sql(
     election_ids: Option<Vec<String>>,
     report_type: ReportType,
     old_path: &str,
-    all_reports: &Vec<Report>,
+    all_reports: &[Report],
 ) -> Result<String> {
     let report = all_reports
         .iter()
@@ -183,7 +181,7 @@ pub async fn encrypt_directory_contents_sql(
             report.report_type == report_type.to_string() && {
                 if let Some(election_ids) = &election_ids {
                     if let Some(election_id) = &report.election_id {
-                        election_ids.contains(&election_id)
+                        election_ids.contains(election_id)
                     } else {
                         false
                     }
@@ -211,9 +209,7 @@ pub async fn encrypt_directory_contents_sql(
             .await?
             .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
-            let new_path = encrypt_file_inner(old_path, &encryption_password)?;
-
-            new_path
+            encrypt_file_inner(old_path, &encryption_password)?
         } else {
             old_path.to_string()
         }
@@ -230,7 +226,7 @@ pub async fn encrypt_directory_contents(
     election_ids: Option<Vec<String>>,
     report_type: ReportType,
     old_path: &str,
-    all_reports: &Vec<Report>,
+    all_reports: &[Report],
 ) -> Result<String> {
     let report = all_reports
         .iter()
@@ -238,7 +234,7 @@ pub async fn encrypt_directory_contents(
             report.report_type == report_type.to_string() && {
                 if let Some(election_ids) = &election_ids {
                     if let Some(election_id) = &report.election_id {
-                        election_ids.contains(&election_id)
+                        election_ids.contains(election_id)
                     } else {
                         false
                     }
@@ -258,9 +254,7 @@ pub async fn encrypt_directory_contents(
                 .cloned()
                 .ok_or_else(|| anyhow!("Encryption password not found"))?;
 
-            let new_path = encrypt_file_inner(old_path, &encryption_password)?;
-
-            new_path
+            encrypt_file_inner(old_path, &encryption_password)?
         } else {
             old_path.to_string()
         }

@@ -4,6 +4,10 @@
 
 pub mod activity_logs_report;
 pub mod apply_reconciliation_patch;
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve this single Celery task and its generated constructor argument names and order used by existing producers and serialized messages."
+)]
 pub mod create_ballot_receipt;
 pub mod create_keys;
 pub mod delete_election_event;
