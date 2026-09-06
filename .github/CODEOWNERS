@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Ownership of the policy system.
+#
+# CodeRabbit reads `.coderabbit.yaml` from the pull request's own branch, so a
+# pull request can in principle weaken the rules it is about to be judged by.
+# These entries are what stops that: with "Require review from Code Owners"
+# enabled on `main`, such a change cannot merge without an Architect, which is
+# stronger than any warning the review itself could print.
+#
+# Deliberately narrow. This file claims the policy system and the architecture
+# document it judges against — not the repository.
+
+/.coderabbit.yaml                    @sequentech/Architects
+/.github/policies/                   @sequentech/Architects
+/.github/CODEOWNERS                  @sequentech/Architects
+/.github/workflows/policy-alert.yml  @sequentech/Architects
+
+# The self-check and the heartbeat. Both are part of the machinery: one asserts
+# the policy chain still agrees with itself, the other is the only thing that
+# goes red when the reviewer stops running at all.
+/.github/scripts/check_policy_consistency.py  @sequentech/Architects
+/.github/workflows/policy-consistency.yml     @sequentech/Architects
+/.github/workflows/policy-heartbeat.yml       @sequentech/Architects
+
+# The architecture document, for the same reason.
+#
+# `60-architectural-changes.md` requires a change to update this file. That
+# obligation is only as strong as the file: if the record can be rewritten to
+# match whatever just merged, "the change must update the document" costs
+# nothing. This entry is what makes updating it a decision rather than a
+# formality.
+/docs/docusaurus/docs/engineering/architecture.md  @sequentech/Architects
