@@ -347,7 +347,7 @@ impl<C: Ctx> Zkp<C> {
         values.add("context", &context)?;
 
         let bytes = values.get_bytes()?;
-        Ok(self.ctx.hash_to_exp(&bytes)?)
+        self.ctx.hash_to_exp(&bytes)
     }
 
     // interactive zero-knowledge proof of rerandomization of ciphertext using
@@ -360,9 +360,7 @@ impl<C: Ctx> Zkp<C> {
         let mut rng = self.ctx.get_rng();
         let t = self.ctx.rnd_exp(&mut rng);
 
-        let k = self.ctx.gmod_pow(&t);
-
-        k
+        self.ctx.gmod_pow(&t)
     }
 
     // Step 2
@@ -409,8 +407,8 @@ impl<C: Ctx> Zkp<C> {
         e: &C::X,
         r: &C::X,
     ) -> Result<C::X, StrandError> {
-        let one = self.ctx.gmod_pow(&r);
-        let two = self.ctx.emod_pow(k, &e);
+        let one = self.ctx.gmod_pow(r);
+        let two = self.ctx.emod_pow(k, e);
 
         let c_ = one.mul(&two).modp(&self.ctx);
 

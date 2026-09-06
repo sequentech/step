@@ -44,7 +44,7 @@ fn ballots<C: Ctx>(
         let c_bytes = c.strand_serialize().unwrap();
         let signature = sk.sign(&c_bytes).unwrap();
         let proof = zkp
-            .encryption_popk(&randomness, c.mhr(), c.gr(), &vec![])
+            .encryption_popk(&randomness, c.mhr(), c.gr(), &[])
             .unwrap();
         let ballot = Ballot {
             ciphertext: c,
@@ -169,7 +169,8 @@ fn bench_verify(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(10);
 
-    for i in [1000usize].iter() {
+    {
+        let i = &1000usize;
         let (ballots, vk) = ballots_ristretto(&rctx, &rpk, *i);
         group.bench_with_input(BenchmarkId::new("ristretto", i), i, |b, _i| {
             b.iter(|| verify_ristretto(&rctx, &ballots, &vk))

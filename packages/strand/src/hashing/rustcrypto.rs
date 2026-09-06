@@ -41,7 +41,7 @@ impl HashWrapper {
     }
 
     pub fn to_inner(self) -> Hash {
-        self.inner.clone()
+        self.inner
     }
 }
 
@@ -106,15 +106,14 @@ pub fn hash_sha256(bytes: &[u8]) -> Result<Vec<u8>, StrandError> {
 }
 
 pub fn hash_sha256_file(path: &PathBuf) -> Result<Vec<u8>, StrandError> {
-    let mut file =
-        File::open(path).map_err(|e| StrandError::SerializationError(e))?;
+    let mut file = File::open(path).map_err(StrandError::SerializationError)?;
     let mut hasher = Sha256::new();
     let mut buffer = [0u8; 8192];
 
     loop {
         let bytes_read = file
             .read(&mut buffer)
-            .map_err(|e| StrandError::SerializationError(e))?;
+            .map_err(StrandError::SerializationError)?;
         if bytes_read == 0 {
             break;
         }

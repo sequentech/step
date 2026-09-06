@@ -35,7 +35,7 @@
 //! ```
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 use crate::util::{Par, StrandError};
 #[cfg(feature = "rayon")]
@@ -132,7 +132,7 @@ impl<T: Send + Sync + BorshSerialize> BorshSerialize for StrandRectangle<T> {
         let vector = self.rows();
 
         let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.par().map(|t| borsh::to_vec(t)).collect();
+            vector.par().map(borsh::to_vec).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -153,7 +153,7 @@ impl<T: Send + Sync + BorshDeserialize> BorshDeserialize
             .collect();
 
         StrandRectangle::new(results?).map_err(|_| {
-            Error::new(ErrorKind::Other, "Parsed bytes were not rectangular")
+            Error::other("Parsed bytes were not rectangular")
         })
     }
 
@@ -220,8 +220,7 @@ pub(crate) mod tests {
 
     pub(crate) fn test_borsh_elements<C: Ctx>(ctx: &C) {
         let mut rng = ctx.get_rng();
-        let elements: Vec<C::E> =
-            (0..10).into_iter().map(|_| ctx.rnd(&mut rng)).collect();
+        let elements: Vec<C::E> = (0..10).map(|_| ctx.rnd(&mut rng)).collect();
 
         let encoded_e = elements.strand_serialize().unwrap();
         let decoded_e = Vec::<C::E>::strand_deserialize(&encoded_e).unwrap();
@@ -266,17 +265,16 @@ pub(crate) mod tests {
         let g = ctx.generator();
         let secret = ctx.rnd_exp(&mut rng);
         let public = ctx.gmod_pow(&secret);
-        let schnorr = zkp
-            .schnorr_prove(&secret, &public, Some(&g), &vec![])
-            .unwrap();
-        let verified = zkp.schnorr_verify(&public, Some(&g), &schnorr, &vec![]);
+        let schnorr =
+            zkp.schnorr_prove(&secret, &public, Some(g), &[]).unwrap();
+        let verified = zkp.schnorr_verify(&public, Some(g), &schnorr, &[]);
         assert!(verified);
 
         let bytes = schnorr.strand_serialize().unwrap();
         let back = Schnorr::<C>::strand_deserialize(&bytes).unwrap();
         assert!(schnorr == back);
 
-        let verified = zkp.schnorr_verify(&public, Some(&g), &back, &vec![]);
+        let verified = zkp.schnorr_verify(&public, Some(g), &back, &[]);
         assert!(verified);
     }
 
@@ -289,18 +287,17 @@ pub(crate) mod tests {
         let public1 = ctx.emod_pow(g1, &secret);
         let public2 = ctx.emod_pow(&g2, &secret);
         let proof = zkp
-            .cp_prove(&secret, &public1, &public2, None, &g2, &vec![])
+            .cp_prove(&secret, &public1, &public2, None, &g2, &[])
             .unwrap();
         let verified =
-            zkp.cp_verify(&public1, &public2, None, &g2, &proof, &vec![]);
+            zkp.cp_verify(&public1, &public2, None, &g2, &proof, &[]);
         assert!(verified);
 
         let bytes = proof.strand_serialize().unwrap();
         let back = ChaumPedersen::<C>::strand_deserialize(&bytes).unwrap();
         assert!(proof == back);
 
-        let verified =
-            zkp.cp_verify(&public1, &public2, None, &g2, &back, &vec![]);
+        let verified = zkp.cp_verify(&public1, &public2, None, &g2, &back, &[]);
         assert!(verified);
     }
 }
