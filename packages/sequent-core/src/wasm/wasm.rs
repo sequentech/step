@@ -8,7 +8,6 @@ use crate::ballot::{
 };
 use crate::ballot_codec::bigint::BigUIntCodec;
 use crate::ballot_codec::multi_ballot::*;
-use crate::ballot_codec::raw_ballot::RawBallotCodec;
 use crate::encrypt;
 use crate::encrypt::*;
 use crate::fixtures::ballot_codec::*;
@@ -58,6 +57,10 @@ pub struct ErrorStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, JsonSchema, Clone, Eq)]
+#[expect(
+    non_camel_case_types,
+    reason = "Retain the public Rust variant names and serialized JavaScript error values"
+)]
 pub enum BallotError {
     PARSE_ERROR,
     DESERIALIZE_AUDITABLE_ERROR,
