@@ -2,24 +2,19 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(feature = "openwhisk")]
 use ::tracing::{error, info};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use sequent_core::serialization::base64::Base64Deserialize;
-use sequent_core::services::pdf::PrintToPdfOptions;
-use sequent_core::util::aws::{
-    get_fetch_expiration_secs, get_region, get_s3_aws_config, get_upload_expiration_secs,
-};
-use serde::{Deserialize, Serialize};
-use tokio::task;
 
 mod io;
+#[cfg(feature = "openwhisk")]
 mod openwhisk;
 mod pdf;
 
 #[cfg(feature = "aws_lambda")]
 use sequent_core::services::s3;
 
-use crate::io::{Input, Output};
+#[cfg(feature = "aws_lambda")]
+use crate::io::Input;
 
 cfg_if::cfg_if! {
     if #[cfg(all(feature = "aws_lambda", feature = "openwhisk"))] {
@@ -47,6 +42,7 @@ cfg_if::cfg_if! {
                         false,
                         bucket.clone(),
                         "application/pdf".to_string(),
+                        None,
                         None,
                     ).await
                         .map_err(|err| format!("could not upload PDF to S3: {:?}", err))?;

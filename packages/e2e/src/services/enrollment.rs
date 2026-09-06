@@ -3,8 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{Context, Result};
-use serde_json::{from_str, json, Value};
-use std::{collections::HashMap, env, error::Error, fs, thread, time::Duration};
+use std::{env, fs};
 
 use crate::{services::loadero_service::replace_placeholder, Args};
 use std::fs::File;
@@ -24,9 +23,9 @@ fn get_test_config(election_event_id: &str, script: String, test_duration: &u64)
     TestConfig {
         increment_strategy: "linear".to_string(),
         mode: "load".to_string(),
-        name: get_enrollment_test_name_str(&election_event_id),
+        name: get_enrollment_test_name_str(election_event_id),
         participant_timeout: 300,
-        script: script,
+        script,
         start_interval: *test_duration,
     }
 }
