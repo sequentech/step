@@ -70,7 +70,7 @@ COPY --from=apks-nginx-download /apks/*.apk /
 FROM rust:1.96.0-slim-bookworm@sha256:4732ca96fd086cb9be682050c3f0176288eebaac2b80aa2bcefccfaf198e1950 AS wasm-build
 ARG RUST_VERSION
 COPY --from=debs-wasm-build / /tmp/debs/
-RUN apt-get --no-download install -y --no-install-recommends /tmp/debs/*.deb \
+RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 COPY --from=wasm-toolchain / /archives/
 RUN set -eux; \
@@ -106,8 +106,8 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/sequent-core
-RUN wasm-pack build --mode no-install --release --target web --out-name index \
-    --features=wasm,default_features
+RUN CARGO_NET_OFFLINE=true wasm-pack build --mode no-install --release --target web --out-name index \
+    --features=wasm,default_features --locked --offline
 
 FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 as builder
 WORKDIR /usr/src/app/
