@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Backend Components | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/main/docs/reference/software-architecture/backend-components"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Backend Components | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/main/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/main/docs/reference/software-architecture/backend-components"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/reference/software-architecture/backend-components" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/main/docs/reference/software-architecture/backend-components" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Backend Components","item":"https://sequentech.github.io/docusaurus/main/docs/reference/software-architecture/backend-components"}]}</script><link rel="stylesheet" href="/docusaurus/main/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/main/assets/js/runtime~main.3f8d8378.js" defer="defer"></script>
+<script src="/docusaurus/main/assets/js/runtime~main.2d067295.js" defer="defer"></script>
 <script src="/docusaurus/main/assets/js/main.9a61c885.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -20,6 +20,7 @@
 <li class="">Imports/Exports</li>
 <li class="">Generating publications</li>
 <li class="">Permissions and validation</li>
+<li class="">Authorized secret voter-field create, edit, and reveal operations</li>
 <li class="">Keys and Tally ceremonies</li>
 <li class="">Election status monitoring</li>
 <li class="">Third-party integrations</li>
@@ -46,6 +47,7 @@
 <li class=""><code>services/consolidation</code>: Audit logs, result packaging</li>
 <li class=""><code>services/tally_sheets</code>: Manual tally support</li>
 <li class=""><code>services/vault</code>: Vault secret management</li>
+<li class=""><code>services/voter_secret_attributes</code>: Scoped encryption and decryption of secret voter fields</li>
 </ul>
 </li>
 <li class=""><strong>Path</strong>: <code>step/packages/windmill</code></li>
@@ -86,6 +88,57 @@
 </li>
 <li class=""><strong>Technologies</strong>: Rust</li>
 <li class=""><strong>Path</strong>: <code>step/packages/strand</code></li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/05-reference/03-software-architecture/backend-components.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/main/docs/reference/product_lifecycle_and_release_cadence"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Product lifecycle and release cadence</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/main/docs/reference/software-architecture/frontend-components"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Frontend Components</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#backend-services" class="table-of-contents__link toc-highlight">Backend Services</a><ul><li><a href="#harvest" class="table-of-contents__link toc-highlight">Harvest</a></li><li><a href="#windmill" class="table-of-contents__link toc-highlight">Windmill</a></li><li><a href="#beat" class="table-of-contents__link toc-highlight">Beat</a></li><li><a href="#velvet" class="table-of-contents__link toc-highlight">Velvet</a></li><li><a href="#braid" class="table-of-contents__link toc-highlight">Braid</a></li><li><a href="#strand" class="table-of-contents__link toc-highlight">Strand</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="secret-voter-attribute-boundary">Secret Voter Attribute Boundary<a href="#secret-voter-attribute-boundary" class="hash-link" aria-label="Direct link to Secret Voter Attribute Boundary" title="Direct link to Secret Voter Attribute Boundary" translate="no">​</a></h2>
+<p>An election-event Keycloak User Profile attribute annotated with <code>sequent.secret=true</code> is encrypted
+before Step writes it to Keycloak. Keycloak stores a versioned <code>seqenc:v1:</code> authenticated-encryption
+envelope. By default Keycloak has neither the master key nor plaintext access. The explicit
+encrypted-attribute login option described below grants the authentication extension the key so
+it can decrypt the configured credential server-side; stored attributes remain encrypted.</p>
+<p>The encryption key is derived from the existing Step <code>master_secret</code> and the tenant, election
+event, voter ID, and attribute name. Consequently, moving an envelope to another voter, event, or
+attribute does not produce a valid value. Envelopes are randomized, so secret fields cannot be
+searched, sorted, filtered, or compared by their encrypted representation.</p>
+<p>Harvest enforces the synchronous create, edit, reveal, and permission boundaries. Windmill uses the
+same codec for voter imports, authorized opt-in exports, communications, and per-voter reports.
+Ordinary user responses and default voter exports remove secret fields rather than returning ciphertext.</p>
+<p>Creating a voter with secrets uses two audited writes: Keycloak first validates a disabled voter
+with ciphertext under a provisional scope, then Harvest re-encrypts the values against the ID
+returned in Keycloak&#x27;s <code>Location</code> header and restores the requested enabled state. If finalization
+fails, the voter stays disabled. Required fields are validated on both writes; blank input stays missing.</p>
+<p>Every reveal, set, clear, import, decrypted export, and use of a secret attribute in a
+communication or per-voter report is recorded in the election event&#x27;s electoral log as an
+admin-signed <code>VOTER_SECRET_ATTRIBUTE</code> entry. The entry names the administrator, the voter where
+one is involved, the attribute names and, for generated reports, the document id. It never contains a value.
+The entry is written before the action takes effect, so an action that cannot be audited does not
+happen.</p>
+<p>Secret-bearing reports use private storage and require secret-read permission at download, including
+password retrieval. Ordinary document writers cannot update or delete their access metadata.
+Delivery audit entries do not contain rendered subjects or bodies. Explicitly selecting
+<code>EMAIL_TRANSPORT_NAME=Console</code> or <code>SMS_TRANSPORT_NAME=Console</code> enables test-only delivery: the full
+rendered message, including decrypted secret values, is printed to the worker console instead of
+being sent. Use synthetic data and do not enable Console transport in production. Unknown transport
+names fail rather than silently falling back to Console. Real delivery transports do not log bodies.</p>
+<p>Harvest and the Windmill workers use the configured <code>master_secret</code> for these operations. Keycloak
+needs the same 32-byte key, encoded as 64 hexadecimal characters in its <code>MASTER_SECRET</code> environment
+variable, to verify encrypted login attributes. The supplied Compose files pass one shared
+<code>MASTER_SECRET</code> deployment value to Keycloak, Harvest and Windmill. Keycloak therefore receives
+the key whenever it is configured for the stack, but encrypted-attribute login still requires an
+explicit <code>SECRET_ATTRIBUTE</code> credential policy; ordinary <code>PASSWORD</code> verification remains the default.
+For external-vault deployments, inject the same existing vault master key into Keycloak.
+Never send the master key to Hasura, the Admin Portal, or browser clients.
+Losing or replacing the master secret makes existing voter envelopes unreadable;
+master-secret rotation therefore requires a coordinated re-encryption migration and must not be
+performed as an isolated secret replacement.</p>
+<p>Decrypted exports retain a task-bound authorization grant in PostgreSQL. Workers reload the trusted
+task row and check document, tenant, event and expiry before decrypting. The lifetime is controlled
+by <code>WINDMILL_SECRET_EXPORT_GRANT_TTL_SECONDS</code> (default 86400) on Harvest and Windmill.
+Explicitly password-encrypted event archives may include classified S3 documents under the same
+grant; ordinary archives still exclude them and unknown/uncommitted document objects.</p>
+<p>Generated encrypted reports save the exact password used in a document-bound vault entry and
+keep its id in access annotations (not the password). Downloads from Reports and Tasks use the
+existing password dialog and permission-checked <code>get_document_password</code> API. Older encrypted
+reports without this entry still show decryption instructions and use their previously supplied
+password. Changing a report configuration does not change earlier documents&#x27; passwords.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/05-reference/03-software-architecture/backend-components.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/main/docs/reference/product_lifecycle_and_release_cadence"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Product lifecycle and release cadence</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/main/docs/reference/software-architecture/frontend-components"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Frontend Components</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#backend-services" class="table-of-contents__link toc-highlight">Backend Services</a><ul><li><a href="#harvest" class="table-of-contents__link toc-highlight">Harvest</a></li><li><a href="#windmill" class="table-of-contents__link toc-highlight">Windmill</a></li><li><a href="#beat" class="table-of-contents__link toc-highlight">Beat</a></li><li><a href="#velvet" class="table-of-contents__link toc-highlight">Velvet</a></li><li><a href="#braid" class="table-of-contents__link toc-highlight">Braid</a></li><li><a href="#strand" class="table-of-contents__link toc-highlight">Strand</a></li></ul></li><li><a href="#secret-voter-attribute-boundary" class="table-of-contents__link toc-highlight">Secret Voter Attribute Boundary</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
