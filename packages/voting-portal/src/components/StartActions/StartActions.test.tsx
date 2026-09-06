@@ -4,7 +4,7 @@
 import React from "react"
 import {render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {MemoryRouter} from "react-router-dom"
+import {MemoryRouter, Route, Routes, useLocation} from "react-router-dom"
 import {ESecurityConfirmationPolicy, IElection} from "@sequentech/ui-core"
 import StartActions from "./StartActions"
 
@@ -37,17 +37,34 @@ const buildElection = (securityConfirmationPolicy?: ESecurityConfirmationPolicy)
         },
     }) as unknown as IElection
 
+const LocationProbe = () => {
+    const location = useLocation()
+    return <output aria-label="Current route">{location.pathname + location.search}</output>
+}
+
 const renderStartActions = (
     election: IElection,
     {isDeclineToVotePolicyEnabled = false, onDeclineToVoteClick = jest.fn()} = {}
 ) => {
     render(
-        <MemoryRouter initialEntries={["/tenant/tenant-1/event/event-1/election/election-1"]}>
-            <StartActions
-                election={election}
-                isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
-                onDeclineToVoteClick={onDeclineToVoteClick}
-            />
+        <MemoryRouter
+            initialEntries={[
+                "/tenant/tenant-1/event/event-1/election/election-1/start?preview=true",
+            ]}
+        >
+            <Routes>
+                <Route
+                    path="/tenant/:tenantId/event/:eventId/election/:electionId/*"
+                    element={
+                        <StartActions
+                            election={election}
+                            isDeclineToVotePolicyEnabled={isDeclineToVotePolicyEnabled}
+                            onDeclineToVoteClick={onDeclineToVoteClick}
+                        />
+                    }
+                />
+            </Routes>
+            <LocationProbe />
         </MemoryRouter>
     )
     return {onDeclineToVoteClick}
@@ -58,6 +75,53 @@ const renderStartActions = (
 const declarationCheckbox = () => screen.getByRole("checkbox", {name: SPANISH_DECLARATION})
 
 const startButton = () => screen.getByRole("button", {name: "startScreen.startButton"})
+const startLink = () => screen.getByRole("link", {name: "startScreen.startButton"})
+
+describe("StartActions navigation", () => {
+    it("has one named keyboard stop in both directions", async () => {
+        const user = userEvent.setup()
+        renderStartActions(buildElection(), {isDeclineToVotePolicyEnabled: true})
+        const decline = screen.getByRole("button", {name: "startScreen.declineToVoteButton"})
+
+        expect(screen.queryByRole("button", {name: "startScreen.startButton"})).toBeNull()
+        expect(startLink()).toHaveClass("start-voting-button")
+        await user.tab()
+        expect(startLink()).toHaveFocus()
+        await user.tab()
+        expect(decline).toHaveFocus()
+        await user.tab({shift: true})
+        expect(startLink()).toHaveFocus()
+    })
+
+    it("navigates with Enter and preserves route parameters and the query string", async () => {
+        const user = userEvent.setup()
+        renderStartActions(buildElection())
+
+        await user.tab()
+        await user.keyboard("{Enter}")
+
+        expect(screen.getByLabelText("Current route")).toHaveTextContent(
+            "/tenant/tenant-1/event/event-1/election/election-1/vote?preview=true"
+        )
+    })
+
+    it("does not expose a navigation target until the mandatory declaration is accepted", async () => {
+        const user = userEvent.setup()
+        renderStartActions(buildElection(ESecurityConfirmationPolicy.MANDATORY))
+
+        expect(screen.queryByRole("link", {name: "startScreen.startButton"})).toBeNull()
+        await user.tab()
+        await user.keyboard("{Enter}")
+        expect(startButton()).toBeDisabled()
+        expect(screen.getByLabelText("Current route")).toHaveTextContent("/start?preview=true")
+
+        await user.keyboard(" ")
+        expect(startLink()).toBeInTheDocument()
+        await user.keyboard(" ")
+        expect(screen.queryByRole("link", {name: "startScreen.startButton"})).toBeNull()
+        expect(startButton()).toBeDisabled()
+    })
+})
 
 describe("StartActions security confirmation", () => {
     describe("when the policy is MANDATORY", () => {
@@ -138,7 +202,7 @@ describe("StartActions security confirmation", () => {
 
             await user.click(declarationCheckbox())
 
-            expect(startButton()).toBeEnabled()
+            expect(startLink()).toBeInTheDocument()
             expect(
                 screen.getByRole("button", {name: "startScreen.declineToVoteButton"})
             ).toBeEnabled()
@@ -157,12 +221,12 @@ describe("StartActions security confirmation", () => {
         it.each([
             ["NONE", ESecurityConfirmationPolicy.NONE],
             ["unset", undefined],
-        ])("renders no declaration and an enabled start button (%s)", (_label, policy) => {
+        ])("renders no declaration and an enabled start link (%s)", (_label, policy) => {
             renderStartActions(buildElection(policy), {isDeclineToVotePolicyEnabled: true})
 
             expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
             expect(screen.queryByText(SPANISH_DECLARATION)).not.toBeInTheDocument()
-            expect(startButton()).toBeEnabled()
+            expect(startLink()).toBeInTheDocument()
             expect(
                 screen.getByRole("button", {name: "startScreen.declineToVoteButton"})
             ).toBeEnabled()
