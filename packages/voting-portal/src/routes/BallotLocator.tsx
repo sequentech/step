@@ -54,10 +54,6 @@ import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {ICastVoteEntry} from "../types/castVoteLogEntry"
 
-const StyledLink = styled(Link)`
-    text-decoration: none;
-`
-
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
@@ -333,14 +329,15 @@ const BallotLocator: React.FC = () => {
                         width: "fit-content",
                     }}
                 >
-                    <StyledLink
+                    <Button
+                        component={Link}
                         to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                        variant="secondary"
+                        className="secondary"
                     >
-                        <Button variant="secondary" className="secondary">
-                            <Icon icon={faAngleLeft} size="sm" />
-                            <Box>{t("votingScreen.backButton")}</Box>
-                        </Button>
-                    </StyledLink>
+                        <Icon icon={faAngleLeft} size="sm" />
+                        <Box>{t("votingScreen.backButton")}</Box>
+                    </Button>
                 </Box>
             </Box>
         </PageLimit>
