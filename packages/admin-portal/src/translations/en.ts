@@ -2046,6 +2046,7 @@ const englishTranslation = {
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
+                alreadyRestored: "Your key was already restored.",
                 downloaded: "Encrypted Private Key generated successfully.",
             },
         },
