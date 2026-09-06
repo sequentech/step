@@ -197,6 +197,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                 <ListTitleSection>
                     {isCollapsible ? (
                         <CollapseToggleButton
+                            className="candidates-list-toggle"
                             variant="secondary"
                             size="small"
                             startIcon={
@@ -237,7 +238,10 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                         announced; a region added at the same time as its text is
                         not reliably read out. */}
                     {isCollapsible ? (
-                        <SelectedCandidatesLabel role="status">
+                        <SelectedCandidatesLabel
+                            className="candidates-selected-count"
+                            role="status"
+                        >
                             {!isExpanded && selectedCandidatesLabel ? selectedCandidatesLabel : ""}
                         </SelectedCandidatesLabel>
                     ) : null}
@@ -247,6 +251,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                                 {t("a11y.selectList")}
                             </VisuallyHidden>
                             <Checkbox
+                                className="candidates-list-checkbox"
                                 checked={checked}
                                 onChange={handleChange}
                                 disabled={shouldDisable}

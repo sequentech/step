@@ -143,7 +143,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             : userProfile.username
 
     return (
-        <Box>
+        <Box className="profile-menu-container">
             <StyledButtonTooltip
                 disableHoverListener={
                     !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
@@ -169,7 +169,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
                     <StyledButton
-                        className="logout-button"
+                        className="logout-button profile-menu-button"
                         aria-labelledby="welcome-text-name"
                         onClick={handleMenu}
                     >
@@ -200,6 +200,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
+                className="profile-menu"
                 id="menu-appbar"
                 anchorEl={anchorEl}
                 anchorOrigin={{

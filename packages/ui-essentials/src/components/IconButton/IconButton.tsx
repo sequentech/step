@@ -22,6 +22,8 @@ export interface IIconButtonProps
         Pick<IconButtonProps, "onClick" | "disabled"> {
     variant?: "inherit" | "primary" | "info" | "warning" | "error" | "success"
     sx?: SxProps<Theme>
+    // Keep className on the SVG for compatibility; style the control with this hook.
+    buttonClassName?: string
     // An icon conveys no text to assistive technology, so every icon button
     // needs an explicit name: either `ariaLabel` (or the `title` tooltip, which
     // is used as a fallback) or `ariaLabelledby` pointing at visible text. These
@@ -52,9 +54,11 @@ const IconButton: React.FC<IIconButtonProps> = ({
     disabled,
     ariaLabel,
     ariaLabelledby,
+    buttonClassName,
     ...iconProps
 }) => (
     <StyledButton
+        className={buttonClassName ? `icon-button ${buttonClassName}` : "icon-button"}
         aria-label={ariaLabelledby ? undefined : (ariaLabel ?? iconProps.title ?? UNNAMED_FALLBACK)}
         aria-labelledby={ariaLabelledby}
         disabled={disabled}

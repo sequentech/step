@@ -358,6 +358,7 @@ const Candidate: React.FC<CandidateProps> = ({
             ) : isSelectable ? (
                 iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
+                        className="candidate-checkbox"
                         slotProps={{
                             input: {
                                 "className": "candidate-input",
@@ -372,6 +373,7 @@ const Candidate: React.FC<CandidateProps> = ({
                     />
                 ) : (
                     <Checkbox
+                        className="candidate-checkbox"
                         slotProps={{
                             input: {
                                 "className": "candidate-input",
