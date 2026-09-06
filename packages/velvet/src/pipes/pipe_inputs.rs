@@ -8,7 +8,7 @@ use crate::{
     utils::parse_file,
 };
 use sequent_core::{
-    ballot::{BallotStyle, Contest, ElectionPresentation, ReportDates, StringifiedPeriodDates},
+    ballot::{BallotStyle, Contest, ElectionPresentation, StringifiedPeriodDates},
     services::area_tree::TreeNodeArea,
     types::participation::VotesByChannel,
     util::path::get_folder_name,
@@ -19,7 +19,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub const PREFIX_ELECTION: &str = "election__";
@@ -99,7 +99,7 @@ impl PipeInputs {
 
         path.push(root);
         path.push(format!("{}{}", PREFIX_ELECTION, election_id));
-        path.push(format!("{}", PREFIX_ALL_AREAS));
+        path.push(PREFIX_ALL_AREAS);
 
         path
     }
@@ -155,9 +155,7 @@ impl PipeInputs {
 
     #[instrument(skip_all)]
     pub fn get_tally_sheet_id_from_path(path: &Path) -> Option<String> {
-        let Some(folder_name) = get_folder_name(path) else {
-            return None;
-        };
+        let folder_name = get_folder_name(path)?;
         if folder_name.starts_with(PREFIX_TALLY_SHEET) {
             folder_name
                 .strip_prefix(PREFIX_TALLY_SHEET)
@@ -398,14 +396,14 @@ pub struct AreaConfig {
     pub votes_by_channel: Option<VotesByChannel>,
 }
 
-impl Into<TreeNodeArea> for &AreaConfig {
-    fn into(self) -> TreeNodeArea {
+impl From<&AreaConfig> for TreeNodeArea {
+    fn from(area: &AreaConfig) -> Self {
         TreeNodeArea {
-            id: self.id.to_string(),
-            tenant_id: self.tenant_id.to_string(),
+            id: area.id.to_string(),
+            tenant_id: area.tenant_id.to_string(),
             annotations: Default::default(),
-            election_event_id: self.election_event_id.to_string(),
-            parent_id: self.parent_id.clone().map(|val| val.to_string()),
+            election_event_id: area.election_event_id.to_string(),
+            parent_id: area.parent_id.map(|val| val.to_string()),
         }
     }
 }

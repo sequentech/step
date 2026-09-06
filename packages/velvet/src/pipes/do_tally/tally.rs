@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(test)]
+use sequent_core::types::{ceremonies::TallyOperation, tally_sheets::TallySheetStatus};
+
 use super::counting_algorithm::Error as CntAlgError;
 use super::counting_algorithm::{
     acclaimed::Acclaimed, instant_runoff::InstantRunoff, plurality_at_large::PluralityAtLarge,
@@ -12,19 +15,18 @@ use super::{BlankVotes, CandidateResult, ContestResult, ExtendedMetricsContest, 
 use crate::pipes::error::Error as PipesError;
 use crate::pipes::pipe_name::PipeName;
 use crate::utils::parse_file;
-use sequent_core::ballot::{Contest, ContestPresentation, Weight};
+use sequent_core::ballot::{Contest, Weight};
 use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::types::{
-    ceremonies::{CountingAlgType, ScopeOperation, TallyOperation},
+    ceremonies::{CountingAlgType, ScopeOperation},
     hasura::core::TallySheet,
     participation::{ParticipationChannel, VotesByChannel},
-    tally_sheets::{TallySheetStatus, VotingChannel},
+    tally_sheets::VotingChannel,
 };
 use serde_json::Value;
 use std::cmp;
 use std::collections::HashMap;
 use std::{fs, path::PathBuf};
-use strum_macros::{Display, EnumString};
 use tracing::instrument;
 
 pub struct Tally {
@@ -96,8 +98,10 @@ impl Tally {
         if self.tally_results.is_empty() {
             return Err(CntAlgError::EmptyTallyResults);
         }
-        let mut contest_result = ContestResult::default();
-        contest_result.contest = self.contest.clone();
+        let contest_result = ContestResult {
+            contest: self.contest.clone(),
+            ..Default::default()
+        };
         let aggregated = self
             .tally_results
             .iter()
@@ -106,14 +110,18 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing tally-result API and its explicit vote-count and percentage inputs"
+    )]
     pub fn create_candidate_results(
         &self,
         vote_count: HashMap<String, u64>,
         blank_votes: BlankVotes,
         count_invalid_votes: InvalidVotes,
         extended_metrics: ExtendedMetricsContest,
-        count_valid: u64,
-        count_invalid: u64,
+        _count_valid: u64,
+        _count_invalid: u64,
         percentage_votes_denominator: u64,
     ) -> Result<Vec<CandidateResult>, CntAlgError> {
         let contest = &self.contest;
@@ -217,6 +225,10 @@ impl Tally {
     }
 
     #[instrument(err, skip_all)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing contest-result API and its explicit process, candidate and ballot totals"
+    )]
     pub fn create_contest_result(
         &self,
         process_results: Option<Value>,
@@ -226,9 +238,8 @@ impl Tally {
         extended_metrics: ExtendedMetricsContest,
         count_valid: u64,
         count_invalid: u64,
-        percentage_votes_denominator: u64,
+        _percentage_votes_denominator: u64,
     ) -> Result<ContestResult, CntAlgError> {
-        let contest = &self.contest;
         let count_blank = blank_votes.total();
 
         // Calculate percentages
@@ -257,7 +268,7 @@ impl Tally {
             percentage_census: 100.0,
             auditable_votes: self.auditable_votes,
             percentage_auditable_votes: percentage_auditable_votes.clamp(0.0, 100.0),
-            total_votes: total_votes,
+            total_votes,
             percentage_total_votes: percentage_total_votes.clamp(0.0, 100.0),
             total_valid_votes: count_valid,
             percentage_total_valid_votes: percentage_total_valid_votes.clamp(0.0, 100.0),
@@ -344,7 +355,7 @@ pub fn process_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resul
         percentage_census: 100.0,
         auditable_votes: 0,
         percentage_auditable_votes: 0.0,
-        total_votes: total_votes,
+        total_votes,
         percentage_total_votes: 0.0,
         total_valid_votes: count_valid,
         percentage_total_valid_votes: 0.0,
@@ -400,7 +411,7 @@ pub fn create_tally(
             }
             exist
         })
-        .map(|(p, weight)| (PathBuf::from(p.as_path()), weight.clone()))
+        .map(|(p, weight)| (PathBuf::from(p.as_path()), *weight))
         .collect();
 
     let tally = Tally::new(

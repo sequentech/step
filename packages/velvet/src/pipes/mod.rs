@@ -14,5 +14,9 @@ pub mod generate_db;
 pub mod generate_reports;
 pub mod mark_winners;
 
+#[expect(
+    clippy::module_inception,
+    reason = "Preserve the existing module layout, re-exports and caller paths during the construct review"
+)]
 mod pipes;
 pub use pipes::*;

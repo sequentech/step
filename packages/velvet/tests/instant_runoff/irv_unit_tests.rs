@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Ok;
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest, PreferencialOrderErrorType};
 use std::collections::HashMap;
 use velvet::pipes::do_tally::counting_algorithm::instant_runoff::*;
@@ -492,5 +491,5 @@ fn test_preferential_order_ok() {
     };
 
     let result = vote.validate_preferencial_order();
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
 }

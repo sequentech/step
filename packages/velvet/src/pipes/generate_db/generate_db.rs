@@ -3,19 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rusqlite::Connection;
-use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::{
     ResultsAreaContest, ResultsAreaContestCandidate, ResultsContest, ResultsContestCandidate,
     ResultsElection, EXTENDED_METRICS, PROCESS_RESULTS,
 };
 use serde_json::json;
-use tempfile::{NamedTempFile, TempPath};
-use tracing::info;
 use uuid::Uuid;
 use walkdir::WalkDir;
 
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
-use crate::pipes::pipe_inputs::{self, PipeInputs};
+use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::pipe_name::{PipeName, PipeNameOutputDir};
 use crate::pipes::Pipe;
 use core::cmp;
@@ -31,10 +28,7 @@ use tracing::{instrument, warn};
 
 use tokio::runtime::Runtime;
 
-use crate::{
-    pipes::error::{Error, Result},
-    utils::parse_file,
-};
+use crate::pipes::error::Result;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -94,7 +88,7 @@ impl GenerateDatabase {
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
-            .map(|value| serde_json::from_value(value))
+            .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
         Ok(pipe_config)
@@ -141,7 +135,7 @@ pub fn populate_results_tables(
     let _ = tokio::task::block_in_place(|| -> anyhow::Result<String> {
         let process_result = rt.block_on(async {
             // Make sure the directory exists
-            fs::create_dir_all(&output_database_path)?;
+            fs::create_dir_all(output_database_path)?;
 
             if fs::exists(&input_database_path)? {
                 fs::copy(input_database_path, &database_path).map_err(|error| anyhow!("Could not copy file: {error}"))?;
@@ -242,7 +236,7 @@ pub async fn process_decoded_ballots(
         if path.is_file()
             && path
                 .file_name()
-                .map_or(false, |name| name == "decoded_ballots.json")
+                .is_some_and(|name| name == "decoded_ballots.json")
         {
             // A 'decoded_ballots.json' file has been found.
             tracing::info!("Found decoded_ballots.json at: {:?}", path);

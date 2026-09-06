@@ -13,7 +13,6 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::config::ballot_images_config::PipeConfigBallotImages;
-use crate::config::generate_reports::PipeConfigGenerateReports;
 use crate::config::{self, Config};
 use crate::pipes::generate_db::PipeConfigGenerateDatabase;
 use crate::pipes::generate_db::DATABASE_FILENAME;
@@ -178,6 +177,10 @@ impl TestFixture {
     }
 
     #[instrument]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Keep the fixture API explicit about tenant, election, area, census and audit counts"
+    )]
     pub fn create_area_config(
         &self,
         tenant_id: &Uuid,

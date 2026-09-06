@@ -6,5 +6,9 @@ pub mod error;
 pub mod state;
 pub mod test_all;
 
+#[expect(
+    clippy::module_inception,
+    reason = "Preserve the existing module layout, re-exports and caller paths during the construct review"
+)]
 mod cli;
 pub use cli::*;

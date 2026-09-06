@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{
@@ -12,13 +10,12 @@ use sequent_core::{
     },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
-    sqlite::results_election_area,
     types::{
         ceremonies::{CountingAlgType, TallyType},
         participation::ParticipationChannel,
         to_map::ToMap,
     },
-    util::{date_time::get_date_and_time, path::list_subfolders},
+    util::path::list_subfolders,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
@@ -107,7 +104,7 @@ impl GenerateReports {
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
-            .map(|value| serde_json::from_value(value))
+            .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
         Ok(pipe_config)
@@ -148,15 +145,14 @@ impl GenerateReports {
                 let area_annotations: HashMap<String, String> = report
                     .area
                     .clone()
-                    .map(|area| {
+                    .and_then(|area| {
                         areas_map
                             .get(&area.id)
                             .cloned()
                             .map(|area| area.annotations)
                     })
                     .flatten()
-                    .flatten()
-                    .map(|annotations| deserialize_value::<HashMap<String, String>>(annotations))
+                    .map(deserialize_value::<HashMap<String, String>>)
                     .transpose()
                     .unwrap_or(Some(default_area_annotations.clone()))
                     .unwrap_or(default_area_annotations.clone());
@@ -176,7 +172,7 @@ impl GenerateReports {
                 let mut contest_result_opt = report.contest_result.clone();
                 let mut candidate_result = vec![];
 
-                if (contest_result_opt.is_some()) {
+                if contest_result_opt.is_some() {
                     let mut contest_result = contest_result_opt.clone().unwrap();
 
                     contest_result.contest.name =
@@ -283,8 +279,7 @@ impl GenerateReports {
         let config = self.get_config()?;
         let mut execution_annotations = config.execution_annotations;
 
-        let computed_reports =
-            self.compute_reports(reports.clone(), areas_map, is_consolidated.clone())?;
+        let computed_reports = self.compute_reports(reports.clone(), areas_map, is_consolidated)?;
         let template_data = TemplateData {
             execution_annotations: execution_annotations.clone(),
             reports: computed_reports.clone(),
@@ -387,7 +382,6 @@ impl GenerateReports {
                 .map(|val| Some(val.to_print_to_pdf_options()))
                 .unwrap_or_default();
 
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let bytes_pdf =
                 pdf::sync::PdfRenderer::render_pdf(render_pdf, pdf_options).map_err(|e| {
                     Error::UnexpectedError(format!("Error during html_to_pdf conversion: {}", e))
@@ -399,9 +393,9 @@ impl GenerateReports {
         };
 
         let generated_report_bytes = GeneratedReportsBytes {
-            bytes_pdf: bytes_pdf,
+            bytes_pdf,
             bytes_html: render_html.as_bytes().to_vec(),
-            bytes_json: bytes_json,
+            bytes_json,
         };
 
         Ok((generated_report_bytes, results_hash))
@@ -423,7 +417,7 @@ impl GenerateReports {
                 .join(PipeNameOutputDir::DoTally.as_ref()),
             election_id,
             contest_id,
-            Some(area_id.clone()).as_ref(),
+            Some(*area_id).as_ref(),
         );
         let aggregate_path = base_path.join(OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER);
         aggregate_path.exists() && aggregate_path.is_dir()
@@ -637,6 +631,10 @@ impl GenerateReports {
     }
 
     #[instrument(err, skip_all)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Keep report breakdown scope, names, result paths and inclusion decisions explicit"
+    )]
     fn read_breakdowns(
         &self,
         election_id: &Uuid,
@@ -749,6 +747,10 @@ impl GenerateReports {
         err
     )]
     #[instrument(err, skip_all)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the report assembly interface with explicit election, contest, area and tally-sheet context"
+    )]
     fn make_report(
         &self,
         election_id: &Uuid,
@@ -795,8 +797,8 @@ impl GenerateReports {
             election_alias,
             election_description,
             election_dates,
-            &election_annotations,
-            &election_event_annotations,
+            election_annotations,
+            election_event_annotations,
             contest_id,
             &contest,
             area_id.as_ref(),
@@ -847,6 +849,10 @@ impl GenerateReports {
     }
 
     #[instrument(err, skip(self, reports, areas_map), err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the report output interface with explicit scope, formats, hashes and consolidation controls"
+    )]
     fn write_report(
         &self,
         election_id: &Uuid,
@@ -866,7 +872,7 @@ impl GenerateReports {
             enable_pdfs,
             election_hash,
             areas_map,
-            is_consolidated.clone(),
+            is_consolidated,
         )?;
 
         let mut base_path = match area_based {
@@ -1058,7 +1064,7 @@ impl Pipe for GenerateReports {
                                 let tally_sheet_ids = tally_sheet_paths
                                     .iter()
                                     .map(|tally_sheet_path| -> Result<String> {
-                                        PipeInputs::get_tally_sheet_id_from_path(&tally_sheet_path)
+                                        PipeInputs::get_tally_sheet_id_from_path(tally_sheet_path)
                                             .ok_or(Error::UnexpectedError(
                                                 "Can't read tally sheet id from path".into(),
                                             ))
@@ -1161,7 +1167,7 @@ impl Pipe for GenerateReports {
 
                 // add summary election report
                 let election_census = election_input.census;
-                let total_votes = election_input.total_votes.clone();
+                let total_votes = election_input.total_votes;
 
                 let is_decline_to_vote_enabled = multi_contest_encrypt
                     && election_input
@@ -1212,9 +1218,9 @@ impl Pipe for GenerateReports {
                     total_blank_ballots.map(|count| percentage_of(count, total_votes));
 
                 let election_results = ElectionResultReport {
-                    census: election_census.clone(),
+                    census: election_census,
                     percentage_census,
-                    total_votes: total_votes.clone(),
+                    total_votes,
                     percentage_total_votes,
                     total_decline_to_vote,
                     percentage_total_decline_to_vote,
@@ -1245,8 +1251,8 @@ impl Pipe for GenerateReports {
                         election_results: Some(election_results),
                     });
 
-                if (summary_election_report.is_some()) {
-                    contest_reports.push(summary_election_report.unwrap());
+                if let Some(summary_election_report) = summary_election_report {
+                    contest_reports.push(summary_election_report);
                 }
 
                 // write report for the current election (remains sequential for this election_input task)
@@ -1275,7 +1281,7 @@ impl Pipe for GenerateReports {
                             .entry(area.id.to_string())
                             .and_modify(|entry| entry.contests.push(contest)) // Ensure contest is cloneable or references are fine
                             .or_insert_with(|| InputConfigAreaContest {
-                                area: area, // Ensure lifetime of area is suitable or it's cloned
+                                area, // Ensure lifetime of area is suitable or it's cloned
                                 contests: vec![contest],
                             });
                     });
@@ -1345,10 +1351,10 @@ impl Pipe for GenerateReports {
                     .flatten()
                     .collect(); // End of par_iter().try_for_each over area_contests_map
 
-                if (is_consolidated_report && area_contests_reports.len() > 0) {
+                if is_consolidated_report && !area_contests_reports.is_empty() {
                     area_contests_reports.extend(contest_reports);
 
-                    let result_hash = self.write_report(
+                    self.write_report(
                         &election_input.id,
                         None,
                         None,
@@ -1484,9 +1490,7 @@ pub struct CandidateResultForReport {
 
 impl From<CandidateResultForReport> for Option<WinnerResult> {
     fn from(item: CandidateResultForReport) -> Self {
-        let Some(winning_position) = item.winning_position.clone() else {
-            return None;
-        };
+        let winning_position = item.winning_position?;
         Some(WinnerResult {
             candidate: item.candidate,
             total_count: item.total_count,
@@ -1676,7 +1680,7 @@ fn sort_process_result_candidate_references(
 }
 
 #[instrument(skip_all)]
-fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
+fn sort_candidates(candidates: &mut [CandidateResult], order_field: CandidatesOrder) {
     match order_field {
         CandidatesOrder::Alphabetical => {
             candidates.sort_by(|a, b| {

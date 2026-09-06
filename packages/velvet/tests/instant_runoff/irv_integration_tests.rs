@@ -6,7 +6,6 @@
 // These tests verify that multiple components work together correctly
 
 use rand::Rng;
-use rayon::vec;
 use sequent_core::ballot::{Candidate, Contest, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::CountingAlgType;
@@ -451,13 +450,13 @@ fn create_candidate(id: &str) -> Candidate {
 /// - Non-selected candidates have selected = -1
 /// - The array has one entry for each candidate
 fn set_up_choices(candidate_ids: &[String], num_selected: usize) -> Vec<DecodedVoteChoice> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_candidates = candidate_ids.len();
 
     // Create a shuffled list of candidate indices
     let mut indices: Vec<usize> = (0..num_candidates).collect();
     for i in (1..indices.len()).rev() {
-        let j = rng.gen_range(0..=i);
+        let j = rng.random_range(0..=i);
         indices.swap(i, j);
     }
 
@@ -527,13 +526,13 @@ fn test_run_with_random_ballots() {
     };
 
     // Create random ballots
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let num_ballots = 100;
     let mut votes: Vec<(DecodedVoteContest, Weight)> = Vec::new();
 
     for _ in 0..num_ballots {
         // Randomly decide how many candidates to select (1 to 5)
-        let num_selected = rng.gen_range(1..=5);
+        let num_selected = rng.random_range(1..=5);
         let choices = set_up_choices(&candidate_ids, num_selected);
 
         let decoded_vote = DecodedVoteContest {
@@ -605,7 +604,7 @@ fn test_run_with_random_ballots() {
 #[test]
 fn test_all_ballot_candidates_unselected() {
     // Setup: Create 3 candidates
-    let candidate_ids = vec![candidate_id("a"), candidate_id("b"), candidate_id("c")];
+    let candidate_ids = [candidate_id("a"), candidate_id("b"), candidate_id("c")];
 
     let candidates: Vec<Candidate> = candidate_ids
         .iter()
@@ -700,7 +699,7 @@ fn test_tie_in_final_round() {
     // - Round 1: A gets 4 votes, B gets 4 votes, C gets 2 votes → C is eliminated
     // - Round 2: C's votes are redistributed equally to A and B → both get 5 votes → Tie!
 
-    let candidate_ids = vec![candidate_id("a"), candidate_id("b"), candidate_id("c")];
+    let candidate_ids = [candidate_id("a"), candidate_id("b"), candidate_id("c")];
 
     let candidates: Vec<Candidate> = candidate_ids
         .iter()
