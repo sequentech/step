@@ -56,18 +56,6 @@ import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-    /* ensure the link contains only a single tabbable element: the button below */
-    &:focus {
-        outline: none;
-    }
-    & *[tabindex] {
-        outline: none;
-    }
-`
-
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
@@ -98,7 +86,7 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 interface ActionButtonProps {
     handleNext: () => void
@@ -156,16 +144,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             </StyledButton>
 
             <ActionsContainer>
-                <StyledLink
+                <StyledButton
+                    component={RouterLink}
                     to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("votingScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
+                    <Icon icon={faAngleLeft} size="sm" />
+                    <Box>{t("votingScreen.backButton")}</Box>
+                </StyledButton>
 
                 <StyledButton
                     sx={{
