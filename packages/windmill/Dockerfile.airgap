@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+FROM sequentech.local/offline-dependencies:latest AS deps
+
+FROM sequentech.local/ci-builder:latest AS builder
+
+WORKDIR /app
+# copy entire packages directory (monorepo)
+COPY . .
+
+# Copy vendored dependencies and config
+COPY --from=deps /vendor-cache /vendor-cache
+RUN mkdir -p .cargo && echo "" >> .cargo/config.toml && cat /vendor-cache/config.toml >> .cargo/config.toml
+
+RUN cp /app/windmill/external-bin/ecies-tool.jar /usr/local/bin/
+
+WORKDIR /app/windmill
+
+# Use the stable Rust toolchain for windmill to avoid issues with nightly-only features in dependencies
+RUN rustup default 1.90.0
+
+# Use libc backend for rustix to avoid issues with reserved attributes on newer compilers
+ENV RUSTFLAGS="--cfg rustix_use_libc"
+
+RUN cargo build
+
+CMD ["/app/target/debug/main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue" ]

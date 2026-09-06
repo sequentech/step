@@ -1,0 +1,294 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harvest
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harvest
+  template:
+    metadata:
+      labels:
+        app: harvest
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: harvest
+          image: gitea.gitea:3000/admin/harvest:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: windmill
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: windmill
+  template:
+    metadata:
+      labels:
+        app: windmill
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: windmill
+          image: gitea.gitea:3000/admin/windmill:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voting-portal
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voting-portal
+  template:
+    metadata:
+      labels:
+        app: voting-portal
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: voting-portal
+          image: gitea.gitea:3000/admin/voting-portal:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: step-env
+          env:
+            - name: KEYCLOAK_URL
+              value: "https://portal.local"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: voting-portal
+  namespace: step-apps
+spec:
+  selector:
+    app: voting-portal
+  ports:
+    - port: 80
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beat
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: beat
+  template:
+    metadata:
+      labels:
+        app: beat
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: beat
+          image: gitea.gitea:3000/admin/windmill:latest
+          imagePullPolicy: Always
+          command: ["/app/target/debug/beat", "consume", "-q", "beat"]
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: b4
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: b4
+  template:
+    metadata:
+      labels:
+        app: b4
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: b4
+          image: gitea.gitea:3000/admin/b4:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 50051
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: b4
+  namespace: step-apps
+spec:
+  selector:
+    app: b4
+  ports:
+    - port: 50051
+      targetPort: 50051
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: permissive-cors
+  namespace: step-apps
+spec:
+  headers:
+    accessControlAllowMethods:
+      - "GET"
+      - "POST"
+      - "OPTIONS"
+      - "PUT"
+      - "DELETE"
+    accessControlAllowHeaders:
+      - "*"
+    accessControlAllowOriginList:
+      - "*"
+    accessControlMaxAge: 100
+    addVaryHeader: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+  namespace: step-apps
+spec:
+  stripPrefix:
+    prefixes:
+      - /hasura
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hasura
+  namespace: step-apps
+spec:
+  selector:
+    app: hasura
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hasura
+  namespace: step-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hasura
+  template:
+    metadata:
+      labels:
+        app: hasura
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      initContainers:
+        - name: wait-for-keycloak
+          image: sequentech.local/runner-ubuntu:22.04
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - "until curl -s http://keycloak.step-infra.svc.cluster.local:8090/health >/dev/null; do echo waiting for keycloak; sleep 5; done"
+      containers:
+        - name: hasura
+          image: gitea.gitea:3000/admin/hasura:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: step-env
+          envFrom:
+            - secretRef:
+                name: step-secrets
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PG_DATABASE_URL
+              value: postgres://postgres:$(POSTGRES_PASSWORD)@postgres.step-infra.svc.cluster.local:5432/hasura
+            - name: HASURA_GRAPHQL_DATABASE_URL
+              value: postgres://postgres:$(POSTGRES_PASSWORD)@postgres.step-infra.svc.cluster.local:5432/hasura
+            - name: HASURA_GRAPHQL_METADATA_DATABASE_URL
+              value: postgres://postgres:$(POSTGRES_PASSWORD)@postgres.step-infra.svc.cluster.local:5432/hasura
+            - name: HASURA_GRAPHQL_ADMIN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: HASURA_GRAPHQL_ADMIN_SECRET
+            - name: HASURA_GRAPHQL_JWT_SECRET
+              value: '{"type":"RS256", "jwk_url": "http://keycloak.step-infra.svc.cluster.local:8090/realms/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5/protocol/openid-connect/certs"}'
+            - name: HASURA_GRAPHQL_UNAUTHORIZED_ROLE
+              value: "unauthorized"
+            - name: HASURA_GRAPHQL_ENABLE_CONSOLE
+              value: "true"
+            - name: HASURA_GRAPHQL_DEV_MODE
+              value: "true"
+            - name: HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT
+              value: "120"

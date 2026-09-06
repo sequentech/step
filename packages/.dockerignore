@@ -4,17 +4,24 @@
 
 # Rust build artifacts
 target/
-**/target/
+# Ignore target directories at the root of any package
+# but don't use **/target/ which catches files inside the vendor folder
+*/target/
 rust-local-target/
-**/rust-local-target/
+*/rust-local-target/
+
+# Explicitly allow vendor directory
+!vendor/
 
 # Node modules
 node_modules/
 **/node_modules/
 
 # Build artifacts
-**/dist/
-**/build/
+*/dist/
+*/build/
+# Explicitly allow files that might match these patterns in vendor
+!vendor/
 
 # Logs
 *.log

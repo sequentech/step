@@ -61,3 +61,6 @@ packages/ballot-verifier/logs
 
 # ignore artifacts for airgapped environments
 airgapped-artifacts
+airgap-output
+# local GPG keyring used to sign airgap releases (never ship the private key)
+.airgap-gpg

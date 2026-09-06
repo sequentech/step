@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runner-config
+  namespace: gitea
+data:
+  config.yaml: |
+    runner:
+      capacity: 1
+      # Map all standard labels to our local registry image for 100% reliability
+      labels:
+        - "ubuntu-latest:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+        - "ubuntu-24.04:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+        - "ubuntu-22.04:docker://gitea.gitea:3000/admin/runner-ubuntu:22.04"
+    container:
+      workdir_parent: /workspace
+      # Propagate cluster environment variables to job containers
+      envs:
+        KUBERNETES_SERVICE_HOST: kubernetes.default.svc.cluster.local
+        KUBERNETES_SERVICE_PORT: "443"
+      valid_volumes: ["/var/run/secrets/kubernetes.io/serviceaccount"]
+      # Explicitly mount the ServiceAccount token and pass cluster env vars
+      options: "-v /var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro -e KUBERNETES_SERVICE_HOST=kubernetes.default.svc.cluster.local -e KUBERNETES_SERVICE_PORT=443"
+      # Ensure it pulls from the local registry if needed
+      pull_policy: always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-runner
+  namespace: gitea
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea-runner
+  template:
+    metadata:
+      labels:
+        app: gitea-runner
+    spec:
+      serviceAccountName: gitea-runner-sa
+      initContainers:
+        - name: wait-for-token
+          image: sequentech.local/runner-ubuntu:22.04
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - "until /usr/local/bin/kubectl get secret gitea-runner-token -n gitea; do echo waiting for secret; sleep 5; done"
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: runner
+          image: gitea/act_runner:latest
+          imagePullPolicy: IfNotPresent
+          workingDir: /data
+          command:
+            - sh
+            - -c
+            - |
+              until [ -S /var/run/docker.sock ]; do echo 'Waiting for docker socket...'; sleep 2; done
+              until [ -f /data/.bootstrapped ]; do echo 'Waiting for images to be loaded...'; sleep 5; done
+              if [ ! -f .runner ]; then
+                echo "Registering runner with Gitea..."
+                /sbin/tini -- act_runner register --no-interactive --instance "${GITEA_INSTANCE_URL}" --token "${GITEA_RUNNER_REGISTRATION_TOKEN}" --config /config/config.yaml
+              fi
+              echo "Starting runner daemon..."
+              /sbin/tini -- act_runner daemon --config /config/config.yaml
+          env:
+            - name: TINI_SUBREAPER
+              value: "1"
+            - name: GITEA_INSTANCE_URL
+              value: http://gitea.gitea:3000
+            - name: GITEA_RUNNER_REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-runner-token
+                  key: token
+            - name: DOCKER_HOST
+              value: unix:///var/run/docker.sock
+            - name: CONFIG_FILE
+              value: /config/config.yaml
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
+            - name: config-volume
+              mountPath: /config
+            - name: dind-socket
+              mountPath: /var/run
+        - name: dind
+          image: docker:24-dind
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: ""
+            - name: GITEA_REGISTRY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: GITEA_REGISTRY_PASSWORD
+          securityContext:
+            privileged: true
+          command: ["sh", "-c", "dockerd-entrypoint.sh dockerd --host=tcp://0.0.0.0:2375 --host=unix:///var/run/docker.sock --insecure-registry gitea.gitea:3000 --insecure-registry 10.43.10.10:3000 --default-address-pool base=10.200.0.0/16,size=24 & until docker info >/dev/null 2>&1; do echo 'Waiting for docker...'; sleep 2; done; rm -f /data/.bootstrapped; if [ -d /images ]; then find /images -name \"*.tar\" -exec echo \"Loading {}...\" \\; -exec docker load -i {} \\;; fi; echo \"${GITEA_REGISTRY_PASSWORD}\" | docker login 10.43.10.10:3000 -u admin --password-stdin; docker pull 10.43.10.10:3000/admin/runner-ubuntu:22.04; docker tag 10.43.10.10:3000/admin/runner-ubuntu:22.04 docker.gitea.com/runner-images:ubuntu-22.04 || true; touch /data/.bootstrapped; echo 'Images loaded successfully'; wait"]
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
+            - name: docker-storage
+              mountPath: /var/lib/docker
+            - name: image-cache
+              mountPath: /images
+              readOnly: true
+            - name: dind-socket
+              mountPath: /var/run
+            - name: kube-api-access
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+      volumes:
+        - name: runner-data
+          persistentVolumeClaim:
+            claimName: runner-data-pvc
+        - name: docker-storage
+          persistentVolumeClaim:
+            claimName: docker-storage-pvc
+        - name: image-cache
+          hostPath:
+            path: /var/lib/rancher/k3s/agent/images
+            type: DirectoryOrCreate
+        - name: config-volume
+          configMap:
+            name: runner-config
+        - name: dind-socket
+          emptyDir: {}
+        - name: kube-api-access
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  expirationSeconds: 3607
+                  path: token
+              - configMap:
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+                  name: kube-root-ca.crt
+              - downwardAPI:
+                  items:
+                    - fieldRef:
+                        apiVersion: v1
+                        fieldPath: metadata.namespace
+                      path: namespace
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: runner-data-pvc
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: docker-storage-pvc
+  namespace: gitea
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
