@@ -6,7 +6,7 @@ import isEqual from "lodash/isEqual"
 import {IUser} from "@sequentech/ui-core"
 import {ReviewChangesRow} from "@sequentech/ui-essentials"
 import {UserProfileAttribute} from "@/gql/graphql"
-import {getTranslationLabel, userBasicInfo} from "@/services/UserService"
+import {getTranslationLabel, isSecretAttribute, userBasicInfo} from "@/services/UserService"
 
 export interface UserBaseline {
     user: IUser
@@ -17,6 +17,7 @@ export interface UserDraft {
     user: IUser | undefined
     phoneInputs: {[key: string]: string[]}
     selectedActedTrustee: string
+    secretAttributeChanges?: Record<string, string[]>
 }
 
 export interface RoleDraft {
@@ -115,6 +116,21 @@ export const computeUserDiff = (
         }
         const lowerName = name.toLowerCase()
         const label = getTranslationLabel(name, attr.display_name, t)
+
+        if (isSecretAttribute(attr)) {
+            if (
+                current.secretAttributeChanges &&
+                Object.prototype.hasOwnProperty.call(current.secretAttributeChanges, name)
+            ) {
+                rows.push({
+                    field: name,
+                    label,
+                    currentValue: baseline.user.attributes?.[name]?.length ? "••••••••" : "-",
+                    newValue: current.secretAttributeChanges[name].length ? "••••••••" : "-",
+                })
+            }
+            return
+        }
 
         // These substring checks intentionally mirror renderFormField's own attr.name
         // matching (EditUserForm.tsx), so a field is categorized here exactly the way
