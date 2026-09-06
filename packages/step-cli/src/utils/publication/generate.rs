@@ -21,10 +21,7 @@ impl GenerateBallotPublication {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 
-        let maybe_election_id = match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        };
+        let maybe_election_id = election_id.map(|id| id.to_string());
         println!("Election ID: {:?}", maybe_election_id);
         let variables = generate_ballot_publication::Variables {
             election_event_id: election_event_id.to_string(),

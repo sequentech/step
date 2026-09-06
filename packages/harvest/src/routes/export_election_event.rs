@@ -3,15 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::{password, tasks_execution::*};
@@ -86,7 +85,7 @@ pub async fn export_election_event_route(
     };
     export_config.password = password.clone();
 
-    let celery_task = celery_app
+    let _celery_task = celery_app
         .send_task(export_election_event::export_election_event::new(
             tenant_id,
             election_event_id,

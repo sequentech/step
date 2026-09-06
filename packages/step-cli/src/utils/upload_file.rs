@@ -2,10 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::types::config::ConfigData;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::util::mime::get_mime_types;
-use std::collections::HashMap;
 use std::fs::{metadata, File};
 use std::io::Read;
 use std::path::Path;
@@ -39,7 +37,7 @@ impl GetUploadUrl {
             .ok_or("Invalid file path")?
             .to_str()
             .ok_or("Invalid file name")?;
-        let file_size = metadata(&path)?.len() as i64;
+        let file_size = metadata(path)?.len() as i64;
 
         let extension = path
             .extension()

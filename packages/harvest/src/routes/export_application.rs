@@ -67,7 +67,7 @@ pub async fn export_application_route(
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let celery_task_result = match celery_app
+    let _celery_task_result = match celery_app
         .send_task(
             windmill::tasks::export_application::export_application::new(
                 tenant_id.clone(),

@@ -71,12 +71,12 @@ pub fn create_config(
     tenant_id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let auth_details = generate_keycloak_token(
-        &keycloak_url,
-        &username,
-        &password,
-        &client_id,
-        &client_secret,
-        &tenant_id,
+        keycloak_url,
+        username,
+        password,
+        client_id,
+        client_secret,
+        tenant_id,
     )?;
     let config_data = ConfigData {
         endpoint_url: endpoint_url.to_string(),

@@ -3,22 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use std::collections::HashMap;
-use std::iter::Map;
-use std::str::FromStr;
 
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use crate::types::optional::OptionalId;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
-use reqwest::StatusCode;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::keycloak::{
-    get_event_realm, get_tenant_realm, GroupInfo, KeycloakAdminClient,
-};
-use sequent_core::types::keycloak::User;
+use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm};
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -29,10 +22,7 @@ use windmill::services::application::{
 };
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::users::check_is_user_verified;
-use windmill::tasks::send_template::send_template;
-use windmill::types::application::{
-    ApplicationStatus, ApplicationType, ApplicationsError,
-};
+use windmill::types::application::ApplicationsError;
 
 #[derive(Deserialize, Debug)]
 pub struct ApplicationVerifyBody {
@@ -40,7 +30,8 @@ pub struct ApplicationVerifyBody {
     applicant_data: HashMap<String, String>,
     tenant_id: String,
     election_event_id: String,
-    area_id: Option<String>,
+    #[serde(rename = "area_id")]
+    _area_id: Option<String>,
     labels: Option<Value>,
     annotations: ApplicationAnnotations,
 }
@@ -125,7 +116,7 @@ pub async fn verify_user_application(
         )
     })?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("commit failed: {e:?}"),
@@ -140,7 +131,8 @@ pub async fn verify_user_application(
 pub struct ApplicationChangeStatusBody {
     tenant_id: String,
     election_event_id: String,
-    area_id: Option<String>,
+    #[serde(rename = "area_id")]
+    _area_id: Option<String>,
     id: String,
     user_id: String,
     rejection_reason: Option<String>, // Optional for rejection

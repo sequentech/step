@@ -91,7 +91,7 @@ pub struct ErrorResponse {
 impl ErrorResponse {
     #[instrument]
     pub fn new(status: Status, message: &str, code: ErrorCode) -> JsonError {
-        return Custom(
+        Custom(
             status,
             Json(ErrorResponse {
                 message: message.into(),
@@ -100,7 +100,7 @@ impl ErrorResponse {
                     ..Default::default()
                 },
             }),
-        );
+        )
     }
 
     pub fn password_policy_violation(

@@ -46,10 +46,10 @@ pub fn complete_ceremony(
     key_ceremony_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let private_key =
-        GetTrusteePrivateKey::get_trustee_private_key(&election_event_id, &key_ceremony_id)?;
-    let checked = CheckPrivateKey::check(&election_event_id, &key_ceremony_id, &private_key)?;
+        GetTrusteePrivateKey::get_trustee_private_key(election_event_id, key_ceremony_id)?;
+    let checked = CheckPrivateKey::check(election_event_id, key_ceremony_id, &private_key)?;
     if checked {
-        let path = download_private_key(&election_event_id, &private_key)?;
+        let path = download_private_key(election_event_id, &private_key)?;
         let path_str = path.to_str().unwrap_or_default();
         Ok(path_str.to_string())
     } else {

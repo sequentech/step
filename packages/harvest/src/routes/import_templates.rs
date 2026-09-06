@@ -8,14 +8,8 @@ use rocket::serde::json::Json;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::{services::jwt, types::hasura::core::TasksExecution};
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-use windmill::{
-    services::providers::transactions_provider::provide_hasura_transaction,
-    tasks::{
-        import_templates::{import_templates, import_templates_task},
-        upsert_areas::upsert_areas_task,
-    },
-};
+use tracing::instrument;
+use windmill::tasks::import_templates::import_templates_task;
 
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;

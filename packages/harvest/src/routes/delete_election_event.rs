@@ -11,11 +11,10 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
-use windmill::postgres::tenant;
+use tracing::instrument;
 use windmill::services::celery_app::get_celery_app;
+use windmill::services::tasks_execution::update_fail;
 use windmill::services::tasks_execution::*;
-use windmill::services::tasks_execution::{update_complete, update_fail};
 use windmill::tasks::delete_election_event;
 use windmill::types::tasks::ETasksExecution;
 

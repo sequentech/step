@@ -7,23 +7,18 @@ use tracing::{info, instrument};
 
 use immudb_rs::{sql_value::Value, Client, NamedParam, Row, SqlValue, TxMode};
 use std::fmt::Debug;
-use tokio::time::{sleep, Duration};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
-const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
-const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
 
 #[derive(Debug, Clone)]
 enum Table {
-    BraidMessages,
     ElectoralLogMessages,
 }
 
 impl Table {
     fn as_str(&self) -> &'static str {
         match self {
-            Table::BraidMessages => "braid_messages",
             Table::ElectoralLogMessages => "electoral_log_messages",
         }
     }
@@ -121,10 +116,10 @@ pub struct BoardMessage {
 impl BoardClient {
     #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
-        let mut client = Client::new(&server_url, username, password).await?;
+        let mut client = Client::new(server_url, username, password).await?;
         client.login().await?;
 
-        Ok(BoardClient { client: client })
+        Ok(BoardClient { client })
     }
 
     /// Get all electoral log messages whose id is bigger than `last_id`
@@ -283,10 +278,7 @@ impl BoardClient {
                 NamedParam {
                     name: String::from("user_id"),
                     value: Some(SqlValue {
-                        value: match message.user_id.clone() {
-                            Some(user_id) => Some(Value::S(user_id)),
-                            None => None,
-                        },
+                        value: message.user_id.clone().map(Value::S),
                     }),
                 },
             ];
@@ -335,7 +327,6 @@ impl BoardClient {
             PRIMARY KEY id
         );
         "#,
-            // Table::BraidMessages.as_str(),
             Table::ElectoralLogMessages.as_str()
         );
         self.upsert_database(board_dbname, &sql).await
@@ -364,7 +355,7 @@ impl BoardClient {
         // List tables and create them if missing
         if !self.client.has_tables().await? {
             info!("no tables! let's create them");
-            self.client.sql_exec(&tables, vec![]).await?;
+            self.client.sql_exec(tables, vec![]).await?;
         }
         Ok(())
     }

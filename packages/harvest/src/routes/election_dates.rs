@@ -4,7 +4,7 @@
 
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -116,7 +116,7 @@ pub async fn manage_election_dates(
         }
     }
 
-    let _commit = hasura_transaction.commit().await.map_err(|e| {
+    hasura_transaction.commit().await.map_err(|e| {
         ErrorResponse::new(
             Status::InternalServerError,
             &format!("commit failed: {e:?}"),

@@ -7,7 +7,6 @@ use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::types::ceremonies::TallyResolution;
-use serde::{Deserialize, Serialize};
 
 #[derive(Args)]
 #[command(about = "Submit tally resolutions", long_about = None)]

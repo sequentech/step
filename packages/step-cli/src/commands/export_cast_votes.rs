@@ -2,11 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::utils::keycloak::get_keyckloak_pool;
-use crate::utils::read_config::load_external_config;
-use anyhow::{anyhow, Context, Result};
-use base64::engine::general_purpose;
-use base64::Engine;
+use anyhow::{anyhow, Result};
 use clap::Args;
 use colored::Colorize;
 use csv::WriterBuilder;
@@ -17,15 +13,10 @@ use electoral_log::{BoardClient, ElectoralLogVarCharColumn, SqlCompOperators};
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::encrypt::shorten_hash;
 use serde::Serialize;
-use serde_json::Value;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use strand::serialization::StrandDeserialize;
-use tokio_postgres::Transaction;
-use uuid::Uuid;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 #[derive(Serialize)]
 struct Record {
     created: i64,

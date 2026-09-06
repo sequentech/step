@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use sequent_core::ballot::{
-    AllowTallyStatus, ElectionStatus, InitReport, VotingStatus,
-};
+use sequent_core::ballot::{AllowTallyStatus, ElectionStatus, InitReport};
 use sequent_core::serialization::deserialize_with_path;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
@@ -27,7 +25,6 @@ use windmill::services::celery_app::get_celery_app;
 use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::ceremonies::tally_resolution;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::tasks::execute_tally_session::execute_tally_session;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -95,7 +92,7 @@ pub async fn create_tally_ceremony(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
     event!(

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -60,7 +60,7 @@ pub async fn get_election_stats(
                 format!("Error loading hasura db client: {err}"),
             )
         })?;
-    let mut hasura_transaction =
+    let hasura_transaction =
         hasura_db_client.transaction().await.map_err(|err| {
             (
                 Status::InternalServerError,
@@ -86,9 +86,9 @@ pub async fn get_election_stats(
 
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-        &input.election_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        input.election_id.as_str(),
     )
     .await
     .map_err(|err| {
@@ -100,12 +100,12 @@ pub async fn get_election_stats(
 
     let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-        &input.start_date.as_str(),
-        &input.end_date.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        input.start_date.as_str(),
+        input.end_date.as_str(),
         Some(input.election_id),
-        &input.user_timezone.as_str(),
+        input.user_timezone.as_str(),
         input.time_resolution,
         input.bucket_count,
     )

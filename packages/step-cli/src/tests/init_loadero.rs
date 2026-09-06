@@ -162,34 +162,6 @@ fn create_test_paricipants(
     }
 }
 
-fn get_tests(loadero_url: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let client = reqwest::blocking::Client::new();
-    let headers = create_header()?;
-    let response = client
-        .get(format!("{}/tests", &loadero_url))
-        .headers(headers)
-        .send()?;
-    if response.status().is_success() {
-        let response_json: Value = response.json()?;
-        let mut test_ids = Vec::new();
-
-        if let Some(results) = response_json["results"].as_array() {
-            for result in results {
-                if let Some(id) = result["id"].as_i64() {
-                    test_ids.push(id.to_string());
-                }
-            }
-        }
-
-        Ok(test_ids)
-    } else {
-        let status = response.status();
-        let error_message = response.text()?;
-        let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
-        Err(Box::from(error))
-    }
-}
-
 fn launch_test(loadero_url: &str, test_id: &str) -> Result<String, Box<dyn std::error::Error>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header()?;

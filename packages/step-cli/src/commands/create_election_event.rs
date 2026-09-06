@@ -8,7 +8,6 @@ use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::ballot::ElectionEventPresentation;
-use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Args, Debug)]
@@ -73,12 +72,13 @@ fn create_election_event(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = ElectionEventPresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = ElectionEventPresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = create_election_event::Variables {
         election_event: create_election_event::CreateElectionEventInput {

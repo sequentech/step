@@ -2,12 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{
-    types::hasura_types::*,
-    utils::{
-        read_config::read_config,
-        trustees::get_trustee_private_key::{self, get_private_key::GetPrivateKeyInput},
-    },
+use crate::utils::{
+    read_config::read_config,
+    trustees::get_trustee_private_key::get_private_key::GetPrivateKeyInput,
 };
 use graphql_client::{GraphQLQuery, Response};
 use serde_json::Value;

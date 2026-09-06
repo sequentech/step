@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::utils::read_config::read_config;
 use graphql_client::{GraphQLQuery, Response};
 
 #[derive(GraphQLQuery)]

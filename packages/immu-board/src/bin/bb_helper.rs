@@ -85,7 +85,7 @@ impl Cli {
         };
         log_reload.modify(|filter| *filter = new_log_level).unwrap();
 
-        return args;
+        args
     }
 }
 
@@ -122,8 +122,8 @@ impl BBHelper {
         };
         let client = BoardClient::new(&server_url, &username, &password).await?;
         Ok(BBHelper {
-            client: client,
-            board_dbname: board_dbname,
+            client,
+            board_dbname,
             actions: args.actions,
         })
     }

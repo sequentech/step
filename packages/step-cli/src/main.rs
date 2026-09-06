@@ -3,6 +3,7 @@
 // // SPDX-License-Identifier: AGPL-3.0-only
 
 mod commands;
+#[cfg(test)]
 mod tests;
 mod types;
 mod utils;

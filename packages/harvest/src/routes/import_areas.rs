@@ -9,7 +9,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::{
     services::providers::transactions_provider::provide_hasura_transaction,
     tasks::{import_areas::import_areas_task, upsert_areas::upsert_areas_task},

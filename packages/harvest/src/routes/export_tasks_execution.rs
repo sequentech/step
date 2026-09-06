@@ -45,7 +45,7 @@ pub async fn export_tasks_execution_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    let celery_task = celery_app
+    let _celery_task = celery_app
         .send_task(export_tasks_execution::export_tasks_execution::new(
             tenant_id,
             election_event_id,

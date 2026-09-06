@@ -3,20 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use rocket::http::Status;
-use rocket::serde::json::{self, Json};
+use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
-use windmill::tasks::export_ballot_publication::export_ballot_publication;
-use windmill::tasks::export_election_event::{self, ExportOptions};
 use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -81,7 +78,7 @@ pub async fn export_ballot_publication_route(
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
-    let celery_task = match celery_app
+    let _celery_task = match celery_app
     .send_task(windmill::tasks::export_ballot_publication::export_ballot_publication::new(
         tenant_id,
         election_event_id,

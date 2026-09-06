@@ -4,7 +4,6 @@
 
 use crate::services::authorization::authorize;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::anyhow;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -13,7 +12,6 @@ use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::types::hasura::core::KeysCeremony;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use strum_macros::Display;
 use tracing::{error, event, instrument, Level};
 use windmill::postgres;
@@ -336,7 +334,7 @@ pub async fn list_keys_ceremonies(
         .filter_map(|election| election.permission_label)
         .collect();
 
-    let filtered_labels = if election_permission_labels.len() > 0 {
+    let filtered_labels = if !election_permission_labels.is_empty() {
         permission_labels
     } else {
         vec![]
@@ -361,7 +359,7 @@ pub async fn list_keys_ceremonies(
     Ok(Json(DataList {
         items: keys_ceremonies,
         total: TotalAggregate {
-            aggregate: Aggregate { count: count },
+            aggregate: Aggregate { count },
         },
     }))
 }

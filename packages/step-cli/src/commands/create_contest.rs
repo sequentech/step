@@ -73,12 +73,13 @@ fn create_contest(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let mut presentation = ContestPresentation::default();
-
-    presentation.i18n = Some(HashMap::from([(
-        "en".to_string(),
-        HashMap::from([("name".to_string(), Some(name.to_string()))]),
-    )]));
+    let presentation = ContestPresentation {
+        i18n: Some(HashMap::from([(
+            "en".to_string(),
+            HashMap::from([("name".to_string(), Some(name.to_string()))]),
+        )])),
+        ..Default::default()
+    };
 
     let variables = insert_contest::Variables {
         description: Some(description.to_string()),

@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{
-    types::hasura_types::*,
-    utils::{read_config::read_config, trustees::get::GetTrustees},
-};
+use crate::utils::{read_config::read_config, trustees::get::GetTrustees};
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};

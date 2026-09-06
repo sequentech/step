@@ -4,14 +4,12 @@
 
 use crate::services::authorization::authorize;
 
-use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::scheduled_event::*;
 
 use anyhow::Result;
 use rocket::http::Status;
-use rocket::response::Debug;
 use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -24,7 +22,8 @@ pub struct CreateEventBody {
     pub tenant_id: String,
     pub election_event_id: Option<String>,
     pub event_processor: EventProcessors,
-    pub cron_config: Option<String>,
+    #[serde(rename = "cron_config")]
+    pub _cron_config: Option<String>,
     pub event_payload: Value,
 }
 

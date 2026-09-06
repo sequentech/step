@@ -17,7 +17,6 @@ use fake::faker::internet::raw::Username;
 use fake::locales::EN;
 use fake::Fake;
 use immudb_rs::{sql_value::Value as ImmudbValue, Client as ImmudbClient, NamedParam, SqlValue};
-use std::env;
 use strand::signature::{StrandSignature, StrandSignaturePk};
 use windmill::services::protocol_manager::get_event_board;
 use windmill::services::providers::transactions_provider::provide_immudb_transaction;
@@ -63,8 +62,8 @@ impl CreateElectoralLogs {
         let statement_timestamp = created;
 
         let dummy_bytes = [0u8; 64];
-        let sender_signature = StrandSignature::from_bytes(dummy_bytes.clone())
-            .expect("Dummy signature conversion failed");
+        let sender_signature =
+            StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
         let system_signature =
             StrandSignature::from_bytes(dummy_bytes).expect("Dummy signature conversion failed");
 
@@ -77,8 +76,8 @@ impl CreateElectoralLogs {
                 name: username.clone().unwrap_or_default(),
                 pk: sender_pk,
             },
-            sender_signature: sender_signature,
-            system_signature: system_signature,
+            sender_signature,
+            system_signature,
             statement: Statement {
                 head: StatementHead {
                     event: EventIdString(election_event_id.to_string()),
@@ -91,7 +90,7 @@ impl CreateElectoralLogs {
                 body: StatementBody::SendCommunications(None),
             },
             artifact: None,
-            user_id: user_id,
+            user_id,
             username: username.clone(),
             election_id: Some(election_id.to_string()),
             area_id: Some(area_id.to_string()),
@@ -122,7 +121,7 @@ impl CreateElectoralLogs {
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e))?;
 
         let keycloak_query = "\
             SELECT ue.id, ue.username \
@@ -144,10 +143,10 @@ impl CreateElectoralLogs {
 
         let existing_users: Vec<Voter> = users
             .iter()
-            .filter_map(|row| {
+            .map(|row| {
                 let id = row.get::<_, Option<String>>(0);
                 let username = row.get::<_, Option<String>>(1);
-                Some(Voter { id, username })
+                Voter { id, username }
             })
             .collect();
 
@@ -247,7 +246,7 @@ impl CreateElectoralLogs {
             provide_immudb_transaction(
                 |client, tx_id| {
                     let chunk = chunk.clone();
-                    Box::pin(async move { insert_logs(client, &tx_id, chunk).await })
+                    Box::pin(async move { insert_logs(client, tx_id, chunk).await })
                 },
                 immudb_db.as_str(),
             )
@@ -268,9 +267,8 @@ async fn insert_logs(
     let mut query = String::from("INSERT INTO electoral_log_messages (created, sender_pk, statement_kind, statement_timestamp, message, version, user_id, username, election_id, area_id) VALUES ");
     let mut values_clauses = Vec::new();
     let mut all_params: Vec<NamedParam> = Vec::new();
-    let mut row_index = 1;
-
-    for row in &logs_params {
+    for (row_index, row) in logs_params.iter().enumerate() {
+        let row_index = row_index + 1;
         let mut clause_parts = Vec::new();
         for param in row {
             let new_name = format!("{}{}", param.name, row_index);
@@ -280,13 +278,12 @@ async fn insert_logs(
                 value: param.value.clone(),
             });
         }
-        row_index += 1;
         values_clauses.push(format!("({})", clause_parts.join(", ")));
     }
 
     query.push_str(&values_clauses.join(", "));
     client
-        .tx_sql_exec(&query, &(tx_id.to_string()), all_params)
+        .tx_sql_exec(&query, tx_id, all_params)
         .await
         .map_err(|e| anyhow!("Failed to execute query: {:?}", e))?;
 

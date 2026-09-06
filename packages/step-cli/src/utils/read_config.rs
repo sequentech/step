@@ -11,7 +11,6 @@ use std::path::PathBuf;
 use crate::types::config::ConfigData;
 
 pub use sequent_core::util::external_config::load_external_config;
-pub use sequent_core::util::external_config::EXTERNAL_CONFIG_FILE_NAME;
 
 pub const CREATE_CONFIG_FILE_NAME: &str = "configuration.json";
 

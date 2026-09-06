@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(test)]
 pub mod areas;
 pub mod elections;
-pub mod hasura;
 pub mod keycloak;
 pub mod publication;
 pub mod read_config;

@@ -88,6 +88,10 @@ impl UpdateVoter {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the current CLI voter-edit interface and explicit user, election and credential fields."
+)]
 pub fn edit_voter(
     election_event_id: &str,
     user_id: &str,
@@ -158,7 +162,7 @@ pub fn edit_voter(
             enabled: Some(true),
             groups: None,
             election_event_id: Some(election_event_id.to_string()),
-            temporary: Some(temporary.clone()),
+            temporary: Some(*temporary),
         },
     };
 

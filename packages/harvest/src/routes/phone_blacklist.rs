@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-use crate::types::error_response::{ErrorCode, ErrorResponse};
 use anyhow::{anyhow, Context};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -94,7 +93,7 @@ pub async fn create_phone_blacklist_entry(
     async {
         let event = get_election_event_by_id(
             &hasura_transaction,
-            &tenant_id,
+            tenant_id,
             &body.election_event_id,
         )
         .await?;
@@ -102,9 +101,9 @@ pub async fn create_phone_blacklist_entry(
             &hasura_transaction,
             &get_election_event_board(event.bulletin_board_reference)
                 .ok_or(anyhow!("missing board"))?,
-            &tenant_id,
-            &event_id,
-            &user_id,
+            tenant_id,
+            event_id,
+            user_id,
             claims.preferred_username.clone(),
             None,
             None,
@@ -190,15 +189,15 @@ pub async fn delete_phone_blacklist_entry(
     // Post the electoral log
     async {
         let event =
-            get_election_event_by_id(&hasura_transaction, &tenant_id, event_id)
+            get_election_event_by_id(&hasura_transaction, tenant_id, event_id)
                 .await?;
         let electoral_log = ElectoralLog::for_admin_user(
             &hasura_transaction,
             &get_election_event_board(event.bulletin_board_reference)
                 .ok_or(anyhow!("missing board"))?,
             tenant_id,
-            &event_id,
-            &user_id,
+            event_id,
+            user_id,
             claims.preferred_username.clone(),
             None,
             None,

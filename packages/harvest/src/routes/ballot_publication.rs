@@ -15,7 +15,6 @@ use sequent_core::{
     services::jwt::{has_gold_permission, JwtClaims},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tracing::instrument;
 use windmill::{
     postgres::election_event::get_election_event_by_id,
@@ -105,7 +104,7 @@ pub async fn generate_ballot_publication(
         {
             return Err((
                 Status::Forbidden,
-                format!("Election event is locked down"),
+                "Election event is locked down".to_string(),
             ));
         }
     }
@@ -126,7 +125,7 @@ pub async fn generate_ballot_publication(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let _commit = hasura_transaction.commit().await.map_err(|err| {
+    hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
@@ -306,18 +305,6 @@ pub struct GetBallotPublicationChangesInput {
     election_event_id: String,
     ballot_publication_id: String,
     limit: Option<usize>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BallotPublicationStyles {
-    ballot_publication_id: String,
-    ballot_styles: Value,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GetBallotPublicationChangesOutput {
-    current: BallotPublicationStyles,
-    previous: Option<BallotPublicationStyles>,
 }
 
 #[instrument(skip(claims))]

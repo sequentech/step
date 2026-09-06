@@ -10,14 +10,11 @@ use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;
+use windmill::tasks::import_application;
 use windmill::types::tasks::ETasksExecution;
-use windmill::{
-    services::providers::transactions_provider::provide_hasura_transaction,
-    tasks::import_application,
-};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ImportApplicationsInput {

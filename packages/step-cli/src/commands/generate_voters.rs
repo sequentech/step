@@ -11,7 +11,6 @@ use fake::faker::name::raw::{FirstName, LastName};
 use fake::locales::EN;
 use fake::Fake;
 use rand::seq::IndexedRandom;
-use rand::seq::SliceRandom;
 use rand::Rng;
 use sequent_core::util::external_config::VoterPasswordPolicy;
 use serde_json::Value;
@@ -61,7 +60,7 @@ impl GenerateVoters {
         let days_diff = (youngest_dob - oldest_dob).num_days();
 
         let lambda = std::f64::consts::LN_2 / (Self::AGE_HALF_LIFE_YEARS * 365.0);
-        let u: f64 = rand::thread_rng().gen_range(0.0..1.0);
+        let u: f64 = rand::rng().random_range(0.0..1.0);
         let extra_age_days = if days_diff <= 0 {
             0
         } else {
@@ -78,9 +77,9 @@ impl GenerateVoters {
     /// Generates a random numeric string of exactly `digits` digits (leading zeros allowed,
     /// since a PIN is an opaque digit string, not a number).
     fn generate_random_numeric_password(&self, digits: u32) -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         (0..digits)
-            .map(|_| std::char::from_digit(rng.gen_range(0..10), 10).unwrap())
+            .map(|_| std::char::from_digit(rng.random_range(0..10), 10).unwrap())
             .collect()
     }
 
@@ -289,7 +288,6 @@ impl GenerateVoters {
         let mut wtr = Writer::from_path(&csv_file_path)?;
         wtr.write_record(&final_fields)?;
 
-        let mut username_counter = 0;
         let mut area_cycle = areas.iter().cycle();
 
         for i in 0..num_users {
@@ -325,7 +323,7 @@ impl GenerateVoters {
             let election_country_candidate = if let Some(first_alias) = election_aliases.first() {
                 if first_alias.contains(" - ") {
                     first_alias
-                        .splitn(2, " - ")
+                        .split(" - ")
                         .next()
                         .unwrap_or("Unknown")
                         .trim()
@@ -347,7 +345,7 @@ impl GenerateVoters {
                     let amount =
                         std::cmp::min(authorized_elections_count as usize, election_aliases.len());
                     election_aliases
-                        .choose_multiple(&mut rand::thread_rng(), amount)
+                        .choose_multiple(&mut rand::rng(), amount)
                         .cloned()
                         .collect::<Vec<String>>()
                         .join("|")
@@ -390,7 +388,7 @@ impl GenerateVoters {
             // For each expected field, extract its value from our generated data.
             for field in &final_fields {
                 let value = match field.as_str() {
-                    "username" => username_counter.to_string(),
+                    "username" => i.to_string(),
                     "first_name" => FirstName(EN).fake(),
                     "last_name" => LastName(EN).fake(),
                     "middleName" => String::new(),
@@ -420,7 +418,6 @@ impl GenerateVoters {
 
             // Write the record to the CSV file.
             wtr.write_record(&record)?;
-            username_counter += 1;
 
             // Optionally, log progress every so often rather than every record.
             if i % 10000 == 0 {

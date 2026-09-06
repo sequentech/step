@@ -6,14 +6,10 @@ use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use windmill::services::{
-    database::get_hasura_pool, documents,
-    providers::transactions_provider::provide_hasura_transaction,
-};
+use windmill::services::{database::get_hasura_pool, documents};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UploadDocumentInput {
     name: String,
