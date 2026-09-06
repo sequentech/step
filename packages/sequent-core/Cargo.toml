@@ -132,6 +132,7 @@ wasmtime-wasi = {version = "41.0.2", optional = true}
 [dev-dependencies]
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
+tokio = { workspace = true }
 
 [features]
 wasmtest = ["wasm", "strand/wasmtest"]
