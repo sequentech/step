@@ -200,10 +200,10 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 );
             }
         }
-        REALM_ATTR_VOTER_CERTIFICATE_POLICY => {
-            if VoterCertificatePolicy::from_str(value).is_err() {
-                bail!("Invalid value {value:?} for realm attribute {key}");
-            }
+        REALM_ATTR_VOTER_CERTIFICATE_POLICY
+            if VoterCertificatePolicy::from_str(value).is_err() =>
+        {
+            bail!("Invalid value {value:?} for realm attribute {key}");
         }
         _ => {}
     }

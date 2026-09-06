@@ -4,7 +4,6 @@
 
 #[cfg(feature = "s3")]
 use crate::services::s3;
-use crate::util::convert_vec::IntoVec;
 use crate::util::retry::retry_with_exponential_backoff;
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -135,7 +134,7 @@ pub mod sync {
                 }
                 "openwhisk" => {
                     let mut openwhisk_endpoint = std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT");
-                    if !openwhisk_endpoint.is_ok() {
+                    if openwhisk_endpoint.is_err() {
                         let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST");
                         if let Ok(host) = openwhisk_api_host {
                             openwhisk_endpoint = Ok(format!("{host}/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true"));
@@ -375,7 +374,7 @@ impl PdfRenderer {
             },
             "openwhisk" => {
                 let mut openwhisk_endpoint = std::env::var("OPENWHISK_DOC_RENDERER_ENDPOINT");
-                if !openwhisk_endpoint.is_ok() {
+                if openwhisk_endpoint.is_err() {
                     let openwhisk_api_host = std::env::var("OPENWHISK_API_HOST");
                     if let Ok(host) = openwhisk_api_host {
                         openwhisk_endpoint = Ok(format!("{host}/api/v1/namespaces/_/actions/pdf-tools/doc_renderer?blocking=true&result=true"));
@@ -597,14 +596,11 @@ fn render_pdf_in_place(
     Ok(result)
 }
 
-/// S3 helper functions.
+// S3 helper functions.
 cfg_if::cfg_if! {
     if #[cfg(feature = "s3")] {
         fn s3_private_bucket() -> Option<String> {
             s3::get_private_bucket().ok()
-        }
-        fn s3_bucket_path(path: String) -> Option<String> {
-            Some(path)
         }
         async fn get_file_from_s3(bucket: String, output_filename: String) -> Result<Vec<u8>> {
             s3::get_file_from_s3(bucket, output_filename)
@@ -613,9 +609,6 @@ cfg_if::cfg_if! {
         }
     } else {
         fn s3_private_bucket() -> Option<String> {
-            None
-        }
-        fn s3_bucket_path(path: String) -> Option<String> {
             None
         }
         async fn get_file_from_s3(_bucket: String, _output_filename: String) -> Result<Vec<u8>> {
@@ -641,7 +634,7 @@ pub fn html_to_pdf(
     info!("html_to_pdf: {url_path:?}");
     debug!("options: {options:#?}");
 
-    let pdf_options = options.unwrap_or_else(|| PrintToPdfOptions {
+    let pdf_options = options.unwrap_or(PrintToPdfOptions {
         landscape: None,
         display_header_footer: None,
         print_background: Some(true),
@@ -800,11 +793,11 @@ mod tests {
             .write(true)
             .truncate(true)
             .create(true)
-            .open(&file_path)?;
+            .open(file_path)?;
 
         file.write_all(&bytes)?;
 
-        assert!(bytes.len() > 0);
+        assert!(!bytes.is_empty());
         assert!(file_path.exists());
 
         fs::remove_file(file_path)?;

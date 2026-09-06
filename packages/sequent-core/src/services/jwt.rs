@@ -111,7 +111,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     // Process each item: trim whitespace and surrounding quotes
     let keys: Vec<String> = items
         .map(|item| item.trim().trim_matches('"').to_string())
-        .filter(|item| item.len() > 0)
+        .filter(|item| !item.is_empty())
         .collect();
     keys
 }
@@ -154,7 +154,7 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::services::jwt::*;
-    use jsonwebtoken::TokenData;
+
     use jsonwebtoken::{
         decode, decode_header, Algorithm, DecodingKey, Validation,
     };
@@ -170,7 +170,7 @@ mod tests {
         let _decoded = decode_jwt(token).unwrap();
         let header = decode_header(token);
         let token = decode::<Claims>(
-            &token,
+            token,
             &DecodingKey::from_rsa_components(n, e).unwrap(),
             &Validation::new(Algorithm::RS256),
         );
@@ -182,10 +182,7 @@ mod tests {
     fn test_jwt2() {
         let token: &str = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJodi00Tk4zdVZXb3Z5clBTOXFkcVUwYWZUQWQtTmZmdENySW56SzRibktNIn0.eyJleHAiOjE3MTU3Njk1MTEsImlhdCI6MTcxNTc2OTIxMSwiYXV0aF90aW1lIjoxNzE1NzY5MjEwLCJqdGkiOiJjOGM4NTljZC01ODg4LTRjZTctYjUzZS0yMjQzODNiNDhjNWUiLCJpc3MiOiJodHRwczovL2tleWNsb2FrLXVhLnNlcXVlbnQudm90ZS9hdXRoL3JlYWxtcy90ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LTM4OGIzZWZmLWU1ODMtNGE1Ni04MmI3LTBhZDE1ZWFhNDA5YSIsInN1YiI6IjY2OTcxYWIwLTFlNmQtNGZjNS1iNzI2LTliZmRkNzgyNDAyMSIsInR5cCI6IkJlYXJlciIsImF6cCI6InZvdGluZy1wb3J0YWwiLCJub25jZSI6ImQzNThjZmQ4LTFlYWQtNDlkYy04NWJjLThlMWYwMTE4MjIxMCIsInNlc3Npb25fc3RhdGUiOiI2Y2RmN2I1ZC1lYmMwLTRjOTUtODFlMC00MWE2NjE5NDlhMWIiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbIioiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbInVzZXIiXX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJzaWQiOiI2Y2RmN2I1ZC1lYmMwLTRjOTUtODFlMC00MWE2NjE5NDlhMWIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaHR0cHM6Ly9oYXN1cmEuaW8vand0L2NsYWltcyI6eyJ4LWhhc3VyYS1kZWZhdWx0LXJvbGUiOiJ1c2VyIiwieC1oYXN1cmEtYXJlYS1pZCI6IjI4YmRmOWIyLTA2YmMtNDRkZC1iMzJkLTc1OTIwNGJlMTlkNSIsIngtaGFzdXJhLXRlbmFudC1pZCI6IjkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSIsIngtaGFzdXJhLXVzZXItaWQiOiI2Njk3MWFiMC0xZTZkLTRmYzUtYjcyNi05YmZkZDc4MjQwMjEiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbInVzZXIiXX0sIm5hbWUiOiJCRUdPw5FBIENFQkFMTE9TIENBTUFSRVJPIC0iLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJiLmNlYmFsbG9zQHVhLmVzIiwiZ2l2ZW5fbmFtZSI6IkJFR0_DkUEgQ0VCQUxMT1MgQ0FNQVJFUk8iLCJmYW1pbHlfbmFtZSI6Ii0iLCJlbWFpbCI6ImIuY2ViYWxsb3NAdWEuZXMifQ.G6IwhFvxrCFxKicbcoVcwuOVSWTRjcy31RWqHWha8E5Kz7tNn8KpUsADy595rZEsLeG5tGvyJ98PMoN2L7RInGKssxx6zRGo5kwa5qHW2sndTwyvjrjPlaZlTB3tNPa2uqTOn6ztfFfqFmAlKB2ig29NThUyqIHnMq502jPPK3a3LZcPBrAvrOUtlEJPxO3MKz2ItQy-YfAdIajR1T1BJmo5b-nzMqpEPFFae1rxKAV5SgyOhhSL2R-K5rKfmoJiUhudB132cgioWAcsw8L1LzA6esIPSn5apN_4y13LcqtbCPXJi0PxDwkKx4r5M-LUwWCcJMneI3aLOGs-cxo8pQ";
 
-        let decoded = decode_jwt(token);
-        println!("{:?}", decoded);
-
-        let header = decode_header(token);
-        assert!(true);
+        assert!(decode_jwt(token).is_ok());
+        assert_eq!(decode_header(token).unwrap().alg, Algorithm::RS256);
     }
 }

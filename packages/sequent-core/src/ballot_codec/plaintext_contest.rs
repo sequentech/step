@@ -46,7 +46,7 @@ impl PlaintextCodec for Contest {
         &self,
         code: &[u8; 30],
     ) -> Result<DecodedVoteContest, String> {
-        let plaintext_bytes = decode_array_to_vec(code);
+        let plaintext_bytes = decode_array_to_vec(code)?;
 
         self.decode_plaintext_contest_from_bytes(&plaintext_bytes)
     }
@@ -55,7 +55,7 @@ impl PlaintextCodec for Contest {
         &self,
         code: &[u8; 30],
     ) -> Result<BigUint, String> {
-        let plaintext_bytes = decode_array_to_vec(code);
+        let plaintext_bytes = decode_array_to_vec(code)?;
         decode_bigint_from_bytes(&plaintext_bytes)
     }
 
@@ -71,7 +71,7 @@ impl PlaintextCodec for Contest {
         &self,
         bytes: &[u8],
     ) -> Result<DecodedVoteContest, String> {
-        let bigint = decode_bigint_from_bytes(&bytes)?;
+        let bigint = decode_bigint_from_bytes(bytes)?;
         self.decode_plaintext_contest_bigint(&bigint)
     }
 }
@@ -81,7 +81,6 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::util::normalize_vote::normalize_vote_contest;
-    use std::cmp;
 
     #[test]
     fn test_encoding_plaintext() {
@@ -94,7 +93,7 @@ mod tests {
         let encoded_plaintext =
             contest.encode_plaintext_contest(&decoded_contest).unwrap();
 
-        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext); // test
+        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext).unwrap(); // test
         let decoded_bigint =
             decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
 
@@ -208,7 +207,7 @@ mod tests {
                     fixture.contest.get_invalid_candidate_ids();
                 assert_eq!(
                     normalize_vote_contest(
-                        &decoded_ballot,
+                        decoded_ballot,
                         fixture.contest.get_counting_algorithm(),
                         false,
                         &invalid_candidate_ids

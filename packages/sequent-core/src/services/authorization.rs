@@ -2,11 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::jwt::JwtClaims;
-use crate::ballot::{VotingStatus, VotingStatusChannel};
+use crate::ballot::VotingStatusChannel;
 use crate::types::permissions::{Permissions, VoterPermissions};
-use anyhow::Context;
 use rocket::http::Status;
-use rocket::response::status::Unauthorized;
 use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};
@@ -31,7 +29,7 @@ pub fn authorize(
                 .map_err(|_| {
                     (
                         Status::Unauthorized,
-                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                        "SUPER_ADMIN_TENANT_ID must be set".to_string(),
                     )
                 })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");

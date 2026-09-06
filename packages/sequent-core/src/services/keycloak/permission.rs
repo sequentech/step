@@ -32,7 +32,7 @@ impl From<Permission> for RoleRepresentation {
             description: item.description.clone(),
             id: item.id.clone(),
             name: item.name.clone(),
-            scope_param_required: None,
+            ..Default::default()
         }
     }
 }
@@ -91,7 +91,7 @@ impl KeycloakAdminClient {
         permissions_name: &Vec<String>,
     ) -> Result<()> {
         let permission_roles: Vec<_> = permissions_name
-            .into_iter()
+            .iter()
             .map(|permission_name| {
                 self.client
                     .realm_roles_with_role_name_get(realm, permission_name)

@@ -48,10 +48,7 @@ fn remove_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     }
     choices.remove(i);
     bases.remove(i);
-    RawBallotContest {
-        bases: bases,
-        choices: choices,
-    }
+    RawBallotContest { bases, choices }
 }
 
 fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
@@ -63,10 +60,7 @@ fn add_character(raw_ballot: &RawBallotContest) -> RawBallotContest {
     }
     choices.insert(i, bases[i] - 1);
     bases.insert(i, bases[i]);
-    RawBallotContest {
-        bases: bases,
-        choices: choices,
-    }
+    RawBallotContest { bases, choices }
 }
 
 impl BigUIntCodec for Contest {
@@ -75,7 +69,7 @@ impl BigUIntCodec for Contest {
         plaintext: &DecodedVoteContest,
     ) -> Result<i32, String> {
         let available_chars_estimate =
-            self.available_write_in_characters_estimate(&plaintext)?;
+            self.available_write_in_characters_estimate(plaintext)?;
         let mut raw_ballot = self.encode_to_raw_ballot(plaintext)?;
         let mut bigint = encode(&raw_ballot.choices, &raw_ballot.bases)?;
         let mut bytes_vec = encode_bigint_to_bytes(&bigint)?;
@@ -123,7 +117,7 @@ impl BigUIntCodec for Contest {
     ) -> Result<RawBallotContest, String> {
         let mut bases = self.get_bases().map_err(|e| e.to_string())?;
         let last_base = self.get_char_map().base();
-        let choices = decode(&bases, &bigint, last_base)?;
+        let choices = decode(&bases, bigint, last_base)?;
 
         while bases.len() < choices.len() {
             bases.push(last_base);
@@ -136,10 +130,10 @@ impl BigUIntCodec for Contest {
         &self,
         bigint: &BigUint,
     ) -> Result<DecodedVoteContest, String> {
-        let raw_ballot = self.bigint_to_raw_ballot(&bigint)?;
+        let raw_ballot = self.bigint_to_raw_ballot(bigint)?;
 
         let decoded_base = self.decode_from_raw_ballot(&raw_ballot)?;
-        let with_more_errors = check_contest(&self, &decoded_base);
+        let with_more_errors = check_contest(self, &decoded_base);
         Ok(with_more_errors)
     }
 }
@@ -149,7 +143,6 @@ mod tests {
     use crate::ballot_codec::*;
     use crate::fixtures::ballot_codec::*;
     use crate::util::normalize_vote::normalize_vote_contest;
-    use std::cmp;
 
     #[test]
     fn test_encoding_plaintext_bigint() {
@@ -193,7 +186,7 @@ mod tests {
                         &fixture.plaintext,
                         fixture.contest.get_counting_algorithm(),
                         false,
-                        &vec![]
+                        &[]
                     )
                     .choices,
                     normalize_vote_contest(
@@ -201,7 +194,7 @@ mod tests {
                             .expect("Expected value but got error"),
                         fixture.contest.get_counting_algorithm(),
                         false,
-                        &vec![]
+                        &[]
                     )
                     .choices
                 );

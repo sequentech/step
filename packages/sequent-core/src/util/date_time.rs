@@ -24,8 +24,8 @@ pub fn get_system_timezone() -> TimeZone {
 
 pub fn get_date_and_time() -> String {
     let current_date_time = Local::now();
-    let printed_datetime = current_date_time.to_rfc3339();
-    printed_datetime
+
+    current_date_time.to_rfc3339()
 }
 
 pub fn generate_timestamp(

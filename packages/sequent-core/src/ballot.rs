@@ -5,9 +5,6 @@
 #![allow(dead_code)]
 use crate::encrypt::hash_ballot_style;
 use crate::error::BallotError;
-use crate::plaintext::{
-    DecodedVoteChoice, DecodedVoteContest, PreferencialOrderErrorType,
-};
 use crate::serialization::base64::{Base64Deserialize, Base64Serialize};
 use crate::serialization::deserialize_with_path::deserialize_value;
 use crate::services::tally_sheet_validation::effective_max_marks_per_ballot_typed;
@@ -18,7 +15,6 @@ use crate::types::ceremonies::{
 use crate::types::hasura::core as hasura_core;
 use crate::types::hasura::core::{Area, ElectionEvent};
 use ::core::convert::TryInto;
-use anyhow::anyhow;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use chrono::Utc;
@@ -110,13 +106,12 @@ impl AuditableBallot {
     }
 
     pub fn serialize_contests<C: Ctx>(
-        contests: &Vec<AuditableBallotContest<C>>,
+        contests: &[AuditableBallotContest<C>],
     ) -> Result<Vec<String>, BallotError> {
         contests
-            .clone()
-            .into_iter()
+            .iter()
             .map(|auditable_ballot_contest| {
-                Base64Serialize::serialize(&auditable_ballot_contest)
+                Base64Serialize::serialize(auditable_ballot_contest)
             })
             .collect::<Vec<Result<String, BallotError>>>()
             .into_iter()
@@ -177,13 +172,12 @@ impl HashableBallot {
     }
 
     pub fn serialize_contests<C: Ctx>(
-        contests: &Vec<HashableBallotContest<C>>,
+        contests: &[HashableBallotContest<C>],
     ) -> Result<Vec<String>, BallotError> {
         contests
-            .clone()
-            .into_iter()
+            .iter()
             .map(|hashable_ballot_contest| {
-                Base64Serialize::serialize(&hashable_ballot_contest)
+                Base64Serialize::serialize(hashable_ballot_contest)
             })
             .collect::<Vec<Result<String, BallotError>>>()
             .into_iter()
@@ -201,7 +195,7 @@ impl SignedHashableBallot {
     }
 
     pub fn serialize_contests<C: Ctx>(
-        contests: &Vec<HashableBallotContest<C>>,
+        contests: &[HashableBallotContest<C>],
     ) -> Result<Vec<String>, BallotError> {
         HashableBallot::serialize_contests(contests)
     }
@@ -215,7 +209,7 @@ impl<C: Ctx> TryFrom<&HashableBallot> for RawHashableBallot<C> {
         Ok(RawHashableBallot {
             version: value.version,
             issue_date: value.issue_date.clone(),
-            contests: contests,
+            contests,
         })
     }
 }
@@ -237,8 +231,7 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
                 "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
+                value.version, TYPES_VERSION
             )));
         }
 
@@ -247,11 +240,9 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
             contests
                 .iter()
                 .map(|auditable_ballot_contest| {
-                    let hashable_ballot_contest =
-                        HashableBallotContest::<RistrettoCtx>::from(
-                            auditable_ballot_contest,
-                        );
-                    hashable_ballot_contest
+                    HashableBallotContest::<RistrettoCtx>::from(
+                        auditable_ballot_contest,
+                    )
                 })
                 .collect();
         let ballot_style_hash =
@@ -268,7 +259,7 @@ impl TryFrom<&AuditableBallot> for SignedHashableBallot {
                 &hashable_ballot_contest,
             )?,
             config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash,
+            ballot_style_hash,
             voter_signing_pk: value.voter_signing_pk.clone(),
             voter_ballot_signature: value.voter_ballot_signature.clone(),
         })
@@ -281,8 +272,7 @@ impl TryFrom<&SignedHashableBallot> for HashableBallot {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
                 "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
+                value.version, TYPES_VERSION
             )));
         }
 
@@ -407,17 +397,17 @@ pub fn get_ballot_bytes_for_signing(
     let bytes = ballot_id.as_bytes();
     let length = (bytes.len() as u64).to_le_bytes();
     ret.extend_from_slice(&length);
-    ret.extend_from_slice(&bytes);
+    ret.extend_from_slice(bytes);
 
     let bytes = election_id.as_bytes();
     let length = (bytes.len() as u64).to_le_bytes();
     ret.extend_from_slice(&length);
-    ret.extend_from_slice(&bytes);
+    ret.extend_from_slice(bytes);
 
     let bytes = content;
     let length = (bytes.len() as u64).to_le_bytes();
     ret.extend_from_slice(&length);
-    ret.extend_from_slice(&bytes);
+    ret.extend_from_slice(bytes);
 
     ret
 }
@@ -515,40 +505,35 @@ impl Candidate {
     pub fn is_category_list(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.is_category_list)
-            .flatten()
+            .and_then(|presentation| presentation.is_category_list)
             .unwrap_or(false)
     }
 
     pub fn is_explicit_invalid(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.is_explicit_invalid)
-            .flatten()
+            .and_then(|presentation| presentation.is_explicit_invalid)
             .unwrap_or(false)
     }
 
     pub fn is_explicit_blank(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.is_explicit_blank)
-            .flatten()
+            .and_then(|presentation| presentation.is_explicit_blank)
             .unwrap_or(false)
     }
 
     pub fn is_disabled(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.is_disabled)
-            .flatten()
+            .and_then(|presentation| presentation.is_disabled)
             .unwrap_or(false)
     }
 
     pub fn is_write_in(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.is_write_in)
-            .flatten()
+            .and_then(|presentation| presentation.is_write_in)
             .unwrap_or(false)
     }
 
@@ -564,8 +549,7 @@ impl Candidate {
     }
 
     pub fn set_is_write_in(&mut self, is_write_in: bool) {
-        let mut presentation =
-            self.presentation.clone().unwrap_or(Default::default());
+        let mut presentation = self.presentation.clone().unwrap_or_default();
         presentation.is_write_in = Some(is_write_in);
         self.presentation = Some(presentation);
     }
@@ -942,6 +926,10 @@ pub enum CandidatesSelectionPolicy {
     Display,
     Default,
 )]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the existing public checkbox-policy variant names and callers"
+)]
 pub enum CandidatesIconCheckboxPolicy {
     #[strum(serialize = "square-checkbox")]
     #[serde(rename = "square-checkbox")]
@@ -1193,10 +1181,7 @@ impl ElectionEvent {
         &self,
     ) -> Result<Option<ElectionEventPresentation>, Error<serde_json::Error>>
     {
-        self.presentation
-            .clone()
-            .map(|presentation_value| deserialize_value(presentation_value))
-            .transpose()
+        self.presentation.clone().map(deserialize_value).transpose()
     }
 }
 
@@ -1253,6 +1238,7 @@ pub struct VotingPeriodDates {
     Clone,
     EnumString,
     Display,
+    Default,
 )]
 pub enum EInitializeReportPolicy {
     #[strum(serialize = "required")]
@@ -1260,13 +1246,8 @@ pub enum EInitializeReportPolicy {
     REQUIRED,
     #[strum(serialize = "not-required")]
     #[serde(rename = "not-required")]
+    #[default]
     NOT_REQUIRED,
-}
-
-impl Default for EInitializeReportPolicy {
-    fn default() -> Self {
-        EInitializeReportPolicy::NOT_REQUIRED
-    }
 }
 
 #[derive(
@@ -1511,8 +1492,7 @@ impl hasura_core::Election {
         let election_presentation: Option<ElectionPresentation> = self
             .presentation
             .clone()
-            .map(|value| deserialize_value(value).ok())
-            .flatten();
+            .and_then(|value| deserialize_value(value).ok());
 
         election_presentation
     }
@@ -1568,7 +1548,7 @@ pub struct AreaPresentation {
 
 impl AreaPresentation {
     pub fn is_early_voting(&self) -> bool {
-        self.allow_early_voting.clone().unwrap_or_default()
+        self.allow_early_voting.unwrap_or_default()
             == EarlyVotingPolicy::AllowEarlyVoting
     }
 }
@@ -1751,8 +1731,7 @@ impl Contest {
     pub fn allow_writeins(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.allow_writeins)
-            .flatten()
+            .and_then(|presentation| presentation.allow_writeins)
             .unwrap_or(false)
     }
 
@@ -1780,8 +1759,7 @@ impl Contest {
     pub fn base32_writeins(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.base32_writeins)
-            .flatten()
+            .and_then(|presentation| presentation.base32_writeins)
             .unwrap_or(true)
     }
 
@@ -1810,8 +1788,7 @@ impl Contest {
     pub fn show_points(&self) -> bool {
         self.presentation
             .as_ref()
-            .map(|presentation| presentation.show_points)
-            .flatten()
+            .and_then(|presentation| presentation.show_points)
             .unwrap_or(false)
     }
 
@@ -2107,14 +2084,10 @@ impl ElectionEventStatus {
         channel: VotingStatusChannel,
     ) -> VotingStatus {
         match channel {
-            VotingStatusChannel::ONLINE => self.voting_status.clone(),
-            VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
-            VotingStatusChannel::EARLY_VOTING => {
-                self.early_voting_status.clone()
-            }
-            VotingStatusChannel::TELEPHONE => {
-                self.telephone_voting_status.clone()
-            }
+            VotingStatusChannel::ONLINE => self.voting_status,
+            VotingStatusChannel::KIOSK => self.kiosk_voting_status,
+            VotingStatusChannel::EARLY_VOTING => self.early_voting_status,
+            VotingStatusChannel::TELEPHONE => self.telephone_voting_status,
         }
     }
 
@@ -2145,21 +2118,21 @@ impl ElectionEventStatus {
         channel: VotingStatusChannel,
         new_status: VotingStatus,
     ) {
-        let mut period_dates = match channel {
+        let period_dates = match channel {
             VotingStatusChannel::ONLINE => {
-                self.voting_status = new_status.clone();
+                self.voting_status = new_status;
                 &mut self.voting_period_dates
             }
             VotingStatusChannel::KIOSK => {
-                self.kiosk_voting_status = new_status.clone();
+                self.kiosk_voting_status = new_status;
                 &mut self.kiosk_voting_period_dates
             }
             VotingStatusChannel::EARLY_VOTING => {
-                self.early_voting_status = new_status.clone();
+                self.early_voting_status = new_status;
                 &mut self.early_voting_period_dates
             }
             VotingStatusChannel::TELEPHONE => {
-                self.telephone_voting_status = new_status.clone();
+                self.telephone_voting_status = new_status;
                 &mut self.telephone_voting_period_dates
             }
         };
@@ -2302,11 +2275,11 @@ impl VotingStatusChannel {
         &self,
         channels: &hasura_core::VotingChannels,
     ) -> Option<bool> {
-        match self {
-            &VotingStatusChannel::ONLINE => channels.online.clone(),
-            &VotingStatusChannel::KIOSK => channels.kiosk.clone(),
-            &VotingStatusChannel::EARLY_VOTING => channels.early_voting.clone(),
-            &VotingStatusChannel::TELEPHONE => channels.telephone.clone(),
+        match *self {
+            VotingStatusChannel::ONLINE => channels.online,
+            VotingStatusChannel::KIOSK => channels.kiosk,
+            VotingStatusChannel::EARLY_VOTING => channels.early_voting,
+            VotingStatusChannel::TELEPHONE => channels.telephone,
         }
     }
 }
@@ -2538,7 +2511,7 @@ impl PeriodDates {
         };
         *last = Some(Utc::now());
         if first.is_none() {
-            *first = last.clone();
+            *first = *last;
         }
     }
 
@@ -2604,14 +2577,10 @@ impl ElectionStatus {
         channel: VotingStatusChannel,
     ) -> VotingStatus {
         match channel {
-            VotingStatusChannel::ONLINE => self.voting_status.clone(),
-            VotingStatusChannel::KIOSK => self.kiosk_voting_status.clone(),
-            VotingStatusChannel::EARLY_VOTING => {
-                self.early_voting_status.clone()
-            }
-            VotingStatusChannel::TELEPHONE => {
-                self.telephone_voting_status.clone()
-            }
+            VotingStatusChannel::ONLINE => self.voting_status,
+            VotingStatusChannel::KIOSK => self.kiosk_voting_status,
+            VotingStatusChannel::EARLY_VOTING => self.early_voting_status,
+            VotingStatusChannel::TELEPHONE => self.telephone_voting_status,
         }
     }
 
@@ -2662,19 +2631,19 @@ impl ElectionStatus {
     ) {
         let period_dates = match channel {
             VotingStatusChannel::ONLINE => {
-                self.voting_status = new_status.clone();
+                self.voting_status = new_status;
                 &mut self.voting_period_dates
             }
             VotingStatusChannel::KIOSK => {
-                self.kiosk_voting_status = new_status.clone();
+                self.kiosk_voting_status = new_status;
                 &mut self.kiosk_voting_period_dates
             }
             VotingStatusChannel::EARLY_VOTING => {
-                self.early_voting_status = new_status.clone();
+                self.early_voting_status = new_status;
                 &mut self.early_voting_period_dates
             }
             VotingStatusChannel::TELEPHONE => {
-                self.telephone_voting_status = new_status.clone();
+                self.telephone_voting_status = new_status;
                 &mut self.telephone_voting_period_dates
             }
         };
@@ -2775,7 +2744,7 @@ pub struct Weight(Option<u64>);
 
 impl Default for Weight {
     fn default() -> Self {
-        Self { 0: Some(1) } // default weight is 1
+        Self(Some(1)) // default weight is 1
     }
 }
 
@@ -2834,6 +2803,10 @@ impl Area {
     Default,
     JsonSchema,
 )]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the existing public weighted-voting policy variant names and callers"
+)]
 pub enum WeightedVotingPolicy {
     #[default]
     #[serde(rename = "disabled-weighted-voting")]
@@ -2879,6 +2852,10 @@ pub enum DelegatedVotingPolicy {
     EnumString,
     Default,
     JsonSchema,
+)]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the existing public report-policy variant names and callers"
 )]
 pub enum ConsolidatedReportPolicy {
     #[default]

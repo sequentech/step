@@ -429,7 +429,7 @@ pub struct KeysCeremony {
 
 impl KeysCeremony {
     pub fn is_default(&self) -> bool {
-        self.is_default.clone().unwrap_or(true)
+        self.is_default.unwrap_or(true)
     }
 
     pub fn execution_status(&self) -> Result<KeysCeremonyExecutionStatus> {

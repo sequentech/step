@@ -15,8 +15,6 @@ use crate::ballot::get_ballot_bytes_for_signing;
 use crate::ballot::SignedContent;
 use crate::ballot::TYPES_VERSION;
 use crate::ballot::{BallotStyle, ReplicationChoice};
-use base64::engine::general_purpose;
-use base64::Engine;
 use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignature;
 use strand::signature::StrandSignaturePk;
@@ -88,10 +86,8 @@ impl AuditableMultiBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<AuditableMultiBallotContests<C>, BallotError> {
-        let ret = Base64Deserialize::deserialize(self.contests.clone())
-            .map_err(|err| BallotError::Serialization(err.to_string()));
-
-        ret
+        Base64Deserialize::deserialize(self.contests.clone())
+            .map_err(|err| BallotError::Serialization(err.to_string()))
     }
 
     pub fn serialize_contests<C: Ctx>(
@@ -105,10 +101,8 @@ impl HashableMultiBallot {
     pub fn deserialize_contests<C: Ctx>(
         &self,
     ) -> Result<HashableMultiBallotContests<C>, BallotError> {
-        let ret = Base64Deserialize::deserialize(self.contests.clone())
-            .map_err(|err| BallotError::Serialization(err.to_string()));
-
-        ret
+        Base64Deserialize::deserialize(self.contests.clone())
+            .map_err(|err| BallotError::Serialization(err.to_string()))
     }
 
     pub fn serialize_contests<C: Ctx>(
@@ -141,8 +135,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
                 "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
+                value.version, TYPES_VERSION
             )));
         }
 
@@ -165,7 +158,7 @@ impl TryFrom<&AuditableMultiBallot> for HashableMultiBallot {
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash,
+            ballot_style_hash,
         })
     }
 }
@@ -177,8 +170,7 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
                 "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
+                value.version, TYPES_VERSION
             )));
         }
 
@@ -201,7 +193,7 @@ impl TryFrom<&AuditableMultiBallot> for SignedHashableMultiBallot {
                 &hashable_ballot_contests,
             )?,
             config: value.config.id.clone(),
-            ballot_style_hash: ballot_style_hash,
+            ballot_style_hash,
             voter_signing_pk: value.voter_signing_pk.clone(),
             voter_ballot_signature: value.voter_ballot_signature.clone(),
         })
@@ -216,8 +208,7 @@ impl TryFrom<&SignedHashableMultiBallot> for HashableMultiBallot {
         if TYPES_VERSION != value.version {
             return Err(BallotError::Serialization(format!(
                 "Unexpected version {}, expected {}",
-                value.version.to_string(),
-                TYPES_VERSION
+                value.version, TYPES_VERSION
             )));
         }
 
@@ -239,7 +230,7 @@ impl<C: Ctx> TryFrom<&HashableMultiBallot> for RawHashableMultiBallot<C> {
         Ok(RawHashableMultiBallot {
             version: value.version,
             issue_date: value.issue_date.clone(),
-            contests: contests,
+            contests,
         })
     }
 }

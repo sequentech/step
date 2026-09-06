@@ -43,7 +43,7 @@ impl RawBallotCodec for Contest {
         &self,
         plaintext: &DecodedVoteContest,
     ) -> Result<i32, String> {
-        let raw_ballot = self.encode_to_raw_ballot(&plaintext)?;
+        let raw_ballot = self.encode_to_raw_ballot(plaintext)?;
         let used_bits = raw_ballot
             .bases
             .iter()
@@ -404,7 +404,7 @@ impl RawBallotCodec for Contest {
             + usize::from(is_explicit_invalid)
             + usize::from(is_explicit_blank);
 
-        if let Some(max_votes) = max_votes.clone() {
+        if let Some(max_votes) = max_votes {
             let overvote_check = check_over_vote_policy(
                 &presentation,
                 num_selected_with_markers,
@@ -413,7 +413,7 @@ impl RawBallotCodec for Contest {
             decoded_contest.update(overvote_check);
         }
 
-        if let Some(min_votes) = min_votes.clone() {
+        if let Some(min_votes) = min_votes {
             let min_check =
                 check_min_vote_policy(num_selected_with_markers, min_votes);
             decoded_contest.update(min_check);
@@ -422,8 +422,8 @@ impl RawBallotCodec for Contest {
         let under_vote_check = check_under_vote_policy(
             &presentation,
             num_selected_with_markers,
-            max_votes.clone(),
-            min_votes.clone(),
+            max_votes,
+            min_votes,
         );
         decoded_contest.update(under_vote_check);
 
@@ -468,7 +468,7 @@ mod tests {
     use raw_ballot::EUnderVotePolicy;
 
     use crate::ballot;
-    use crate::ballot_codec::*;
+
     use crate::fixtures::ballot_codec::*;
     use crate::mixed_radix::encode;
     use crate::types::ceremonies::CountingAlgType;
@@ -517,9 +517,9 @@ mod tests {
                 fixture.expected_errors.and_then(|expected_map| {
                     expected_map.get("contest_encode_raw_ballot").cloned()
                 });
-            if expected_error.is_some() {
+            if let Some(expected_error) = expected_error {
                 assert_eq!(
-                    expected_error.unwrap(),
+                    expected_error,
                     encoded_ballot.expect_err("Expected error!")
                 );
             } else {
@@ -579,16 +579,8 @@ mod tests {
                     .iter()
                     .filter(|choice| choice.selected > -1)
                     .count();
-                let max_votes = match usize::try_from(fixture.contest.max_votes)
-                {
-                    Ok(val) => Some(val),
-                    Err(_) => None,
-                };
-                let min_votes = match usize::try_from(fixture.contest.min_votes)
-                {
-                    Ok(val) => Some(val),
-                    Err(_) => None,
-                };
+                let max_votes = usize::try_from(fixture.contest.max_votes).ok();
+                let min_votes = usize::try_from(fixture.contest.min_votes).ok();
 
                 if let (Some(max_votes), Some(min_votes)) =
                     (max_votes, min_votes)
@@ -653,11 +645,7 @@ mod tests {
             .expect("Failed to decode raw ballot to plaintext");
 
         // Compare the selections of the choices
-        assert_eq!(
-            decoded_plaintext.is_invalid(),
-            true,
-            "Ballot should be invalid"
-        );
+        assert!(decoded_plaintext.is_invalid(), "Ballot should be invalid");
     }
 
     #[test]

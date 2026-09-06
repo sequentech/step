@@ -20,11 +20,9 @@ use crate::multi_ballot::{
     AuditableMultiBallot, AuditableMultiBallotContests, HashableMultiBallot,
     RawHashableMultiBallot,
 };
-use crate::plaintext::map_decoded_ballot_choices_to_decoded_contests;
 use crate::plaintext::DecodedVoteContest;
 use crate::serialization::base64::Base64Deserialize;
 use crate::util::date::get_current_date;
-use crate::util::normalize_vote::normalize_election;
 use base64::engine::general_purpose;
 use base64::Engine;
 use std::collections::{HashMap, HashSet};
@@ -77,9 +75,9 @@ pub fn encrypt_plaintext_candidate<C: Ctx>(
 
     Ok((
         ReplicationChoice {
-            ciphertext: ciphertext,
-            plaintext: plaintext,
-            randomness: randomness,
+            ciphertext,
+            plaintext,
+            randomness,
         },
         proof,
     ))
@@ -140,7 +138,7 @@ fn recreate_encrypt_candidate<C: Ctx>(
 
     // convert to output format
     Ok(ReplicationChoice {
-        ciphertext: ciphertext,
+        ciphertext,
         plaintext: choice.plaintext.clone(),
         randomness: choice.randomness.clone(),
     })
@@ -288,7 +286,7 @@ fn validate_ballot_level_flags(
 }
 
 pub fn encode_to_plaintext_decoded_multi_contest(
-    decoded_contests: &Vec<DecodedVoteContest>,
+    decoded_contests: &[DecodedVoteContest],
     config: &BallotStyle,
 ) -> Result<([u8; 30], BallotChoices), BallotError> {
     let votable_contests = votable_decoded_contests(decoded_contests, config)?;
@@ -312,7 +310,7 @@ pub fn encode_to_plaintext_decoded_multi_contest(
     );
 
     let plaintext =
-        ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
+        ballot_choices.encode_to_30_bytes(config).map_err(|err| {
             BallotError::Serialization(format!(
                 "Error encrypting plaintext: {}",
                 err
@@ -324,7 +322,7 @@ pub fn encode_to_plaintext_decoded_multi_contest(
 
 pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
-    decoded_contests: &Vec<DecodedVoteContest>,
+    decoded_contests: &[DecodedVoteContest],
     config: &BallotStyle,
 ) -> Result<AuditableMultiBallot, BallotError> {
     let votable_contests = votable_decoded_contests(decoded_contests, config)?;
@@ -352,10 +350,10 @@ pub fn encrypt_decoded_multi_contest<C: Ctx<P = [u8; 30]>>(
 
 pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
     ctx: &C,
-    decoded_contests: &Vec<DecodedVoteContest>,
+    decoded_contests: &[DecodedVoteContest],
     config: &BallotStyle,
 ) -> Result<AuditableBallot, BallotError> {
-    let public_key: C::E = parse_public_key::<C>(&config)?;
+    let public_key: C::E = parse_public_key::<C>(config)?;
 
     let mut contests: Vec<AuditableBallotContest<C>> = vec![];
 
@@ -373,7 +371,7 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
                 ))
             })?;
         let plaintext = contest
-            .encode_plaintext_contest(&decoded_contest)
+            .encode_plaintext_contest(decoded_contest)
             .map_err(|err| {
                 BallotError::Serialization(format!(
                     "Error encrypting plaintext: {}",
@@ -388,8 +386,8 @@ pub fn encrypt_decoded_contest<C: Ctx<P = [u8; 30]>>(
         )?;
         contests.push(AuditableBallotContest::<C> {
             contest_id: contest.id.clone(),
-            choice: choice,
-            proof: proof,
+            choice,
+            proof,
         });
     }
 
@@ -490,9 +488,9 @@ pub fn encrypt_multi_ballot<C: Ctx<P = [u8; 30]>>(
         )));
     }
 
-    let public_key: C::E = parse_public_key::<C>(&config)?;
+    let public_key: C::E = parse_public_key::<C>(config)?;
     let plaintext =
-        ballot_choices.encode_to_30_bytes(&config).map_err(|err| {
+        ballot_choices.encode_to_30_bytes(config).map_err(|err| {
             BallotError::Serialization(format!(
                 "Error encrypting plaintext: {}",
                 err
@@ -556,8 +554,7 @@ mod tests {
     use crate::ballot_codec::vec;
     use crate::encrypt;
     use crate::fixtures::ballot_codec::*;
-    use crate::plaintext::DecodedVoteContest;
-    use crate::serialization::deserialize_with_path::deserialize_value;
+
     use crate::util::normalize_vote::normalize_vote_contest;
 
     use strand::backend::ristretto::RistrettoCtx;
@@ -599,15 +596,15 @@ mod tests {
         let auditable_ballot =
             encrypt::encrypt_decoded_contest::<RistrettoCtx>(
                 &ctx,
-                &vec![decoded_contest.clone()],
+                std::slice::from_ref(&decoded_contest),
                 &ballot_style,
             )
             .unwrap();
         let contests = auditable_ballot
             .deserialize_contests::<RistrettoCtx>()
             .unwrap();
-        let plaintext = contests[0].choice.plaintext.clone();
-        let plaintext_vec = vec::decode_array_to_vec(&plaintext); // compare
+        let plaintext = contests[0].choice.plaintext;
+        let plaintext_vec = vec::decode_array_to_vec(&plaintext).unwrap(); // compare
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
         let decoded_plaintext =
@@ -633,7 +630,7 @@ mod tests {
         use crate::ballot_codec::bigint::BigUIntCodec;
         use crate::ballot_codec::raw_ballot::RawBallotCodec;
 
-        let ctx = RistrettoCtx;
+        let _ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
         let contest = ballot_style.contests[0].clone();
         let invalid_candidate_ids = contest.get_invalid_candidate_ids();
@@ -644,12 +641,12 @@ mod tests {
 
         let decoded_contest = get_writein_plaintext();
 
-        let raw_ballot =
+        let _raw_ballot =
             contest.encode_to_raw_ballot(&decoded_contest).unwrap();
         let bigint = contest
             .encode_plaintext_contest_bigint(&decoded_contest)
             .unwrap();
-        let raw_ballot2 = contest.bigint_to_raw_ballot(&bigint).unwrap();
+        let _raw_ballot2 = contest.bigint_to_raw_ballot(&bigint).unwrap();
         //assert_eq!(raw_ballot, raw_ballot2);
 
         assert_eq!(bigint2.to_str_radix(10), bigint.to_str_radix(10));

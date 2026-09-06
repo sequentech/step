@@ -13,16 +13,13 @@ use crate::util::temp_path::{
 use anyhow::{anyhow, Context, Result};
 use aws_sdk_s3 as s3;
 use aws_sdk_s3::operation::create_multipart_upload::CreateMultipartUploadOutput;
-use aws_sdk_s3::types::{
-    CompletedMultipartUpload, CompletedPart, Delete, ObjectIdentifier,
-};
+use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use aws_smithy_types::byte_stream::{ByteStream, Length};
 use aws_smithy_types::error::metadata::ProvideErrorMetadata;
 use core::time::Duration;
 use s3::presigning::PresigningConfig;
-use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::{env, error::Error};
 use strum_macros::{Display, EnumString};
 use tempfile::{NamedTempFile, TempPath};
@@ -320,49 +317,6 @@ pub fn get_public_bucket() -> Result<String> {
     Ok(s3_bucket)
 }
 
-/// Creates a bucket when running against environments that manage buckets
-/// directly instead of pre-provisioning them.
-#[instrument(skip(client, config))]
-async fn create_bucket_if_not_exists(
-    client: &s3::Client,
-    config: &s3::Config,
-    bucket_name: &str,
-) -> Result<()> {
-    let region = config
-        .region()
-        .ok_or(anyhow!("Error getting region"))?
-        .to_string();
-    // Check if the bucket exists
-    if client
-        .head_bucket()
-        .bucket(bucket_name)
-        .send()
-        .await
-        .is_err()
-    {
-        info!("Bucket {bucket_name} doesn't exist - creating it");
-        client
-            .create_bucket()
-            .create_bucket_configuration(
-                s3::types::CreateBucketConfiguration::builder()
-                    .location_constraint(
-                        s3::types::BucketLocationConstraint::from(
-                            region.as_str(),
-                        ),
-                    )
-                    .build(),
-            )
-            .bucket(bucket_name)
-            .send()
-            .await
-            .with_context(|| {
-                format!("Error creating bucket with name={bucket_name}")
-            })?;
-        println!("Bucket {} created", bucket_name);
-    }
-    Ok(())
-}
-
 /// Wraps S3 client construction so callers rely on one place for config to
 /// client conversion.
 pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
@@ -562,6 +516,10 @@ pub async fn upload_file_to_s3(
 /// Streams a large file through S3 multipart upload so oversized reports and
 /// exports do not need to be buffered at once.
 #[instrument(err, skip_all)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the multipart upload API with explicit object location, access and content metadata"
+)]
 pub async fn upload_multipart_data_to_s3(
     path: &Path,
     key: String,
@@ -1003,7 +961,7 @@ pub async fn get_files_names_bytes_from_s3(
     if let Some(contents) = list_output.contents {
         for object in contents {
             if let Some(key) = object.key {
-                let file_name = key.split('/').last().unwrap();
+                let file_name = key.split('/').next_back().unwrap();
 
                 let get_obj_output = client
                     .get_object()

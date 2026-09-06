@@ -4,16 +4,15 @@
 use anyhow::{anyhow, Context as ContextAnyhow, Result};
 use chrono::{DateTime, Local, Utc};
 use handlebars::{
-    handlebars_helper, BlockParamHolder, Context, Handlebars, Helper,
-    HelperDef, HelperResult, JsonValue, Output, RenderContext, RenderError,
-    RenderErrorReason, Renderable, ScopedJson,
+    BlockParamHolder, Context, Handlebars, Helper, HelperDef, HelperResult,
+    JsonValue, Output, RenderContext, RenderError, RenderErrorReason,
+    Renderable, ScopedJson,
 };
 use handlebars_chrono::HandlebarsChronoDateTime;
 use num_format::{Locale, ToFormattedString};
 use serde_json::{json, to_string, Map, Value};
 use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
-use tracing::{info, instrument, warn};
+use tracing::{instrument, warn};
 
 fn get_registry<'reg>() -> Handlebars<'reg> {
     let mut reg = Handlebars::new();
@@ -208,7 +207,7 @@ pub fn expr_helper<'reg, 'rc>(
     h: &Helper<'rc>,
     _r: &'reg Handlebars<'reg>,
     _ctx: &'rc Context,
-    rc: &mut RenderContext<'reg, 'rc>,
+    _rc: &mut RenderContext<'reg, 'rc>,
     out: &mut dyn Output,
 ) -> Result<(), RenderError> {
     let value = h
@@ -313,19 +312,19 @@ pub fn url_encode(
     Ok(())
 }
 
+fn report_error(message: impl Into<String>) -> RenderError {
+    RenderErrorReason::Other(message.into()).into()
+}
+
 fn parse_u64_value(value: &JsonValue) -> Result<u64, RenderError> {
     match value {
         JsonValue::Number(n) => n.as_u64().ok_or_else(|| {
-            RenderError::new(format!(
-                "Expected u64 but got invalid number: {n}"
-            ))
+            report_error(format!("Expected u64 but got invalid number: {n}"))
         }),
         JsonValue::String(s) => s.parse::<u64>().map_err(|_| {
-            RenderError::new(format!("Failed to parse '{}' as u64", s))
+            report_error(format!("Failed to parse '{}' as u64", s))
         }),
-        _ => Err(RenderError::new(
-            "Expected u64 or a string representing an u64",
-        )),
+        _ => Err(report_error("Expected u64 or a string representing an u64")),
     }
 }
 
@@ -351,16 +350,12 @@ pub fn format_u64(
 fn parse_f64_value(value: &JsonValue) -> Result<f64, RenderError> {
     match value {
         JsonValue::Number(n) => n.as_f64().ok_or_else(|| {
-            RenderError::new(format!(
-                "Expected f64 but got invalid number: {n}"
-            ))
+            report_error(format!("Expected f64 but got invalid number: {n}"))
         }),
         JsonValue::String(s) => s.parse::<f64>().map_err(|_| {
-            RenderError::new(format!("Failed to parse '{}' as f64", s))
+            report_error(format!("Failed to parse '{}' as f64", s))
         }),
-        _ => Err(RenderError::new(
-            "Expected f64 or a string representing an f64",
-        )),
+        _ => Err(report_error("Expected f64 or a string representing an f64")),
     }
 }
 
@@ -390,7 +385,7 @@ impl HelperDef for divide {
         let divisor = parse_f64_value(divisor_value)?;
 
         if divisor == 0.0 {
-            return Err(RenderError::new("Division by zero"));
+            return Err(report_error("Division by zero"));
         }
 
         let result = dividend / divisor;
@@ -485,7 +480,7 @@ impl HelperDef for modulo {
         let divisor = parse_u64_value(divisor_value)?;
 
         if divisor == 0 {
-            return Err(RenderError::new("Modulo by zero"));
+            return Err(report_error("Modulo by zero"));
         }
 
         let result = dividend % divisor;
@@ -518,15 +513,17 @@ impl HelperDef for next {
         let index = parse_u64_value(index_value)?;
 
         // Check if the first parameter is an array
-        let array = array_value.as_array().ok_or_else(|| {
-            RenderError::new("First parameter must be an array")
-        })?;
-
-        // Calculate next index
-        let next_index = (index + 1) as usize;
+        let array = array_value
+            .as_array()
+            .ok_or_else(|| report_error("First parameter must be an array"))?;
 
         // Return the next element or null if it doesn't exist
-        let result = array.get(next_index).cloned().unwrap_or(JsonValue::Null);
+        let result = index
+            .checked_add(1)
+            .and_then(|next_index| usize::try_from(next_index).ok())
+            .and_then(|next_index| array.get(next_index))
+            .cloned()
+            .unwrap_or(JsonValue::Null);
 
         Ok(ScopedJson::Derived(result))
     }
@@ -666,7 +663,7 @@ pub fn format_date(
         // If the date string contains a time, assume "YYYY-MM-DD HH:MM:SS"
         DateTime::parse_from_str(date_str, "%Y-%m-%d %H:%M:%S")
             .map_err(|err| {
-                RenderError::new(format!(
+                report_error(format!(
                     "Date parsing error: {err:?}, date_json={date_json:?}"
                 ))
             })?
@@ -679,7 +676,7 @@ pub fn format_date(
             "%Y-%m-%d %H:%M:%S",
         )
         .map_err(|err| {
-            RenderError::new(format!(
+            report_error(format!(
                 "Date parsing error: {err:?}, date_json={date_json:?}"
             ))
         })?

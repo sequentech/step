@@ -102,6 +102,9 @@ pub fn get_tenant_realm(tenant_id: &str) -> String {
     format!("tenant-{}", tenant_id)
 }
 
+pub type RealmReplacements =
+    (Option<(String, String)>, Option<(String, String)>);
+
 /// Extracts tenant_id and election_event_id replacements from a realm config.
 ///
 /// This function parses the realm name to extract the old tenant_id and
@@ -121,7 +124,7 @@ pub fn extract_realm_replacements(
     realm_config: &RealmRepresentation,
     new_tenant_id: &str,
     new_election_event_id: &Option<String>,
-) -> (Option<(String, String)>, Option<(String, String)>) {
+) -> RealmReplacements {
     // Get the realm name
     let Some(realm_name) = realm_config.realm.as_ref() else {
         return (None, None);
@@ -467,7 +470,7 @@ impl KeycloakAdminClient {
         tenant_id: &str,
         keycloak_client: &PubKeycloakAdmin,
         group_id: &str,
-        roles: &Vec<RoleRepresentation>,
+        roles: &[RoleRepresentation],
         action: RoleAction,
     ) -> Result<(), KeycloakError> {
         let realm = format!("tenant-{}", tenant_id);

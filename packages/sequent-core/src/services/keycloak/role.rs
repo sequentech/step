@@ -149,7 +149,7 @@ impl KeycloakAdminClient {
         realm: &str,
         role: &Role,
     ) -> Result<Role> {
-        let (roles, count) = self.list_roles(realm, None, None, None).await?;
+        let (roles, _count) = self.list_roles(realm, None, None, None).await?;
         let role_by_named = roles.iter().find(|r| role.name == r.name);
         let new_role = match role_by_named {
             Some(new_rolee) => new_rolee,

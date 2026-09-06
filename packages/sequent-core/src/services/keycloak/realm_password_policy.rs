@@ -769,8 +769,10 @@ mod tests {
 
     #[test]
     fn rejects_invalid_length_ranges() {
-        let mut policy = RealmPasswordPolicy::default();
-        policy.minimum_length = 0;
+        let mut policy = RealmPasswordPolicy {
+            minimum_length: 0,
+            ..Default::default()
+        };
         assert!(policy.validate().is_err());
 
         policy.minimum_length = 100;

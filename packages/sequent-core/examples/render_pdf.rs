@@ -6,7 +6,6 @@
 use anyhow::{anyhow, Error};
 use core::result::Result;
 use sequent_core::services::pdf::PdfRenderer;
-use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
