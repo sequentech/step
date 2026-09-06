@@ -35,3 +35,9 @@ tonic-build = "0.13"
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[dev-dependencies]
+bytes = "1"
+h2 = "0.4"
+http = "1"
+tokio = { workspace = true }
