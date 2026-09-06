@@ -137,9 +137,10 @@ const BallotHash: React.FC<BallotHashProps> = ({
             <BallotHashText className="hash-text">
                 {t("ballotHash", {ballotId: hash})}
             </BallotHashText>
-            <HashActions>
+            <HashActions className="hash-actions">
                 {copyLabels && hash ? (
                     <IconButton
+                        buttonClassName="hash-copy-button"
                         icon={COPY_ICON[copyStatus]}
                         title={copyStatusLabel}
                         sx={{
@@ -153,6 +154,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                     />
                 ) : null}
                 <IconButton
+                    buttonClassName="hash-help-button"
                     icon={faCircleQuestion}
                     title={helpButtonLabel}
                     sx={{
@@ -166,7 +168,12 @@ const BallotHash: React.FC<BallotHashProps> = ({
                     ariaLabel={helpButtonLabel || t("a11y.ballotIdHelp")}
                 />
             </HashActions>
-            <CopyStatus role="status" aria-live="polite" aria-atomic="true">
+            <CopyStatus
+                className="hash-copy-status"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+            >
                 {copyStatus === CopyBallotHashStatus.Idle ? "" : copyStatusLabel}
             </CopyStatus>
         </HashContainer>

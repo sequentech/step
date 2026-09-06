@@ -50,8 +50,9 @@ const LanguageMenu: React.FC<{
     }
 
     return (
-        <Box>
+        <Box className="language-selector">
             <StyledButton
+                className="language-selector-button"
                 id="lang-button"
                 variant="actionbar"
                 data-testid="lang-button-test"
@@ -68,6 +69,7 @@ const LanguageMenu: React.FC<{
                 <FontAwesomeIcon icon={faCaretDown} size="lg" />
             </StyledButton>
             <Menu
+                className="language-selector-menu"
                 id="lang-menu"
                 data-testid="lang-menu-test"
                 anchorEl={anchorEl}
@@ -79,6 +81,7 @@ const LanguageMenu: React.FC<{
             >
                 {languagesList.map((language) => (
                     <MenuItem
+                        className="language-option"
                         onClick={() => changeLanguage(language)}
                         key={`menu-language-${language}`}
                     >

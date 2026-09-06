@@ -168,10 +168,16 @@ export default function Header({
             >
                 <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
                     <PageBanner direction="row" sx={{height: "100%"}}>
-                        <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={logoUrl || ""} duration={100} alt="Logo Image" />
+                        <StyledLink className="header-logo-link" href={logoLink} target="_blank">
+                            <StyledImage
+                                className="header-logo"
+                                src={logoUrl || ""}
+                                duration={100}
+                                alt="Logo Image"
+                            />
                         </StyledLink>
                         <Box
+                            className="header-actions"
                             display="flex"
                             alignItems="center"
                             sx={{gap: {xs: "11px", lg: "31px"}}}
@@ -217,6 +223,7 @@ export default function Header({
             </HeaderWrapper>
 
             <Dialog
+                className="logout-dialog"
                 handleClose={handleCloseModal}
                 open={openModal}
                 title={t("logout.modal.title")}
@@ -227,6 +234,7 @@ export default function Header({
                 <p>{t("logout.modal.content")}</p>
             </Dialog>
             <Dialog
+                className="session-expiry-dialog"
                 handleClose={() => handleToggleTimeModal(false)}
                 open={openTimeModal}
                 title={t("header.session.title")}

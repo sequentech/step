@@ -171,6 +171,7 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
 
     return (
         <Dialog
+            className="audit-ballot-dialog"
             handleClose={handleClose}
             open={auditBallotHelp}
             title={t("reviewScreen.auditBallotHelpDialog.title")}
@@ -505,7 +506,10 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     to={backNavigateTo}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton
+                        className="edit-ballot-button"
+                        sx={{width: {xs: "100%", sm: "200px"}}}
+                    >
                         <Icon icon={faAngleLeft} size="sm" />
                         <Box>{t("reviewScreen.backButton")}</Box>
                     </StyledButton>
@@ -525,6 +529,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 />
             </ActionsContainer>
             <Dialog
+                className="confirm-cast-ballot-dialog"
                 handleClose={handleCloseCastVoteDialog}
                 open={isConfirmCastVoteModal}
                 title={t(
@@ -796,7 +801,7 @@ export const ReviewScreen: React.FC = () => {
 
     if (!ballotStyle || (!auditableBallot && !isFullyAcclaimed)) {
         return errorMsg ? (
-            <Box sx={{margin: "auto 0"}}>
+            <Box className="review-error-screen" sx={{margin: "auto 0"}}>
                 {/* The only message on the screen, and it blocks the voter from
                     casting, so it interrupts rather than waiting for a pause. */}
                 <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
@@ -811,7 +816,10 @@ export const ReviewScreen: React.FC = () => {
                     }}
                 >
                     <StyledLink to={backLink} sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                        <StyledButton
+                            className="back-button"
+                            sx={{width: {xs: "100%", sm: "200px"}}}
+                        >
                             <Icon icon={faAngleLeft} size="sm" />
                             <Box>{t("reviewScreen.backButton")}</Box>
                         </StyledButton>
@@ -841,6 +849,7 @@ export const ReviewScreen: React.FC = () => {
                 />
             )}
             <BallotIdHelpDialog
+                className="review-ballot-id-help-dialog"
                 handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
@@ -869,10 +878,11 @@ export const ReviewScreen: React.FC = () => {
                     handleClose={handleCloseDialogAuditHelp}
                 />
             ) : null}
-            <Box marginTop="48px">
+            <Box className="stepper-box" marginTop="48px">
                 <Stepper selected={2} />
             </Box>
             <StyledTitle
+                className="screen-title"
                 variant="h4"
                 component="h1"
                 fontSize="24px"
@@ -883,6 +893,7 @@ export const ReviewScreen: React.FC = () => {
                     {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
                 </Box>
                 <IconButton
+                    buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -892,6 +903,7 @@ export const ReviewScreen: React.FC = () => {
                     })}
                 />
                 <Dialog
+                    className="screen-help-dialog review-help-dialog"
                     handleClose={() => setReviewScreenHelp(false)}
                     open={openReviewScreenHelp}
                     title={t(
@@ -916,11 +928,20 @@ export const ReviewScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             {errorMsg && (
-                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                <WarnBox
+                    className="cast-ballot-error"
+                    variant="error"
+                    announcement={EWarnBoxAnnouncement.ASSERTIVE}
+                >
                     {errorMsg}
                 </WarnBox>
             )}
-            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                className="screen-description"
+                variant="body2"
+                component="div"
+                sx={{color: theme.palette.customGrey.main}}
+            >
                 {stringToHtml(
                     isFullyAcclaimed
                         ? t("reviewScreen.acclamation.description")
@@ -931,7 +952,7 @@ export const ReviewScreen: React.FC = () => {
                 )}
             </Typography>
             {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-${index}`}>
+                <Box key={question.id} className={`contest-container contest-${index}`}>
                     <Question
                         ballotStyle={ballotStyle}
                         question={question}

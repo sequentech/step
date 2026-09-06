@@ -750,15 +750,16 @@ const ElectionSelectionScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            <Box marginTop="48px">
+            <Box className="stepper-box" marginTop="48px">
                 <Stepper selected={0} />
             </Box>
 
             <TitleSection className="title-section">
                 <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
-                    <StyledTitle variant="h1">
+                    <StyledTitle className="screen-title" variant="h1">
                         <Box>{t("electionSelectionScreen.title")}</Box>
                         <IconButton
+                            buttonClassName="screen-help-button"
                             icon={faCircleQuestion}
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                             fontSize="16px"
@@ -768,6 +769,7 @@ const ElectionSelectionScreen: React.FC = () => {
                             })}
                         />
                         <Dialog
+                            className="screen-help-dialog election-selection-help-dialog"
                             handleClose={() => setOpenChooserHelp(false)}
                             open={openChooserHelp}
                             title={t("electionSelectionScreen.chooserHelpDialog.title")}
@@ -778,9 +780,12 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Dialog>
                     </StyledTitle>
                     {warningMsg ? (
-                        <Alert severity="warning">{warningMsg}</Alert>
+                        <Alert className="election-selection-warning" severity="warning">
+                            {warningMsg}
+                        </Alert>
                     ) : (
                         <Typography
+                            className="screen-description"
                             variant="body1"
                             component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
@@ -803,7 +808,12 @@ const ElectionSelectionScreen: React.FC = () => {
                         </Button>
                     ) : null}
                     {isMaterialsVisible && electionEvent ? (
-                        <Button onClick={handleNavigateMaterials}>{materialsTitle}</Button>
+                        <Button
+                            className="support-materials-button"
+                            onClick={handleNavigateMaterials}
+                        >
+                            {materialsTitle}
+                        </Button>
                     ) : null}
                 </PageActions>
             </TitleSection>
@@ -837,7 +847,7 @@ const ElectionSelectionScreen: React.FC = () => {
                         />
                     ))
                 ) : (
-                    <Box sx={{margin: "auto"}}>
+                    <Box className="elections-empty" sx={{margin: "auto"}}>
                         <Typography>{t("electionSelectionScreen.noResults")}</Typography>
                     </Box>
                 )}

@@ -145,6 +145,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     return (
         <>
             <StyledButton
+                className="clear-selection-button"
                 sx={{
                     display: {sm: "none"},
                     width: "100%",
@@ -155,19 +156,20 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <Box>{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
-            <ActionsContainer>
+            <ActionsContainer className="actions-container">
                 <StyledLink
                     to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                     onClick={() => handlePrev()}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
+                    <StyledButton className="back-button" sx={{width: {xs: "100%", sm: "200px"}}}>
                         <Icon icon={faAngleLeft} size="sm" />
                         <Box>{t("votingScreen.backButton")}</Box>
                     </StyledButton>
                 </StyledLink>
 
                 <StyledButton
+                    className="clear-selection-button"
                     sx={{
                         display: {xs: "none", sm: "block"},
                         width: {xs: "100%", sm: "200px"},
@@ -301,7 +303,7 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
             </VisuallyHidden>
             {sortedContests &&
                 sortedContests.map((contest, index) => (
-                    <Box key={contest.id} className={`contest-${index}`}>
+                    <Box key={contest.id} className={`contest-container contest-${index}`}>
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}
@@ -533,7 +535,7 @@ const VotingScreen: React.FC = () => {
             <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4" component="h1" className="title-container">
+            <StyledTitle variant="h4" component="h1" className="title-container screen-title">
                 <Box className="selected-election-title">
                     {translateFromPresentation(election, "name", i18n.language, {
                         defaultLanguageCode,
@@ -541,6 +543,7 @@ const VotingScreen: React.FC = () => {
                 </Box>
                 <IconButton
                     className="title-question"
+                    buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -550,6 +553,7 @@ const VotingScreen: React.FC = () => {
                     })}
                 />
                 <Dialog
+                    className="screen-help-dialog voting-help-dialog"
                     handleClose={() => setOpenBallotHelp(false)}
                     open={openBallotHelp}
                     title={t("votingScreen.ballotHelpDialog.title")}
@@ -561,7 +565,7 @@ const VotingScreen: React.FC = () => {
             </StyledTitle>
             {electionDescription ? (
                 <Typography
-                    className="description"
+                    className="description screen-description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
@@ -581,6 +585,7 @@ const VotingScreen: React.FC = () => {
 
             {disableNextButton() ? (
                 <Dialog
+                    className="ballot-validation-dialog"
                     handleClose={(value) => setOpenNonVoted(false)}
                     open={openNotVoted}
                     title={t("votingScreen.nonVotedDialog.title")}
@@ -591,6 +596,7 @@ const VotingScreen: React.FC = () => {
                 </Dialog>
             ) : (
                 <Dialog
+                    className="ballot-validation-dialog"
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
                     title={t(

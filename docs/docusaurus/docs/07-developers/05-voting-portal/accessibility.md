@@ -32,8 +32,9 @@ existing markup until they are audited too.
 
 An icon carries no text, so every icon-only control needs an explicit name.
 `IconButton` takes dedicated `ariaLabel` and `ariaLabelledby` props which it puts on the
-`<button>`; every other prop is spread onto the icon, where an accessible name would not
-reach the button. It still falls back to the placeholder string `"icon button"` so that
+`<button>`. For CSS hooks, `buttonClassName` also targets the button; `className` continues
+to target the SVG for compatibility. Other icon props are spread onto the icon, where an
+accessible name would not reach the button. It still falls back to the placeholder string `"icon button"` so that
 call sites in the other portals — which have not been given names yet — are not left with no
 name at all. That placeholder is not an acceptable name: always pass `ariaLabel` or
 `ariaLabelledby`, and the fallback should be deleted once the other portals are labelled.
@@ -90,7 +91,7 @@ is removed from the accessibility tree entirely.
 Dynamic content must be in a live region or it is invisible to a screen reader user.
 `WarnBox` — the ballot's entire validation surface — takes an `EWarnBoxAnnouncement`. Use an
 enum rather than a boolean for this kind of policy so it can grow. Pick the value from what
-the message *is*, not from how severe it looks:
+the message _is_, not from how severe it looks:
 
 - `POLITE` (`role="status"`) is the default, for a message that appears in response to
   something the voter did and can wait for the next pause. Polite is the default
@@ -218,8 +219,8 @@ Manual checks, walking the full voter journey with a screen reader and the
 5. With `security_confirmation_policy` set to `MANDATORY`, the start screen's checkbox
    announces the whole declaration, and the row toggles once — not twice — when the text is
    clicked.
-5. Every dialog announces its title when it opens.
-6. A contest description containing a list and a table with header cells keeps both intact.
+6. Every dialog announces its title when it opens.
+7. A contest description containing a list and a table with header cells keeps both intact.
 
 Because the ballot renders very differently depending on configuration, cover: single versus
 multi-select contests; both `ECandidatesIconCheckboxPolicy` values; preferential and plain

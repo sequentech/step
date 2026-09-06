@@ -296,11 +296,12 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
     return (
         <>
-            <ActionsContainer>
+            <ActionsContainer className="actions-container">
                 {/* There is no ballot to receipt when nothing was cast. */}
                 {isFullyAcclaimed ? null : (
                     <>
                         <StyledButton
+                            className="print-receipt-button"
                             onClick={printBallotReceiptReport}
                             disabled={isHitPrint}
                             variant="secondary"
@@ -330,6 +331,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             </ActionsContainer>
 
             <Dialog
+                className="demo-print-receipt-dialog"
                 handleClose={() => setOpenPrintDemoModal(false)}
                 open={openPrintDemoModal}
                 title={t("confirmationScreen.demoPrintDialog.title")}
@@ -339,6 +341,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                 {stringToHtml(t("confirmationScreen.demoPrintDialog.content"))}
             </Dialog>
             <Dialog
+                className="print-receipt-error-dialog"
                 handleClose={() => setErrorDialog(false)}
                 open={errorDialog}
                 title={t("confirmationScreen.errorDialogPrintBallotReceipt.title")}
@@ -442,10 +445,11 @@ const ConfirmationScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
-            <Box marginTop="24px">
+            <Box className="stepper-box" marginTop="24px">
                 <Stepper selected={3} />
             </Box>
             <StyledTitle
+                className="screen-title"
                 variant="h4"
                 component="h1"
                 fontSize="24px"
@@ -460,6 +464,7 @@ const ConfirmationScreen: React.FC = () => {
                     )}
                 </Box>
                 <IconButton
+                    buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -470,6 +475,7 @@ const ConfirmationScreen: React.FC = () => {
                 />
 
                 <Dialog
+                    className="screen-help-dialog confirmation-help-dialog"
                     handleClose={() => setOpenConfirmationHelp(false)}
                     open={openConfirmationHelp}
                     title={t(
@@ -493,7 +499,12 @@ const ConfirmationScreen: React.FC = () => {
                     )}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                className="screen-description"
+                variant="body2"
+                component="div"
+                sx={{color: theme.palette.customGrey.main}}
+            >
                 {stringToHtml(
                     t(
                         isFullyAcclaimed
@@ -503,7 +514,11 @@ const ConfirmationScreen: React.FC = () => {
                 )}
             </Typography>
             {isBlankBallot ? (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    className="blank-ballot-description"
+                    variant="body2"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {stringToHtml(t("confirmationScreen.blankBallot.description"))}
                 </Typography>
             ) : null}
@@ -511,8 +526,9 @@ const ConfirmationScreen: React.FC = () => {
                 ballot id, tracker link or QR code to show. */}
             {isFullyAcclaimed ? null : (
                 <>
-                    <BallotIdContainer>
+                    <BallotIdContainer className="ballot-id-container">
                         <Typography
+                            className="ballot-id-label"
                             variant="h5"
                             component="h2"
                             fontSize="18px"
@@ -521,8 +537,8 @@ const ConfirmationScreen: React.FC = () => {
                         >
                             {t("confirmationScreen.ballotId")}
                         </Typography>
-                        <BallotIdBorder>
-                            <DecorativeIconBox>
+                        <BallotIdBorder className="ballot-id-border">
+                            <DecorativeIconBox className="ballot-id-status-icon">
                                 <Icon
                                     icon={faCheck}
                                     style={{
@@ -534,6 +550,7 @@ const ConfirmationScreen: React.FC = () => {
                                 />
                             </DecorativeIconBox>
                             <BallotIdLink
+                                className="ballot-id-value ballot-id-value-desktop"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
                                 sx={{display: {xs: "none", sm: "block"}}}
@@ -542,6 +559,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {ballotId.current}
                             </BallotIdLink>
                             <BallotIdLink
+                                className="ballot-id-value ballot-id-value-mobile"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
                                 sx={{display: {xs: "block", sm: "none"}}}
@@ -550,6 +568,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {t("ballotHash", {ballotId: ballotId.current})}
                             </BallotIdLink>
                             <IconButton
+                                buttonClassName="ballot-id-help-button"
                                 icon={faCircleQuestion}
                                 sx={{
                                     fontSize: "unset",
@@ -565,6 +584,7 @@ const ConfirmationScreen: React.FC = () => {
                                 })}
                             />
                             <Dialog
+                                className="ballot-id-help-dialog"
                                 handleClose={() => setOpenBallotIdHelp(false)}
                                 open={openBallotIdHelp}
                                 title={t("confirmationScreen.ballotIdHelpDialog.title")}
@@ -574,6 +594,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {stringToHtml(t("confirmationScreen.ballotIdHelpDialog.content"))}
                             </Dialog>
                             <Dialog
+                                className="demo-ballot-url-dialog"
                                 handleClose={() => setDemoBallotUrlHelp(false)}
                                 open={openDemoBallotUrlHelp}
                                 title={t("confirmationScreen.demoBallotUrlDialog.title")}
@@ -583,6 +604,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {stringToHtml(t("confirmationScreen.demoBallotUrlDialog.content"))}
                             </Dialog>
                             <Dialog
+                                className="demo-ballot-id-help-dialog"
                                 handleClose={() => setDemoBallotIdHelp(false)}
                                 open={demoBallotIdHelp}
                                 title={t("confirmationScreen.ballotIdDemoHelpDialog.title")}
@@ -595,10 +617,17 @@ const ConfirmationScreen: React.FC = () => {
                             </Dialog>
                         </BallotIdBorder>
                     </BallotIdContainer>
-                    <Typography variant="h5" component="h2" fontSize="18px" fontWeight="bold">
+                    <Typography
+                        className="ballot-verification-title"
+                        variant="h5"
+                        component="h2"
+                        fontSize="18px"
+                        fontWeight="bold"
+                    >
                         {t("confirmationScreen.verifyCastTitle")}
                     </Typography>
                     <Typography
+                        className="ballot-verification-description"
                         variant="body2"
                         sx={{color: theme.palette.customGrey.main}}
                         id="qr-code-description"

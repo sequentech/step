@@ -137,10 +137,16 @@ const StartScreen: React.FC = () => {
 
     return (
         <PageLimit maxWidth="lg" className="start-screen screen">
-            <Box marginTop="48px">
+            <Box className="stepper-box" marginTop="48px">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h3" component="h1" justifyContent="center" fontWeight="bold">
+            <StyledTitle
+                className="screen-title"
+                variant="h3"
+                component="h1"
+                justifyContent="center"
+                fontWeight="bold"
+            >
                 <span>
                     {translateFromPresentation(titleObject, "name", i18n.language, {
                         defaultLanguageCode,
@@ -149,6 +155,7 @@ const StartScreen: React.FC = () => {
             </StyledTitle>
             {titleDescription ? (
                 <Typography
+                    className="screen-description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
@@ -156,30 +163,42 @@ const StartScreen: React.FC = () => {
                     {stringToHtml(titleDescription)}
                 </Typography>
             ) : null}
-            <Typography variant="h5" component="h2">
+            <Typography className="instructions-title" variant="h5" component="h2">
                 {t("startScreen.instructionsTitle")}
             </Typography>
-            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
+            <Typography className="instructions-description" variant="body2">
+                {t("startScreen.instructionsDescription")}
+            </Typography>
             <Box
+                className="instructions-steps"
                 sx={{
                     display: "flex",
                     flexDirection: {xs: "column", md: "row"},
                     gap: {sm: 0, md: "15px"},
                 }}
             >
-                <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
+                <Box
+                    className="instructions-step instructions-select-step"
+                    sx={{width: {xs: "100%", md: "33.33333333%"}}}
+                >
                     <Typography variant="h5" component="h3" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step1Title")}
                     </Typography>
                     <Typography variant="body2">{t("startScreen.step1Description")}</Typography>
                 </Box>
-                <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
+                <Box
+                    className="instructions-step instructions-review-step"
+                    sx={{width: {xs: "100%", md: "33.33333333%"}}}
+                >
                     <Typography variant="h5" component="h3" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step2Title")}
                     </Typography>
                     <Typography variant="body2">{t("startScreen.step2Description")}</Typography>
                 </Box>
-                <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
+                <Box
+                    className="instructions-step instructions-cast-step"
+                    sx={{width: {xs: "100%", md: "33.33333333%"}}}
+                >
                     <Typography variant="h5" component="h3" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step3Title")}
                     </Typography>
@@ -208,6 +227,7 @@ const StartScreen: React.FC = () => {
 
             {isDeclineToVotePolicyEnabled ? (
                 <Dialog
+                    className="decline-to-vote-dialog"
                     handleClose={(confirmed) => {
                         setOpenDeclineDialog(false)
                         if (confirmed) {

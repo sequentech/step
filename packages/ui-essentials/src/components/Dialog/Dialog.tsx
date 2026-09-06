@@ -136,6 +136,7 @@ const Dialog: React.FC<DialogProps> = ({
                         variant="primary"
                         onClick={() => setIsFullScreen((prev) => !prev)}
                         className="dialog-icon-expand"
+                        buttonClassName="dialog-expand-button"
                     />
                 ) : null}
                 {hasCloseButton ? (
@@ -144,15 +145,22 @@ const Dialog: React.FC<DialogProps> = ({
                         variant="primary"
                         onClick={closeDialog}
                         className="dialog-icon-close"
+                        buttonClassName="dialog-close-button"
                         ariaLabel={t("a11y.closeDialog")}
                     />
                 ) : null}
             </DialogTitle>
             <DialogContent className="dialog-content"> {children} </DialogContent>
-            <StyledDialogErrorContent className="dialog-content" id={errorId} role="alert">
+            <StyledDialogErrorContent
+                className="dialog-content dialog-error"
+                id={errorId}
+                role="alert"
+            >
                 {errorMessage}
             </StyledDialogErrorContent>
-            <StyledDialogActions className={middleActions ? "has-middle" : "no-middle"}>
+            <StyledDialogActions
+                className={`dialog-actions ${middleActions ? "has-middle" : "no-middle"}`}
+            >
                 {cancel ? (
                     <Button
                         className="cancel-button"
