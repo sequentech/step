@@ -74,7 +74,7 @@ jest.mock(
         ).BallotHashCopyButton,
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
         Dialog: () => null,
-        QRCode: () => null,
+        QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
     }),
     {virtual: true}
 )
@@ -308,6 +308,49 @@ describe("selection-screen Back", () => {
 })
 
 describe("Ballot ID copy visibility", () => {
+    it("can hide the complete receipt ID row without hiding verification or actions", async () => {
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {
+            ballotId: BALLOT_ID,
+            isDemo: true,
+            auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
+        }
+        const user = userEvent.setup()
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+        const row = container.querySelector(".ballot-id-container")!
+        expect(row).toContainElement(
+            screen.getByRole("button", {name: "reviewScreen.copyBallotId"})
+        )
+        expect(row.querySelector(".ballot-id-help-button")).toHaveProperty("tagName", "BUTTON")
+        expect(row.querySelector(".ballot-id-value-desktop")).toHaveTextContent(BALLOT_ID)
+        expect(row.querySelector(".ballot-id-value-mobile")).toBeInTheDocument()
+        expect(container.querySelector(".finish-button-label")).toHaveTextContent(
+            "confirmationScreen.finishButton"
+        )
+        const style = document.createElement("style")
+        style.textContent = ".confirmation-screen .ballot-id-container { display: none; }"
+        document.head.appendChild(style)
+        try {
+            expect(row).not.toBeVisible()
+            expect(screen.queryByRole("button", {name: "reviewScreen.copyBallotId"})).toBeNull()
+            const qr = container.querySelector(".qr-code-svg")!
+            expect(qr).toBeVisible()
+            expect(qr).toHaveAccessibleName("confirmationScreen.verifyCastDescription")
+            expect(
+                screen.getByRole("button", {name: "confirmationScreen.printButton"})
+            ).toBeVisible()
+            expect(
+                screen.getByRole("button", {name: "confirmationScreen.finishButton"})
+            ).toBeVisible()
+            for (let index = 0; index < 4; index++) {
+                await user.tab()
+                expect(row).not.toContainElement(document.activeElement as HTMLElement)
+            }
+        } finally {
+            style.remove()
+        }
+    })
+
     it.each([
         [EVotingPortalAuditButtonCfg.SHOW, true],
         [EVotingPortalAuditButtonCfg.SHOW_IN_HELP, true],

@@ -306,7 +306,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         // scanning tools announce a boundary between elections instead of
         // running titles together — the parent is a plain Box, not a real
         // <ul>, so the semantics need to be explicit.
-        <Box role="listitem">
+        <Box className="election-list-item" role="listitem">
             <BorderBox
                 onClick={handleClickToVote}
                 isopen={String(!!isOpen)}
@@ -319,50 +319,92 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                         {title}
                     </StyledTitle>
                     {electionHomeUrl && (
-                        <Box sx={{display: {xs: "none", md: "inline-flex"}}}>
-                            <StyledLink href={electionHomeUrl} target="_blank">
+                        <Box
+                            className="election-website-desktop"
+                            sx={{display: {xs: "none", md: "inline-flex"}}}
+                        >
+                            <StyledLink
+                                className="election-website-link"
+                                href={electionHomeUrl}
+                                target="_blank"
+                            >
                                 {t("selectElection.electionWebsite")}
                             </StyledLink>
                         </Box>
                     )}
                     {hasVoted ? (
                         <VotedContainer
+                            className="election-vote-status"
                             hasvoted={String(!!hasVoted)}
                             color={theme.palette.errorColor}
                         >
-                            <FontAwesomeIcon icon={faCheck} size="sm" />
-                            <Typography fontSize="14px" margin={0}>
+                            <FontAwesomeIcon
+                                className="election-vote-status-icon"
+                                icon={faCheck}
+                                size="sm"
+                            />
+                            <Typography
+                                className="election-vote-status-label"
+                                fontSize="14px"
+                                margin={0}
+                            >
                                 {t("selectElection.voted")}
                             </Typography>
                         </VotedContainer>
                     ) : (
                         <VotedContainer
+                            className="election-vote-status"
                             hasvoted={String(!!hasVoted)}
                             color={theme.palette.brandSuccess}
                         >
-                            <FontAwesomeIcon icon={faTimes} size="sm" />
-                            <Typography fontSize="14px" margin={0}>
+                            <FontAwesomeIcon
+                                className="election-vote-status-icon"
+                                icon={faTimes}
+                                size="sm"
+                            />
+                            <Typography
+                                className="election-vote-status-label"
+                                fontSize="14px"
+                                margin={0}
+                            >
                                 {t("selectElection.notVoted")}
                             </Typography>
                         </VotedContainer>
                     )}
                 </TextContainer>
-                <StatusBanner isopen={String(!!isOpen)}>
+                <StatusBanner className="election-open-status" isopen={String(!!isOpen)}>
                     {t(`selectElection.${isOpen ? "openElection" : "closedElection"}`)}
                 </StatusBanner>
-                <DatesUrlWrap>
-                    <DatesContainer>
-                        <Typography fontSize="16px" lineHeight="23px" margin={0}>
+                <DatesUrlWrap className="election-dates-and-website">
+                    <DatesContainer className="election-dates">
+                        <Typography
+                            className="election-open-date"
+                            fontSize="16px"
+                            lineHeight="23px"
+                            margin={0}
+                        >
                             {t("selectElection.openDate")}
-                            <b>{openDate || "-"}</b>
+                            <b className="election-open-date-value">{openDate || "-"}</b>
                         </Typography>
-                        <Typography fontSize="16px" lineHeight="23px" margin={0}>
+                        <Typography
+                            className="election-close-date"
+                            fontSize="16px"
+                            lineHeight="23px"
+                            margin={0}
+                        >
                             {t("selectElection.closeDate")}
-                            <b>{closeDate || "-"}</b>
+                            <b className="election-close-date-value">{closeDate || "-"}</b>
                         </Typography>
                     </DatesContainer>
-                    <Box sx={{display: {xs: "block", md: "none"}}}>
-                        <StyledLink href={electionHomeUrl} target="_blank">
+                    <Box
+                        className="election-website-mobile"
+                        sx={{display: {xs: "block", md: "none"}}}
+                    >
+                        <StyledLink
+                            className="election-website-link"
+                            href={electionHomeUrl}
+                            target="_blank"
+                        >
                             {t("selectElection.electionWebsite")}
                         </StyledLink>
                     </Box>
@@ -370,6 +412,7 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 <ElectionActions className="election-actions">
                     {displayBallotLocator && (
                         <StyledButton
+                            className="locate-ballot-button"
                             variant="secondary"
                             onClick={handleClickBallotLocator}
                             aria-label={`${t("selectElection.ballotLocator")} — ${title}`}
@@ -410,11 +453,12 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                     timeLeft?.totalSeconds &&
                     timeLeft?.totalSeconds > 0 && (
                         <BannerBox
+                            className="election-countdown"
                             id="countdown-banner-box"
                             isopen={String(!!isOpen)}
                             isactive={String(!!isActive)}
                         >
-                            <Typography sx={{margin: 0}}>
+                            <Typography className="election-countdown-label" sx={{margin: 0}}>
                                 {t("selectElection.countdown", {
                                     years: timeLeft.years,
                                     months: timeLeft.months,

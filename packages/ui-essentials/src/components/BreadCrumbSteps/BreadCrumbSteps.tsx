@@ -119,7 +119,11 @@ function Step({variant, label, isSelected, isLast, index, warning, colorStep = f
     const {t} = useTranslation()
 
     return (
-        <StepItem islast={isLast.toString()} aria-current={isSelected ? "step" : undefined}>
+        <StepItem
+            className="stepper-item"
+            islast={isLast.toString()}
+            aria-current={isSelected ? "step" : undefined}
+        >
             {/* Decorative: role="list" + <li> already gives AT the item's
                 position (e.g. "1 of 4"), so reading this digit too doubled
                 every step's announcement. */}

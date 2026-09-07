@@ -62,6 +62,7 @@ export const SecurityConfirmation: React.FC<SecurityConfirmationProps> = ({
                 slotProps={{input: {"aria-labelledby": declarationId}}}
             />
             <Typography
+                className="security-confirmation-label"
                 variant="body2"
                 // Never a plain Typography: the default renders a <p>, and the
                 // admin HTML routinely contains block elements.

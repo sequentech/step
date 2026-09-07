@@ -25,8 +25,8 @@ const Loader = () => {
 
     return (
         <StyledBox className="loader" role="status">
-            <CircularProgress aria-hidden="true" />
-            <VisuallyHidden>{t("a11y.loading")}</VisuallyHidden>
+            <CircularProgress className="loader-progress" aria-hidden="true" />
+            <VisuallyHidden className="loader-label">{t("a11y.loading")}</VisuallyHidden>
         </StyledBox>
     )
 }

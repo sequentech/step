@@ -69,7 +69,7 @@ export const StartActions: React.FC<StartActionsProps> = ({
                     onChange={setCheckboxChecked}
                 />
             ) : null}
-            <ActionsContainer>
+            <ActionsContainer className="actions-container">
                 <StyledButton
                     className="start-voting-button"
                     onClick={() =>

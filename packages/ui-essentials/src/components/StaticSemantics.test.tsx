@@ -101,4 +101,19 @@ describe("static information semantics", () => {
         expect(versions[1]).toHaveTextContent("Hash:abcdef")
         expect(container.querySelector("button, [role=button], [tabindex], [disabled]")).toBeNull()
     })
+
+    it.each(["version.header", "hash.header"])(
+        "preserves centering, dimensions and rounded corners for %s",
+        (header) => {
+            const {container} = renderWithTheme(<Version header={header} version={{main: "dev"}} />)
+
+            expect(container.querySelector(".app-version")).toHaveStyle({
+                alignItems: "center",
+                borderRadius: "4px",
+                minWidth: "64px",
+                minHeight: "44px",
+                padding: "6px 12px",
+            })
+        }
+    )
 })
