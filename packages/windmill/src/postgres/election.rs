@@ -852,3 +852,68 @@ pub async fn get_election_permission_label(
 
     Ok(perms.into_iter().flatten().collect())
 }
+
+/// One writer snapshot for cast-vote policy. Avoid fetching election EML,
+/// receipts, statistics, and unrelated scheduled tasks for every ballot.
+#[instrument(skip_all, err)]
+pub async fn get_cast_vote_configuration(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    election_id: &str,
+) -> Result<(
+    Option<Value>,
+    Option<Value>,
+    Option<Value>,
+    Vec<sequent_core::types::scheduled_event::ScheduledEvent>,
+)> {
+    use sequent_core::types::scheduled_event::{
+        generate_manage_date_task_name, EventProcessors, ManageElectionDatePayload,
+    };
+    let tasks = vec![
+        generate_manage_date_task_name(
+            tenant_id,
+            event_id,
+            Some(election_id),
+            &EventProcessors::START_VOTING_PERIOD,
+        ),
+        generate_manage_date_task_name(
+            tenant_id,
+            event_id,
+            Some(election_id),
+            &EventProcessors::END_VOTING_PERIOD,
+        ),
+    ];
+    let payload = serde_json::to_value(ManageElectionDatePayload {
+        election_id: Some(election_id.to_owned()),
+    })?;
+    let row = transaction
+        .query_one(
+            r#"
+        SELECT e.presentation, e.status, e.voting_channels,
+            COALESCE((SELECT jsonb_agg(to_jsonb(s))
+                FROM sequent_backend.scheduled_event s
+                WHERE s.tenant_id = e.tenant_id
+                  AND s.election_event_id = e.election_event_id
+                  AND s.archived_at IS NULL
+                  AND s.task_id = ANY($4::text[])
+                  AND s.event_payload = $5::jsonb), '[]'::jsonb) AS scheduled_events
+        FROM sequent_backend.election e
+        WHERE e.tenant_id = $1 AND e.election_event_id = $2 AND e.id = $3
+        "#,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(event_id)?,
+                &parse_uuid_v4(election_id)?,
+                &tasks,
+                &payload,
+            ],
+        )
+        .await?;
+    Ok((
+        row.try_get("presentation")?,
+        row.try_get("status")?,
+        row.try_get("voting_channels")?,
+        serde_json::from_value(row.try_get("scheduled_events")?)?,
+    ))
+}

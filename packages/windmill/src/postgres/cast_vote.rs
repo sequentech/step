@@ -209,7 +209,7 @@ pub async fn insert_cast_vote(
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
+        .map_err(|err| anyhow::Error::new(err).context("Error inserting cast vote"))?;
 
     if rows.len() != 1 {
         return Err(anyhow!("Unexpected rows affected {}", rows.len()));
@@ -218,9 +218,13 @@ pub async fn insert_cast_vote(
     Ok(CastVote {
         id: row.try_get::<_, Uuid>("id")?.to_string(),
         tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
-        election_id: row.try_get::<_, Option<Uuid>>("election_id")?.map(|id| id.to_string()),
+        election_id: row
+            .try_get::<_, Option<Uuid>>("election_id")?
+            .map(|id| id.to_string()),
         election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
-        area_id: row.try_get::<_, Option<Uuid>>("area_id")?.map(|id| id.to_string()),
+        area_id: row
+            .try_get::<_, Option<Uuid>>("area_id")?
+            .map(|id| id.to_string()),
         created_at: row.try_get("created_at")?,
         last_updated_at: row.try_get("last_updated_at")?,
         // INSERT does not transform content. Keep the API response identical
