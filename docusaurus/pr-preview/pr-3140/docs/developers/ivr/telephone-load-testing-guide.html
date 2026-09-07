@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Telephone Load Testing Guide | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Telephone Load Testing Guide | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3140/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Telephone Load Testing Guide","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3140/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.414c390e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.31d21f85.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3140/assets/js/main.c7c985a4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -229,7 +229,13 @@ failure. To place a fresh batch of calls, re-run
 provision a new election event and voter set.</li>
 <li class=""><strong>Re-running after a dev container restart:</strong> the auto-started <code>valkey</code>
 container is reused if it&#x27;s already there (even if stopped), so you don&#x27;t
-need to remove it manually between runs.</li>
+need to remove it manually between runs. This also applies if you&#x27;ve
+pinned its resolved URL in <code>telephone_run.valkey_url</code> (e.g. copied from a
+previous run&#x27;s logs) rather than leaving it <code>null</code> — a stopped or missing
+container by that same name gets restarted/recreated the same way; only a
+<code>valkey_url</code> pointing at a genuinely different host is trusted as-is
+(unreachable then fails fast with a clear error, rather than trying to
+manage a container that isn&#x27;t ours).</li>
 <li class=""><strong>IVR client secrets are per-election-event, not per-tenant.</strong> Since Stage
 1 provisions a new election event realm every run, a
 <code>keycloak_ivr_service_client_secret</code>/<code>keycloak_ivr_voting_client_secret</code>
