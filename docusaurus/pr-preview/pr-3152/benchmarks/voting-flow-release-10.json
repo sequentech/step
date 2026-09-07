@@ -1,0 +1,445 @@
+{
+  "scope": "SQL paths only; excludes HTTP, crypto and audit-broker delivery",
+  "baseline_commit": "e93ca05104",
+  "implementation_commit": "e4c4d8381c582a8ef4a7771afd5f14f8e89ac596",
+  "machine": "aarch64",
+  "available_cpus": 8,
+  "postgres_version": "PostgreSQL 18.2 on aarch64-unknown-linux-gnu, compiled by clang version 21.1.8, 64-bit",
+  "ballot_bytes": 21354,
+  "warmup_requests": 64,
+  "voter_distribution": "distinct returning voters spread over the seeded population; two prior ballots each",
+  "postgres_settings": {
+    "fsync": "on",
+    "max_connections": "160",
+    "shared_buffers": "16384",
+    "synchronous_commit": "on"
+  },
+  "scenarios": [
+    {
+      "name": "reference",
+      "seeded_ballots": 100000,
+      "peak_voters": 8,
+      "unrelated_schedules": 100,
+      "results": [
+        {
+          "variant": "before",
+          "seeded_relation_bytes": 2309373952,
+          "distinct_measured_voters": 2560,
+          "accepted_requests": 2560,
+          "errors": 0,
+          "requests": 2560,
+          "elapsed_seconds": 4.832669189998342,
+          "requests_per_second": 529.7279617852093,
+          "phases": [
+            {
+              "name": "opening",
+              "concurrency": 8,
+              "requests": 1024,
+              "elapsed_seconds": 1.9160210749996622,
+              "requests_per_second": 534.4408855211473,
+              "p50_ms": 14.911494999978459,
+              "p99_ms": 18.89273699998739
+            },
+            {
+              "name": "lull",
+              "concurrency": 2,
+              "requests": 512,
+              "elapsed_seconds": 1.003129890999844,
+              "requests_per_second": 510.4024958220287,
+              "p50_ms": 2.934320000349544,
+              "p99_ms": 4.572677000396652
+            },
+            {
+              "name": "closing",
+              "concurrency": 8,
+              "requests": 1024,
+              "elapsed_seconds": 1.9135182239988353,
+              "requests_per_second": 535.1399255869451,
+              "p50_ms": 14.860576000501169,
+              "p99_ms": 18.717635999564664
+            }
+          ],
+          "p50_ms": 14.53022599889664,
+          "p99_ms": 18.715074998908676,
+          "per_request": {
+            "reads": 12.0,
+            "writes": 1.0,
+            "transactions": 3.0,
+            "checkouts": 3.0,
+            "databases": 2
+          },
+          "postgres_statements": [
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.scheduled_event\n            WHERE tenant_id = $1 AND election_event_id = $2 AND archived_at IS NULL"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "(\n    SELECT COUNT(*)\n    FROM \"sequent_backend\".\"cast_vote\" cv\n    WHERE cv.election_id = NEW.election_id\n    AND cv.voter_id_string = NEW.voter_id_string\n    AND cv.tenant_id = NEW.tenant_id\n    AND cv.election_event_id = NEW.election_event_id\n    AND cv.status IN ('valid', 'in-progress')\n  ) >= allowed_revotes"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT id, num_allowed_revotes FROM sequent_backend.election\n            WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * \n    FROM sequent_backend.cast_vote\n    WHERE tenant_id = $1 AND election_event_id = $2 AND election_id = $3\n      AND voter_id_string = $4 AND status IN ($5 /*, ... */)"
+            },
+            {
+              "kind": "transactions",
+              "calls": 5120,
+              "query": "BEGIN"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT num_allowed_revotes                        FROM \"sequent_backend\".\"election\"\n  WHERE id = NEW.election_id\n  AND tenant_id = NEW.tenant_id\n  AND election_event_id = NEW.election_event_id"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT username FROM user_entity WHERE id = $1"
+            },
+            {
+              "kind": "transactions",
+              "calls": 2560,
+              "query": "BEGIN"
+            },
+            {
+              "kind": "writes",
+              "calls": 2560,
+              "query": "INSERT INTO sequent_backend.cast_vote\n        (tenant_id, election_event_id, election_id, voter_id_string, area_id,\n         status, content, ballot_id, cast_ballot_signature)\n    VALUES ($1, $2, $3, $4, $5, $6, $7, $9, $8)\n RETURNING *"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.area WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.election\n            WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 7680,
+              "query": "SELECT value FROM sequent_backend.secret\n    WHERE tenant_id = $1 AND election_event_id = $2 AND key = $3"
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "seeded_relation_bytes": 2319507456,
+          "distinct_measured_voters": 2560,
+          "accepted_requests": 2560,
+          "errors": 0,
+          "requests": 2560,
+          "elapsed_seconds": 1.605306057001144,
+          "requests_per_second": 1594.7114812376092,
+          "phases": [
+            {
+              "name": "opening",
+              "concurrency": 8,
+              "requests": 1024,
+              "elapsed_seconds": 0.627359759000683,
+              "requests_per_second": 1632.2373013390634,
+              "p50_ms": 4.882264000116265,
+              "p99_ms": 7.866409001508146
+            },
+            {
+              "name": "lull",
+              "concurrency": 2,
+              "requests": 512,
+              "elapsed_seconds": 0.37026903700098046,
+              "requests_per_second": 1382.778328285236,
+              "p50_ms": 1.3278249989525648,
+              "p99_ms": 2.7316329997120192
+            },
+            {
+              "name": "closing",
+              "concurrency": 8,
+              "requests": 1024,
+              "elapsed_seconds": 0.6076772609994805,
+              "requests_per_second": 1685.1050149807652,
+              "p50_ms": 4.7556850004184525,
+              "p99_ms": 6.76965699858556
+            }
+          ],
+          "p50_ms": 4.548847000478418,
+          "p99_ms": 7.3256409996247385,
+          "per_request": {
+            "reads": 6.0,
+            "writes": 1.0,
+            "transactions": 1.0,
+            "checkouts": 1.0,
+            "databases": 1
+          },
+          "postgres_statements": [
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT election.presentation, election.status, election.voting_channels,\n       period.start_date, period.end_date\nFROM sequent_backend.election AS election\nLEFT JOIN sequent_backend.election_voting_window AS period\n    ON period.tenant_id = election.tenant_id\n   AND period.election_event_id = election.election_event_id\n   AND period.election_id = election.id\nWHERE election.tenant_id = $1\n  AND election.election_event_id = $2\n  AND election.id = $3"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT count(*), coalesce(bool_or(\n      cv.area_id IS NOT NULL AND cv.area_id IS DISTINCT FROM NEW.area_id\n  ), false)\n                                               FROM sequent_backend.cast_vote cv\n  WHERE cv.tenant_id = NEW.tenant_id\n    AND cv.election_event_id = NEW.election_event_id\n    AND cv.election_id = NEW.election_id\n    AND cv.voter_id_string = NEW.voter_id_string\n    AND cv.status IN ('valid', 'in-progress')"
+            },
+            {
+              "kind": "writes",
+              "calls": 2560,
+              "query": "INSERT INTO sequent_backend.cast_vote\n        (tenant_id, election_event_id, election_id, voter_id_string, area_id,\n         status, content, ballot_id, cast_ballot_signature)\n    VALUES ($1, $2, $3, $4, $5, $6, $7, $9, $8)\n RETURNING id, ballot_id, election_id, election_event_id, tenant_id, area_id, created_at, last_updated_at, cast_ballot_signature, voter_id_string, status"
+            },
+            {
+              "kind": "transactions",
+              "calls": 2560,
+              "query": "BEGIN"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.area WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT num_allowed_revotes                        FROM \"sequent_backend\".\"election\"\n  WHERE id = NEW.election_id\n  AND tenant_id = NEW.tenant_id\n  AND election_event_id = NEW.election_event_id"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT value FROM sequent_backend.secret\n    WHERE tenant_id = $1 AND election_event_id = $2 AND key = $3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "64-concurrent-voters",
+      "seeded_ballots": 100000,
+      "peak_voters": 64,
+      "unrelated_schedules": 100,
+      "results": [
+        {
+          "variant": "before",
+          "seeded_relation_bytes": 2309259264,
+          "distinct_measured_voters": 2560,
+          "accepted_requests": 2560,
+          "errors": 0,
+          "requests": 2560,
+          "elapsed_seconds": 5.034333056000833,
+          "requests_per_second": 508.5082714081713,
+          "phases": [
+            {
+              "name": "opening",
+              "concurrency": 64,
+              "requests": 1024,
+              "elapsed_seconds": 2.023926604000735,
+              "requests_per_second": 505.94720084010913,
+              "p50_ms": 124.06971899872588,
+              "p99_ms": 157.3707520001335
+            },
+            {
+              "name": "lull",
+              "concurrency": 16,
+              "requests": 512,
+              "elapsed_seconds": 0.9821050919999834,
+              "requests_per_second": 521.3291369433289,
+              "p50_ms": 30.40170600070269,
+              "p99_ms": 38.24276799969084
+            },
+            {
+              "name": "closing",
+              "concurrency": 64,
+              "requests": 1024,
+              "elapsed_seconds": 2.028301360000114,
+              "requests_per_second": 504.85594507511564,
+              "p50_ms": 124.47794699983206,
+              "p99_ms": 155.68335199895955
+            }
+          ],
+          "p50_ms": 119.85136499970395,
+          "p99_ms": 155.96853700117208,
+          "per_request": {
+            "reads": 12.0,
+            "writes": 1.0,
+            "transactions": 3.0,
+            "checkouts": 3.0,
+            "databases": 2
+          },
+          "postgres_statements": [
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.scheduled_event\n            WHERE tenant_id = $1 AND election_event_id = $2 AND archived_at IS NULL"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "(\n    SELECT COUNT(*)\n    FROM \"sequent_backend\".\"cast_vote\" cv\n    WHERE cv.election_id = NEW.election_id\n    AND cv.voter_id_string = NEW.voter_id_string\n    AND cv.tenant_id = NEW.tenant_id\n    AND cv.election_event_id = NEW.election_event_id\n    AND cv.status IN ('valid', 'in-progress')\n  ) >= allowed_revotes"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT id, num_allowed_revotes FROM sequent_backend.election\n            WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * \n    FROM sequent_backend.cast_vote\n    WHERE tenant_id = $1 AND election_event_id = $2 AND election_id = $3\n      AND voter_id_string = $4 AND status IN ($5 /*, ... */)"
+            },
+            {
+              "kind": "transactions",
+              "calls": 5120,
+              "query": "BEGIN"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT num_allowed_revotes                        FROM \"sequent_backend\".\"election\"\n  WHERE id = NEW.election_id\n  AND tenant_id = NEW.tenant_id\n  AND election_event_id = NEW.election_event_id"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT username FROM user_entity WHERE id = $1"
+            },
+            {
+              "kind": "transactions",
+              "calls": 2560,
+              "query": "BEGIN"
+            },
+            {
+              "kind": "writes",
+              "calls": 2560,
+              "query": "INSERT INTO sequent_backend.cast_vote\n        (tenant_id, election_event_id, election_id, voter_id_string, area_id,\n         status, content, ballot_id, cast_ballot_signature)\n    VALUES ($1, $2, $3, $4, $5, $6, $7, $9, $8)\n RETURNING *"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.area WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.election\n            WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 7680,
+              "query": "SELECT value FROM sequent_backend.secret\n    WHERE tenant_id = $1 AND election_event_id = $2 AND key = $3"
+            }
+          ]
+        },
+        {
+          "variant": "after",
+          "seeded_relation_bytes": 2319286272,
+          "distinct_measured_voters": 2560,
+          "accepted_requests": 2560,
+          "errors": 0,
+          "requests": 2560,
+          "elapsed_seconds": 1.7066724039996188,
+          "requests_per_second": 1499.9949574391617,
+          "phases": [
+            {
+              "name": "opening",
+              "concurrency": 64,
+              "requests": 1024,
+              "elapsed_seconds": 0.6875142970002344,
+              "requests_per_second": 1489.4235719430442,
+              "p50_ms": 40.64806700080226,
+              "p99_ms": 60.201087000677944
+            },
+            {
+              "name": "lull",
+              "concurrency": 16,
+              "requests": 512,
+              "elapsed_seconds": 0.3277628529995127,
+              "requests_per_second": 1562.1050259797478,
+              "p50_ms": 10.20609199986211,
+              "p99_ms": 14.079144000788801
+            },
+            {
+              "name": "closing",
+              "concurrency": 64,
+              "requests": 1024,
+              "elapsed_seconds": 0.6913952539998718,
+              "requests_per_second": 1481.0631025826942,
+              "p50_ms": 40.81379299896071,
+              "p99_ms": 63.18629000088549
+            }
+          ],
+          "p50_ms": 38.56109899970761,
+          "p99_ms": 61.43521800004237,
+          "per_request": {
+            "reads": 6.0,
+            "writes": 1.0,
+            "transactions": 1.0,
+            "checkouts": 1.0,
+            "databases": 1
+          },
+          "postgres_statements": [
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT election.presentation, election.status, election.voting_channels,\n       period.start_date, period.end_date\nFROM sequent_backend.election AS election\nLEFT JOIN sequent_backend.election_voting_window AS period\n    ON period.tenant_id = election.tenant_id\n   AND period.election_event_id = election.election_event_id\n   AND period.election_id = election.id\nWHERE election.tenant_id = $1\n  AND election.election_event_id = $2\n  AND election.id = $3"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT count(*), coalesce(bool_or(\n      cv.area_id IS NOT NULL AND cv.area_id IS DISTINCT FROM NEW.area_id\n  ), false)\n                                               FROM sequent_backend.cast_vote cv\n  WHERE cv.tenant_id = NEW.tenant_id\n    AND cv.election_event_id = NEW.election_event_id\n    AND cv.election_id = NEW.election_id\n    AND cv.voter_id_string = NEW.voter_id_string\n    AND cv.status IN ('valid', 'in-progress')"
+            },
+            {
+              "kind": "writes",
+              "calls": 2560,
+              "query": "INSERT INTO sequent_backend.cast_vote\n        (tenant_id, election_event_id, election_id, voter_id_string, area_id,\n         status, content, ballot_id, cast_ballot_signature)\n    VALUES ($1, $2, $3, $4, $5, $6, $7, $9, $8)\n RETURNING id, ballot_id, election_id, election_event_id, tenant_id, area_id, created_at, last_updated_at, cast_ballot_signature, voter_id_string, status"
+            },
+            {
+              "kind": "transactions",
+              "calls": 2560,
+              "query": "BEGIN"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.area WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT * FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT num_allowed_revotes                        FROM \"sequent_backend\".\"election\"\n  WHERE id = NEW.election_id\n  AND tenant_id = NEW.tenant_id\n  AND election_event_id = NEW.election_event_id"
+            },
+            {
+              "kind": "reads",
+              "calls": 2560,
+              "query": "SELECT value FROM sequent_backend.secret\n    WHERE tenant_id = $1 AND election_event_id = $2 AND key = $3"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
