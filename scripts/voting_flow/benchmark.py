@@ -25,8 +25,9 @@ import time
 import psycopg
 from psycopg.types.json import Jsonb
 
-from database import AREA_MIGRATION, CONFIGURATION_QUERY, ROOT
+from database import AREA_MIGRATION, CONFIGURATION_QUERY, ROOT, SCHEDULE_INDEX
 from fixtures import Election, INSERT_VOTE
+from report import scenario_label
 
 WARMUP_REQUESTS = 64
 
@@ -56,13 +57,13 @@ class Scenario:
 # Change one factor at a time, then combine the largest table and voter burst.
 # Schedule scanning remains a separate comparison at the reference table size.
 SCENARIOS = (
-    Scenario("small-table", seeded_ballots=10_000),
-    Scenario("reference"),
-    Scenario("large-table", seeded_ballots=1_000_000),
-    Scenario("32-concurrent-voters", peak_voters=32),
-    Scenario("64-concurrent-voters", peak_voters=64),
-    Scenario("large-table-64-voters", seeded_ballots=1_000_000, peak_voters=64),
-    Scenario("many-schedules", unrelated_schedules=2000),
+    Scenario("10k-votes", seeded_ballots=10_000),
+    Scenario("100k-votes"),
+    Scenario("1m-votes", seeded_ballots=1_000_000),
+    Scenario("100k-votes-32-voters", peak_voters=32),
+    Scenario("100k-votes-64-voters", peak_voters=64),
+    Scenario("1m-votes-64-voters", seeded_ballots=1_000_000, peak_voters=64),
+    Scenario("100k-votes-2000-schedules", unrelated_schedules=2000),
 )
 READ_SECRET = """
     SELECT value FROM sequent_backend.secret
@@ -280,9 +281,14 @@ def statement_counts(database, requests):
     return {key: value / requests for key, value in counts.items()}, measured
 
 
-def run_variant(database, fixture, content, variant, scenario):
+def run_variant(database, fixture, content, variant, scenario, schedule_index_sql):
     database.apply(AREA_MIGRATION, "down" if variant == "before" else "up")
     connection = database.connection
+    # The original schema had no schedule-scope index. Restore the migration's
+    # exact index definition only for the revised path, outside timed work.
+    connection.execute(f"DROP INDEX IF EXISTS {SCHEDULE_INDEX}")
+    if variant == "after":
+        connection.execute(schedule_index_sql)
     connection.execute(
         "DROP INDEX sequent_backend.cast_vote_participation_election_idx"
     )
@@ -395,6 +401,9 @@ def run_variant(database, fixture, content, variant, scenario):
 
 
 def run_benchmark(database, output, scenario_names=None):
+    schedule_index_sql = database.scalar(
+        "SELECT pg_get_indexdef(%s::regclass)", (SCHEDULE_INDEX,)
+    )
     database.connection.execute("CREATE DATABASE keycloak")
     with psycopg.connect(database.dsn, dbname="keycloak", autocommit=True) as identity:
         identity.execute(
@@ -434,13 +443,15 @@ def run_benchmark(database, output, scenario_names=None):
         evidence = dict(asdict(scenario), results=[])
         for variant in ("before", "after"):
             print(
-                f"Preparing {scenario.name}, {variant}: {scenario.seeded_ballots:,} ballots",
+                f"Preparing {scenario_label(asdict(scenario))}, {variant}: {scenario.seeded_ballots:,} ballots",
                 flush=True,
             )
-            result = run_variant(database, fixture, content, variant, scenario)
+            result = run_variant(
+                database, fixture, content, variant, scenario, schedule_index_sql
+            )
             evidence["results"].append(result)
             print(
-                f"{scenario.name}, {variant}: {result['per_request']}; "
+                f"{scenario_label(asdict(scenario))}, {variant}: {result['per_request']}; "
                 f"p50={result['p50_ms']:.2f} ms, p99={result['p99_ms']:.2f} ms",
                 flush=True,
             )

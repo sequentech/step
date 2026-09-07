@@ -60,6 +60,31 @@ class VotingFlowTests(unittest.TestCase):
         self.db.apply(AREA_MIGRATION, "down")
         self.db.apply(AREA_MIGRATION)
 
+    def test_indexed_refresh_still_checks_the_exact_task_payload(self):
+        self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
+        for payload in (
+            {"election_id": str(self.election.other_area)},
+            {"election_id": str(self.election.election), "unexpected": True},
+        ):
+            self.connection.execute(
+                """
+                INSERT INTO sequent_backend.scheduled_event
+                    (tenant_id, election_event_id, task_id, event_payload, cron_config)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    self.election.tenant,
+                    self.election.event,
+                    self.election.task_name("END"),
+                    Jsonb(payload),
+                    Jsonb({"scheduled_date": "2026-10-02T12:00:00Z"}),
+                ),
+            )
+        # A valid edit forces a refresh over the index's matching task IDs.
+        # Matching names alone must not admit a mismatched or extended payload.
+        self.election.schedule(self.connection, "START", "2026-10-01T10:00:00Z")
+        self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
+
     def test_bounded_concurrent_revotes(self):
         results = self.concurrent(
             [

@@ -6,6 +6,13 @@
 -- It is internal state, not a Hasura-managed API table.
 LOCK TABLE sequent_backend.scheduled_event IN SHARE ROW EXCLUSIVE MODE;
 
+-- The leading keys also serve event-scoped schedule queries. Task IDs let
+-- window maintenance fetch its two endpoints even in a very busy event.
+-- Build under the existing configuration-write lock, before backfilling.
+CREATE INDEX scheduled_event_active_scope_task_idx
+    ON sequent_backend.scheduled_event (tenant_id, election_event_id, task_id)
+    WHERE archived_at IS NULL;
+
 CREATE TABLE sequent_backend.election_voting_window (
     tenant_id uuid NOT NULL,
     election_event_id uuid NOT NULL,
@@ -76,6 +83,11 @@ BEGIN
     FROM sequent_backend.scheduled_event schedule
     WHERE tenant_id = target_tenant
       AND election_event_id = target_event
+      -- Expose ordinary equality predicates to the index planner. The helper
+      -- remains a residual check of the exact canonical name/payload contract.
+      AND task_id IN (
+          task_prefix || 'START_VOTING_PERIOD', task_prefix || 'END_VOTING_PERIOD'
+      )
       AND sequent_backend.voting_window_election_id(schedule) = target_election
       AND archived_at IS NULL;
 
