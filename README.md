@@ -256,7 +256,7 @@ docker exec -it trustee1 cat /opt/braid/trustee.toml | grep pk
 Which will give a result similar to:
 
 ```bash
-signing_key_pk = "YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k"
+signing_key_pk = "<generated-signing_key_pk>"
 ```
 
 Then add the trustee in the admin portal with the key, in this case `YqYrRVXmPhBsWwwCgsOfw15RwUqZP9EhwmxuHKU5E8k`.

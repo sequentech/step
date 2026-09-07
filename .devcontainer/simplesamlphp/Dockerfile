@@ -82,6 +82,9 @@ RUN mkdir $SSP_DIR/data
 RUN chmod -R 775 $SSP_DIR/data
 
 USER root
+# Development signing material is generated locally before this image is built.
+# Apache's worker must read the private key; keep it unavailable to other users.
+RUN chown www-data:www-data $SSP_DIR/cert/server.pem && chmod 600 $SSP_DIR/cert/server.pem
 COPY scripts/entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/entrypoint.sh
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

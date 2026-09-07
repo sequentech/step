@@ -61,3 +61,13 @@ packages/ballot-verifier/logs
 
 # ignore artifacts for airgapped environments
 airgapped-artifacts
+# Locally generated development credentials; never commit private material.
+.devcontainer/certs/nginx-tls.key
+.devcontainer/certs/nginx-tls.crt
+.devcontainer/simplesamlphp/cert/*.key
+.devcontainer/simplesamlphp/cert/*.pem
+.devcontainer/simplesamlphp/cert/*.crt
+.devcontainer/trustees-data/**/*.toml
+packages/braid/scripts/trustee[123].toml
+.devcontainer/certs/vp-sso-signing.key
+.devcontainer/certs/vp-sso-signing.crt

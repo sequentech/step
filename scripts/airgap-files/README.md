@@ -136,3 +136,21 @@ Once that it has been imported and started, you can visit the different services
 at their endpoints:
 
 - Admin portal: http://localhost:3002
+
+## Deployment credentials
+
+The environment template leaves S3, Keycloak and Vault credential values empty.
+Provision this installation's own values before starting services. Vault requires
+its matching token and unseal key; a new random value cannot unlock an existing
+Vault. Supply `KEYCLOAK_IVR_SERVICE_CLIENT_SECRET`,
+`KEYCLOAK_IVR_VOTING_CLIENT_SECRET` and
+`KEYCLOAK_CERTIFICATES_CLIENT_SECRET` when using the development realm imports.
+Keep the certificates client's secret identical to the certificates identity
+provider's client secret. Do not reuse credentials from an older source checkout.
+
+Generate or import each trustee's persistent configuration before packaging, as
+described in `.devcontainer/trustees-data/README.md` in the source repository.
+Restoring an existing election requires its original keys. Provider templates
+leave reCAPTCHA and Inetum credentials empty; configure these before enabling
+those providers. This legacy development package is separate from the evaluated
+CM release and delivery process.
