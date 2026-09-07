@@ -28,8 +28,7 @@ async function settleOnElectionList(page: Page): Promise<void> {
     const demoAccept = page.getByRole("button", {name: "I accept my vote will Not be cast"})
     await expect(electionItem.or(demoAccept).first()).toBeVisible()
     if (await demoAccept.isVisible()) {
-        await demoAccept.click()
-        await expect(electionItem).toBeVisible()
+        throw new Error("Demo voting cannot validate a real cast")
     }
 }
 
@@ -104,8 +103,7 @@ async function voteElection(
     const demoAccept = page.getByRole("button", {name: "I accept my vote will Not be cast"})
     await expect(startVoting.or(demoAccept).first()).toBeVisible()
     if (await demoAccept.isVisible()) {
-        await demoAccept.click()
-        await expect(startVoting).toBeVisible()
+        throw new Error("Demo voting cannot validate a real cast")
     }
 
     // The eligibility declaration checkbox only renders when the election's

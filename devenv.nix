@@ -57,6 +57,7 @@ in
     ack
 
     # docker utilities
+    docker-compose
     dive
 
     # wget and curl

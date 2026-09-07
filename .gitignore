@@ -77,3 +77,8 @@ airgapped-artifacts
 
 # Locally generated voting-flow benchmark evidence
 /.cache/voting-flow/
+
+# Private E2E traces, credentials and pinned local browser tools.
+.cache/voting-e2e/
+.cache/obscura/
+.cache/playwright/
