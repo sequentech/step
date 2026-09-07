@@ -51,7 +51,7 @@ regardless of the test. They differ in the *client* board setup:
 
 ```sh
 # Terminal 1:  .\localstack.ps1     (S3 via LocalStack)      [bash: ./localstack.sh]
-# Terminal 2:  .\b4.ps1             (b4 server on :3000)     [bash: ./b4.sh]
+# Terminal 2:  .\b4.ps1             (b4 server on :3005)     [bash: ./b4.sh]
 # Terminal 3:
 cargo test -p braid --release -- --ignored
 ```
@@ -131,11 +131,11 @@ validation that the protocol runs correctly under wasm.
 # Terminal 1:
 .\localstack.ps1        # docker LocalStack + creates the S3 bucket & CORS
 # Terminal 2:
-.\b4.ps1                # b4 server on :3000 (SQLite + S3)
+.\b4.ps1                # b4 server on :3005 (SQLite + S3)
 # Terminal 3:
 .\serve.ps1             # clears RUSTFLAGS, builds the wasm client (build-wasm.ps1,
                         # nightly + atomics + wasm-bindgen-rayon), then serves on
-                        # :8080 with COOP/COEP (server.py)
+                        # :8085 with COOP/COEP (server.py)
 
 # bash: ./localstack.sh / ./b4.sh / ./serve.sh. In the devcontainer serve.sh
 # listens on WBRAID_SERVE_PORT (8085 by default) and b4 is the b4v6 compose
@@ -145,11 +145,9 @@ validation that the protocol runs correctly under wasm.
 ```
 
 In the devcontainer, the presigned S3 URLs that b4 hands the browser point at
-`http://localstack:4566` (the service's name on the project network). For the
-host browser to reach them, map `localstack` to `127.0.0.1` in the host's hosts
-file; the port itself is forwarded by `.devcontainer/devcontainer.json`.
+`http://localhost:4566`; the port itself is forwarded by `.devcontainer/devcontainer.json`.
 
-Then open <http://127.0.0.1:8080/emulator.html> and:
+Then open <http://127.0.0.1:8085/emulator.html> and:
 
 1. **Create setup** — generates a committee, creates the DKG board on b4, posts
    the configuration.

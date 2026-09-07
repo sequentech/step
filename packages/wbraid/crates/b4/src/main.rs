@@ -9,14 +9,14 @@ use b4::{app, db, s3, state::AppState};
 
 /// The listen address.
 const BIND_ENV: &str = "WBRAID_B4_BIND";
-const DEFAULT_BIND: &str = "127.0.0.1:3000";
+const DEFAULT_BIND: &str = "127.0.0.1:3005";
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "b4=info,tower_http=info".into()),
+                .unwrap_or_else(|_| "b4=info,b4v6=info,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();

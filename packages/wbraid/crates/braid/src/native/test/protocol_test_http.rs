@@ -40,9 +40,9 @@ use crate::native::http_transport::HttpTransport;
 use crate::session::Session;
 use crate::trustee::Trustee;
 
-/// b4 url the test drives against. `WBRAID_B4_URL` when set, otherwise port `3000`.
+/// b4 url the test drives against. `WBRAID_B4_URL` when set, otherwise port `3005`.
 fn http_url() -> String {
-    std::env::var("WBRAID_B4_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string())
+    std::env::var("WBRAID_B4_URL").unwrap_or_else(|_| "http://127.0.0.1:3005".to_string())
 }
 
 /// Wire `date` for every message the harness posts (§3.1).

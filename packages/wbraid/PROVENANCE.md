@@ -114,8 +114,7 @@ code, identical on nightly); that upstream state is left untouched.
   `build-wasm.sh`/`serve.sh` clear an inherited `RUSTFLAGS`, which would
   otherwise override the atomics rustflags in `crates/braid/.cargo/config.toml`
   entirely (the devcontainer's devenv exports `RUSTFLAGS=-Awarnings`).
-- **`server.py` honours a `PORT` environment variable** (default 8080,
-  unchanged); in the devcontainer 8080 is taken by Hasura.
+- **`server.py` honours a `PORT` environment variable** (default 8085; avoids hasura)
 - **Ran `cargo fmt`** (rustfmt 1.96.0) over the workspace — the tree was
   imported unformatted — so CI can gate on `cargo fmt -- --check`.
 - **Fixed the warn-level clippy findings in `braid`, `rnk` and `v2v`** so that
@@ -212,17 +211,12 @@ run) and is untouched: its lib passes, with upstream's warn-level
     project network. Linux unlinks open files without complaint, so the reset
     refuses to run while a `b4v6` process exists instead of relying on a
     locked-file error.
-- **`server.py` honours a `PORT` environment variable** (default 8080,
-  unchanged); `serve.sh` falls back to `WBRAID_SERVE_PORT` for it.
+- **`server.py` honours a `PORT` environment variable** (default 8085; to avoid hasura);
+  `serve.sh` falls back to `WBRAID_SERVE_PORT` for it.
 - **Made the b4 listen address and the live tests' b4 URL configurable**:
   `crates/b4/src/main.rs` honours `WBRAID_B4_BIND` and the two `#[ignore]`d
   live-b4 tests (`protocol_test_http*.rs`) read `WBRAID_B4_URL`, both keeping
-  the upstream `127.0.0.1:3000` default when unset. The step devcontainer sets
-  them to port 3005 in `.devcontainer/.env.development`, with
-  `WBRAID_SERVE_PORT=8085` and `WBRAID_S3_ENDPOINT_URL=http://localstack:4566`
-  alongside: 3000 is the voting portal's, the host's 8080 is forwarded to
-  Hasura, and S3 is the `localstack` compose service. `emulator.html` keeps its
-  `http://127.0.0.1:3000` default; the URL field is edited by hand.
+   `127.0.0.1:3005` default when unset (3000 is voting portal).
 - **Added `.github/workflows/wbraid.yml`**, scoped to changes under
   `packages/wbraid/`: `cargo fmt -- --check`; clippy as the two invocations
   listed under "Local modifications for clippy"; `cargo test --release`, with
