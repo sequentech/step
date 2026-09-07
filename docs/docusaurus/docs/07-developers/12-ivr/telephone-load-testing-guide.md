@@ -307,7 +307,13 @@ be reused across runs, not a disposable one Stage 1 created.
   provision a new election event and voter set.
 - **Re-running after a dev container restart:** the auto-started `valkey`
   container is reused if it's already there (even if stopped), so you don't
-  need to remove it manually between runs.
+  need to remove it manually between runs. This also applies if you've
+  pinned its resolved URL in `telephone_run.valkey_url` (e.g. copied from a
+  previous run's logs) rather than leaving it `null` — a stopped or missing
+  container by that same name gets restarted/recreated the same way; only a
+  `valkey_url` pointing at a genuinely different host is trusted as-is
+  (unreachable then fails fast with a clear error, rather than trying to
+  manage a container that isn't ours).
 - **IVR client secrets are per-election-event, not per-tenant.** Since Stage
   1 provisions a new election event realm every run, a
   `keycloak_ivr_service_client_secret`/`keycloak_ivr_voting_client_secret`

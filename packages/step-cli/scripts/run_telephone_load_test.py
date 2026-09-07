@@ -39,6 +39,7 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -104,8 +105,21 @@ def docker_inspect(name: str, fmt: str) -> str | None:
 
 def resolve_valkey_url(configured: str | None, start_valkey: bool) -> str:
     if configured:
-        return configured
-    if port_open("127.0.0.1", VALKEY_PORT):
+        parsed = urllib.parse.urlparse(configured)
+        host, port = parsed.hostname, parsed.port or VALKEY_PORT
+        if host and port_open(host, port):
+            return configured
+        if host != VALKEY_CONTAINER_NAME:
+            common.die(
+                f"telephone_run.valkey_url ({configured}) is not reachable at {host}:{port} — "
+                "start that session store yourself, or unset valkey_url to let this script manage its own"
+            )
+        common.log(f"{VALKEY_CONTAINER_NAME} isn't reachable at {configured} (stopped or removed?) — restarting it")
+        # Falls through to the same start/restart logic below, ending on
+        # this same URL — a pinned valkey_url that happens to point at our
+        # own auto-managed container shouldn't go stale just because its
+        # resolved URL was copied into layers.yaml once.
+    elif port_open("127.0.0.1", VALKEY_PORT):
         return f"redis://127.0.0.1:{VALKEY_PORT}"
 
     # This script (and ivr-cli) typically run inside the devcontainer, which

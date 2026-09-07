@@ -190,19 +190,47 @@ pub struct CreateKeysCeremonyOutput {
     error_message: Option<String>,
 }
 
+// Hasura's action framework requires a webhook error response to be JSON
+// (a `message` field, at minimum) — Rocket's built-in Responder for
+// `(Status, String)` sends the string back as plain text instead, which
+// Hasura then reports as an opaque "not a valid json response from webhook"
+// instead of forwarding the real message. Scoped to this route only: swap
+// just its error type for `(Status, Json<_>)`, which Rocket already knows
+// how to render as JSON via its blanket `(Status, R: Responder)` impl.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreateKeysCeremonyErrorResponse {
+    message: String,
+}
+
+fn ceremony_error(
+    status: Status,
+    message: impl Into<String>,
+) -> (Status, Json<CreateKeysCeremonyErrorResponse>) {
+    (
+        status,
+        Json(CreateKeysCeremonyErrorResponse {
+            message: message.into(),
+        }),
+    )
+}
+
 // The main function to start a key ceremony
 #[instrument(skip(claims))]
 #[post("/create-keys-ceremony", format = "json", data = "<body>")]
 pub async fn create_keys_ceremony(
     body: Json<CreateKeysCeremonyInput>,
     claims: JwtClaims,
-) -> Result<Json<CreateKeysCeremonyOutput>, (Status, String)> {
+) -> Result<
+    Json<CreateKeysCeremonyOutput>,
+    (Status, Json<CreateKeysCeremonyErrorResponse>),
+> {
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ADMIN_CEREMONY],
-    )?;
+    )
+    .map_err(|(status, message)| ceremony_error(status, message))?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
@@ -210,16 +238,15 @@ pub async fn create_keys_ceremony(
 
     let username = claims.preferred_username.unwrap_or("-".to_string());
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let mut hasura_db_client: DbClient =
+        get_hasura_pool().await.get().await.map_err(|e| {
+            ceremony_error(Status::InternalServerError, format!("{:?}", e))
+        })?;
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|e| {
+            ceremony_error(Status::InternalServerError, format!("{:?}", e))
+        })?;
 
     let valid_permissions_label = validate_permission_labels(
         &hasura_transaction,
@@ -230,7 +257,7 @@ pub async fn create_keys_ceremony(
     )
     .await
     .map_err(|e| {
-        (
+        ceremony_error(
             Status::BadRequest,
             format!("Error validating permission labels: {:?}", e),
         )
@@ -257,13 +284,23 @@ pub async fn create_keys_ceremony(
         input.is_automatic_ceremony,
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    // Hasura's action framework only ever forwards a webhook's error body
+    // for a 4xx status — a 5xx is treated as an infrastructure failure and
+    // gets a generic "internal error" regardless of body content. Every
+    // failure keys_ceremony::create_keys_ceremony can return (bad
+    // threshold, unknown trustees, no such election, an already-running
+    // ceremony, ...) is an application-level validation error, not an
+    // infra failure, so it belongs in the 4xx range — matching how
+    // validate_permission_labels's failure above is already treated.
+    .map_err(|e| ceremony_error(Status::BadRequest, format!("{:?}", e)))?;
 
     hasura_transaction
         .commit()
         .await
         .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|e| {
+            ceremony_error(Status::InternalServerError, format!("{:?}", e))
+        })?;
 
     event!(
         Level::INFO,
