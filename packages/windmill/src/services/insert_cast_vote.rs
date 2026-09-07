@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
-use crate::postgres::election::get_cast_vote_configuration;
+use crate::postgres::election::{get_cast_vote_configuration, CastVoteConfiguration};
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::database::get_hasura_pool;
@@ -982,7 +982,12 @@ async fn check_status(
     // Always read the writer: a TTL alone cannot invalidate an administrative
     // close, channel change, or reschedule. One narrow row keeps those updates
     // visible without transferring election EML or unrelated scheduled tasks.
-    let (presentation, status, voting_channels, scheduled_events) = get_cast_vote_configuration(
+    let CastVoteConfiguration {
+        presentation,
+        status,
+        voting_channels,
+        scheduled_events,
+    } = get_cast_vote_configuration(
         hasura_transaction,
         tenant_id,
         election_event_id,
@@ -1207,6 +1212,103 @@ mod tests {
                 CastVoteError::InsertFailedExceedsAllowedRevotes
             ))
         ));
+        let mut config = deadpool_postgres::Config::new();
+        config.url = Some(url);
+        let pool = config
+            .create_pool(
+                Some(deadpool_postgres::Runtime::Tokio1),
+                tokio_postgres::NoTls,
+            )
+            .unwrap();
+        let mut db = pool.get().await.unwrap();
+        let transaction = db.transaction().await.unwrap();
+        transaction.batch_execute("ALTER TABLE sequent_backend.election ADD COLUMN presentation jsonb, ADD COLUMN status jsonb, ADD COLUMN voting_channels jsonb; CREATE TABLE sequent_backend.scheduled_event (id uuid, tenant_id uuid, election_event_id uuid, archived_at timestamptz, task_id text, event_payload jsonb, cron_config jsonb);").await.unwrap();
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let election = Uuid::new_v4().to_string();
+        transaction.execute("INSERT INTO sequent_backend.election (id,tenant_id,election_event_id,status) VALUES ($1,$2,$3,'{\"voting_status\":\"OPEN\"}')", &[&parse_uuid_v4(&election).unwrap(), &parse_uuid_v4(&tenant).unwrap(), &parse_uuid_v4(&event).unwrap()]).await.unwrap();
+        let task = generate_manage_date_task_name(
+            &tenant,
+            &event,
+            Some(&election),
+            &EventProcessors::END_VOTING_PERIOD,
+        );
+        let payload = json!({"election_id": election});
+        let cron = json!({"scheduled_date": "2026-01-01T12:00:00Z"});
+        transaction.execute("INSERT INTO sequent_backend.scheduled_event (id,tenant_id,election_event_id,task_id,event_payload,cron_config) VALUES ($1,$2,$3,$4,$5,$6)", &[&Uuid::new_v4(), &parse_uuid_v4(&tenant).unwrap(), &parse_uuid_v4(&event).unwrap(), &task, &payload, &cron]).await.unwrap();
+        let loaded = get_cast_vote_configuration(&transaction, &tenant, &event, &election)
+            .await
+            .unwrap();
+        assert_eq!(loaded.scheduled_events.len(), 1);
+        assert_eq!(
+            generate_voting_period_dates(loaded.scheduled_events, &tenant, &event, Some(&election))
+                .unwrap()
+                .end_date,
+            Some("2026-01-01T12:00:00Z".into())
+        );
+        transaction.batch_execute("UPDATE sequent_backend.election SET status='{\"voting_status\":\"PAUSED\"}'; UPDATE sequent_backend.scheduled_event SET archived_at=now();").await.unwrap();
+        let loaded = get_cast_vote_configuration(&transaction, &tenant, &event, &election)
+            .await
+            .unwrap();
+        assert_eq!(loaded.status.unwrap()["voting_status"], "PAUSED");
+        assert!(loaded.scheduled_events.is_empty());
+        assert!(get_cast_vote_configuration(
+            &transaction,
+            &Uuid::new_v4().to_string(),
+            &event,
+            &election
+        )
+        .await
+        .is_err());
+        transaction.batch_execute("ALTER TABLE sequent_backend.cast_vote ADD COLUMN ballot_id text, ADD COLUMN cast_ballot_signature bytea, ADD COLUMN annotations jsonb, ADD COLUMN created_at timestamptz DEFAULT now(), ADD COLUMN last_updated_at timestamptz DEFAULT now();").await.unwrap();
+        let content = "encrypted-ballot".repeat(1000);
+        let tenant_uuid = parse_uuid_v4(&tenant).unwrap();
+        let event_uuid = parse_uuid_v4(&event).unwrap();
+        let election_uuid = parse_uuid_v4(&election).unwrap();
+        let area_uuid = Uuid::new_v4();
+        let inserted = postgres::cast_vote::insert_cast_vote(
+            &transaction,
+            &tenant_uuid,
+            &event_uuid,
+            &election_uuid,
+            &area_uuid,
+            &content,
+            "voter",
+            "ballot",
+            &[0; 64],
+            &None,
+            &None,
+            VotingStatusChannel::ONLINE,
+            CastVoteStatus::Valid,
+        )
+        .await
+        .unwrap();
+        assert_eq!(inserted.content.as_deref(), Some(content.as_str()));
+        assert_eq!(inserted.status, CastVoteStatus::Valid);
+        assert_eq!(inserted.area_id, Some(area_uuid.to_string()));
+        assert_eq!(inserted.ballot_id.as_deref(), Some("ballot"));
+        let error = postgres::cast_vote::insert_cast_vote(
+            &transaction,
+            &tenant_uuid,
+            &event_uuid,
+            &election_uuid,
+            &area_uuid,
+            &content,
+            "voter",
+            "ballot",
+            &[0; 64],
+            &None,
+            &None,
+            VotingStatusChannel::ONLINE,
+            CastVoteStatus::Valid,
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            map_insert_error(error),
+            CastVoteError::InsertFailedExceedsAllowedRevotes
+        ));
+        transaction.rollback().await.unwrap();
         drop(client);
         connection.await.unwrap().unwrap();
     }

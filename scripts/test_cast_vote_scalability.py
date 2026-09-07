@@ -6,6 +6,7 @@
 Run from the repository root inside devenv: python3 scripts/test_cast_vote_scalability.py
 No production credentials or existing databases are used.
 """
+import base64
 import concurrent.futures
 import json
 import os
@@ -73,9 +74,33 @@ def main():
             sql((MIGRATION / "up.sql").read_text())
             print("PASS: migration rollback and reapplication")
 
+            if os.environ.get("CAST_VOTE_RUN_RUST_TESTS") == "1":
+                rust_env = dict(env, CAST_VOTE_TEST_DATABASE_URL=f"host={directory} port=55432 dbname=postgres",
+                    CARGO_TARGET_DIR=str(ROOT / "packages/windmill/rust-local-target"))
+                subprocess.run(["cargo", "test", "-p", "windmill", "--lib", "services::insert_cast_vote::tests::database_trigger_error_preserves_public_error_and_retry_contract", "--", "--ignored"], cwd=ROOT / "packages", env=rust_env, check=True)
+
+            # Encoded ciphertext is not raw random bytes. Measure PostgreSQL's
+            # actual storage decision before recommending EXTERNAL globally.
+            sql("CREATE TABLE storage_probe (extended text, external text)")
+            sql("ALTER TABLE storage_probe ALTER COLUMN external SET STORAGE EXTERNAL")
+            ballot = json.dumps({"ciphertext": base64.b64encode(os.urandom(16000)).decode()})
+            sql(f"INSERT INTO storage_probe VALUES ('{ballot}', '{ballot}')")
+            print("Encoded-ciphertext bytes (EXTENDED|EXTERNAL): " + sql("SELECT pg_column_size(extended), pg_column_size(external) FROM storage_probe").stdout.strip())
+
+            storage_migration = ROOT / "hasura/migrations/backend-db/1788765000001_cast_vote_external_storage"
+            sql((storage_migration / "up.sql").read_text())
+            assert sql("SELECT attstorage FROM pg_attribute WHERE attrelid='sequent_backend.cast_vote'::regclass AND attname='content'").stdout.strip() == "e"
+            sql((storage_migration / "down.sql").read_text())
+            assert sql("SELECT attstorage FROM pg_attribute WHERE attrelid='sequent_backend.cast_vote'::regclass AND attname='content'").stdout.strip() == "x"
+            sql((storage_migration / "up.sql").read_text())
+            print("PASS: EXTERNAL storage migration and rollback")
+
             # Measure the proposed covering index separately. Recent inserts need
             # heap visibility checks even when every filter column is in the index.
-            sql("CREATE INDEX cast_vote_participation_election_idx ON sequent_backend.cast_vote (tenant_id,election_event_id,election_id,voter_id_string) INCLUDE (status)")
+            sql("CREATE INDEX cast_vote_participation_election_idx ON sequent_backend.cast_vote (tenant_id,election_event_id,election_id,voter_id_string)")
+            subprocess.run(["psql", "-X", "-v", "ON_ERROR_STOP=1", "-f", str(ROOT / "scripts/postgres/cast_vote_covering_index.sql")], env=env, check=True, stdout=subprocess.DEVNULL)
+            assert sql("SELECT count(*) FROM pg_index WHERE indrelid='sequent_backend.cast_vote'::regclass AND indisvalid").stdout.strip() == "2"
+            print("PASS: concurrent covering-index replacement retains exactly PK + participation index")
             sql("INSERT INTO sequent_backend.election SELECT gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 0 FROM generate_series(1,10000)")
             sql("ALTER TABLE sequent_backend.cast_vote DISABLE TRIGGER check_revote_limit_trigger")
             sql(f"INSERT INTO sequent_backend.cast_vote (tenant_id,election_event_id,election_id,voter_id_string,area_id,status) SELECT '{tenant}','{event}','{election}','bulk-' || n,'{area_a}','valid' FROM generate_series(1,100000) n")

@@ -853,6 +853,13 @@ pub async fn get_election_permission_label(
     Ok(perms.into_iter().flatten().collect())
 }
 
+pub struct CastVoteConfiguration {
+    pub presentation: Option<Value>,
+    pub status: Option<Value>,
+    pub voting_channels: Option<Value>,
+    pub scheduled_events: Vec<sequent_core::types::scheduled_event::ScheduledEvent>,
+}
+
 /// One writer snapshot for cast-vote policy. Avoid fetching election EML,
 /// receipts, statistics, and unrelated scheduled tasks for every ballot.
 #[instrument(skip_all, err)]
@@ -861,12 +868,7 @@ pub async fn get_cast_vote_configuration(
     tenant_id: &str,
     event_id: &str,
     election_id: &str,
-) -> Result<(
-    Option<Value>,
-    Option<Value>,
-    Option<Value>,
-    Vec<sequent_core::types::scheduled_event::ScheduledEvent>,
-)> {
+) -> Result<CastVoteConfiguration> {
     use sequent_core::types::scheduled_event::{
         generate_manage_date_task_name, EventProcessors, ManageElectionDatePayload,
     };
@@ -910,10 +912,10 @@ pub async fn get_cast_vote_configuration(
             ],
         )
         .await?;
-    Ok((
-        row.try_get("presentation")?,
-        row.try_get("status")?,
-        row.try_get("voting_channels")?,
-        serde_json::from_value(row.try_get("scheduled_events")?)?,
-    ))
+    Ok(CastVoteConfiguration {
+        presentation: row.try_get("presentation")?,
+        status: row.try_get("status")?,
+        voting_channels: row.try_get("voting_channels")?,
+        scheduled_events: serde_json::from_value(row.try_get("scheduled_events")?)?,
+    })
 }
