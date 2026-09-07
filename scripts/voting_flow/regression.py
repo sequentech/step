@@ -23,21 +23,25 @@ class VotingFlowTests(unittest.TestCase):
     database = None
 
     def setUp(self):
+        """Create an independent open election for each regression in the shared test database."""
         self.db = self.database
         self.connection = self.db.connection
         self.election = Election()
         self.election.create(self.connection)
 
     def dates(self, election=None, connection=None):
+        """Read projected start/end dates for the chosen fixture and optional transaction."""
         election = election or self.election
         connection = connection or self.connection
         row = connection.execute(CONFIGURATION_QUERY, election.scope).fetchone()
         return row[3], row[4]
 
     def concurrent(self, operations):
+        """Race operations on independent transactions and return success or primary SQL error messages."""
         barrier = threading.Barrier(len(operations))
 
         def run(operation):
+            """Synchronize one operation with its peers and capture database failures for assertions."""
             with psycopg.connect(self.db.dsn, autocommit=True) as connection:
                 barrier.wait(timeout=20)
                 try:
@@ -53,6 +57,7 @@ class VotingFlowTests(unittest.TestCase):
             return list(executor.map(run, operations))
 
     def test_backfill_and_rollback(self):
+        """Verify projection backfill and eligibility migration reapplication preserve valid schedules."""
         self.db.apply(WINDOW_MIGRATION, "down")
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         self.db.apply(WINDOW_MIGRATION)
@@ -61,6 +66,7 @@ class VotingFlowTests(unittest.TestCase):
         self.db.apply(AREA_MIGRATION)
 
     def test_indexed_refresh_still_checks_the_exact_task_payload(self):
+        """Reject name-matching schedules whose payload is foreign or has unexpected fields."""
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         for payload in (
             {"election_id": str(self.election.other_area)},
@@ -86,6 +92,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
 
     def test_bounded_concurrent_revotes(self):
+        """Allow exactly the configured number of ballots when twelve requests race for one voter."""
         results = self.concurrent(
             [
                 lambda connection: self.election.vote(
@@ -98,6 +105,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(results.count("insert_failed_exceeds_allowed_revotes"), 9)
 
     def test_concurrent_first_endpoints_do_not_lose_an_update(self):
+        """Preserve both endpoints when separate transactions create the first opening and closing tasks."""
         operations = [
             lambda connection: self.election.schedule(
                 connection, "START", "2026-10-01T10:00:00Z"
@@ -110,11 +118,15 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
 
     def test_concurrent_reschedules_do_not_lose_an_update(self):
+        """Preserve both changed dates when opening and closing tasks are updated concurrently."""
         start = self.election.schedule(self.connection, "START", "2026-10-01T10:00:00Z")
         end = self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
 
         def change(schedule_id, date):
+            """Build a transaction operation that replaces the chosen endpoint date."""
+
             def operation(connection):
+                """Update one endpoint through the production projection-maintenance trigger."""
                 connection.execute(
                     """
                     UPDATE sequent_backend.scheduled_event SET cron_config = %s WHERE id = %s
@@ -134,6 +146,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), ("2026-10-02T10:00:00Z", "2026-10-02T12:00:00Z"))
 
     def test_cross_area_rule_applies_to_unlimited_revotes(self):
+        """Permit one winning area and reject the other even when the revote limit is unlimited."""
         self.connection.execute(
             "UPDATE sequent_backend.election SET num_allowed_revotes = 0 WHERE id = %s",
             (self.election.election,),
@@ -147,12 +160,14 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(results.count("check_votes_in_other_areas_failed"), 6)
 
     def test_discarded_votes_do_not_consume_eligibility(self):
+        """Allow a valid ballot after a discarded ballot in another area."""
         self.election.vote(
             self.connection, "discarded", self.election.other_area, "discarded"
         )
         self.election.vote(self.connection, "discarded", self.election.area)
 
     def test_duplicate_endpoint_fails_without_changing_projection(self):
+        """Reject an ambiguous endpoint and retain the last valid projected deadline."""
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         with self.assertRaisesRegex(
             psycopg.errors.RaiseException, "ambiguous_or_invalid"
@@ -161,6 +176,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
     def test_index_replacement_stops_on_an_invalid_previous_build(self):
+        """Retain the valid old index after an interrupted build and verify the documented recovery."""
         self.election.vote(self.connection, "index-test")
         self.election.vote(self.connection, "index-test")
         with self.assertRaises(psycopg.errors.UniqueViolation):
@@ -187,6 +203,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertTrue(self.db.scalar(validity, (old_index,)))
 
     def test_invalid_date_type_is_rejected_at_configuration_write(self):
+        """Reject a non-string endpoint date before it can populate the projection."""
         with self.assertRaisesRegex(
             psycopg.errors.RaiseException, "ambiguous_or_invalid"
         ):
@@ -194,6 +211,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), (None, None))
 
     def test_malformed_configuration_cannot_publish_a_missing_deadline(self):
+        """Reject malformed schedule updates atomically while retaining the valid deadline."""
         schedule_id = self.election.schedule(
             self.connection, "END", "2026-10-01T12:00:00Z"
         )
@@ -211,6 +229,7 @@ class VotingFlowTests(unittest.TestCase):
                 self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
     def test_move_archive_unarchive_and_delete(self):
+        """Keep both election projections correct as a schedule changes scope and active state."""
         target = Election()
         target.create(self.connection)
         schedule_id = self.election.schedule(
@@ -252,6 +271,7 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(target), (None, None))
 
     def test_projection_and_source_rollback_together(self):
+        """Verify uncommitted dates are transaction-local and disappear with source rollback."""
         schedule_id = self.election.schedule(
             self.connection, "END", "2026-10-01T12:00:00Z"
         )
@@ -271,12 +291,14 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
     def test_projection_exists_before_election_import(self):
+        """Support schedule-first imports without losing the projected deadline."""
         future = Election()
         future.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         future.create(self.connection)
         self.assertEqual(self.dates(future), (None, "2026-10-01T12:00:00Z"))
 
     def test_status_changes_remain_authoritative(self):
+        """Read administrative pauses immediately and reject a foreign tenant scope."""
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         self.connection.execute(
             "UPDATE sequent_backend.election SET status = %s WHERE id = %s",
@@ -295,6 +317,7 @@ class VotingFlowTests(unittest.TestCase):
         )
 
     def test_storage_migration_is_reversible(self):
+        """Verify EXTERNAL storage can be rolled back and reapplied for future writes."""
         query = """
             SELECT attstorage FROM pg_attribute
             WHERE attrelid = 'sequent_backend.cast_vote'::regclass AND attname = 'content'
@@ -306,6 +329,7 @@ class VotingFlowTests(unittest.TestCase):
         self.db.apply(STORAGE_MIGRATION)
 
     def test_truncate_clears_projection(self):
+        """Remove all materialized windows when the source schedule table is truncated."""
         self.connection.execute("TRUNCATE sequent_backend.scheduled_event")
         self.assertEqual(
             self.db.scalar(
@@ -316,6 +340,7 @@ class VotingFlowTests(unittest.TestCase):
 
 
 def run_regressions(database):
+    """Apply the projection migration, run its database invariants and exit nonzero on failure."""
     database.apply(WINDOW_MIGRATION)
     VotingFlowTests.database = database
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(VotingFlowTests)

@@ -42,10 +42,12 @@ class Scenario:
 
     @property
     def schedule_count(self):
+        """Return total event schedules, including both endpoints for each election."""
         return self.election_count * self.schedules_per_election
 
     @property
     def phases(self):
+        """Return opening/lull/closing tuples of phase name, concurrency and request count."""
         return (
             ("opening", self.peak_voters, 1024),
             ("lull", max(2, self.peak_voters // 4), 512),
@@ -56,6 +58,7 @@ class Scenario:
         # Spread distinct voters across the entire seeded population instead of
         # repeatedly touching the first few index pages. This multiplier is
         # coprime to every population below, so request IDs cannot collide.
+        """Map a request to a distinct seeded voter using a permutation of the tested populations."""
         return (request_id * 104729) % (self.seeded_ballots // 2)
 
 
@@ -99,6 +102,7 @@ class VoterClient:
     """Each worker reuses its connections, as application pools already do."""
 
     def __init__(self, database, fixture, variant, content):
+        """Open reusable writer and, for the baseline only, identity-database connections."""
         self.fixture = fixture
         self.variant = variant
         self.content = content
@@ -116,18 +120,21 @@ class VoterClient:
             )
 
     def close(self):
+        """Close every connection owned by this worker."""
         self.writer.close()
         if self.identity:
             self.identity.close()
 
     @contextmanager
     def checkout(self, connection, read_only=False):
+        """Count a logical checkout and yield a transaction, optionally rolling it back on exit."""
         self.checkouts += 1
         # The original identity/audit transactions were dropped without COMMIT.
         with connection.transaction(force_rollback=read_only):
             yield connection
 
     def cast(self, request_id):
+        """Submit one returning voter through the selected SQL path and propagate any failure."""
         voter = f"voter-{request_id}"
         fixture = self.fixture.for_voter(request_id)
         area = self.fixture.area_for_voter(request_id)
@@ -167,6 +174,7 @@ class VoterClient:
 
     def read_original_configuration(self, connection, voter, fixture):
         # new_from_sk reloads the same key just read by get_electoral_log.
+        """Execute the baseline signing, policy, schedule and prior-vote reads in their original order."""
         connection.execute(READ_SECRET, (fixture.tenant, fixture.event)).fetchone()
         connection.execute(
             """
@@ -195,6 +203,7 @@ class VoterClient:
 
 
 def prepare_votes(database, fixture, content, scenario):
+    """Restore identical voter/election/area history and analyze relations outside measured work."""
     connection = database.connection
     connection.execute("TRUNCATE sequent_backend.cast_vote")
     connection.execute(
@@ -238,10 +247,12 @@ def prepare_votes(database, fixture, content, scenario):
 
 
 def percentile(values, percent):
+    """Return the nearest-rank percentile of a nonempty sequence of latency measurements."""
     return sorted(values)[max(0, math.ceil(len(values) * percent / 100) - 1)]
 
 
 def statement_counts(database, requests):
+    """Return per-request SELECT/INSERT/BEGIN counts and supporting pg_stat_statements rows."""
     rows = database.connection.execute(
         "SELECT query, calls FROM pg_stat_statements"
     ).fetchall()
@@ -265,6 +276,11 @@ def statement_counts(database, requests):
 
 
 def run_variant(database, fixture, content, variant, scenario, schedule_index_sql):
+    """Measure one schema/path variant with warmed connections and restored ballots.
+
+    Verify populated elections/areas, distinct voters, accepted inserts and SQL
+    operation counts. Return timings, coverage and statement evidence; release
+    all clients even if a request or assertion fails. Setup is excluded from timing."""
     database.apply(AREA_MIGRATION, "down" if variant == "before" else "up")
     connection = database.connection
     # The original schema had no schedule-scope index. Restore the migration's
@@ -322,6 +338,7 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
         connection.execute("SELECT pg_stat_statements_reset()")
 
         def request(request_id):
+            """Borrow a worker, time one distinct voter submission, and always return the worker."""
             client = available.get()
             started = time.perf_counter()
             try:
@@ -399,6 +416,11 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
 
 
 def run_benchmark(database, output, scenario_names=None):
+    """Run the selected scenarios sequentially and write their raw evidence to output.
+
+    Each before/after pair starts with the same ballots and topology. A failed
+    request or invariant aborts the run instead of publishing a successful report.
+    With no scenario_names filter, measure the full configured matrix."""
     schedule_index_sql = database.scalar(
         "SELECT pg_get_indexdef(%s::regclass)", (SCHEDULE_INDEX,)
     )

@@ -12,6 +12,7 @@ import tempfile
 import psycopg
 
 ROOT = Path(__file__).resolve().parents[2]
+RESULTS = ROOT / ".cache/voting-flow"
 MIGRATIONS = ROOT / "hasura/migrations/backend-db"
 AREA_MIGRATION = MIGRATIONS / "1788765000000_serialize_cast_vote_area_checks"
 STORAGE_MIGRATION = MIGRATIONS / "1788765000001_cast_vote_external_storage"
@@ -29,6 +30,7 @@ CONFIGURATION_QUERY = (
 
 class LocalDatabase:
     def __init__(self, directory):
+        """Configure a disposable cluster and private socket without starting PostgreSQL."""
         self.directory = Path(directory)
         self.data = self.directory / "data"
         self.connection = None
@@ -40,9 +42,11 @@ class LocalDatabase:
         )
 
     def command(self, *arguments):
+        """Run a PostgreSQL utility, suppressing normal output and raising on failure."""
         subprocess.run(arguments, check=True, stdout=subprocess.DEVNULL)
 
     def start(self):
+        """Initialize the fixture schema and instrumented PostgreSQL cluster on a private socket."""
         self.command(
             "initdb",
             "-D",
@@ -82,6 +86,7 @@ class LocalDatabase:
         )
 
     def stop(self):
+        """Close the client and stop a started cluster, including after partial initialization."""
         if self.connection is not None:
             self.connection.close()
         if self.started:
@@ -93,10 +98,12 @@ class LocalDatabase:
     def apply(self, migration, direction="up"):
         # Production Hasura migrations are transactional. Keep that contract in
         # the harness, especially for projection backfill and trigger installation.
+        """Apply the selected up/down migration atomically, matching Hasura transaction semantics."""
         with self.connection.transaction():
             self.connection.execute((migration / f"{direction}.sql").read_text())
 
     def run_index_script(self):
+        """Run the concurrent index script outside a transaction and return its captured result."""
         return subprocess.run(
             ["psql", "-X", "-f", str(INDEX_SCRIPT)],
             env=self.env,
@@ -105,11 +112,13 @@ class LocalDatabase:
         )
 
     def scalar(self, query, parameters=None):
+        """Execute parameterized SQL and return the first column of its first result row."""
         return self.connection.execute(query, parameters).fetchone()[0]
 
 
 @contextmanager
 def local_database():
+    """Yield an isolated database and always stop it before removing its temporary files."""
     with tempfile.TemporaryDirectory(prefix="voting-flow-") as directory:
         database = LocalDatabase(directory)
         try:

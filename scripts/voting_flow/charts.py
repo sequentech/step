@@ -21,6 +21,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 
 def figure(title, subtitle):
+    """Create a three-panel figure with consistent typography and room for workload dimensions."""
     plt.rcParams.update(
         {
             "font.size": 10,
@@ -39,6 +40,7 @@ def figure(title, subtitle):
 
 
 def style_axis(axis, title, ylabel):
+    """Label a metric panel and anchor its scale at zero to avoid exaggerating differences."""
     axis.set_title(title, loc="left", fontsize=11, pad=10)
     axis.set_ylabel(ylabel, fontsize=9)
     axis.set_ylim(bottom=0)
@@ -48,6 +50,7 @@ def style_axis(axis, title, ylabel):
 
 
 def save(fig, path, description):
+    """Write a deterministic SVG and its license sidecar, then release the figure."""
     fig.savefig(
         path,
         facecolor="white",
@@ -62,6 +65,7 @@ def save(fig, path, description):
 
 
 def comparison_chart(scenarios, labels, title, subtitle, path, combined=False):
+    """Plot measured before/after metrics as case comparisons or a labeled combined-workload bar chart."""
     fig, axes = figure(title, subtitle)
     for axis, (key, title, ylabel) in zip(axes, METRICS):
         if combined:
@@ -167,6 +171,7 @@ def voting_charts(report, directory, prefix="voting-flow"):
 
 
 def schedule_chart(report, directory):
+    """Render indexed/unindexed query costs for the measured bounded schedule populations."""
     pairs = {}
     for scenario in report["scenarios"]:
         pairs.setdefault(scenario["placement"], {})[scenario["indexed"]] = scenario[
