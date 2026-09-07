@@ -1508,13 +1508,10 @@
     },
     {
       "label": "start.wbraid-b4",
-      "command": "devenv",
+      "command": "bash",
       "args": [
-        "shell",
-        "bash",
-        "--",
         "-c",
-        "cd packages/wbraid && ./b4.sh"
+        "docker compose stop b4v6; docker compose up -d --no-deps b4v6 && docker compose logs -f --tail 100 b4v6"
       ],
       "presentation": {
         "echo": true,
@@ -1523,6 +1520,13 @@
         "panel": "dedicated",
         "showReuseMessage": true,
         "clear": false
+      },
+      "options": {
+        "env": {
+          "COMPOSE_PROJECT_NAME": "step_devcontainer",
+          "COMPOSE_PROFILES": "base,wbraid"
+        },
+        "cwd": "${workspaceFolder}/.devcontainer"
       },
       "isBackground": true,
       "runOptions": {

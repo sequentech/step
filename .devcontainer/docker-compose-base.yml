@@ -221,12 +221,13 @@ services:
   # The SQLite file lives in a named volume, b4.sh --reset clears it.
   b4v6:
     profiles: [ "wbraid" ]
-    container_name: b4v6
     image: sequentech.local/cargo-packages
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
     restart: unless-stopped
+    ports:
+      - "3005:3005"
     working_dir: /workspaces/step/packages/wbraid
     entrypoint: [
       "cargo",
