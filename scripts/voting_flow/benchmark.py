@@ -394,7 +394,7 @@ def run_variant(database, fixture, content, variant, scenario):
             client.close()
 
 
-def run_benchmark(database, output):
+def run_benchmark(database, output, scenario_names=None):
     database.connection.execute("CREATE DATABASE keycloak")
     with psycopg.connect(database.dsn, dbname="keycloak", autocommit=True) as identity:
         identity.execute(
@@ -428,6 +428,8 @@ def run_benchmark(database, output):
         "scenarios": [],
     }
     for scenario in SCENARIOS:
+        if scenario_names and scenario.name not in scenario_names:
+            continue
         fixture = seed(database, scenario.unrelated_schedules)
         evidence = dict(asdict(scenario), results=[])
         for variant in ("before", "after"):
