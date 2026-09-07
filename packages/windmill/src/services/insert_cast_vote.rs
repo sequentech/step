@@ -946,6 +946,20 @@ fn check_status_with_loaded_election(
     Ok(effective_voting_channel)
 }
 
+/// Missing presentation uses defaults; malformed configured policy must not
+/// silently become a different grace-period policy.
+fn parse_election_presentation(
+    presentation: Option<serde_json::Value>,
+) -> Result<ElectionPresentation, CastVoteError> {
+    presentation
+        .map(|value| {
+            deserialize_value(value).context("Failed to deserialize election presentation")
+        })
+        .transpose()
+        .map(|value| value.unwrap_or_default())
+        .map_err(|error| CastVoteError::CheckStatusInternalFailed(error.to_string()))
+}
+
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -995,9 +1009,7 @@ async fn check_status(
     )
     .await
     .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
-    let election_presentation: ElectionPresentation = presentation
-        .and_then(|value| deserialize_value(value).ok())
-        .unwrap_or_default();
+    let election_presentation = parse_election_presentation(presentation)?;
 
     // these dates are used to check by scheduled event date
     // (even if the even hasn't been executed)
@@ -1129,6 +1141,23 @@ mod tests {
             statistics: None,
             external_id: None,
         }
+    }
+
+    #[test]
+    fn malformed_presentation_is_an_internal_error_instead_of_default_policy() {
+        assert!(matches!(
+            parse_election_presentation(Some(json!({"grace_period_secs": "invalid"}))),
+            Err(CastVoteError::CheckStatusInternalFailed(message))
+                if message.contains("Failed to deserialize election presentation")
+        ));
+    }
+
+    #[test]
+    fn missing_and_valid_presentation_remain_supported() {
+        assert!(parse_election_presentation(None).is_ok());
+        let presentation =
+            parse_election_presentation(Some(json!({"grace_period_secs": 120}))).unwrap();
+        assert_eq!(presentation.grace_period_secs, Some(120));
     }
 
     #[test]

@@ -1,6 +1,8 @@
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+\set ON_ERROR_STOP on
+
 -- Run with psql -X -v ON_ERROR_STOP=1 -f (never --single-transaction).
 -- Keep the old index serving queries throughout the concurrent build. Stop on
 -- any error; inspect pg_index.indisvalid before recovering an interrupted build.

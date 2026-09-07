@@ -76,8 +76,11 @@ retire, rename sequence with the original four-key definition without INCLUDE.
 No reporting index is removed by this work.
 
 Application rollback can precede trigger rollback: the former duplicate precheck
-is compatible with the strengthened trigger. Rolling back the trigger restores
-the previous cross-area race, so retain it when possible.
+is compatible with the strengthened trigger. Rolling back the trigger removes database cross-area enforcement entirely.
+If the new application remains deployed, there is no Rust cross-area precheck
+to replace it. Restore the previous application before a complete trigger
+rollback; that older application check still has the original concurrency race.
+Retain the strengthened trigger when possible.
 
 ## Reproducible validation
 
@@ -123,8 +126,12 @@ an installed `minimatch` type-definition error. These are not reported as passin
 Tracked in [meta#13211](https://github.com/sequentech/meta/issues/13211).
 
 Before claiming a production p99 or pool-capacity improvement, run the complete
-login-to-cast flow on a seeded deployment with the same PgBouncer transaction-pool
-configuration as production. Use `packages/loadtesting` with an explicit test URL
+login-to-cast flow on a seeded deployment matching the actual production
+connection topology. This checkout uses application-side deadpool-postgres pools
+and direct PostgreSQL development connections; no PgBouncer or Pgpool-II
+deployment configuration was found. Production topology has not been verified.
+First establish pool sizes and replica counts, then evaluate transaction pooling
+only if connection pressure warrants it; this PR does not require a proxy. Use `packages/loadtesting` with an explicit test URL
 and seeded credentials; do not rely on its shared-environment default URL. Run
 opening spike, lull, and pre-close spike against baseline and this branch with
 identical data and resources. Record arrival rates, p50/p95/p99, error counts,

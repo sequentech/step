@@ -98,6 +98,18 @@ def main():
             # Measure the proposed covering index separately. Recent inserts need
             # heap visibility checks even when every filter column is in the index.
             sql("CREATE INDEX cast_vote_participation_election_idx ON sequent_backend.cast_vote (tenant_id,election_event_id,election_id,voter_id_string)")
+            # A failed concurrent unique build leaves an invalid index behind.
+            # A retry must stop before retiring the existing valid access path,
+            # even if the operator omits -v ON_ERROR_STOP on the command line.
+            failed_build = sql("CREATE UNIQUE INDEX CONCURRENTLY cast_vote_participation_election_covering_idx ON sequent_backend.cast_vote (tenant_id,election_event_id,election_id,voter_id_string)", check=False)
+            assert failed_build.returncode != 0
+            assert sql("SELECT indisvalid FROM pg_index WHERE indexrelid='sequent_backend.cast_vote_participation_election_covering_idx'::regclass").stdout.strip() == "f"
+            retry = subprocess.run(["psql", "-X", "-f", str(ROOT / "scripts/postgres/cast_vote_covering_index.sql")], env=env, text=True, capture_output=True)
+            assert retry.returncode != 0
+            assert sql("SELECT indisvalid FROM pg_index WHERE indexrelid='sequent_backend.cast_vote_participation_election_idx'::regclass").stdout.strip() == "t"
+            assert sql("SELECT indisvalid FROM pg_index WHERE indexrelid='sequent_backend.cast_vote_participation_election_covering_idx'::regclass").stdout.strip() == "f"
+            print("PASS: invalid concurrent build stops replacement before dropping the valid old index")
+            sql("DROP INDEX CONCURRENTLY sequent_backend.cast_vote_participation_election_covering_idx")
             subprocess.run(["psql", "-X", "-v", "ON_ERROR_STOP=1", "-f", str(ROOT / "scripts/postgres/cast_vote_covering_index.sql")], env=env, check=True, stdout=subprocess.DEVNULL)
             assert sql("SELECT count(*) FROM pg_index WHERE indrelid='sequent_backend.cast_vote'::regclass AND indisvalid").stdout.strip() == "2"
             print("PASS: concurrent covering-index replacement retains exactly PK + participation index")
