@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voting flow performance | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3149/docs/developers/voting-portal/voting_flow_performance"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voting flow performance | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3149/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3149/docs/developers/voting-portal/voting_flow_performance"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3149/docs/developers/voting-portal/voting_flow_performance" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3149/docs/developers/voting-portal/voting_flow_performance" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voting flow performance","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3149/docs/developers/voting-portal/voting_flow_performance"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3149/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3149/assets/js/runtime~main.81555b4b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3149/assets/js/runtime~main.aa29af66.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3149/assets/js/main.c6433f1c.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -96,11 +96,28 @@ tenant scope, storage migration and interrupted concurrent index builds. Rust
 integration tests exercise the production INSERT/error mapping and materialized
 configuration query, including equivalence with the schedule-generation contract.</p>
 <p>The SQL benchmark compares the previous implementation at <code>e93ca05104</code> with the
-current database path. Each variant starts with 100,000 seeded ballots, approximately
-21 KB encoded ciphertext, two prior ballots per voter, warm reusable connections,
-and the same fixture schema. It runs opening/lull/closing concurrency phases of
-8/2/8 clients and 128/64/128 requests, with 100 and 2,000 unrelated scheduled tasks.
-This is a bounded-concurrency workload, not an open-loop arrival-rate test.</p>
+current database path using the same fixture schema and approximately 21 KB
+encoded ciphertext. It varies three factors independently, then combines table
+growth and a voter burst:</p>
+<table><thead><tr><th>Scenario</th><th style="text-align:right">Seeded ballots</th><th style="text-align:right">Peak concurrent voters</th><th style="text-align:right">Unrelated schedules</th></tr></thead><tbody><tr><td>Small table</td><td style="text-align:right">10,000</td><td style="text-align:right">8</td><td style="text-align:right">100</td></tr><tr><td>Reference</td><td style="text-align:right">100,000</td><td style="text-align:right">8</td><td style="text-align:right">100</td></tr><tr><td>Large table</td><td style="text-align:right">1,000,000</td><td style="text-align:right">8</td><td style="text-align:right">100</td></tr><tr><td>Medium voter burst</td><td style="text-align:right">100,000</td><td style="text-align:right">32</td><td style="text-align:right">100</td></tr><tr><td>Large voter burst</td><td style="text-align:right">100,000</td><td style="text-align:right">64</td><td style="text-align:right">100</td></tr><tr><td>Large table and voter burst</td><td style="text-align:right">1,000,000</td><td style="text-align:right">64</td><td style="text-align:right">100</td></tr><tr><td>Many schedules</td><td style="text-align:right">100,000</td><td style="text-align:right">8</td><td style="text-align:right">2,000</td></tr></tbody></table>
+<p>Every variant starts with the same population, two prior ballots per voter and
+64 warmup requests on reusable connections. Opening/lull/closing phases submit
+1,024/512/1,024 requests. Lull concurrency is one quarter of peak, with a minimum
+of two. All 2,560 measured requests use different voters, also distinct from the
+warmups. A deterministic permutation spreads those voters across the entire
+seeded population, so the large-table case exercises more than its first few
+participation-index pages. The report records actual relation size including
+indexes and TOAST, accepted requests, errors and per-phase throughput/latency.</p>
+<p>Seeding, vacuuming, index construction and verification run outside the measured
+interval. The harness checks the initial and final ballot counts and fails if a
+submission fails. Each scenario restores the seed before comparing variants.
+PostgreSQL allows 160 connections locally to accommodate the largest baseline&#x27;s
+64 writer and 64 identity connections; durability settings remain enabled.</p>
+<p>This is a bounded-concurrency workload, not an open-loop arrival-rate test. Peak
+concurrency means different voters submit simultaneously, not 64 submissions
+contending for one voter&#x27;s lock. Same-voter races are covered by regressions.
+The largest fixture needs roughly 25 GB of temporary database storage; allow at
+least 50 GB free for its data, indexes and WAL. Runs can take several minutes.</p>
 <p>PostgreSQL <code>pg_stat_statements</code> counts reads, writes and transaction starts,
 including nested trigger SQL. The driver records logical connection checkouts.
 The baseline uses a separate local Keycloak fixture database; the current path
