@@ -32,26 +32,40 @@ def scenario_label(scenario):
     return (
         f"{compact_count(scenario['seeded_ballots'])} votes table, "
         f"{scenario['peak_voters']} concurrent voters, "
-        f"{compact_count(scenario['unrelated_schedules'])} other same-event schedules"
+        f"{scenario['election_count']} elections, "
+        f"{compact_count(scenario['area_count'])} areas, "
+        f"{compact_count(scenario['election_count'] * scenario['schedules_per_election'])} total schedules"
     )
 
 
 def measurement_tables(report):
     rows = [
-        "| Scenario | Ballots | Peak concurrent voters | Other same-event schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Scenario | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
+        "|---|---:|---:|",
     ]
     throughput = [
         "| Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
+    coverage = [
+        "| Scenario | Distinct measured voters | Distinct measured elections | Distinct measured areas |",
+        "|---|---:|---:|---:|",
+    ]
     for scenario in report["scenarios"]:
         before, after = scenario["results"]
         assert before["variant"] == "before" and after["variant"] == "after"
         assert before["accepted_requests"] == after["accepted_requests"]
+        assert before["distinct_measured_areas"] == after["distinct_measured_areas"]
+        assert (
+            before["distinct_measured_elections"]
+            == after["distinct_measured_elections"]
+        )
+        coverage.append(
+            f"| {scenario_label(scenario)} | {after['distinct_measured_voters']:,} | "
+            f"{after['distinct_measured_elections']:,} | {after['distinct_measured_areas']:,} |"
+        )
         rows.append(
-            f"| {scenario_label(scenario)} | {scenario['seeded_ballots']:,} | "
-            f"{scenario['peak_voters']} | {scenario['unrelated_schedules']:,} | "
+            f"| {scenario_label(scenario)} | "
             f"{before['p50_ms']:.2f} / {before['p99_ms']:.2f} | "
             f"{after['p50_ms']:.2f} / {after['p99_ms']:.2f} |"
         )
@@ -61,7 +75,7 @@ def measurement_tables(report):
             f"{after['requests_per_second']:.1f} | {after['accepted_requests']:,} | "
             f"{before['errors']} / {after['errors']} |"
         )
-    return "\n".join(rows) + "\n\n" + "\n".join(throughput)
+    return "\n\n".join("\n".join(table) for table in (rows, throughput, coverage))
 
 
 def schedule_tables(report):
@@ -71,15 +85,15 @@ def schedule_tables(report):
             scenario["queries"]
         )
     broad = [
-        "| Extra schedules in | Rows returned | Broad query without index p50 (ms) | With index p50 (ms) |",
+        "| Schedule population | Rows returned | Broad query without index p50 (ms) | With index p50 (ms) |",
         "|---|---:|---:|---:|",
     ]
     selection = [
-        "| Extra schedules in | Two-endpoint query without index p50 (ms) | With index p50 (ms) | Projection p50 (ms) |",
+        "| Schedule population | Two-endpoint query without index p50 (ms) | With index p50 (ms) | Projection p50 (ms) |",
         "|---|---:|---:|---:|",
     ]
     writes = [
-        "| Extra schedules in | Reschedule without index p50 (ms) | With index p50 (ms) |",
+        "| Schedule population | Reschedule without index p50 (ms) | With index p50 (ms) |",
         "|---|---:|---:|",
     ]
     for placement, variants in by_placement.items():
@@ -104,12 +118,7 @@ def main():
     guide = GUIDE.read_text()
     prefix, remainder = guide.split(START)
     _, suffix = remainder.split(END)
-    reference = next(
-        s
-        for s in report["scenarios"]
-        if (s["seeded_ballots"], s["peak_voters"], s["unrelated_schedules"])
-        == (100_000, 8, 100)
-    )
+    reference = next(s for s in report["scenarios"] if s["name"] == "100k-votes")
     before, after = reference["results"]
     calculation = (
         "**Accepted votes/second = accepted submissions / elapsed measurement seconds.** "
@@ -137,7 +146,7 @@ def main():
         measurements += (
             "\n### Release 10 verification\n\n"
             f"A separate run at implementation `{verification['implementation_commit'][:10]}` "
-            "repeats the 100k votes table workloads at 8 and 64 concurrent voters on this release branch. "
+            "repeats selected area and combined-load workloads on this release branch. "
             "The same accepted-votes/elapsed-seconds calculation applies. "
             f"[Raw verification report](/benchmarks/{verification_path.name}).\n\n"
             + measurement_tables(verification)

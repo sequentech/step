@@ -23,10 +23,9 @@ import re
 import time
 
 import psycopg
-from psycopg.types.json import Jsonb
 
 from database import AREA_MIGRATION, CONFIGURATION_QUERY, ROOT, SCHEDULE_INDEX
-from fixtures import Election, INSERT_VOTE
+from fixtures import VotingEvent, INSERT_VOTE, clear_workload
 from report import scenario_label
 
 WARMUP_REQUESTS = 64
@@ -37,7 +36,13 @@ class Scenario:
     name: str
     seeded_ballots: int = 100_000
     peak_voters: int = 8
-    unrelated_schedules: int = 100
+    election_count: int = 10
+    area_count: int = 100
+    schedules_per_election: int = 10
+
+    @property
+    def schedule_count(self):
+        return self.election_count * self.schedules_per_election
 
     @property
     def phases(self):
@@ -54,8 +59,8 @@ class Scenario:
         return (request_id * 104729) % (self.seeded_ballots // 2)
 
 
-# Change one factor at a time, then combine the largest table and voter burst.
-# Schedule scanning remains a separate comparison at the reference table size.
+# Isolate ballots, concurrency and area cardinality, then combine their maxima.
+# Election/schedule cases obey at most 200 elections and 10 schedules each.
 SCENARIOS = (
     Scenario("10k-votes", seeded_ballots=10_000),
     Scenario("100k-votes"),
@@ -63,7 +68,21 @@ SCENARIOS = (
     Scenario("100k-votes-32-voters", peak_voters=32),
     Scenario("100k-votes-64-voters", peak_voters=64),
     Scenario("1m-votes-64-voters", seeded_ballots=1_000_000, peak_voters=64),
-    Scenario("100k-votes-2000-schedules", unrelated_schedules=2000),
+    Scenario("100k-votes-200-elections", election_count=200),
+    Scenario(
+        "100k-votes-200-elections-400-schedules",
+        election_count=200,
+        schedules_per_election=2,
+    ),
+    Scenario("100k-votes-1k-areas", area_count=1000),
+    Scenario("100k-votes-10k-areas", area_count=10_000),
+    Scenario(
+        "1m-votes-64-voters-200-elections-10k-areas",
+        seeded_ballots=1_000_000,
+        peak_voters=64,
+        election_count=200,
+        area_count=10_000,
+    ),
 )
 READ_SECRET = """
     SELECT value FROM sequent_backend.secret
@@ -110,11 +129,12 @@ class VoterClient:
 
     def cast(self, request_id):
         voter = f"voter-{request_id}"
-        fixture = self.fixture
+        fixture = self.fixture.for_voter(request_id)
+        area = self.fixture.area_for_voter(request_id)
         with self.checkout(self.writer) as connection:
             connection.execute(
                 "SELECT * FROM sequent_backend.area WHERE tenant_id = %s AND id = %s",
-                (fixture.tenant, fixture.area),
+                (fixture.tenant, area),
             ).fetchone()
             connection.execute(
                 "SELECT * FROM sequent_backend.election_event WHERE tenant_id = %s AND id = %s",
@@ -123,7 +143,7 @@ class VoterClient:
             connection.execute(READ_SECRET, (fixture.tenant, fixture.event)).fetchone()
 
             if self.variant == "before":
-                self.read_original_configuration(connection, voter)
+                self.read_original_configuration(connection, voter, fixture)
                 returning = " RETURNING *"
             else:
                 connection.execute(CONFIGURATION_QUERY, fixture.scope).fetchone()
@@ -131,7 +151,7 @@ class VoterClient:
 
             connection.execute(
                 INSERT_VOTE + returning,
-                fixture.vote_parameters(voter, content=self.content),
+                fixture.vote_parameters(voter, area=area, content=self.content),
             ).fetchone()
 
         if self.variant == "before":
@@ -145,8 +165,7 @@ class VoterClient:
                     READ_SECRET, (fixture.tenant, fixture.event)
                 ).fetchone()
 
-    def read_original_configuration(self, connection, voter):
-        fixture = self.fixture
+    def read_original_configuration(self, connection, voter, fixture):
         # new_from_sk reloads the same key just read by get_electoral_log.
         connection.execute(READ_SECRET, (fixture.tenant, fixture.event)).fetchone()
         connection.execute(
@@ -175,56 +194,6 @@ class VoterClient:
         ).fetchall()
 
 
-def seed(database, schedule_count):
-    connection = database.connection
-    fixture = Election()
-    fixture.create(connection, limit=100)
-    connection.execute(
-        "INSERT INTO sequent_backend.area VALUES (%s, %s, %s, %s)",
-        (
-            fixture.area,
-            fixture.tenant,
-            fixture.event,
-            Jsonb({}),
-        ),
-    )
-    connection.execute(
-        "INSERT INTO sequent_backend.election_event VALUES (%s, %s, %s, 'board')",
-        (
-            fixture.event,
-            fixture.tenant,
-            Jsonb({}),
-        ),
-    )
-    connection.execute(
-        "INSERT INTO sequent_backend.secret VALUES (%s, %s, 'protocol-manager', %s)",
-        (
-            fixture.tenant,
-            fixture.event,
-            "encrypted-signing-key" * 64,
-        ),
-    )
-    connection.execute(
-        "UPDATE sequent_backend.election SET eml = %s WHERE id = %s",
-        (
-            "election-configuration" * 1600,
-            fixture.election,
-        ),
-    )
-    fixture.schedule(connection, "START", "2026-10-01T10:00:00Z")
-    fixture.schedule(connection, "END", "2026-10-01T12:00:00Z")
-    connection.execute(
-        """
-        INSERT INTO sequent_backend.scheduled_event
-            (tenant_id, election_event_id, task_id, event_payload, cron_config)
-        SELECT %s, %s, 'unrelated-' || number, '{}'::jsonb, '{}'::jsonb
-        FROM generate_series(1, %s) AS number
-    """,
-        (fixture.tenant, fixture.event, schedule_count),
-    )
-    return fixture
-
-
 def prepare_votes(database, fixture, content, scenario):
     connection = database.connection
     connection.execute("TRUNCATE sequent_backend.cast_vote")
@@ -240,10 +209,22 @@ def prepare_votes(database, fixture, content, scenario):
             INSERT INTO sequent_backend.cast_vote
                 (tenant_id, election_event_id, election_id, area_id,
                  voter_id_string, status, content)
-            SELECT %s, %s, %s, %s, 'voter-' || (number / 2), 'valid', %s
+            SELECT %s, %s,
+                   (%s::uuid[])[((number / 2) %% %s)::int + 1],
+                   (%s::uuid[])[((number / 2) %% %s)::int + 1],
+                   'voter-' || (number / 2), 'valid', %s
             FROM generate_series(0, %s - 1) AS number
         """,
-            (*fixture.scope, fixture.area, content, scenario.seeded_ballots),
+            (
+                fixture.elections[0].tenant,
+                fixture.elections[0].event,
+                [e.election for e in fixture.elections],
+                len(fixture.elections),
+                fixture.areas,
+                len(fixture.areas),
+                content,
+                scenario.seeded_ballots,
+            ),
         )
     finally:
         connection.execute(
@@ -252,6 +233,8 @@ def prepare_votes(database, fixture, content, scenario):
     connection.execute("VACUUM ANALYZE sequent_backend.cast_vote")
     connection.execute("ANALYZE sequent_backend.scheduled_event")
     connection.execute("ANALYZE sequent_backend.election_voting_window")
+    connection.execute("ANALYZE sequent_backend.area")
+    connection.execute("ANALYZE sequent_backend.election")
 
 
 def percentile(values, percent):
@@ -308,6 +291,15 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
 
     seeded_count = database.scalar("SELECT count(*) FROM sequent_backend.cast_vote")
     assert seeded_count == scenario.seeded_ballots, seeded_count
+    populated_elections, populated_areas = connection.execute(
+        "SELECT count(DISTINCT election_id), count(DISTINCT area_id) "
+        "FROM sequent_backend.cast_vote"
+    ).fetchone()
+    assert (populated_elections, populated_areas) == (
+        scenario.election_count,
+        scenario.area_count,
+    )
+
     relation_bytes = database.scalar(
         "SELECT pg_total_relation_size('sequent_backend.cast_vote')"
     )
@@ -378,6 +370,12 @@ def run_variant(database, fixture, content, variant, scenario, schedule_index_sq
             "variant": variant,
             "seeded_relation_bytes": relation_bytes,
             "distinct_measured_voters": request_count,
+            "distinct_measured_areas": len(
+                {fixture.area_for_voter(v) for v in voter_ids[WARMUP_REQUESTS:]}
+            ),
+            "distinct_measured_elections": len(
+                {fixture.for_voter(v).election for v in voter_ids[WARMUP_REQUESTS:]}
+            ),
             "accepted_requests": request_count,
             "errors": 0,
             "requests": len(all_latencies),
@@ -439,8 +437,28 @@ def run_benchmark(database, output, scenario_names=None):
     for scenario in SCENARIOS:
         if scenario_names and scenario.name not in scenario_names:
             continue
-        fixture = seed(database, scenario.unrelated_schedules)
-        evidence = dict(asdict(scenario), results=[])
+        clear_workload(database.connection)
+        fixture = VotingEvent.create(
+            database.connection,
+            scenario.election_count,
+            scenario.area_count,
+            scenario.schedules_per_election,
+        )
+        cardinalities = {
+            table: database.scalar(f"SELECT count(*) FROM sequent_backend.{table}")
+            for table in ("election", "area", "scheduled_event")
+        }
+        assert cardinalities == {
+            "election": scenario.election_count,
+            "area": scenario.area_count,
+            "scheduled_event": scenario.schedule_count,
+        }, cardinalities
+        evidence = dict(
+            asdict(scenario),
+            schedule_count=scenario.schedule_count,
+            verified_cardinalities=cardinalities,
+            results=[],
+        )
         for variant in ("before", "after"):
             print(
                 f"Preparing {scenario_label(asdict(scenario))}, {variant}: {scenario.seeded_ballots:,} ballots",

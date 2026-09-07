@@ -14,7 +14,6 @@ from pathlib import Path
 import statistics
 import subprocess
 import time
-from uuid import uuid4
 
 from database import (
     CONFIGURATION_QUERY,
@@ -23,10 +22,12 @@ from database import (
     WINDOW_MIGRATION,
     local_database,
 )
-from fixtures import Election
+from fixtures import VotingEvent, clear_workload
 
 SAMPLES = 21
-EXTRA_SCHEDULES = 100_000
+ELECTIONS_PER_EVENT = 200
+SCHEDULES_PER_ELECTION = 10
+OTHER_EVENTS = 14
 BROAD_QUERY = """
     SELECT * FROM sequent_backend.scheduled_event
     WHERE tenant_id = %s AND election_event_id = %s AND archived_at IS NULL
@@ -88,24 +89,40 @@ def measure(connection, query, parameters):
 
 def seed(database, placement):
     connection = database.connection
-    connection.execute("TRUNCATE sequent_backend.scheduled_event")
-    fixture = Election()
-    fixture.create(connection)
-    fixture.schedule(connection, "START", "2026-10-01T10:00:00Z")
-    closing_id = fixture.schedule(connection, "END", "2026-10-01T12:00:00Z")
-    noise_tenant = uuid4() if placement == "other tenant" else fixture.tenant
-    noise_event = fixture.event if placement == "same event" else uuid4()
-    connection.execute(
-        """
-        INSERT INTO sequent_backend.scheduled_event
-            (tenant_id, election_event_id, task_id, cron_config, event_payload)
-        SELECT %s, %s, 'unrelated-' || number, '{}'::jsonb, '{}'::jsonb
-        FROM generate_series(1, %s) number
-        """,
-        (noise_tenant, noise_event, EXTRA_SCHEDULES),
+    clear_workload(connection)
+    target = VotingEvent.create(
+        connection, ELECTIONS_PER_EVENT, 100, SCHEDULES_PER_ELECTION
     )
+    fixture = target.elections[0]
+    closing_id = database.scalar(
+        "SELECT id FROM sequent_backend.scheduled_event WHERE task_id = %s",
+        (fixture.task_name("END"),),
+    )
+    # Keep every event within the deployment bounds. Additional tenants/events
+    # share this database; separate environment databases cannot add scanned rows.
+    if placement != "one event":
+        for _ in range(OTHER_EVENTS):
+            VotingEvent.create(
+                connection,
+                ELECTIONS_PER_EVENT,
+                100,
+                SCHEDULES_PER_ELECTION,
+                tenant=(
+                    fixture.tenant if placement == "15 events, same tenant" else None
+                ),
+            )
     connection.execute("VACUUM ANALYZE sequent_backend.scheduled_event")
     connection.execute("ANALYZE sequent_backend.election_voting_window")
+    connection.execute("ANALYZE sequent_backend.election")
+    expected_events = 1 if placement == "one event" else OTHER_EVENTS + 1
+    assert (
+        database.scalar("SELECT count(*) FROM sequent_backend.election")
+        == expected_events * ELECTIONS_PER_EVENT
+    )
+    assert (
+        database.scalar("SELECT count(*) FROM sequent_backend.scheduled_event")
+        == expected_events * ELECTIONS_PER_EVENT * SCHEDULES_PER_ELECTION
+    )
     return fixture, closing_id
 
 
@@ -129,11 +146,17 @@ def main():
             ).strip(),
             "scope": "21-sample single-client query/UPDATE diagnostic; not cast latency or votes per second",
             "postgres_version": database.scalar("SELECT version()"),
-            "extra_schedules": EXTRA_SCHEDULES,
+            "elections_per_event": ELECTIONS_PER_EVENT,
+            "schedules_per_election": SCHEDULES_PER_ELECTION,
+            "other_events": OTHER_EVENTS,
             "index_definition": index_sql,
             "scenarios": [],
         }
-        for placement in ("same event", "other event", "other tenant"):
+        for placement in (
+            "one event",
+            "15 events, same tenant",
+            "15 events, different tenants",
+        ):
             fixture, closing_id = seed(database, placement)
             endpoints = (fixture.task_name("START"), fixture.task_name("END"))
             direct_parameters = (*endpoints, *endpoints, *fixture.scope)
@@ -157,7 +180,7 @@ def main():
                     name: measure(connection, query, parameters)
                     for name, (query, parameters) in queries.items()
                 }
-                expected_rows = EXTRA_SCHEDULES + 2 if placement == "same event" else 2
+                expected_rows = ELECTIONS_PER_EVENT * SCHEDULES_PER_ELECTION
                 assert measurements["broad_event"]["returned_rows"] == expected_rows
                 # Confirm the real UPDATE trigger kept source and projection in sync.
                 assert (
@@ -168,6 +191,9 @@ def main():
                     {
                         "placement": placement,
                         "indexed": indexed,
+                        "total_schedules": database.scalar(
+                            "SELECT count(*) FROM sequent_backend.scheduled_event"
+                        ),
                         "queries": measurements,
                     }
                 )
