@@ -23,8 +23,8 @@ if ! ./build-wasm.sh; then
     exit 1
 fi
 
-# PORT, else WBRAID_SERVE_PORT, else the wbraid default, 8080.
-PORT="${PORT:-${WBRAID_SERVE_PORT:-8080}}"
+# PORT, else WBRAID_SERVE_PORT, else the wbraid default, 8085.
+PORT="${PORT:-${WBRAID_SERVE_PORT:-8085}}"
 export PORT
 
 echo "${GREEN}Starting development server on http://127.0.0.1:${PORT}${RESET}"

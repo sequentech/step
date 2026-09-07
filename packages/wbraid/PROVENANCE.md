@@ -114,8 +114,7 @@ code, identical on nightly); that upstream state is left untouched.
   `build-wasm.sh`/`serve.sh` clear an inherited `RUSTFLAGS`, which would
   otherwise override the atomics rustflags in `crates/braid/.cargo/config.toml`
   entirely (the devcontainer's devenv exports `RUSTFLAGS=-Awarnings`).
-- **`server.py` honours a `PORT` environment variable** (default 8080,
-  unchanged); in the devcontainer 8080 is taken by Hasura.
+- **`server.py` honours a `PORT` environment variable** (default 8085; avoids hasura)
 - **Ran `cargo fmt`** (rustfmt 1.96.0) over the workspace — the tree was
   imported unformatted — so CI can gate on `cargo fmt -- --check`.
 - **Fixed the warn-level clippy findings in `braid`, `rnk` and `v2v`** so that
@@ -212,17 +211,12 @@ run) and is untouched: its lib passes, with upstream's warn-level
     project network. Linux unlinks open files without complaint, so the reset
     refuses to run while a `b4v6` process exists instead of relying on a
     locked-file error.
-- **`server.py` honours a `PORT` environment variable** (default 8080,
-  unchanged); `serve.sh` falls back to `WBRAID_SERVE_PORT` for it.
+- **`server.py` honours a `PORT` environment variable** (default 8085; to avoid hasura);
+  `serve.sh` falls back to `WBRAID_SERVE_PORT` for it.
 - **Made the b4 listen address and the live tests' b4 URL configurable**:
   `crates/b4/src/main.rs` honours `WBRAID_B4_BIND` and the two `#[ignore]`d
   live-b4 tests (`protocol_test_http*.rs`) read `WBRAID_B4_URL`, both keeping
-  the upstream `127.0.0.1:3000` default when unset. The step devcontainer sets
-  them to port 3005 in `.devcontainer/.env.development`, with
-  `WBRAID_SERVE_PORT=8085` and `WBRAID_S3_ENDPOINT_URL=http://localstack:4566`
-  alongside: 3000 is the voting portal's, the host's 8080 is forwarded to
-  Hasura, and S3 is the `localstack` compose service. `emulator.html` keeps its
-  `http://127.0.0.1:3000` default; the URL field is edited by hand.
+   `127.0.0.1:3005` default when unset (3000 is voting portal).
 - **Added `.github/workflows/wbraid.yml`**, scoped to changes under
   `packages/wbraid/`: `cargo fmt -- --check`; clippy as the two invocations
   listed under "Local modifications for clippy"; `cargo test --release`, with
@@ -232,3 +226,32 @@ run) and is untouched: its lib passes, with upstream's warn-level
   plain cargo suffices and no wasm-bindgen CLI is involved. The shared
   `setup-rust-tests` action gained optional `components`/`targets` inputs for
   this (defaults unchanged).
+
+## Local modifications for the b4 dev service
+
+- **Explicit SQLite connection options** (`crates/b4/src/db.rs`,
+  `connect_options`). sqlx 0.8 sets only `foreign_keys=ON` and a 5s busy
+  timeout on its own — it no longer sets a journal mode — so the WAL the spec
+  assumes (§8) was silently not in effect. Every pooled connection now opens
+  with WAL, `synchronous=FULL` (a confirm is fsynced before b4 acknowledges
+  it, which is what the trustee mailbox relies on, §6.4), the busy timeout,
+  foreign keys and create-if-missing spelled out; a test pins the pragmas.
+- **`crates/b4/src/app.rs`**: the router, split out of `main.rs` so the
+  handlers can be exercised through Axum with an offline presigner
+  (`AppState::new` takes the bucket name for that; `AppState::from_env` reads
+  it from `S3_BUCKET_NAME` at startup); the crate's first unit tests cover the
+  connect options, initiate always offering S3, the two-step flow and
+  board-name validation.
+- **`b4v6` compose service** (`.devcontainer/docker-compose-base.yml`, opt-in
+  `wbraid` profile, forwarded as `b4v6:3005`): cargo-watch runs the release
+  binary from the mounted checkout like the other Rust services, SQLite in a
+  named volume, S3 via the `localstack` service. In the devcontainer `b4.sh`
+  drives it by name — `--reset` stops it, wipes the volume and empties the
+  bucket — the way `localstack.sh` drives LocalStack; outside a compose
+  project it keeps the `b4.ps1` flow. `WBRAID_B4_BIND` left
+  `.env.development` (the service sets its own bind) and `WBRAID_B4_URL` now
+  names the service. `b4.ps1` is unchanged apart from one comment.
+- **`live-b4` CI job** in `.github/workflows/wbraid.yml`: LocalStack as a
+  service container, `b4v6` built and started on the runner, then the two
+  `#[ignore]`d live tests; gated on the `wbraid-live-b4` pull-request label
+  (`labeled` added to the `pull_request` trigger for that).

@@ -19,7 +19,7 @@ handler.extensions_map.update({
     '.js': 'text/javascript',
 })
 
-port = int(os.environ.get('PORT', '8080'))
+port = int(os.environ.get('PORT', '8085'))
 
 print(f"Launching server on 127.0.0.1:{port}..")
 print("SharedArrayBuffer support enabled (Cross-Origin-Isolation headers)")
