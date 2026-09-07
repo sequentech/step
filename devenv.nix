@@ -57,6 +57,8 @@ in
     ack
 
     # docker utilities
+    docker-client
+    docker-buildx
     docker-compose
     dive
 
