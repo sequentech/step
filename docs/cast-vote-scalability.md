@@ -107,8 +107,10 @@ Observed locally on PostgreSQL 18:
 - A 16 KB random ciphertext encoded as JSON/base64 occupied 21,354 bytes under
   both EXTENDED and EXTERNAL. This is a synthetic storage check, not a benchmark
   of every real ballot shape or of compression CPU.
-- Nine focused Rust policy tests and 70 portal tests passed. The separate database
-  integration test passed. Fresh GraphQL generation matches the changed document
+- All 355 Windmill library tests passed (3 ignored), including nine focused
+  voting-policy tests; all 70 portal tests passed. The separate database
+  integration test passed, including actual INSERT response/error checks.
+  `cargo check -p harvest` passed. Fresh GraphQL generation matches the changed document
   and operation type. Workspace formatting and REUSE checks passed.
 
 Clippy encounters unchanged errors in `strand/src/shuffler_product.rs` (unsigned
@@ -117,6 +119,8 @@ attribute error in `windmill/src/services/users.rs`. Portal `tsc --noEmit` encou
 an installed `minimatch` type-definition error. These are not reported as passing.
 
 ## Remaining deployment evidence
+
+Tracked in [meta#13211](https://github.com/sequentech/meta/issues/13211).
 
 Before claiming a production p99 or pool-capacity improvement, run the complete
 login-to-cast flow on a seeded deployment with the same PgBouncer transaction-pool
