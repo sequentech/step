@@ -99,13 +99,10 @@ export const copyBallotHash = async (
     }
 }
 
-const BallotHash: React.FC<BallotHashProps> = ({
+export const BallotHashCopyButton: React.FC<Pick<BallotHashProps, "hash" | "copyLabels">> = ({
     hash,
-    onHelpClick,
-    helpButtonLabel,
     copyLabels,
 }) => {
-    const {t} = useTranslation()
     const [copyStatus, setCopyStatus] = useState(CopyBallotHashStatus.Idle)
 
     useEffect(() => setCopyStatus(CopyBallotHashStatus.Idle), [hash])
@@ -126,6 +123,41 @@ const BallotHash: React.FC<BallotHashProps> = ({
     const copyStatusLabel =
         copyLabels?.[copyStatus === CopyBallotHashStatus.Idle ? "copy" : copyStatus]
 
+    if (!copyLabels || !hash) {
+        return null
+    }
+
+    return (
+        <>
+            <IconButton
+                icon={COPY_ICON[copyStatus]}
+                title={copyStatusLabel}
+                sx={{
+                    "fontSize": "unset",
+                    "lineHeight": "unset",
+                    "paddingBottom": "2px",
+                    "color": theme.palette.customGrey.contrastText,
+                    "&:hover": {paddingBottom: "2px"},
+                    "&:active": {border: "2px solid transparent"},
+                }}
+                fontSize="18px"
+                onClick={handleCopy}
+            />
+            <CopyStatus role="status" aria-live="polite" aria-atomic="true">
+                {copyStatus === CopyBallotHashStatus.Idle ? "" : copyStatusLabel}
+            </CopyStatus>
+        </>
+    )
+}
+
+const BallotHash: React.FC<BallotHashProps> = ({
+    hash,
+    onHelpClick,
+    helpButtonLabel,
+    copyLabels,
+}) => {
+    const {t} = useTranslation()
+
     return (
         <HashContainer className="hash-container">
             <DecorativeIconBox className="hash-check">
@@ -138,20 +170,7 @@ const BallotHash: React.FC<BallotHashProps> = ({
                 {t("ballotHash", {ballotId: hash})}
             </BallotHashText>
             <HashActions>
-                {copyLabels && hash ? (
-                    <IconButton
-                        icon={COPY_ICON[copyStatus]}
-                        title={copyStatusLabel}
-                        sx={{
-                            fontSize: "unset",
-                            lineHeight: "unset",
-                            paddingBottom: "2px",
-                            color: theme.palette.customGrey.contrastText,
-                        }}
-                        fontSize="18px"
-                        onClick={handleCopy}
-                    />
-                ) : null}
+                <BallotHashCopyButton hash={hash} copyLabels={copyLabels} />
                 <IconButton
                     icon={faCircleQuestion}
                     title={helpButtonLabel}
@@ -166,9 +185,6 @@ const BallotHash: React.FC<BallotHashProps> = ({
                     ariaLabel={helpButtonLabel || t("a11y.ballotIdHelp")}
                 />
             </HashActions>
-            <CopyStatus role="status" aria-live="polite" aria-atomic="true">
-                {copyStatus === CopyBallotHashStatus.Idle ? "" : copyStatusLabel}
-            </CopyStatus>
         </HashContainer>
     )
 }

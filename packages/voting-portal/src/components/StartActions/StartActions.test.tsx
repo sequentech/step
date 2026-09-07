@@ -75,7 +75,6 @@ const renderStartActions = (
 const declarationCheckbox = () => screen.getByRole("checkbox", {name: SPANISH_DECLARATION})
 
 const startButton = () => screen.getByRole("button", {name: "startScreen.startButton"})
-const startLink = () => screen.getByRole("link", {name: "startScreen.startButton"})
 
 describe("StartActions navigation", () => {
     it("has one named keyboard stop in both directions", async () => {
@@ -83,27 +82,31 @@ describe("StartActions navigation", () => {
         renderStartActions(buildElection(), {isDeclineToVotePolicyEnabled: true})
         const decline = screen.getByRole("button", {name: "startScreen.declineToVoteButton"})
 
-        expect(screen.queryByRole("button", {name: "startScreen.startButton"})).toBeNull()
-        expect(startLink()).toHaveClass("start-voting-button")
+        expect(screen.queryByRole("link", {name: "startScreen.startButton"})).toBeNull()
+        expect(startButton().tagName).toBe("BUTTON")
+        expect(startButton()).toHaveClass("start-voting-button")
         await user.tab()
-        expect(startLink()).toHaveFocus()
+        expect(startButton()).toHaveFocus()
         await user.tab()
         expect(decline).toHaveFocus()
         await user.tab({shift: true})
-        expect(startLink()).toHaveFocus()
+        expect(startButton()).toHaveFocus()
     })
 
-    it("navigates with Enter and preserves route parameters and the query string", async () => {
-        const user = userEvent.setup()
-        renderStartActions(buildElection())
+    it.each(["{Enter}", " "])(
+        "navigates with %s and preserves the route and query string",
+        async (key) => {
+            const user = userEvent.setup()
+            renderStartActions(buildElection())
 
-        await user.tab()
-        await user.keyboard("{Enter}")
+            await user.tab()
+            await user.keyboard(key)
 
-        expect(screen.getByLabelText("Current route")).toHaveTextContent(
-            "/tenant/tenant-1/event/event-1/election/election-1/vote?preview=true"
-        )
-    })
+            expect(screen.getByLabelText("Current route")).toHaveTextContent(
+                "/tenant/tenant-1/event/event-1/election/election-1/vote?preview=true"
+            )
+        }
+    )
 
     it("does not expose a navigation target until the mandatory declaration is accepted", async () => {
         const user = userEvent.setup()
@@ -116,7 +119,7 @@ describe("StartActions navigation", () => {
         expect(screen.getByLabelText("Current route")).toHaveTextContent("/start?preview=true")
 
         await user.keyboard(" ")
-        expect(startLink()).toBeInTheDocument()
+        expect(startButton()).toBeEnabled()
         await user.keyboard(" ")
         expect(screen.queryByRole("link", {name: "startScreen.startButton"})).toBeNull()
         expect(startButton()).toBeDisabled()
@@ -202,7 +205,7 @@ describe("StartActions security confirmation", () => {
 
             await user.click(declarationCheckbox())
 
-            expect(startLink()).toBeInTheDocument()
+            expect(startButton()).toBeEnabled()
             expect(
                 screen.getByRole("button", {name: "startScreen.declineToVoteButton"})
             ).toBeEnabled()
@@ -221,12 +224,12 @@ describe("StartActions security confirmation", () => {
         it.each([
             ["NONE", ESecurityConfirmationPolicy.NONE],
             ["unset", undefined],
-        ])("renders no declaration and an enabled start link (%s)", (_label, policy) => {
+        ])("renders no declaration and an enabled start button (%s)", (_label, policy) => {
             renderStartActions(buildElection(policy), {isDeclineToVotePolicyEnabled: true})
 
             expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
             expect(screen.queryByText(SPANISH_DECLARATION)).not.toBeInTheDocument()
-            expect(startLink()).toBeInTheDocument()
+            expect(startButton()).toBeEnabled()
             expect(
                 screen.getByRole("button", {name: "startScreen.declineToVoteButton"})
             ).toBeEnabled()

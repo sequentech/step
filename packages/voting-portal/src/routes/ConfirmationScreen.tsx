@@ -15,6 +15,7 @@ import {
     StyledButton,
     VisuallyHidden,
     DecorativeIconBox,
+    BallotHashCopyButton,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -25,6 +26,7 @@ import {
     EElectionEventContestEncryptionPolicy,
     IElection,
     areAllContestsAcclaimed,
+    EVotingPortalAuditButtonCfg,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {faPrint, faCircleQuestion, faCheck} from "@fortawesome/free-solid-svg-icons"
@@ -364,6 +366,10 @@ const ConfirmationScreen: React.FC = () => {
     const {hashBallot, hashMultiBallot} = provideBallotService()
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
     const electionBallotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const auditButtonCfg =
+        electionBallotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
+        confirmationScreenData?.auditButtonCfg ??
+        EVotingPortalAuditButtonCfg.SHOW
     // Nothing was cast for a fully acclaimed election, so this screen confirms
     // what was decided rather than a ballot, and shows no ballot id anywhere.
     const isFullyAcclaimed = areAllContestsAcclaimed(electionBallotStyle?.ballot_eml.contests)
@@ -549,12 +555,25 @@ const ConfirmationScreen: React.FC = () => {
                             >
                                 {t("ballotHash", {ballotId: ballotId.current})}
                             </BallotIdLink>
+                            {auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW ? (
+                                <BallotHashCopyButton
+                                    hash={ballotId.current ?? ""}
+                                    copyLabels={{
+                                        copy: t("reviewScreen.copyBallotId"),
+                                        copied: t("reviewScreen.ballotIdCopied"),
+                                        error: t("reviewScreen.ballotIdCopyError"),
+                                    }}
+                                />
+                            ) : null}
                             <IconButton
                                 icon={faCircleQuestion}
                                 sx={{
                                     fontSize: "unset",
                                     lineHeight: "unset",
-                                    marginLeft: "16px",
+                                    marginLeft:
+                                        auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW
+                                            ? "16px"
+                                            : 0,
                                 }}
                                 fontSize="18px"
                                 onClick={() =>

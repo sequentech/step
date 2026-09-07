@@ -28,14 +28,7 @@ import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {
-    Link as RouterLink,
-    redirect,
-    useLocation,
-    useNavigate,
-    useParams,
-    useSubmit,
-} from "react-router-dom"
+import {redirect, useLocation, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
@@ -107,6 +100,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const backLink = useRootBackLink()
     const {tenantId, eventId, electionId} = useParams<TenantEventType & {electionId?: string}>()
     const location = useLocation()
+    const navigate = useNavigate()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
@@ -145,10 +139,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
 
             <ActionsContainer>
                 <StyledButton
-                    component={RouterLink}
-                    to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => handlePrev()}
+                    onClick={() => {
+                        handlePrev()
+                        if (!pageIndex || pageIndex <= 0) {
+                            navigate(exitLink)
+                        }
+                    }}
                 >
                     <Icon icon={faAngleLeft} size="sm" />
                     <Box>{t("votingScreen.backButton")}</Box>
