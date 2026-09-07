@@ -8,7 +8,7 @@
 -- any error; inspect pg_index.indisvalid before recovering an interrupted build.
 CREATE INDEX CONCURRENTLY cast_vote_participation_election_covering_idx
 ON sequent_backend.cast_vote (tenant_id, election_event_id, election_id, voter_id_string)
-INCLUDE (status);
+INCLUDE (status, area_id);
 
 -- This replaces the same access path with a covering version; no reporting
 -- access path is removed. CREATE must have succeeded before retiring the old one.

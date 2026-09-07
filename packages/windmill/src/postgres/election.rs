@@ -857,11 +857,12 @@ pub struct CastVoteConfiguration {
     pub presentation: Option<Value>,
     pub status: Option<Value>,
     pub voting_channels: Option<Value>,
-    pub scheduled_events: Vec<sequent_core::types::scheduled_event::ScheduledEvent>,
+    pub dates: sequent_core::ballot::VotingPeriodDates,
 }
 
-/// One writer snapshot for cast-vote policy. Avoid fetching election EML,
-/// receipts, statistics, and unrelated scheduled tasks for every ballot.
+/// Read current policy and its transactionally maintained schedule projection.
+/// Schedule scans and JSON date extraction happen when administrators write
+/// configuration, never for each ballot. Missing schedules mean absent dates.
 #[instrument(skip_all, err)]
 pub async fn get_cast_vote_configuration(
     transaction: &Transaction<'_>,
@@ -869,53 +870,24 @@ pub async fn get_cast_vote_configuration(
     event_id: &str,
     election_id: &str,
 ) -> Result<CastVoteConfiguration> {
-    use sequent_core::types::scheduled_event::{
-        generate_manage_date_task_name, EventProcessors, ManageElectionDatePayload,
-    };
-    let tasks = vec![
-        generate_manage_date_task_name(
-            tenant_id,
-            event_id,
-            Some(election_id),
-            &EventProcessors::START_VOTING_PERIOD,
-        ),
-        generate_manage_date_task_name(
-            tenant_id,
-            event_id,
-            Some(election_id),
-            &EventProcessors::END_VOTING_PERIOD,
-        ),
-    ];
-    let payload = serde_json::to_value(ManageElectionDatePayload {
-        election_id: Some(election_id.to_owned()),
-    })?;
     let row = transaction
         .query_one(
-            r#"
-        SELECT e.presentation, e.status, e.voting_channels,
-            COALESCE((SELECT jsonb_agg(to_jsonb(s))
-                FROM sequent_backend.scheduled_event s
-                WHERE s.tenant_id = e.tenant_id
-                  AND s.election_event_id = e.election_event_id
-                  AND s.archived_at IS NULL
-                  AND s.task_id = ANY($4::text[])
-                  AND s.event_payload = $5::jsonb), '[]'::jsonb) AS scheduled_events
-        FROM sequent_backend.election e
-        WHERE e.tenant_id = $1 AND e.election_event_id = $2 AND e.id = $3
-        "#,
+            include_str!("sql/cast_vote_configuration.sql"),
             &[
                 &parse_uuid_v4(tenant_id)?,
                 &parse_uuid_v4(event_id)?,
                 &parse_uuid_v4(election_id)?,
-                &tasks,
-                &payload,
             ],
         )
         .await?;
+
     Ok(CastVoteConfiguration {
         presentation: row.try_get("presentation")?,
         status: row.try_get("status")?,
         voting_channels: row.try_get("voting_channels")?,
-        scheduled_events: serde_json::from_value(row.try_get("scheduled_events")?)?,
+        dates: sequent_core::ballot::VotingPeriodDates {
+            start_date: row.try_get("start_date")?,
+            end_date: row.try_get("end_date")?,
+        },
     })
 }
