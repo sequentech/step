@@ -486,3 +486,66 @@ This is a prerequisite for immutable private-object activation. It does not yet
 upload publication objects, change voter authorization, or implement rollback to
 an earlier publication. No S3 or bootstrap request-count improvement is measured
 by these lifecycle tests.
+
+
+## Consolidated voter read (database-backed rollout)
+
+The election chooser now issues `GetVoterContext`, which returns ballot styles,
+the corresponding election records, event presentation/status, and the current
+voter's cast metadata in one GraphQL operation. Elections are reached through a
+ballot-style relationship scoped by tenant, event and election, so the client does
+not first need to load election IDs and then issue `GetElections`. Empty eligible
+styles remain a definitive empty result. Cast ciphertext is not requested.
+
+This increment still returns full ballot EML from PostgreSQL. It has no private
+S3 objects or publication references yet, and it still eagerly transfers every
+eligible style. It establishes the consolidated application read and preserves
+the existing publication format while the immutable-object contract is developed.
+The 200-election regression checks one application operation; it does not establish
+bounded ballot bytes or publication costs at 100/1k/10k areas.
+
+The hook seeds the scoped election and event cache entries used by review and
+confirmation. Existing direct-entry and gold reauthentication queries still work
+when those entries are absent. An unresolved cast starts a separate, narrow,
+network-backed `GetCastVotes` query and polling; a newly submitted unresolved cast
+in Redux also starts that refresh on return to the chooser. Support-material and
+receipt reads retain their own policy-driven behavior.
+
+Voter select permissions now require `X-Hasura-Election-Event-Id` on event,
+election, ballot-style and cast rows. Election reads also require membership in
+`X-Hasura-Authorized-Election-Ids`; style and cast reads retain area restrictions,
+and cast metadata retains the voter-ID restriction. Deploy the metadata before
+the portal and confirm that the configured voter token mapper emits the event
+claim. Missing claims fail closed. Existing publications need no regeneration or
+data migration for this increment. To roll back the portal, retain the stricter
+permissions: the previous standalone operations remain supported for tokens with
+the required claims.
+
+Apollo data is replaced on access-token changes. Redux voter state is also cleared
+when identity, client, session, authentication level, tenant, event, area or
+permissions change, and on logout. An expiry-only token refresh preserves Redux
+ballot selections. The client-side scope comparison only partitions caches;
+Hasura validates authentication and enforces authorization. Writer-side cast
+acceptance remains authoritative for pauses, channels, schedules and revotes.
+
+Validation includes 86 portal tests, including delayed/empty/200-election bootstrap
+responses, scoped cache reuse, event changes, fresh authenticated clients and
+session invalidation. The GraphQL operation was generated and validated against
+the local Hasura schema. Read-only authorization checks run with:
+
+```sh
+devenv shell python3 scripts/test_voter_context_authorization.py
+```
+
+This requires a populated local ballot-style fixture and the updated metadata.
+It uses administrative role impersonation to exercise Hasura's voter row
+permissions, including nested election isolation, wrong tenant/event/area,
+empty authorized elections, and an unrelated voter's empty cast metadata. It
+does not test JWT signature verification. It logs no ballot content or voter IDs.
+
+The prior five-request browser cohort remains release-10 evidence. The new
+transport regression observes one `GetVoterContext` operation for initial data,
+with no subsequent election request on review/confirmation cache consumption.
+No new browser cohort, SQL benchmark, throughput, latency or S3 measurement has
+been run. GraphQL operation counts are not SQL statement, physical-read,
+transaction or database-checkout counts.

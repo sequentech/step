@@ -56038,6 +56038,18 @@
             "deprecationReason": null
           },
           {
+            "name": "election",
+            "description": "An object relationship",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "sequent_backend_election",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "args": [],
@@ -56469,6 +56481,18 @@
             "deprecationReason": null
           },
           {
+            "name": "election",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_bool_exp",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "election_event_id",
             "description": null,
             "type": {
@@ -56784,6 +56808,18 @@
             "type": {
               "kind": "SCALAR",
               "name": "timestamptz",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_obj_rel_insert_input",
               "ofType": null
             },
             "defaultValue": null,
@@ -57368,6 +57404,18 @@
             "type": {
               "kind": "ENUM",
               "name": "order_by",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "election",
+            "description": null,
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_order_by",
               "ofType": null
             },
             "defaultValue": null,
@@ -79753,6 +79801,46 @@
         ],
         "inputFields": null,
         "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "sequent_backend_election_obj_rel_insert_input",
+        "description": "input type for inserting object relation for remote table \"sequent_backend.election\"",
+        "isOneOf": false,
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "data",
+            "description": null,
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "sequent_backend_election_insert_input",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "on_conflict",
+            "description": "upsert condition",
+            "type": {
+              "kind": "INPUT_OBJECT",
+              "name": "sequent_backend_election_on_conflict",
+              "ofType": null
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "interfaces": null,
         "enumValues": null,
         "possibleTypes": null
       },

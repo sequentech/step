@@ -29,7 +29,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     IBallotStyle,
     selectBallotStyleByElectionId,
-    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
@@ -43,19 +42,14 @@ import {
 } from "../store/castVotes/castVotesSlice"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client/react"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {useVoterContext} from "../hooks/useVoterContext"
 import {
-    GetBallotStylesQuery,
     GetCastVotesQuery,
-    GetElectionEventQuery,
-    GetElectionsQuery,
     GetSupportMaterialsQuery,
     GetSupportMaterialsAcknowledgmentQuery,
 } from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
     ElectionScreenErrorType,
@@ -391,7 +385,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
@@ -430,38 +423,16 @@ const ElectionSelectionScreen: React.FC = () => {
             ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
             : undefined
 
-    const {
-        error: errorBallotStyles,
-        data: dataBallotStyles,
-        loading: loadingBallotStyles,
-    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElections,
-        data: dataElections,
-        loading: loadingElections,
-    } = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: ballotStyleElectionIds,
-        },
-        // Styles supply the eligible IDs asynchronously. Querying the initial
-        // empty list adds a Hasura round trip before the useful election query.
-        skip: globalSettings.DISABLE_AUTH || ballotStyleElectionIds.length === 0,
-    })
-
-    const {
-        error: errorElectionEvent,
-        data: dataElectionEvent,
-        loading: loadingElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    const voterContext = useVoterContext()
+    const dataBallotStyles = voterContext.data
+    const dataElectionEvent = voterContext.data
+    const dataElections = voterContext.elections
+    const errorBallotStyles = voterContext.error
+    const errorElectionEvent = voterContext.error
+    const errorElections = voterContext.error
+    const loadingBallotStyles = voterContext.loading
+    const loadingElectionEvent = voterContext.loading
+    const loadingElections = voterContext.loading
 
     // Materials
     const {
@@ -514,14 +485,28 @@ const ElectionSelectionScreen: React.FC = () => {
         ) ??
             false)
 
+    const hasPendingCastVotes = useAppSelector((state) =>
+        Object.values(state.castVotes).some((votes) =>
+            votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)
+        )
+    )
     const {
-        data: castVotes,
+        data: polledCastVotes,
         error: errorCastVote,
         startPolling: startCastVotePolling,
         stopPolling: stopCastVotePolling,
     } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
-        skip: globalSettings.DISABLE_AUTH,
+        // The bootstrap supplies the initial cast metadata. Only unresolved
+        // casts need the existing narrow polling query.
+        fetchPolicy: "network-only",
+        skip:
+            globalSettings.DISABLE_AUTH ||
+            (!hasPendingCastVotes &&
+                !voterContext.data?.sequent_backend_cast_vote.some(
+                    (vote) => vote.status === CastVoteStatus.IN_PROGRESS
+                )),
     })
+    const castVotes = polledCastVotes ?? voterContext.data
 
     const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
     const materialsTitle =
@@ -543,7 +528,7 @@ const ElectionSelectionScreen: React.FC = () => {
         (dataBallotStyles?.sequent_backend_ballot_style.length === 0 ||
             dataElections?.sequent_backend_election.length === 0)
     const isPublished = useMemo(
-        () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
+        () => !!dataElectionEvent?.sequent_backend_election_event[0]?.status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
