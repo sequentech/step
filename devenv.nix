@@ -45,7 +45,6 @@ in
     glibc
     openssh
     postgresql_18
-    python3
     openssh
 
     # immudb
@@ -93,7 +92,7 @@ in
     wasm-pack
     wasm-bindgen-cli
 
-    python3
+    (python3.withPackages (ps: [ ps.psycopg ps.black ]))
     python3Packages.virtualenvwrapper
 
     # for parsing docker-compose.yml

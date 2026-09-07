@@ -10,7 +10,6 @@ export const GET_ELECTIONS = gql`
             created_at
             description
             election_event_id
-            eml
             id
             is_consolidated_ballot_encoding
             labels

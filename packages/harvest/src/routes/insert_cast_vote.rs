@@ -57,6 +57,11 @@ pub async fn insert_cast_vote(
             .then_some(claims.iat)
     });
 
+    info!(
+        phase = "authorization",
+        duration_us = start.elapsed().as_micros() as u64,
+        "cast-vote route phase completed"
+    );
     info!("insert-cast-vote: starting");
 
     let insert_result_wrapped = retry_with_exponential_backoff(
@@ -74,6 +79,7 @@ pub async fn insert_cast_vote(
                     .country_code
                     .clone()
                     .map(|country_code| country_code.to_string()),
+                &claims.preferred_username,
             )
             .await
         },
@@ -294,6 +300,7 @@ pub async fn insert_cast_vote(
         duration.as_millis()
     );
 
+    let enqueue_start = Instant::now();
     if let Some(cast_vote_id) = pending_cast_vote_id {
         // The Datafix vote is already committed: an enqueue failure must not
         // fail the request. The review beat recovers in-progress rows.
@@ -317,5 +324,15 @@ pub async fn insert_cast_vote(
         }
     }
 
+    info!(
+        phase = "enqueue",
+        duration_us = enqueue_start.elapsed().as_micros() as u64,
+        "cast-vote route phase completed"
+    );
+    info!(
+        phase = "request",
+        duration_us = start.elapsed().as_micros() as u64,
+        "cast-vote route completed"
+    );
     Ok(Json(inserted_cast_vote))
 }
