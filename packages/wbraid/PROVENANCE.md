@@ -192,8 +192,8 @@ run) and is untouched: its lib passes, with upstream's warn-level
     exports `RUSTFLAGS=-Awarnings`).
   - `build-wasm.sh` and `test-wasm.sh` verify that the `wasm-bindgen` CLI on
     `PATH` matches the `Cargo.lock` pin before building. The main workspace
-    (`strand`, `braid`, `sequent-core`) was moved to this workspace's
-    `=0.2.123` pin, so the single CLI in the repository's `devenv.nix` and
+    (`strand`, `braid`, `sequent-core`) shares this workspace's `wasm-bindgen`
+    pin (`=0.2.128`), so the single CLI in the repository's `devenv.nix` and
     `flake.nix` files serves both.
   - `test-wasm.sh` accepts `geckodriver` as well as `chromedriver`
     (`wasm-bindgen-test-runner` drives either); the devcontainer ships

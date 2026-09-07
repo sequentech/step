@@ -35,7 +35,7 @@
           };
 
           # wasm-bindgen has no semver guarantee, so the CLI must match the crate
-          # version exactly (=0.2.123). Not in nixpkgs, so this is a source build.
+          # version exactly (=0.2.128). Not in nixpkgs, so this is a source build.
           # Built entirely against pkgsCrates (nixos-26.05): the crate vendorer in
           # our main pin sends a default python-requests User-Agent, which crates.io
           # answers with HTTP 403. The rustc that builds the CLI is 26.05's and need
@@ -43,12 +43,12 @@
           wasm-bindgen-cli-pinned = pkgsCrates.rustPlatform.buildRustPackage rec {
             pname = "wasm-bindgen-cli";
             # Pinned to the wasm-bindgen crate version both Cargo workspaces use
-            # (packages/Cargo.toml and packages/wbraid/Cargo.toml: =0.2.123).
-            version = "0.2.123";
-            cargoHash = "sha256-d7x6gtx5OqEE4MyT6yjYn/qtgjx7GroTpXJewnBV2dU=";
+            # (packages/Cargo.toml and packages/wbraid/Cargo.toml: =0.2.128).
+            version = "0.2.128";
+            cargoHash = "sha256-R1Tas33Ursy8kqsxguAkG0ZhNed2n5uFTAhw1l2qlLY=";
             src = builtins.fetchTarball {
               url = "https://static.crates.io/crates/${pname}/${pname}-${version}.crate";
-              sha256 = "12xdns7cvnz0j26i9kryxggylsslkqs5l2b6lppfkv1bic8q0rya";
+              sha256 = "16sb137g46q4a9kqrdpp5ddspainpd1qkging88lcrp7k5f5rfbb";
             };
             nativeBuildInputs = [ pkgsCrates.pkg-config ];
             buildInputs = [ pkgsCrates.openssl ]
