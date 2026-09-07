@@ -105,6 +105,17 @@ imported into a tenant that doesn't own it), imports that copy
 work with at all. None of this needs configuring — it's automatic whenever
 `new_tenants > 0`.
 
+Set `setup.use_existing_tenants` to a list of already-existing tenant IDs to
+*also* provision this election event into, alongside `tenant_id` itself /
+any `new_tenants` brand-new tenants — typically tenants a previous run's
+`new_tenants` created (copy them straight from that run's `tenants.json`).
+Unlike `new_tenants`, these are never created or cloned — the script
+authenticates into each directly and provisions the election event, so every
+one must already have its own registered trustees and Keycloak/roles config
+in place (true for any tenant `new_tenants` itself created previously).
+Looking up each one's `api-key-client` secret needs
+`keycloak_admin_user`/`keycloak_admin_password`, same as `new_tenants > 0`.
+
 The keys ceremony defaults to `setup.ceremony_policy: AUTOMATIC`: each
 trustee's `braid` service still does its DKG round the same way, but nothing
 needs to log in as `trustee1`/`trustee2` to confirm it — the ceremony's
@@ -197,28 +208,47 @@ session store if none is reachable (reused across runs; disable with
 per-call logs under `telephone_run.out_dir` (`telephone-load-test-output/calls`
 by default).
 
-## 4. Stage 3 — clean up: delete the election event(s) and auto-created tenant(s)
+## 4. Stage 3 — clean up: delete the election event(s) and tenant(s)
 
 `cleanup_telephone_load_test.py` automates this stage: it reads Stage 1's
 `tenants.json` (every tenant it provisioned into — one, unless
-`setup.new_tenants` was set) and each tenant's `summary.json`, then for each
-`(tenant_id, election_event_id)` pair re-authenticates `step-cli` against
-that tenant (a session is scoped to one tenant at a time) and calls
-`delete-election-event`. Once every election event is gone, it also deletes
-every tenant `setup.new_tenants` auto-created (never the bootstrap tenant
-itself — see below):
+`setup.new_tenants`/`setup.use_existing_tenants` was set) and each tenant's
+`summary.json`, then for each `(tenant_id, election_event_id)` pair
+re-authenticates `step-cli` against that tenant (a session is scoped to one
+tenant at a time) and calls `delete-election-event`. Once every election
+event is gone, it also deletes every non-bootstrap tenant (never the
+bootstrap tenant itself — see below):
 
 ```bash
 python3 packages/step-cli/scripts/cleanup_telephone_load_test.py
 ```
 
+Unlike the other load-test scripts, this one takes command-line flags —
+they scope how destructive a run is, which is a per-invocation choice, not
+something that belongs in `layers.yaml`:
+
+- `--events-only` — delete election events only; leave every tenant realm in
+  place, including ones `setup.new_tenants` created this run.
+- `--new-tenants-only` — delete election events as usual, but only delete
+  tenants `tenants.json` marks `"source": "new"` — tenants Stage 1 reused via
+  `setup.use_existing_tenants` (`"source": "existing"`), and any entry with
+  no `source` at all (e.g. a hand-written `tenants.json`), are left in
+  place. This is the field `setup_telephone_load_test.py` writes per tenant
+  to record whether it created that tenant this run or just provisioned an
+  election event into an existing one — see the note on
+  `setup.use_existing_tenants` above.
+
+With neither flag: delete every election event and every non-bootstrap
+tenant, as it's always done.
+
 It reads the same `setup:` section of `layers.yaml` Stage 1 used. For the
 bootstrap tenant (`setup.tenant_id`) it reuses the already-known
-`setup.keycloak_client_secret`; for any tenant `setup.new_tenants`
-auto-created, it looks up that tenant's own `api-key-client` secret via
+`setup.keycloak_client_secret`; for every other tenant, it looks up that
+tenant's own `api-key-client` secret via
 `setup.keycloak_admin_user`/`keycloak_admin_password` first — the same
-Keycloak master-realm admin lookup `setup_telephone_load_test.py` did when
-creating it.
+Keycloak master-realm admin lookup `setup_telephone_load_test.py` did,
+whether that tenant was created fresh or reused via
+`setup.use_existing_tenants`.
 
 `delete-election-event` calls the `delete_election_event` GraphQL mutation,
 which queues an async task tearing down the election event's Postgres/Hasura

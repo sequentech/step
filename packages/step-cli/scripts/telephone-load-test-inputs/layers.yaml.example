@@ -65,6 +65,20 @@ setup:
   # tenant_id is given.
   new_tenants: null  # Optional, defaults to 0 if tenant_id is set, else 1
 
+  # Already-existing tenant IDs (e.g. left over from a previous new_tenants
+  # run — see cleanup_telephone_load_test.py's tenants.json, whose entries
+  # you can copy straight in here) to ALSO provision this election event
+  # into, alongside tenant_id itself / the new_tenants brand-new tenants
+  # above. Unlike new_tenants, these are never created or cloned — only
+  # authenticated into and provisioned directly — so each one must already
+  # have its own registered trustees and Keycloak/roles config in place
+  # (true for any tenant new_tenants itself created previously). A YAML
+  # block list, one tenant ID per line, e.g.:
+  #   use_existing_tenants:
+  #     - 11111111-1111-1111-1111-111111111111
+  #     - 22222222-2222-2222-2222-222222222222
+  use_existing_tenants: []  # Optional, defaults to []
+
   num_voters: 20  # Optional, defaults to 20
   voter_pin_digits: 6  # Optional, numeric PIN length (max 8, the DTMF limit), defaults to 6
 
@@ -93,13 +107,13 @@ setup:
   admin_portal_user: "****"  # Mandatory, defaults to $ADMIN_PORTAL_TEST_USERNAME
   admin_portal_password: "****"  # Mandatory, defaults to $ADMIN_PORTAL_TEST_PASSWORD
 
-  # Keycloak platform/master-realm admin — only read when new_tenants > 0,
-  # to look up each freshly created tenant's api-key-client secret (a new
-  # tenant's realm gets its own, randomly regenerated one; there's no way to
-  # know it ahead of time). NOT the same identity as admin_portal_user
-  # above, which is scoped to one tenant's own realm.
-  keycloak_admin_user: "****"  # Mandatory (if new_tenants > 0), defaults to $KEYCLOAK_ADMIN
-  keycloak_admin_password: "****"  # Mandatory (if new_tenants > 0), defaults to $KEYCLOAK_ADMIN_PASSWORD
+  # Keycloak platform/master-realm admin — only read when new_tenants > 0 or
+  # use_existing_tenants is non-empty, to look up each such tenant's
+  # api-key-client secret (not known ahead of time for any tenant other than
+  # tenant_id itself). NOT the same identity as admin_portal_user above,
+  # which is scoped to one tenant's own realm.
+  keycloak_admin_user: "****"  # Mandatory (if new_tenants > 0 or use_existing_tenants is set), defaults to $KEYCLOAK_ADMIN
+  keycloak_admin_password: "****"  # Mandatory (if new_tenants > 0 or use_existing_tenants is set), defaults to $KEYCLOAK_ADMIN_PASSWORD
 
   # Needs "gold" acr for publish/voting-status; the devcontainer's
   # $KEYCLOAK_CLI_CLIENT_ID is a lower tier and will 403 on those two steps.

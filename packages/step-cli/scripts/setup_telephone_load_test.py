@@ -312,6 +312,15 @@ def main() -> None:
     if new_tenants < 0:
         common.die("setup.new_tenants must be >= 0")
 
+    # Already-existing tenants (e.g. left over from a previous new_tenants
+    # run) to ALSO provision this election event into, alongside tenant_id
+    # itself / the new_tenants brand-new tenants above. Unlike new_tenants,
+    # these are never created or cloned — only used directly — so they must
+    # already have their own trustees and Keycloak/roles config in place.
+    use_existing_tenants = cfg.get("use_existing_tenants") or []
+    if not isinstance(use_existing_tenants, list) or not all(isinstance(t, str) for t in use_existing_tenants):
+        common.die("setup.use_existing_tenants must be a list of tenant ID strings")
+
     num_voters = int(cfg.get("num_voters") or 20)
     voter_pin_digits = int(cfg.get("voter_pin_digits") or 6)
     if not (1 <= voter_pin_digits <= 8):
@@ -359,13 +368,14 @@ def main() -> None:
     # looked up live below via keycloak_admin_user/password.
     keycloak_client_secret = common.req_str(cfg, "keycloak_client_secret", env="API_KEY_CLIENT_SECRET")
 
-    # Only needed when new_tenants > 0: looking up a freshly created
-    # tenant's api-key-client secret requires a Keycloak *platform*
-    # master-realm admin token (distinct from admin_portal_user, which is
-    # scoped to one tenant's realm) — see lookup_client_secret in
+    # Only needed when new_tenants > 0 or use_existing_tenants is non-empty:
+    # looking up a tenant's api-key-client secret (freshly created, or an
+    # existing tenant other than tenant_id itself) requires a Keycloak
+    # *platform* master-realm admin token (distinct from admin_portal_user,
+    # which is scoped to one tenant's realm) — see lookup_client_secret in
     # load_test_common.py.
     keycloak_admin_user = keycloak_admin_password = None
-    if new_tenants > 0:
+    if new_tenants > 0 or use_existing_tenants:
         keycloak_admin_user = common.req_str(cfg, "keycloak_admin_user", env="KEYCLOAK_ADMIN")
         keycloak_admin_password = common.req_str(cfg, "keycloak_admin_password", env="KEYCLOAK_ADMIN_PASSWORD")
 
@@ -482,6 +492,25 @@ def main() -> None:
     else:
         target_tenant_ids = [tenant_id]
 
+    # Tracked separately from target_tenant_ids so tenants.json can record
+    # which tenants this run actually created (source: "new") versus reused
+    # as-is (source: "existing") — cleanup_telephone_load_test.py's
+    # --new-tenants-only relies on that distinction to leave reused tenants
+    # alone.
+    new_tenant_ids = set(target_tenant_ids) if new_tenants > 0 else set()
+
+    if use_existing_tenants:
+        common.log(f"Adding {len(use_existing_tenants)} pre-existing tenant(s) to this run: {', '.join(use_existing_tenants)}")
+        for existing_tenant_id in use_existing_tenants:
+            if existing_tenant_id in target_tenant_ids:
+                common.log(f"    {existing_tenant_id} is already a target — skipping duplicate")
+                continue
+            if existing_tenant_id not in client_secrets:
+                client_secrets[existing_tenant_id] = common.lookup_client_secret(
+                    keycloak_url, keycloak_admin_user, keycloak_admin_password, existing_tenant_id, keycloak_client_id
+                )
+            target_tenant_ids.append(existing_tenant_id)
+
     out_dir.mkdir(parents=True, exist_ok=True)
     # Shared across every tenant provisioned below, so the same election
     # event is easy to recognize by alias in each tenant's admin portal.
@@ -520,7 +549,14 @@ def main() -> None:
     tenants_index_path = out_dir / "tenants.json"
     common.write_json(tenants_index_path, {
         "tenant_ids": target_tenant_ids,
-        "tenants": [{"tenant_id": s["tenant_id"], "dir": f"tenant-{s['tenant_id']}"} for s in summaries],
+        "tenants": [
+            {
+                "tenant_id": s["tenant_id"],
+                "dir": f"tenant-{s['tenant_id']}",
+                "source": "new" if s["tenant_id"] in new_tenant_ids else "existing",
+            }
+            for s in summaries
+        ],
     })
 
     common.log(f"Done. Provisioned {len(target_tenant_ids)} tenant(s): {', '.join(target_tenant_ids)}")
