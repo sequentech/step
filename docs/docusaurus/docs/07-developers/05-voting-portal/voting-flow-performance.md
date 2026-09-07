@@ -546,6 +546,67 @@ does not test JWT signature verification. It logs no ballot content or voter IDs
 The prior five-request browser cohort remains release-10 evidence. The new
 transport regression observes one `GetVoterContext` operation for initial data,
 with no subsequent election request on review/confirmation cache consumption.
-No new browser cohort, SQL benchmark, throughput, latency or S3 measurement has
-been run. GraphQL operation counts are not SQL statement, physical-read,
+The browser verification below adds a main-portal cohort. No new SQL benchmark,
+throughput or S3 measurement has been run. GraphQL operation counts are not SQL statement, physical-read,
 transaction or database-checkout counts.
+
+## TypeScript validation
+
+From the existing devcontainer, enter `devenv shell`, then run:
+
+```sh
+cd /workspaces/step/packages
+yarn typecheck:voting-portal
+```
+
+This generates declarations for `ui-core` and `ui-essentials` before checking the
+portal with `tsc --noEmit`. A fresh workspace therefore does not need production
+JavaScript bundles merely to resolve the UI package types. The portal explicitly
+loads the Node and Jest ambient types it uses, avoiding unrelated transitive
+`@types` packages such as the empty `minimatch` compatibility stub. Strict source
+checking remains enabled.
+
+The previously blocked check now passes. Fixes cover React 19's scoped element
+types, nullable presentation data, Apollo 4's direct transport errors and typed
+receipt mutation variables, validated cast-status strings, complete test fixtures,
+and the invalid-login-link messages in all portal locales. Receipt generation
+waits until its required tracker URL is available. Portal unit tests include the
+transport-error distinction and rejection of unknown cast statuses.
+
+
+## Browser verification after TypeScript fixes
+
+The main portal was rebuilt and tested with Chromium 144.0.7559.132 against the
+existing release-10/B3 local backend. This verifies the main portal's browser
+journey and consolidated read operation; it does not verify a complete main/B4
+backend deployment or private S3 delivery.
+
+Ten fresh synthetic voters ran sequentially with fresh browser contexts, HTTP
+cache disabled, warm services, and no think time. The fixture contained one event,
+election, contest and area.
+
+| Check | Result |
+| --- | --- |
+| Completed journeys with matching API, UI and persisted ballot IDs | 10/10 |
+| Cast submissions | 10, with 10 distinct persisted cast IDs |
+| Initial voter-context operations | One `GetVoterContext` per voter |
+| Legacy initial reads | No `GetBallotStyles`, `GetElectionEvent`, `GetElections` or `GetCastVotes` |
+| HTTP requests | 500 total; 50 per voter |
+| Journey latency | p50 2,474 ms; p99 2,517 ms; range 2,306–2,518 ms |
+| Capture failures or unexpected origins in the final cohort | 0 |
+
+An earlier pilot cast was accepted and persisted, but its browser assertion failed
+because the confirmation screen lacked the harness's ballot-ID selector. The
+selector was added before rebuilding and running the final cohort with different
+voters. The pilot is excluded from the ten successful journeys and was not retried.
+
+These serial observations establish functional behavior and operation counts,
+not capacity or a paired latency improvement. Raw browser captures, database
+logs and synthetic credentials remain in the ignored local
+`.cache/voter-types-e2e/` directory and must not be committed. The tested portal
+bundle SHA-256 is
+`aaf6efe33e93965cfc9bb37176a59b184e77d12b7d7f86e700ff0873efc13fcd`.
+
+The accompanying validation passed all 92 portal unit tests, the TypeScript check
+with both UI output directories initially absent, and production builds for both
+UI packages and the portal.

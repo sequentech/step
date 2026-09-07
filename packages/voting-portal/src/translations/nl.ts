@@ -418,6 +418,9 @@ const dutchTranslation: TranslationType = {
                 oopsWithStatus: "Oeps! {{status}}",
                 oopsWithoutStatus: "Oeps! Onverwachte Fout",
                 somethingWrong: "Er is iets misgegaan.",
+                invalidLoginHintParametersTitle: "Ongeldige stemlink",
+                invalidLoginHintParametersMessage:
+                    "Deze stemlink bevat ongeldige inloggegevens. Vraag een nieuwe link aan en probeer het opnieuw.",
                 certAuthFailedTitle: "Certificaatauthenticatie Mislukt",
                 certAuthFailedMessage:
                     "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",

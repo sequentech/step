@@ -64,3 +64,6 @@ airgapped-artifacts
 
 # Locally generated voting-flow benchmark evidence
 /.cache/voting-flow/
+
+# Private voter-flow browser captures, fixtures and local build logs
+/.cache/voter-types-e2e/

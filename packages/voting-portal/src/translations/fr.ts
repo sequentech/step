@@ -416,6 +416,9 @@ const frenchTranslation: TranslationType = {
                 oopsWithStatus: "Oups ! {{status}}",
                 oopsWithoutStatus: "Oups ! Une erreur inattendue est survenue.",
                 somethingWrong: "Une erreur est survenue.",
+                invalidLoginHintParametersTitle: "Lien de vote non valide",
+                invalidLoginHintParametersMessage:
+                    "Ce lien de vote contient des informations de connexion non valides. Demandez un nouveau lien et réessayez.",
                 certAuthFailedTitle: "Échec de l'authentification par certificat",
                 certAuthFailedMessage:
                     "Votre certificat n'a pas pu être vérifié. Veuillez vous assurer que vous utilisez un certificat d'électeur valide, puis réessayez.",

@@ -417,6 +417,9 @@ const tagalogTranslation: TranslationType = {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",
                 somethingWrong: "May nangyaring hindi tama.",
+                invalidLoginHintParametersTitle: "Hindi wastong link sa pagboto",
+                invalidLoginHintParametersMessage:
+                    "Naglalaman ang link na ito ng hindi wastong impormasyon sa pag-login. Humiling ng bagong link at subukan muli.",
                 certAuthFailedTitle: "Nabigo ang Pagpapatunay ng Sertipiko",
                 certAuthFailedMessage:
                     "Hindi ma-verify ang iyong sertipiko. Pakitiyak na gumagamit ka ng wastong sertipiko ng botante at subukang muli.",

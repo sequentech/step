@@ -53,7 +53,13 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {GetCastVotesQuery, GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
+import {
+    CreateBallotReceiptMutation,
+    CreateBallotReceiptMutationVariables,
+    GetCastVotesQuery,
+    GetDocumentQuery,
+    GetElectionsQuery,
+} from "../gql/graphql"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {downloadUrl} from "@sequentech/ui-core"
 import {
@@ -142,7 +148,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const [createBallotReceipt] = useMutation(CREATE_BALLOT_RECEIPT)
+    const [createBallotReceipt] = useMutation<
+        CreateBallotReceiptMutation,
+        CreateBallotReceiptMutationVariables
+    >(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
@@ -243,6 +252,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             return
         }
         if (!documentId) {
+            if (!ballotTrackerUrl) {
+                setIsHitPrint(false)
+                return
+            }
             const res = await createBallotReceipt({
                 variables: {
                     ballot_id: ballotId,
@@ -302,7 +315,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                     <>
                         <StyledButton
                             onClick={printBallotReceiptReport}
-                            disabled={isHitPrint}
+                            disabled={isHitPrint || (!isDemo && !documentId && !ballotTrackerUrl)}
                             variant="secondary"
                             sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                         >
@@ -534,6 +547,7 @@ const ConfirmationScreen: React.FC = () => {
                                 />
                             </DecorativeIconBox>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
                                 sx={{display: {xs: "none", sm: "block"}}}
@@ -542,6 +556,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {ballotId.current}
                             </BallotIdLink>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
                                 sx={{display: {xs: "block", sm: "none"}}}
