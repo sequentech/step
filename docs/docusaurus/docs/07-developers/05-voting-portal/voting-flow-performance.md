@@ -130,11 +130,40 @@ integration tests exercise the production INSERT/error mapping and materialized
 configuration query, including equivalence with the schedule-generation contract.
 
 The SQL benchmark compares the previous implementation at `e93ca05104` with the
-current database path. Each variant starts with 100,000 seeded ballots, approximately
-21 KB encoded ciphertext, two prior ballots per voter, warm reusable connections,
-and the same fixture schema. It runs opening/lull/closing concurrency phases of
-8/2/8 clients and 128/64/128 requests, with 100 and 2,000 unrelated scheduled tasks.
-This is a bounded-concurrency workload, not an open-loop arrival-rate test.
+current database path using the same fixture schema and approximately 21 KB
+encoded ciphertext. It varies three factors independently, then combines table
+growth and a voter burst:
+
+| Scenario | Seeded ballots | Peak concurrent voters | Unrelated schedules |
+|---|---:|---:|---:|
+| Small table | 10,000 | 8 | 100 |
+| Reference | 100,000 | 8 | 100 |
+| Large table | 1,000,000 | 8 | 100 |
+| Medium voter burst | 100,000 | 32 | 100 |
+| Large voter burst | 100,000 | 64 | 100 |
+| Large table and voter burst | 1,000,000 | 64 | 100 |
+| Many schedules | 100,000 | 8 | 2,000 |
+
+Every variant starts with the same population, two prior ballots per voter and
+64 warmup requests on reusable connections. Opening/lull/closing phases submit
+1,024/512/1,024 requests. Lull concurrency is one quarter of peak, with a minimum
+of two. All 2,560 measured requests use different voters, also distinct from the
+warmups. A deterministic permutation spreads those voters across the entire
+seeded population, so the large-table case exercises more than its first few
+participation-index pages. The report records actual relation size including
+indexes and TOAST, accepted requests, errors and per-phase throughput/latency.
+
+Seeding, vacuuming, index construction and verification run outside the measured
+interval. The harness checks the initial and final ballot counts and fails if a
+submission fails. Each scenario restores the seed before comparing variants.
+PostgreSQL allows 160 connections locally to accommodate the largest baseline's
+64 writer and 64 identity connections; durability settings remain enabled.
+
+This is a bounded-concurrency workload, not an open-loop arrival-rate test. Peak
+concurrency means different voters submit simultaneously, not 64 submissions
+contending for one voter's lock. Same-voter races are covered by regressions.
+The largest fixture needs roughly 25 GB of temporary database storage; allow at
+least 50 GB free for its data, indexes and WAL. Runs can take several minutes.
 
 PostgreSQL `pg_stat_statements` counts reads, writes and transaction starts,
 including nested trigger SQL. The driver records logical connection checkouts.

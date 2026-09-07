@@ -54,7 +54,8 @@ class LocalDatabase:
         options = (
             f"-k {self.directory} -p 55432 -c listen_addresses='' "
             "-c shared_preload_libraries=pg_stat_statements "
-            "-c pg_stat_statements.track=all"
+            # The largest baseline uses 64 writer + 64 identity connections.
+            "-c pg_stat_statements.track=all -c max_connections=160"
         )
         self.command(
             "pg_ctl",

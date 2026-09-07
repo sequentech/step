@@ -11,6 +11,7 @@ statistics verify the read/write/transaction counts rather than trusting labels.
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
+from dataclasses import asdict, dataclass
 import base64
 import json
 import math
@@ -27,8 +28,42 @@ from psycopg.types.json import Jsonb
 from database import AREA_MIGRATION, CONFIGURATION_QUERY, ROOT
 from fixtures import Election, INSERT_VOTE
 
-PHASES = (("opening", 8, 128), ("lull", 2, 64), ("closing", 8, 128))
-WARMUP_REQUESTS = 16
+WARMUP_REQUESTS = 64
+
+
+@dataclass(frozen=True)
+class Scenario:
+    name: str
+    seeded_ballots: int = 100_000
+    peak_voters: int = 8
+    unrelated_schedules: int = 100
+
+    @property
+    def phases(self):
+        return (
+            ("opening", self.peak_voters, 1024),
+            ("lull", max(2, self.peak_voters // 4), 512),
+            ("closing", self.peak_voters, 1024),
+        )
+
+    def voter_id(self, request_id):
+        # Spread distinct voters across the entire seeded population instead of
+        # repeatedly touching the first few index pages. This multiplier is
+        # coprime to every population below, so request IDs cannot collide.
+        return (request_id * 104729) % (self.seeded_ballots // 2)
+
+
+# Change one factor at a time, then combine the largest table and voter burst.
+# Schedule scanning remains a separate comparison at the reference table size.
+SCENARIOS = (
+    Scenario("small-table", seeded_ballots=10_000),
+    Scenario("reference"),
+    Scenario("large-table", seeded_ballots=1_000_000),
+    Scenario("32-concurrent-voters", peak_voters=32),
+    Scenario("64-concurrent-voters", peak_voters=64),
+    Scenario("large-table-64-voters", seeded_ballots=1_000_000, peak_voters=64),
+    Scenario("many-schedules", unrelated_schedules=2000),
+)
 READ_SECRET = """
     SELECT value FROM sequent_backend.secret
     WHERE tenant_id = %s AND election_event_id = %s AND key = 'protocol-manager'
@@ -189,24 +224,25 @@ def seed(database, schedule_count):
     return fixture
 
 
-def prepare_votes(database, fixture, content):
+def prepare_votes(database, fixture, content, scenario):
     connection = database.connection
     connection.execute("TRUNCATE sequent_backend.cast_vote")
     connection.execute(
         "ALTER TABLE sequent_backend.cast_vote DISABLE TRIGGER check_revote_limit_trigger"
     )
     try:
-        # 50,000 voters with two previous ballots each makes the eligibility
-        # index useful. The identical dataset is restored before each variant.
+        # Keep two prior ballots per voter while varying total table size.
+        # Restore the identical population before each variant; seed work is
+        # excluded from the timed interval and PostgreSQL statement counters.
         connection.execute(
             """
             INSERT INTO sequent_backend.cast_vote
                 (tenant_id, election_event_id, election_id, area_id,
                  voter_id_string, status, content)
             SELECT %s, %s, %s, %s, 'voter-' || (number / 2), 'valid', %s
-            FROM generate_series(0, 99999) AS number
+            FROM generate_series(0, %s - 1) AS number
         """,
-            (*fixture.scope, fixture.area, content),
+            (*fixture.scope, fixture.area, content, scenario.seeded_ballots),
         )
     finally:
         connection.execute(
@@ -244,7 +280,7 @@ def statement_counts(database, requests):
     return {key: value / requests for key, value in counts.items()}, measured
 
 
-def run_variant(database, fixture, content, variant):
+def run_variant(database, fixture, content, variant, scenario):
     database.apply(AREA_MIGRATION, "down" if variant == "before" else "up")
     connection = database.connection
     connection.execute(
@@ -262,15 +298,27 @@ def run_variant(database, fixture, content, variant):
     connection.execute(
         f"ALTER TABLE sequent_backend.cast_vote ALTER COLUMN content SET STORAGE {storage}"
     )
-    prepare_votes(database, fixture, content)
+    prepare_votes(database, fixture, content, scenario)
 
-    clients = [VoterClient(database, fixture, variant, content) for _ in range(8)]
+    seeded_count = database.scalar("SELECT count(*) FROM sequent_backend.cast_vote")
+    assert seeded_count == scenario.seeded_ballots, seeded_count
+    relation_bytes = database.scalar(
+        "SELECT pg_total_relation_size('sequent_backend.cast_vote')"
+    )
+    request_count = sum(count for _, _, count in scenario.phases)
+    voter_ids = [scenario.voter_id(i) for i in range(WARMUP_REQUESTS + request_count)]
+    assert len(set(voter_ids)) == len(voter_ids), "voters must be distinct"
+
+    clients = [
+        VoterClient(database, fixture, variant, content)
+        for _ in range(scenario.peak_voters)
+    ]
     available = Queue()
     for client in clients:
         available.put(client)
     try:
         for request_id in range(WARMUP_REQUESTS):
-            clients[0].cast(request_id)
+            clients[request_id % len(clients)].cast(voter_ids[request_id])
         for client in clients:
             client.checkouts = 0
         connection.execute("SELECT pg_stat_statements_reset()")
@@ -279,7 +327,7 @@ def run_variant(database, fixture, content, variant):
             client = available.get()
             started = time.perf_counter()
             try:
-                client.cast(request_id)
+                client.cast(voter_ids[request_id])
                 return (time.perf_counter() - started) * 1000
             finally:
                 available.put(client)
@@ -287,7 +335,7 @@ def run_variant(database, fixture, content, variant):
         phases = []
         next_request = WARMUP_REQUESTS
         all_latencies = []
-        for name, concurrency, count in PHASES:
+        for name, concurrency, count in scenario.phases:
             started = time.perf_counter()
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
                 latencies = list(
@@ -299,6 +347,7 @@ def run_variant(database, fixture, content, variant):
                     "name": name,
                     "concurrency": concurrency,
                     "requests": count,
+                    "elapsed_seconds": seconds,
                     "requests_per_second": count / seconds,
                     "p50_ms": percentile(latencies, 50),
                     "p99_ms": percentile(latencies, 99),
@@ -315,9 +364,20 @@ def run_variant(database, fixture, content, variant):
             "writes": 1,
             "transactions": expected_transactions,
         }, counts
+        # Check acceptance after collecting statement statistics so verification
+        # queries cannot inflate the measured work per successful request.
+        final_count = database.scalar("SELECT count(*) FROM sequent_backend.cast_vote")
+        assert final_count - seeded_count == WARMUP_REQUESTS + request_count
         return {
             "variant": variant,
+            "seeded_relation_bytes": relation_bytes,
+            "distinct_measured_voters": request_count,
+            "accepted_requests": request_count,
+            "errors": 0,
             "requests": len(all_latencies),
+            "elapsed_seconds": sum(phase["elapsed_seconds"] for phase in phases),
+            "requests_per_second": len(all_latencies)
+            / sum(phase["elapsed_seconds"] for phase in phases),
             "phases": phases,
             "p50_ms": percentile(all_latencies, 50),
             "p99_ms": percentile(all_latencies, 99),
@@ -343,7 +403,7 @@ def run_benchmark(database, output):
         identity.execute(
             """
             INSERT INTO user_entity SELECT 'voter-' || n, 'voter-' || n
-            FROM generate_series(0, 49999) n
+            FROM generate_series(0, 499999) n
         """
         )
     content = json.dumps({"ciphertext": base64.b64encode(os.urandom(16000)).decode()})
@@ -357,21 +417,32 @@ def run_benchmark(database, output):
         "available_cpus": os.cpu_count(),
         "postgres_version": database.scalar("SELECT version()"),
         "ballot_bytes": len(content),
-        "seeded_ballots": 100000,
+        "warmup_requests": WARMUP_REQUESTS,
+        "voter_distribution": "distinct returning voters spread over the seeded population; two prior ballots each",
+        "postgres_settings": dict(
+            database.connection.execute(
+                "SELECT name, setting FROM pg_settings WHERE name IN "
+                "('max_connections', 'shared_buffers', 'fsync', 'synchronous_commit')"
+            ).fetchall()
+        ),
         "scenarios": [],
     }
-    for schedule_count in (100, 2000):
-        fixture = seed(database, schedule_count)
-        scenario = {"unrelated_schedules": schedule_count, "results": []}
+    for scenario in SCENARIOS:
+        fixture = seed(database, scenario.unrelated_schedules)
+        evidence = dict(asdict(scenario), results=[])
         for variant in ("before", "after"):
-            result = run_variant(database, fixture, content, variant)
-            scenario["results"].append(result)
             print(
-                f"{schedule_count} schedules, {variant}: {result['per_request']}; "
+                f"Preparing {scenario.name}, {variant}: {scenario.seeded_ballots:,} ballots",
+                flush=True,
+            )
+            result = run_variant(database, fixture, content, variant, scenario)
+            evidence["results"].append(result)
+            print(
+                f"{scenario.name}, {variant}: {result['per_request']}; "
                 f"p50={result['p50_ms']:.2f} ms, p99={result['p99_ms']:.2f} ms",
                 flush=True,
             )
-        report["scenarios"].append(scenario)
+        report["scenarios"].append(evidence)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n")
     print(f"Benchmark evidence written to {output}")
