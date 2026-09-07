@@ -30,6 +30,8 @@ class LocalDatabase:
     def __init__(self, directory):
         self.directory = Path(directory)
         self.data = self.directory / "data"
+        self.connection = None
+        self.started = False
         # A private Unix socket allows independent runs to reuse this port.
         self.dsn = f"host={directory} port=55432 dbname=postgres"
         self.env = dict(
@@ -65,6 +67,7 @@ class LocalDatabase:
             "-w",
             "start",
         )
+        self.started = True
         self.connection = psycopg.connect(self.dsn, autocommit=True)
         self.connection.execute((Path(__file__).parent / "schema.sql").read_text())
         self.apply(AREA_MIGRATION)
@@ -77,8 +80,13 @@ class LocalDatabase:
         )
 
     def stop(self):
-        self.connection.close()
-        self.command("pg_ctl", "-D", str(self.data), "-m", "immediate", "-w", "stop")
+        if self.connection is not None:
+            self.connection.close()
+        if self.started:
+            self.command(
+                "pg_ctl", "-D", str(self.data), "-m", "immediate", "-w", "stop"
+            )
+            self.started = False
 
     def apply(self, migration, direction="up"):
         # Production Hasura migrations are transactional. Keep that contract in
@@ -102,8 +110,10 @@ class LocalDatabase:
 def local_database():
     with tempfile.TemporaryDirectory(prefix="voting-flow-") as directory:
         database = LocalDatabase(directory)
-        database.start()
         try:
+            # Startup can fail after PostgreSQL launches (for example, a bad
+            # migration). Stop it before removing its temporary data directory.
+            database.start()
             yield database
         finally:
             database.stop()
