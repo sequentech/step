@@ -5,7 +5,7 @@
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{
-    get_ballot_publication_by_id, update_ballot_publication_status,
+    get_ballot_publication_by_id, lock_publication_event, update_ballot_publication_status,
 };
 use crate::postgres::ballot_style::insert_ballot_style;
 use crate::postgres::candidate::export_candidates;
@@ -320,6 +320,8 @@ async fn generate_election_event_ballot_styles(
         .await
         .with_context(|| "Error starting hasura transaction")?;
 
+    lock_publication_event(&transaction, tenant_id, election_event_id).await?;
+
     let Some(ballot_publication) = get_ballot_publication_by_id(
         &transaction,
         tenant_id,
@@ -330,6 +332,9 @@ async fn generate_election_event_ballot_styles(
     else {
         return Err(anyhow!("can't find ballot publication"));
     };
+    if !publication_needs_generation(&ballot_publication)? {
+        return Ok(());
+    }
     let (
         election_event,
         elections,
@@ -407,6 +412,56 @@ async fn generate_election_event_ballot_styles(
 
     create_public_election_event_config_file(&transaction, tenant_id, &election_event).await?;
 
-    let _commit = transaction.commit().await.with_context(|| "Commit failed");
+    transaction
+        .commit()
+        .await
+        .with_context(|| "Commit failed")?;
     Ok(())
+}
+
+/// Completed publications are immutable; repeated task delivery is a no-op.
+fn publication_needs_generation(publication: &BallotPublication) -> AnyhowResult<bool> {
+    if publication.deleted_at.is_some() {
+        return Err(anyhow!("Cannot generate a deleted ballot publication"));
+    }
+    if publication.published_at.is_some() && !publication.is_generated.unwrap_or(false) {
+        return Err(anyhow!(
+            "Published ballot publication is missing generated content"
+        ));
+    }
+    Ok(!publication.is_generated.unwrap_or(false))
+}
+
+#[cfg(test)]
+mod generation_tests {
+    use super::*;
+
+    fn publication() -> BallotPublication {
+        serde_json::from_value(serde_json::json!({
+            "id": "publication", "tenant_id": "tenant", "election_event_id": "event"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn completed_generation_is_not_repeated() {
+        let mut publication = publication();
+        assert!(publication_needs_generation(&publication).unwrap());
+        publication.is_generated = Some(false);
+        assert!(publication_needs_generation(&publication).unwrap());
+        publication.is_generated = Some(true);
+        assert!(!publication_needs_generation(&publication).unwrap());
+        publication.published_at = Some(ISO8601::now());
+        assert!(!publication_needs_generation(&publication).unwrap());
+    }
+
+    #[test]
+    fn deleted_and_incomplete_published_content_cannot_be_regenerated() {
+        let mut publication = publication();
+        publication.published_at = Some(ISO8601::now());
+        assert!(publication_needs_generation(&publication).is_err());
+        publication.is_generated = Some(true);
+        publication.deleted_at = Some(ISO8601::now());
+        assert!(publication_needs_generation(&publication).is_err());
+    }
 }
