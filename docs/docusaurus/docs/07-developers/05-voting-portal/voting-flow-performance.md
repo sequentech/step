@@ -292,8 +292,7 @@ combined million-ballot/64-voter case checks these two pressures together.
 
 The cast benchmark's schedule counts are **total active schedules in the
 same tenant and election event**, including two endpoints for every election.
-The largest event contains exactly 200 elections and 2,000 schedules. These
-bounds replace the earlier synthetic fixture with 100,000 schedules in one event.
+The largest event contains exactly 200 elections and 2,000 schedules.
 
 The original query requests every non-archived schedule for its tenant/event.
 It transfers and decodes all matching rows. An index can locate that scope, but
