@@ -164,6 +164,8 @@ concurrency means different voters submit simultaneously, not 64 submissions
 contending for one voter's lock. Same-voter races are covered by regressions.
 The largest fixture needs roughly 25 GB of temporary database storage; allow at
 least 50 GB free for its data, indexes and WAL. Runs can take several minutes.
+Use `--benchmark --scenario reference` to rerun one case, or repeat `--scenario`
+to select several; omitting it runs the full matrix.
 
 PostgreSQL `pg_stat_statements` counts reads, writes and transaction starts,
 including nested trigger SQL. The driver records logical connection checkouts.
@@ -174,10 +176,61 @@ p50/p99 latency, PostgreSQL version and machine information.
 The benchmark deliberately excludes HTTP, Rust cryptography, broker delivery,
 Datafix and application rendering. Its fixtures model the database operations and
 use the production policy query and trigger definitions; it is not a full platform
-capacity test. Do not present its latency as an end-to-end voting latency or a
+capacity test. The Python driver shares one interpreter across worker threads,
+so throughput can be limited by client processing as well as PostgreSQL.
+Do not present its latency as an end-to-end voting latency or a
 production service-level guarantee. Use it to compare database work reproducibly.
 
-A checked-in [reference report](/benchmarks/voting-flow.json) records one local run.
+## Reference measurements
+
+The [reference report](/benchmarks/voting-flow.json) contains the complete query
+counts, per-phase measurements, relation sizes and PostgreSQL settings. The tables
+below are generated from that same report. To publish a new reference run:
+
+```sh
+devenv shell python3 scripts/test_cast_vote_scalability.py --benchmark \
+  --output docs/docusaurus/static/benchmarks/voting-flow.json
+devenv shell python3 scripts/voting_flow/report.py
+```
+
+<!-- voting-flow-benchmark:start -->
+
+SQL-only measurements at implementation `f562c7deae` against baseline `e93ca05104`.
+
+| Scenario | Ballots | Peak voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
+|---|---:|---:|---:|---:|---:|
+| small-table | 10,000 | 8 | 100 | 15.06 / 113.77 | 4.78 / 10.87 |
+| reference | 100,000 | 8 | 100 | 14.91 / 19.62 | 4.75 / 7.99 |
+| large-table | 1,000,000 | 8 | 100 | 14.86 / 19.30 | 4.77 / 9.27 |
+| 32-concurrent-voters | 100,000 | 32 | 100 | 61.53 / 78.88 | 19.69 / 29.48 |
+| 64-concurrent-voters | 100,000 | 64 | 100 | 123.36 / 158.02 | 39.49 / 58.76 |
+| large-table-64-voters | 1,000,000 | 64 | 100 | 122.66 / 160.61 | 38.83 / 58.60 |
+| many-schedules | 100,000 | 8 | 2,000 | 91.36 / 123.02 | 4.77 / 55.97 |
+
+| Scenario | Before casts/s | After casts/s | Accepted per variant | Errors before / after |
+|---|---:|---:|---:|---:|
+| small-table | 450.0 | 1466.1 | 2,560 | 0 / 0 |
+| reference | 539.2 | 1528.2 | 2,560 | 0 / 0 |
+| large-table | 502.6 | 1205.0 | 2,560 | 0 / 0 |
+| 32-concurrent-voters | 503.4 | 1521.9 | 2,560 | 0 / 0 |
+| 64-concurrent-voters | 494.1 | 1468.3 | 2,560 | 0 / 0 |
+| large-table-64-voters | 495.9 | 1488.5 | 2,560 | 0 / 0 |
+| many-schedules | 85.0 | 1204.0 | 2,560 | 0 / 0 |
+
+Latencies cover the complete SQL path per request. Throughput is total completed requests divided by the combined phase wall time, including driver scheduling overhead. These measurements come from one local run, not production capacity estimates or statistical confidence intervals.
+
+<!-- voting-flow-benchmark:end -->
+
+The table-size comparison holds each voter's history at two ballots. Both paths
+already have an index keyed by voter, so increasing the global ballot count does
+not imply scanning the whole table for every cast. The revised path removes
+redundant reads and ciphertext transfers, and covers the combined eligibility
+aggregate. Growing one voter's revote history is a different workload.
+
+The concurrency comparison holds the seed at 100,000 ballots and increases
+simultaneous distinct voters. Rising p99 at higher concurrency remains possible
+even when SQL work per cast falls; inspect throughput alongside latency. The
+combined million-ballot/64-voter case checks these two pressures together.
 
 ## Migration and recovery
 

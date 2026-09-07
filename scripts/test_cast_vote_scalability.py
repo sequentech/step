@@ -18,13 +18,23 @@ from regression import run_regressions
 
 
 def main():
+    from benchmark import SCENARIOS
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--benchmark", action="store_true")
     parser.add_argument("--rust-tests", action="store_true")
     parser.add_argument(
         "--output", type=Path, default=Path("/tmp/voting-flow-results.json")
     )
+    parser.add_argument(
+        "--scenario",
+        action="append",
+        choices=[scenario.name for scenario in SCENARIOS],
+        help="Select a benchmark scenario; repeat to select several (default: all)",
+    )
     args = parser.parse_args()
+    if args.scenario and not args.benchmark:
+        parser.error("--scenario requires --benchmark")
     with local_database() as database:
         run_regressions(database)
         if args.rust_tests:
@@ -34,7 +44,7 @@ def main():
         if args.benchmark:
             from benchmark import run_benchmark
 
-            run_benchmark(database, args.output)
+            run_benchmark(database, args.output, args.scenario)
 
 
 if __name__ == "__main__":
