@@ -136,20 +136,20 @@ growth and a voter burst:
 
 | Scenario | Seeded ballots | Peak concurrent voters | Unrelated schedules |
 |---|---:|---:|---:|
-| Small table | 10,000 | 8 | 100 |
-| Reference | 100,000 | 8 | 100 |
-| Large table | 1,000,000 | 8 | 100 |
-| Medium voter burst | 100,000 | 32 | 100 |
-| Large voter burst | 100,000 | 64 | 100 |
-| Large table and voter burst | 1,000,000 | 64 | 100 |
-| Many schedules | 100,000 | 8 | 2,000 |
+| 10k votes table | 10,000 | 8 | 100 |
+| 100k votes table | 100,000 | 8 | 100 |
+| 1M votes table | 1,000,000 | 8 | 100 |
+| 100k votes table, 32 concurrent voters | 100,000 | 32 | 100 |
+| 100k votes table, 64 concurrent voters | 100,000 | 64 | 100 |
+| 1M votes table, 64 concurrent voters | 1,000,000 | 64 | 100 |
+| 100k votes table, 2k schedules | 100,000 | 8 | 2,000 |
 
 Every variant starts with the same population, two prior ballots per voter and
 64 warmup requests on reusable connections. Opening/lull/closing phases submit
 1,024/512/1,024 requests. Lull concurrency is one quarter of peak, with a minimum
 of two. All 2,560 measured requests use different voters, also distinct from the
 warmups. A deterministic permutation spreads those voters across the entire
-seeded population, so the large-table case exercises more than its first few
+seeded population, so the 1M votes table case exercises more than its first few
 participation-index pages. The report records actual relation size including
 indexes and TOAST, accepted requests, errors and per-phase throughput/latency.
 
@@ -162,9 +162,9 @@ PostgreSQL allows 160 connections locally to accommodate the largest baseline's
 This is a bounded-concurrency workload, not an open-loop arrival-rate test. Peak
 concurrency means different voters submit simultaneously, not 64 submissions
 contending for one voter's lock. Same-voter races are covered by regressions.
-The largest fixture needs roughly 25 GB of temporary database storage; allow at
+The 1M votes fixture needs roughly 25 GB of temporary database storage; allow at
 least 50 GB free for its data, indexes and WAL. Runs can take several minutes.
-Use `--benchmark --scenario reference` to rerun one case, or repeat `--scenario`
+Use `--benchmark --scenario 100k-votes` to rerun one case, or repeat `--scenario`
 to select several; omitting it runs the full matrix.
 
 PostgreSQL `pg_stat_statements` counts reads, writes and transaction starts,
@@ -199,27 +199,27 @@ SQL-only measurements at implementation `f562c7deae` against baseline `e93ca0510
 
 **Accepted votes/second = accepted submissions / elapsed measurement seconds.** Elapsed time is the sum of the opening, lull and closing phase wall times; seeding and warmups are excluded. Each measured submission uses a distinct voter.
 
-For the reference workload, before: 2,560 / 4.7475 s = **539.2 votes/s**. After: 2,560 / 1.6752 s = **1528.2 votes/s**. Calculations use unrounded durations from the JSON; displayed durations are rounded.
+For the 100k votes table, 8 concurrent voters, 100 schedules workload, before: 2,560 / 4.7475 s = **539.2 votes/s**. After: 2,560 / 1.6752 s = **1528.2 votes/s**. Calculations use unrounded durations from the JSON; displayed durations are rounded.
 
-| Scenario | Ballots | Peak voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
+| Scenario | Ballots | Peak concurrent voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
 |---|---:|---:|---:|---:|---:|
-| small-table | 10,000 | 8 | 100 | 15.06 / 113.77 | 4.78 / 10.87 |
-| reference | 100,000 | 8 | 100 | 14.91 / 19.62 | 4.75 / 7.99 |
-| large-table | 1,000,000 | 8 | 100 | 14.86 / 19.30 | 4.77 / 9.27 |
-| 32-concurrent-voters | 100,000 | 32 | 100 | 61.53 / 78.88 | 19.69 / 29.48 |
-| 64-concurrent-voters | 100,000 | 64 | 100 | 123.36 / 158.02 | 39.49 / 58.76 |
-| large-table-64-voters | 1,000,000 | 64 | 100 | 122.66 / 160.61 | 38.83 / 58.60 |
-| many-schedules | 100,000 | 8 | 2,000 | 91.36 / 123.02 | 4.77 / 55.97 |
+| 10k votes table, 8 concurrent voters, 100 schedules | 10,000 | 8 | 100 | 15.06 / 113.77 | 4.78 / 10.87 |
+| 100k votes table, 8 concurrent voters, 100 schedules | 100,000 | 8 | 100 | 14.91 / 19.62 | 4.75 / 7.99 |
+| 1M votes table, 8 concurrent voters, 100 schedules | 1,000,000 | 8 | 100 | 14.86 / 19.30 | 4.77 / 9.27 |
+| 100k votes table, 32 concurrent voters, 100 schedules | 100,000 | 32 | 100 | 61.53 / 78.88 | 19.69 / 29.48 |
+| 100k votes table, 64 concurrent voters, 100 schedules | 100,000 | 64 | 100 | 123.36 / 158.02 | 39.49 / 58.76 |
+| 1M votes table, 64 concurrent voters, 100 schedules | 1,000,000 | 64 | 100 | 122.66 / 160.61 | 38.83 / 58.60 |
+| 100k votes table, 8 concurrent voters, 2k schedules | 100,000 | 8 | 2,000 | 91.36 / 123.02 | 4.77 / 55.97 |
 
 | Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |
 |---|---:|---:|---:|---:|---:|---:|
-| small-table | 5.6889 | 1.7461 | 450.0 | 1466.1 | 2,560 | 0 / 0 |
-| reference | 4.7475 | 1.6752 | 539.2 | 1528.2 | 2,560 | 0 / 0 |
-| large-table | 5.0937 | 2.1244 | 502.6 | 1205.0 | 2,560 | 0 / 0 |
-| 32-concurrent-voters | 5.0857 | 1.6821 | 503.4 | 1521.9 | 2,560 | 0 / 0 |
-| 64-concurrent-voters | 5.1814 | 1.7435 | 494.1 | 1468.3 | 2,560 | 0 / 0 |
-| large-table-64-voters | 5.1628 | 1.7198 | 495.9 | 1488.5 | 2,560 | 0 / 0 |
-| many-schedules | 30.1351 | 2.1263 | 85.0 | 1204.0 | 2,560 | 0 / 0 |
+| 10k votes table, 8 concurrent voters, 100 schedules | 5.6889 | 1.7461 | 450.0 | 1466.1 | 2,560 | 0 / 0 |
+| 100k votes table, 8 concurrent voters, 100 schedules | 4.7475 | 1.6752 | 539.2 | 1528.2 | 2,560 | 0 / 0 |
+| 1M votes table, 8 concurrent voters, 100 schedules | 5.0937 | 2.1244 | 502.6 | 1205.0 | 2,560 | 0 / 0 |
+| 100k votes table, 32 concurrent voters, 100 schedules | 5.0857 | 1.6821 | 503.4 | 1521.9 | 2,560 | 0 / 0 |
+| 100k votes table, 64 concurrent voters, 100 schedules | 5.1814 | 1.7435 | 494.1 | 1468.3 | 2,560 | 0 / 0 |
+| 1M votes table, 64 concurrent voters, 100 schedules | 5.1628 | 1.7198 | 495.9 | 1488.5 | 2,560 | 0 / 0 |
+| 100k votes table, 8 concurrent voters, 2k schedules | 30.1351 | 2.1263 | 85.0 | 1204.0 | 2,560 | 0 / 0 |
 
 Latencies cover the complete SQL path per request. Throughput is total completed requests divided by the combined phase wall time, including driver scheduling overhead. These measurements come from one local run, not production capacity estimates or statistical confidence intervals.
 
@@ -250,12 +250,103 @@ simultaneous distinct voters. Rising p99 at higher concurrency remains possible
 even when SQL work per cast falls; inspect throughput alongside latency. The
 combined million-ballot/64-voter case checks these two pressures together.
 
+## Schedule placement, filtering and indexing
+
+In the cast benchmark, **unrelated schedules belong to the same tenant and
+same election event** as the vote. They are unrelated to the selected voting
+window. This is different from schedules belonging to another event or tenant.
+
+The original query requests every non-archived schedule for its tenant/event.
+It transfers and decodes all matching rows. An index can locate that scope, but
+cannot remove rows the query requests. To fetch fewer rows within a busy event,
+the query must also select the two relevant voting-window task IDs.
+
+Schedules in another event or tenant are excluded from the result. Without a
+matching index, PostgreSQL can still scan them to find and reject nonmatches.
+With a selective indexed lookup, it can go directly to the requested scope.
+Schedules in another environment's **separate database** are never scanned by
+this query, though those databases can compete for shared CPU, memory and I/O.
+
+The projection migration creates this partial index before backfill:
+
+```sql
+CREATE INDEX scheduled_event_active_scope_task_idx
+ON sequent_backend.scheduled_event (tenant_id, election_event_id, task_id)
+WHERE archived_at IS NULL;
+```
+
+Its leading keys serve active tenant/event queries. The task ID key serves
+endpoint lookups within that scope. Projection refresh now explicitly filters
+both task IDs, so PostgreSQL can use all three keys instead of deriving an
+election ID from every candidate task. The existing helper still checks the
+exact canonical task name and payload; index filtering does not replace those
+validation rules. The index does not include wide JSON payloads.
+
+A direct query joining election policy with two indexed schedule endpoints is
+also a viable read strategy. The diagnostic below compares the same policy and
+date fields with the production projection query. It tests valid configuration;
+it is not a complete replacement for configuration-write validation. The
+projection continues to validate duplicate/invalid endpoints at configuration
+write time and maintain dates transactionally. The measurements do not establish
+that materialization is necessary for fast indexed window reads.
+
+### Schedule query diagnostic
+
+This separate devenv diagnostic places 100,000 extra active schedules in the
+same event, another event, or another tenant. Each comparison holds the query
+and data constant and changes only the schedule index. It measures the broad
+original query, a two-endpoint query, the production projection query, and a
+real reschedule UPDATE invoking the production refresh trigger. UPDATE samples
+alternate dates so that each exercises maintenance, not the unchanged-value
+fast path.
+
+There are three warmups and 21 measured samples per query/placement/index state.
+The tables show client p50, including fetching and decoding returned rows.
+Raw results also contain every sample and `EXPLAIN (ANALYZE, BUFFERS)` plans.
+Automatic prepared-statement caching is disabled to avoid reusing a generic
+plan from a different placement. These are single-client query/UPDATE costs,
+**not complete cast-vote latency or votes per second**. Index creation and data
+seeding are excluded. Both UPDATE variants use the current explicit task-ID
+predicates; this isolates the index's benefit rather than the entire change
+from the earlier opaque refresh predicate.
+
+```sh
+devenv shell python3 scripts/voting_flow/schedules.py \
+  --output docs/docusaurus/static/benchmarks/schedule-indexes.json
+devenv shell python3 scripts/voting_flow/report.py
+```
+
+<!-- schedule-index-benchmark:start -->
+
+Measurements at `5ce21b3e96`. [Raw schedule-query evidence](/benchmarks/schedule-indexes.json).
+
+| Extra schedules in | Rows returned | Broad query without index p50 (ms) | With index p50 (ms) |
+|---|---:|---:|---:|
+| same event | 100,002 | 635.431 | 642.050 |
+| other event | 2 | 5.752 | 5.772 |
+| other tenant | 2 | 5.056 | 0.051 |
+
+| Extra schedules in | Two-endpoint query without index p50 (ms) | With index p50 (ms) | Projection p50 (ms) |
+|---|---:|---:|---:|
+| same event | 13.000 | 0.055 | 0.045 |
+| other event | 12.999 | 0.051 | 0.043 |
+| other tenant | 13.011 | 0.050 | 0.043 |
+
+| Extra schedules in | Reschedule without index p50 (ms) | With index p50 (ms) |
+|---|---:|---:|
+| same event | 8.210 | 0.556 |
+| other event | 8.076 | 0.598 |
+| other tenant | 8.124 | 0.523 |
+
+<!-- schedule-index-benchmark:end -->
+
 ## Migration and recovery
 
 Deploy the cross-area trigger, EXTERNAL storage and voting-window migrations
 before the application that uses them. The projection migration is transactional:
-backfill and trigger installation become visible together. It requires a brief
-configuration-write lock while backfilling, so apply it before voting peaks.
+the schedule index, backfill and trigger installation become visible together.
+Index creation and backfill hold a configuration-write lock; apply the migration
+before voting peaks and allow time proportional to the schedule table size.
 Do not modify the internal projection directly or disable its maintenance triggers.
 
 Run the covering-index replacement separately against the intended writer:
@@ -277,4 +368,5 @@ Restore the old application before removing the projection it queries. Rolling
 back the cross-area trigger removes database cross-area enforcement entirely;
 the current application has no duplicate precheck. The previous application had
 a cross-area concurrency race, so retaining the strengthened trigger is preferable.
-Storage rollback changes future writes and does not rewrite existing ballots.
+The projection down migration also removes the active schedule index. Storage
+rollback changes future writes and does not rewrite existing ballots.
