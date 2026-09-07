@@ -26,8 +26,8 @@ def measurement_tables(report):
         "|---|---:|---:|---:|---:|---:|",
     ]
     throughput = [
-        "| Scenario | Before casts/s | After casts/s | Accepted per variant | Errors before / after |",
-        "|---|---:|---:|---:|---:|",
+        "| Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for scenario in report["scenarios"]:
         before, after = scenario["results"]
@@ -40,7 +40,8 @@ def measurement_tables(report):
             f"{after['p50_ms']:.2f} / {after['p99_ms']:.2f} |"
         )
         throughput.append(
-            f"| {scenario['name']} | {before['requests_per_second']:.1f} | "
+            f"| {scenario['name']} | {before['elapsed_seconds']:.4f} | "
+            f"{after['elapsed_seconds']:.4f} | {before['requests_per_second']:.1f} | "
             f"{after['requests_per_second']:.1f} | {after['accepted_requests']:,} | "
             f"{before['errors']} / {after['errors']} |"
         )
@@ -52,9 +53,22 @@ def main():
     guide = GUIDE.read_text()
     prefix, remainder = guide.split(START)
     _, suffix = remainder.split(END)
+    reference = next(s for s in report["scenarios"] if s["name"] == "reference")
+    before, after = reference["results"]
+    calculation = (
+        "**Accepted votes/second = accepted submissions / elapsed measurement seconds.** "
+        "Elapsed time is the sum of the opening, lull and closing phase wall times; "
+        "seeding and warmups are excluded. Each measured submission uses a distinct voter.\n\n"
+        f"For the reference workload, before: {before['accepted_requests']:,} / "
+        f"{before['elapsed_seconds']:.4f} s = **{before['requests_per_second']:.1f} votes/s**. "
+        f"After: {after['accepted_requests']:,} / {after['elapsed_seconds']:.4f} s = "
+        f"**{after['requests_per_second']:.1f} votes/s**. "
+        "Calculations use unrounded durations from the JSON; displayed durations are rounded.\n\n"
+    )
     measurements = (
         f"SQL-only measurements at implementation `{report['implementation_commit'][:10]}` "
         f"against baseline `{report['baseline_commit']}`.\n\n"
+        + calculation
         + measurement_tables(report)
         + "\n\nLatencies cover the complete SQL path per request. Throughput is total "
         "completed requests divided by the combined phase wall time, including "
