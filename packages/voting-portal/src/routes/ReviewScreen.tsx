@@ -420,6 +420,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 // Save contests to session storage and perform reauthentication
                 const ballotData: SessionBallotData = {
                     ballotId,
+                    auditButtonCfg,
                     electionId: ballotStyle.election_id,
                     isDemo: true,
                     ballot: JSON.stringify("{}"),
@@ -462,6 +463,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             // Save contests to session storage and perform reauthentication
             const ballotData: SessionBallotData = {
                 ballotId,
+                auditButtonCfg,
                 electionId: ballotStyle.election_id,
                 isDemo,
                 ballot: JSON.stringify(hashableBallot),
@@ -746,13 +748,14 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
 
-        // set ConfirmationScreenData (ballotId and isDemo) to a new object in redux state, so it can be read later on from the confirmation screen
+        // Restore confirmation data after the reauthentication reload.
         dispatch(
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
                 confirmationScreenData: {
                     ballotId: ballotData.ballotId,
                     isDemo: ballotData.isDemo,
+                    auditButtonCfg: ballotData.auditButtonCfg,
                 },
             })
         )
