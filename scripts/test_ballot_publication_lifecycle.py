@@ -34,7 +34,9 @@ def run_regressions(database):
         (EVENT, TENANT, OTHER_EVENT, TENANT),
     )
     for outcome in ("commit", "rollback"):
-        with psycopg.connect(database.dsn) as worker, psycopg.connect(database.dsn) as contender:
+        with psycopg.connect(database.dsn) as worker, psycopg.connect(
+            database.dsn
+        ) as contender:
             assert worker.execute(LOCK, (TENANT, EVENT)).fetchone() is not None
             contender.execute("SET lock_timeout = '100ms'")
             # A mismatched tenant cannot acquire or observe the event lock.
@@ -52,7 +54,9 @@ def run_regressions(database):
             getattr(worker, outcome)()
             contender.execute("SET lock_timeout = '100ms'")
             assert contender.execute(LOCK, (TENANT, EVENT)).fetchone() is not None
-    print("Publication lifecycle: commit/rollback serialization, independent events and tenant isolation passed")
+    print(
+        "Publication lifecycle: commit/rollback serialization, independent events and tenant isolation passed"
+    )
 
 
 if __name__ == "__main__":
