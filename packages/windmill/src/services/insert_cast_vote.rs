@@ -63,6 +63,26 @@ use strand::zkp::Zkp;
 use strum_macros::Display;
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
+use std::time::Instant;
+
+/// Emits one duration even when a phase fails or its future is cancelled.
+struct CastVotePhase {
+    phase: &'static str,
+    started: Instant,
+}
+
+impl CastVotePhase {
+    fn start(phase: &'static str) -> Self {
+        Self { phase, started: Instant::now() }
+    }
+}
+
+impl Drop for CastVotePhase {
+    fn drop(&mut self) {
+        info!(phase = self.phase, duration_us = self.started.elapsed().as_micros() as u64,
+            "cast-vote phase completed");
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InsertCastVoteInput {
@@ -476,6 +496,7 @@ pub async fn try_insert_cast_vote(
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
     let realm = get_event_realm(tenant_id, election_event_id);
     let username = async {
+        let _phase = CastVotePhase::start("keycloak");
         let mut client = get_keycloak_pool()
             .await
             .get()
@@ -491,6 +512,7 @@ pub async fn try_insert_cast_vote(
     }
     .await;
 
+    let _audit_phase = CastVotePhase::start("audit");
     match result {
         Ok((inserted_cast_vote, effective_voting_channel)) => {
             let username = match username {
@@ -793,6 +815,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
         .map(|signature| signature.to_bytes())
         .unwrap_or([0u8; 64]);
 
+    let insert_phase = CastVotePhase::start("insert");
     let insert = postgres::cast_vote::insert_cast_vote(
         &hasura_transaction,
         &tenant_uuid,
@@ -822,6 +845,10 @@ pub async fn insert_cast_vote_and_commit<'a>(
         }
     })?;
 
+    drop(insert_phase);
+    let _commit_phase = CastVotePhase::start("commit");
+    // Keep INSERT last before COMMIT: its per-voter advisory lock must not
+    // cover audit delivery or unrelated queries.
     hasura_transaction
         .commit()
         .await
@@ -1019,6 +1046,7 @@ async fn check_status(
     voting_channel: VotingStatusChannel,
     is_early_voting_area: bool,
 ) -> Result<VotingStatusChannel, CastVoteError> {
+    let _phase = CastVotePhase::start("check_status");
     if election_event.is_archived {
         return Err(CastVoteError::CheckStatusFailed(
             "Election event is archived".to_string(),
@@ -1128,6 +1156,7 @@ async fn check_previous_votes(
     election_event_uuid: &Uuid,
     election_uuid: &Uuid,
 ) -> Result<(), CastVoteError> {
+    let _phase = CastVotePhase::start("check_previous_votes");
     let (max_revotes, result) = try_join!(
         get_election_max_revotes(
             hasura_transaction,
