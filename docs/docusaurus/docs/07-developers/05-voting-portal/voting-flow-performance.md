@@ -488,67 +488,101 @@ an earlier publication. No S3 or bootstrap request-count improvement is measured
 by these lifecycle tests.
 
 
-## Consolidated voter read (database-backed rollout)
+## Private S3 ballot styles and minimal voter status
 
-The election chooser now issues `GetVoterContext`, which returns ballot styles,
-the corresponding election records, event presentation/status, and the current
-voter's cast metadata in one GraphQL operation. Elections are reached through a
-ballot-style relationship scoped by tenant, event and election, so the client does
-not first need to load election IDs and then issue `GetElections`. Empty eligible
-styles remain a definitive empty result. Cast ciphertext is not requested.
+The voter portal follows the private-object approach from PR #1754. The initial
+`GetVoterStatus` GraphQL operation asks for authorized object URLs, current event
+and election status, revote/channel policy, and the voter's cast metadata. It does
+not select ballot EML, election presentation, or event presentation from Hasura.
+The `get_ballot_files_urls` action is implemented in Harvest's `ballot_files`
+route; its database query selects only identifiers, active publication references
+and live policy. The previous database-backed `GetVoterContext` operation has been
+removed.
 
-This increment still returns full ballot EML from PostgreSQL. It has no private
-S3 objects or publication references yet, and it still eagerly transfers every
-eligible style. It establishes the consolidated application read and preserves
-the existing publication format while the immutable-object contract is developed.
-The 200-election regression checks one application operation; it does not establish
-bounded ballot bytes or publication costs at 100/1k/10k areas.
+The portal downloads published event and election information and small area
+summaries from private S3. Selecting an election downloads that election's full
+ballot style. Direct entry to start, voting, review, confirmation and the ballot
+locator uses the same route loader. Downloads and in-flight work are shared within
+the authenticated Apollo client, and list/review/confirmation cache entries are
+seeded from the S3 data. A new authenticated client gets a separate object cache.
+Expired URLs permit one authenticated renewal; a second failure stops loading and
+surfaces an error. Signed URLs are never included in application error messages.
 
-The hook seeds the scoped election and event cache entries used by review and
-confirmation. Existing direct-entry and gold reauthentication queries still work
-when those entries are absent. An unresolved cast starts a separate, narrow,
-network-backed `GetCastVotes` query and polling; a newly submitted unresolved cast
-in Redux also starts that refresh on return to the chooser. Support-material and
-receipt reads retain their own policy-driven behavior.
+Four concurrent metadata workers bound browser fan-out. No full ballot style is
+fetched while listing 200 elections. Event information is stored once per
+publication and election metadata once per election, independent of the number
+of areas. Area-specific summaries and ballot content still scale with actual
+area/election combinations. The shared event-presentation JSON is split out of
+EML into the event object; concatenating its original text with the ballot's
+prefix and suffix reconstructs the exact original EML bytes. Existing signatures
+are preserved. Generation streams ballot rows during upload instead of collecting
+all area styles in application memory.
 
-Voter select permissions now require `X-Hasura-Election-Event-Id` on event,
-election, ballot-style and cast rows. Election reads also require membership in
-`X-Hasura-Authorized-Election-Ids`; style and cast reads retain area restrictions,
-and cast metadata retains the voter-ID restriction. Deploy the metadata before
-the portal and confirm that the configured voter token mapper emits the event
-claim. Missing claims fail closed. Existing publications need no regeneration or
-data migration for this increment. To roll back the portal, retain the stricter
-permissions: the previous standalone operations remain supported for tokens with
-the required claims.
+### Publication and authorization
 
-Apollo data is replaced on access-token changes. Redux voter state is also cleared
-when identity, client, session, authentication level, tenant, event, area or
-permissions change, and on logout. An expiry-only token refresh preserves Redux
-ballot selections. The client-side scope comparison only partitions caches;
-Hasura validates authentication and enforces authorization. Writer-side cast
-acceptance remains authoritative for pauses, channels, schedules and revotes.
+Generation uploads each immutable object to the existing private bucket and
+reads it back to verify its bytes. A unique attempt directory and conditional
+object writes prevent retries from overwriting an active or failed attempt.
+Only after every object succeeds does the transaction record
+`ballot_publication.annotations.ballot_files_v1`. The final publish transaction
+activates the publication under the tenant/event row lock. Failed uploads and
+transaction rollback leave the previous active reference unchanged; unreferenced
+attempt objects are unreachable through the voter action. They may be removed
+by storage maintenance after confirming that no publication references their
+attempt directory. Do not expire active publication objects with a blanket bucket
+lifecycle rule.
 
-Validation includes 86 portal tests, including delayed/empty/200-election bootstrap
-responses, scoped cache reuse, event changes, fresh authenticated clients and
-session invalidation. The GraphQL operation was generated and validated against
-the local Hasura schema. Read-only authorization checks run with:
+Partial-election publications retain other elections' active references. Every
+selected ballot, election snapshot and shared EML presentation comes from its
+own publication directory. The chooser uses the newest applicable publication's
+event presentation; selecting an election uses that election's published event
+snapshot. Live event/election status is always supplied separately. Pauses,
+channel changes, reschedules and revote restrictions remain authoritative in the
+existing writer-side cast validation; there is no acceptance TTL cache.
+
+The action validates the event, area, voter role and client from the validated JWT.
+Tenant and authorized election IDs come from those claims. The scoped database
+query excludes unpublished/deleted records and cannot grant an all-area bundle.
+An empty authorized-election list returns no object URLs. Existing Hasura voter
+permissions continue to scope cast metadata to tenant/event/area/voter.
+
+### Rollout and existing publications
+
+Deploy the backend before the portal, then apply the Hasura action metadata.
+The voter token mapper must supply the event and area claims. Apply migration `1788808561206_ballot_style_voter_reference_index` before voter
+traffic. It adds a partial covering index for the tenant/event/area/election
+reference lookup, so this minimal request does not scan styles from all areas.
+Index creation takes a table write lock; schedule it before voting peaks. Its
+rollback drops only the index. Publication references use existing annotations. New generations
+prepare S3 automatically. Existing generated publications can be prepared without
+changing their active ballot styles using the operator command below, inside the
+configured backend environment:
 
 ```sh
-devenv shell python3 scripts/test_voter_context_authorization.py
+cd /workspaces/step/packages
+cargo run -p windmill --example prepare_ballot_files -- \
+  TENANT_ID EVENT_ID PUBLICATION_ID
 ```
 
-This requires a populated local ballot-style fixture and the updated metadata.
-It uses administrative role impersonation to exercise Hasura's voter row
-permissions, including nested election isolation, wrong tenant/event/area,
-empty authorized elections, and an unrelated voter's empty cast metadata. It
-does not test JWT signature verification. It logs no ballot content or voter IDs.
+Prepare every active publication before deploying the portal. The command takes
+the publication lock and commits only after verifying all objects. Repeating it
+is a no-op. Publishing an older generated publication also prepares missing S3
+objects. If live presentation configuration has changed since an old generation,
+regenerate and publish the intended configuration before rollout. An unprepared
+publication fails closed; the new portal never falls back to downloading EML
+through GraphQL. Retain database ballot styles for writer compatibility and
+rollback. Rolling back the portal restores the former database read path without
+removing private objects or weakening voter permissions.
 
-The prior five-request browser cohort remains release-10 evidence. The new
-transport regression observes one `GetVoterContext` operation for initial data,
-with no subsequent election request on review/confirmation cache consumption.
-The browser verification below adds a main-portal cohort. No new SQL benchmark,
-throughput or S3 measurement has been run. GraphQL operation counts are not SQL statement, physical-read,
-transaction or database-checkout counts.
+Run the real PostgreSQL/S3 regressions against a local private bucket with:
+
+```sh
+devenv shell python3 scripts/test_ballot_files.py
+```
+
+This uses disposable PostgreSQL, checks actual object uploads/readback, publication
+rollback and retry, tenant/event/area/election isolation, and live status changes.
+It is a functional regression, not a rerun of the existing SQL benchmarks.
 
 ## TypeScript validation
 
@@ -574,7 +608,7 @@ waits until its required tracker URL is available. Portal unit tests include the
 transport-error distinction and rejection of unknown cast statuses.
 
 
-## Browser verification after TypeScript fixes
+## Historical browser verification before S3 delivery
 
 The main portal was rebuilt and tested with Chromium 144.0.7559.132 against the
 existing release-10/B3 local backend. This verifies the main portal's browser
@@ -610,3 +644,47 @@ bundle SHA-256 is
 The accompanying validation passed all 92 portal unit tests, the TypeScript check
 with both UI output directories initially absent, and production builds for both
 UI packages and the portal.
+
+
+## Browser verification of S3 delivery
+
+A five-voter Chromium cohort exercised the main portal and main Harvest S3 action
+against the existing local release-10/B3 cast services. Every journey completed
+with one cast, and API, UI and persisted ballot IDs matched. Each journey made
+one `GetVoterStatus` and one `InsertCastVote` request. No `GetBallotStyles`,
+`GetElectionEvent`, `GetElections` or `GetCastVotes` operation was sent.
+
+Each voter fetched four private objects: event metadata, election metadata, the
+area-specific summary, and the selected full ballot style. Existing public login
+configuration requests are separate from those four downloads. There were 54
+HTTP requests per voter (270 total), with journey p50 2,534 ms and p99 3,052 ms.
+These five sequential journeys verify the new flow; they do not establish
+capacity or a paired latency improvement. No existing SQL benchmarks were rerun.
+
+Two preceding pilots stopped before casting. The first found an integer/bigint
+conversion error in the new handler, which was fixed and reproduced with the
+correct PostgreSQL column type in the regression fixture. The second exposed a
+local S3 endpoint mismatch. The main test endpoint now signs URLs for the
+existing `minio-proxy:9002` origin, and the proxy preserves the full Host header,
+including its port, for signature verification. Neither failed pilot submitted a
+ballot. Configure `AWS_S3_PUBLIC_URI` for the browser-reachable S3 origin in each
+environment; reverse proxies must preserve its signed Host header.
+
+The first S3 cohort portal bundle SHA-256 is
+`56677353877fa9afb27c1246b4bf17c1fb165057a4d007b454d03035f743c342`.
+Private traces, credentials and object URLs remain in the ignored local
+`.cache/voter-types-e2e/s3-cohort/` directory. The accompanying checks passed 100
+portal tests, TypeScript, the portal production build, nine publication unit
+tests, the real PostgreSQL/S3 regression, the Harvest claim-scope regression,
+compatibility Hasura permission checks, Docusaurus and REUSE.
+
+
+After adding the token-refresh regression and preserving choices when the same
+immutable style is reloaded, the final build passed another four fresh-voter
+journeys (4/4). Each again used one `GetVoterStatus`, one cast and four private
+object downloads, with API/UI/database receipts matching. The final cohort had
+216 HTTP requests, p50 2,678 ms and p99 2,867 ms.
+Its bundle SHA-256 is `7d838c9eee50fa7b59cafff91ad15e3367486d04117a41e63f4a43eeeb94d794`. The new
+voter-reference index migration and its rollback passed against disposable
+PostgreSQL. The final cohort uses the index; no throughput claim follows from
+these small serial samples.

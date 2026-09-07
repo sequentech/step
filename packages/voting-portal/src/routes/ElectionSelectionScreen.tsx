@@ -146,6 +146,8 @@ const PageActions = styled(Box)`
 `
 
 interface ElectionWrapperProps {
+    summary?: import("../services/PublishedBallots").BallotSummary
+
     electionId: string
     bypassChooser: boolean
     canVoteTest: boolean
@@ -190,6 +192,7 @@ const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean =>
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
+    summary,
     bypassChooser,
     canVoteTest,
     materialsGate,
@@ -239,8 +242,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const isEarlyVotingPolicyEnabled = () => {
-        let area_presentation = ballotStyle?.ballot_eml?.area_presentation as IAreaPresentation
-        return area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+        let area_presentation = (summary?.area_presentation ??
+            ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
+        return area_presentation?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
     }
     const isEarlyVotingOpen = () => {
         let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
@@ -273,14 +277,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             return false
         }
 
-        if (ballotStyle?.ballot_eml.num_allowed_revotes === 0) {
+        if (election.num_allowed_revotes === 0) {
             return true
         }
 
         return (
-            isPreview ||
-            (castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) &&
-                isVotingOpen())
+            isPreview || (castVotes.length < (election.num_allowed_revotes ?? 1) && isVotingOpen())
         )
     }
 
@@ -311,7 +313,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             console.log("visitedBypassChooser")
             return
         }
-        if (bypassChooser && ballotStyle) {
+        if (bypassChooser && election) {
             console.log("setVisitedBypassChooser")
             setVisitedBypassChooser(true)
             onClickToVote()
@@ -331,7 +333,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             resultsUrl={resultsUrl}
-            electionDates={ballotStyle?.ballot_eml?.election_dates}
+            electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}
             formatDateTime={(input) =>
@@ -395,14 +397,9 @@ const ElectionSelectionScreen: React.FC = () => {
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
-    // Derived directly from the published ballot style snapshot (not the live
-    // election event) on every render, so a policy change only takes effect
-    // after the next publication, and the correct value is available as soon
-    // as oneBallotStyle is - no extra render cycle lag through a state+effect
-    // pair that would otherwise let a stale "Off" default flash through
-    // (visible in particular on a hard page refresh).
+    // Presentation comes from the immutable S3 publication snapshot.
     const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        oneBallotStyle?.ballot_eml.election_event_presentation?.materials
+        electionEvent?.presentation?.materials
     )
     const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
     const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
@@ -527,8 +524,7 @@ const ElectionSelectionScreen: React.FC = () => {
     const hasNoElections =
         !loadingBallotStyles &&
         !loadingElections &&
-        (dataBallotStyles?.sequent_backend_ballot_style.length === 0 ||
-            dataElections?.sequent_backend_election.length === 0)
+        dataElections?.sequent_backend_election.length === 0
     const isPublished = useMemo(
         () => !!dataElectionEvent?.sequent_backend_election_event[0]?.status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
@@ -698,8 +694,7 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        const skipPolicy =
-            oneBallotStyle?.ballot_eml.election_event_presentation?.skip_election_list ?? false
+        const skipPolicy = electionEvent?.presentation?.skip_election_list ?? false
         console.log("skipPolicy", skipPolicy)
         const newBypassChooser =
             skipPolicy &&
@@ -831,6 +826,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper
+                            summary={voterContext.summaries?.[electionId]}
                             electionId={electionId}
                             key={electionId}
                             bypassChooser={bypassChooser}

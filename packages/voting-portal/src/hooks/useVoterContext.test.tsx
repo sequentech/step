@@ -8,7 +8,7 @@ import {ApolloProvider} from "@apollo/client/react"
 import {MemoryRouter, Route, Routes, useNavigate} from "react-router-dom"
 import {buildClientSchema, validate} from "graphql"
 import schema from "../../graphql.schema.json"
-import {GET_VOTER_CONTEXT} from "../queries/GetVoterContext"
+import {GET_VOTER_STATUS} from "../queries/GetVoterStatus"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {useVoterContext} from "./useVoterContext"
 
@@ -16,43 +16,68 @@ jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: require("react").createContext({globalSettings: {DISABLE_AUTH: false}}),
 }))
 
+const objects = new Map<string, unknown>()
+const downloads: string[] = []
+beforeEach(() => {
+    objects.clear()
+    downloads.length = 0
+    global.fetch = jest.fn(async (url) => {
+        downloads.push(String(url))
+        return new Response(JSON.stringify(objects.get(String(url))), {status: 200})
+    })
+})
+
 function response(count: number, eventId = "event") {
+    const eventUrl = `https://objects/${eventId}/event`
+    objects.set(eventUrl, {id: eventId, presentation: {}, status: {}, description: null})
     return {
-        sequent_backend_election_event: [
-            {id: eventId, presentation: {}, status: {}, description: null},
-        ],
         sequent_backend_cast_vote: [],
-        sequent_backend_ballot_style: Array.from({length: count}, (_, index) => ({
-            id: `style-${index}`,
-            election_id: `election-${index}`,
-            election_event_id: eventId,
-            tenant_id: "tenant",
-            area_id: "area",
-            status: null,
-            ballot_eml: "{}",
-            ballot_signature: null,
-            created_at: null,
-            annotations: null,
-            labels: null,
-            last_updated_at: null,
-            deleted_at: null,
-            election: {
-                id: `election-${index}`,
-                tenant_id: "tenant",
-                election_event_id: eventId,
-                annotations: null,
-                created_at: null,
-                description: null,
-                is_consolidated_ballot_encoding: false,
-                labels: null,
-                last_updated_at: null,
-                num_allowed_revotes: 1,
-                presentation: {},
-                spoil_ballot_option: false,
-                status: {voting_status: "OPEN"},
-                voting_channels: {online: true},
-            },
-        })),
+        get_ballot_files_urls: {
+            event_id: eventId,
+            status: {},
+            files: Array.from({length: count}, (_, index) => {
+                const urls = {
+                    event_url: eventUrl,
+                    election_url: `https://objects/${eventId}/election-${index}`,
+                    summary_url: `https://objects/${eventId}/summary-${index}`,
+                    style_url: `https://objects/${eventId}/style-${index}`,
+                }
+                objects.set(urls.election_url, {
+                    id: `election-${index}`,
+                    tenant_id: "tenant",
+                    election_event_id: eventId,
+                    annotations: null,
+                    created_at: null,
+                    description: null,
+                    is_consolidated_ballot_encoding: false,
+                    labels: null,
+                    last_updated_at: null,
+                    presentation: {},
+                    spoil_ballot_option: false,
+                })
+                objects.set(urls.summary_url, {
+                    id: `style-${index}`,
+                    area_presentation: {},
+                    election_dates: {},
+                })
+                objects.set(urls.style_url, {
+                    id: `style-${index}`,
+                    election_id: `election-${index}`,
+                    election_event_id: eventId,
+                    tenant_id: "tenant",
+                    ballot_eml: "{}",
+                })
+                return {
+                    id: `style-${index}`,
+                    election_id: `election-${index}`,
+                    version: "v1",
+                    urls,
+                    status: {voting_status: "OPEN"},
+                    num_allowed_revotes: 1,
+                    voting_channels: {online: true},
+                }
+            }),
+        },
     }
 }
 
@@ -86,9 +111,9 @@ function setup(count: number) {
     return {client, operations, variables, wrapper}
 }
 
-test("the bootstrap validates against the schema with the scoped election relationship", () => {
+test("the minimal status request validates against the schema", () => {
     const extended = buildClientSchema(schema as any)
-    expect(validate(extended, GET_VOTER_CONTEXT)).toEqual([])
+    expect(validate(extended, GET_VOTER_STATUS)).toEqual([])
 })
 
 test.each([0, 1, 200])(
@@ -101,8 +126,9 @@ test.each([0, 1, 200])(
         await waitFor(() =>
             expect(result.current.elections?.sequent_backend_election).toHaveLength(count)
         )
-        expect(operations).toEqual(["GetVoterContext"])
-        expect(variables).toEqual([{tenantId: "tenant", electionEventId: "event"}])
+        expect(downloads.some((url) => url.includes("/style-"))).toBe(false)
+        expect(operations).toEqual(["GetVoterStatus"])
+        expect(variables).toEqual([{electionEventId: "event"}])
         unmount()
         client.stop()
     }
@@ -122,7 +148,7 @@ test("review, confirmation and a second mount reuse loaded election data", async
     first.unmount()
     const second = renderHook(() => useVoterContext(), {wrapper})
     await waitFor(() => expect(second.result.current.loading).toBe(false))
-    expect(operations).toEqual(["GetVoterContext"])
+    expect(operations).toEqual(["GetVoterStatus"])
     second.unmount()
     client.stop()
 })
@@ -142,8 +168,8 @@ test("changing event scope waits for a new scoped response", async () => {
             "another-event"
         )
     )
-    expect(operations).toEqual(["GetVoterContext", "GetVoterContext"])
-    expect(variables[1]).toEqual({tenantId: "tenant", electionEventId: "another-event"})
+    expect(operations).toEqual(["GetVoterStatus", "GetVoterStatus"])
+    expect(variables[1]).toEqual({electionEventId: "another-event"})
     unmount()
     client.stop()
 })
@@ -160,7 +186,59 @@ test("a fresh authenticated client does not reuse the previous client's eligibil
     const next = renderHook(() => useVoterContext(), {wrapper: reauthenticated.wrapper})
     expect(next.result.current.data).toBeUndefined()
     await waitFor(() => expect(next.result.current.elections?.sequent_backend_election).toEqual([]))
-    expect(reauthenticated.operations).toEqual(["GetVoterContext"])
+    expect(reauthenticated.operations).toEqual(["GetVoterStatus"])
     next.unmount()
     reauthenticated.client.stop()
+})
+
+test("direct entry downloads only the selected ballot and reuses list objects", async () => {
+    const {client, wrapper} = setup(200)
+    const {result, unmount} = renderHook(() => useVoterContext("election-42"), {wrapper})
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.data?.sequent_backend_ballot_style[0].id).toBe("style-42")
+    expect(downloads.filter((url) => url.includes("/style-"))).toEqual([
+        "https://objects/event/style-42",
+    ])
+    expect(downloads.filter((url) => url.endsWith("/event"))).toHaveLength(1)
+    expect(downloads.filter((url) => url.includes("/election-"))).toHaveLength(1)
+    expect(downloads.filter((url) => url.includes("/summary-"))).toHaveLength(1)
+    unmount()
+    client.stop()
+})
+
+test("expired object URLs get one authenticated renewal, with no retry loop", async () => {
+    const {client, operations, wrapper} = setup(1)
+    global.fetch = jest.fn(async () => new Response("expired", {status: 403}))
+    const {result, unmount} = renderHook(() => useVoterContext(), {wrapper})
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(operations).toEqual(["GetVoterStatus", "GetVoterStatus"])
+    expect(result.current.data).toBeUndefined()
+    expect(result.current.error?.message).not.toContain("https:")
+    unmount()
+    client.stop()
+})
+
+test("an unlisted election cannot trigger a ballot object download", async () => {
+    const {client, wrapper} = setup(1)
+    const {result, unmount} = renderHook(() => useVoterContext("unauthorized"), {wrapper})
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(downloads.some((url) => url.includes("/style-"))).toBe(false)
+    expect(result.current.data).toBeUndefined()
+    unmount()
+    client.stop()
+})
+
+test("mismatched immutable election data is rejected before caching", async () => {
+    const {client, wrapper} = setup(1)
+    const original = global.fetch
+    global.fetch = jest.fn(async (url, init) =>
+        String(url).includes("/election-")
+            ? new Response(JSON.stringify({id: "another-election", election_event_id: "event"}))
+            : original(url, init)
+    )
+    const {result, unmount} = renderHook(() => useVoterContext(), {wrapper})
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(result.current.data).toBeUndefined()
+    unmount()
+    client.stop()
 })
