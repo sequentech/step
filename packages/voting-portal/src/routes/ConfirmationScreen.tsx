@@ -368,6 +368,7 @@ const ConfirmationScreen: React.FC = () => {
     const electionBallotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const auditButtonCfg =
         electionBallotStyle?.ballot_eml?.election_presentation?.audit_button_cfg ??
+        confirmationScreenData?.auditButtonCfg ??
         EVotingPortalAuditButtonCfg.SHOW
     // Nothing was cast for a fully acclaimed election, so this screen confirms
     // what was decided rather than a ballot, and shows no ballot id anywhere.

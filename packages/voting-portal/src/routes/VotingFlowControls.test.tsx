@@ -3,11 +3,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {render, screen, within} from "@testing-library/react"
+import {render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
-import {EConsolidatedReportPolicy, EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
+import {
+    ECastVoteGoldLevelPolicy,
+    EConsolidatedReportPolicy,
+    EVotingPortalAuditButtonCfg,
+} from "@sequentech/ui-core"
 import type {
     IAuditableBallot,
     IContest,
@@ -18,6 +22,10 @@ import theme from "../../../ui-essentials/src/services/theme"
 import {ELECTION_WITH_INVALID} from "../fixtures/election"
 import {RootState, store} from "../store/store"
 import {clearIsVoted} from "../store/extra/extraSlice"
+import confirmationScreenDataReducer, {
+    setConfirmationScreenData,
+} from "../store/castVotes/confirmationScreenDataSlice"
+import {BALLOT_DATA_KEY} from "../store/castVotes/sessionBallotData"
 import VotingScreen from "./VotingScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
@@ -77,12 +85,17 @@ jest.mock("../store/hooks", () => ({
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({
         logout: jest.fn(),
-        isGoldUser: () => false,
+        isGoldUser: () => mockIsGoldUser,
+        reauthWithGold: (url: string) => mockReauthWithGold(url),
     }),
 }))
 jest.mock("../providers/SettingsContextProvider", () => ({
     SettingsContext: jest.requireActual<typeof React>("react").createContext({
-        globalSettings: {DISABLE_AUTH: true},
+        globalSettings: {
+            get DISABLE_AUTH() {
+                return mockDisableAuth
+            },
+        },
     }),
 }))
 jest.mock("../services/BallotService", () => ({
@@ -91,6 +104,8 @@ jest.mock("../services/BallotService", () => ({
         interpretMultiContestSelection: () => [],
         hashBallot: () => "0123456789abcdef".repeat(4),
         hashMultiBallot: () => "0123456789abcdef".repeat(4),
+        toHashableBallot: () => ({}),
+        toHashableMultiBallot: () => ({}),
     }),
 }))
 jest.mock("../hooks/useEncryptBallotForReview", () => ({
@@ -107,11 +122,28 @@ jest.mock("../components/Question/Question", () => ({
 }))
 jest.mock("../components/Stepper", () => ({__esModule: true, default: () => null}))
 jest.mock("@apollo/client/react", () => ({
-    useMutation: () => [jest.fn()],
-    useQuery: () => ({startPolling: jest.fn(), stopPolling: jest.fn()}),
+    useMutation: () => [mockInsertCastVote],
+    useQuery: () => ({
+        data: mockElectionQueryData,
+        startPolling: jest.fn(),
+        stopPolling: jest.fn(),
+    }),
 }))
 
 const mockDispatch = jest.fn()
+const mockReauthWithGold = jest.fn()
+const mockInsertCastVote = jest.fn()
+let mockIsGoldUser = false
+let mockDisableAuth = true
+let mockElectionQueryData:
+    | {
+          sequent_backend_election: Array<{
+              id: string
+              presentation: IElection["presentation"]
+              status: {voting_status: string}
+          }>
+      }
+    | undefined
 let mockState: RootState
 const BALLOT_ID = "0123456789abcdef".repeat(4)
 const ELECTION_PATH = "/tenant/tenant-1/event/event-1/election/election-1"
@@ -142,28 +174,32 @@ const setUpState = ({
     }))
     mockState = {
         ...store.getState(),
-        elections: {
-            "election-1": {
-                ...ballotEml,
-                id: "election-1",
-                image_document_id: "",
-                presentation: {
-                    ...ballotEml.election_presentation,
-                    voting_screen_back_policy: backPolicy,
-                },
-            } as IElection,
-        },
-        ballotStyles: {
-            "election-1": {
-                id: "election-1",
-                election_id: "election-1",
-                election_event_id: "event-1",
-                tenant_id: "tenant-1",
-                ballot_eml: ballotEml,
-                created_at: "",
-                last_updated_at: "",
-            },
-        },
+        elections: storedConfirmation
+            ? {}
+            : {
+                  "election-1": {
+                      ...ballotEml,
+                      id: "election-1",
+                      image_document_id: "",
+                      presentation: {
+                          ...ballotEml.election_presentation,
+                          voting_screen_back_policy: backPolicy,
+                      },
+                  } as IElection,
+              },
+        ballotStyles: storedConfirmation
+            ? {}
+            : {
+                  "election-1": {
+                      id: "election-1",
+                      election_id: "election-1",
+                      election_event_id: "event-1",
+                      tenant_id: "tenant-1",
+                      ballot_eml: ballotEml,
+                      created_at: "",
+                      last_updated_at: "",
+                  },
+              },
         ballotSelections: {"election-1": []},
         auditableBallots: storedConfirmation
             ? {}
@@ -187,7 +223,11 @@ const setUpState = ({
 const renderRoute = (element: React.ReactElement, path: string) => {
     const router = createMemoryRouter(
         [
-            {path: "/tenant/:tenantId/event/:eventId/election/:electionId/*", element},
+            {
+                path: "/tenant/:tenantId/event/:eventId/election/:electionId/*",
+                element,
+                action: () => null,
+            },
             {
                 path: "/tenant/:tenantId/event/:eventId/election-chooser",
                 element: <div>Chooser</div>,
@@ -205,8 +245,17 @@ const renderRoute = (element: React.ReactElement, path: string) => {
 
 beforeEach(() => {
     jest.clearAllMocks()
+    mockDispatch.mockReset()
+    mockInsertCastVote.mockResolvedValue({data: {insert_cast_vote: {id: "cast-vote-1"}}})
+    mockReauthWithGold.mockResolvedValue(undefined)
+    mockIsGoldUser = false
+    mockDisableAuth = true
+    mockElectionQueryData = undefined
+    sessionStorage.clear()
     setUpState()
 })
+
+afterEach(() => sessionStorage.clear())
 
 describe("selection-screen Back", () => {
     it.each(["{Enter}", " "])(
@@ -259,6 +308,93 @@ describe("selection-screen Back", () => {
 })
 
 describe("Ballot ID copy visibility", () => {
+    it.each([
+        [EVotingPortalAuditButtonCfg.SHOW, true],
+        [EVotingPortalAuditButtonCfg.SHOW_IN_HELP, true],
+        [EVotingPortalAuditButtonCfg.NOT_SHOW, false],
+        [undefined, true],
+    ] as const)(
+        "preserves copy visibility for %s across gold reauthentication",
+        async (auditButtonCfg, visible) => {
+            setUpState({auditButtonCfg})
+            const election = mockState.elections["election-1"]!
+            const presentation = {
+                ...election.presentation,
+                consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+                cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+            }
+            election.presentation = presentation
+            mockDisableAuth = false
+            const user = userEvent.setup()
+            const review = renderRoute(<ReviewScreen />, "review")
+            expect(Boolean(screen.queryByRole("button", {name: "reviewScreen.copyBallotId"}))).toBe(
+                visible
+            )
+            await user.click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+            await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
+            expect(mockInsertCastVote).not.toHaveBeenCalled()
+            expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({
+                ballotId: BALLOT_ID,
+                isDemo: false,
+                auditButtonCfg: auditButtonCfg ?? EVotingPortalAuditButtonCfg.SHOW,
+            })
+            review.unmount()
+
+            mockState = store.getState()
+            mockIsGoldUser = true
+            mockElectionQueryData = {
+                sequent_backend_election: [
+                    {
+                        id: election.id,
+                        presentation: {
+                            ...presentation,
+                            audit_button_cfg: EVotingPortalAuditButtonCfg.SHOW,
+                        },
+                        status: {voting_status: "open"},
+                    },
+                ],
+            }
+            mockDispatch.mockImplementation((action) => {
+                if (setConfirmationScreenData.match(action)) {
+                    mockState = {
+                        ...mockState,
+                        confirmationScreenData: confirmationScreenDataReducer(
+                            mockState.confirmationScreenData,
+                            action
+                        ),
+                    }
+                }
+            })
+            const authenticatedReview = renderRoute(<ReviewScreen />, "review")
+            await waitFor(() =>
+                expect(mockDispatch).toHaveBeenCalledWith(
+                    setConfirmationScreenData({
+                        electionId: "election-1",
+                        confirmationScreenData: {
+                            ballotId: BALLOT_ID,
+                            isDemo: false,
+                            auditButtonCfg: auditButtonCfg ?? EVotingPortalAuditButtonCfg.SHOW,
+                        },
+                    })
+                )
+            )
+            expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+            expect(mockInsertCastVote).toHaveBeenCalledWith({
+                variables: {electionId: "election-1", ballotId: BALLOT_ID, content: "{}"},
+            })
+            expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+            expect(mockState.ballotStyles).toEqual({})
+            expect(mockState.elections).toEqual({})
+            authenticatedReview.unmount()
+
+            renderRoute(<ConfirmationScreen />, "confirmation")
+            expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
+            expect(Boolean(screen.queryByRole("button", {name: "reviewScreen.copyBallotId"}))).toBe(
+                visible
+            )
+        }
+    )
+
     it.each([
         [EVotingPortalAuditButtonCfg.SHOW, true],
         [EVotingPortalAuditButtonCfg.SHOW_IN_HELP, true],
