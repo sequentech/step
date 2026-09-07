@@ -13,6 +13,7 @@ export interface CastBallotOptions {
     credentials: Record<string, string>
     // Only candidates whose visible name matches are selected.
     candidatesPattern?: string
+    onPhase?: (name: string) => void
 }
 
 // Encrypting and casting the ballot are the slow steps of the flow — WASM
@@ -40,7 +41,19 @@ async function settleOnElectionList(page: Page): Promise<void> {
 // when the realm's credential-input-policy is "structured" (e.g. a segmented
 // PIN) — as a JS-enhanced #structured-password input that mirrors typed
 // digits into the real (now hidden) password field.
-async function login(page: Page, credentials: Record<string, string>): Promise<void> {
+export async function login(
+    page: Page,
+    credentials: Record<string, string>,
+    onPhase?: (name: string) => void
+): Promise<void> {
+    // Portal startup redirects asynchronously. Wait for Keycloak before inspecting
+    // configurable fields, otherwise a not-yet-rendered username is silently skipped.
+    await expect
+        .poll(() =>
+            page.evaluate(() => Boolean(document.querySelector("#kc-login"))).catch(() => false)
+        )
+        .toBe(true)
+    onPhase?.("login_form_ready")
     for (const [field, value] of Object.entries(credentials)) {
         if (field === "password") {
             continue
@@ -61,6 +74,7 @@ async function login(page: Page, credentials: Record<string, string>): Promise<v
         await plainPassword.fill(credentials.password)
     }
 
+    onPhase?.("credentials_submitted")
     await page.locator("#kc-login").click()
 }
 
@@ -176,11 +190,13 @@ export async function castBallotAsVoter(page: Page, options: CastBallotOptions):
     // rather than depending on the browser locale.
     const url = new URL(options.loginUrl)
     url.searchParams.set("lang", "en")
+    options.onPhase?.("navigation_started")
     await page.goto(url.toString())
 
-    await login(page, options.credentials)
+    await login(page, options.credentials, options.onPhase)
 
     await settleOnElectionList(page)
+    options.onPhase?.("ballot_list_ready")
     const electionCount = await page.locator(".election-item .click-to-vote-button").count()
     expect(electionCount).toBeGreaterThan(0)
 
@@ -195,5 +211,6 @@ export async function castBallotAsVoter(page: Page, options: CastBallotOptions):
             await settleOnElectionList(page)
         }
     }
+    options.onPhase?.("confirmation_ready")
     return ballotIds
 }

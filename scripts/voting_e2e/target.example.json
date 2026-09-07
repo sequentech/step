@@ -3,9 +3,33 @@
   "cdp_url": "http://127.0.0.1:9222",
   "tenant_id": "REPLACE",
   "election_event_id": "REPLACE",
-  "credentials": {"username": "REPLACE", "password": "REPLACE"},
+  "credentials": {
+    "username": "REPLACE",
+    "password": "REPLACE"
+  },
   "databases": {
-    "backend": {"dsn_env": "VOTING_E2E_BACKEND_DSN", "jsonlog_glob": "/logs/backend/*.json"},
-    "keycloak": {"dsn_env": "VOTING_E2E_KEYCLOAK_DSN", "jsonlog_glob": "/logs/keycloak/*.json"}
+    "backend": {
+      "dsn_env": "VOTING_E2E_BACKEND_DSN",
+      "jsonlog_glob": "/logs/backend/*.json"
+    },
+    "keycloak": {
+      "dsn_env": "VOTING_E2E_KEYCLOAK_DSN",
+      "jsonlog_glob": "/logs/keycloak/*.json"
+    }
+  },
+  "allowed_origins": [
+    "http://127.0.0.1:3000",
+    "http://keycloak:8090",
+    "http://graphql-engine:8080",
+    "http://minio-proxy:9002"
+  ],
+  "expected_path": "s3",
+  "engine": "chromium",
+  "mode": "journey",
+  "performance": {
+    "samples": 100,
+    "warmup": 10,
+    "concurrency": 1,
+    "max_p95_ms": 100
   }
 }

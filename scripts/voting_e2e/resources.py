@@ -9,6 +9,7 @@ Query values and GraphQL variables must be rebound to the new voter's session.
 
 import argparse
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
@@ -24,6 +25,56 @@ RESOURCE_TYPES = {
     "wasm",
     "fetch",
 }
+
+
+def protocol_steps(entries: list[dict]) -> list[dict]:
+    """Extract a non-executable protocol inventory; never retain authentication values."""
+    steps = []
+    for entry in entries:
+        request = entry["request"]
+        url = urlsplit(request["url"])
+        body = request.get("postData", {})
+        try:
+            operation = json.loads(body.get("text", "{}")).get("operationName")
+        except (ValueError, AttributeError):
+            operation = None
+        if not operation and not any(
+            part in url.path
+            for part in ("/protocol/openid-connect/", "/login-actions/", "/account")
+        ):
+            continue
+        form_names = []
+        if (
+            body.get("mimeType", "").split(";")[0]
+            == "application/x-www-form-urlencoded"
+        ):
+            form_names = sorted(
+                {
+                    key
+                    for key, _ in parse_qsl(
+                        body.get("text", ""), keep_blank_values=True
+                    )
+                }
+            )
+            form_names = sorted(
+                set(form_names) | {param["name"] for param in body.get("params", [])}
+            )
+        path = re.sub(r"[0-9a-f]{8}-[0-9a-f-]{27,}", "{id}", url.path)
+        steps.append(
+            {
+                "method": request["method"],
+                "path_template": path,
+                "query_keys": sorted(
+                    {key for key, _ in parse_qsl(url.query, keep_blank_values=True)}
+                ),
+                "form_field_names": form_names,
+                "operation": operation,
+                "status": entry["response"]["status"],
+                "requires_fresh_session": True,
+                "requires_fresh_ballot": operation == "InsertCastVote",
+            }
+        )
+    return steps
 
 
 def extract(har: dict) -> dict:
@@ -114,7 +165,8 @@ def extract(har: dict) -> dict:
             }
         )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "protocol_inventory": protocol_steps(entries),
         "origins": {alias: origin for origin, alias in origins.items()},
         "resources": resources,
         "authentication_included": False,

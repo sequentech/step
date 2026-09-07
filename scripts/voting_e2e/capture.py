@@ -20,6 +20,8 @@ import psycopg
 
 from resources import extract
 from report import generate
+from measurements import summarize_sql
+from traffic import inventory, validate_s3_flow
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -65,10 +67,10 @@ def connect(database: dict):
 def preflight(target: dict) -> dict:
     """Require live portal/CDP endpoints and readable statement logs for both databases."""
     results = {}
-    for name, url in {
-        "portal": target["login_url"],
-        "obscura": target["cdp_url"].rstrip("/") + "/json/version",
-    }.items():
+    endpoints = {"portal": target["login_url"]}
+    if target.get("engine", "obscura") == "obscura":
+        endpoints["obscura"] = target["cdp_url"].rstrip("/") + "/json/version"
+    for name, url in endpoints.items():
         try:
             with urllib.request.urlopen(url, timeout=5) as response:
                 results[name] = {"ready": response.status < 400}
@@ -140,20 +142,33 @@ def run(target: dict, target_path: Path, output: Path) -> int:
         name: log_positions(db["jsonlog_glob"])
         for name, db in target["databases"].items()
     }
+    proxy_path = (
+        Path(target["action_proxy_log"]) if target.get("action_proxy_log") else None
+    )
+    proxy_offset = (
+        proxy_path.stat().st_size if proxy_path and proxy_path.exists() else 0
+    )
     env = dict(
         os.environ,
         CAPTURE_TARGET=str(target_path.resolve()),
         CAPTURE_OUTPUT_DIR=str(output),
         OBSCURA_CDP_URL=target["cdp_url"],
     )
+    # Nightwatch also installs Playwright in this workspace. Resolve the CLI
+    # from the same @playwright/test package that imports the test declaration.
+    test_package = subprocess.check_output(
+        ["node", "-p", "require.resolve('@playwright/test/package.json')"],
+        cwd=ROOT / "packages/voting-portal",
+        text=True,
+    ).strip()
     result = subprocess.run(
         [
-            "yarn",
-            "playwright",
+            "node",
+            str(Path(test_package).parent / "cli.js"),
             "test",
             "--config",
             "playwright.capture.config.ts",
-            "capture.spec.ts",
+            "status.spec.ts" if target.get("mode") == "status" else "capture.spec.ts",
         ],
         cwd=ROOT / "packages/voting-portal",
         env=env,
@@ -163,29 +178,70 @@ def run(target: dict, target_path: Path, output: Path) -> int:
     # Logging collector output can lag request completion; collection is diagnostic,
     # not part of the measured browser interval. Remaining gaps stay explicit.
     time.sleep(1)
+    summaries = {}
     for name, database in target["databases"].items():
+        records = collect_logs(
+            database["jsonlog_glob"], positions[name], readiness[name]["database"]
+        )
+        summaries[name] = summarize_sql(records, target.get("sql_clients", {}))
         save(
             output / f"{name}-sql.json",
-            collect_logs(
-                database["jsonlog_glob"], positions[name], readiness[name]["database"]
-            ),
+            records,
         )
-    capture = json.loads((output / "capture.json").read_text())
+    if proxy_path:
+        with proxy_path.open() as stream:
+            stream.seek(proxy_offset)
+            save(
+                output / "action-http.json",
+                [json.loads(line) for line in stream if line.strip()],
+            )
+    capture_path = output / "capture.json"
+    if not capture_path.exists():
+        save(
+            capture_path,
+            {
+                "completed": False,
+                "persistence_verified": False,
+                "requests": [],
+                "casts": [],
+                "sql_summary": summaries,
+                "failure": "Playwright exited without a capture artifact",
+                "runner_exit_code": result.returncode,
+            },
+        )
+        return 1
+    capture = json.loads(capture_path.read_text())
+    capture["sql_summary"] = summaries
+    capture["logging_configuration"] = readiness
     capture["completed"] = capture["completed"] and result.returncode == 0
-    capture["persistence_verified"] = verify_casts(target, capture["casts"])
+    capture["persistence_verified"] = (
+        None
+        if target.get("mode") == "status"
+        else verify_casts(target, capture["casts"])
+    )
+    capture["traffic"] = inventory(capture["requests"])
+    capture["path_errors"] = (
+        validate_s3_flow(capture["requests"])
+        if target.get("expected_path") == "s3" and target.get("mode") != "status"
+        else []
+    )
+    capture["completed"] = capture["completed"] and not capture["path_errors"]
     capture["sql_attribution"] = (
         "database capture interval; background SQL may be included"
     )
     save(output / "capture.json", capture)
     save(
         output / "resource-profile.json",
-        extract(json.loads((output / "journey.har").read_text())),
+        dict(
+            extract(json.loads((output / "journey.har").read_text())),
+            observed_traffic=capture["traffic"],
+        ),
     )
     return (
         0
         if result.returncode == 0
         and capture["completed"]
-        and capture["persistence_verified"]
+        and (capture["persistence_verified"] or target.get("mode") == "status")
         else 1
     )
 

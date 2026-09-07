@@ -40,6 +40,7 @@
     "path-to-regexp": "^0.1.12"
   },
   "scripts": {
+        "typecheck:e2e": "tsc -p tsconfig.capture.json",
     "test": "jest --config jest.config.cjs",
     "test:login-hints:e2e": "nightwatch test/e2e/login_hints.test.ts --env firefox",
     "test:load:e2e": "playwright test --config playwright.load.config.ts",

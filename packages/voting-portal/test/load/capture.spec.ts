@@ -4,6 +4,7 @@
 import {chromium, expect, Request, test} from "@playwright/test"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {resolve} from "node:path"
+import {installObscuraCompatibility} from "./obscura"
 import {castBallotAsVoter} from "./flow"
 
 // HAR contains authentication material. The runner creates a private output directory;
@@ -12,18 +13,42 @@ test("capture one real login-to-cast journey", async () => {
     const output = resolve(process.env.CAPTURE_OUTPUT_DIR!)
     const target = JSON.parse(readFileSync(process.env.CAPTURE_TARGET!, "utf8"))
     mkdirSync(output, {recursive: true, mode: 0o700})
-    const browser = await chromium.connectOverCDP(process.env.OBSCURA_CDP_URL!)
+    const engine = target.engine || "obscura"
+    if (!["obscura", "chromium"].includes(engine)) throw new Error("Unsupported capture engine")
+    const browser =
+        engine === "obscura"
+            ? await chromium.connectOverCDP(process.env.OBSCURA_CDP_URL!)
+            : await chromium.launch({
+                  headless: true,
+                  executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+              })
     const context = await browser.newContext({
         recordHar: {path: resolve(output, "journey.har"), mode: "full", content: "omit"},
     })
+    if (engine === "obscura") await installObscuraCompatibility(context)
+    if (!Array.isArray(target.allowed_origins) || !target.allowed_origins.length) {
+        throw new Error("Capture target must explicitly list allowed_origins")
+    }
+    const unexpectedOrigins: string[] = []
+    await context.route("**/*", async (route) => {
+        const origin = new URL(route.request().url()).origin
+        if (target.allowed_origins.includes(origin)) await route.continue()
+        else {
+            unexpectedOrigins.push(origin)
+            await route.abort("blockedbyclient")
+        }
+    })
     const page = await context.newPage()
     const started = Date.now()
+    const phases: Record<string, number> = {}
     const requests: object[] = []
-    const casts: object[] = []
+    const casts: {ballot_id: string; [key: string]: unknown}[] = []
     const pending: Promise<void>[] = []
     const failures: string[] = []
     const ids = new Map<Request, number>()
     let completed = false
+    let finished = started
+    const browserVersion = browser.version()
     context.on("request", (request) => ids.set(request, ids.size + 1))
     context.on("requestfinished", (request) => {
         pending.push(
@@ -89,14 +114,35 @@ test("capture one real login-to-cast journey", async () => {
         const ballots = await castBallotAsVoter(page, {
             loginUrl: target.login_url,
             credentials: target.credentials,
+            onPhase: (name) => {
+                phases[name] = Date.now() - started
+            },
         })
         // Drain listeners, including work added while an earlier response was decoded.
         for (let index = 0; index < pending.length; index++) await pending[index]
         expect(failures).toEqual([])
-        expect(casts.length).toBe(ballots.length)
+        expect(unexpectedOrigins).toEqual([])
+        expect(casts.map((cast) => cast.ballot_id).sort()).toEqual([...ballots].sort())
         expect(casts.length).toBeGreaterThan(0)
         completed = true
+        finished = Date.now()
     } finally {
+        const diagnostic = await page
+            .evaluate(() => ({
+                path: location.pathname,
+                text: Array.from(
+                    document.querySelectorAll("h1,h2,.alert-error,.kc-feedback-text,.error-message")
+                ).map((element) => element.textContent),
+                controls: Array.from(document.querySelectorAll("input,button")).map((element) => ({
+                    tag: element.tagName,
+                    type: element.getAttribute("type"),
+                    name: element.getAttribute("name"),
+                    id: element.id,
+                    text: element.tagName === "BUTTON" ? element.textContent : undefined,
+                })),
+            }))
+            .catch(() => null)
+        writeFileSync(resolve(output, "diagnostic.json"), JSON.stringify(diagnostic, null, 2))
         await context.close() // Flush the successful HAR before disconnecting from CDP.
         for (const request of pending) await request
         writeFileSync(
@@ -104,11 +150,16 @@ test("capture one real login-to-cast journey", async () => {
             JSON.stringify(
                 {
                     schema_version: 1,
-                    engine: "obscura",
+                    phases,
+                    compatibility_shim: engine === "obscura" ? "element-types" : null,
+                    engine,
+                    browser_version: browserVersion,
                     started_at_ms: started,
-                    elapsed_ms: Date.now() - started,
+                    elapsed_ms: (completed ? finished : Date.now()) - started,
                     completed: completed && failures.length === 0,
                     failures,
+                    unexpected_origins: unexpectedOrigins,
+                    http_cache: "disabled by origin-guard routing",
                     requests,
                     casts,
                 },
