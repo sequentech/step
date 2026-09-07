@@ -20,9 +20,25 @@ START = "<!-- voting-flow-benchmark:start -->"
 END = "<!-- voting-flow-benchmark:end -->"
 
 
+def compact_count(value):
+    if value >= 1_000_000 and value % 1_000_000 == 0:
+        return f"{value // 1_000_000}M"
+    if value >= 1000 and value % 1000 == 0:
+        return f"{value // 1000}k"
+    return str(value)
+
+
+def scenario_label(scenario):
+    return (
+        f"{compact_count(scenario['seeded_ballots'])} votes table, "
+        f"{scenario['peak_voters']} concurrent voters, "
+        f"{compact_count(scenario['unrelated_schedules'])} schedules"
+    )
+
+
 def measurement_tables(report):
     rows = [
-        "| Scenario | Ballots | Peak voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
+        "| Scenario | Ballots | Peak concurrent voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     throughput = [
@@ -34,13 +50,13 @@ def measurement_tables(report):
         assert before["variant"] == "before" and after["variant"] == "after"
         assert before["accepted_requests"] == after["accepted_requests"]
         rows.append(
-            f"| {scenario['name']} | {scenario['seeded_ballots']:,} | "
+            f"| {scenario_label(scenario)} | {scenario['seeded_ballots']:,} | "
             f"{scenario['peak_voters']} | {scenario['unrelated_schedules']:,} | "
             f"{before['p50_ms']:.2f} / {before['p99_ms']:.2f} | "
             f"{after['p50_ms']:.2f} / {after['p99_ms']:.2f} |"
         )
         throughput.append(
-            f"| {scenario['name']} | {before['elapsed_seconds']:.4f} | "
+            f"| {scenario_label(scenario)} | {before['elapsed_seconds']:.4f} | "
             f"{after['elapsed_seconds']:.4f} | {before['requests_per_second']:.1f} | "
             f"{after['requests_per_second']:.1f} | {after['accepted_requests']:,} | "
             f"{before['errors']} / {after['errors']} |"
@@ -53,13 +69,18 @@ def main():
     guide = GUIDE.read_text()
     prefix, remainder = guide.split(START)
     _, suffix = remainder.split(END)
-    reference = next(s for s in report["scenarios"] if s["name"] == "reference")
+    reference = next(
+        s
+        for s in report["scenarios"]
+        if (s["seeded_ballots"], s["peak_voters"], s["unrelated_schedules"])
+        == (100_000, 8, 100)
+    )
     before, after = reference["results"]
     calculation = (
         "**Accepted votes/second = accepted submissions / elapsed measurement seconds.** "
         "Elapsed time is the sum of the opening, lull and closing phase wall times; "
         "seeding and warmups are excluded. Each measured submission uses a distinct voter.\n\n"
-        f"For the reference workload, before: {before['accepted_requests']:,} / "
+        f"For the {scenario_label(reference)} workload, before: {before['accepted_requests']:,} / "
         f"{before['elapsed_seconds']:.4f} s = **{before['requests_per_second']:.1f} votes/s**. "
         f"After: {after['accepted_requests']:,} / {after['elapsed_seconds']:.4f} s = "
         f"**{after['requests_per_second']:.1f} votes/s**. "
@@ -81,7 +102,7 @@ def main():
         measurements += (
             "\n### Release 10 verification\n\n"
             f"A separate run at implementation `{verification['implementation_commit'][:10]}` "
-            "repeats the reference and 64-voter workloads on this release branch. "
+            "repeats the 100k votes table workloads at 8 and 64 concurrent voters on this release branch. "
             "The same accepted-votes/elapsed-seconds calculation applies. "
             f"[Raw verification report](/benchmarks/{verification_path.name}).\n\n"
             + measurement_tables(verification)

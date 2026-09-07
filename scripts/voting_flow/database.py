@@ -16,6 +16,7 @@ MIGRATIONS = ROOT / "hasura/migrations/backend-db"
 AREA_MIGRATION = MIGRATIONS / "1788765000000_serialize_cast_vote_area_checks"
 STORAGE_MIGRATION = MIGRATIONS / "1788765000001_cast_vote_external_storage"
 WINDOW_MIGRATION = MIGRATIONS / "1788765000002_materialize_voting_windows"
+SCHEDULE_INDEX = "sequent_backend.scheduled_event_active_scope_task_idx"
 INDEX_SCRIPT = ROOT / "scripts/postgres/cast_vote_covering_index.sql"
 CONFIGURATION_QUERY = (
     (ROOT / "packages/windmill/src/postgres/sql/cast_vote_configuration.sql")

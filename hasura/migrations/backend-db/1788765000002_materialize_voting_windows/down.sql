@@ -8,3 +8,4 @@ DROP FUNCTION sequent_backend.update_election_voting_window();
 DROP FUNCTION sequent_backend.refresh_election_voting_window(uuid, uuid, uuid);
 DROP FUNCTION sequent_backend.voting_window_election_id(sequent_backend.scheduled_event);
 DROP TABLE sequent_backend.election_voting_window;
+DROP INDEX sequent_backend.scheduled_event_active_scope_task_idx;
