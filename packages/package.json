@@ -13,7 +13,10 @@
       "ballot-verifier",
       "results-portal"
     ],
-    "nohoist": ["**/node_modules/@storybook", "**/storybook"]
+    "nohoist": [
+      "**/node_modules/@storybook",
+      "**/storybook"
+    ]
   },
   "devDependencies": {
     "storybook": "8.6.15",
@@ -110,6 +113,7 @@
     "generate:admin-portal": "yarn --cwd ./admin-portal generate",
     "generate:ballot-verifier": "yarn --cwd ./ballot-verifier generate",
     "generate:results-portal": "yarn --cwd ./results-portal generate",
-    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs"
+    "generate:graphql-docs": "yarn --cwd ./api-docs/graphql generate-docs",
+    "typecheck:voting-portal": "yarn workspace @sequentech/ui-core build:types && yarn workspace @sequentech/ui-essentials build:types && yarn workspace voting-portal typecheck"
   }
 }

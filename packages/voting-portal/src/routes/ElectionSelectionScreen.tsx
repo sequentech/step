@@ -37,11 +37,13 @@ import {selectElectionById, setElection, selectElectionIds} from "../store/elect
 import {AppDispatch} from "../store/store"
 import {
     addCastVotes,
+    parseCastVoteStatus,
     CastVoteStatus,
     selectCastVotesByElectionId,
 } from "../store/castVotes/castVotesSlice"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client/react"
+import {isApolloTransportError} from "../services/ApolloErrors"
 import {useVoterContext} from "../hooks/useVoterContext"
 import {
     GetCastVotesQuery,
@@ -551,10 +553,10 @@ const ElectionSelectionScreen: React.FC = () => {
             if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
                 setErrorMsg(ElectionScreenErrorType.NO_AREA)
             } else if (
-                errorElections?.networkError ||
-                errorElectionEvent?.networkError ||
-                errorBallotStyles?.networkError ||
-                errorCastVote?.networkError
+                isApolloTransportError(errorElections) ||
+                isApolloTransportError(errorElectionEvent) ||
+                isApolloTransportError(errorBallotStyles) ||
+                isApolloTransportError(errorCastVote)
             ) {
                 setErrorMsg(ElectionScreenErrorType.NETWORK)
             } else {
@@ -669,7 +671,14 @@ const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
             const castVoteList = castVotes.sequent_backend_cast_vote
-            dispatch(addCastVotes(castVoteList))
+            dispatch(
+                addCastVotes(
+                    castVoteList.map((vote) => ({
+                        ...vote,
+                        status: parseCastVoteStatus(vote.status),
+                    }))
+                )
+            )
 
             const hasUnresolvedCastVotes = castVoteList.some(
                 (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
