@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createSlice, PayloadAction} from "@reduxjs/toolkit"
 import {RootState} from "../store"
-import {isUndefined} from "@sequentech/ui-core"
+import type {EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
 
 export interface ConfirmationScreenData {
     ballotId: string
     isDemo: boolean
+    auditButtonCfg?: EVotingPortalAuditButtonCfg
 }
 
 export interface ConfirmationScreenDataState {
