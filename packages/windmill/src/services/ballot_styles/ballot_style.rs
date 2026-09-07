@@ -400,6 +400,14 @@ async fn generate_election_event_ballot_styles(
         )
         .await?;
     }
+    super::publication_files::prepare_publication_files(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await?;
+
     update_ballot_publication_status(
         &transaction,
         tenant_id,

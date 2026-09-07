@@ -1,51 +1,130 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useContext, useEffect, useMemo} from "react"
+import {useContext, useEffect, useState, useRef} from "react"
 import {useApolloClient, useQuery} from "@apollo/client/react"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {GET_VOTER_CONTEXT} from "../queries/GetVoterContext"
+import {GET_VOTER_STATUS} from "../queries/GetVoterStatus"
 import {GET_ELECTIONS} from "../queries/GetElections"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
-import {GetElectionsQuery} from "../gql/graphql"
+import {GetBallotStylesQuery, GetCastVotesQuery} from "../gql/graphql"
+import {
+    loadPublicationList,
+    loadSelectedBallot,
+    PublicationDownloadError,
+} from "../services/PublishedBallots"
 
-export function useVoterContext() {
+type Loaded = Awaited<ReturnType<typeof loadPublicationList>> &
+    GetBallotStylesQuery &
+    GetCastVotesQuery
+
+export function useVoterContext(selectedElectionId?: string, skip = false) {
     const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
     const {globalSettings} = useContext(SettingsContext)
     const client = useApolloClient()
-    const result = useQuery(GET_VOTER_CONTEXT, {
-        variables: {tenantId: tenantId || "", electionEventId: eventId || ""},
-        skip: globalSettings.DISABLE_AUTH || !tenantId || !eventId,
+    const result = useQuery(GET_VOTER_STATUS, {
+        variables: {electionEventId: eventId || ""},
+        skip: skip || globalSettings.DISABLE_AUTH || !tenantId || !eventId,
     })
-    const elections = useMemo<GetElectionsQuery | undefined>(() => {
-        if (!result.data) return undefined
-        const byId = new Map<string, GetElectionsQuery["sequent_backend_election"][number]>()
-        for (const style of result.data.sequent_backend_ballot_style) {
-            if (style.election) byId.set(style.election.id, style.election)
-        }
-        return {sequent_backend_election: Array.from(byId.values())}
-    }, [result.data])
-
-    // Existing direct-entry and gold-reauth queries remain valid. Seed their
-    // exact cache entries so moving between screens reuses this response.
+    const [loaded, setLoaded] = useState<{
+        source: typeof result.data
+        selection?: string
+        data: Loaded
+    }>()
+    const renewed = useRef(false)
     useEffect(() => {
-        if (!result.data || !elections) return
-        client.writeQuery({
-            query: GET_ELECTION_EVENT,
-            variables: {tenantId, electionEventId: eventId},
-            data: result.data,
-        })
-        const ids = result.data.sequent_backend_ballot_style.map((style) => style.election_id)
-        client.writeQuery({query: GET_ELECTIONS, variables: {electionIds: ids}, data: elections})
-        for (const election of elections.sequent_backend_election) {
-            client.writeQuery({
-                query: GET_ELECTIONS,
-                variables: {electionIds: [election.id]},
-                data: {sequent_backend_election: [election]},
-            })
+        renewed.current = false
+    }, [client, tenantId, eventId, selectedElectionId])
+    const [downloadError, setDownloadError] = useState<Error>()
+    useEffect(() => {
+        if (!result.data || skip || globalSettings.DISABLE_AUTH) return
+        let active = true
+        setDownloadError(undefined)
+        const load = async () => {
+            let response: typeof result.data | undefined = result.data
+            for (let attempt = 0; attempt < 2; attempt++) {
+                try {
+                    if (!response) return
+                    const refs = response.get_ballot_files_urls
+                    if (refs.event_id !== eventId) throw new Error("Published event scope mismatch")
+                    const list = await loadPublicationList(client, refs, selectedElectionId)
+                    const styles = selectedElectionId
+                        ? [await loadSelectedBallot(client, refs, selectedElectionId)]
+                        : []
+                    if (!active) return
+                    client.writeQuery({
+                        query: GET_ELECTION_EVENT,
+                        variables: {tenantId, electionEventId: eventId},
+                        data: list,
+                    })
+                    for (const election of list.sequent_backend_election) {
+                        client.writeQuery({
+                            query: GET_ELECTIONS,
+                            variables: {electionIds: [election.id]},
+                            data: {sequent_backend_election: [election]},
+                        })
+                    }
+                    client.writeQuery({
+                        query: GET_ELECTIONS,
+                        variables: {electionIds: list.sequent_backend_election.map((e) => e.id)},
+                        data: list,
+                    })
+                    setLoaded({
+                        source: response,
+                        selection: selectedElectionId,
+                        data: {
+                            ...list,
+                            sequent_backend_ballot_style: styles,
+                            sequent_backend_cast_vote: response.sequent_backend_cast_vote,
+                        },
+                    })
+                    return
+                } catch (error) {
+                    if (!active) return
+                    if (
+                        !renewed.current &&
+                        attempt === 0 &&
+                        error instanceof PublicationDownloadError &&
+                        [401, 403].includes(error.status)
+                    ) {
+                        renewed.current = true
+                        response = (await result.refetch()).data
+                    } else {
+                        throw error
+                    }
+                }
+            }
         }
-    }, [client, result.data, elections, tenantId, eventId])
-
-    return {...result, elections}
+        void load().catch(() => {
+            if (active) setDownloadError(new Error("Unable to load published ballot data"))
+        })
+        return () => {
+            active = false
+        }
+    }, [
+        client,
+        result.data,
+        selectedElectionId,
+        tenantId,
+        eventId,
+        skip,
+        globalSettings.DISABLE_AUTH,
+    ])
+    const data =
+        loaded?.source === result.data && loaded?.selection === selectedElectionId
+            ? loaded?.data
+            : undefined
+    return {
+        data,
+        elections: data,
+        summaries: data?.summaries,
+        error: result.error ?? downloadError,
+        loading:
+            !skip &&
+            !globalSettings.DISABLE_AUTH &&
+            !downloadError &&
+            (result.loading || (!!result.data && !data)),
+        refetch: result.refetch,
+    }
 }

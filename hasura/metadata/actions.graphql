@@ -1,3 +1,7 @@
+type Query {
+    get_ballot_files_urls(election_event_id: String!): jsonb!
+}
+
 type Mutation {
     ApplicationChangeStatus(
         body: ApplicationChangeStatusBody!

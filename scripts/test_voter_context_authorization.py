@@ -19,12 +19,18 @@ ROOT = Path(__file__).resolve().parents[1]
 ENDPOINT = os.environ.get(
     "VOTER_CONTEXT_HASURA_URL", "http://graphql-engine:8080/v1/graphql"
 )
-QUERY = (
-    (ROOT / "packages/voting-portal/src/queries/GetVoterContext.ts")
-    .read_text()
-    .split("gql`", 1)[1]
-    .split("`", 1)[0]
-)
+# Keep checking compatibility row permissions without fetching ballot content.
+# The S3 action validates JWTs separately and is covered by its route regressions.
+QUERY = """
+query CompatibilityPermissions($tenantId: uuid!, $electionEventId: uuid!) {
+    sequent_backend_ballot_style(where: {tenant_id: {_eq: $tenantId}, election_event_id: {_eq: $electionEventId}, deleted_at: {_is_null: true}}) {
+        tenant_id election_event_id election_id area_id
+        election { id tenant_id election_event_id }
+    }
+    sequent_backend_cast_vote(where: {tenant_id: {_eq: $tenantId}, election_event_id: {_eq: $electionEventId}}) { id }
+    sequent_backend_election_event(where: {tenant_id: {_eq: $tenantId}, id: {_eq: $electionEventId}}) { id }
+}
+"""
 
 
 def query(document, variables=None, claims=None):
