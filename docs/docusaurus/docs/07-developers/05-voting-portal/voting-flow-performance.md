@@ -197,6 +197,10 @@ devenv shell python3 scripts/voting_flow/report.py
 
 SQL-only measurements at implementation `f562c7deae` against baseline `e93ca05104`.
 
+**Accepted votes/second = accepted submissions / elapsed measurement seconds.** Elapsed time is the sum of the opening, lull and closing phase wall times; seeding and warmups are excluded. Each measured submission uses a distinct voter.
+
+For the reference workload, before: 2,560 / 4.7475 s = **539.2 votes/s**. After: 2,560 / 1.6752 s = **1528.2 votes/s**. Calculations use unrounded durations from the JSON; displayed durations are rounded.
+
 | Scenario | Ballots | Peak voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
 |---|---:|---:|---:|---:|---:|
 | small-table | 10,000 | 8 | 100 | 15.06 / 113.77 | 4.78 / 10.87 |
@@ -207,15 +211,15 @@ SQL-only measurements at implementation `f562c7deae` against baseline `e93ca0510
 | large-table-64-voters | 1,000,000 | 64 | 100 | 122.66 / 160.61 | 38.83 / 58.60 |
 | many-schedules | 100,000 | 8 | 2,000 | 91.36 / 123.02 | 4.77 / 55.97 |
 
-| Scenario | Before casts/s | After casts/s | Accepted per variant | Errors before / after |
-|---|---:|---:|---:|---:|
-| small-table | 450.0 | 1466.1 | 2,560 | 0 / 0 |
-| reference | 539.2 | 1528.2 | 2,560 | 0 / 0 |
-| large-table | 502.6 | 1205.0 | 2,560 | 0 / 0 |
-| 32-concurrent-voters | 503.4 | 1521.9 | 2,560 | 0 / 0 |
-| 64-concurrent-voters | 494.1 | 1468.3 | 2,560 | 0 / 0 |
-| large-table-64-voters | 495.9 | 1488.5 | 2,560 | 0 / 0 |
-| many-schedules | 85.0 | 1204.0 | 2,560 | 0 / 0 |
+| Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |
+|---|---:|---:|---:|---:|---:|---:|
+| small-table | 5.6889 | 1.7461 | 450.0 | 1466.1 | 2,560 | 0 / 0 |
+| reference | 4.7475 | 1.6752 | 539.2 | 1528.2 | 2,560 | 0 / 0 |
+| large-table | 5.0937 | 2.1244 | 502.6 | 1205.0 | 2,560 | 0 / 0 |
+| 32-concurrent-voters | 5.0857 | 1.6821 | 503.4 | 1521.9 | 2,560 | 0 / 0 |
+| 64-concurrent-voters | 5.1814 | 1.7435 | 494.1 | 1468.3 | 2,560 | 0 / 0 |
+| large-table-64-voters | 5.1628 | 1.7198 | 495.9 | 1488.5 | 2,560 | 0 / 0 |
+| many-schedules | 30.1351 | 2.1263 | 85.0 | 1204.0 | 2,560 | 0 / 0 |
 
 Latencies cover the complete SQL path per request. Throughput is total completed requests divided by the combined phase wall time, including driver scheduling overhead. These measurements come from one local run, not production capacity estimates or statistical confidence intervals.
 
