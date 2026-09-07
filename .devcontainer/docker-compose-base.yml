@@ -236,7 +236,7 @@ services:
       "--watch", "Cargo.toml",
       "--watch", "Cargo.lock",
       "-x",
-      "run --bin b4v6 --release",
+      "run --bin b4v6 --release"
     ]
     volumes_from:
       - devcontainer
@@ -1049,3 +1049,4 @@ volumes:
   protocol_manager_data:
   b4_db_logs:
   b4_db_data:
+  b4v6_data:

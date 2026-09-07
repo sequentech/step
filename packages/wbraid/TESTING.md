@@ -58,11 +58,18 @@ cargo test -p braid --release -- --ignored
 
 Each `.ps1` has a bash twin of the same name for the devcontainer; the flags
 map one-to-one (`.\b4.ps1 -Reset -NoRun` ⇄ `./b4.sh --reset --no-run`). There,
-`.devcontainer/.env.development` (exported into every devenv shell) moves b4 to
-port 3005 — `WBRAID_B4_BIND` is honoured by `b4v6` and `WBRAID_B4_URL` by the
-two live-b4 tests, since 3000 is the voting portal's — and points `b4.sh` at the
-`localstack` service via `WBRAID_S3_ENDPOINT_URL`. Unset, everything keeps the
-upstream defaults above.
+b4 is the `b4v6` compose service (opt-in `wbraid` profile in
+`.devcontainer/docker-compose-base.yml`, next to `localstack`) that `./b4.sh`
+brings up by name and `./b4.sh --reset` wipes (its SQLite file lives in the
+service's data volume); `.devcontainer/.env.development` (exported into every
+devenv shell) points the two live-b4 tests at it via
+`WBRAID_B4_URL=http://b4v6:3005` and `b4.sh` at the `localstack` service via
+`WBRAID_S3_ENDPOINT_URL`. Unset, everything keeps the upstream defaults above.
+
+In CI the same two tests run in the `live-b4` job of
+`.github/workflows/wbraid.yml` — LocalStack as a service container, `b4v6`
+built and started on the runner — opt-in via the `wbraid-live-b4` pull-request
+label, since a release build plus two full protocol runs is slow.
 
 ### Prerequisites
 
@@ -72,10 +79,10 @@ upstream defaults above.
   and the **`b4`** server (`b4.ps1` sets the S3 endpoint/credentials and points
   `DATABASE_URL` at a repo-root `b4.db`). In the devcontainer, `localstack.sh`
   starts the `localstack` compose service instead (opt-in `wbraid` profile in
-  `.devcontainer/docker-compose-base.yml`) and the endpoint is
-  `http://localstack:4566` on the project network — `b4.sh` picks the right
-  endpoint automatically, and falls back to the `amazon/aws-cli` docker image
-  when the AWS CLI is not installed. The image is pinned to
+  `.devcontainer/docker-compose-base.yml`) and `b4.sh` the `b4v6` one; the S3
+  endpoint is `http://localstack:4566` on the project network — `b4.sh` picks
+  the right endpoint automatically, and falls back to the `amazon/aws-cli`
+  docker image when the AWS CLI is not installed. The image is pinned to
   `localstack/localstack:4`: from the 2026 releases on, `latest` exits at
   startup without an auth token, so a fresh pull of `latest` (which
   `localstack.ps1` does) no longer works.
@@ -131,8 +138,9 @@ validation that the protocol runs correctly under wasm.
                         # :8080 with COOP/COEP (server.py)
 
 # bash: ./localstack.sh / ./b4.sh / ./serve.sh. In the devcontainer serve.sh
-# listens on WBRAID_SERVE_PORT (8085 by default) and b4 on 3005 (WBRAID_B4_BIND),
-# so open http://127.0.0.1:8085/emulator.html and set its URL field to
+# listens on WBRAID_SERVE_PORT (8085 by default) and b4 is the b4v6 compose
+# service, forwarded to the host as 127.0.0.1:3005, so open
+# http://127.0.0.1:8085/emulator.html and set its URL field to
 # http://127.0.0.1:3005.
 ```
 

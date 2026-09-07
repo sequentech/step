@@ -232,3 +232,32 @@ run) and is untouched: its lib passes, with upstream's warn-level
   plain cargo suffices and no wasm-bindgen CLI is involved. The shared
   `setup-rust-tests` action gained optional `components`/`targets` inputs for
   this (defaults unchanged).
+
+## Local modifications for the b4 dev service
+
+- **Explicit SQLite connection options** (`crates/b4/src/db.rs`,
+  `connect_options`). sqlx 0.8 sets only `foreign_keys=ON` and a 5s busy
+  timeout on its own — it no longer sets a journal mode — so the WAL the spec
+  assumes (§8) was silently not in effect. Every pooled connection now opens
+  with WAL, `synchronous=FULL` (a confirm is fsynced before b4 acknowledges
+  it, which is what the trustee mailbox relies on, §6.4), the busy timeout,
+  foreign keys and create-if-missing spelled out; a test pins the pragmas.
+- **`crates/b4/src/app.rs`**: the router, split out of `main.rs` so the
+  handlers can be exercised through Axum with an offline presigner
+  (`AppState::new` takes the bucket name for that; `AppState::from_env` reads
+  it from `S3_BUCKET_NAME` at startup); the crate's first unit tests cover the
+  connect options, initiate always offering S3, the two-step flow and
+  board-name validation.
+- **`b4v6` compose service** (`.devcontainer/docker-compose-base.yml`, opt-in
+  `wbraid` profile, forwarded as `b4v6:3005`): cargo-watch runs the release
+  binary from the mounted checkout like the other Rust services, SQLite in a
+  named volume, S3 via the `localstack` service. In the devcontainer `b4.sh`
+  drives it by name — `--reset` stops it, wipes the volume and empties the
+  bucket — the way `localstack.sh` drives LocalStack; outside a compose
+  project it keeps the `b4.ps1` flow. `WBRAID_B4_BIND` left
+  `.env.development` (the service sets its own bind) and `WBRAID_B4_URL` now
+  names the service. `b4.ps1` is unchanged apart from one comment.
+- **`live-b4` CI job** in `.github/workflows/wbraid.yml`: LocalStack as a
+  service container, `b4v6` built and started on the runner, then the two
+  `#[ignore]`d live tests; gated on the `wbraid-live-b4` pull-request label
+  (`labeled` added to the `pull_request` trigger for that).

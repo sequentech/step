@@ -3,61 +3,34 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::Result;
-use axum::{
-    routing::{get, post},
-    Router,
-};
-use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use b4::{db, handlers, s3, state::AppState};
+use b4::{app, db, s3, state::AppState};
+
+/// The listen address.
+const BIND_ENV: &str = "WBRAID_B4_BIND";
+const DEFAULT_BIND: &str = "127.0.0.1:3000";
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "wbraid_service=debug,tower_http=debug".into()),
+                .unwrap_or_else(|_| "b4=info,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Initialize database
     let db = db::init_db().await?;
-
-    // Initialize S3 client
     let s3_client = s3::init_s3_client().await;
+    let state = AppState::from_env(db, s3_client);
+    // Logged under the library's target so `RUST_LOG=b4=info` shows it: this
+    // binary is the `b4v6` crate, whose own target the scripts do not enable.
+    tracing::info!("S3 bucket {:?}", state.bucket_name,);
 
-    let state = AppState::new(db, s3_client);
+    let app = app::router(state);
 
-    // Configure CORS
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
-
-    let app = Router::new()
-        // Board management
-        .route("/boards", post(handlers::create_board))
-        .route("/boards", get(handlers::list_boards))
-        .route("/boards/:board", get(handlers::get_board))
-        // Message operations (board-specific)
-        .route("/boards/:board/messages/list", get(handlers::list_messages))
-        .route("/boards/:board/messages", get(handlers::get_messages))
-        .route("/boards/:board/messages/:id", get(handlers::get_message))
-        // POST - S3 two-step flow
-        .route(
-            "/boards/:board/messages/initiate",
-            post(handlers::initiate_message),
-        )
-        .route(
-            "/boards/:board/messages/:id/confirm",
-            post(handlers::confirm_message),
-        )
-        .layer(cors)
-        .with_state(state);
-
-    let bind = std::env::var("WBRAID_B4_BIND").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
+    let bind = std::env::var(BIND_ENV).unwrap_or_else(|_| DEFAULT_BIND.to_string());
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     tracing::info!(
         "Bulletin board service listening on {}",
