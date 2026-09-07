@@ -137,3 +137,5 @@ Counts include background SQL; client-IP service attribution is not request corr
 | keycloak | windmill | submitted SQL | SELECT | 10 |
 | keycloak | windmill | transaction | ROLLBACK | 5 |
 | keycloak | windmill | transaction | START | 5 |
+
+For prepared ciphertexts, census generation, k6/browser worker sharding and p50/p99/cast-rate goals, see [prepared vote load testing](./prepared-vote-load.md).

@@ -78,6 +78,7 @@ in
     iputils
     geckodriver
     firefox
+    k6 # HTTP cast load generator, pinned by devenv.lock.
     chromium # Reference browser for validating Obscura capture fidelity.
 
     # to build the rug backend in strand/braid

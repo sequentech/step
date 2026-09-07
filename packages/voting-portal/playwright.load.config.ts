@@ -9,7 +9,13 @@ import {defineConfig} from "@playwright/test"
 // so `yarn test` (Jest) and the Nightwatch e2e suites are unaffected.
 export default defineConfig({
     testDir: "./test/load",
-    testIgnore: ["capture.spec.ts", "obscura.spec.ts", "status.spec.ts"],
+    testIgnore: [
+        "capture.spec.ts",
+        "obscura.spec.ts",
+        "status.spec.ts",
+        "prepare.spec.ts",
+        "prepared.spec.ts",
+    ],
     fullyParallel: true,
     // A retried voter would attempt a second vote and be rejected as a
     // duplicate, skewing the results — report the failure instead.
