@@ -52,8 +52,8 @@ echo -e "${GREEN}Step 3/7:${RESET} Checking Python installation..."
 python3 --version
 pip3 --version
 
-# requests and python-dotenv require Python 3.10 or newer. Fail here with a
-# clear message rather than midway through pip's resolver.
+# python-dotenv requires Python 3.10 or newer. Fail here with a clear message
+# rather than midway through pip's resolver.
 if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
     echo -e "${RED}Python 3.10 or newer is required (found $(python3 --version 2>&1)).${RESET}" >&2
     exit 1
