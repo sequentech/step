@@ -242,7 +242,19 @@ polled the same way as `delete-election-event`. It refuses to run while the
 tenant still has any election events, and it's a super-admin-only action: the
 caller must be authenticated as the bootstrap tenant (`setup.tenant_id`), not
 as the tenant being deleted — matching how `create-tenant` itself is
-authorized. To do this by hand:
+authorized.
+
+The `tenant-delete` role only needs to exist in the bootstrap tenant's own
+Keycloak realm (never in the tenants being deleted), and is already assigned
+to the `admin`/`admin-light` roles there in the dev container's default
+realm import. Deployed environments provisioned via `beyond`'s `client-setup`
+chart don't seed this role yet (kept out deliberately, to avoid changing that
+chart's realm export for every deployment), so before running cleanup against
+such an environment, add the `tenant-delete` role to the bootstrap tenant's
+realm by hand — Keycloak admin console → bootstrap tenant realm → Realm roles
+→ create `tenant-delete`, then assign it to `$ADMIN_PORTAL_USER`'s role (or
+the role it inherits it from) — otherwise `delete-tenant` fails with an
+authorization error. To do this by hand:
 
 ```bash
 step-cli step config --tenant-id "$BOOTSTRAP_TENANT_ID" ... # as above, but the bootstrap tenant
