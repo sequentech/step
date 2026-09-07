@@ -457,3 +457,32 @@ the current application has no duplicate precheck. The previous application had
 a cross-area concurrency race, so retaining the strengthened trigger is preferable.
 The projection down migration also removes the active schedule index. Storage
 rollback changes future writes and does not rewrite existing ballots.
+
+
+## Publication transaction lifecycle
+
+Ballot generation and final publication now acquire a tenant-scoped row lock on
+an election event for the lifetime of their database transaction. This supplements
+the short task lease: a worker that outlives its lease cannot race another worker
+or final publication for the same event. Independent events remain concurrent.
+The lock serializes full-event and partial-election publications together, because
+both can change which styles remain visible.
+
+Successful generation is immutable: repeated delivery of an already generated
+publication does not append a new set of ballot styles. Deleted publications and
+published records missing generated content are rejected. Generation propagates
+commit failures to task execution instead of reporting success after a failed
+commit. Transaction rollback releases the event lock and leaves generation
+eligible for retry; final publication rejects deleted drafts.
+
+Validate the production locking SQL with
+`devenv shell python3 scripts/test_ballot_publication_lifecycle.py`. The isolated
+PostgreSQL check covers contention, tenant isolation, independent events, and
+lock release after commit and rollback. The Windmill ballot-style unit tests cover
+completed delivery retries and invalid publication states. These checks do not
+run the SQL benchmarks.
+
+This is a prerequisite for immutable private-object activation. It does not yet
+upload publication objects, change voter authorization, or implement rollback to
+an earlier publication. No S3 or bootstrap request-count improvement is measured
+by these lifecycle tests.

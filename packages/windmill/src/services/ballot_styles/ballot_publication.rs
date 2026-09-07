@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::ballot_publication::{
     get_ballot_publication_by_id, get_previous_publication, get_previous_publication_election,
-    insert_ballot_publication, soft_delete_other_ballot_publications, update_ballot_publication,
+    insert_ballot_publication, lock_publication_event, soft_delete_other_ballot_publications,
+    update_ballot_publication,
 };
 use crate::postgres::ballot_style::get_publication_ballot_styles;
 use crate::postgres::election::{get_election_by_id, get_elections_ids, update_election_status};
@@ -324,6 +325,8 @@ pub async fn update_publish_ballot(
     election_event_id: String,
     ballot_publication_id: String,
 ) -> Result<()> {
+    lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+
     let ballot_publication = get_ballot_publication_by_id(
         &hasura_transaction,
         &tenant_id,
@@ -332,6 +335,10 @@ pub async fn update_publish_ballot(
     )
     .await?
     .with_context(|| "Can't find ballot publication")?;
+
+    if ballot_publication.deleted_at.is_some() {
+        return Err(anyhow!("Cannot publish a deleted ballot publication"));
+    }
 
     if ballot_publication.is_generated.unwrap_or(false) == false {
         return Err(anyhow!(
