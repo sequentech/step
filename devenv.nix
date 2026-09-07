@@ -92,7 +92,7 @@ in
     wasm-pack
     wasm-bindgen-cli
 
-    (python3.withPackages (ps: [ ps.psycopg ps.black ]))
+    (python3.withPackages (ps: [ ps.psycopg ps.black ps.matplotlib ]))
     python3Packages.virtualenvwrapper
 
     # for parsing docker-compose.yml

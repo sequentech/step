@@ -224,6 +224,22 @@ SQL-only measurements at implementation `2a17342cc3` against baseline `e93ca0510
 
 For the 100k votes table, 8 concurrent voters, 10 elections, 100 areas, 100 total schedules workload, before: 2,560 / 4.9338 s = **518.9 votes/s**. After: 2,560 / 1.7021 s = **1504.0 votes/s**. Calculations use unrounded durations from the JSON; displayed durations are rounded.
 
+### Visual comparisons
+
+Each figure holds the dimensions in its subtitle constant. Gray dashed lines show the baseline; teal lines show the revised path. Latency panels use milliseconds (lower is better); throughput uses accepted votes/second (higher is better). All y-axes start at zero. Lines connect tested cases, not predictions between them. The p99 outliers are retained; one run does not establish statistical significance.
+
+![Vote-table size: before and after p50, p99 and accepted votes per second. 8 concurrent voters · 10 elections · 100 areas · 100 total schedules.](/benchmarks/voting-flow-votes.svg)
+
+![Concurrent voters: before and after p50, p99 and accepted votes per second. 100k votes table · 10 elections · 100 areas · 100 total schedules.](/benchmarks/voting-flow-concurrency.svg)
+
+![Populated areas: before and after p50, p99 and accepted votes per second. 100k votes table · 8 concurrent voters · 10 elections · 100 total schedules.](/benchmarks/voting-flow-areas.svg)
+
+![Schedules within a 200-election event: before and after p50, p99 and accepted votes per second. 100k votes table · 8 concurrent voters · 200 elections · 100 areas.](/benchmarks/voting-flow-schedules.svg)
+
+![Combined workload: before and after p50, p99 and accepted votes per second. 1M votes table · 64 concurrent voters · 200 elections · 10k areas · 2k total schedules.](/benchmarks/voting-flow-combined.svg)
+
+### Detailed measurements
+
 | Scenario | Before p50 / p99 (ms) | After p50 / p99 (ms) |
 |---|---:|---:|
 | 10k votes table, 8 concurrent voters, 10 elections, 100 areas, 100 total schedules | 14.86 / 20.49 | 4.67 / 9.57 |
@@ -278,6 +294,10 @@ Latencies cover the complete SQL path per request. Throughput is total completed
 ### Release 10 verification
 
 A separate run at implementation `7a66926a2e` repeats selected area and combined-load workloads on this release branch. The same accepted-votes/elapsed-seconds calculation applies. [Raw verification report](/benchmarks/voting-flow-release-10.json).
+
+![Populated areas: before and after p50, p99 and accepted votes per second. 100k votes table · 8 concurrent voters · 10 elections · 100 total schedules.](/benchmarks/voting-flow-release-10-areas.svg)
+
+![Combined workload: before and after p50, p99 and accepted votes per second. 1M votes table · 64 concurrent voters · 200 elections · 10k areas · 2k total schedules.](/benchmarks/voting-flow-release-10-combined.svg)
 
 | Scenario | Before p50 / p99 (ms) | After p50 / p99 (ms) |
 |---|---:|---:|
@@ -388,6 +408,10 @@ devenv shell python3 scripts/voting_flow/report.py
 <!-- schedule-index-benchmark:start -->
 
 Measurements at `2a17342cc3`. [Raw schedule-query evidence](/benchmarks/schedule-indexes.json).
+
+![Schedule index comparison: broad event query, two-endpoint query and rescheduling p50, with and without the index.](/benchmarks/schedule-indexes.svg)
+
+The broad query returns 2,000 rows in every case. These are single-query and configuration-update timings, not complete cast latency or votes per second.
 
 | Schedule population | Rows returned | Broad query without index p50 (ms) | With index p50 (ms) |
 |---|---:|---:|---:|
