@@ -1310,6 +1310,7 @@ const galegoTranslation: TranslationType = {
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
+                "tenant-delete": "Eliminar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",

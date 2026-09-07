@@ -1297,6 +1297,7 @@ const englishTranslation = {
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
+                "tenant-delete": "Delete Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",

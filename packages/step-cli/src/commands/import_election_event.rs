@@ -9,6 +9,10 @@ use crate::{
 use clap::Args;
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
+use std::{
+    thread::sleep,
+    time::{Duration, Instant},
+};
 
 #[derive(Args)]
 #[command(about = "Import Election Event", long_about = None)]
@@ -46,6 +50,30 @@ impl ImportElectionEventFile {
     }
 }
 
+fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let start_time = Instant::now();
+    let timeout = Duration::from_secs(300);
+    let polling_interval = Duration::from_secs(3);
+
+    loop {
+        match crate::utils::tasks::get_task_status(task_execution_id) {
+            Ok(status) if status == "SUCCESS" => return Ok(()),
+            Ok(status) if status == "FAILED" => {
+                return Err("Import election event task failed".into())
+            }
+            Ok(_) => {
+                if Instant::now().duration_since(start_time) >= timeout {
+                    return Err(
+                        "Timeout while waiting for import election event task to complete".into(),
+                    );
+                }
+                sleep(polling_interval);
+            }
+            Err(e) => return Err(format!("Error checking task status: {}", e).into()),
+        }
+    }
+}
+
 pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
@@ -71,6 +99,14 @@ pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::er
                 if let Some(err) = e.error {
                     Err(Box::from(err))
                 } else if let Some(id) = e.id {
+                    // The mutation only enqueues the import; the realm, areas,
+                    // and bulletin board are created asynchronously by the
+                    // matching celery task. Wait for it so callers (like
+                    // `import-voters` right after) see a fully-provisioned
+                    // election event rather than racing it.
+                    if let Some(task_execution) = e.task_execution {
+                        wait_for_task(&task_execution.id)?;
+                    }
                     Ok(id)
                 } else {
                     Err(Box::from("failed generating id"))

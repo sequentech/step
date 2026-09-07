@@ -1315,6 +1315,7 @@ const frenchTranslation: TranslationType = {
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
+                "tenant-delete": "Supprimer Locataire",
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",

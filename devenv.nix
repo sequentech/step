@@ -94,6 +94,7 @@ in
 
     (python3.withPackages (ps: [ ps.psycopg ps.black ps.matplotlib ]))
     python3Packages.virtualenvwrapper
+    python3Packages.pyyaml
 
     # for parsing docker-compose.yml
     yq
