@@ -75,8 +75,7 @@ jobs:
 
       # The live-b4 protocol tests (test_protocol_http*) and the Verificatum
       # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
-      # JVM with the Verificatum jars. The live-b4 ones run in the opt-in
-      # live-b4 job below.
+      # JVM with the Verificatum jars. The live-b4 ones run in the live-b4 job below.
       - name: Run tests
         run: cargo test --release
         env:
@@ -116,7 +115,6 @@ jobs:
     # carrying the `wbraid-live-b4` label run it. The same two tests run in
     # the devcontainer with `cargo test -p braid --release -- --ignored`
     # (TESTING.md, "Live-b4 tests").
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'wbraid-live-b4')
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     services:
@@ -132,7 +130,7 @@ jobs:
     env:
       # b4 only presigns against this endpoint; the tests, on the same runner,
       # fetch the bodies from it. Credentials are LocalStack's dummies.
-      AWS_ENDPOINT_URL: http://localhost:4566
+      AWS_ENDPOINT_URL: http://localstack:4566
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       AWS_REGION: us-east-1
