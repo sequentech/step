@@ -238,6 +238,13 @@ export type DeleteElectionEvent = {
     task_execution?: Maybe<Tasks_Execution_Type>
 }
 
+export type DeleteTenant = {
+    __typename?: "DeleteTenant"
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type DeleteUserOutput = {
     __typename?: "DeleteUserOutput"
     id?: Maybe<Scalars["String"]["output"]>
@@ -1512,6 +1519,8 @@ export type Mutation_Root = {
     delete_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>
     /** delete single row from the table: "sequent_backend.trustee" */
     delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>
+    /** delete_tenant */
+    delete_tenant?: Maybe<DeleteTenant>
     delete_user?: Maybe<DeleteUserOutput>
     delete_user_role?: Maybe<SetUserRoleOutput>
     /** delete users */
@@ -2771,6 +2780,11 @@ export type Mutation_RootDelete_Sequent_Backend_TrusteeArgs = {
 /** mutation root */
 export type Mutation_RootDelete_Sequent_Backend_Trustee_By_PkArgs = {
     id: Scalars["uuid"]["input"]
+}
+
+/** mutation root */
+export type Mutation_RootDelete_TenantArgs = {
+    tenant_id: Scalars["String"]["input"]
 }
 
 /** mutation root */
