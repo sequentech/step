@@ -217,8 +217,12 @@ def render(directory: Path, db: sqlite3.Connection, config: dict, result: dict) 
     svg = chart.getvalue().split("<svg", 1)[1]
     svg = "\n".join(line.rstrip() for line in ("<svg" + svg).splitlines()) + "\n"
     (directory / "performance.svg").write_text(svg)
+    def latency(value: float | None) -> str:
+        """Keep absent operations distinct from a measured zero-millisecond response."""
+        return "—" if value is None else f"{value:,.2f}"
+
     rows = "".join(
-        f"<tr><td>{html.escape(name)}</td><td>{values['p50']}</td><td>{values['p99']}</td></tr>"
+        f"<tr><td>{html.escape(name)}</td><td>{latency(values['p50'])}</td><td>{latency(values['p99'])}</td></tr>"
         for name, values in result["latency"].items()
     )
     requests = "".join(
