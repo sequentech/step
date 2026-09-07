@@ -49,8 +49,11 @@ def main() -> None:
             if executable is None:
                 raise SystemExit(f"Missing executable: {name}")
             destination = archive_path.parent / name
-            destination.write_bytes(executable.read())
-            destination.chmod(0o755)
+            temporary = destination.with_suffix(".new")
+            temporary.write_bytes(executable.read())
+            temporary.chmod(0o755)
+            # Atomic replacement also permits installation while an older process runs.
+            temporary.replace(destination)
     print(
         f"Installed Obscura {VERSION} ({architecture}); stealth is disabled by default."
     )

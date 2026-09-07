@@ -12,6 +12,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DOC = ROOT / "docs/docusaurus/docs/07-developers/05-voting-portal/voting-flow-e2e.md"
 MARKER = "<!-- generated-e2e-results -->"
+CHECK_LABELS = {
+    "selector": "Playwright button interaction",
+    "wasm": "Basic WASM execution",
+    "webCrypto": "WebCrypto SHA-256 execution",
+    "stylesheetObserved": "Stylesheet request observed",
+    "contextIsolation": "Cookies isolated between voters",
+    "harFlushed": "HAR saved on context close",
+    "harBodySizesValid": "Transferred response-body sizes",
+}
 
 
 def render(directory: Path) -> str:
@@ -32,11 +41,11 @@ def render(directory: Path) -> str:
             "|---|---|",
         ]
         lines += [
-            f"| {name} | {'Passed' if passed else 'Failed'} |"
+            f"| {CHECK_LABELS.get(name, name)} | {'Passed' if passed else 'Failed'} |"
             for name, passed in probe["checks"].items()
         ]
         lines += [
-            f"| Coverage: {name} | {'Available' if passed else 'Unavailable'} |"
+            f"| {CHECK_LABELS.get(name, name)} | {'Available' if passed else 'Unavailable'} |"
             for name, passed in probe.get("coverage", {}).items()
         ]
         lines += [

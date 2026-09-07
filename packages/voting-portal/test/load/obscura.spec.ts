@@ -71,7 +71,7 @@ test("Obscura supports the browser primitives required for capture", async () =>
         const har = JSON.parse(readFileSync(resolve(output, "probe.har"), "utf8"))
         checks.harFlushed = har.log.entries.length >= 2
         coverage.harBodySizesValid = har.log.entries.every(
-            (entry: any) => entry.response.bodySize >= 0
+            (entry: {response: {bodySize: number}}) => entry.response.bodySize >= 0
         )
         expect(Object.values(checks).every(Boolean), JSON.stringify(checks)).toBe(true)
     } finally {

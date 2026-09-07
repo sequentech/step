@@ -121,8 +121,8 @@ devenv shell python3 scripts/voting_e2e/report.py .cache/voting-e2e/run-001
 ```
 
 The capture command also regenerates this section automatically, including on a
-readiness failure. This replaces only the generated section below. Readiness failures and synthetic
-browser checks are explicitly separated from verified voter journeys. A single
+readiness failure. This replaces only the generated section below. Readiness
+failures and synthetic browser checks are explicitly separated from verified voter journeys. A single
 capture provides diagnostic timing; p50/p99 and votes/second comparisons require
 multiple verified journeys and a defined measurement interval.
 
@@ -136,13 +136,13 @@ Obscura 0.2.2, Playwright 1.62.1, arm64 synthetic compatibility check (2026-09-0
 
 | Check | Result |
 |---|---|
-| selector | Passed |
-| wasm | Passed |
-| webCrypto | Passed |
-| stylesheetObserved | Passed |
-| contextIsolation | Passed |
-| harFlushed | Passed |
-| Coverage: harBodySizesValid | Unavailable |
+| Playwright button interaction | Passed |
+| Basic WASM execution | Passed |
+| WebCrypto SHA-256 execution | Passed |
+| Stylesheet request observed | Passed |
+| Cookies isolated between voters | Passed |
+| HAR saved on context close | Passed |
+| Transferred response-body sizes | Unavailable |
 
 Probe interval: 130 ms. This is one synthetic browser check, not login-to-cast latency or a throughput benchmark.
 
