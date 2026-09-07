@@ -134,7 +134,7 @@ current database path using the same fixture schema and approximately 21 KB
 encoded ciphertext. It varies three factors independently, then combines table
 growth and a voter burst:
 
-| Scenario | Seeded ballots | Peak concurrent voters | Unrelated schedules |
+| Scenario | Seeded ballots | Peak concurrent voters | Other active schedules in the same event |
 |---|---:|---:|---:|
 | 10k votes table | 10,000 | 8 | 100 |
 | 100k votes table | 100,000 | 8 | 100 |
@@ -142,7 +142,7 @@ growth and a voter burst:
 | 100k votes table, 32 concurrent voters | 100,000 | 32 | 100 |
 | 100k votes table, 64 concurrent voters | 100,000 | 64 | 100 |
 | 1M votes table, 64 concurrent voters | 1,000,000 | 64 | 100 |
-| 100k votes table, 2k schedules | 100,000 | 8 | 2,000 |
+| 100k votes table, 2k other same-event schedules | 100,000 | 8 | 2,000 |
 
 Every variant starts with the same population, two prior ballots per voter and
 64 warmup requests on reusable connections. Opening/lull/closing phases submit
@@ -199,43 +199,43 @@ SQL-only measurements at implementation `f562c7deae` against baseline `e93ca0510
 
 **Accepted votes/second = accepted submissions / elapsed measurement seconds.** Elapsed time is the sum of the opening, lull and closing phase wall times; seeding and warmups are excluded. Each measured submission uses a distinct voter.
 
-For the 100k votes table, 8 concurrent voters, 100 schedules workload, before: 2,560 / 4.7475 s = **539.2 votes/s**. After: 2,560 / 1.6752 s = **1528.2 votes/s**. Calculations use unrounded durations from the JSON; displayed durations are rounded.
+For the 100k votes table, 8 concurrent voters, 100 other same-event schedules workload, before: 2,560 / 4.7475 s = **539.2 votes/s**. After: 2,560 / 1.6752 s = **1528.2 votes/s**. Calculations use unrounded durations from the JSON; displayed durations are rounded.
 
-| Scenario | Ballots | Peak concurrent voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
+| Scenario | Ballots | Peak concurrent voters | Other same-event schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
 |---|---:|---:|---:|---:|---:|
-| 10k votes table, 8 concurrent voters, 100 schedules | 10,000 | 8 | 100 | 15.06 / 113.77 | 4.78 / 10.87 |
-| 100k votes table, 8 concurrent voters, 100 schedules | 100,000 | 8 | 100 | 14.91 / 19.62 | 4.75 / 7.99 |
-| 1M votes table, 8 concurrent voters, 100 schedules | 1,000,000 | 8 | 100 | 14.86 / 19.30 | 4.77 / 9.27 |
-| 100k votes table, 32 concurrent voters, 100 schedules | 100,000 | 32 | 100 | 61.53 / 78.88 | 19.69 / 29.48 |
-| 100k votes table, 64 concurrent voters, 100 schedules | 100,000 | 64 | 100 | 123.36 / 158.02 | 39.49 / 58.76 |
-| 1M votes table, 64 concurrent voters, 100 schedules | 1,000,000 | 64 | 100 | 122.66 / 160.61 | 38.83 / 58.60 |
-| 100k votes table, 8 concurrent voters, 2k schedules | 100,000 | 8 | 2,000 | 91.36 / 123.02 | 4.77 / 55.97 |
+| 10k votes table, 8 concurrent voters, 100 other same-event schedules | 10,000 | 8 | 100 | 15.06 / 113.77 | 4.78 / 10.87 |
+| 100k votes table, 8 concurrent voters, 100 other same-event schedules | 100,000 | 8 | 100 | 14.91 / 19.62 | 4.75 / 7.99 |
+| 1M votes table, 8 concurrent voters, 100 other same-event schedules | 1,000,000 | 8 | 100 | 14.86 / 19.30 | 4.77 / 9.27 |
+| 100k votes table, 32 concurrent voters, 100 other same-event schedules | 100,000 | 32 | 100 | 61.53 / 78.88 | 19.69 / 29.48 |
+| 100k votes table, 64 concurrent voters, 100 other same-event schedules | 100,000 | 64 | 100 | 123.36 / 158.02 | 39.49 / 58.76 |
+| 1M votes table, 64 concurrent voters, 100 other same-event schedules | 1,000,000 | 64 | 100 | 122.66 / 160.61 | 38.83 / 58.60 |
+| 100k votes table, 8 concurrent voters, 2k other same-event schedules | 100,000 | 8 | 2,000 | 91.36 / 123.02 | 4.77 / 55.97 |
 
 | Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |
 |---|---:|---:|---:|---:|---:|---:|
-| 10k votes table, 8 concurrent voters, 100 schedules | 5.6889 | 1.7461 | 450.0 | 1466.1 | 2,560 | 0 / 0 |
-| 100k votes table, 8 concurrent voters, 100 schedules | 4.7475 | 1.6752 | 539.2 | 1528.2 | 2,560 | 0 / 0 |
-| 1M votes table, 8 concurrent voters, 100 schedules | 5.0937 | 2.1244 | 502.6 | 1205.0 | 2,560 | 0 / 0 |
-| 100k votes table, 32 concurrent voters, 100 schedules | 5.0857 | 1.6821 | 503.4 | 1521.9 | 2,560 | 0 / 0 |
-| 100k votes table, 64 concurrent voters, 100 schedules | 5.1814 | 1.7435 | 494.1 | 1468.3 | 2,560 | 0 / 0 |
-| 1M votes table, 64 concurrent voters, 100 schedules | 5.1628 | 1.7198 | 495.9 | 1488.5 | 2,560 | 0 / 0 |
-| 100k votes table, 8 concurrent voters, 2k schedules | 30.1351 | 2.1263 | 85.0 | 1204.0 | 2,560 | 0 / 0 |
+| 10k votes table, 8 concurrent voters, 100 other same-event schedules | 5.6889 | 1.7461 | 450.0 | 1466.1 | 2,560 | 0 / 0 |
+| 100k votes table, 8 concurrent voters, 100 other same-event schedules | 4.7475 | 1.6752 | 539.2 | 1528.2 | 2,560 | 0 / 0 |
+| 1M votes table, 8 concurrent voters, 100 other same-event schedules | 5.0937 | 2.1244 | 502.6 | 1205.0 | 2,560 | 0 / 0 |
+| 100k votes table, 32 concurrent voters, 100 other same-event schedules | 5.0857 | 1.6821 | 503.4 | 1521.9 | 2,560 | 0 / 0 |
+| 100k votes table, 64 concurrent voters, 100 other same-event schedules | 5.1814 | 1.7435 | 494.1 | 1468.3 | 2,560 | 0 / 0 |
+| 1M votes table, 64 concurrent voters, 100 other same-event schedules | 5.1628 | 1.7198 | 495.9 | 1488.5 | 2,560 | 0 / 0 |
+| 100k votes table, 8 concurrent voters, 2k other same-event schedules | 30.1351 | 2.1263 | 85.0 | 1204.0 | 2,560 | 0 / 0 |
 
 Latencies cover the complete SQL path per request. Throughput is total completed requests divided by the combined phase wall time, including driver scheduling overhead. These measurements come from one local run, not production capacity estimates or statistical confidence intervals.
 
 ### Release 10 verification
 
-A separate run at implementation `e4c4d8381c` repeats the reference and 64-voter workloads on this release branch. The same accepted-votes/elapsed-seconds calculation applies. [Raw verification report](/benchmarks/voting-flow-release-10.json).
+A separate run at implementation `e4c4d8381c` repeats the 100k votes table workloads at 8 and 64 concurrent voters on this release branch. The same accepted-votes/elapsed-seconds calculation applies. [Raw verification report](/benchmarks/voting-flow-release-10.json).
 
-| Scenario | Ballots | Peak voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
+| Scenario | Ballots | Peak concurrent voters | Other same-event schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
 |---|---:|---:|---:|---:|---:|
-| reference | 100,000 | 8 | 100 | 14.53 / 18.72 | 4.55 / 7.33 |
-| 64-concurrent-voters | 100,000 | 64 | 100 | 119.85 / 155.97 | 38.56 / 61.44 |
+| 100k votes table, 8 concurrent voters, 100 other same-event schedules | 100,000 | 8 | 100 | 14.53 / 18.72 | 4.55 / 7.33 |
+| 100k votes table, 64 concurrent voters, 100 other same-event schedules | 100,000 | 64 | 100 | 119.85 / 155.97 | 38.56 / 61.44 |
 
 | Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |
 |---|---:|---:|---:|---:|---:|---:|
-| reference | 4.8327 | 1.6053 | 529.7 | 1594.7 | 2,560 | 0 / 0 |
-| 64-concurrent-voters | 5.0343 | 1.7067 | 508.5 | 1500.0 | 2,560 | 0 / 0 |
+| 100k votes table, 8 concurrent voters, 100 other same-event schedules | 4.8327 | 1.6053 | 529.7 | 1594.7 | 2,560 | 0 / 0 |
+| 100k votes table, 64 concurrent voters, 100 other same-event schedules | 5.0343 | 1.7067 | 508.5 | 1500.0 | 2,560 | 0 / 0 |
 
 <!-- voting-flow-benchmark:end -->
 
@@ -253,8 +253,8 @@ combined million-ballot/64-voter case checks these two pressures together.
 ## Schedule placement, filtering and indexing
 
 In the cast benchmark, **unrelated schedules belong to the same tenant and
-same election event** as the vote. They are unrelated to the selected voting
-window. This is different from schedules belonging to another event or tenant.
+same election event** as the vote. The counts exclude the two window tasks.
+They are unrelated to the selected voting window. This is different from schedules belonging to another event or tenant.
 
 The original query requests every non-archived schedule for its tenant/event.
 It transfers and decodes all matching rows. An index can locate that scope, but
@@ -318,25 +318,25 @@ devenv shell python3 scripts/voting_flow/report.py
 
 <!-- schedule-index-benchmark:start -->
 
-Measurements at `5ce21b3e96`. [Raw schedule-query evidence](/benchmarks/schedule-indexes.json).
+Measurements at `97ba0e1ddd`. [Raw schedule-query evidence](/benchmarks/schedule-indexes.json).
 
 | Extra schedules in | Rows returned | Broad query without index p50 (ms) | With index p50 (ms) |
 |---|---:|---:|---:|
-| same event | 100,002 | 635.431 | 642.050 |
-| other event | 2 | 5.752 | 5.772 |
-| other tenant | 2 | 5.056 | 0.051 |
+| same event | 100,002 | 638.674 | 644.668 |
+| other event | 2 | 5.244 | 0.074 |
+| other tenant | 2 | 4.835 | 0.074 |
 
 | Extra schedules in | Two-endpoint query without index p50 (ms) | With index p50 (ms) | Projection p50 (ms) |
 |---|---:|---:|---:|
-| same event | 13.000 | 0.055 | 0.045 |
-| other event | 12.999 | 0.051 | 0.043 |
-| other tenant | 13.011 | 0.050 | 0.043 |
+| same event | 7.485 | 0.132 | 0.094 |
+| other event | 7.480 | 0.124 | 0.088 |
+| other tenant | 7.526 | 0.128 | 0.091 |
 
 | Extra schedules in | Reschedule without index p50 (ms) | With index p50 (ms) |
 |---|---:|---:|
-| same event | 8.210 | 0.556 |
-| other event | 8.076 | 0.598 |
-| other tenant | 8.124 | 0.523 |
+| same event | 8.160 | 0.607 |
+| other event | 8.212 | 0.623 |
+| other tenant | 8.275 | 0.610 |
 
 <!-- schedule-index-benchmark:end -->
 

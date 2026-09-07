@@ -32,13 +32,13 @@ def scenario_label(scenario):
     return (
         f"{compact_count(scenario['seeded_ballots'])} votes table, "
         f"{scenario['peak_voters']} concurrent voters, "
-        f"{compact_count(scenario['unrelated_schedules'])} schedules"
+        f"{compact_count(scenario['unrelated_schedules'])} other same-event schedules"
     )
 
 
 def measurement_tables(report):
     rows = [
-        "| Scenario | Ballots | Peak concurrent voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
+        "| Scenario | Ballots | Peak concurrent voters | Other same-event schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     throughput = [
