@@ -4,7 +4,6 @@
 import {chromium, expect, Request, test} from "@playwright/test"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {resolve} from "node:path"
-import {installObscuraCompatibility} from "./obscura"
 import {castBallotAsVoter} from "./flow"
 
 // HAR contains authentication material. The runner creates a private output directory;
@@ -13,19 +12,15 @@ test("capture one real login-to-cast journey", async () => {
     const output = resolve(process.env.CAPTURE_OUTPUT_DIR!)
     const target = JSON.parse(readFileSync(process.env.CAPTURE_TARGET!, "utf8"))
     mkdirSync(output, {recursive: true, mode: 0o700})
-    const engine = target.engine || "obscura"
-    if (!["obscura", "chromium"].includes(engine)) throw new Error("Unsupported capture engine")
-    const browser =
-        engine === "obscura"
-            ? await chromium.connectOverCDP(process.env.OBSCURA_CDP_URL!)
-            : await chromium.launch({
-                  headless: true,
-                  executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
-              })
+    const engine = target.engine || "chromium"
+    if (engine !== "chromium") throw new Error("Full portal capture requires Chromium")
+    const browser = await chromium.launch({
+        headless: true,
+        executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+    })
     const context = await browser.newContext({
         recordHar: {path: resolve(output, "journey.har"), mode: "full", content: "omit"},
     })
-    if (engine === "obscura") await installObscuraCompatibility(context)
     if (!Array.isArray(target.allowed_origins) || !target.allowed_origins.length) {
         throw new Error("Capture target must explicitly list allowed_origins")
     }
@@ -43,6 +38,7 @@ test("capture one real login-to-cast journey", async () => {
     const phases: Record<string, number> = {}
     const requests: object[] = []
     const casts: {ballot_id: string; [key: string]: unknown}[] = []
+    let publicationFiles: unknown[] = []
     const pending: Promise<void>[] = []
     const failures: string[] = []
     const ids = new Map<Request, number>()
@@ -69,11 +65,17 @@ test("capture one real login-to-cast journey", async () => {
                     url: request.url(),
                     resourceType: request.resourceType(),
                     operation,
+                    query_payload:
+                        operation === "GetVoterStatus" ? request.postDataJSON() : undefined,
                     status: response?.status(),
                     timing,
                     sizes,
                     fromServiceWorker: response?.fromServiceWorker(),
                 })
+                if (operation === "GetVoterStatus") {
+                    const body = await response?.json()
+                    publicationFiles = body?.data?.get_ballot_files_urls?.files ?? []
+                }
                 if (operation === "InsertCastVote") {
                     const result = await response?.json()
                     if (
@@ -151,7 +153,7 @@ test("capture one real login-to-cast journey", async () => {
                 {
                     schema_version: 1,
                     phases,
-                    compatibility_shim: engine === "obscura" ? "element-types" : null,
+
                     engine,
                     browser_version: browserVersion,
                     started_at_ms: started,
@@ -162,6 +164,7 @@ test("capture one real login-to-cast journey", async () => {
                     http_cache: "disabled by origin-guard routing",
                     requests,
                     casts,
+                    publication_files: publicationFiles,
                 },
                 null,
                 2

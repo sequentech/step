@@ -22,6 +22,7 @@ from resources import extract
 from report import generate
 from measurements import summarize_sql
 from traffic import inventory, validate_s3_flow
+from replay_profile import compile_profile
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,7 +69,7 @@ def preflight(target: dict) -> dict:
     """Require live portal/CDP endpoints and readable statement logs for both databases."""
     results = {}
     endpoints = {"portal": target["login_url"]}
-    if target.get("engine", "obscura") == "obscura":
+    if target.get("engine", "chromium") == "obscura":
         endpoints["obscura"] = target["cdp_url"].rstrip("/") + "/json/version"
     for name, url in endpoints.items():
         try:
@@ -152,7 +153,6 @@ def run(target: dict, target_path: Path, output: Path) -> int:
         os.environ,
         CAPTURE_TARGET=str(target_path.resolve()),
         CAPTURE_OUTPUT_DIR=str(output),
-        OBSCURA_CDP_URL=target["cdp_url"],
     )
     # Nightwatch also installs Playwright in this workspace. Resolve the CLI
     # from the same @playwright/test package that imports the test declaration.
@@ -230,6 +230,16 @@ def run(target: dict, target_path: Path, output: Path) -> int:
         "database capture interval; background SQL may be included"
     )
     save(output / "capture.json", capture)
+    if (
+        capture["completed"]
+        and capture["persistence_verified"]
+        and target.get("expected_path") == "s3"
+        and capture["engine"] == "chromium"
+    ):
+        save(
+            output / "profile.json",
+            compile_profile(capture, json.loads((output / "journey.har").read_text())),
+        )
     save(
         output / "resource-profile.json",
         dict(

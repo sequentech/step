@@ -6,8 +6,9 @@ import json
 import time
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 from pathlib import Path
-from load import partition, claim, assess, dispatch, worker
+from load import partition, claim, assess, dispatch, worker, merge
 
 
 class LoadTests(unittest.TestCase):
@@ -156,3 +157,98 @@ class LoadTests(unittest.TestCase):
                 worker(directory)
             self.assertTrue((directory / "attempted").exists())
             self.assertFalse((directory / "samples.jsonl").exists())
+
+    def test_profile_changes_cannot_bypass_assignment_digest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            files = {
+                "config.json": "{}",
+                "ballots.json": "[]",
+                "profile.json": '{"steps":[]}',
+            }
+            for name, content in files.items():
+                (directory / name).write_text(content)
+            (directory / "assignment.json").write_text(
+                json.dumps(
+                    {
+                        name: hashlib.sha256(content.encode()).hexdigest()
+                        for name, content in files.items()
+                    }
+                )
+            )
+            (directory / "profile.json").write_text('{"steps":["changed"]}')
+            with self.assertRaisesRegex(ValueError, "digest mismatch"):
+                worker(directory)
+            self.assertFalse((directory / "samples.jsonl").exists())
+
+    def test_journey_request_coverage_is_required_even_when_cast_persists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            shard = root / "node-000"
+            shard.mkdir()
+            run = dict(
+                shards=[shard.name],
+                mode="journey",
+                expected_casts=1,
+                start_at_ms=1000,
+                duration_seconds=1,
+                profile_requests=3,
+                goals=dict(
+                    p50_ms=100,
+                    p99_ms=100,
+                    min_casts_per_second=1,
+                    journey_p50_ms=1000,
+                    journey_p99_ms=1000,
+                ),
+            )
+            (root / "run.json").write_text(json.dumps(run))
+            (root / "target.json").write_text("{}")
+            (shard / "worker.json").write_text('{"exit_code":0}')
+            (shard / "ballots.json").write_text(
+                json.dumps([{"payload": {"variables": {"ballotId": "ballot"}}}])
+            )
+            samples = [
+                dict(
+                    kind="http",
+                    index=0,
+                    method="GET",
+                    url="http://portal/",
+                    status=200,
+                    duration_ms=1,
+                    response_bytes=1,
+                ),
+                dict(kind="journey", index=0, passed=True, duration_ms=20),
+                dict(
+                    kind="cast",
+                    index=0,
+                    accepted=True,
+                    duration_ms=10,
+                    started_at_ms=1000,
+                    ended_at_ms=1010,
+                    status=200,
+                    endpoint="http://graphql/",
+                    response_bytes=1,
+                    receipt={"ballot_id": "ballot"},
+                ),
+            ]
+
+            def save_samples():
+                (shard / "samples.jsonl").write_text(
+                    "\n".join(
+                        json.dumps(item, separators=(",", ":")) for item in samples
+                    )
+                )
+
+            save_samples()
+            with patch("load.verify_casts", return_value=True), patch(
+                "load_report.generate"
+            ), patch("builtins.print"):
+                result = merge(root)
+                self.assertFalse(result["passed"])
+                self.assertFalse(result["profile_request_count_matched"])
+                samples.append(dict(samples[0]))
+                save_samples()
+                self.assertTrue(merge(root)["passed"])
+                samples[1]["passed"] = False
+                save_samples()
+                self.assertFalse(merge(root)["passed"])

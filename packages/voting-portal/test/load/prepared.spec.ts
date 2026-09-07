@@ -3,7 +3,6 @@
 
 import {chromium, test, expect} from "@playwright/test"
 import {readFileSync, appendFileSync} from "node:fs"
-import {installObscuraCompatibility} from "./obscura"
 
 // Browser-transport cast load. Authentication/encryption are prepared beforehand;
 // full login-to-confirmation UI coverage stays in capture.spec.ts.
@@ -13,18 +12,15 @@ test("cast disjoint prepared ballots through a browser", async () => {
         Math.max(180000, config.start_at_ms - Date.now() + config.duration_seconds * 1000 + 60000)
     )
     const ballots = JSON.parse(readFileSync(process.env.LOAD_BALLOTS!, "utf8"))
-    const browser =
-        config.engine === "obscura"
-            ? await chromium.connectOverCDP(config.cdp_url)
-            : await chromium.launch({
-                  headless: true,
-                  executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
-              })
+    if (config.engine !== "chromium") throw new Error("Browser transport requires Chromium")
+    const browser = await chromium.launch({
+        headless: true,
+        executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+    })
     const pending: Promise<void>[] = []
     let active = 0
     const records: any[] = []
     const context = await browser.newContext()
-    if (config.engine === "obscura") await installObscuraCompatibility(context)
     const page = await context.newPage()
     const origin = new URL(config.login_url).origin
     const runnerUrl = origin + "/favicon.svg"
@@ -52,7 +48,7 @@ test("cast disjoint prepared ballots through a browser", async () => {
                 (async () => {
                     const ballot = ballots[index]
                     let record: any = await page.evaluate(
-                        ({ballot, index, nonblocking}) => {
+                        ({ballot, index}) => {
                             const perform = async () => {
                                 const started = Date.now()
                                 let status = 0,
@@ -109,37 +105,10 @@ test("cast disjoint prepared ballots through a browser", async () => {
                                         : null,
                                 }
                             }
-                            if (!nonblocking) return perform()
-                            // Obscura 0.2.2 cannot service Fetch interception while
-                            // Runtime.callFunctionOn awaits an unresolved fetch promise.
-                            // Return from CDP now, then observe the genuine response.
-                            const state = globalThis as unknown as {
-                                __preparedCastResults?: Record<number, unknown>
-                            }
-                            state.__preparedCastResults ??= {}
-                            void perform().then((result) => {
-                                state.__preparedCastResults![index] = result
-                            })
-                            return null
+                            return perform()
                         },
-                        {ballot, index, nonblocking: config.engine === "obscura"}
+                        {ballot, index}
                     )
-                    if (config.engine === "obscura") {
-                        const deadline = Date.now() + 35000
-                        while (!record && Date.now() < deadline) {
-                            record = await page.evaluate(
-                                (index) =>
-                                    (
-                                        globalThis as unknown as {
-                                            __preparedCastResults?: Record<number, unknown>
-                                        }
-                                    ).__preparedCastResults?.[index] ?? null,
-                                index
-                            )
-                            if (!record) await new Promise((resolve) => setTimeout(resolve, 10))
-                        }
-                        expect(record, "Obscura did not complete the cast response").not.toBeNull()
-                    }
                     records.push(record)
                     appendFileSync(process.env.LOAD_SAMPLES!, JSON.stringify(record) + "\n", {
                         mode: 0o600,

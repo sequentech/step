@@ -7,13 +7,7 @@ import {defineConfig} from "@playwright/test"
 // A diagnostic capture always records successful requests and never retries a cast.
 export default defineConfig({
     testDir: "./test/load",
-    testMatch: [
-        "capture.spec.ts",
-        "obscura.spec.ts",
-        "status.spec.ts",
-        "prepare.spec.ts",
-        "prepared.spec.ts",
-    ],
+    testMatch: ["capture.spec.ts", "status.spec.ts", "prepare.spec.ts", "prepared.spec.ts"],
     workers: 1,
     retries: 0,
     timeout: 180_000,

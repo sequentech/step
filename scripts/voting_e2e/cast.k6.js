@@ -5,8 +5,14 @@ import exec from "k6/execution";
 import { SharedArray } from "k6/data";
 import { Counter, Rate, Trend } from "k6/metrics";
 import { sleep } from "k6";
+import { replayJourney } from "./replay.k6.js";
 
 const config = JSON.parse(open(__ENV.LOAD_CONFIG));
+const profile = __ENV.LOAD_PROFILE
+  ? JSON.parse(open(__ENV.LOAD_PROFILE))
+  : null;
+const journeyFailures = new Rate("journey_failures");
+const journeyLatency = new Trend("journey_latency", true);
 const ballots = new SharedArray("prepared ballots", () =>
   JSON.parse(open(__ENV.LOAD_BALLOTS)),
 );
@@ -31,6 +37,15 @@ export const options = {
     },
   },
   thresholds: {
+    ...(profile
+      ? {
+          journey_failures: ["rate==0"],
+          journey_latency: [
+            `p(50)<=${config.goals.journey_p50_ms}`,
+            `p(99)<=${config.goals.journey_p99_ms}`,
+          ],
+        }
+      : {}),
     cast_latency: [
       `p(50)<=${config.goals.p50_ms}`,
       `p(99)<=${config.goals.p99_ms}`,
@@ -60,11 +75,40 @@ export default function () {
   const ballot = ballots[index];
   if (!ballot)
     exec.test.abort("Prepared census exhausted; no voter may be reused");
+  if (profile) {
+    const started = Date.now();
+    let passed = false,
+      error = null;
+    try {
+      replayJourney(profile, ballot, index, config, (authorization) =>
+        submit(ballot, index, authorization),
+      );
+      passed = true;
+    } catch (failure) {
+      error = String(failure);
+    }
+    const duration = Date.now() - started;
+    journeyFailures.add(!passed);
+    journeyLatency.add(duration);
+    console.log(
+      JSON.stringify({
+        kind: "journey",
+        index,
+        passed,
+        error,
+        started_at_ms: started,
+        ended_at_ms: Date.now(),
+        duration_ms: duration,
+      }),
+    );
+  } else submit(ballot, index, ballot.authorization);
+}
+function submit(ballot, index, authorization) {
   const started = Date.now();
   const response = http.post(ballot.url, JSON.stringify(ballot.payload), {
     headers: {
       "Content-Type": "application/json",
-      Authorization: ballot.authorization,
+      Authorization: authorization,
     },
     timeout: "30s",
     redirects: 0,
@@ -115,6 +159,7 @@ export default function () {
         : null,
     }),
   );
+  return valid;
 }
 export function handleSummary(data) {
   return { [__ENV.LOAD_SUMMARY]: JSON.stringify(data, null, 2) };

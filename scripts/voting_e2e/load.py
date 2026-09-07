@@ -29,6 +29,7 @@ from capture import (
     verify_casts,
 )
 from measurements import percentile, summarize_sql
+from traffic import inventory
 
 
 def runner_sources() -> dict:
@@ -208,6 +209,19 @@ def dispatch(args):
     target = json.loads(args.target.read_text())
     source = args.prepared.resolve()
     prepared = json.loads((source.parent / "prepared.json").read_text())
+    profile_path = getattr(args, "profile", None)
+    profile = json.loads(profile_path.read_text()) if profile_path else None
+    if profile and (
+        profile.get("schema_version") != 1 or profile.get("browser") != "chromium"
+    ):
+        raise ValueError("Require a generated Chromium profile")
+    if profile and args.engine != "k6":
+        raise ValueError("Profile replay uses k6; Chromium full UI uses capture.py")
+    if profile and any(
+        profile.get("scope", {}).get(key) != target[key]
+        for key in ("tenant_id", "election_event_id")
+    ):
+        raise ValueError("Capture a Chromium profile for the target event")
     if hashlib.sha256(source.read_bytes()).hexdigest() != prepared["ballots_sha256"]:
         raise ValueError("Prepared fixture digest mismatch")
     count = args.nodes * args.rate * args.duration
@@ -232,7 +246,10 @@ def dispatch(args):
             raise ValueError(
                 "Prepared endpoint must be the explicitly allowed GraphQL endpoint"
             )
-        if row["token_expires_at"] * 1000 < start + (args.duration + 60) * 1000:
+        if (
+            not profile
+            and row["token_expires_at"] * 1000 < start + (args.duration + 60) * 1000
+        ):
             raise ValueError(
                 "Refresh prepared authentication before dispatch; tokens expire during run"
             )
@@ -250,6 +267,8 @@ def dispatch(args):
     for ballot_id in ids:
         claim(ledger / hashlib.sha256(ballot_id.encode()).hexdigest())
     goals = dict(p50_ms=args.p50, p99_ms=args.p99, min_casts_per_second=args.min_cps)
+    if profile:
+        goals.update(journey_p50_ms=args.journey_p50, journey_p99_ms=args.journey_p99)
     manifest = dict(
         schema_version=1,
         nodes=args.nodes,
@@ -264,6 +283,12 @@ def dispatch(args):
         fixture_sha256=prepared["ballots_sha256"],
         source_commit=prepared["source_commit"],
         shards=[],
+        mode="journey" if profile else "cast-only",
+        runner_sources=runner_sources(),
+        profile_sha256=(
+            hashlib.sha256(profile_path.read_bytes()).hexdigest() if profile else None
+        ),
+        profile_requests=len(profile["steps"]) if profile else None,
     )
     for node, ballots in enumerate(shards):
         directory = output / f"node-{node:03d}"
@@ -282,13 +307,18 @@ def dispatch(args):
                 login_url=target["login_url"],
                 allowed_origins=target["allowed_origins"],
                 cdp_url=target.get("cdp_url"),
+                pacing=getattr(args, "pacing", 1),
             ),
         )
+        assigned_files = ["ballots.json", "config.json"]
+        if profile:
+            save(directory / "profile.json", profile)
+            assigned_files.append("profile.json")
         save(
             directory / "assignment.json",
             {
                 name: hashlib.sha256((directory / name).read_bytes()).hexdigest()
-                for name in ("ballots.json", "config.json")
+                for name in assigned_files
             },
         )
         manifest["shards"].append(directory.name)
@@ -302,7 +332,10 @@ def worker(directory: Path) -> int:
     directory = directory.resolve()
     claim(directory / "attempted")
     assignment = json.loads((directory / "assignment.json").read_text())
-    if set(assignment) != {"ballots.json", "config.json"} or any(
+    if set(assignment) not in (
+        {"ballots.json", "config.json"},
+        {"ballots.json", "config.json", "profile.json"},
+    ) or any(
         hashlib.sha256((directory / name).read_bytes()).hexdigest() != digest
         for name, digest in assignment.items()
     ):
@@ -314,6 +347,8 @@ def worker(directory: Path) -> int:
         LOAD_SUMMARY=str(directory / "k6-summary.json"),
         LOAD_SAMPLES=str(directory / "samples.jsonl"),
     )
+    if "profile.json" in assignment:
+        env["LOAD_PROFILE"] = str(directory / "profile.json")
     if config["engine"] == "k6":
         with (directory / "runner.log").open("w") as log:
             code = subprocess.run(
@@ -339,11 +374,13 @@ def worker(directory: Path) -> int:
     return code
 
 
-def merge(output: Path) -> dict:
+def merge(output: Path, publish_docs: bool = False) -> dict:
     """Reconcile all receipts with prepared IDs and storage before evaluating goals."""
     manifest = json.loads((output / "run.json").read_text())
     target = json.loads((output / "target.json").read_text())
     samples = []
+    journeys = []
+    http_requests = []
     scheduler_dropped = 0
     boundary_ticks = 0
     workers_ok = True
@@ -376,6 +413,11 @@ def merge(output: Path) -> dict:
             if path.exists()
             else []
         )
+        for item in local:
+            item["node"] = name
+        journeys.extend(item for item in local if item["kind"] == "journey")
+        http_requests.extend(item for item in local if item["kind"] == "http")
+        local = [item for item in local if item["kind"] not in ("journey", "http")]
         seen = set()
         for sample in local:
             index = sample["index"]
@@ -400,6 +442,57 @@ def merge(output: Path) -> dict:
         manifest["goals"],
     )
     result["scheduler_dropped_iterations"] = scheduler_dropped
+    if manifest.get("mode") == "journey":
+        unique = {(item["node"], item["index"]) for item in journeys}
+        valid = len(journeys) == len(unique) == manifest["expected_casts"] and all(
+            item["passed"] for item in journeys
+        )
+        counts = {}
+        for item in http_requests + [
+            item for item in samples if item["kind"] == "cast"
+        ]:
+            key = item["node"], item["index"]
+            counts[key] = counts.get(key, 0) + 1
+        parity = all(counts.get(key) == manifest["profile_requests"] for key in unique)
+        valid &= parity
+        result["profile_requests_per_journey"] = manifest["profile_requests"]
+        result["observed_http_requests"] = sum(counts.values())
+        result["profile_request_count_matched"] = parity
+        durations = [item["duration_ms"] for item in journeys]
+        result["journey"] = dict(
+            completed=sum(item["passed"] for item in journeys),
+            p50_ms=percentile(durations, 50) if durations else None,
+            p99_ms=percentile(durations, 99) if durations else None,
+        )
+        result["goals_passed"] &= (
+            valid
+            and bool(durations)
+            and result["journey"]["p50_ms"] <= manifest["goals"]["journey_p50_ms"]
+            and result["journey"]["p99_ms"] <= manifest["goals"]["journey_p99_ms"]
+        )
+        for item in http_requests:
+            item["timing"] = {"responseEnd": item["duration_ms"]}
+            item["sizes"] = {"responseBodySize": item["response_bytes"]}
+        save(output / "http.json", http_requests)
+        save(output / "journeys.json", journeys)
+        save(
+            output / "traffic.json",
+            inventory(
+                http_requests
+                + [
+                    dict(
+                        url=s["endpoint"],
+                        method="POST",
+                        operation="InsertCastVote",
+                        status=s["status"],
+                        timing={"responseEnd": s["duration_ms"]},
+                        sizes={"responseBodySize": s["response_bytes"]},
+                    )
+                    for s in samples
+                    if s["kind"] == "cast"
+                ]
+            ),
+        )
     result["arrival_boundary_ticks"] = boundary_ticks
     result["goals_passed"] = result["goals_passed"] and scheduler_dropped == 0
     result.update(
@@ -409,6 +502,9 @@ def merge(output: Path) -> dict:
     )
     save(output / "samples.json", samples)
     save(output / "results.json", result)
+    from load_report import generate
+
+    generate(output, publish_docs)
     print(json.dumps(result, indent=2))
     return result
 
@@ -450,7 +546,7 @@ def local(args):
         save(output / f"{name}-sql.json", records)
         summaries[name] = summarize_sql(records, target.get("sql_clients", {}))
     save(output / "sql-summary.json", summaries)
-    result = merge(output)
+    result = merge(output, getattr(args, "publish_docs", False))
     raise SystemExit(0 if result["passed"] else 1)
 
 
@@ -469,23 +565,54 @@ def main():
     p.add_argument("--concurrency", type=int, default=1)
     for name in ("local", "dispatch"):
         p = sub.add_parser(name)
+        if name == "local":
+            p.add_argument("--publish-docs", action="store_true")
         p.add_argument("target", type=Path)
         p.add_argument("prepared", type=Path)
         p.add_argument("output", type=Path)
         p.add_argument("--ledger", type=Path, required=True)
         p.add_argument("--nodes", type=int, default=2)
-        p.add_argument("--rate", type=int, default=1, help="Offered casts/s per node")
+        p.add_argument("--rate", type=int, default=1, help="Offered arrivals/s per worker")
         p.add_argument("--duration", type=int, default=3)
         p.add_argument("--vus", type=int, default=2)
         p.add_argument("--offset", type=int, default=0)
         p.add_argument("--start-delay", type=int, default=15)
-        p.add_argument("--engine", choices=("k6", "chromium", "obscura"), default="k6")
+        p.add_argument("--engine", choices=("k6", "chromium"), default="k6")
+        p.add_argument(
+            "--profile",
+            type=Path,
+            help="profile.json generated by a verified Chromium capture",
+        )
+        p.add_argument(
+            "--cast-only",
+            action="store_true",
+            help="Explicitly omit login/resources/status",
+        )
+        p.add_argument(
+            "--pacing",
+            type=float,
+            default=1,
+            help="Multiply observed Chromium request offsets; 0 removes delays",
+        )
+        p.add_argument("--journey-p50", type=float, default=5000)
+        p.add_argument("--journey-p99", type=float, default=10000)
         p.add_argument("--p50", type=float, default=1000)
         p.add_argument("--p99", type=float, default=2000)
         p.add_argument("--min-cps", type=float, default=1)
     for name in ("worker", "merge"):
-        sub.add_parser(name).add_argument("directory", type=Path)
+        command = sub.add_parser(name)
+        command.add_argument("directory", type=Path)
+        if name == "merge":
+            command.add_argument("--publish-docs", action="store_true")
+    report = sub.add_parser("report")
+    report.add_argument("directory", type=Path)
+    report.add_argument("--publish-docs", action="store_true")
     args = parser.parse_args()
+    if args.command in ("local", "dispatch"):
+        if bool(args.profile) == args.cast_only:
+            parser.error("Choose --profile for journey replay or --cast-only")
+        if not math.isfinite(args.pacing) or args.pacing < 0:
+            parser.error("pacing must be finite and nonnegative")
     for name in ("nodes", "rate", "duration", "vus", "count", "start_delay"):
         if hasattr(args, name) and getattr(args, name) < 1:
             parser.error(f"{name} must be positive")
@@ -493,7 +620,7 @@ def main():
         parser.error("preparation concurrency must be between 1 and 8")
     if getattr(args, "offset", 0) < 0:
         parser.error("offset must be nonnegative")
-    for name in ("p50", "p99", "min_cps"):
+    for name in ("p50", "p99", "min_cps", "journey_p50", "journey_p99"):
         if hasattr(args, name) and (
             not math.isfinite(getattr(args, name)) or getattr(args, name) <= 0
         ):
@@ -506,8 +633,12 @@ def main():
         dispatch(args)
     elif args.command == "worker":
         raise SystemExit(worker(args.directory))
+    elif args.command == "report":
+        from load_report import generate
+
+        generate(args.directory, args.publish_docs)
     else:
-        raise SystemExit(0 if merge(args.directory)["passed"] else 1)
+        raise SystemExit(0 if merge(args.directory, args.publish_docs)["passed"] else 1)
 
 
 if __name__ == "__main__":

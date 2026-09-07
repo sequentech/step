@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-"""Generate Docusaurus evidence from real capture or prerequisite-check artifacts."""
+"""Generate private reports from browser captures and prerequisite checks."""
 
 from collections import Counter
 import argparse
@@ -14,8 +14,6 @@ from urllib.parse import urlsplit
 from measurements import journey_metrics, percentile
 
 
-ROOT = Path(__file__).resolve().parents[2]
-DOC = ROOT / "docs/docusaurus/docs/07-developers/05-voting-portal/voting-flow-e2e.md"
 MARKER = "<!-- generated-e2e-results -->"
 CHECK_LABELS = {
     "selector": "Playwright button interaction",
@@ -31,7 +29,11 @@ CHECK_LABELS = {
 def request_key(request: dict) -> tuple[str, str, str]:
     """Normalize dynamic routing IDs without publishing captured query strings."""
     url = urlsplit(request["url"])
-    path = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "{id}", url.path)
+    path = re.sub(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        "{id}",
+        url.path,
+    )
     path = re.sub(r"/resources/[^/]+/", "/resources/{version}/", path)
     path = re.sub(r"/[0-9a-f]{16,}\.wasm", "/{bundle}.wasm", path)
     service = {
@@ -281,12 +283,13 @@ def render(directory: Path) -> str:
     return "\n".join(lines)
 
 
-def generate(directory: Path, document: Path = DOC) -> None:
+def generate(directory: Path, document: Path | None = None) -> None:
     """Replace only the generated evidence section, preserving architectural guidance."""
     if (directory / "cohort.json").exists():
-        plot_cohort(
-            directory, ROOT / "docs/docusaurus/static/img/voting-flow-e2e-latency.svg"
-        )
+        plot_cohort(directory, directory / "voting-flow-e2e-latency.svg")
+    if document is None:
+        (directory / "report.md").write_text(render(directory))
+        return
     original = document.read_text()
     if MARKER not in original:
         raise ValueError("Documentation is missing its generated-results marker")
@@ -297,7 +300,7 @@ def main() -> None:
     """Regenerate documentation without running a browser or rerunning benchmarks."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
-    parser.add_argument("--document", type=Path, default=DOC)
+    parser.add_argument("--document", type=Path)
     args = parser.parse_args()
     generate(args.directory, args.document)
 

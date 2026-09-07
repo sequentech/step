@@ -43,7 +43,7 @@ def main() -> None:
     target = json.loads(args.target.read_text())
     manifest = {
         "schema_version": 1,
-        "engine": target.get("engine", "obscura"),
+        "engine": target.get("engine", "chromium"),
         "architecture": platform.machine(),
         "logical_cpus": os.cpu_count(),
         "concurrency": 1,
