@@ -18,6 +18,7 @@ import time
 from database import (
     CONFIGURATION_QUERY,
     ROOT,
+    RESULTS,
     SCHEDULE_INDEX,
     WINDOW_MIGRATION,
     local_database,
@@ -67,6 +68,7 @@ RESCHEDULE = """
 
 
 def measure(connection, query, parameters):
+    """Return warm client latency samples and an EXPLAIN plan after three untimed warmups."""
     for _ in range(3):
         connection.execute(query, parameters).fetchall()
     timings = []
@@ -88,6 +90,7 @@ def measure(connection, query, parameters):
 
 
 def seed(database, placement):
+    """Create the selected one/15-event population, verify its bounds and return the target endpoint."""
     connection = database.connection
     clear_workload(connection)
     target = VotingEvent.create(
@@ -127,9 +130,10 @@ def seed(database, placement):
 
 
 def main():
+    """Measure bounded schedule populations with and without the index and write local raw evidence."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--output", type=Path, default=Path("/tmp/schedule-indexes.json")
+        "--output", type=Path, default=RESULTS / "schedule-indexes.json"
     )
     args = parser.parse_args()
     with local_database() as database:

@@ -26,9 +26,11 @@ class Election:
 
     @property
     def scope(self):
+        """Return tenant, event and election UUIDs in production SQL parameter order."""
         return self.tenant, self.event, self.election
 
     def create(self, connection, limit=3):
+        """Insert an open election with online voting enabled and the supplied revote limit."""
         connection.execute(
             """
             INSERT INTO sequent_backend.election
@@ -48,12 +50,14 @@ class Election:
         )
 
     def task_name(self, endpoint):
+        """Return the canonical START/END voting-period task name for this election."""
         return (
             f"tenant_{self.tenant}_event_{self.event}_"
             f"election_{self.election}_{endpoint}_VOTING_PERIOD"
         )
 
     def schedule(self, connection, endpoint, date):
+        """Insert an endpoint with canonical payload and return its generated schedule UUID."""
         row = connection.execute(
             """
             INSERT INTO sequent_backend.scheduled_event
@@ -72,9 +76,11 @@ class Election:
         return row[0]
 
     def vote_parameters(self, voter, area=None, status="valid", content="ballot"):
+        """Return INSERT parameters, using the default area unless an override is supplied."""
         return (*self.scope, voter, area or self.area, status, content, bytes(64))
 
     def vote(self, connection, voter, area=None, status="valid"):
+        """Insert a fixture ballot through the real eligibility trigger."""
         connection.execute(INSERT_VOTE, self.vote_parameters(voter, area, status))
 
 
@@ -88,15 +94,22 @@ class VotingEvent:
     def for_voter(self, voter_number):
         # A returning voter keeps the same election and area in both seeded and
         # measured ballots. Areas vary between voters, never within their history.
+        """Return the election assigned to this voter by the same mapping used for seeded ballots."""
         return self.elections[voter_number % len(self.elections)]
 
     def area_for_voter(self, voter_number):
+        """Return the stable area assignment used for both prior and measured ballots."""
         return self.areas[voter_number % len(self.areas)]
 
     @classmethod
     def create(
         cls, connection, election_count, area_count, schedules_per_election, tenant=None
     ):
+        """Seed real elections, populated topology and schedules within the event limits.
+
+        Create area rows and two canonical endpoints per election, then fill out
+        schedules_per_election with other tasks. The total includes endpoints and
+        cannot exceed ten schedules per election or 200 elections per event."""
         assert 1 <= election_count <= 200
         assert 2 <= schedules_per_election <= 10
         assert area_count >= 1

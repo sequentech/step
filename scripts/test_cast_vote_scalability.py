@@ -13,19 +13,18 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent / "voting_flow"))
 
-from database import local_database
+from database import RESULTS, local_database
 from regression import run_regressions
 
 
 def main():
+    """Parse benchmark options, run database regressions, and write any requested results."""
     from benchmark import SCENARIOS
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--benchmark", action="store_true")
     parser.add_argument("--rust-tests", action="store_true")
-    parser.add_argument(
-        "--output", type=Path, default=Path("/tmp/voting-flow-results.json")
-    )
+    parser.add_argument("--output", type=Path, default=RESULTS / "voting-flow.json")
     parser.add_argument(
         "--scenario",
         action="append",

@@ -11,6 +11,7 @@ from database import ROOT
 
 
 def run_rust_tests(database):
+    """Run the focused Rust suite against this database and reject failures or an empty test filter."""
     environment = dict(
         os.environ,
         CAST_VOTE_TEST_DATABASE_URL=database.dsn,

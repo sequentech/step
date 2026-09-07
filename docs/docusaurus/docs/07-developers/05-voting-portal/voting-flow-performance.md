@@ -206,13 +206,36 @@ production service-level guarantee. Use it to compare database work reproducibly
 
 ## Reference measurements
 
-The [reference report](/benchmarks/voting-flow.json) contains the complete query
-counts, per-phase measurements, relation sizes and PostgreSQL settings. The tables
-below are generated from that same report. To publish a new reference run:
+The tables and SVG graphs below are committed snapshots. Raw JSON is generated
+locally under the ignored `.cache/voting-flow/` directory, outside Docusaurus
+static assets. It contains query counts, phase measurements, relation sizes and
+PostgreSQL settings; it is neither committed nor shipped with the documentation.
+A normal documentation build needs no raw JSON or database benchmark.
+
+To measure a new full matrix and regenerate the tables and graphs together:
+
+```sh
+devenv shell python3 scripts/test_cast_vote_scalability.py --benchmark
+devenv shell python3 scripts/voting_flow/schedules.py
+devenv shell python3 scripts/voting_flow/report.py
+```
+
+Use `--output` on either benchmark to keep separate runs, and pass their directory
+to `report.py --input-dir PATH`. The renderer expects `voting-flow.json` from a
+full matrix and `schedule-indexes.json`; it fails with generation instructions
+if either is missing. Running the scripts again produces new measurements,
+not byte-for-byte copies of historical timings. Retain local JSON when auditing
+a particular run; commit only the resulting documentation and SVGs.
+
+To add the optional release verification section after generating the full
+matrix and schedule diagnostic on that checkout:
 
 ```sh
 devenv shell python3 scripts/test_cast_vote_scalability.py --benchmark \
-  --output docs/docusaurus/static/benchmarks/voting-flow.json
+  --scenario 100k-votes --scenario 100k-votes-1k-areas \
+  --scenario 100k-votes-10k-areas \
+  --scenario 1m-votes-64-voters-200-elections-10k-areas \
+  --output .cache/voting-flow/voting-flow-release-10.json
 devenv shell python3 scripts/voting_flow/report.py
 ```
 
@@ -293,7 +316,7 @@ Latencies cover the complete SQL path per request. Throughput is total completed
 
 ### Release 10 verification
 
-A separate run at implementation `7a66926a2e` repeats selected area and combined-load workloads on this release branch. The same accepted-votes/elapsed-seconds calculation applies. [Raw verification report](/benchmarks/voting-flow-release-10.json).
+A separate run at implementation `7a66926a2e` repeats selected area and combined-load workloads on this release branch. The same accepted-votes/elapsed-seconds calculation applies. Raw samples are generated locally as `voting-flow-release-10.json`.
 
 ![Populated areas: before and after p50, p99 and accepted votes per second. 100k votes table · 8 concurrent voters · 10 elections · 100 total schedules.](/benchmarks/voting-flow-release-10-areas.svg)
 
@@ -401,13 +424,13 @@ from the earlier opaque refresh predicate.
 
 ```sh
 devenv shell python3 scripts/voting_flow/schedules.py \
-  --output docs/docusaurus/static/benchmarks/schedule-indexes.json
+  --output .cache/voting-flow/schedule-indexes.json
 devenv shell python3 scripts/voting_flow/report.py
 ```
 
 <!-- schedule-index-benchmark:start -->
 
-Measurements at `2a17342cc3`. [Raw schedule-query evidence](/benchmarks/schedule-indexes.json).
+Measurements at `2a17342cc3`. Raw samples and EXPLAIN plans are generated locally as `schedule-indexes.json`.
 
 ![Schedule index comparison: broad event query, two-endpoint query and rescheduling p50, with and without the index.](/benchmarks/schedule-indexes.svg)
 

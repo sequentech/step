@@ -1,17 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-"""Refresh Docusaurus measurements from the checked-in benchmark JSON.
+"""Refresh committed Docusaurus tables and graphs from locally generated JSON.
 
 Run from the repository root inside devenv:
     python3 scripts/voting_flow/report.py
 """
 
+import argparse
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-REPORT = ROOT / "docs/docusaurus/static/benchmarks/voting-flow.json"
+from database import ROOT, RESULTS
+
+CHARTS = ROOT / "docs/docusaurus/static/benchmarks"
 GUIDE = (
     ROOT
     / "docs/docusaurus/docs/07-developers/05-voting-portal/voting-flow-performance.md"
@@ -21,6 +23,7 @@ END = "<!-- voting-flow-benchmark:end -->"
 
 
 def compact_count(value):
+    """Format exact thousands or millions compactly, preserving other integer counts."""
     if value >= 1_000_000 and value % 1_000_000 == 0:
         return f"{value // 1_000_000}M"
     if value >= 1000 and value % 1000 == 0:
@@ -29,6 +32,7 @@ def compact_count(value):
 
 
 def scenario_label(scenario):
+    """Describe the measured vote, voter, election, area and total-schedule dimensions."""
     return (
         f"{compact_count(scenario['seeded_ballots'])} votes table, "
         f"{scenario['peak_voters']} concurrent voters, "
@@ -39,6 +43,7 @@ def scenario_label(scenario):
 
 
 def measurement_tables(report):
+    """Render latency, throughput and coverage tables after verifying paired result consistency."""
     rows = [
         "| Scenario | Before p50 / p99 (ms) | After p50 / p99 (ms) |",
         "|---|---:|---:|",
@@ -108,6 +113,7 @@ def factor_comparison(report):
 
 
 def schedule_tables(report):
+    """Pair indexed/unindexed measurements and render their query and reschedule medians."""
     by_placement = {}
     for scenario in report["scenarios"]:
         by_placement.setdefault(scenario["placement"], {})[scenario["indexed"]] = (
@@ -143,9 +149,33 @@ def schedule_tables(report):
 
 
 def main():
+    """Read local benchmark evidence and regenerate the committed guide and SVGs.
+
+    Require the full cast matrix and schedule diagnostic before changing output.
+    Include release verification only when its optional JSON exists in input-dir;
+    missing required files produce actionable CLI instructions, not fabricated data."""
     from charts import schedule_chart, voting_charts
 
-    report = json.loads(REPORT.read_text())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=RESULTS,
+        help="Directory containing generated voting-flow and schedule-index JSON",
+    )
+    args = parser.parse_args()
+    report_path = args.input_dir / "voting-flow.json"
+    schedule_path = args.input_dir / "schedule-indexes.json"
+    missing = [path for path in (report_path, schedule_path) if not path.is_file()]
+    if missing:
+        parser.error(
+            "Missing locally generated results: "
+            + ", ".join(str(path) for path in missing)
+            + ". Run scripts/test_cast_vote_scalability.py --benchmark and "
+            "scripts/voting_flow/schedules.py inside devenv first. "
+            "Use --output to place results in --input-dir when overriding the default."
+        )
+    report = json.loads(report_path.read_text())
     guide = GUIDE.read_text()
     prefix, remainder = guide.split(START)
     _, suffix = remainder.split(END)
@@ -171,7 +201,7 @@ def main():
         "(lower is better); throughput uses accepted votes/second (higher is better). "
         "All y-axes start at zero. Lines connect tested cases, not predictions between them. "
         "The p99 outliers are retained; one run does not establish statistical significance.\n\n"
-        + voting_charts(report, REPORT.parent)
+        + voting_charts(report, CHARTS)
         + "\n\n### Detailed measurements\n\n"
         + measurement_tables(report)
         + "\n\n"
@@ -181,7 +211,7 @@ def main():
         "driver scheduling overhead. These measurements come from one local run, not production "
         "capacity estimates or statistical confidence intervals.\n"
     )
-    verification_path = REPORT.with_name("voting-flow-release-10.json")
+    verification_path = report_path.with_name("voting-flow-release-10.json")
     if verification_path.exists():
         verification = json.loads(verification_path.read_text())
         measurements += (
@@ -189,16 +219,14 @@ def main():
             f"A separate run at implementation `{verification['implementation_commit'][:10]}` "
             "repeats selected area and combined-load workloads on this release branch. "
             "The same accepted-votes/elapsed-seconds calculation applies. "
-            f"[Raw verification report](/benchmarks/{verification_path.name}).\n\n"
-            + voting_charts(
-                verification, REPORT.parent, prefix="voting-flow-release-10"
-            )
+            "Raw samples are generated locally as `voting-flow-release-10.json`.\n\n"
+            + voting_charts(verification, CHARTS, prefix="voting-flow-release-10")
             + "\n\n"
             + measurement_tables(verification)
             + "\n"
         )
     updated = prefix + START + "\n\n" + measurements + "\n" + END + suffix
-    schedule_path = REPORT.with_name("schedule-indexes.json")
+    schedule_path = report_path.with_name("schedule-indexes.json")
     if schedule_path.exists():
         schedule_report = json.loads(schedule_path.read_text())
         schedule_start = "<!-- schedule-index-benchmark:start -->"
@@ -207,8 +235,8 @@ def main():
         _, after = remainder.split(schedule_end)
         evidence = (
             f"Measurements at `{schedule_report['implementation_commit'][:10]}`. "
-            "[Raw schedule-query evidence](/benchmarks/schedule-indexes.json).\n\n"
-            + schedule_chart(schedule_report, REPORT.parent)
+            "Raw samples and EXPLAIN plans are generated locally as `schedule-indexes.json`.\n\n"
+            + schedule_chart(schedule_report, CHARTS)
             + "\n\nThe broad query returns 2,000 rows in every case. These are single-query "
             "and configuration-update timings, not complete cast latency or votes per second.\n\n"
             + schedule_tables(schedule_report)
