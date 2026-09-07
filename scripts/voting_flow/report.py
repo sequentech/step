@@ -143,6 +143,8 @@ def schedule_tables(report):
 
 
 def main():
+    from charts import schedule_chart, voting_charts
+
     report = json.loads(REPORT.read_text())
     guide = GUIDE.read_text()
     prefix, remainder = guide.split(START)
@@ -163,6 +165,14 @@ def main():
         f"SQL-only measurements at implementation `{report['implementation_commit'][:10]}` "
         f"against baseline `{report['baseline_commit']}`.\n\n"
         + calculation
+        + "### Visual comparisons\n\n"
+        + "Each figure holds the dimensions in its subtitle constant. Gray dashed lines "
+        "show the baseline; teal lines show the revised path. Latency panels use milliseconds "
+        "(lower is better); throughput uses accepted votes/second (higher is better). "
+        "All y-axes start at zero. Lines connect tested cases, not predictions between them. "
+        "The p99 outliers are retained; one run does not establish statistical significance.\n\n"
+        + voting_charts(report, REPORT.parent)
+        + "\n\n### Detailed measurements\n\n"
         + measurement_tables(report)
         + "\n\n"
         + factor_comparison(report)
@@ -180,6 +190,10 @@ def main():
             "repeats selected area and combined-load workloads on this release branch. "
             "The same accepted-votes/elapsed-seconds calculation applies. "
             f"[Raw verification report](/benchmarks/{verification_path.name}).\n\n"
+            + voting_charts(
+                verification, REPORT.parent, prefix="voting-flow-release-10"
+            )
+            + "\n\n"
             + measurement_tables(verification)
             + "\n"
         )
@@ -194,6 +208,9 @@ def main():
         evidence = (
             f"Measurements at `{schedule_report['implementation_commit'][:10]}`. "
             "[Raw schedule-query evidence](/benchmarks/schedule-indexes.json).\n\n"
+            + schedule_chart(schedule_report, REPORT.parent)
+            + "\n\nThe broad query returns 2,000 rows in every case. These are single-query "
+            "and configuration-update timings, not complete cast latency or votes per second.\n\n"
             + schedule_tables(schedule_report)
         )
         updated = (
