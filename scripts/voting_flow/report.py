@@ -78,6 +78,35 @@ def measurement_tables(report):
     return "\n\n".join("\n".join(table) for table in (rows, throughput, coverage))
 
 
+def factor_comparison(report):
+    """Keep the interpretation's quoted values tied to the measured fixtures."""
+    scenarios = {scenario["name"]: scenario for scenario in report["scenarios"]}
+    areas = [
+        scenarios[name]
+        for name in ("100k-votes", "100k-votes-1k-areas", "100k-votes-10k-areas")
+    ]
+    area_medians = ", ".join(
+        f"{compact_count(s['area_count'])} areas: {s['results'][1]['p50_ms']:.2f} ms"
+        for s in areas
+    )
+    endpoints = scenarios["100k-votes-200-elections-400-schedules"]["results"]
+    all_tasks = scenarios["100k-votes-200-elections"]["results"]
+    return (
+        "### Comparing the factors\n\n"
+        "Holding the 100k votes table, 8 concurrent voters, 10 elections and 100 "
+        f"schedules constant, revised-path p50 was **{area_medians}**. "
+        "This tests populated area cardinality for point lookups and per-voter history; "
+        "it does not measure an area-list response or larger area payloads.\n\n"
+        "Holding 200 elections, 100 areas, 100k votes and 8 concurrent voters constant, "
+        f"400 versus 2,000 schedules produced baseline p50 **{endpoints[0]['p50_ms']:.2f} "
+        f"versus {all_tasks[0]['p50_ms']:.2f} ms**, and revised p50 "
+        f"**{endpoints[1]['p50_ms']:.2f} versus {all_tasks[1]['p50_ms']:.2f} ms**. "
+        "The broad baseline query transfers every schedule in the event, while the "
+        "revised cast reads its election's keyed window. These single-run comparisons "
+        "show observed sensitivity, not statistical significance or a capacity guarantee.\n"
+    )
+
+
 def schedule_tables(report):
     by_placement = {}
     for scenario in report["scenarios"]:
@@ -135,6 +164,8 @@ def main():
         f"against baseline `{report['baseline_commit']}`.\n\n"
         + calculation
         + measurement_tables(report)
+        + "\n\n"
+        + factor_comparison(report)
         + "\n\nLatencies cover the complete SQL path per request. Throughput is total "
         "completed requests divided by the combined phase wall time, including "
         "driver scheduling overhead. These measurements come from one local run, not production "
