@@ -70,8 +70,8 @@ cat > requirements.txt <<EOF
 Faker==13.3.4
 psycopg2==2.9.10
 openpyxl==3.1.5
-pyzipper==0.3.6
-python-dotenv==1.0.1
+pyzipper==0.4.0
+python-dotenv==1.2.3
 pybars3==0.9.7
 EOF
 pip install -r requirements.txt
