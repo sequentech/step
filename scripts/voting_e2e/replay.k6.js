@@ -28,10 +28,13 @@ function query(parameters) {
     .join("&");
 }
 
+/** Execute the authenticated protocol with a fresh cookie jar and PKCE verifier. */
 export function replayJourney(profile, ballot, index, config, cast) {
   const started = Date.now();
   const jar = new http.CookieJar();
   let form, authorization, code, file, authParameters;
+  const publications = {};
+  const timings = {};
   const state = encoding.b64encode(crypto.randomBytes(24), "rawurl");
   const verifier = encoding.b64encode(crypto.randomBytes(32), "rawurl");
   const nonce = encoding.b64encode(crypto.randomBytes(24), "rawurl");
@@ -51,25 +54,27 @@ export function replayJourney(profile, ballot, index, config, cast) {
       responseType: binary ? "binary" : "text",
       tags: { name: kind },
     });
-    console.log(
-      JSON.stringify({
-        kind: "http",
-        index,
-        method,
-        phase: kind,
-        operation: kind === "GetVoterStatus" ? kind : null,
-        url: url.split(/[?#]/)[0],
-        status: response.status,
-        started_at_ms: at,
-        duration_ms: Date.now() - at,
-        response_bytes: binary
-          ? response.body?.byteLength || 0
-          : encodeURIComponent(response.body || "").replace(
-              /%[0-9A-F]{2}/g,
-              "_",
-            ).length,
-      }),
-    );
+    timings[kind] = Date.now() - at;
+    if (config.trace_http !== false)
+      console.log(
+        JSON.stringify({
+          kind: "http",
+          index,
+          method,
+          phase: kind,
+          operation: kind === "GetVoterStatus" ? kind : null,
+          url: url.split(/[?#]/)[0],
+          status: response.status,
+          started_at_ms: at,
+          duration_ms: Date.now() - at,
+          response_bytes: binary
+            ? response.body?.byteLength || 0
+            : encodeURIComponent(response.body || "").replace(
+                /%[0-9A-F]{2}/g,
+                "_",
+              ).length,
+        }),
+      );
     if (
       !(
         response.status === 200 ||
@@ -157,15 +162,19 @@ export function replayJourney(profile, ballot, index, config, cast) {
           { Authorization: authorization, "Content-Type": "application/json" },
         ).json();
         const status = result.data?.get_ballot_files_urls;
-        if (result.errors || status?.event_id !== ballot.election_event_id)
+        if (result.errors || status?.event_id !== ballot.election_event_id) {
+          // Bootstrap output is captured privately by the coordinator.
+          if (config.bootstrap)
+            console.log("BOOTSTRAP_ERROR " + JSON.stringify(result));
           throw new Error("Status rejected");
+        }
         file = status.files?.find(
           (item) => item.election_id === ballot.payload.variables.electionId,
         );
         if (
           !file ||
-          file.id !== ballot.style_id ||
-          file.version !== ballot.publication_version
+          (!config.bootstrap && file.id !== ballot.style_id) ||
+          (!config.bootstrap && file.version !== ballot.publication_version)
         )
           throw new Error("Prepared publication changed");
         break;
@@ -184,9 +193,10 @@ export function replayJourney(profile, ballot, index, config, cast) {
             ? ballot.election_event_id
             : step.binding === "election_url"
               ? ballot.payload.variables.electionId
-              : ballot.style_id;
+              : file.id;
         if (value.id !== expected)
           throw new Error("Publication scope mismatch");
+        if (config.bootstrap) publications[step.binding] = value;
         break;
       }
       case "cast":
@@ -206,4 +216,5 @@ export function replayJourney(profile, ballot, index, config, cast) {
         throw new Error("Unknown profile step");
     }
   }
+  return { file, publications, timings };
 }

@@ -11,6 +11,7 @@ export default defineConfig({
     testDir: "./test/load",
     testIgnore: [
         "capture.spec.ts",
+        "scale.spec.ts",
         "obscura.spec.ts",
         "status.spec.ts",
         "prepare.spec.ts",

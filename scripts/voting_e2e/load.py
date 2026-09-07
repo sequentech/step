@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-"""Prepare encrypted ballots, dispatch disjoint load shards and verify global goals.
+"""Replay small diagnostic cohorts with captured browser traffic and SQL observers.
+
+For bounded, browser-free preparation and large workloads, use scale.py.
 
 All inputs/output are private. Keep the preparation claims directory durable when
 moving workers to ephemeral machines; never retry or reissue an attempted shard.
@@ -572,7 +574,9 @@ def main():
         p.add_argument("output", type=Path)
         p.add_argument("--ledger", type=Path, required=True)
         p.add_argument("--nodes", type=int, default=2)
-        p.add_argument("--rate", type=int, default=1, help="Offered arrivals/s per worker")
+        p.add_argument(
+            "--rate", type=int, default=1, help="Offered arrivals/s per worker"
+        )
         p.add_argument("--duration", type=int, default=3)
         p.add_argument("--vus", type=int, default=2)
         p.add_argument("--offset", type=int, default=0)

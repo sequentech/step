@@ -79,7 +79,7 @@ test("measure authenticated GetVoterStatus", async () => {
                     Array.isArray(refs.files) &&
                     refs.files.length > 0 &&
                     refs.files.every(
-                        (file: any) =>
+                        (file: {urls: Record<string, unknown>}) =>
                             Object.keys(file.urls || {}).length === 4 &&
                             ["event_url", "election_url", "summary_url", "style_url"].every(
                                 (key) => typeof file.urls[key] === "string"

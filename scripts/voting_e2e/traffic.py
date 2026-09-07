@@ -9,10 +9,16 @@ from measurements import percentile
 
 
 def inventory(requests: list[dict]) -> list[dict]:
+    """Group observed traffic by normalized endpoint and summarize latency and bytes."""
     groups = defaultdict(list)
     for request in requests:
         url = urlsplit(request["url"])
-        path = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "{id}", url.path, flags=re.I)
+        path = re.sub(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            "{id}",
+            url.path,
+            flags=re.I,
+        )
         groups[
             url.hostname,
             url.port,
@@ -49,6 +55,7 @@ def inventory(requests: list[dict]) -> list[dict]:
 
 
 def validate_s3_flow(requests: list[dict]) -> list[str]:
+    """Reject unexpected GraphQL reads or incomplete publication downloads."""
     operations = Counter(r.get("operation") for r in requests if r.get("operation"))
     errors = []
     if operations["GetVoterStatus"] != 1:

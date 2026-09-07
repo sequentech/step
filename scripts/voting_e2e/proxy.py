@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 
 def main():
+    """Run the local recording proxy with explicit upstream and output paths."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upstream", required=True)
     parser.add_argument("--log", type=Path, required=True)

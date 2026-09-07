@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlsplit, urlunsplit
 
 
 def compile_profile(capture: dict, har: dict) -> dict:
+    """Replace session-specific browser requests with validated protocol bindings."""
     if capture.get("engine") != "chromium" or not (
         capture.get("completed") and capture.get("persistence_verified")
     ):

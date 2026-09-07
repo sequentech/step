@@ -3,6 +3,7 @@
 
 import {chromium, test, expect} from "@playwright/test"
 import {readFileSync, appendFileSync} from "node:fs"
+import {CastReceipt, PreparedBallot} from "./ballotTypes"
 
 // Browser-transport cast load. Authentication/encryption are prepared beforehand;
 // full login-to-confirmation UI coverage stays in capture.spec.ts.
@@ -11,7 +12,7 @@ test("cast disjoint prepared ballots through a browser", async () => {
     test.setTimeout(
         Math.max(180000, config.start_at_ms - Date.now() + config.duration_seconds * 1000 + 60000)
     )
-    const ballots = JSON.parse(readFileSync(process.env.LOAD_BALLOTS!, "utf8"))
+    const ballots: PreparedBallot[] = JSON.parse(readFileSync(process.env.LOAD_BALLOTS!, "utf8"))
     if (config.engine !== "chromium") throw new Error("Browser transport requires Chromium")
     const browser = await chromium.launch({
         headless: true,
@@ -19,7 +20,7 @@ test("cast disjoint prepared ballots through a browser", async () => {
     })
     const pending: Promise<void>[] = []
     let active = 0
-    const records: any[] = []
+    const records: {kind: string; accepted?: boolean}[] = []
     const context = await browser.newContext()
     const page = await context.newPage()
     const origin = new URL(config.login_url).origin
@@ -47,12 +48,12 @@ test("cast disjoint prepared ballots through a browser", async () => {
             pending.push(
                 (async () => {
                     const ballot = ballots[index]
-                    let record: any = await page.evaluate(
+                    const record = await page.evaluate(
                         ({ballot, index}) => {
                             const perform = async () => {
                                 const started = Date.now()
                                 let status = 0,
-                                    cast: any = null,
+                                    cast: CastReceipt | null = null,
                                     bytes = 0
                                 try {
                                     const response = await fetch(ballot.url, {
@@ -94,15 +95,16 @@ test("cast disjoint prepared ballots through a browser", async () => {
                                     operation: "InsertCastVote",
                                     endpoint: ballot.url,
                                     response_bytes: bytes,
-                                    receipt: accepted
-                                        ? {
-                                              id: cast.id,
-                                              ballot_id: cast.ballot_id,
-                                              tenant_id: cast.tenant_id,
-                                              election_id: cast.election_id,
-                                              election_event_id: cast.election_event_id,
-                                          }
-                                        : null,
+                                    receipt:
+                                        accepted && cast
+                                            ? {
+                                                  id: cast.id,
+                                                  ballot_id: cast.ballot_id,
+                                                  tenant_id: cast.tenant_id,
+                                                  election_id: cast.election_id,
+                                                  election_event_id: cast.election_event_id,
+                                              }
+                                            : null,
                                 }
                             }
                             return perform()

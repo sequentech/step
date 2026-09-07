@@ -5,6 +5,7 @@ import {chromium, expect, test} from "@playwright/test"
 import {readFileSync, writeFileSync} from "node:fs"
 import {resolve} from "node:path"
 import {castBallotAsVoter, login} from "./flow"
+import {CapturedCast, CastPayload, PreparedBallot, VoterStatus} from "./ballotTypes"
 
 // Preparation is intentionally outside load timing. Every cast route is intercepted
 // and rejected locally; a prepared request must never reach Hasura at this stage.
@@ -16,7 +17,7 @@ test("prepare unique encrypted ballots without casting", async () => {
         headless: true,
         executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
     })
-    const prepared: any[] = []
+    const prepared: PreparedBallot[] = []
     try {
         let next = 0
         const workers = await Promise.allSettled(
@@ -28,8 +29,8 @@ test("prepare unique encrypted ballots without casting", async () => {
                         const voter = input.voters[index]
                         const context = await browser.newContext()
                         const page = await context.newPage()
-                        let captured: any
-                        let status: any
+                        let captured: CapturedCast | undefined
+                        let status: VoterStatus | undefined
                         let rejectCapture: (reason: Error) => void = () => {}
                         const ready = new Promise<void>((resolveCapture, reject) => {
                             rejectCapture = reject
@@ -45,7 +46,7 @@ test("prepare unique encrypted ballots without casting", async () => {
                                         reject(new Error("Unexpected preparation origin"))
                                         return
                                     }
-                                    let payload: any
+                                    let payload: CastPayload | undefined
                                     try {
                                         payload = request.postDataJSON()
                                     } catch {
@@ -88,7 +89,10 @@ test("prepare unique encrypted ballots without casting", async () => {
                             })
                             .then(async (response) => {
                                 expect(response.ok()).toBe(true)
-                                const body = await response.json()
+                                const body: {
+                                    errors?: unknown[]
+                                    data: {get_ballot_files_urls: VoterStatus}
+                                } = await response.json()
                                 expect(body.errors).toBeUndefined()
                                 status = body.data.get_ballot_files_urls
                                 expect(status.event_id).toBe(target.election_event_id)
@@ -101,7 +105,8 @@ test("prepare unique encrypted ballots without casting", async () => {
                                 await page.goto(target.login_url)
                                 await login(page, voter)
                                 const response = await observed
-                                const old = input.refresh[index]
+                                if (!status) throw new Error("Missing voter status")
+                                const old: PreparedBallot = input.refresh[index]
                                 expect(status.files[0].version).toBe(old.publication_version)
                                 expect(status.files[0].id).toBe(old.style_id)
                                 captured = {
@@ -121,6 +126,8 @@ test("prepare unique encrypted ballots without casting", async () => {
                                 })
                                 await Promise.all([ready, observed])
                             }
+                            if (!captured || !status || !captured.authorization)
+                                throw new Error("Incomplete prepared request")
                             expect(captured.authorization).toMatch(/^Bearer /)
                             expect(captured.payload.variables.electionId).toBe(
                                 status.files[0].election_id
@@ -133,6 +140,7 @@ test("prepare unique encrypted ballots without casting", async () => {
                             )
                             prepared.push({
                                 ...captured,
+                                authorization: captured.authorization,
                                 credentials: voter,
                                 tenant_id: target.tenant_id,
                                 election_event_id: target.election_event_id,

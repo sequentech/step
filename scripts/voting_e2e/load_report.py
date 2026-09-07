@@ -13,6 +13,7 @@ LICENSE = "SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>\n
 
 
 def generate(output: Path, publish: bool = False):
+    """Render aggregate load results and optionally refresh the documented example."""
     import matplotlib
 
     matplotlib.use("Agg")

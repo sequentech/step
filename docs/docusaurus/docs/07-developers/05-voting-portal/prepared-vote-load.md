@@ -1,108 +1,40 @@
 ---
 id: prepared-vote-load
-title: Voting load tests
+title: Voting worker design
 ---
 
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Generate once, partition once, cast once. The load controller runs independent k6 workers against the workload derived from a verified [Chromium journey](./voting-flow-e2e.md).
+The [voting performance guide](./voter-status-performance.md) covers setup, local execution, containers, Kubernetes and reports. The worker model is deliberately finite: every iteration owns one voter and one cast attempt.
 
-## Prepare
+## Data ownership
 
-Use the existing devcontainer and `devenv shell`. [Provision an online event](../02-cli/02-tutorials/load-testing/online-load-testing-guide.md), publish it, activate voting and export the server-assigned event/election/area configuration. Authenticate `step-cli`, then generate a fresh census range:
+For shard `s`, local iteration `i` uses username `prefix + (start + s × shard_size + i)`. Node `n` of `N` handles shards `n, n + N, n + 2N, …`. The final shard may be shorter; no range wraps and no voter is reused.
 
-```sh
-python3 scripts/voting_e2e/census.py PRIVATE_CONFIG PRIVATE_CENSUS \
-  --cli PRIVATE_STEP_CLI --count 100 --username-start 99000000
-python3 scripts/voting_e2e/load.py prepare PRIVATE_TARGET \
-  PRIVATE_CENSUS/voters_100.csv PRIVATE_PREPARED --count 100 --concurrency 4
-```
+k6 uses [shared iterations](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/shared-iterations/) and `scenario.iterationInTest`, so faster virtual users can complete more work without duplicating voter inputs. A `SharedArray` contains only the current shard's encrypted ballots, not the whole census. Chromium uses the same ranges and opens a new context for each full UI journey.
 
-Preparation uses Chromium's real login and WASM encryption, intercepts the final cast locally and verifies **zero stored casts**. Every voter receives a distinct encrypted ballot. Reusing ciphertext or ballot IDs can trigger duplicate/revote handling and gives a different workload, even when the election will not be tallied.
+| Artifact | Contents | Growth |
+| --- | --- | --- |
+| Census CSV batches | Patterned usernames, shared prehash, eligibility | Disk proportional to voters; one row in generator memory |
+| Encrypted JSONL shards | Fresh ballot ID, ciphertext and election ID | Disk proportional to voters; at most `shard_size` ballots per worker |
+| Worker configuration | Endpoints, scope, ranges, goals and protocol | Constant size |
+| Attempt claims | One exclusive file per shard | Proportional to shards |
+| Raw result samples | Timing, outcome and API receipt ID | Streamed to disk |
+| Aggregate report | Global percentiles, throughput, requests and failures | Independent of voter count |
 
-Generate `PRIVATE_CAPTURE/profile.json` with the Chromium capture command in the journey guide. Use a separate voter for that successful reference cast.
+## What the timings mean
 
-## Run
+Preparation includes census import, one publication bootstrap and native encryption. These costs happen before timed k6 iterations. Each iteration includes a fresh login, voter status, publication downloads and cast response. Chromium additionally includes rendering and WASM encryption.
 
-```sh
-python3 scripts/voting_e2e/load.py local PRIVATE_TARGET \
-  PRIVATE_PREPARED/ballots.json PRIVATE_RUN \
-  --profile PRIVATE_CAPTURE/profile.json --ledger PRIVATE_CLAIMS \
-  --nodes 2 --rate 5 --duration 10 --vus 20 \
-  --p50 100 --p99 250 --journey-p50 5000 --journey-p99 10000 --min-cps 7
-```
+Accepted casts/s uses the interval from the first journey start to the last completion, including the final in-flight work. Global p50/p99 are calculated from individual samples in disk-backed SQLite. The report does not average per-worker percentiles or treat a successful HTTP status with GraphQL errors as a successful vote.
 
-| Control | Meaning |
-|---|---|
-| `--nodes` | Independent worker processes |
-| `--rate` | New journeys per second **per worker** |
-| `--duration` | Arrival window in seconds |
-| `--vus` | Available concurrent virtual users per worker; allow enough for the whole journey |
-| `--pacing` | Multiplier for Chromium's recorded offsets; default 1, zero removes waits |
-| `--p50`, `--p99` | Cast-response budgets in milliseconds |
-| `--journey-p50`, `--journey-p99` | Whole-journey budgets in milliseconds |
-| `--min-cps` | Minimum globally accepted casts per second |
+An API receipt confirms API acceptance. Independent persistence verification needs database observation; add `report --dsn-env LOAD_AUDIT_DSN` for a batched receipt audit, or use the [diagnostic capture](./voting-flow-e2e.md) for SQL attribution. The worker deliberately does not execute one administrative database query per voter.
 
-Required ballots = **workers × rate × duration**. Shards are disjoint; workers never wrap the input or retry an attempted cast. Profile replay logs in afresh, so previously captured bearer-token expiry does not limit it. Publication changes invalidate prepared ballots and fail the journey.
+## Failure and capacity
 
-To isolate the cast API, replace `--profile ...` with `--cast-only`. That mode uses prepared bearer tokens, so refresh them shortly before running if necessary:
+An attempted shard is never automatically retried, even after a pod replacement. Keep its claim and reconcile receipts before any manual recovery. Start a new voting run with a fresh census range and newly prepared ballots.
 
-```sh
-python3 scripts/voting_e2e/load.py prepare PRIVATE_TARGET UNUSED_CSV \
-  PRIVATE_REFRESHED --refresh PRIVATE_PREPARED/ballots.json --count 100
-```
-
-Refresh preserves ciphertexts and verifies publication identity. Chromium is also available for cast-only browser transport through `--engine chromium`; complete UI tests use the capture runner.
-
-## Read and refresh results
-
-Every merge automatically writes `results.json`, `performance.md` and `performance.svg`. Journey runs also write `traffic.json`, listing actual HTTP methods, endpoints, statuses, bytes and timings. The local controller records backend and Keycloak SQL summaries over the run interval. Raw files remain private.
-
-Add `--publish-docs` to `local` or `merge` to refresh the current documentation table and chart as part of the run.
-
-Percentiles use merged individual samples, never averages of worker percentiles. Throughput uses accepted casts over the common arrival window, extended through the last cast response. Startup, census generation, encryption and database verification are outside that window; login and profile fetches are inside journey timing. Failures, dropped arrivals, missing workers, goal breaches or unmatched receipts fail the run.
-
-Regenerate charts without rerunning tests, and optionally replace the current measurement below:
-
-```sh
-python3 scripts/voting_e2e/load.py report PRIVATE_RUN
-python3 scripts/voting_e2e/load.py report PRIVATE_RUN --publish-docs
-```
-
-The same commands work in CI. Publication replaces one current summary and chart; it does not append a run history or copy private artifacts into documentation.
-
-## Workers on separate machines
-
-Use `load.py dispatch` with the same run arguments to produce `node-000`, `node-001`, etc. Give each worker only its private assigned directory and the same prebuilt devcontainer image:
-
-```sh
-scripts/voting_e2e/worker.sh /private/assigned-shard
-# After collecting every shard at the coordinator:
-python3 scripts/voting_e2e/load.py merge PRIVATE_RUN
-```
-
-Set `--start-delay` long enough for startup and keep machine clocks synchronized. Service URLs must be reachable from every worker. The coordinator owns a durable claims ledger outside ephemeral disks; copying a shard or changing ledger directories is not a retry mechanism. VM/container provisioning is separate from this worker contract.
+Bounded client memory does not guarantee a particular backend throughput. Measure encryption time and disk space during preparation, worker CPU/RSS/network during load, and Keycloak/database/cast-service saturation. Increase worker count and virtual users separately to identify which resource limits throughput. Shared passwords remove repeated hashing during import; authentication still performs its normal password verification.
 
 <!-- generated-load-results -->
-
-## Current measurement
-
-**PASS** · k6 journey · 3 workers × 2 arrivals/s × 10 s.
-
-| Measurement | Result | Budget |
-|---|---:|---:|
-| Accepted casts | 60/60 | All |
-| Cast p50 | 17.00 ms | ≤ 100.0 ms |
-| Cast p99 | 26.23 ms | ≤ 250.0 ms |
-| Accepted casts/s | 4.86 | ≥ 4.5 |
-| Journey p50 | 2965.00 ms | ≤ 5000.0 ms |
-| Journey p99 | 2967.00 ms | ≤ 10000.0 ms |
-
-Persistence verified: **True**. Failed casts: 0; missing attempts: 0; scheduler drops: 0.
-
-Local aarch64, 8 logical CPUs. Generator and services share the machine. Tail percentiles describe this sample; they are not a production capacity estimate.
-
-Profile coverage: **3240 HTTP requests**, 54 per journey. Request counts match the Chromium recipe: **True**.
-
-![Current voting performance](/img/voting-load-performance.svg)
