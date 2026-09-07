@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Telephone Load Testing Guide | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Telephone Load Testing Guide | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3140/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Telephone Load Testing Guide","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3140/docs/developers/ivr/telephone-load-testing-guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3140/assets/css/styles.b012d36e.css">
-<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.9c1b6a21.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3140/assets/js/runtime~main.16fe3f7f.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3140/assets/js/main.c7c985a4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -173,7 +173,18 @@ polled the same way as <code>delete-election-event</code>. It refuses to run whi
 tenant still has any election events, and it&#x27;s a super-admin-only action: the
 caller must be authenticated as the bootstrap tenant (<code>setup.tenant_id</code>), not
 as the tenant being deleted — matching how <code>create-tenant</code> itself is
-authorized. To do this by hand:</p>
+authorized.</p>
+<p>The <code>tenant-delete</code> role only needs to exist in the bootstrap tenant&#x27;s own
+Keycloak realm (never in the tenants being deleted), and is already assigned
+to the <code>admin</code>/<code>admin-light</code> roles there in the dev container&#x27;s default
+realm import. Deployed environments provisioned via <code>beyond</code>&#x27;s <code>client-setup</code>
+chart don&#x27;t seed this role yet (kept out deliberately, to avoid changing that
+chart&#x27;s realm export for every deployment), so before running cleanup against
+such an environment, add the <code>tenant-delete</code> role to the bootstrap tenant&#x27;s
+realm by hand — Keycloak admin console → bootstrap tenant realm → Realm roles
+→ create <code>tenant-delete</code>, then assign it to <code>$ADMIN_PORTAL_USER</code>&#x27;s role (or
+the role it inherits it from) — otherwise <code>delete-tenant</code> fails with an
+authorization error. To do this by hand:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">step-cli step config --tenant-id </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;</span><span class="token string variable" style="color:rgb(191, 199, 213)">$BOOTSTRAP_TENANT_ID</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">..</span><span class="token plain">. </span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># as above, but the bootstrap tenant</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">step-cli step delete-tenant --tenant-id </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;</span><span class="token string variable" style="color:rgb(191, 199, 213)">$TENANT_ID</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;</span><br></span></code></pre></div></div>
 <p>The bootstrap tenant itself is never deleted, even once its election event is
 gone — it&#x27;s the persistent identity these scripts authenticate as, meant to
