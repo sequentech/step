@@ -446,7 +446,9 @@ const ElectionSelectionScreen: React.FC = () => {
         variables: {
             electionIds: ballotStyleElectionIds,
         },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
+        // Styles supply the eligible IDs asynchronously. Querying the initial
+        // empty list adds a Hasura round trip before the useful election query.
+        skip: globalSettings.DISABLE_AUTH || ballotStyleElectionIds.length === 0,
     })
 
     const {
@@ -533,7 +535,13 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(materialsPath)
     }
 
-    const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
+    // An empty style result is already definitive; do not send an empty-ID
+    // election query just to discover that there are no eligible elections.
+    const hasNoElections =
+        !loadingBallotStyles &&
+        !loadingElections &&
+        (dataBallotStyles?.sequent_backend_ballot_style.length === 0 ||
+            dataElections?.sequent_backend_election.length === 0)
     const isPublished = useMemo(
         () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
