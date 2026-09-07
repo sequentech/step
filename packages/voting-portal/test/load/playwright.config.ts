@@ -4,11 +4,15 @@
 
 import {defineConfig} from "@playwright/test"
 
-// Dedicated config for the online-channel load test (test/load), normally
-// driven by packages/step-cli/scripts/run_online_load_test.py — kept separate
-// so `yarn test` (Jest) and the Nightwatch e2e suites are unaffected.
+// Dedicated config for the online-channel load test, normally driven by
+// packages/step-cli/scripts/run_online_load_test.py. It lives next to the spec
+// (rather than in voting-portal's root) so that this directory's own
+// package.json — @playwright/test and nothing else — is enough to run it: a
+// load client machine doesn't need the whole Yarn workspace installed, and
+// the config and the spec always resolve the same @playwright/test copy.
+// `yarn test` (Jest) and the Nightwatch e2e suites are unaffected.
 export default defineConfig({
-    testDir: "./test/load",
+    testDir: ".",
     fullyParallel: true,
     // A retried voter would attempt a second vote and be rejected as a
     // duplicate, skewing the results — report the failure instead.
@@ -17,7 +21,7 @@ export default defineConfig({
     expect: {timeout: 15_000},
     outputDir: process.env.LOAD_TEST_OUT_DIR
         ? `${process.env.LOAD_TEST_OUT_DIR}/traces`
-        : "./test-results/load",
+        : "./test-results",
     use: {
         headless: process.env.LOAD_TEST_HEADED !== "true",
         // Failure diagnostics only: recording every successful voter would

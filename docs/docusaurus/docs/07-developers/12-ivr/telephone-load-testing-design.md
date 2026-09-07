@@ -11,8 +11,10 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Telephone Load Testing — Design
 
 This documents how the telephone (IVR/DTMF) load-testing tooling works. For
-step-by-step instructions to actually run it, see
-[Telephone Load Testing Guide](telephone-load-testing-guide.md).
+step-by-step instructions to actually run it, see the
+[Load Testing Guide](../02-cli/02-tutorials/load-testing/load-testing-guide.md)
+and, for several load machines,
+[Distributed Load Testing](../02-cli/02-tutorials/load-testing/distributed-load-testing.md).
 
 > This covers the **TELEPHONE** channel only, driven by `step-cli` +
 > `ivr-cli`. The **ONLINE** channel has its own Playwright-based tooling with

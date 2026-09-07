@@ -23,7 +23,7 @@ import {castBallotAsVoter} from "./flow"
 //
 //     LOGIN_URL=http://127.0.0.1:3000/tenant/<t>/event/<e>/login \
 //     VOTER_USERNAME=100 VOTER_PASSWORD=123456 VOTER_DATE_OF_BIRTH=1951-04-22 \
-//     yarn playwright test --config playwright.load.config.ts --headed
+//     yarn playwright test --config test/load/playwright.config.ts --headed
 
 interface Voter {
     [field: string]: string

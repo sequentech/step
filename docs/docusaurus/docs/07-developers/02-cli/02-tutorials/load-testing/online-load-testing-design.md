@@ -11,8 +11,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Online Load Testing — Design
 
 This documents how the ONLINE (voting portal) load-testing tooling works. For
-step-by-step instructions to actually run it, see
-[Online Load Testing Guide](online-load-testing-guide.md).
+step-by-step instructions to actually run it, see the
+[Load Testing Guide](load-testing-guide.md) and, for several load
+machines, [Distributed Load Testing](distributed-load-testing.md).
 
 > This covers the **ONLINE** channel only, driven by `step-cli` + Playwright
 > browsers. The **TELEPHONE** channel has its own tooling with the same
@@ -111,7 +112,7 @@ whose event has several elections votes them all, one ballot id each.
 
 ### No retries
 
-`retries: 0` in `playwright.load.config.ts`: a retried voter would attempt a
+`retries: 0` in `test/load/playwright.config.ts`: a retried voter would attempt a
 second vote and be rejected as a duplicate, skewing results. Failures are
 reported with a Playwright trace (`retain-on-failure`) instead; successful
 voters record no trace/video, keeping the diagnostic cost independent of the

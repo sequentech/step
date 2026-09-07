@@ -18,9 +18,20 @@ docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-
 Takes no command-line arguments — every setting lives in
 telephone-load-test-inputs/config/layers.yaml, under 'online_run:'.
 
-Requires Node dependencies installed (`yarn` from packages/) and the
-Playwright Chromium browser (`yarn --cwd packages/voting-portal playwright
-install chromium`).
+Requires @playwright/test and the Playwright Chromium browser — either the
+standalone install under packages/voting-portal/test/load (what
+install_load_client.sh sets up: `npm install` there, then `npx playwright
+install --with-deps chromium`) or the full Yarn workspace (`yarn` from
+packages/, then `yarn --cwd packages/voting-portal playwright install
+chromium`). $PLAYWRIGHT_BIN overrides the binary lookup altogether.
+
+For a distributed run, set online_run.start_at (or $LOAD_TEST_START_AT) to
+the same UTC timestamp on every load client: each one preflights and renders
+its manifest immediately, then holds until that instant before launching any
+browser, so the clients hit the portal together. Give each client its own
+online_run.start_delay (or $LOAD_TEST_START_DELAY, seconds on top of
+start_at) to ramp the load up in steps instead. Merge the per-client outputs
+afterwards with aggregate_online_load_test.py.
 """
 
 from __future__ import annotations
@@ -28,6 +39,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -39,6 +51,20 @@ from typing import Any
 import load_test_common as common
 
 VOTING_PORTAL_DIR = common.REPO_ROOT / "packages" / "voting-portal"
+LOAD_TEST_DIR = VOTING_PORTAL_DIR / "test" / "load"
+PLAYWRIGHT_CONFIG = "playwright.config.ts"
+# Searched in order when $PLAYWRIGHT_BIN is unset: the standalone test/load
+# install first (a load client machine typically has only that), then the
+# Yarn workspace's hoisted/per-package binaries (the devcontainer).
+PLAYWRIGHT_BIN_CANDIDATES = (
+    LOAD_TEST_DIR / "node_modules" / ".bin" / "playwright",
+    VOTING_PORTAL_DIR / "node_modules" / ".bin" / "playwright",
+    common.REPO_ROOT / "packages" / "node_modules" / ".bin" / "playwright",
+)
+PLAYWRIGHT_INSTALL_HINT = (
+    f"(cd {LOAD_TEST_DIR} && npm install && npx playwright install --with-deps chromium) "
+    "— or run packages/step-cli/scripts/install_load_client.sh"
+)
 
 
 def dig(d: Any, *keys: Any, default: Any = None) -> Any:
@@ -89,6 +115,7 @@ def main() -> None:
     candidates_pattern = cfg.get("candidates_pattern") or ""
     headed = bool(cfg.get("headed") or False)
     out_dir = common.resolve_path(common.req_str(cfg, "out_dir"))
+    start_at, start_delay = common.resolve_start(cfg)
 
     if headed and concurrency != 1:
         common.log("headed is a debugging mode; forcing concurrency to 1")
@@ -157,12 +184,18 @@ def main() -> None:
         common.die(f"Hasura not reachable at {hasura_url} — is the stack running? (set online_run.hasura_url to override summary.json's URL on another machine)")
 
     playwright_bin = None
-    for candidate in (VOTING_PORTAL_DIR / "node_modules" / ".bin" / "playwright", common.REPO_ROOT / "packages" / "node_modules" / ".bin" / "playwright"):
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            playwright_bin = candidate
-            break
+    configured_bin = os.environ.get("PLAYWRIGHT_BIN")
+    if configured_bin:
+        playwright_bin = Path(configured_bin)
+        if not (playwright_bin.is_file() and os.access(playwright_bin, os.X_OK)):
+            common.die(f"$PLAYWRIGHT_BIN={configured_bin!r} is not an executable file")
+    else:
+        for candidate in PLAYWRIGHT_BIN_CANDIDATES:
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                playwright_bin = candidate
+                break
     if playwright_bin is None:
-        common.die("Playwright not installed. Install JS dependencies first: (cd packages && yarn)")
+        common.die(f"Playwright not installed. Install it: {PLAYWRIGHT_INSTALL_HINT}")
 
     env = dict(os.environ)
     if os.environ.get("IN_NIX_SHELL") and not os.environ.get("PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS"):
@@ -178,7 +211,7 @@ def main() -> None:
     # still fails later with Playwright's own (equally actionable) error.
     browsers_path = Path(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or (Path.home() / ".cache" / "ms-playwright"))
     if not list(browsers_path.glob("chromium*")):
-        common.die(f"no Playwright Chromium found under {browsers_path} — install it: (cd packages/voting-portal && yarn playwright install chromium)")
+        common.die(f"no Playwright Chromium found under {browsers_path} — install it: {PLAYWRIGHT_INSTALL_HINT}")
     common.log(f"Using Playwright: {playwright_bin}")
 
     cores = os.cpu_count()
@@ -219,6 +252,7 @@ def main() -> None:
         maybe_forward_local_port(9002, "minio-proxy:9002")
 
     try:
+        common.wait_for_start(start_at, start_delay)
         tenant_summaries = []
         for i, info in enumerate(tenant_infos):
             common.log(f"=== Tenant {i + 1}/{len(tenant_infos)}: {info['tenant_id']} ===")
@@ -240,15 +274,26 @@ def main() -> None:
     total_votes = sum(s["total_votes"] for s in tenant_summaries)
     total_cast = sum(s["cast"] for s in tenant_summaries)
     total_failed = sum(s["failed"] for s in tenant_summaries)
+    throughput = common.run_throughput(tenant_summaries, total_cast)
     summary_out_path = out_dir / "summary.json"
     common.write_json(summary_out_path, {
+        # Identifies this load client's slice in aggregate_online_load_test.py
+        # once several clients' out_dirs are collected side by side.
+        "client": socket.gethostname(),
+        "start_at": common.format_timestamp(start_at) if start_at else None,
+        "start_delay_secs": start_delay,
+        "voter_offset": voter_offset,
+        "max_votes": max_votes,
+        "concurrency": concurrency,
         "run_dir": str(run_dir),
         "tenants": tenant_summaries,
         "total_votes": total_votes,
         "cast": total_cast,
         "failed": total_failed,
+        **throughput,
     })
     common.log(f"Done: {total_cast}/{total_votes} voters cast a ballot across {len(tenant_infos)} tenant(s) ({total_failed} did not)")
+    common.log(f"Throughput: {throughput['cast_per_second']} ballots cast/second over {throughput['elapsed_secs']}s (all tenants combined)")
     common.log(f"Run summary: {summary_out_path}")
     if total_failed > 0:
         sys.exit(1)
@@ -322,8 +367,8 @@ def _run(
     started_at = datetime.now(timezone.utc)
     start_ts = time.monotonic()
     proc = subprocess.run(
-        [str(playwright_bin), "test", "--config", "playwright.load.config.ts", "--workers", str(concurrency), "--reporter=json,line"],
-        cwd=VOTING_PORTAL_DIR,
+        [str(playwright_bin), "test", "--config", PLAYWRIGHT_CONFIG, "--workers", str(concurrency), "--reporter=json,line"],
+        cwd=LOAD_TEST_DIR,
         env=run_env,
     )
     pw_exit = proc.returncode
@@ -372,8 +417,8 @@ def _run(
         "concurrency": concurrency,
         "voter_offset": voter_offset,
         "vote_timeout_secs": vote_timeout,
-        "started_at": started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "finished_at": finished_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "started_at": common.format_timestamp(started_at),
+        "finished_at": common.format_timestamp(finished_at),
         "elapsed_secs": elapsed,
         "total_votes": count,
         "cast": cast,
@@ -385,7 +430,7 @@ def _run(
 
     common.log(f"Tenant {tenant_id} done in {elapsed}s: {cast}/{count} voters cast a ballot ({failed} did not)")
     common.log(f"Per-voter results: {results_path}")
-    common.log(f"Failure traces:    {out_dir / 'traces'}/ (open with: yarn --cwd packages/voting-portal playwright show-trace <trace.zip>)")
+    common.log(f"Failure traces:    {out_dir / 'traces'}/ (open with: {playwright_bin} show-trace <trace.zip>)")
     return tenant_summary
 
 

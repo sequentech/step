@@ -23,6 +23,12 @@ per realm, e.g. voter_id+pin vs dateOfBirth+pin).
 Takes no command-line arguments — every setting lives in
 telephone-load-test-inputs/config/layers.yaml, under 'telephone_run:'.
 
+For a distributed run, telephone_run.start_at / start_delay (or
+$LOAD_TEST_START_AT / $LOAD_TEST_START_DELAY) work as for the online runner:
+every client preflights immediately, then holds until the shared instant
+plus its own delay before placing any call — same delay everywhere for a
+simultaneous start, a different one per client for a ramp.
+
 Requires the `ivr-cli` binary (cd beyond/packages && cargo build --release -p
 ivr-cli) and a Redis-compatible session store; if none is reachable this
 script starts a local `valkey` docker container (disable with
@@ -408,6 +414,7 @@ def main() -> None:
     out_dir = common.resolve_path(common.req_str(cfg, "out_dir"))
     keycloak_url_override = cfg.get("keycloak_url") or None
     hasura_url_override = cfg.get("hasura_url") or None
+    start_at, start_delay = common.resolve_start(cfg)
 
     ivr_cli_bin = find_ivr_cli(cfg.get("ivr_cli_bin") or None)
     common.log(f"Using ivr-cli: {ivr_cli_bin}")
@@ -426,6 +433,7 @@ def main() -> None:
     valkey_url = resolve_valkey_url(cfg.get("valkey_url") or os.environ.get("VALKEY_URL"), bool(cfg.get("start_valkey", True)))
     common.log(f"Session store: {valkey_url}")
 
+    common.wait_for_start(start_at, start_delay)
     common.log(f"Placing calls across {len(tenants)} tenant(s)")
     tenant_summaries = []
     for i, tenant in enumerate(tenants):
@@ -468,16 +476,22 @@ def main() -> None:
     total_calls = sum(s["total_calls"] for s in tenant_summaries)
     total_cast = sum(s["cast"] for s in tenant_summaries)
     total_failed = sum(s["failed"] for s in tenant_summaries)
+    throughput = common.run_throughput(tenant_summaries, total_cast)
     summary_out_path = out_dir / "summary.json"
     common.write_json(summary_out_path, {
+        "client": socket.gethostname(),
+        "start_at": common.format_timestamp(start_at) if start_at else None,
+        "start_delay_secs": start_delay,
         "run_dir": str(run_dir),
         "tenants": tenant_summaries,
         "total_calls": total_calls,
         "cast": total_cast,
         "failed": total_failed,
+        **throughput,
     })
 
     common.log(f"Done: {total_cast}/{total_calls} calls cast a ballot across {len(tenants)} tenant(s) ({total_failed} did not)")
+    common.log(f"Throughput: {throughput['cast_per_second']} ballots cast/second over {throughput['elapsed_secs']}s (all tenants combined)")
     common.log(f"Run summary: {summary_out_path}")
     if total_failed > 0:
         common.log(f"Inspect a failed call's log (per tenant, under {out_dir}/tenant-<id>/logs/) for where the flow diverged from the template (searched for /{success_regex.pattern}/i as the cast marker)")

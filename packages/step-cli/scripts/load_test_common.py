@@ -17,9 +17,11 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -247,6 +249,103 @@ def lookup_client_secret(keycloak_url: str, admin_user: str, admin_password: str
     if not secret:
         die(f"could not look up {client_id}'s secret in tenant-{tenant_id}")
     return secret  # type: ignore[return-value]
+
+
+TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+
+def format_timestamp(value: datetime) -> str:
+    return value.astimezone(timezone.utc).strftime(TIMESTAMP_FORMAT)
+
+
+def parse_timestamp(value: str) -> datetime:
+    return datetime.strptime(value, TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+
+
+# --- Synchronised / ramped start (distributed runs) ----------------------------
+
+
+def parse_start_at(value: str) -> datetime:
+    """ISO 8601 (e.g. 2026-09-07T14:30:00Z or 2026-09-07T14:30:00+00:00); a
+    timestamp with no zone is taken as UTC, so every client — whatever its
+    local zone — resolves the same value to the same instant."""
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        die(f"start_at / $LOAD_TEST_START_AT must be an ISO 8601 timestamp, got {value!r}")
+        raise AssertionError("unreachable")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def resolve_start(cfg: dict[str, Any]) -> tuple[datetime | None, int]:
+    """Reads the section's start_at / start_delay, each overridable by
+    $LOAD_TEST_START_AT / $LOAD_TEST_START_DELAY (the env vars win, so one
+    shared layers.yaml can be copied to every load client unchanged and the
+    per-client values injected by whatever fans the run out). Returns the
+    shared base instant (None = "when this client's preflight finishes")
+    and this client's delay in seconds on top of it: with the same base
+    everywhere, a different delay per client ramps the load up in steps
+    until every client is running, instead of all of them hitting the
+    server at once."""
+    start_at_raw = os.environ.get("LOAD_TEST_START_AT") or cfg.get("start_at")
+    start_at = parse_start_at(str(start_at_raw)) if start_at_raw else None
+    delay_raw = os.environ.get("LOAD_TEST_START_DELAY")
+    if delay_raw is None or delay_raw == "":
+        delay_raw = cfg.get("start_delay")
+    try:
+        delay = int(delay_raw or 0)
+    except ValueError:
+        die(f"start_delay / $LOAD_TEST_START_DELAY must be a whole number of seconds, got {delay_raw!r}")
+        raise AssertionError("unreachable")
+    if delay < 0:
+        die("start_delay / $LOAD_TEST_START_DELAY must not be negative")
+    return start_at, delay
+
+
+def wait_for_start(start_at: datetime | None, delay: int) -> datetime:
+    """Holds until start_at + delay (or now + delay when no start_at is
+    shared), logging the remaining wait so an operator watching several
+    clients can see their staggered targets. A target already in the past
+    starts immediately — useful when re-running one client after a failure
+    without touching the shared timestamp. Returns the resolved target."""
+    from datetime import timedelta
+
+    base = start_at or datetime.now(timezone.utc)
+    target = base + timedelta(seconds=delay)
+    if start_at is None and delay == 0:
+        return target
+    remaining = (target - datetime.now(timezone.utc)).total_seconds()
+    if remaining <= 0:
+        log(f"start time {format_timestamp(target)} is in the past ({round(-remaining)}s ago) — starting immediately")
+        return target
+    log(f"Holding until {format_timestamp(target)} ({round(remaining)}s; start_at {format_timestamp(base)} + {delay}s delay) before generating any load")
+    while remaining > 0:
+        time.sleep(min(remaining, 30))
+        remaining = (target - datetime.now(timezone.utc)).total_seconds()
+        if remaining > 30:
+            log(f"    {round(remaining)}s to go")
+    log("Go")
+    return target
+
+
+def run_throughput(parts: list[dict[str, Any]], cast: int) -> dict[str, Any]:
+    """Run-wide throughput over several sequential (or overlapping) parts —
+    the per-tenant summaries of one run, or the per-client summaries of a
+    distributed one — each carrying started_at/finished_at. Every tenant
+    lives in the same deployment and the same database, so the figure that
+    matters is what the whole run cast between the earliest start and the
+    latest finish, not a per-tenant rate."""
+    started_at = min(parse_timestamp(p["started_at"]) for p in parts)
+    finished_at = max(parse_timestamp(p["finished_at"]) for p in parts)
+    elapsed_secs = max(1, round((finished_at - started_at).total_seconds()))
+    return {
+        "started_at": format_timestamp(started_at),
+        "finished_at": format_timestamp(finished_at),
+        "elapsed_secs": elapsed_secs,
+        "cast_per_second": round(cast / elapsed_secs, 3),
+    }
 
 
 def write_json(path: Path, data: Any) -> None:

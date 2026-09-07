@@ -195,6 +195,13 @@ telephone_run:
   # null = ivr-cli on PATH, else beyond/packages/{rust-local-target,target}/release/ivr-cli
   ivr_cli_bin: null  # Optional, auto-detected if unset
 
+  # Distributed runs — same semantics as online_run.start_at / start_delay
+  # below (and the same $LOAD_TEST_START_AT / $LOAD_TEST_START_DELAY
+  # overrides): hold until the shared instant plus this client's delay
+  # before placing any call.
+  start_at: null  # Optional, null = start as soon as preflight passes
+  start_delay: 0  # Optional, seconds on top of start_at; vary per client to ramp up
+
   valkey_url: null  # Optional, session store URL, defaults to $VALKEY_URL, else auto-detected/started
   start_valkey: true  # Optional, docker-run a local valkey if no session store is reachable
 
@@ -232,5 +239,20 @@ online_run:
   candidates_pattern: null  # Optional, null = deterministic first-eligible-candidate selection
 
   headed: false  # Optional, run browsers headed for debugging; forces concurrency to 1
+
+  # Distributed runs: an ISO 8601 UTC instant (e.g. "2026-09-07T14:30:00Z")
+  # every load client holds for — after its preflight and manifest rendering
+  # — before launching any browser, so all clients hit the portal together.
+  # $LOAD_TEST_START_AT overrides it, so one shared layers.yaml can be copied
+  # to every client unchanged and the instant injected by the ssh fan-out.
+  # A value already in the past starts immediately.
+  start_at: null  # Optional, null = start as soon as preflight passes
+
+  # Seconds this client waits on top of start_at (or on top of "preflight
+  # passed" when start_at is null). Give each client a different value
+  # ($LOAD_TEST_START_DELAY overrides it — e.g. client i gets i * 60) to
+  # ramp the load up step by step until the peak, instead of every client
+  # hitting the portal at the same instant.
+  start_delay: 0  # Optional, defaults to 0
 
   out_dir: online-load-test-output/votes  # Optional, defaults to online-load-test-output/votes
