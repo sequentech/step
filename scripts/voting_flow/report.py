@@ -64,6 +64,41 @@ def measurement_tables(report):
     return "\n".join(rows) + "\n\n" + "\n".join(throughput)
 
 
+def schedule_tables(report):
+    by_placement = {}
+    for scenario in report["scenarios"]:
+        by_placement.setdefault(scenario["placement"], {})[scenario["indexed"]] = (
+            scenario["queries"]
+        )
+    broad = [
+        "| Extra schedules in | Rows returned | Broad query without index p50 (ms) | With index p50 (ms) |",
+        "|---|---:|---:|---:|",
+    ]
+    selection = [
+        "| Extra schedules in | Two-endpoint query without index p50 (ms) | With index p50 (ms) | Projection p50 (ms) |",
+        "|---|---:|---:|---:|",
+    ]
+    writes = [
+        "| Extra schedules in | Reschedule without index p50 (ms) | With index p50 (ms) |",
+        "|---|---:|---:|",
+    ]
+    for placement, variants in by_placement.items():
+        before, after = variants[False], variants[True]
+        broad.append(
+            f"| {placement} | {before['broad_event']['returned_rows']:,} | "
+            f"{before['broad_event']['p50_ms']:.3f} | {after['broad_event']['p50_ms']:.3f} |"
+        )
+        selection.append(
+            f"| {placement} | {before['two_endpoints']['p50_ms']:.3f} | "
+            f"{after['two_endpoints']['p50_ms']:.3f} | {after['projection']['p50_ms']:.3f} |"
+        )
+        writes.append(
+            f"| {placement} | {before['reschedule']['p50_ms']:.3f} | "
+            f"{after['reschedule']['p50_ms']:.3f} |"
+        )
+    return "\n\n".join("\n".join(table) for table in (broad, selection, writes))
+
+
 def main():
     report = json.loads(REPORT.read_text())
     guide = GUIDE.read_text()
@@ -108,7 +143,23 @@ def main():
             + measurement_tables(verification)
             + "\n"
         )
-    GUIDE.write_text(prefix + START + "\n\n" + measurements + "\n" + END + suffix)
+    updated = prefix + START + "\n\n" + measurements + "\n" + END + suffix
+    schedule_path = REPORT.with_name("schedule-indexes.json")
+    if schedule_path.exists():
+        schedule_report = json.loads(schedule_path.read_text())
+        schedule_start = "<!-- schedule-index-benchmark:start -->"
+        schedule_end = "<!-- schedule-index-benchmark:end -->"
+        before, remainder = updated.split(schedule_start)
+        _, after = remainder.split(schedule_end)
+        evidence = (
+            f"Measurements at `{schedule_report['implementation_commit'][:10]}`. "
+            "[Raw schedule-query evidence](/benchmarks/schedule-indexes.json).\n\n"
+            + schedule_tables(schedule_report)
+        )
+        updated = (
+            before + schedule_start + "\n\n" + evidence + "\n\n" + schedule_end + after
+        )
+    GUIDE.write_text(updated)
     print(f"Updated benchmark tables in {GUIDE.relative_to(ROOT)}")
 
 

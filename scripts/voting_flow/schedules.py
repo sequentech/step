@@ -116,6 +116,9 @@ def main():
     )
     args = parser.parse_args()
     with local_database() as database:
+        # Keep planning mode constant across placements. A cached generic plan
+        # from the previous distribution can hide a selective index lookup.
+        database.connection.prepare_threshold = None
         database.apply(WINDOW_MIGRATION)
         index_sql = database.scalar(
             "SELECT pg_get_indexdef(%s::regclass)", (SCHEDULE_INDEX,)
