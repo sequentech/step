@@ -67,7 +67,11 @@ BEGIN
         count(*) FILTER (WHERE task_id = task_prefix || 'END_VOTING_PERIOD'),
         max(cron_config ->> 'scheduled_date') FILTER (WHERE task_id = task_prefix || 'START_VOTING_PERIOD'),
         max(cron_config ->> 'scheduled_date') FILTER (WHERE task_id = task_prefix || 'END_VOTING_PERIOD'),
-        bool_or(jsonb_typeof(cron_config -> 'scheduled_date') NOT IN ('string', 'null'))
+        bool_or(cron_config IS NOT NULL AND (
+            jsonb_typeof(cron_config) <> 'object'
+            OR jsonb_typeof(cron_config -> 'cron') NOT IN ('string', 'null')
+            OR jsonb_typeof(cron_config -> 'scheduled_date') NOT IN ('string', 'null')
+        ))
     INTO opening_count, closing_count, opening_date, closing_date, invalid_dates
     FROM sequent_backend.scheduled_event schedule
     WHERE tenant_id = target_tenant
@@ -80,6 +84,10 @@ BEGIN
     IF opening_count > 1 OR closing_count > 1 OR invalid_dates THEN
         RAISE EXCEPTION 'ambiguous_or_invalid_voting_window for election %', target_election;
     END IF;
+
+    -- Reject malformed dates while editing configuration, not during a vote.
+    -- Keep the original text so Rust retains its existing boundary semantics.
+    PERFORM opening_date::timestamptz, closing_date::timestamptz;
 
     IF opening_count + closing_count = 0 THEN
         DELETE FROM sequent_backend.election_voting_window
@@ -102,6 +110,17 @@ DECLARE
     new_election uuid;
     affected record;
 BEGIN
+    -- Execution bookkeeping and labels do not change the voting window.
+    IF TG_OP = 'UPDATE' AND ROW(
+        OLD.tenant_id, OLD.election_event_id, OLD.task_id,
+        OLD.event_payload, OLD.cron_config, OLD.archived_at
+    ) IS NOT DISTINCT FROM ROW(
+        NEW.tenant_id, NEW.election_event_id, NEW.task_id,
+        NEW.event_payload, NEW.cron_config, NEW.archived_at
+    ) THEN
+        RETURN NULL;
+    END IF;
+
     IF TG_OP <> 'INSERT' THEN
         old_election := sequent_backend.voting_window_election_id(OLD);
     END IF;

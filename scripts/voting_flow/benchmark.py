@@ -15,6 +15,8 @@ import base64
 import json
 import math
 import os
+import platform
+import subprocess
 from queue import Queue
 import re
 import time
@@ -348,6 +350,11 @@ def run_benchmark(database, output):
     report = {
         "scope": "SQL paths only; excludes HTTP, crypto and audit-broker delivery",
         "baseline_commit": "e93ca05104",
+        "implementation_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip(),
+        "machine": platform.machine(),
+        "available_cpus": os.cpu_count(),
         "postgres_version": database.scalar("SELECT version()"),
         "ballot_bytes": len(content),
         "seeded_ballots": 100000,

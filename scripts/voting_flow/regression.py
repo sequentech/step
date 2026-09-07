@@ -168,6 +168,23 @@ class VotingFlowTests(unittest.TestCase):
             self.election.schedule(self.connection, "END", 42)
         self.assertEqual(self.dates(), (None, None))
 
+    def test_malformed_configuration_cannot_publish_a_missing_deadline(self):
+        schedule_id = self.election.schedule(
+            self.connection, "END", "2026-10-01T12:00:00Z"
+        )
+        for configuration in (
+            ["invalid"],
+            {"cron": 42},
+            {"scheduled_date": "invalid-date"},
+        ):
+            with self.subTest(configuration=configuration):
+                with self.assertRaises(psycopg.Error):
+                    self.connection.execute(
+                        "UPDATE sequent_backend.scheduled_event SET cron_config = %s WHERE id = %s",
+                        (Jsonb(configuration), schedule_id),
+                    )
+                self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
+
     def test_move_archive_unarchive_and_delete(self):
         target = Election()
         target.create(self.connection)
