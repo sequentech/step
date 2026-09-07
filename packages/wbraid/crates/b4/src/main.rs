@@ -57,7 +57,8 @@ async fn main() -> Result<()> {
         .layer(cors)
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
+    let bind = std::env::var("WBRAID_B4_BIND").unwrap_or_else(|_| "127.0.0.1:3000".to_string());
+    let listener = tokio::net::TcpListener::bind(&bind).await?;
     tracing::info!(
         "Bulletin board service listening on {}",
         listener.local_addr()?
