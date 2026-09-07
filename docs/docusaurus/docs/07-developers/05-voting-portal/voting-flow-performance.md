@@ -223,6 +223,20 @@ For the reference workload, before: 2,560 / 4.7475 s = **539.2 votes/s**. After:
 
 Latencies cover the complete SQL path per request. Throughput is total completed requests divided by the combined phase wall time, including driver scheduling overhead. These measurements come from one local run, not production capacity estimates or statistical confidence intervals.
 
+### Release 10 verification
+
+A separate run at implementation `e4c4d8381c` repeats the reference and 64-voter workloads on this release branch. The same accepted-votes/elapsed-seconds calculation applies. [Raw verification report](/benchmarks/voting-flow-release-10.json).
+
+| Scenario | Ballots | Peak voters | Schedules | Before p50 / p99 (ms) | After p50 / p99 (ms) |
+|---|---:|---:|---:|---:|---:|
+| reference | 100,000 | 8 | 100 | 14.53 / 18.72 | 4.55 / 7.33 |
+| 64-concurrent-voters | 100,000 | 64 | 100 | 119.85 / 155.97 | 38.56 / 61.44 |
+
+| Scenario | Before seconds | After seconds | Before votes/s | After votes/s | Accepted per variant | Errors before / after |
+|---|---:|---:|---:|---:|---:|---:|
+| reference | 4.8327 | 1.6053 | 529.7 | 1594.7 | 2,560 | 0 / 0 |
+| 64-concurrent-voters | 5.0343 | 1.7067 | 508.5 | 1500.0 | 2,560 | 0 / 0 |
+
 <!-- voting-flow-benchmark:end -->
 
 The table-size comparison holds each voter's history at two ballots. Both paths

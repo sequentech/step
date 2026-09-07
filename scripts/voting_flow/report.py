@@ -75,6 +75,18 @@ def main():
         "driver scheduling overhead. These measurements come from one local run, not production "
         "capacity estimates or statistical confidence intervals.\n"
     )
+    verification_path = REPORT.with_name("voting-flow-release-10.json")
+    if verification_path.exists():
+        verification = json.loads(verification_path.read_text())
+        measurements += (
+            "\n### Release 10 verification\n\n"
+            f"A separate run at implementation `{verification['implementation_commit'][:10]}` "
+            "repeats the reference and 64-voter workloads on this release branch. "
+            "The same accepted-votes/elapsed-seconds calculation applies. "
+            f"[Raw verification report](/benchmarks/{verification_path.name}).\n\n"
+            + measurement_tables(verification)
+            + "\n"
+        )
     GUIDE.write_text(prefix + START + "\n\n" + measurements + "\n" + END + suffix)
     print(f"Updated benchmark tables in {GUIDE.relative_to(ROOT)}")
 
