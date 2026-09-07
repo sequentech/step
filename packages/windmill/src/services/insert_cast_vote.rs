@@ -8,7 +8,7 @@ use crate::postgres::election::get_election_max_revotes;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::find_scheduled_event_by_election_event_id;
 use crate::services::cast_votes::{CastVote, CastVoteStatus};
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
+use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
@@ -17,7 +17,6 @@ use crate::services::external::utils::{
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::users::get_username_by_id;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
 use base64::{engine::general_purpose, Engine as _};
@@ -46,7 +45,6 @@ use sequent_core::multi_ballot::HashableMultiBallotContests;
 use sequent_core::multi_ballot::SignedHashableMultiBallot;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
@@ -360,6 +358,7 @@ pub async fn try_insert_cast_vote(
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
+    username: &Option<String>,
 ) -> Result<InsertCastVoteResult, CastVoteError> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -442,10 +441,17 @@ pub async fn try_insert_cast_vote(
     };
     let is_early_voting_area = area_presentation.is_early_voting();
 
+    // Audit delivery remains post-commit and best-effort, as before. Reuse the
+    // authenticated request's username and the already loaded signing key so
+    // audit preparation needs neither Keycloak nor a second database checkout.
+    let voter_electoral_log = ElectoralLog::for_voter_with_signing_key(
+        &electoral_log.elog_database, voter_id, &signing_key,
+    );
+
     // Datafix votes are inserted under a per-voter lease that owns its own
     // connection/lock lifecycle (see `insert_datafix_cast_vote_locked`); ordinary
     // votes reuse this read transaction directly. Either way the connection is
-    // released before the audit below, which re-acquires its own.
+    // released before the audit below, which only enqueues its signed message.
     let result = match initial_status {
         CastVoteStatus::InProgress => {
             // Release the read transaction and its connection before locking: the
@@ -494,71 +500,10 @@ pub async fn try_insert_cast_vote(
 
     let ip = format!("ip: {}", voter_ip.as_deref().unwrap_or(""),);
     let country = format!("country: {}", voter_country.as_deref().unwrap_or(""),);
-    let realm = get_event_realm(tenant_id, election_event_id);
-    let username = async {
-        let _phase = CastVotePhase::start("keycloak");
-        let mut client = get_keycloak_pool()
-            .await
-            .get()
-            .await
-            .map_err(|err| format!("Error getting Keycloak client: {err}"))?;
-        let transaction = client
-            .transaction()
-            .await
-            .map_err(|err| format!("Error starting Keycloak transaction: {err}"))?;
-        get_username_by_id(&transaction, &realm, voter_id)
-            .await
-            .map_err(|err| format!("Error getting username: {err:?}"))
-    }
-    .await;
-
     let _audit_phase = CastVotePhase::start("audit");
     match result {
         Ok((inserted_cast_vote, effective_voting_channel)) => {
-            let username = match username {
-                Ok(username) => username,
-                Err(err) => {
-                    error!("Error getting the username after cast-vote commit: {err}");
-                    return classify_inserted_cast_vote(inserted_cast_vote);
-                }
-            };
-            let mut hasura_db_client = match get_hasura_pool().await.get().await {
-                Ok(client) => client,
-                Err(err) => {
-                    error!("Error getting a Hasura client for cast-vote audit: {err}");
-                    return classify_inserted_cast_vote(inserted_cast_vote);
-                }
-            };
-            let after_result_hasura_transaction =
-                hasura_db_client.transaction().await.map_err(|err| {
-                    error!("Error starting the cast-vote audit transaction: {err}");
-                    err
-                });
-            let after_result_hasura_transaction = match after_result_hasura_transaction {
-                Ok(transaction) => transaction,
-                Err(_) => return classify_inserted_cast_vote(inserted_cast_vote),
-            };
-
-            let voter_signing_key = voter_signature_data.clone().map(|val| val.0);
-            let electoral_log_res = ElectoralLog::for_voter(
-                &after_result_hasura_transaction,
-                &electoral_log.elog_database,
-                tenant_id,
-                election_event_id,
-                voter_id,
-                &voter_signing_key,
-            )
-            .await;
-
-            let electoral_log = match electoral_log_res {
-                Ok(electoral_log) => electoral_log,
-                Err(err) => {
-                    error!("Error getting the electoral log for voter. Error: {err:?}");
-                    return classify_inserted_cast_vote(inserted_cast_vote);
-                }
-            };
-
-            let log_result = electoral_log
+            let log_result = voter_electoral_log
                 .post_cast_vote(
                     tenant_id.to_string(),
                     election_event_id.to_string(),
@@ -581,14 +526,6 @@ pub async fn try_insert_cast_vote(
         Err(cast_vote_err) => {
             error!(err=?cast_vote_err);
 
-            let username = match username {
-                Ok(username) => username,
-                Err(err) => {
-                    error!("Error getting the username for cast-vote error audit: {err}");
-                    return skip_or_propagate(cast_vote_err);
-                }
-            };
-
             let log_result = electoral_log
                 .post_cast_vote_error(
                     tenant_id.to_string(),
@@ -599,7 +536,7 @@ pub async fn try_insert_cast_vote(
                     ip,
                     country,
                     voter_id.to_string(),
-                    username,
+                    username.clone(),
                     area_id.to_string().clone(),
                 )
                 .await;
@@ -880,16 +817,10 @@ async fn get_electoral_log(
     .await?;
     let sk = protocol_manager.get_signing_key();
 
-    let electoral_log = ElectoralLog::new_from_sk(
-        hasura_transaction,
-        tenant_id,
-        &election_event.id,
-        board_name.as_str(),
-        &sk,
-    )
-    .await;
-
-    Ok((electoral_log?, sk.clone()))
+    let electoral_log = ElectoralLog::for_voter_with_signing_key(
+        board_name.as_str(), "", sk,
+    );
+    Ok((electoral_log, sk.clone()))
 }
 
 fn effective_voting_channel_for_status(

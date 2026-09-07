@@ -183,22 +183,9 @@ pub async fn insert_cast_vote(
                     $10
                 )
                 RETURNING
-                    id,
-                    ballot_id,
-                    election_id,
-                    election_event_id,
-                    tenant_id,
-                    election_id,
-                    area_id,
-                    created_at,
-                    last_updated_at,
-                    labels,
-                    annotations,
-                    content,
-                    cast_ballot_signature,
-                    voter_id_string,
-                    election_event_id,
-                    status;
+                    id, ballot_id, election_id, election_event_id, tenant_id,
+                    area_id, created_at, last_updated_at, cast_ballot_signature,
+                    voter_id_string, status;
             "#,
         )
         .await?;
@@ -224,16 +211,26 @@ pub async fn insert_cast_vote(
         .await
         .map_err(|err| anyhow!("Error inserting cast vote: {}", err))?;
 
-    let cast_votes: Vec<CastVote> = rows
-        .into_iter()
-        .map(|row| -> Result<CastVote> { row.try_into() })
-        .collect::<Result<Vec<CastVote>>>()?;
-
-    if 1 == cast_votes.len() {
-        Ok(cast_votes[0].clone())
-    } else {
-        Err(anyhow!("Unexpected rows affected {}", cast_votes.len()))
+    if rows.len() != 1 {
+        return Err(anyhow!("Unexpected rows affected {}", rows.len()));
     }
+    let row = rows.into_iter().next().unwrap();
+    Ok(CastVote {
+        id: row.try_get::<_, Uuid>("id")?.to_string(),
+        tenant_id: row.try_get::<_, Uuid>("tenant_id")?.to_string(),
+        election_id: row.try_get::<_, Option<Uuid>>("election_id")?.map(|id| id.to_string()),
+        election_event_id: row.try_get::<_, Uuid>("election_event_id")?.to_string(),
+        area_id: row.try_get::<_, Option<Uuid>>("area_id")?.map(|id| id.to_string()),
+        created_at: row.try_get("created_at")?,
+        last_updated_at: row.try_get("last_updated_at")?,
+        // INSERT does not transform content. Keep the API response identical
+        // without reading the encrypted ballot back out of TOAST storage.
+        content: Some(content.to_owned()),
+        voter_id_string: row.try_get("voter_id_string")?,
+        ballot_id: row.try_get("ballot_id")?,
+        cast_ballot_signature: row.try_get("cast_ballot_signature")?,
+        status: row.try_get::<_, String>("status")?.parse()?,
+    })
 }
 
 #[cfg(test)]

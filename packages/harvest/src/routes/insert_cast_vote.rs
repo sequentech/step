@@ -74,6 +74,7 @@ pub async fn insert_cast_vote(
                     .country_code
                     .clone()
                     .map(|country_code| country_code.to_string()),
+                &claims.preferred_username,
             )
             .await
         },
