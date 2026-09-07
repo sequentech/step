@@ -70,7 +70,14 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/windmill
-RUN cargo build --release --locked --offline
+# The CM helper supplies a fresh namespace per build invocation. Component builds
+# share Cargo's dependency artifacts only inside that invocation and architecture.
+# Copy selected binaries outside the cache mount into the immutable builder layer.
+ARG TEMENOS_CARGO_CACHE_ID=standalone
+ARG TARGETARCH
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --release --locked --offline \
+    && mkdir -p /opt/temenos-build \
+    && cp /app/target/release/main /app/target/release/beat /opt/temenos-build/
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
@@ -80,8 +87,8 @@ RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-inst
 RUN update-ca-certificates
 
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
-COPY --from=builder /app/target/release/main /usr/local/bin/main
-COPY --from=builder /app/target/release/beat /usr/local/bin/beat
+COPY --from=builder /opt/temenos-build/main /usr/local/bin/main
+COPY --from=builder /opt/temenos-build/beat /usr/local/bin/beat
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
 CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]

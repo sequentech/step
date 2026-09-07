@@ -66,7 +66,14 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/braid
-RUN cargo build --release --locked --offline
+# The CM helper supplies a fresh namespace per build invocation. Component builds
+# share Cargo's dependency artifacts only inside that invocation and architecture.
+# Copy selected binaries outside the cache mount into the immutable builder layer.
+ARG TEMENOS_CARGO_CACHE_ID=standalone
+ARG TARGETARCH
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --release --locked --offline \
+    && mkdir -p /opt/temenos-build \
+    && cp /app/target/release/verify /opt/temenos-build/
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
@@ -74,6 +81,6 @@ COPY --from=debs-runtime / /tmp/debs/
 RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-install-recommends /tmp/debs/*.deb \
     && rm -rf /tmp/debs
 
-COPY --from=builder /app/target/release/verify /usr/bin/verify
+COPY --from=builder /opt/temenos-build/verify /usr/bin/verify
 
 ENTRYPOINT ["/usr/bin/verify"]

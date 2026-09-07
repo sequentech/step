@@ -68,7 +68,14 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/braid
-RUN cargo build --release --locked --offline
+# The CM helper supplies a fresh namespace per build invocation. Component builds
+# share Cargo's dependency artifacts only inside that invocation and architecture.
+# Copy selected binaries outside the cache mount into the immutable builder layer.
+ARG TEMENOS_CARGO_CACHE_ID=standalone
+ARG TARGETARCH
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --release --locked --offline \
+    && mkdir -p /opt/temenos-build \
+    && cp /app/target/release/main /app/target/release/verify /app/target/release/gen_trustee_config /opt/temenos-build/
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
@@ -83,9 +90,9 @@ ARG CLOUD_SECRET_BACKENDS=disabled
 ENV CLOUD_SECRET_BACKENDS=${CLOUD_SECRET_BACKENDS}
 ENV SECRETS_BACKEND=EnvVarMasterSecret
 
-COPY --from=builder /app/target/release/main /usr/bin/trustee
-COPY --from=builder /app/target/release/verify /usr/bin/verify
-COPY --from=builder /app/target/release/gen_trustee_config /usr/bin/
+COPY --from=builder /opt/temenos-build/main /usr/bin/trustee
+COPY --from=builder /opt/temenos-build/verify /usr/bin/verify
+COPY --from=builder /opt/temenos-build/gen_trustee_config /usr/bin/
 COPY --from=builder /app/braid/scripts/*.sh /usr/bin/
 RUN mkdir -p /opt/braid/
 

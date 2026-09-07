@@ -63,7 +63,14 @@ COPY ./.cargo ./.cargo
 COPY --from=cargo-vendor / ./vendor/
 
 WORKDIR /app/b4
-RUN cargo build --features=native --release --locked --offline
+# The CM helper supplies a fresh namespace per build invocation. Component builds
+# share Cargo's dependency artifacts only inside that invocation and architecture.
+# Copy selected binaries outside the cache mount into the immutable builder layer.
+ARG TEMENOS_CARGO_CACHE_ID=standalone
+ARG TARGETARCH
+RUN --mount=type=cache,id=${TEMENOS_CARGO_CACHE_ID}-${TARGETARCH},target=/app/target,sharing=locked cargo build --features=native --release --locked --offline \
+    && mkdir -p /opt/temenos-build \
+    && cp /app/target/release/b4 /opt/temenos-build/
 
 FROM debian:bookworm@sha256:6ebd97fa83deb272194a2cf015b3d26a4d538e9ad3a7a79d544c8af5b0a01443
 
@@ -74,7 +81,7 @@ RUN apt-get -o Dir::Cache::archives=/tmp/debs --no-download install -y --no-inst
 # Cloud secret CLIs are optional deployment inputs, not downloaded by the build.
 # uniWAHL uses a mounted trustee configuration / EnvVarMasterSecret and S3-compatible storage.
 
-COPY --from=builder /app/target/release/b4 /usr/bin/b4
+COPY --from=builder /opt/temenos-build/b4 /usr/bin/b4
 
 # init index db
 RUN mkdir /tmp/cache
