@@ -325,7 +325,11 @@ export const Question: React.FC<IQuestionProps> = ({
     }, [question.min_votes, question.max_votes, isReview, t])
 
     return (
-        <Box component="section" aria-labelledby={`contest-${question.id}-title`}>
+        <Box
+            className="contest"
+            component="section"
+            aria-labelledby={`contest-${question.id}-title`}
+        >
             <StyledTitle
                 className="contest-title"
                 variant="h5"
@@ -334,7 +338,7 @@ export const Question: React.FC<IQuestionProps> = ({
                 data-max={question.max_votes}
                 id={`contest-${question.id}-title`}
             >
-                <Box component="span" sx={{flexGrow: 1}}>
+                <Box className="contest-title-text" component="span" sx={{flexGrow: 1}}>
                     {translate(question, "name", i18n.language) || ""}
                 </Box>
                 {isCollapsible &&
@@ -342,10 +346,14 @@ export const Question: React.FC<IQuestionProps> = ({
                 !!categoriesMapOrder &&
                 Object.keys(categoriesMapOrder).length ? (
                     <Button
+                        className="contest-options-toggle"
                         variant="secondary"
                         sx={{flexShrink: 0, minHeight: "unset", fontSize: "14px"}}
                         startIcon={
-                            <FontAwesomeIcon icon={allCollapsed ? faAngleRight : faAngleDown} />
+                            <FontAwesomeIcon
+                                className="contest-collapse-icon"
+                                icon={allCollapsed ? faAngleRight : faAngleDown}
+                            />
                         }
                         onClick={handleToggleAll}
                         aria-expanded={!allCollapsed}
@@ -358,6 +366,7 @@ export const Question: React.FC<IQuestionProps> = ({
             </StyledTitle>
             {question.description || question.description_i18n?.[i18n.language] ? (
                 <Typography
+                    className="contest-description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
