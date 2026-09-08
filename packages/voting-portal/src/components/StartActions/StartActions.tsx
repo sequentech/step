@@ -6,7 +6,7 @@ import {Box} from "@mui/material"
 import Button from "@mui/material/Button"
 import {styled} from "@mui/material/styles"
 import {useTranslation} from "react-i18next"
-import {Link as RouterLink, useLocation, useParams} from "react-router-dom"
+import {useLocation, useNavigate, useParams} from "react-router-dom"
 import {ESecurityConfirmationPolicy, IElection} from "@sequentech/ui-core"
 import SecurityConfirmation from "../SecurityConfirmation/SecurityConfirmation"
 import type {TenantEventType} from "../.."
@@ -52,6 +52,7 @@ export const StartActions: React.FC<StartActionsProps> = ({
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
     const location = useLocation()
+    const navigate = useNavigate()
     const [checkboxChecked, setCheckboxChecked] = useState(false)
 
     const hasSecurityCheckbox =
@@ -68,25 +69,19 @@ export const StartActions: React.FC<StartActionsProps> = ({
                     onChange={setCheckboxChecked}
                 />
             ) : null}
-            <ActionsContainer>
-                {disabledStart ? (
-                    <StyledButton
-                        className="start-voting-button"
-                        sx={{width: "100%"}}
-                        disabled={true}
-                    >
-                        {t("startScreen.startButton")}
-                    </StyledButton>
-                ) : (
-                    <StyledButton
-                        component={RouterLink}
-                        className="start-voting-button"
-                        to={`/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`}
-                        sx={{margin: "auto 0", width: "100%"}}
-                    >
-                        {t("startScreen.startButton")}
-                    </StyledButton>
-                )}
+            <ActionsContainer className="actions-container">
+                <StyledButton
+                    className="start-voting-button"
+                    onClick={() =>
+                        navigate(
+                            `/tenant/${tenantId}/event/${eventId}/election/${election.id}/vote${location.search}`
+                        )
+                    }
+                    sx={{margin: "auto 0", width: "100%"}}
+                    disabled={disabledStart}
+                >
+                    {t("startScreen.startButton")}
+                </StyledButton>
                 {isDeclineToVotePolicyEnabled ? (
                     <StyledButton
                         className="decline-to-vote-button"

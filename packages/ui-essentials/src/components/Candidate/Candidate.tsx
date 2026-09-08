@@ -214,7 +214,7 @@ const Candidate: React.FC<CandidateProps> = ({
             className={`candidate-item ${className}`}
         >
             <ImageBox className="image-box">{children}</ImageBox>
-            <Box flexGrow={2}>
+            <Box className="candidate-text" flexGrow={2}>
                 <UnselectableTypography
                     className="candidate-title"
                     id={titleId}
@@ -238,8 +238,10 @@ const Candidate: React.FC<CandidateProps> = ({
                     {description}
                 </UnselectableTypography>
                 {isWriteIn ? (
-                    <Box>
-                        <VisuallyHidden id={writeInLabelId}>{t("a11y.writeInFor")}</VisuallyHidden>
+                    <Box className="candidate-write-in">
+                        <VisuallyHidden className="candidate-write-in-label" id={writeInLabelId}>
+                            {t("a11y.writeInFor")}
+                        </VisuallyHidden>
                         <TextField
                             className="candidate-writein-textfield"
                             placeholder={t("candidate.writeInsPlaceholder")}
@@ -287,7 +289,7 @@ const Candidate: React.FC<CandidateProps> = ({
             {isPreferentialVote ? (
                 isSelectable ? (
                     <>
-                        <VisuallyHidden id={positionLabelId}>
+                        <VisuallyHidden className="candidate-preference-label" id={positionLabelId}>
                             {t("a11y.preferenceLabel")}
                         </VisuallyHidden>
                         <Select
@@ -307,6 +309,11 @@ const Candidate: React.FC<CandidateProps> = ({
                                 return t("candidate.preferential.position")
                             }}
                             MenuProps={{
+                                className: "candidate-preference-menu",
+                                classes: {
+                                    paper: "candidate-preference-paper",
+                                    list: "candidate-preference-options",
+                                },
                                 PaperProps: {
                                     style: {
                                         maxHeight: 200,
@@ -325,12 +332,21 @@ const Candidate: React.FC<CandidateProps> = ({
                             }}
                             className="candidate-position-select"
                         >
-                            <MenuItem value={0}>
-                                <em>{t("candidate.preferential.none")}</em>
+                            <MenuItem
+                                className="candidate-preference-option candidate-preference-none"
+                                value={0}
+                            >
+                                <em className="candidate-preference-none-label">
+                                    {t("candidate.preferential.none")}
+                                </em>
                             </MenuItem>
                             {Array.from({length: maxSelectablePositions}, (_, i) => i + 1).map(
                                 (num) => (
-                                    <MenuItem key={num} value={num}>
+                                    <MenuItem
+                                        className="candidate-preference-option"
+                                        key={num}
+                                        value={num}
+                                    >
                                         {getOrdinalSuffix(num, t)}
                                     </MenuItem>
                                 )
@@ -358,20 +374,26 @@ const Candidate: React.FC<CandidateProps> = ({
             ) : isSelectable ? (
                 iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
+                        className="candidate-checkbox"
                         slotProps={{
                             input: {
                                 "className": "candidate-input",
                                 "aria-labelledby": checkboxLabelIds,
                             },
                         }}
-                        icon={<RadioButtonUncheckedIconFixed />}
-                        checkedIcon={<RadioButtonCheckedIconFixed />}
+                        icon={
+                            <RadioButtonUncheckedIconFixed className="candidate-unchecked-icon" />
+                        }
+                        checkedIcon={
+                            <RadioButtonCheckedIconFixed className="candidate-checked-icon" />
+                        }
                         disabled={shouldDisable}
                         checked={checked}
                         onChange={handleChange}
                     />
                 ) : (
                     <Checkbox
+                        className="candidate-checkbox"
                         slotProps={{
                             input: {
                                 "className": "candidate-input",

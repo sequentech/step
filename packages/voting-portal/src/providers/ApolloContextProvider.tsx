@@ -66,8 +66,11 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     return client === null ||
         scope !== loadedScope ||
         (!globalSettings.DISABLE_AUTH && (!isAuthContextInitialized || !keycloakAccessToken)) ? (
-        <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
-            <CircularProgress />
+        <Box
+            className="apollo-loading"
+            sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}
+        >
+            <CircularProgress className="apollo-loading-progress" />
         </Box>
     ) : (
         <ApolloProvider client={client}>{children}</ApolloProvider>
