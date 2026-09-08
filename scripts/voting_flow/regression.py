@@ -117,6 +117,55 @@ class VotingFlowTests(unittest.TestCase):
         self.assertEqual(self.concurrent(operations), [None, None])
         self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
 
+    def test_inverse_scope_order_across_statements(self):
+        """Serialize configuration transactions before inverse scope order can deadlock."""
+        other = Election()
+        other.create(self.connection)
+
+        def write(elections, endpoint):
+            def operation(connection):
+                connection.execute("SET LOCAL statement_timeout = '5s'")
+                for election in elections:
+                    election.schedule(connection, endpoint, "2026-10-01T12:00:00Z")
+                    connection.execute("SELECT pg_sleep(0.05)")
+            return operation
+
+        self.assertEqual(self.concurrent([
+            write([self.election, other], "START"),
+            write([other, self.election], "END"),
+        ]), [None, None])
+        for election in [self.election, other]:
+            self.assertEqual(self.dates(election), ("2026-10-01T12:00:00Z",) * 2)
+
+    def test_inverse_scope_order_in_multirow_statements(self):
+        """Two bulk inserts with opposing row orders preserve every projected endpoint."""
+        other = Election()
+        other.create(self.connection)
+
+        def write(elections, endpoint):
+            def operation(connection):
+                connection.execute("SET LOCAL statement_timeout = '5s'")
+                parameters = []
+                for election in elections:
+                    parameters.extend([
+                        election.tenant, election.event, election.task_name(endpoint),
+                        Jsonb({"election_id": str(election.election)}),
+                        Jsonb({"scheduled_date": "2026-10-01T12:00:00Z"}),
+                    ])
+                connection.execute("""
+                    INSERT INTO sequent_backend.scheduled_event
+                        (tenant_id, election_event_id, task_id, event_payload, cron_config)
+                    VALUES (%s, %s, %s, %s, %s), (%s, %s, %s, %s, %s)
+                """, parameters)
+            return operation
+
+        self.assertEqual(self.concurrent([
+            write([self.election, other], "START"),
+            write([other, self.election], "END"),
+        ]), [None, None])
+        for election in [self.election, other]:
+            self.assertEqual(self.dates(election), ("2026-10-01T12:00:00Z",) * 2)
+
     def test_concurrent_reschedules_do_not_lose_an_update(self):
         """Preserve both changed dates when opening and closing tasks are updated concurrently."""
         start = self.election.schedule(self.connection, "START", "2026-10-01T10:00:00Z")

@@ -84,13 +84,16 @@ pub async fn delete_tenant_f(
     let _celery_task = match celery_task_result {
         Ok(task) => task,
         Err(error) => {
-            return Ok(Json(DeleteTenantOutput {
-                id: input.tenant_id,
-                error_msg: Some(format!(
-                    "Error sending Delete Tenant task: ${error}"
-                )),
-                task_execution: task_execution.clone(),
-            }));
+            let message = format!("Error sending Delete Tenant task: {error}");
+            update_fail(&task_execution, &message)
+                .await
+                .map_err(|error| {
+                    (
+                        Status::InternalServerError,
+                        format!("Failed to record dispatch failure: {error}"),
+                    )
+                })?;
+            return Err((Status::InternalServerError, message));
         }
     };
 
