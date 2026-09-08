@@ -13,7 +13,10 @@
       "ballot-verifier",
       "results-portal"
     ],
-    "nohoist": ["**/node_modules/@storybook", "**/storybook"]
+    "nohoist": [
+      "**/node_modules/@storybook",
+      "**/storybook"
+    ]
   },
   "devDependencies": {
     "storybook": "8.6.15",
@@ -60,7 +63,7 @@
     "@babel/helpers": "^7.26.10",
     "@babel/runtime": "^7.26.10",
     "ejs": "^3.1.10",
-    "webpack": "^5.104.1",
+    "webpack": ">=5.104.1 <5.110.0",
     "brace-expansion": "^2.1.4",
     "on-headers": "^1.1.0",
     "@types/react": "^19.1.13",
