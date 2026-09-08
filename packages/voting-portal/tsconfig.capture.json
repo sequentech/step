@@ -11,5 +11,5 @@
     "noEmit": true,
     "strict": true
   },
-  "include": ["test/load/*.ts", "playwright.capture.config.ts", "playwright.load.config.ts"]
+  "include": ["test/load/*.ts", "playwright.capture.config.ts", "playwright.scale.config.ts"]
 }

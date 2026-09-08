@@ -8,6 +8,7 @@ export default defineConfig({
     testMatch: "scale.spec.ts",
     workers: 1,
     retries: 0,
-    expect: {timeout: 15_000},
+    expect: {timeout: Number(process.env.LOAD_ACTION_TIMEOUT_MS ?? 15_000)},
     reporter: "line",
+    outputDir: process.env.LOAD_ARTIFACTS,
 })

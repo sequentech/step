@@ -107,7 +107,7 @@ def protocol(config: dict, *, cast: bool) -> dict:
                 response_type="code",
                 response_mode="fragment",
                 scope="openid",
-                ui_locales="en",
+                ui_locales=config.get("locale", "en"),
             ),
         ),
         dict(kind="login"),
@@ -137,8 +137,8 @@ def validate(config: dict) -> None:
     for key in ("count", "shard_size", "vus"):
         if not isinstance(config[key], int) or config[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
-    if config["start"] < 0 or config["shard_size"] > 10000:
-        raise ValueError("Use a nonnegative start and shard_size <= 10000")
+    if config["start"] < 0:
+        raise ValueError("Use a nonnegative start")
     if config["engine"] not in ("k6", "chromium"):
         raise ValueError("engine must be k6 or chromium")
     if config["engine"] == "chromium" and config.get("mode") == "status":
@@ -301,7 +301,13 @@ def bootstrap(config: dict, output: Path) -> dict:
     log_path = output / "bootstrap.log"
     with log_path.open("w") as log:
         subprocess.run(
-            ["k6", "run", "--log-format", "raw", str(HERE / "bootstrap.k6.js")],
+            [
+                config.get("runtime", {}).get("k6", "k6"),
+                "run",
+                "--log-format",
+                "raw",
+                str(HERE / "bootstrap.k6.js"),
+            ],
             env=k6_env(config, output / "bootstrap.json"),
             stdout=log,
             stderr=log,
@@ -386,6 +392,7 @@ def prepare(
                     subprocess.run(
                         [
                             str(native.resolve()),
+                            *(["load", "encrypt"] if config.get("native_cli") else []),
                             str(output / "style.json"),
                             str(choices.resolve()),
                             str(count),
@@ -432,17 +439,42 @@ def worker(directory: Path, shard: int) -> None:
         LOAD_BALLOTS=str(directory / f"{shard:06d}.jsonl"),
         LOAD_SUMMARY=str(out / "summary.json"),
         LOAD_RESULTS=str(out / "samples.jsonl"),
+        LOAD_ARTIFACTS=str(out / "browser"),
+        LOAD_ACTION_TIMEOUT_MS=str(config.get("action_timeout_ms", 15000)),
+    )
+    runtime = config.get("runtime", {})
+    if os.environ.get("STEP_LOAD_CONTAINER"):
+        env.pop("CHROMIUM_EXECUTABLE_PATH", None)
+        runtime = dict(
+            runtime, node="node", k6="k6", playwright_dir="/runner", chromium=None
+        )
+    if runtime.get("chromium"):
+        env["CHROMIUM_EXECUTABLE_PATH"] = runtime["chromium"]
+    env["NODE_PATH"] = str(
+        Path(runtime.get("playwright_dir", ROOT / "packages/voting-portal"))
+        / "node_modules"
     )
     if config["engine"] == "k6":
-        command = ["k6", "run", "--log-format", "raw", str(HERE / "scale.k6.js")]
+        command = [
+            runtime.get("k6", "k6"),
+            "run",
+            "--log-format",
+            "raw",
+            str(HERE / "scale.k6.js"),
+        ]
     else:
         package = subprocess.check_output(
-            ["node", "-p", "require.resolve('@playwright/test/package.json')"],
-            cwd=ROOT / "packages/voting-portal",
+            [
+                runtime.get("node", "node"),
+                "-p",
+                "require.resolve('@playwright/test/package.json')",
+            ],
+            cwd=runtime.get("playwright_dir", ROOT / "packages/voting-portal"),
             text=True,
         ).strip()
+        env["NODE_PATH"] = str(Path(package).parents[2])
         command = [
-            "node",
+            runtime.get("node", "node"),
             str(Path(package).parent / "cli.js"),
             "test",
             "--config",
@@ -495,7 +527,6 @@ def main() -> None:
     )
     parser.add_argument("directory", type=Path)
     parser.add_argument("--config", type=Path)
-    parser.add_argument("--publish-docs", action="store_true")
     parser.add_argument(
         "--dsn-env",
         help="Optional coordinator-only PostgreSQL audit DSN environment variable",
@@ -511,6 +542,7 @@ def main() -> None:
     parser.add_argument("--image")
     parser.add_argument("--pvc")
     parser.add_argument("--network", default="bridge")
+    parser.add_argument("--mount-source", type=Path)
     parser.add_argument("--uid", type=int, default=os.getuid())
     parser.add_argument("--gid", type=int, default=os.getgid())
     parser.add_argument("--secret", default="voting-load-password")
@@ -538,13 +570,9 @@ def main() -> None:
                 for index in range(args.nodes)
             ]
             failures = [str(f.exception()) for f in futures if f.exception()]
-        from scale_report import report
+        from aggregate import report
 
         report(args.directory, args.dsn_env)
-        if args.publish_docs:
-            from scale_report import publish_docs
-
-            publish_docs(args.directory)
         if failures:
             raise RuntimeError("; ".join(failures))
     elif args.command == "containers":
@@ -565,7 +593,7 @@ def main() -> None:
                     "-e",
                     config.get("password_env", "LOAD_PASSWORD"),
                     "-v",
-                    f"{args.directory}:/load",
+                    f"{args.mount_source or args.directory}:/load",
                     args.image,
                     "node",
                     "/load",
@@ -583,13 +611,9 @@ def main() -> None:
                 "Container workers failed; merge their results with report"
             )
     elif args.command == "report":
-        from scale_report import report
+        from aggregate import report
 
         report(args.directory, args.dsn_env)
-        if args.publish_docs:
-            from scale_report import publish_docs
-
-            publish_docs(args.directory)
     else:
         if not args.image or not args.pvc:
             parser.error("pods requires --image and --pvc")
@@ -617,7 +641,7 @@ def main() -> None:
                                 "image": args.image,
                                 "command": [
                                     "python3",
-                                    "/runner/scripts/voting_e2e/scale.py",
+                                    "/runner/packages/voting-load/runner.py",
                                     "node",
                                     "/load",
                                     "--nodes",
@@ -644,10 +668,13 @@ def main() -> None:
                                         },
                                     },
                                 ],
-                                "resources": {
-                                    "requests": {"cpu": "1", "memory": "1Gi"},
-                                    "limits": {"cpu": "2", "memory": "4Gi"},
-                                },
+                                "resources": config.get(
+                                    "resources",
+                                    {
+                                        "requests": {"cpu": "1", "memory": "1Gi"},
+                                        "limits": {"cpu": "2", "memory": "4Gi"},
+                                    },
+                                ),
                                 "volumeMounts": [
                                     {"name": "load", "mountPath": "/load"}
                                 ],

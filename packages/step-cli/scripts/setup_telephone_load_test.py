@@ -8,8 +8,8 @@ more tenants, bulk-creates DTMF-safe voters, runs the keys ceremony,
 publishes, and opens the requested voting channel (TELEPHONE or ONLINE — see
 the 'setup:' section of telephone-load-test-inputs/config/layers.yaml) — in
 every target tenant. Writes one summary.json + voters CSV per tenant that
-Stage 2 consumes — run_telephone_load_test.py (driving `ivr-cli` calls) for
-TELEPHONE, run_online_load_test.py (driving Playwright browsers) for ONLINE.
+run_telephone_load_test.py consumes when driving `ivr-cli` calls.
+Online voting workloads use the independent `step-cli load` workflow.
 See docs/docusaurus/docs/07-developers/12-ivr/telephone-load-testing-design.md
 and docs/docusaurus/docs/07-developers/02-cli/02-tutorials/load-testing/online-load-testing-design.md
 for the full designs, and the guide next to each for a walkthrough.

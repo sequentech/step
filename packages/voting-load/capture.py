@@ -19,7 +19,7 @@ import urllib.request
 import psycopg
 
 from resources import extract
-from report import generate
+from capture_report import generate
 from measurements import summarize_sql
 from traffic import inventory, validate_s3_flow
 from replay_profile import compile_profile

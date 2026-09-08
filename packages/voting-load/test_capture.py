@@ -16,7 +16,7 @@ import psycopg
 
 from capture import collect_logs, log_positions
 from resources import extract
-from report import render
+from capture_report import render
 
 
 def entry(

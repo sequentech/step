@@ -10,7 +10,12 @@ runner_root="$(cd -- "$(dirname -- "$0")/../.." && pwd)"
 cd "$runner_root"
 # An explicit source-only context also works with Docker's classic builder.
 # Private census, tokens, ciphertexts and node_modules never reach the daemon.
-tar -cf - scripts/voting_e2e/Dockerfile scripts/voting_e2e/*.py \
-    scripts/voting_e2e/*.js packages/voting-portal/playwright.scale.config.ts \
+if docker buildx version >/dev/null 2>&1; then
+    build_command=(docker buildx build --load)
+else
+    build_command=(docker build)
+fi
+tar -cf - packages/voting-load/Dockerfile packages/voting-load/*.py \
+    packages/voting-load/*.js packages/voting-portal/playwright.scale.config.ts \
     packages/voting-portal/test/load/{flow,scale.spec}.ts |
-    docker build --target "$1" -t "$2" -f scripts/voting_e2e/Dockerfile -
+    "${build_command[@]}" --target "$1" -t "$2" -f packages/voting-load/Dockerfile -

@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 **
 !scripts/
-!scripts/voting_e2e/
-!scripts/voting_e2e/*.py
-!scripts/voting_e2e/*.js
+!packages/voting-load/
+!packages/voting-load/*.py
+!packages/voting-load/*.js
 !packages/
 !packages/voting-portal/
 !packages/voting-portal/playwright.scale.config.ts
 !packages/voting-portal/test/
 !packages/voting-portal/test/load/
 !packages/voting-portal/test/load/flow.ts
-!packages/voting-portal/test/load/scale.spec.ts
+!packages/voting-portal/test/load/runner.spec.ts

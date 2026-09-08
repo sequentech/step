@@ -6,35 +6,20 @@ title: Voting worker design
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-The [voting performance guide](./voter-status-performance.md) covers setup, local execution, containers, Kubernetes and reports. The worker model is deliberately finite: every iteration owns one voter and one cast attempt.
+`step-cli load` owns the public lifecycle. The internal runtime in `packages/voting-load` contains one finite executor shared by k6 and Chromium, provisioning, aggregation and optional diagnostic capture. Native ballot encryption is part of `step-cli` and uses `sequent-core`.
 
-## Data ownership
+## Ownership and memory
 
-For shard `s`, local iteration `i` uses username `prefix + (start + s × shard_size + i)`. Node `n` of `N` handles shards `n, n + N, n + 2N, …`. The final shard may be shorter; no range wraps and no voter is reused.
+Shard `s`, iteration `i` owns voter `prefix + (start + s × shard_size + i)`. Worker `n` of `N` handles shards `n, n + N, …`. The final shard may be shorter; neither workers nor iterations wrap around the census.
 
-k6 uses [shared iterations](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/shared-iterations/) and `scenario.iterationInTest`, so faster virtual users can complete more work without duplicating voter inputs. A `SharedArray` contains only the current shard's encrypted ballots, not the whole census. Chromium uses the same ranges and opens a new context for each full UI journey.
+Census generation hashes the shared password once and streams rows. Encryption streams independently randomized ballots. Each worker loads one shard, and SQLite merges samples on disk. The number of voters affects disk usage and duration; `shard_size` bounds each worker's ballot input memory.
 
-| Artifact | Contents | Growth |
-| --- | --- | --- |
-| Census CSV batches | Patterned usernames, shared prehash, eligibility | Disk proportional to voters; one row in generator memory |
-| Encrypted JSONL shards | Fresh ballot ID, ciphertext and election ID | Disk proportional to voters; at most `shard_size` ballots per worker |
-| Worker configuration | Endpoints, scope, ranges, goals and protocol | Constant size |
-| Attempt claims | One exclusive file per shard | Proportional to shards |
-| Raw result samples | Timing, outcome and API receipt ID | Streamed to disk |
-| Aggregate report | Global percentiles, throughput, requests and failures | Independent of voter count |
+Prepared configuration and ciphertexts are hashed before execution. Each shard takes an exclusive durable attempt marker. Restarting a worker cannot silently cast that shard again. Republish or change voter ranges by preparing new inputs.
 
-## What the timings mean
+## Timing and evidence
 
-Preparation includes census import, one publication bootstrap and native encryption. These costs happen before timed k6 iterations. Each iteration includes a fresh login, voter status, publication downloads and cast response. Chromium additionally includes rendering and WASM encryption.
+The timed k6 journey uses fresh Keycloak cookies and PKCE, reads minimal voter status, downloads signed publication objects and casts its prepared ballot. Chromium uses the shared portal test flow to select, encrypt, confirm and read the receipt. Preparation never requires a Chromium capture.
 
-Accepted casts/s uses the interval from the first journey start to the last completion, including the final in-flight work. Global p50/p99 are calculated from individual samples in disk-backed SQLite. The report does not average per-worker percentiles or treat a successful HTTP status with GraphQL errors as a successful vote.
+Aggregation computes global percentiles from individual samples, checks voter ownership and receipt uniqueness, and retains missing work as a failure. HTTP inventories record client-facing requests. Optional database observers provide additional evidence; client traffic does not reveal internal Hasura SQL.
 
-An API receipt confirms API acceptance. Independent persistence verification needs database observation; follow the [receipt-audit commands](./voter-status-performance.md#read-and-refresh-results) for a batched receipt audit, or use the [diagnostic capture](./voting-flow-e2e.md) for SQL attribution. The worker deliberately does not execute one administrative database query per voter.
-
-## Failure and capacity
-
-An attempted shard is never automatically retried, even after a pod replacement. Keep its claim and reconcile receipts before any manual recovery. Start a new voting run with a fresh census range and newly prepared ballots.
-
-Bounded client memory does not guarantee a particular backend throughput. Measure encryption time and disk space during preparation, worker CPU/RSS/network during load, and Keycloak/database/cast-service saturation. Increase worker count and virtual users separately to identify which resource limits throughput. Shared passwords remove repeated hashing during import; authentication still performs its normal password verification.
-
-<!-- generated-load-results -->
+See [results](./voting-load-results.md) for measurement definitions and troubleshooting, and [deployment](./voting-load-deployment.md) for worker placement.

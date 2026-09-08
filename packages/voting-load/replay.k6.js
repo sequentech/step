@@ -50,7 +50,7 @@ export function replayJourney(profile, ballot, index, config, cast) {
       jar,
       headers,
       redirects: 0,
-      timeout: "30s",
+      timeout: config.request_timeout || "30s",
       responseType: binary ? "binary" : "text",
       tags: { name: kind },
     });

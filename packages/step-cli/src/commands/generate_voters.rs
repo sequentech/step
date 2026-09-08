@@ -22,7 +22,7 @@ use std::path::PathBuf;
 
 use crate::utils::read_config::load_external_config;
 
-/// An election's alias lives at presentation.i18n.<lang>.alias, not as a
+/// An election's alias lives at `presentation.i18n.<lang>.alias`, not as a
 /// top-level "alias" field — prefers "en", falls back to any other language
 /// with an alias set, then to that language's name, then "Unknown".
 fn election_alias(el: &Value) -> String {

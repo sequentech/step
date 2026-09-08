@@ -3,6 +3,7 @@
 // // SPDX-License-Identifier: AGPL-3.0-only
 
 mod commands;
+mod load;
 mod tests;
 mod types;
 mod utils;
@@ -22,6 +23,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum MainCommand {
+    /// Prepare and measure complete synthetic voting journeys.
+    #[command(subcommand)]
+    Load(load::Command),
     #[command(subcommand)]
     Step(StepCommands),
 }
@@ -81,6 +85,12 @@ fn main() {
     let cli = Cli::parse();
 
     match &cli.command {
+        MainCommand::Load(command) => {
+            if let Err(error) = command.run() {
+                eprintln!("{error:#}");
+                std::process::exit(1);
+            }
+        }
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::Config(cmd) => cmd.run(),
             StepCommands::CreateTenant(create_tenant) => create_tenant.run(),

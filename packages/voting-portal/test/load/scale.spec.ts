@@ -7,6 +7,8 @@ import {dirname, join} from "node:path"
 import {castBallotAsVoter} from "./flow"
 
 interface Workload {
+    journey_timeout_ms?: number
+    action_timeout_ms?: number
     start: number
     count: number
     shard_size: number
@@ -26,7 +28,8 @@ test("finite Chromium voting shard", async () => {
     const shard = Number(process.env.LOAD_SHARD)
     const first = config.start + shard * config.shard_size
     const count = Math.min(config.shard_size, config.count - shard * config.shard_size)
-    test.setTimeout(Math.max(180_000, Math.ceil(count / config.vus) * 180_000))
+    const journeyTimeout = config.journey_timeout_ms ?? 180_000
+    test.setTimeout(Math.max(journeyTimeout, Math.ceil(count / config.vus) * journeyTimeout))
     const traffic: Record<string, number> = {}
     const browser = await chromium.launch({
         headless: true,
@@ -41,6 +44,7 @@ test("finite Chromium voting shard", async () => {
                     const index = first + next++
                     const start = Date.now()
                     const context = await browser.newContext()
+                    context.setDefaultTimeout(config.action_timeout_ms ?? 15_000)
                     let passed = false
                     let receipt: string | null = null
                     let castMs: number | null = null
@@ -103,6 +107,7 @@ test("finite Chromium voting shard", async () => {
                         const page = await context.newPage()
                         const ids = await castBallotAsVoter(page, {
                             loginUrl: config.login_url,
+                            castTimeoutMs: journeyTimeout,
                             credentials: {
                                 ...config.login_fields,
                                 username: config.username_prefix + index,

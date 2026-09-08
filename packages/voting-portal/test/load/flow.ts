@@ -5,6 +5,8 @@
 import {expect, Page} from "@playwright/test"
 
 export interface CastBallotOptions {
+    /** Deadline for encryption, confirmation and receipt availability. */
+    castTimeoutMs?: number
     loginUrl: string
     // Every column from the voter's CSV row (a "password" PIN/credential,
     // plus whichever match-attributes — a voter-id username, a date of
@@ -19,7 +21,7 @@ export interface CastBallotOptions {
 // Encrypting and casting the ballot are the slow steps of the flow — WASM
 // encryption per contest plus the cast round-trip — so the waits around them
 // get a longer budget than ordinary screen transitions.
-const castTimeoutMs = 60_000
+const defaultCastTimeoutMs = 60_000
 
 // The demo dialog is shown every time a demo event lands on the election
 // list; a real event never shows it. Wait for whichever appears first
@@ -105,7 +107,8 @@ async function selectCandidates(page: Page, candidatesPattern?: string): Promise
 async function voteElection(
     page: Page,
     electionIndex: number,
-    candidatesPattern?: string
+    candidatesPattern?: string,
+    castTimeoutMs = defaultCastTimeoutMs
 ): Promise<string> {
     await page.locator(".election-item").nth(electionIndex).locator(".click-to-vote-button").click()
 
@@ -202,7 +205,9 @@ export async function castBallotAsVoter(page: Page, options: CastBallotOptions):
 
     const ballotIds: string[] = []
     for (let election = 0; election < electionCount; election++) {
-        ballotIds.push(await voteElection(page, election, options.candidatesPattern))
+        ballotIds.push(
+            await voteElection(page, election, options.candidatesPattern, options.castTimeoutMs)
+        )
         if (election < electionCount - 1) {
             // Finish navigates back to the election list while voting remains
             // open; on the last election the cast is already confirmed, so

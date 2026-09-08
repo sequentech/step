@@ -28,10 +28,9 @@ between steps.
 
 ## Configuration
 
-`setup_telephone_load_test.py`, `run_telephone_load_test.py` and
-`run_online_load_test.py` take **no command-line arguments** — every setting
+`setup_telephone_load_test.py` and `run_telephone_load_test.py` take **no command-line arguments** — every setting
 lives in `packages/step-cli/scripts/telephone-load-test-inputs/config/layers.yaml`,
-under the `setup:` / `telephone_run:` / `online_run:` sections respectively.
+under the `setup:` / `telephone_run:` sections respectively. Online browser and k6 workloads use the [voting load CLI](../05-voting-portal/voter-status-performance.md).
 `config/` is gitignored (it holds real per-server credentials); copy the
 tracked
 [`layers.yaml.example`](https://github.com/sequentech/step/blob/main/packages/step-cli/scripts/telephone-load-test-inputs/layers.yaml.example)

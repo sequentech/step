@@ -82,3 +82,8 @@ airgapped-artifacts
 .cache/voting-e2e/
 .cache/obscura/
 .cache/playwright/
+
+# Private step-cli load runs: census, ballots and authenticated diagnostics.
+/runs/
+
+/packages/voting-load/__pycache__/

@@ -4,8 +4,7 @@
 
 """Shared helpers for the load-test scripts in this directory.
 
-Imported by setup_telephone_load_test.py, run_telephone_load_test.py and
-run_online_load_test.py — not meant to be run directly. All three scripts
+Imported by the telephone setup and execution scripts, not run directly. These scripts
 take no command-line arguments: every configurable knob lives in
 telephone-load-test-inputs/config/layers.yaml, loaded here.
 """

@@ -35,7 +35,7 @@ export const options = {
   scenarios: {
     voters: {
       executor: "shared-iterations",
-      vus: config.vus,
+      vus: Math.min(config.vus, count),
       iterations: count,
       maxDuration: config.max_duration,
     },
@@ -100,7 +100,7 @@ export default function () {
             },
             tags: { name: "InsertCastVote" },
             redirects: 0,
-            timeout: "60s",
+            timeout: config.cast_timeout || "60s",
           },
         );
         castMs = Date.now() - before;

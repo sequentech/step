@@ -18,7 +18,7 @@ import time
 import uuid
 import zipfile
 
-from scale import census, import_census, read, save, validate
+from runner import census, import_census, read, save, validate
 
 
 def fixture(template: dict, config: dict) -> dict:
@@ -163,7 +163,8 @@ def provision(
         output / "setup-state.json",
         dict(election_event_id=event, key_ceremony_id=ceremony),
     )
-    for _ in range(120):
+    deadline = time.monotonic() + config.get("ceremony_timeout_seconds", 600)
+    while time.monotonic() < deadline:
         step("refresh-token")
         status = step(
             "get-key-ceremony-status",
@@ -176,7 +177,7 @@ def provision(
             break
         if "CANCELLED" in status:
             raise RuntimeError("Key ceremony cancelled")
-        time.sleep(5)
+        time.sleep(config.get("poll_interval_seconds", 5))
     else:
         raise RuntimeError("Key ceremony timed out; inspect setup-state.json")
     publication = identifier(step("publish", "--election-event-id", event))

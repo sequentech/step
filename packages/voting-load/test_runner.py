@@ -8,13 +8,14 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from scale import census, protocol, shard_bounds, shard_count
-from scale_report import percentile
+from runner import census, protocol, shard_bounds, shard_count
+from aggregate import percentile
 
 
 class ScaleTests(unittest.TestCase):
@@ -48,7 +49,7 @@ class ScaleTests(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             os.environ, LOAD_PASSWORD="synthetic"
-        ), patch("scale.hashlib.pbkdf2_hmac", wraps=hashlib.pbkdf2_hmac) as derive:
+        ), patch("runner.hashlib.pbkdf2_hmac", wraps=hashlib.pbkdf2_hmac) as derive:
             directory = Path(tmp) / "census"
             census(config, directory)
             self.assertEqual(derive.call_count, 1)
@@ -105,7 +106,7 @@ class ScaleTests(unittest.TestCase):
         )
 
     def test_global_percentile_uses_all_samples_and_duplicate_ownership_fails(self):
-        with sqlite3.connect(":memory:") as db:
+        with closing(sqlite3.connect(":memory:")) as db:
             db.execute("CREATE TABLE samples (voter INTEGER PRIMARY KEY, cast_ms REAL)")
             db.executemany(
                 "INSERT INTO samples VALUES (?, ?)", enumerate([1, 2, 3, 1000])
@@ -117,17 +118,14 @@ class ScaleTests(unittest.TestCase):
 
 
 class SetupTests(unittest.TestCase):
-    """Protect realm settings that make shared-password census imports scale."""
+    """Protect realm settings that make shared-password census imports runner."""
 
     def test_fixture_uses_unique_lookup_and_matching_hash_policy(self):
-        from scale_setup import fixture
-        from scale import ROOT
+        from provision import fixture
+        from runner import ROOT
 
         template = json.loads(
-            (
-                ROOT
-                / "packages/step-cli/scripts/telephone-load-test-inputs/election-event.json"
-            ).read_text()
+            (ROOT / "packages/voting-load/fixtures/election.json").read_text()
         )
         result = fixture(
             template, dict(portal_url="https://vote.example", hash_iterations=27500)
@@ -149,7 +147,7 @@ class WorkerTests(unittest.TestCase):
 
     def test_claim_is_exclusive_and_configuration_is_immutable(self):
         from types import SimpleNamespace
-        from scale import digest, save, worker
+        from runner import digest, save, worker
 
         with tempfile.TemporaryDirectory() as tmp, patch.dict(
             os.environ, LOAD_PASSWORD="synthetic"
@@ -162,7 +160,7 @@ class WorkerTests(unittest.TestCase):
                 dict(config_sha256=digest(directory / "config.json")),
             )
             with patch(
-                "scale.subprocess.run", return_value=SimpleNamespace(returncode=0)
+                "runner.subprocess.run", return_value=SimpleNamespace(returncode=0)
             ) as execute:
                 worker(directory, 0)
                 with self.assertRaises(FileExistsError):
@@ -172,6 +170,68 @@ class WorkerTests(unittest.TestCase):
             save(directory / "config.json", config)
             with self.assertRaisesRegex(ValueError, "configuration changed"):
                 worker(directory, 0)
+
+
+class ReportTests(unittest.TestCase):
+    """Reports must reveal missing work and keep protocol internals out of HTML."""
+
+    def test_partial_run_still_writes_failure_report_without_queries(self):
+        from runner import save
+        from aggregate import report
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            save(
+                directory / "config.json",
+                dict(
+                    start=0,
+                    count=2,
+                    shard_size=2,
+                    engine="k6",
+                    mode="vote",
+                    vus=1,
+                    goals={"cast_ms": {"p99": 500}},
+                    profile={"private_query": "SENSITIVE_QUERY"},
+                ),
+            )
+            with self.assertRaisesRegex(RuntimeError, "Load goals failed"):
+                report(directory)
+            text = (directory / "report.html").read_text()
+            self.assertIn("Failed", text)
+            self.assertIn("Missing or failed voter journeys", text)
+            self.assertNotIn("SENSITIVE_QUERY", text)
+            self.assertNotIn("GraphQL operations", text)
+            self.assertEqual(
+                json.loads((directory / "results.json").read_text())["accepted_casts"],
+                0,
+            )
+
+    def test_duplicate_receipts_fail_instead_of_inflating_throughput(self):
+        from runner import save
+        from aggregate import report
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            save(
+                directory / "config.json",
+                dict(start=0, count=2, shard_size=2, engine="k6", mode="vote", vus=1),
+            )
+            shard = directory / "results/000000"
+            shard.mkdir(parents=True)
+            save(shard / "exit.json", {"code": 0})
+            rows = [
+                dict(index=i, passed=True, start=0, end=100, receipt="same-receipt")
+                for i in range(2)
+            ]
+            (shard / "samples.jsonl").write_text(
+                "\n".join(json.dumps(row) for row in rows)
+            )
+            with self.assertRaisesRegex(RuntimeError, "Load goals failed"):
+                report(directory)
+            self.assertIn(
+                "Duplicate voter or API receipt",
+                (directory / "report.html").read_text(),
+            )
 
 
 if __name__ == "__main__":

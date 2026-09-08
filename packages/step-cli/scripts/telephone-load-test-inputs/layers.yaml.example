@@ -37,13 +37,13 @@
 # runs the keys ceremony, publishes, and opens the requested voting channel.
 # Writes a summary.json + voters CSV under out_dir that Stage 2 consumes —
 # run_telephone_load_test.py (driving `ivr-cli` calls) for TELEPHONE,
-# run_online_load_test.py (driving Playwright browsers) for ONLINE.
+# Online workloads use step-cli load and its own workload configuration.
 setup:
   election_event_json: telephone-load-test-inputs/election-event.json  # Optional, defaults to the tracked example election event
 
   # TELEPHONE or ONLINE — which voting channel to open at the end. Switch
-  # this (and the matching out_dir below) before running
-  # run_online_load_test.py instead of run_telephone_load_test.py.
+  # this only when provisioning an event for a separate integration.
+  # Online load execution uses step-cli load.
   voting_channel: TELEPHONE  # Optional, defaults to TELEPHONE
 
   # Recorded in summary.json for Stage 2 ONLINE; for a distributed run, set
@@ -202,35 +202,3 @@ telephone_run:
   success_regex: "ballot locator"  # Optional, defaults to "ballot locator"
 
   out_dir: telephone-load-test-output/calls  # Optional, defaults to telephone-load-test-output/calls
-
-# --- Stage 2 (ONLINE): run_online_load_test.py -----------------------------
-#
-# Renders a voter manifest, then drives one Playwright run in
-# packages/voting-portal where each voter is a real headless-browser session
-# going through login, election selection, candidate selection, review, cast
-# and confirmation. Only used when setup.voting_channel is ONLINE.
-online_run:
-  run_dir: online-load-test-output/run  # Optional, must match setup.out_dir
-
-  # Parallel voting clients (Playwright workers). Each is a real Chromium
-  # page doing WASM ballot encryption — budget roughly 0.5GB RAM and one core
-  # per client, on top of the compose stack.
-  concurrency: 4  # Optional, defaults to 4
-
-  max_votes: null  # Optional, null = every voter in the CSV
-  voter_offset: 0  # Optional, see telephone_run.voter_offset for the distributed-run reason
-  vote_timeout: 180  # Optional, per-voter end-to-end timeout in seconds, defaults to 180
-
-  # Override summary.json's voting_portal_url/keycloak_url/hasura_url —
-  # needed when Stage 1 recorded URLs this machine cannot reach.
-  voting_portal_url: null  # Optional, defaults to summary.json's voting_portal_url
-  keycloak_url: null  # Optional, defaults to summary.json's keycloak_url
-  hasura_url: null  # Optional, defaults to summary.json's hasura_url
-
-  # Regular expression filtering which candidates may be selected, by visible
-  # name. null = deterministic first-eligible-candidates selection.
-  candidates_pattern: null  # Optional, null = deterministic first-eligible-candidate selection
-
-  headed: false  # Optional, run browsers headed for debugging; forces concurrency to 1
-
-  out_dir: online-load-test-output/votes  # Optional, defaults to online-load-test-output/votes
