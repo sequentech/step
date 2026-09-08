@@ -3,7 +3,6 @@
 
 //! Operator configuration. Defaults are centralized here and emitted by `load init`.
 //! Unknown keys are rejected so a misspelled goal cannot silently disable validation.
-use super::Engine;
 use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -12,6 +11,16 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+
+/// Supported journey implementations; both authenticate a distinct voter per iteration.
+#[derive(Clone, Copy, Debug, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Engine {
+    /// Authenticated HTTP with native encryption completed before measurement.
+    K6,
+    /// Full browser rendering, selection, encryption and confirmation.
+    Chromium,
+}
 
 /// Complete reproducible workload; secrets are referenced by environment-variable name.
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]

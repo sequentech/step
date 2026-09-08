@@ -16,8 +16,12 @@ function fields(query) {
       .map((part) => {
         const split = part.indexOf("=");
         return [
-          decodeURIComponent(part.slice(0, split)),
-          decodeURIComponent(part.slice(split + 1)),
+          decodeURIComponent(
+            (split < 0 ? part : part.slice(0, split)).replace(/\+/g, " "),
+          ),
+          decodeURIComponent(
+            (split < 0 ? "" : part.slice(split + 1)).replace(/\+/g, " "),
+          ),
         ];
       }),
   );

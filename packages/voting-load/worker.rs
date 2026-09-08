@@ -10,12 +10,7 @@ mod load {
     pub mod files;
     pub mod input;
     pub mod worker;
-    #[derive(Clone, Copy, Debug, clap::ValueEnum, serde::Serialize, serde::Deserialize)]
-    #[serde(rename_all = "lowercase")]
-    pub enum Engine {
-        K6,
-        Chromium,
-    }
+    pub use config::Engine;
 }
 
 /// Consume the finite voter shards belonging to one local or indexed worker.

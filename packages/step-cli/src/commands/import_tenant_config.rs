@@ -70,6 +70,7 @@ fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Erro
     let polling_interval = Duration::from_secs(3);
 
     loop {
+        crate::utils::read_config::refresh_and_save_token()?;
         match crate::utils::tasks::get_task_status(task_execution_id) {
             Ok(status) if status == "SUCCESS" => return Ok(()),
             Ok(status) if status == "FAILED" => {
