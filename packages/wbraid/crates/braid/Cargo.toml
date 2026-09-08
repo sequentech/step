@@ -13,7 +13,8 @@ edition = "2021"
 license = "AGPL-3.0-only"
 
 [dependencies]
-rand = "0.9"
+# Mirrors vsc's declaration so the workspace resolves a single rand version.
+rand = { version = "0.10.1", features = ["std"] }
 
 vsc = { path="../vsc", optional = true }
 b4 = { path="../b4", optional = true, default-features = false }
