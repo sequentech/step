@@ -98,6 +98,8 @@ def compile_profile(capture: dict, har: dict) -> dict:
         else:
             raise ValueError("Unsupported browser method")
         steps.append(step)
+    if next(graphql, None) is not None:
+        raise ValueError("Unmatched GraphQL request outside HAR")
     kinds = [step["kind"] for step in steps]
     required = ["auth", "login", "token", "status", "cast"]
     if any(kinds.count(kind) != 1 for kind in required):

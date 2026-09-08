@@ -278,6 +278,7 @@ def place_calls_for_tenant(
         common.die(f"{voters_csv} has no username/password columns (header: {','.join(header)})")
 
     count = 0
+    input_files = []
     for row in data_rows[voter_offset:]:
         voter_id = row[username_col]
         pin = row[password_col]
@@ -287,7 +288,9 @@ def place_calls_for_tenant(
         # is raw digits only (YYYYMMDD - a phone keypad has no "-" key).
         dob = row[dob_col].replace("-", "") if dob_col is not None else ""
         rendered = template_text.replace("{{VOTER_ID}}", voter_id).replace("{{PIN}}", pin).replace("{{DOB}}", dob)
-        (tenant_out_dir / "inputs" / f"call-{voter_id}.txt").write_text(rendered)
+        input_file = tenant_out_dir / "inputs" / f"call-{voter_id}.txt"
+        input_file.write_text(rendered)
+        input_files.append(input_file)
         count += 1
         if max_calls and count >= max_calls:
             break
@@ -311,7 +314,6 @@ def place_calls_for_tenant(
     exit_codes_path.write_text("")
     started_at = datetime.now(timezone.utc)
     start_ts = time.monotonic()
-    input_files = sorted((tenant_out_dir / "inputs").glob("call-*.txt"))
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
         list(pool.map(lambda fp: run_one_call(fp, tenant_out_dir, ivr_cli_bin, system_number, call_timeout, call_env), input_files))
     elapsed = round(time.monotonic() - start_ts)
@@ -360,7 +362,7 @@ def main() -> None:
     config = common.load_config()
     cfg = common.section(config, "telephone_run")
 
-    run_dir = common.resolve_path(common.req_str(cfg, "run_dir"))
+    run_dir = common.resolve_path(str(cfg.get("run_dir") or "telephone-load-test-output/run"))
     tenants_json = run_dir / "tenants.json"
     if not tenants_json.is_file():
         common.die(f"no tenants.json in {run_dir} — run setup_telephone_load_test.py first")
@@ -370,7 +372,7 @@ def main() -> None:
     if not tenants:
         common.die(f"{tenants_json} lists no tenants")
 
-    dtmf_template = common.resolve_path(common.req_str(cfg, "dtmf_template"))
+    dtmf_template = common.resolve_path(str(cfg.get("dtmf_template") or "dtmf-template.example.txt"))
     if not dtmf_template.is_file():
         common.die(f"no such file: {dtmf_template}")
     template_text = dtmf_template.read_text()
@@ -382,7 +384,9 @@ def main() -> None:
             "(whichever this realm's auth flow identifies voters by)"
         )
 
-    concurrency = int(cfg.get("concurrency") or 10)
+    concurrency = int(cfg.get("concurrency", 10))
+    if concurrency < 1:
+        common.die("telephone_run.concurrency must be at least 1")
     max_calls = cfg.get("max_calls")
     max_calls = int(max_calls) if max_calls else None
     voter_offset = int(cfg.get("voter_offset") or 0)
@@ -391,7 +395,7 @@ def main() -> None:
     call_timeout = int(cfg.get("call_timeout") or 300)
     system_number = str(cfg.get("system_number") or DEFAULT_SYSTEM_NUMBER)
     success_regex = re.compile(str(cfg.get("success_regex") or DEFAULT_SUCCESS_REGEX), re.IGNORECASE)
-    out_dir = common.resolve_path(common.req_str(cfg, "out_dir"))
+    out_dir = common.resolve_path(str(cfg.get("out_dir") or "telephone-load-test-output/calls"))
     keycloak_url_override = cfg.get("keycloak_url") or None
     hasura_url_override = cfg.get("hasura_url") or None
 

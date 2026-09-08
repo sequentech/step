@@ -78,6 +78,7 @@ export default function () {
     },
   };
   const start = Date.now();
+  let reason = null;
   let passed = false,
     receipt = null,
     castMs = null,
@@ -120,8 +121,29 @@ export default function () {
     );
     statusMs = result.timings.GetVoterStatus;
     passed = true;
-  } catch (_) {
-    // Credentials, signed URLs and response bodies must not enter shared reports.
+  } catch (error) {
+    // Only adapter-owned messages are safe; runtime errors can contain signed URLs.
+    const known = new Set([
+      "Unapproved profile origin",
+      "Unsupported login form",
+      "Unexpected login redirect",
+      "OAuth callback mismatch",
+      "Missing access token",
+      "Missing ID token",
+      "OIDC nonce mismatch",
+      "Status rejected",
+      "Prepared publication changed",
+      "Publication binding missing",
+      "Publication scope mismatch",
+      "Missing authenticated election",
+      "Cast rejected",
+      "Unknown profile step",
+    ]);
+    const message = String(error.message || "");
+    reason =
+      known.has(message) || /^HTTP failure at [a-z]+: [0-9]+$/.test(message)
+        ? message
+        : "Journey failed; inspect private worker diagnostics";
   }
   failed.add(!passed);
   console.log(
@@ -129,6 +151,7 @@ export default function () {
       JSON.stringify({
         index,
         passed,
+        reason,
         start,
         end: Date.now(),
         cast_ms: castMs,

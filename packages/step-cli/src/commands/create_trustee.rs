@@ -29,7 +29,8 @@ pub struct CreateTrustee {
 pub struct CreateTrusteeMutation;
 
 impl CreateTrustee {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match create_trustee(&self.name, &self.public_key) {
             Ok(id) => {
                 println!(
@@ -38,10 +39,9 @@ impl CreateTrustee {
                     id.cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to register trustee: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
 

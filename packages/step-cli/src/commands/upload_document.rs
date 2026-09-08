@@ -15,7 +15,8 @@ pub struct UploadDocument {
 }
 
 impl UploadDocument {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match GetUploadUrl::upload(self.file_path.clone(), true) {
             Ok(document_id) => {
                 println!(
@@ -24,9 +25,8 @@ impl UploadDocument {
                     document_id.cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to upload document: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }

@@ -19,7 +19,8 @@ pub struct DownloadDocument {
 }
 
 impl DownloadDocument {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match download_document(&self.document_id, &self.output) {
             Ok(()) => {
                 println!(
@@ -28,10 +29,9 @@ impl DownloadDocument {
                     self.output.cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to download document: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
 

@@ -29,7 +29,8 @@ pub struct DeleteTenantCLI {
 pub struct DeleteTenant;
 
 impl DeleteTenantCLI {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match delete_tenant(&self.tenant_id) {
             Ok(id) => {
                 println!(
@@ -38,10 +39,9 @@ impl DeleteTenantCLI {
                     id.cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to delete tenant: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
 

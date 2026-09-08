@@ -6,6 +6,8 @@ use serde_json;
 use std::env;
 use std::error::Error;
 use std::fs;
+use std::io::Write;
+use std::os::unix::fs::DirBuilderExt;
 use std::path::PathBuf;
 
 use crate::types::config::ConfigData;
@@ -35,14 +37,29 @@ pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
     Ok(config)
 }
 
+/// Atomically replace stored credentials using a private, uniquely named temporary file.
 pub fn write_config(config_data: &ConfigData) -> Result<PathBuf, Box<dyn Error>> {
     let config_dir = get_config_dir()?;
     if !config_dir.exists() {
-        fs::create_dir_all(&config_dir)?;
+        fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(&config_dir)?;
     }
     let config_file = config_dir.join(CREATE_CONFIG_FILE_NAME);
     let json_data = serde_json::to_string_pretty(config_data)?;
-    fs::write(&config_file, json_data)?;
+    let temporary = config_dir.join(format!(".configuration-{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| -> Result<(), Box<dyn Error>> {
+        let mut file = crate::load::files::create(&temporary)?;
+        file.write_all(json_data.as_bytes())?;
+        file.sync_all()?;
+        fs::rename(&temporary, &config_file)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result?;
     Ok(config_file)
 }
 

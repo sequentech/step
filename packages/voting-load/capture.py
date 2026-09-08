@@ -76,7 +76,7 @@ def preflight(target: dict) -> dict:
         except Exception as error:
             # Exception text may include a credential-bearing DSN or URL.
             results[name] = {"ready": False, "error_type": type(error).__name__}
-    for name in ("backend", "keycloak"):
+    for name in target.get("databases", {}):
         try:
             database = target["databases"][name]
             with connect(database) as connection:

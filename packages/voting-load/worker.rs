@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Standalone worker entry point; built from the same source modules as step-cli.
+use anyhow::Context as _;
 use clap::Parser;
 use std::path::PathBuf;
 mod load {
@@ -34,10 +35,18 @@ fn run() -> anyhow::Result<()> {
     let arguments = Arguments::parse();
     let index = match arguments.index {
         Some(index) => index,
-        None => std::env::var("JOB_COMPLETION_INDEX")?.parse()?,
+        None => std::env::var("JOB_COMPLETION_INDEX")
+            .context("Pass --index or set JOB_COMPLETION_INDEX")?
+            .parse()
+            .context("JOB_COMPLETION_INDEX must be a non-negative integer")?,
     };
     load::worker::node(
-        &arguments.directory.canonicalize()?,
+        &arguments.directory.canonicalize().with_context(|| {
+            format!(
+                "Run directory {} is not readable",
+                arguments.directory.display()
+            )
+        })?,
         index,
         arguments.workers,
         &arguments.assets,

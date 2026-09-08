@@ -146,7 +146,7 @@ impl Failures {
     }
 }
 
-/// Audit accepted receipt IDs in bounded read-only PostgreSQL batches over verified TLS.
+/// Audit accepted receipt IDs in bounded read-only PostgreSQL batches using the DSN-selected transport.
 fn audit(db: &Connection, input: &Input, dsn_env: &str) -> Result<usize> {
     let reporting = &input.settings.reporting;
     let mut config: tokio_postgres::Config = std::env::var(dsn_env)

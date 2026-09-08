@@ -93,7 +93,7 @@ fn main() {
         }
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::Config(cmd) => cmd.run(),
-            StepCommands::CreateTenant(create_tenant) => create_tenant.run(),
+            StepCommands::CreateTenant(create_tenant) => exit_on_error(create_tenant.run()),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),
             StepCommands::CreateContest(create_contest) => create_contest.run(),
@@ -105,14 +105,14 @@ fn main() {
             StepCommands::ImportElection(import) => import.run(),
             StepCommands::ImportVoters(import_voters) => import_voters.run(),
             StepCommands::CreateVoter(create_voter) => create_voter.run(),
-            StepCommands::DeleteElectionEvent(delete_event) => delete_event.run(),
-            StepCommands::DeleteTenant(delete_tenant) => delete_tenant.run(),
+            StepCommands::DeleteElectionEvent(delete_event) => exit_on_error(delete_event.run()),
+            StepCommands::DeleteTenant(delete_tenant) => exit_on_error(delete_tenant.run()),
             StepCommands::UpdateVoter(update_voter) => update_voter.run(),
             StepCommands::Publish(publish_ballot) => publish_ballot.run(),
             StepCommands::RefreshToken(refresh) => refresh.run(),
             StepCommands::StartKeyCeremony(start) => start.run(),
             StepCommands::CompleteKeyCeremony(complete) => complete.run(),
-            StepCommands::GetKeyCeremonyStatus(status) => status.run(),
+            StepCommands::GetKeyCeremonyStatus(status) => exit_on_error(status.run()),
             StepCommands::StartTally(start) => start.run(),
             StepCommands::UpdateTally(update) => update.run(),
             StepCommands::SubmitTallyResolution(submit) => submit.run(),
@@ -139,12 +139,20 @@ fn main() {
             StepCommands::RevokeResultsPublication(revoke_results_publication) => {
                 revoke_results_publication.run()
             }
-            StepCommands::ExportTenantConfig(export) => export.run(),
-            StepCommands::ImportTenantConfig(import) => import.run(),
-            StepCommands::ListTrustees(list) => list.run(),
-            StepCommands::CreateTrustee(create) => create.run(),
-            StepCommands::DownloadDocument(download) => download.run(),
-            StepCommands::UploadDocument(upload) => upload.run(),
+            StepCommands::ExportTenantConfig(export) => exit_on_error(export.run()),
+            StepCommands::ImportTenantConfig(import) => exit_on_error(import.run()),
+            StepCommands::ListTrustees(list) => exit_on_error(list.run()),
+            StepCommands::CreateTrustee(create) => exit_on_error(create.run()),
+            StepCommands::DownloadDocument(download) => exit_on_error(download.run()),
+            StepCommands::UploadDocument(upload) => exit_on_error(upload.run()),
         },
+    }
+}
+
+/// Give scripts a nonzero status while leaving the detailed error on stderr.
+fn exit_on_error(result: Result<(), impl std::fmt::Display>) {
+    if let Err(error) = result {
+        eprintln!("Error! {error}");
+        std::process::exit(1);
     }
 }

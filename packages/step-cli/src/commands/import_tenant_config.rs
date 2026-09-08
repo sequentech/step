@@ -24,11 +24,11 @@ pub struct ImportTenantConfig {
     document_id: String,
 
     /// Import the Keycloak realm's clients/groups/roles
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     include_keycloak: bool,
 
     /// Import role/permission-label mappings
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
     include_roles: bool,
 
     /// Import the tenant row itself (name/slug/settings) — usually not
@@ -46,7 +46,8 @@ pub struct ImportTenantConfig {
 pub struct ImportTenantConfigMutation;
 
 impl ImportTenantConfig {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match import_tenant_config(
             &self.tenant_id,
             &self.document_id,
@@ -57,10 +58,9 @@ impl ImportTenantConfig {
             Ok(()) => {
                 println!("{}", "Success! Imported tenant config.".green());
             }
-            Err(err) => {
-                eprintln!("Error! Failed to import tenant config: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
 
@@ -140,5 +140,50 @@ fn import_tenant_config(
         let error_message = response.text()?;
         let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
         Err(Box::from(error))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Arguments {
+        #[command(flatten)]
+        import: ImportTenantConfig,
+    }
+
+    #[test]
+    fn import_options_can_be_disabled_independently() {
+        let defaults = Arguments::try_parse_from([
+            "cli",
+            "--tenant-id",
+            "tenant",
+            "--document-id",
+            "document",
+        ])
+        .unwrap()
+        .import;
+        assert!(defaults.include_keycloak && defaults.include_roles);
+        for keycloak in ["true", "false"] {
+            for roles in ["true", "false"] {
+                let options = Arguments::try_parse_from([
+                    "cli",
+                    "--tenant-id",
+                    "tenant",
+                    "--document-id",
+                    "document",
+                    "--include-keycloak",
+                    keycloak,
+                    "--include-roles",
+                    roles,
+                ])
+                .unwrap()
+                .import;
+                assert_eq!(options.include_keycloak, keycloak == "true");
+                assert_eq!(options.include_roles, roles == "true");
+            }
+        }
     }
 }

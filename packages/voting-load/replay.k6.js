@@ -144,6 +144,7 @@ export function replayJourney(profile, ballot, index, config, cast) {
           "token",
         ).json();
         if (!result.access_token) throw new Error("Missing access token");
+        if (!result.id_token) throw new Error("Missing ID token");
         const claims = JSON.parse(
           encoding.b64decode(result.id_token.split(".")[1], "rawurl", "s"),
         );

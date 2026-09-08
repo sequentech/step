@@ -39,7 +39,8 @@ fn docker_mount(directory: &Path, settings: &Settings) -> Result<PathBuf> {
     let hostname = fs::read_to_string("/etc/hostname")?;
     let output = Command::new("docker")
         .args(["inspect", hostname.trim(), "--format", "{{json .Mounts}}"])
-        .output()?;
+        .output()
+        .context("Cannot run docker; install the CLI on the coordinator")?;
     ensure!(
         output.status.success(),
         "Cannot inspect coordinator mounts; configure execution.docker_mount_source"
@@ -114,52 +115,61 @@ fn kubernetes(directory: &Path, settings: &Settings, workers: usize) -> Result<(
     for resource in [&secret, &volume, &transfer] {
         kubectl(settings, &["create", "-f", "-"], Some(resource))?;
     }
-    kubectl(
+    let result = (|| -> Result<()> {
+        kubectl(
+            settings,
+            &[
+                "wait",
+                &format!("pod/{name}"),
+                "--for=condition=Ready",
+                "--timeout",
+                &settings.execution.wait_timeout,
+            ],
+            None,
+        )?;
+        kubectl(
+            settings,
+            &[
+                "cp",
+                &format!("{}/.", inputs.display()),
+                &format!("{name}:/load"),
+            ],
+            None,
+        )?;
+        let job = job(settings, &name, workers, uid, gid);
+        files::save(&directory.join("job.json"), &job)?;
+        kubectl(settings, &["create", "-f", "-"], Some(&job))?;
+        let wait = kubectl(
+            settings,
+            &[
+                "wait",
+                &format!("job/{name}"),
+                "--for=condition=Complete",
+                "--timeout",
+                &settings.execution.wait_timeout,
+            ],
+            None,
+        );
+        let collect = kubectl(
+            settings,
+            &[
+                "cp",
+                &format!("{name}:/load/."),
+                inputs.to_str().context("Run path must be UTF-8")?,
+            ],
+            None,
+        );
+        collect?;
+        wait
+    })();
+    // The PVC retains diagnostics; an idle transfer pod retains no extra evidence.
+    let cleanup = kubectl(
         settings,
-        &[
-            "wait",
-            &format!("pod/{name}"),
-            "--for=condition=Ready",
-            "--timeout",
-            &settings.execution.wait_timeout,
-        ],
-        None,
-    )?;
-    kubectl(
-        settings,
-        &[
-            "cp",
-            &format!("{}/.", inputs.display()),
-            &format!("{name}:/load"),
-        ],
-        None,
-    )?;
-    let job = job(settings, &name, workers, uid, gid);
-    files::save(&directory.join("job.json"), &job)?;
-    kubectl(settings, &["create", "-f", "-"], Some(&job))?;
-    let wait = kubectl(
-        settings,
-        &[
-            "wait",
-            &format!("job/{name}"),
-            "--for=condition=Complete",
-            "--timeout",
-            &settings.execution.wait_timeout,
-        ],
+        &["delete", "pod", &name, "--ignore-not-found"],
         None,
     );
-    let collect = kubectl(
-        settings,
-        &[
-            "cp",
-            &format!("{name}:/load/."),
-            inputs.to_str().context("Run path must be UTF-8")?,
-        ],
-        None,
-    );
-    collect?;
-    wait?;
-    kubectl(settings, &["delete", "pod", &name], None)
+    result?;
+    cleanup
 }
 
 /// Copy aggregate artifacts to the run root even when goals or workers failed.

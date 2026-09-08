@@ -89,6 +89,14 @@ class ProfileTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 compile_profile(capture, har)
 
+    def test_surplus_graphql_operations_fail_closed(self):
+        capture, har = self.fixture()
+        capture["requests"].append(
+            dict(id=13, url="http://graphql/v1/graphql", operation="UnexpectedMutation")
+        )
+        with self.assertRaisesRegex(ValueError, "Unmatched GraphQL"):
+            compile_profile(capture, har)
+
     def test_new_mutations_and_unbound_publications_fail_closed(self):
         capture, har = self.fixture()
         capture["requests"][0]["operation"] = "UnexpectedMutation"

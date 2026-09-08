@@ -99,7 +99,7 @@ in
     wasm-pack
     wasm-bindgen-cli
 
-    (python3.withPackages (ps: [ ps.psycopg ps.black ps.matplotlib ]))
+    (python3.withPackages (ps: [ ps.psycopg ps.black ps.matplotlib ps.pyyaml ]))
     python3Packages.virtualenvwrapper
     python3Packages.pyyaml
 

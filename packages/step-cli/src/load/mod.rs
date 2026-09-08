@@ -17,7 +17,7 @@ mod config;
 mod coordinator;
 mod encryption;
 mod executor;
-mod files;
+pub(crate) mod files;
 mod image;
 mod input;
 mod presentation;
@@ -86,7 +86,7 @@ pub enum Command {
         #[arg(long)]
         push: bool,
         /// Rust builder image for the standalone worker.
-        #[arg(long, default_value = "rust:1.90-bookworm")]
+        #[arg(long, default_value = "rust:1.96.0-bookworm")]
         rust_image: String,
         /// Image supplying the k6 executable.
         #[arg(long, default_value = "grafana/k6:1.6.0")]

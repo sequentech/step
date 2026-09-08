@@ -285,7 +285,7 @@ def main() -> None:
     config = common.load_config()
     cfg = common.section(config, "setup")
 
-    election_event_json = common.resolve_path(common.req_str(cfg, "election_event_json"))
+    election_event_json = common.resolve_path(str(cfg.get("election_event_json") or "telephone-load-test-inputs/election-event.json"))
     if not election_event_json.is_file():
         common.die(f"no such file: {election_event_json}")
 
@@ -359,7 +359,7 @@ def main() -> None:
     # api-key-client is the one client configured with
     # default.acr.values: gold, matching what every CLI tutorial in
     # docs/docusaurus hardcodes for this same reason.
-    keycloak_client_id = common.req_str(cfg, "keycloak_client_id")
+    keycloak_client_id = str(cfg.get("keycloak_client_id") or "api-key-client")
     # NOT $KEYCLOAK_CLI_CLIENT_SECRET: that devcontainer env var is
     # admin-portal's secret, a different client. Find this one in the
     # tenant's own realm: Keycloak admin console -> Clients -> api-key-client
@@ -388,7 +388,7 @@ def main() -> None:
         trustee2_user = str(cfg.get("trustee2_user") or "trustee2")
         trustee2_password = common.req_str(cfg, "trustee2_password", env="TRUSTEE2_PASSWORD")
 
-    out_dir = common.resolve_path(common.req_str(cfg, "out_dir"))
+    out_dir = common.resolve_path(str(cfg.get("out_dir") or "telephone-load-test-output/run"))
 
     step_cli_bin = common.find_step_cli()
 

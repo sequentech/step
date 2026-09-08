@@ -164,10 +164,13 @@ def plot_cohort(directory: Path, destination: Path) -> None:
     if not samples:
         return
     plt.rcParams.update({"svg.fonttype": "none", "font.size": 10})
-    labels = list(samples[0])
+    labels = list(dict.fromkeys(label for sample in samples for label in sample))
     figure, axis = plt.subplots(figsize=(9, 3.6))
     for index, (percent, color) in enumerate([(50, "#247ba0"), (99, "#ed9b40")]):
-        values = [percentile([s[label] for s in samples], percent) for label in labels]
+        values = [
+            percentile([s[label] for s in samples if label in s], percent)
+            for label in labels
+        ]
         axis.barh(
             [i + (index - 0.5) * 0.35 for i in range(len(labels))],
             values,
