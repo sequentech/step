@@ -19,9 +19,10 @@ sha3 = "0.11"
 
 # rng
 rand = { version = "0.10.1", features = ["std"] }
+# Enables wasm_js on getrandom 0.4 for the wasm32 build — it is also reached
+# transitively via rand, crypto-bigint and crypto-common, and Cargo unifies the
+# feature across all of them.
 getrandom = { version = "0.4.2", features = ["wasm_js"] }
-# getrandom 0.3.4 is used by some dependencies, need js feature for WASM
-getrandom_v03 = { package = "getrandom", version = "0.3.4", features = ["wasm_js"] }
 
 # signatures
 ed25519-dalek = {version = "3.0.0-pre.6", features=["rand_core"] }
