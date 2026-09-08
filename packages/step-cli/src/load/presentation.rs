@@ -36,7 +36,7 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
     const LEFT: f64 = 65.0;
     const RIGHT: f64 = 630.0;
     let mut svg = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-label="Latency distribution and throughput over time"><style>text{{font:12px sans-serif;fill:#607680}}.grid{{stroke:#dce5e8;stroke-width:1}}</style>"##
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" aria-label="Latency distribution and throughput over time"><style>text{{font:12px sans-serif;fill:#607680}}.grid{{stroke:#edf1f3;stroke-width:1}}.axis{{stroke:#cbd9df;stroke-width:1}}</style>"##
     );
     let points = input.settings.reporting.cdf_points;
     let mut curves = Vec::new();
@@ -55,12 +55,12 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
         .iter()
         .flat_map(|(_, _, curve)| curve.iter().map(|(value, _)| *value))
         .fold(1.0_f64, f64::max);
-    for tick in 0..=4 {
-        let fraction = tick as f64 / 4.0;
+    for tick in 0..=5 {
+        let fraction = tick as f64 / 5.0;
         let y = BOTTOM - fraction * (BOTTOM - TOP);
         write!(
             svg,
-            r##"<path class="grid" d="M{LEFT},{y}h{PLOT_WIDTH}"/><text x="55" y="{}" text-anchor="end">{:.0}%</text><text x="{}" y="245" text-anchor="middle">{:.0}</text>"##,
+            r##"<path class="grid" d="M{LEFT},{y}h{PLOT_WIDTH}"/><text x="55" y="{}" text-anchor="end">{:.0}</text><text x="{}" y="245" text-anchor="middle">{:.0}</text>"##,
             y + 4.0,
             fraction * 100.0,
             LEFT + fraction * PLOT_WIDTH,
@@ -81,8 +81,9 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
             .join(" ");
         write!(
             svg,
-            r##"<polyline fill="none" stroke="{color}" stroke-width="2.5" points="{coordinates}"/><text x="{}" y="286" style="fill:{color}">{}</text>"##,
-            LEFT + index as f64 * 170.0,
+            r##"<polyline fill="none" stroke="{color}" stroke-width="2.5" points="{coordinates}"/><path d="M370,{}h26" stroke="{color}" stroke-width="2.5"/><text x="405" y="{}">{}</text>"##,
+            188 + index * 20,
+            192 + index * 20,
             stage.label()
         )?;
     }
@@ -117,8 +118,8 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
         .values()
         .map(|count| *count as f64 * 1000.0 / width_ms)
         .fold(1.0_f64, f64::max);
-    for tick in 0..=4 {
-        let fraction = tick as f64 / 4.0;
+    for tick in 0..=5 {
+        let fraction = tick as f64 / 5.0;
         let y = BOTTOM - fraction * (BOTTOM - TOP);
         write!(
             svg,
@@ -142,7 +143,7 @@ fn chart(db: &Connection, input: &Input, summary: &Summary) -> Result<String> {
     }
     write!(
         svg,
-        r##"<text x="285" y="267" text-anchor="middle">Response time · milliseconds</text><text x="850" y="267" text-anchor="middle">Elapsed time · seconds</text><text x="{RIGHT}" y="286">{}</text></svg>"##,
+        r##"<path class="axis" fill="none" d="M{LEFT},{TOP}V{BOTTOM}h{PLOT_WIDTH}M{RIGHT},{TOP}V{BOTTOM}h{PLOT_WIDTH}"/><text transform="translate(20,122) rotate(-90)" text-anchor="middle">Percent of responses</text><text x="285" y="267" text-anchor="middle">Response time · milliseconds</text><text x="850" y="267" text-anchor="middle">Elapsed time · seconds</text><text transform="translate(577,122) rotate(-90)" text-anchor="middle">{}</text></svg>"##,
         if status {
             "Successful journeys / s"
         } else {
