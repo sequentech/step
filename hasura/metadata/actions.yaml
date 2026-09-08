@@ -1,7 +1,7 @@
 actions:
     - name: get_ballot_files_urls
       definition:
-          kind: synchronous
+          type: query
           handler: http://{{HARVEST_DOMAIN}}/get-ballot-files-urls
           forward_client_headers: true
           request_transform:

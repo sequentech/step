@@ -252,6 +252,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Delete tenant",
                 PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",

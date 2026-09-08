@@ -22,6 +22,8 @@ use windmill::services::insert_cast_vote::{
 };
 use windmill::tasks::process_cast_vote;
 
+const ROUTE_PHASE_COMPLETED: &str = "cast-vote route phase completed";
+
 /// API endpoint for inserting votes. POST coming from the
 /// frontend->Hasura->Harvest->Here.
 ///
@@ -60,7 +62,7 @@ pub async fn insert_cast_vote(
     info!(
         phase = "authorization",
         duration_us = start.elapsed().as_micros() as u64,
-        "cast-vote route phase completed"
+        "{ROUTE_PHASE_COMPLETED}"
     );
     info!("insert-cast-vote: starting");
 
@@ -327,7 +329,7 @@ pub async fn insert_cast_vote(
     info!(
         phase = "enqueue",
         duration_us = enqueue_start.elapsed().as_micros() as u64,
-        "cast-vote route phase completed"
+        "{ROUTE_PHASE_COMPLETED}"
     );
     info!(
         phase = "request",
