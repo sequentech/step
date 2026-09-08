@@ -51,4 +51,23 @@ public final class RealmNames {
   public static Optional<String> electionEventIdFromRealmName(String realmName) {
     return parseEventRealmName(realmName).map(EventRealm::electionEventId);
   }
+
+  public static Optional<String> tenantIdFromRealmName(String realmName) {
+    if (realmName == null || realmName.isBlank()) {
+      return Optional.empty();
+    }
+
+    String[] parts = realmName.split("-", -1);
+    if (parts.length < 2 || !TENANT_SEGMENT.equals(parts[0])) {
+      return Optional.empty();
+    }
+    for (int i = 1; i < parts.length; i++) {
+      if (EVENT_SEGMENT.equals(parts[i])) {
+        return Optional.empty();
+      }
+    }
+
+    String tenantId = String.join("-", Arrays.copyOfRange(parts, 1, parts.length));
+    return tenantId.isBlank() ? Optional.empty() : Optional.of(tenantId);
+  }
 }
