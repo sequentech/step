@@ -31,6 +31,11 @@ read -rs -p 'Shared synthetic voter password: ' LOAD_PASSWORD
 export LOAD_PASSWORD
 
 step-cli load check voting-load.yaml
+```
+
+Choose an engine below; matching examples on this page switch together.
+
+```bash group="engine" tab="k6"
 step-cli load prepare voting-load.yaml \
   --engine k6 \
   --output runs/smoke
@@ -40,17 +45,17 @@ step-cli load report runs/smoke \
   --open
 ```
 
-Preparation creates the election, imports the census, completes the automatic key ceremony, publishes, opens voting and prepares worker inputs. The run command automatically writes `runs/smoke/report.html`; `report` opens or regenerates it. No administrator credentials are sent to workers.
-
-For Chromium, prepare a separate run:
-
-```bash
+```bash group="engine" tab="Chromium"
 step-cli load prepare voting-load.yaml \
   --engine chromium \
-  --output runs/browser
-step-cli load run runs/browser \
-  --workers 2
+  --output runs/smoke
+step-cli load run runs/smoke \
+  --workers 4
+step-cli load report runs/smoke \
+  --open
 ```
+
+Preparation creates the election, imports the census, completes the automatic key ceremony, publishes, opens voting and prepares worker inputs. The run command automatically writes `runs/smoke/report.html`; `report` opens or regenerates it. No administrator credentials are sent to workers.
 
 Each preparation creates an isolated election unless `preparation.existing_event` is configured. Every run can be executed **once**. Keep an interrupted run for investigation; do not delete its attempt markers or rerun it with the same voters.
 
@@ -58,9 +63,28 @@ Each preparation creates an isolated election unless `preparation.existing_event
 
 Edit `voting-load.yaml` before preparation. All effective defaults are written by `init`. For example:
 
-```yaml
+```yaml group="engine" tab="k6"
 workload:
   engine: k6
+  mode: vote
+  count: 1000000
+  username_prefix: load-
+  start: 0
+  shard_size: 10000
+  concurrency: 20
+  password_env: LOAD_PASSWORD
+execution:
+  workers: 20
+goals:
+  status_ms: {p50: 100, p99: 500}
+  cast_ms: {p50: 100, p99: 500}
+  journey_ms: {p50: 2000, p99: 5000}
+min_casts_per_second: 100
+```
+
+```yaml group="engine" tab="Chromium"
+workload:
+  engine: chromium
   mode: vote
   count: 1000000
   username_prefix: load-
