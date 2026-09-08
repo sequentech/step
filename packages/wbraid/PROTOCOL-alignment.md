@@ -10,6 +10,14 @@ protocol — at the level of exact formulas, hash-transcript component lists, an
 byte conventions. **Evaluation only**: this document records findings and
 proposes scheduling; it changes no code.
 
+> **Status — closed record** (evaluation 2026-08-27; last item closed 2026-09-09).
+> Every finding below has been implemented, applied or resolved, with the outcome
+> noted at the end of each item and in "Proposed effect". The verdict letters and
+> their present-tense wording ("planned", "needs scheduling") are the evaluation's
+> classification *at the time it was made*, kept so the record stays legible —
+> none of it describes pending work. The single item left open, by choice, is D4
+> (an optional documentation note).
+
 Scope: the sections of `PROTOCOL.md` that bind this repository — §2
 (preliminaries), §3 (primitives), §4 (DKG), §5.5 (tally input), §6 (mixing), §7
 (decryption), §9.2 (verification). The voting client, ballot box and tracker
@@ -19,10 +27,12 @@ scope here, except where their definitions reach the trustees (noted below).
 Each finding carries a verdict:
 
 - **A — aligned**: verified equivalent at the mathematical level.
-- **B — planned**: a known gap already scheduled as 0.6.3 work.
-- **C — new gap**: discovered by this evaluation; needs scheduling.
+- **B — planned**: a known gap that was already scheduled as 0.6.3 work (all
+  since implemented).
+- **C — new gap**: discovered by this evaluation and needing scheduling at the
+  time (all since implemented, resolved or fixed).
 - **D — description fix**: the implementation is reasonable and the *document*
-  should be made precise to match it.
+  should be made precise to match it (all applied; D4 optional).
 - **E — out of braid scope**: binds platform components outside this repo.
 
 ## Summary
@@ -31,11 +41,13 @@ The implementation matches the description remarkably closely — all shuffle an
 decryption **algebra** (commitments, responses, all verifier equations), the
 DKG derivations, the hash/transcript machinery, domain labels, encodings and
 completion rules are equation-for-equation aligned. The three known 0.6.3 tasks
-are confirmed as exactly the planned gaps. The evaluation found **one
-significant new gap**: the shuffle proof's Fiat-Shamir challenges bind less
-data than the description specifies — in particular the prover-chosen
-permutation commitments are not hashed into either challenge (C1 below). Six
-small description-precision fixes round out the list.
+were confirmed as exactly the planned gaps (all implemented 2026-08-27). The
+evaluation found **one significant new gap**: the shuffle proof's Fiat-Shamir
+challenges bound less data than the description specifies — in particular the
+prover-chosen permutation commitments were not hashed into either challenge (C1
+below; implemented 2026-08-27). Six small description-precision fixes rounded out
+the list (all applied; D4 optional), plus one minor integer-overflow note (C3,
+fixed 2026-09-09).
 
 ## A — verified aligned
 
@@ -62,7 +74,7 @@ small description-precision fixes round out the list.
 | A19 | Threshold decryption | §7: factors `u^{x_i}`; batched proof with `seed = H(vk, u-list, factor-list, ctx)`, `e_j = H2S(seed, j)`, `A = ∏u^e`, `B = ∏f^e`, DLEQ; position from the signed envelope, never from prover data; Lagrange `λ_i = ∏ k/(k−i)`; `m = v·F⁻¹` | `Recipient::partial_decrypt`, `batching_exponents`, `lagrange`, `combine` | Exact match including seed component order — except the `ctx` form, glossed here and caught later: → D5 |
 | A20 | Decryption completion | §7.2: contributions from t distinct quorum members; all post identical plaintext lists, halt otherwise; plaintexts must cite the chain end | datalog: per-sender decryption slots; `plaintexts mismatch`, `unexpected input ciphertexts` error rules | |
 
-## B — planned 0.6.3 work, confirmed
+## B — planned 0.6.3 work, confirmed (all implemented)
 
 | # | Item | Description | State | Task |
 |---|---|---|---|---|
@@ -98,10 +110,10 @@ enforces in the non-interactive setting. As implemented, a prover can compute
 structure the proof's extraction argument rests on (the class of weakness
 described in [BPW12], which `PROTOCOL.md` Appendix A cites as the reason for
 hashing "the complete preceding transcript"). No concrete forgery is exhibited
-here; the finding is a deviation from the specified strong-FS transcripts, and
+here; the finding was a deviation from the specified strong-FS transcripts, and
 that alone warrants alignment — the description is the sound design.
 
-Provenance: this is a **known, tracked deficiency**, not a new discovery — the
+Provenance: this was a **known, tracked deficiency**, not a new discovery — the
 tag constants carried `#[crate::warning("Challenge inputs are incomplete. …")]`
 at evaluation time, and the protocol-description work left implementation
 notes with drop-in target code (this evaluation reached the same conclusion
@@ -168,6 +180,15 @@ release builds. Harmless at braid's current `MAX_TRUSTEES = 8` (max 8⁷);
 convert to scalar arithmetic if the committee bound ever grows. No action for
 0.6.3 beyond this note.
 
+**Fixed 2026-09-09** (0.6.4): `vk_factor` now computes `position^j` in the scalar
+field, so the committee bound no longer matters; the `expect("T <= P < 100 <
+u32::MAX")` that went with the integer arithmetic — which reassured about the
+*position* fitting `u32`, not the *power* — is gone with it. Regression tests
+`test_dkgd_large_committee_{ristretto,p256}` run full ceremonies at `T = P = 11`
+and `T = 10, P = 12`, the first overflowing committees; against the old code they
+failed with `ShareVerificationFailed("invalid share from dealer 1")` — an honest
+dealer rejected — and they pass now.
+
 ## D — description precision fixes (edits to `PROTOCOL.md`)
 
 | # | Where | Fix |
@@ -200,8 +221,9 @@ separately (0.6.4+, the `v2v` crate).
    2026-08-27.
 3. Apply the D fixes to `PROTOCOL.md` — cheap, can be done immediately. D2, D5,
    D6 applied 2026-08-27; D1, D3 applied 2026-08-28; D4 remains optional.
-4. C3 is a note, not a task. **Stands** — still accurate after the dkgd refactor
-   (`vk_factor` still exponentiates in `u32`).
+4. C3 is a note, not a task. **Superseded 2026-09-09** — fixed outright rather
+   than banked: `vk_factor` computes the power in the scalar field, with
+   regression tests at the first overflowing committee sizes.
 5. The VSer canonicality audit remains the capstone, unaffected. **Executed** —
    the audit ran and concluded in the serialization rewrite (spec §11.1).
 
