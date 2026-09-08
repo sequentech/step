@@ -489,7 +489,10 @@ pub enum StatementEventType {
 mod statement_compatibility_tests {
     use super::*;
 
-    fn external_api_request_description(operation: &str) -> String {
+    fn external_api_request_description_for(
+        direction: ExtApiRequestDirection,
+        operation: &str,
+    ) -> String {
         let event_id = EventIdString("0609dd53-3c33-41cd-b2cd-0ffb39738d2d".to_string());
         let body = StatementBody::ExternalApiRequest(
             event_id.clone(),
@@ -497,11 +500,19 @@ mod statement_compatibility_tests {
                 user_id: Some("voter-id".to_string()),
                 username: Some("voter-name".to_string()),
             },
-            ExtApiRequestDirection::Outbound,
+            direction,
             ExtApiName::Datafix,
             operation.to_string(),
         );
         StatementHead::from_body(event_id, &body).description
+    }
+
+    fn external_api_request_description(operation: &str) -> String {
+        external_api_request_description_for(ExtApiRequestDirection::Outbound, operation)
+    }
+
+    fn inbound_api_request_description(operation: &str) -> String {
+        external_api_request_description_for(ExtApiRequestDirection::Inbound, operation)
     }
 
     #[test]
@@ -525,6 +536,32 @@ mod statement_compatibility_tests {
         assert_eq!(
             external_api_request_description("SetNotVoted Failed: The voter has not voted."),
             "Outbound request SetNotVoted Failed."
+        );
+    }
+
+    #[test]
+    fn inbound_description_keeps_only_operation_and_outcome() {
+        assert_eq!(
+            inbound_api_request_description(
+                "voter_id=123456; UpdateVoter Succeeded (area=W-1, area_id=x, birthdate=unchanged, enabled=true)"
+            ),
+            "Inbound request UpdateVoter Succeeded."
+        );
+        assert_eq!(
+            inbound_api_request_description(
+                "voter_id=123456; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)"
+            ),
+            "Inbound request ReplacePin Failed."
+        );
+    }
+
+    #[test]
+    fn inbound_description_ignores_colons_inside_the_details() {
+        assert_eq!(
+            inbound_api_request_description(
+                "voter_id=123456; DeleteVoter Succeeded (enabled=false, disable_comment=Disable reason: datafix call to delete-voter endpoint)"
+            ),
+            "Inbound request DeleteVoter Succeeded."
         );
     }
 

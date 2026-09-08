@@ -63,6 +63,7 @@ impl Message {
         direction: ExtApiRequestDirection,
         api_name: ExtApiName,
         operation: String,
+        area_id: Option<String>,
     ) -> Result<Self> {
         let subject = ExternalApiSubject {
             user_id: voter_id.clone(),
@@ -82,7 +83,7 @@ impl Message {
             voter_id.clone(),
             voter_username.clone(), /* username */
             election_id.0,
-            None,
+            area_id,
             None,
         )
     }
@@ -741,6 +742,36 @@ mod tests {
                 ..
             })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn external_api_request_message_carries_the_voter_area() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen()?,
+            "windmill",
+            StrandSignatureSk::r#gen()?,
+        );
+        let message = Message::external_api_request_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(None),
+            &signing_data,
+            Some("voter-id".to_string()),
+            Some("voter-name".to_string()),
+            ExtApiRequestDirection::Inbound,
+            ExtApiName::Datafix,
+            "voter_id=voter-name; ReplacePin Succeeded (temporary=false)".to_string(),
+            Some("area-id".to_string()),
+        )?;
+
+        assert_eq!(message.area_id.as_deref(), Some("area-id"));
+        assert_eq!(message.election_id, None);
+        let row: ElectoralLogMessage = (&message).try_into()?;
+        assert_eq!(row.area_id.as_deref(), Some("area-id"));
+        assert_eq!(
+            message.statement.head.description,
+            "Inbound request ReplacePin Succeeded."
+        );
         Ok(())
     }
 
