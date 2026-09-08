@@ -27,8 +27,6 @@ tonic = { version = "0.13", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"], optional = true }
 tokio = { version = "1.40", optional = true }
-aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
-aws-sdk-s3 = { version = "1.52", optional = true }
 chrono = { version = "0.4", optional = true }
 
 # WASM-only dependencies  
@@ -148,8 +146,6 @@ native = [
     "dep:toml",
     "dep:reedline-repl-rs",
     "dep:ascii_table",
-    "dep:aws-config",
-    "dep:aws-sdk-s3",
     "dep:reqwest",
     "dep:chrono",
 ]
