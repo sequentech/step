@@ -26,7 +26,18 @@ import psycopg
 
 from database import AREA_MIGRATION, CONFIGURATION_QUERY, ROOT, SCHEDULE_INDEX
 from fixtures import VotingEvent, INSERT_VOTE, clear_workload
-from report import scenario_label
+
+
+def scenario_label(scenario):
+    """Identify SQL workload dimensions without depending on a report renderer."""
+    return (
+        f"{scenario['seeded_ballots']:,} votes table, "
+        f"{scenario['peak_voters']} concurrent voters, "
+        f"{scenario['election_count']} elections, "
+        f"{scenario['area_count']:,} areas, "
+        f"{scenario['election_count'] * scenario['schedules_per_election']:,} total schedules"
+    )
+
 
 WARMUP_REQUESTS = 64
 
