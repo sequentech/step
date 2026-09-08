@@ -36,12 +36,24 @@ Choose **one** execution method below, finish its configuration, then prepare an
 
 Build the worker image, set `execution.image` and `execution.network` in the workload **before preparation**, then run:
 
-```bash
+```bash group="engine" tab="k6"
 step-cli load image \
   --engine k6 \
   --tag voting-load:k6
 step-cli load prepare remote.yaml \
   --engine k6 \
+  --output runs/remote
+step-cli load run runs/remote \
+  --executor docker \
+  --workers 4
+```
+
+```bash group="engine" tab="Chromium"
+step-cli load image \
+  --engine chromium \
+  --tag voting-load:chromium
+step-cli load prepare remote.yaml \
+  --engine chromium \
   --output runs/remote
 step-cli load run runs/remote \
   --executor docker \
@@ -55,17 +67,28 @@ execution:
   network: container:devcontainer
 ```
 
-For browser workers, build with `--engine chromium`, use a Chromium image tag in the configuration, and prepare with the same engine. The images contain source and engine dependencies; the coordinator mounts prepared inputs and passes only the synthetic password. The CLI translates devcontainer bind mounts to daemon-host paths automatically. For unusual remote-daemon layouts, set `execution.docker_mount_source` to the host path of the prepared `inputs` directory.
+The images contain source and engine dependencies; the coordinator mounts prepared inputs and passes only the synthetic password. The CLI translates devcontainer bind mounts to daemon-host paths automatically. For unusual remote-daemon layouts, set `execution.docker_mount_source` to the host path of the prepared `inputs` directory.
 
 ## Kubernetes
 
 Use your current kubectl context, with permission to create Jobs, Pods, Secrets and PVCs in the configured namespace. Your cluster needs a ReadWriteMany storage class. Configure the image, namespace, storage class and volume size before preparation:
 
-```yaml
+```yaml group="engine" tab="k6"
 execution:
   executor: kubernetes
   workers: 20
   image: registry.example.org/team/voting-load:k6
+  namespace: load-testing
+  storage_class: shared-storage
+  storage_size: 20Gi
+  wait_timeout: 1h
+```
+
+```yaml group="engine" tab="Chromium"
+execution:
+  executor: kubernetes
+  workers: 20
+  image: registry.example.org/team/voting-load:chromium
   namespace: load-testing
   storage_class: shared-storage
   storage_size: 20Gi
@@ -80,13 +103,26 @@ kubectl create namespace load-testing
 
 Build and publish the image using your Docker registry credentials:
 
-```bash
+```bash group="engine" tab="k6"
 step-cli load image \
   --engine k6 \
   --tag registry.example.org/team/voting-load:k6 \
   --push
 step-cli load prepare remote.yaml \
   --engine k6 \
+  --output runs/remote
+step-cli load run runs/remote \
+  --executor kubernetes \
+  --workers 20
+```
+
+```bash group="engine" tab="Chromium"
+step-cli load image \
+  --engine chromium \
+  --tag registry.example.org/team/voting-load:chromium \
+  --push
+step-cli load prepare remote.yaml \
+  --engine chromium \
   --output runs/remote
 step-cli load run runs/remote \
   --executor kubernetes \
