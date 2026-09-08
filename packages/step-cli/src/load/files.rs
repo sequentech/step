@@ -12,11 +12,21 @@ use std::{
     path::Path,
 };
 
+const PRIVATE_DIRECTORY_MODE: u32 = 0o700;
+
+/// Claim a fresh private directory atomically; an existing census must not be reused.
+pub fn claim_directory(path: &Path) -> Result<()> {
+    fs::DirBuilder::new()
+        .mode(PRIVATE_DIRECTORY_MODE)
+        .create(path)?;
+    Ok(())
+}
+
 /// Create a private directory hierarchy. Existing directories retain their permissions.
 pub fn directory(path: &Path) -> Result<()> {
     fs::DirBuilder::new()
         .recursive(true)
-        .mode(0o700)
+        .mode(PRIVATE_DIRECTORY_MODE)
         .create(path)?;
     Ok(())
 }
