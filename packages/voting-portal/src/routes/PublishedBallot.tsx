@@ -51,6 +51,6 @@ export default function PublishedBallot() {
     }, [context.data, dispatch, navigate])
     if (context.error) throw context.error
     if (!globalSettings.DISABLE_AUTH && (!ready || ready !== context.data))
-        return <CircularProgress />
+        return <CircularProgress className="published-ballot-loading-progress" />
     return <Outlet />
 }
