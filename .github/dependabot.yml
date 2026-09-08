@@ -8,8 +8,9 @@
 # are driven by the repository setting plus the dependency graph, and they
 # always target the default branch - they cannot be pointed at a release
 # branch. Release branches therefore get no alerts and no automated PRs, and
-# are covered instead by .github/workflows/dependency_audit.yml, which runs on
-# every branch.
+# are covered instead by the dependency audit workflows: dependency_audit.yml
+# on every push and pull request, and dependency_audit_scheduled.yml weekly
+# across all supported branches.
 #
 # Do not set `target-branch` on these entries: it also disables security
 # updates for the entry it is set on.
