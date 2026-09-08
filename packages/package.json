@@ -86,7 +86,6 @@
     "websocket-driver": "^0.7.5",
     "flatted": "^3.4.2",
     "tmp": "^0.2.6",
-    "decode-uri-component": "^0.5.0",
     "@humanfs/node": "^0.16.8",
     "http-proxy-middleware": "^2.0.10",
     "joi": "^17.13.4",
