@@ -6,9 +6,12 @@ use serde_json;
 use std::env;
 use std::error::Error;
 use std::fs;
+use std::io::Write;
+use std::os::unix::fs::DirBuilderExt;
 use std::path::PathBuf;
 
 use crate::types::config::ConfigData;
+use crate::utils::keycloak::refresh_keycloak_token;
 
 pub use sequent_core::util::external_config::load_external_config;
 pub use sequent_core::util::external_config::EXTERNAL_CONFIG_FILE_NAME;
@@ -32,4 +35,52 @@ pub fn read_config() -> Result<ConfigData, Box<dyn Error>> {
     })?;
     let config = serde_json::from_str(&json_data).map_err(|_| "Failed to parse config file")?;
     Ok(config)
+}
+
+/// Atomically replace stored credentials using a private, uniquely named temporary file.
+pub fn write_config(config_data: &ConfigData) -> Result<PathBuf, Box<dyn Error>> {
+    let config_dir = get_config_dir()?;
+    if !config_dir.exists() {
+        fs::DirBuilder::new()
+            .recursive(true)
+            .mode(0o700)
+            .create(&config_dir)?;
+    }
+    let config_file = config_dir.join(CREATE_CONFIG_FILE_NAME);
+    let json_data = serde_json::to_string_pretty(config_data)?;
+    let temporary = config_dir.join(format!(".configuration-{}.tmp", uuid::Uuid::new_v4()));
+    let result = (|| -> Result<(), Box<dyn Error>> {
+        let mut file = crate::load::files::create(&temporary)?;
+        file.write_all(json_data.as_bytes())?;
+        file.sync_all()?;
+        fs::rename(&temporary, &config_file)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result?;
+    Ok(config_file)
+}
+
+/// Refreshes the session's JWT via the stored refresh_token and persists the
+/// new tokens to disk, so any later read_config() call (e.g. from a polling
+/// loop) picks up the refreshed access token instead of the one the session
+/// started with.
+pub fn refresh_and_save_token() -> Result<ConfigData, Box<dyn Error>> {
+    let config_data = read_config()?;
+    let auth_details = refresh_keycloak_token(
+        &config_data.keycloak_url,
+        &config_data.refresh_token,
+        &config_data.client_id,
+        &config_data.client_secret,
+        &config_data.tenant_id,
+    )?;
+    let config_data = ConfigData {
+        auth_token: auth_details.access_token,
+        refresh_token: auth_details.refresh_token,
+        ..config_data
+    };
+    write_config(&config_data)?;
+    Ok(config_data)
 }

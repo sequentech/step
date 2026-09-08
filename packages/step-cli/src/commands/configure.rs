@@ -4,11 +4,9 @@
 
 use crate::types::config::ConfigData;
 use crate::utils::keycloak::generate_keycloak_token;
-use crate::utils::read_config::{get_config_dir, CREATE_CONFIG_FILE_NAME};
+use crate::utils::read_config::write_config;
 use clap::Args;
 use colored::Colorize;
-use std::fs;
-use std::path::Path;
 
 #[derive(Args, Debug)]
 #[command(about = "Create a config file", long_about = None)]
@@ -89,16 +87,7 @@ pub fn create_config(
         username: username.to_string(),
     };
 
-    let config_dir = get_config_dir()?;
-    let config_file = config_dir.join(CREATE_CONFIG_FILE_NAME);
-
-    if !Path::new(&config_dir).exists() {
-        fs::create_dir_all(&config_dir)?;
-    }
-
-    let json_data = serde_json::to_string_pretty(&config_data)?;
-
-    fs::write(&config_file, json_data)?;
+    let config_file = write_config(&config_data)?;
 
     println!(
         "{}",
