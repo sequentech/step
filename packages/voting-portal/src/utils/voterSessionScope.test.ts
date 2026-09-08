@@ -3,7 +3,8 @@
 
 import {voterSessionScope} from "./voterSessionScope"
 
-const token = (claims: object) => `header.${btoa(JSON.stringify(claims))}.signature`
+const token = (claims: object) =>
+    `header.${btoa(JSON.stringify(claims)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")}.signature`
 const claims = {
     "sub": "voter",
     "azp": "voting-portal",
