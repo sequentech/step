@@ -23,7 +23,8 @@
     "build-storybook": "NODE_OPTIONS=--openssl-legacy-provider storybook build",
     "test-storybook": "storybook test",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
-    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
+    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%",
+    "build:types": "tsc --emitDeclarationOnly"
   },
   "main": "dist/index.js",
   "type": "module",

@@ -1311,6 +1311,7 @@ const dutchTranslation: TranslationType = {
                 "tenant-create": "Tenant Aanmaken",
                 "tenant-read": "Tenant Lezen",
                 "tenant-write": "Tenant Bewerken",
+                "tenant-delete": "Tenant Verwijderen",
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",

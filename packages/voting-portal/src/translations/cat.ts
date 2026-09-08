@@ -421,6 +421,9 @@ const catalanTranslation: TranslationType = {
                 oopsWithStatus: "Vaja! {{status}}",
                 oopsWithoutStatus: "Vaja! Error Inesperat",
                 somethingWrong: "Alguna cosa ha anat malament.",
+                invalidLoginHintParametersTitle: "Enllaç de votació no vàlid",
+                invalidLoginHintParametersMessage:
+                    "Aquest enllaç de votació conté informació d’accés no vàlida. Demaneu un enllaç nou i torneu-ho a provar.",
                 certAuthFailedTitle: "Error d'Autenticació amb Certificat",
                 certAuthFailedMessage:
                     "No s'ha pogut verificar el vostre certificat. Comproveu que esteu utilitzant un certificat de votant vàlid i torneu-ho a intentar.",
