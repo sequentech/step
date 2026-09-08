@@ -455,22 +455,27 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         Ok(PartialDecryption { factors, proof })
     }
 
-    /// Compute a factor of the verification key for a `Recipient` at `position`.
+    /// Compute a factor of the verification key for a `Recipient` at `position`:
+    /// `Π_j A_j^(position^j)` over the dealer's checking values.
     ///
     /// # Parameters
     ///
     /// - `checking_values`: the checking values provided by the dealer
     /// - `position`: the position of the recipient
     ///
+    /// The exponents `position^j` are computed in the scalar field, never in a
+    /// machine integer: as a `u32` the power overflows once
+    /// `position^(T-1) > 2^32 - 1` (first at `T = P = 11`), silently wrapping in
+    /// release builds so that honest shares fail verification.
+    ///
     /// This function is used during share [verification][`Self::verify_share`].
     fn vk_factor(
         checking_values: &[C::Element; T],
         position: &ParticipantPosition<P>,
     ) -> C::Element {
-        let exponents: [C::Scalar; T] = array::from_fn(|i| {
-            let exp: u32 = i.try_into().expect("T <= P < 100 < u32::MAX");
-            let exp = position.0.pow(exp);
-            exp.into()
+        let base: C::Scalar = position.0.into();
+        let exponents: [C::Scalar; T] = array::from_fn(|j| {
+            std::iter::repeat_n(&base, j).fold(C::Scalar::one(), |acc, b| acc.mul(b))
         });
         let big_a_n_j = checking_values.exp(&exponents);
 
