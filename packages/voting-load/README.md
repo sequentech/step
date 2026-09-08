@@ -1,29 +1,44 @@
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-# Voting-load runtime
+# Voting load engines
 
-The public interface is `step-cli load`. The CLI bundles this directory at build time and extracts a versioned runtime into the user's cache; no checkout is needed to execute an installed binary.
+Use `step-cli load`. Coordination, census generation, native encryption, scheduling
+and SQLite-backed reporting live in `packages/step-cli/src/load`. Installed CLI
+binaries embed their engine adapters and need no repository checkout or Python.
 
-| Module | Responsibility |
+| Source | Responsibility |
 | --- | --- |
-| `driver.py` | Preparation lifecycle, executor selection, result collection |
-| `provision.py` | Synthetic election, automatic ceremony, census import |
-| `runner.py` | Shared protocol, streaming census, finite shard ownership |
-| `scale.k6.js`, `replay.k6.js` | Authenticated HTTP journeys |
-| `aggregate.py`, `presentation.py` | Disk-backed aggregation and standalone reports |
-| `capture.py`, `capture_report.py` | Optional development HAR/SQL diagnostics |
-| `Dockerfile`, `image.sh` | Source-only worker packaging |
+| `scale.k6.js`, `replay.k6.js` | Fresh-session authenticated HTTP journeys |
+| `worker.rs`, `worker.Cargo.toml` | Small standalone Rust worker; shares the CLI's ownership and engine code |
+| `Dockerfile` | Build the Rust worker and package the selected engine |
+| `report.html` | Portable report layout, populated by Rust with inline SVG and fonts |
+| `capture.py`, `capture_report.py` | Optional developer HAR/SQL diagnostics; never used by the CLI |
 
-Chromium uses the shared flow in `packages/voting-portal/test/load/flow.ts`. Native encryption lives in `packages/step-cli/src/load/encryption.rs`. Configuration defaults and rustdoc live in `packages/step-cli/src/load/config.rs`; `step-cli load reference` generates their public reference.
+Chromium uses `packages/voting-portal/test/load/flow.ts`. Configuration defaults and
+Rustdoc live in `packages/step-cli/src/load/config.rs`; `step-cli load reference`
+generates the operator reference. Image builds accept configurable base images and
+Playwright versions through `step-cli load image --help`.
 
-The bundled fixture retains the deployment authentication flows but contains one contest, no users and no exported client or CAPTCHA secrets. Custom election exports are supplied through `preparation.template`.
+The fixture retains deployment authentication flows but contains one contest,
+no users and no exported client or CAPTCHA secrets. Supply custom exports through
+`preparation.template`.
 
-Run module tests from the repository root inside devenv:
+Run native behavioral tests from the repository root:
+
+```bash
+cargo test \
+  --manifest-path packages/step-cli/Cargo.toml \
+  load::
+```
+
+Optional capture diagnostics have separate Python tests:
 
 ```bash
 python3 -m unittest discover \
   -s packages/voting-load
 ```
 
-The tests cover voter ownership, shared hashing, duplicate receipts, partial reports, and failure-time collection. Full validation also needs fresh k6 and Chromium journeys against an open synthetic election; unit tests do not establish deployment capacity.
+Native tests cover unique voter allocation, shared password hashing, immutable
+claims, duplicate receipts, exact quantiles and partial reports. Full validation
+also needs fresh k6 and Chromium journeys; unit tests do not establish capacity.

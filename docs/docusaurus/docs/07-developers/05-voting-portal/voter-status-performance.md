@@ -17,7 +17,7 @@ Measure real voting journeys with **k6** or **Chromium** through `step-cli load`
 
 Run against a deployment with the S3 voting path enabled, its portal and cast services running, and a tenant reserved for synthetic voters. The tenant must have automatic trustees registered and running. The default fixture uses a threshold of two; `preparation.threshold` is configurable.
 
-Install and authenticate the CLI using [CLI setup](../02-cli/01-cli_cli.md). In a repository devcontainer, enter `devenv shell` from the repository root; it provides Python, k6 and the reporting dependencies. The devcontainer also provides Chromium; initialization records its executable automatically. `load check` launches it before browser preparation to verify dependencies. Outside devenv, follow the browser installation instructions in CLI setup.
+Install and authenticate the CLI using [CLI setup](../02-cli/01-cli_cli.md). In a repository devcontainer, enter `devenv shell` from the repository root; it provides k6. Coordination, census generation, encryption and reporting run natively in Rust. The devcontainer also provides Chromium; initialization records its executable automatically. `load check` launches it before browser preparation to verify dependencies. Outside devenv, follow the browser installation instructions in CLI setup.
 
 ## Prepare and run
 

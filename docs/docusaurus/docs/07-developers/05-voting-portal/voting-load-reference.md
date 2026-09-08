@@ -45,6 +45,31 @@ Options:
       --push
           Push the built image using the current Docker registry credentials
 
+      --rust-image <RUST_IMAGE>
+          Rust builder image for the standalone worker
+
+          [default: rust:1.90-bookworm]
+
+      --k6-image <K6_IMAGE>
+          Image supplying the k6 executable
+
+          [default: grafana/k6:1.6.0]
+
+      --worker-image <WORKER_IMAGE>
+          Base image for protocol workers
+
+          [default: debian:bookworm-slim]
+
+      --browser-image <BROWSER_IMAGE>
+          Base image for browser workers
+
+          [default: node:22-bookworm-slim]
+
+      --playwright-version <PLAYWRIGHT_VERSION>
+          Playwright version, kept in sync with the portal test runner
+
+          [default: 1.62.1]
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -245,7 +270,6 @@ Options:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `python` | `"python3"` | Python interpreter with matplotlib installed; psycopg is needed only for SQL audit. |
 | `k6` | `"k6"` | k6 executable. |
 | `node` | `"node"` | Node.js executable for Chromium workers. |
 | `playwright_dir` | `packages/voting-portal under the current directory` | Directory containing the installed @playwright/test package. |
@@ -256,6 +280,8 @@ Options:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
+| `max_errors` | `20` | Maximum failure details retained in a report; total failure counts remain exact. |
+| `cdf_points` | `51` | Quantile points per cumulative latency curve, including its endpoints. |
 | `bins` | `60` | Maximum throughput chart buckets; independent of voter count. |
 | `sqlite_cache_kib` | `16384` | SQLite aggregation cache in KiB; sorting spills to disk. |
 | `audit_batch_size` | `1000` | Receipt IDs queried per read-only audit batch. |
