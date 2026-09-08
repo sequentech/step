@@ -377,6 +377,75 @@ type-checking the lifted portal sources under the workbench's stricter
 flags. Fixing it means mirroring the Vite aliases as tsconfig `paths` and
 excluding portal sources from the check.
 
+## What retires once the validation PR lands
+
+This workbench was built to do three things in order: derive a specification
+of vote validation empirically from production, analyse that specification,
+and use it to produce a rationalized implementation to inject back into
+production. The third step is done — the rules now live once, in
+`sequent-core/src/validation.rs`, and `sequent-core/docs/VALIDATION.md` is
+their reference.
+
+That changes what most of this apparatus is for. **Production is the
+specification now.** Analysis no longer needs a separate model to reason
+about; it can enumerate the real rules directly, which is what
+`validation.rs`'s own tests do. So much of what follows can be retired — kept
+in git, but not maintained, not re-run, and not cited as though it still
+described the code.
+
+**Nothing retires before the upstream PR merges and its findings are
+adjudicated.** `fix-diff.mjs` is what makes the fix ledger falsifiable — here
+is what production did before, here is what it does now, here is the
+deliberate difference — and that is exactly what reviewers are weighing. The
+frozen oracle is its only remaining consumer, and it must outlive the review.
+
+### Retire
+
+| what | why |
+|---|---|
+| `validation-spec/` — the frozen oracle `f` | Its job was to be an independent, bug-compatible transcription to compare production against. Production is now the thing it transcribed. Its last consumer is `fix-diff`. |
+| `validation-adapters/` | Contains no rules of its own — only composition into one effect record and translation into the oracle's vocabulary. The second job dies with the oracle; the first has no other consumer. |
+| `characterization/headless-sweep.mjs` | Swept 345,600 cells to prove production and the spec agreed. With one implementation there is nothing to compare. What it incidentally checked — that the wasm build agrees with the native one — is worth keeping, but as `wasm_bindgen_test` cases in sequent-core that run in CI, not a minute-long sweep outside it. |
+| `characterization/dom-validate.mjs`, `quotient-validate.mjs`, `browser-witnesses.mjs`, the seven per-rule runners, the quotient machinery | Each encodes the validation domain and compares against spec predictions. They are the derivation, not the tool it was built on. |
+| `characterization/effect-map.mjs`, `effect-dependencies.mjs` | They analyse the frozen oracle, so their dependency ledger describes pre-fix behaviour. `validation.rs`'s `which_inputs_move_which_effects` asks the same question of the shipping code. Their extra reach — conditional restrictions, the causal diagram — is worth porting into that style rather than maintaining against a model. |
+
+### Keep
+
+| what | why |
+|---|---|
+| `app/` — the lifted booth, `/wb`, snapshots, the overrides panel | This is a way to configure an election and drive the voting portal in a browser with no backend at all. It was built for the derivation but contains none of it. |
+| `characterization/browser-harness.mjs` | `loadSnapshot`, `enterBooth`, `setPanelConfig`, `clearSelections`, `dismissDialog`, `selectionCount`, `setRank` — generic booth driving. Only `warnIds` leans validation-ward, and it is really just "read the rendered warning keys". |
+| the recorded artifacts (`*.recorded.json`) and the findings | The findings are the output, not the machinery. Retiring the runners without keeping what they produced would make the findings unfalsifiable: a reader could not check a claim against anything. Keep the evidence and enough provenance to say what produced it. |
+| `docs/UPSTREAM_FINDINGS.md`, `docs/REPRODUCE.md`, `docs/VALIDATION_LOGIC_DISTILLATION.md` | Conclusions and reasoning, not instruments. The distillation carries a note saying its file inventories describe the arrangement that preceded the unification. |
+
+### What this implies for contributing the workbench upstream
+
+The split above is also the natural split of the workbench PR, and the two
+halves argue for themselves differently. The **portal-testing platform** —
+`app/` plus the harness — is useful to anyone who needs to exercise the booth
+without standing up Keycloak, Hasura and the rest; it stands on its own
+merits. The **validation characterization suite** argues only for the
+investigation it served, which is finished. Proposing them together invites
+the second to sink the first.
+
+### Where analysis lives now
+
+In `sequent-core/src/validation.rs`, against the rules themselves. Three
+enumerations are there as worked examples —
+`no_ballot_is_discarded_without_telling_the_voter`,
+`which_inputs_move_which_effects`, and
+`apply_obeys_the_marker_rules_on_any_candidate_list` — and
+`VALIDATION.md` §5 gives the recipe for asking a new question.
+
+One limit of the old apparatus is worth carrying forward rather than
+repeating. Every sweep here reasons about a ballot reduced to counts and
+flags, so no amount of enumerating cells could see a contest with two blank
+markers or a candidate flagged both ways. Two real defects lived in exactly
+that gap and survived 345,600 cells, 38,400 differential cases and 2,676
+booth-validated classes. The third enumeration exists to cover it, and its
+assertions are phrased without naming any particular candidate for the same
+reason: an invariant catches shapes nobody thought to enumerate.
+
 ## What's next
 
 Where the work stands (2026-08-21, caught up to `origin/main`
