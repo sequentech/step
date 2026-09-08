@@ -14,7 +14,7 @@ use std::{
 };
 
 /// Complete reproducible workload; secrets are referenced by environment-variable name.
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Settings {
     /// Deployment endpoints and tenant scope.
@@ -36,7 +36,7 @@ pub struct Settings {
 }
 
 /// Upload routing policy. Direct preserves the deployment's signed upload URL.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UploadMode {
     /// Rewrite only upload hosts for the local devcontainer network.
@@ -49,7 +49,7 @@ pub enum UploadMode {
 const MAX_EXACT_VOTER_INDEX: u64 = (1_u64 << 53) - 1;
 
 /// Addresses permitted during a run. Storage origins never rewrite signed URLs.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Target {
     /// Existing synthetic tenant administered by the CLI session.
@@ -79,7 +79,7 @@ impl Default for Target {
 }
 
 /// One iteration owns one patterned username and one cast attempt.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Workload {
     /// HTTP protocol or full browser journey.
@@ -142,7 +142,7 @@ impl Default for Workload {
 }
 
 /// The same shard ownership scheme is used for all executor backends.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Execution {
     /// Independent worker processes or pods.
@@ -193,7 +193,7 @@ impl Default for Execution {
 }
 
 /// Provisioning inputs. Paths are resolved relative to the workload YAML.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Preparation {
     /// Optional exported event template; the bundled single-election fixture is the default.
@@ -226,11 +226,9 @@ impl Default for Preparation {
 }
 
 /// Runtime commands are argument-vector executables, never shell command strings.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Runtime {
-    /// Python interpreter with matplotlib installed; psycopg is needed only for SQL audit.
-    pub python: String,
     /// k6 executable.
     pub k6: String,
     /// Node.js executable for Chromium workers.
@@ -245,7 +243,6 @@ pub struct Runtime {
 impl Default for Runtime {
     fn default() -> Self {
         Self {
-            python: "python3".into(),
             k6: "k6".into(),
             node: "node".into(),
             playwright_dir: std::env::current_dir()
@@ -266,9 +263,13 @@ impl Default for Runtime {
 }
 
 /// Report resource limits, graph resolution and screenshot dimensions.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Reporting {
+    /// Maximum failure details retained in a report; total failure counts remain exact.
+    pub max_errors: usize,
+    /// Quantile points per cumulative latency curve, including its endpoints.
+    pub cdf_points: usize,
     /// Maximum throughput chart buckets; independent of voter count.
     pub bins: usize,
     /// SQLite aggregation cache in KiB; sorting spills to disk.
@@ -287,6 +288,8 @@ pub struct Reporting {
 impl Default for Reporting {
     fn default() -> Self {
         Self {
+            max_errors: 20,
+            cdf_points: 51,
             bins: 60,
             sqlite_cache_kib: 16384,
             audit_batch_size: 1000,
@@ -364,7 +367,9 @@ impl Settings {
             );
         }
         ensure!(
-            self.reporting.bins > 0
+            self.reporting.max_errors > 0
+                && self.reporting.cdf_points >= 2
+                && self.reporting.bins > 0
                 && self.reporting.sqlite_cache_kib > 0
                 && self.reporting.audit_batch_size > 0
                 && self.reporting.audit_timeout_ms > 0

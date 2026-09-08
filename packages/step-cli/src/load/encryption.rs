@@ -27,6 +27,16 @@ pub fn encrypt(
     choices_path: &std::path::Path,
     count: usize,
 ) -> Result<()> {
+    encrypt_to(style_path, choices_path, count, io::stdout().lock())
+}
+
+/// Encrypt directly into a shard writer; concurrent preparation never shares stdout.
+pub fn encrypt_to(
+    style_path: &std::path::Path,
+    choices_path: &std::path::Path,
+    count: usize,
+    output: impl Write,
+) -> Result<()> {
     let style: BallotStyle = serde_json::from_reader(std::fs::File::open(style_path)?)?;
     let choices: Vec<DecodedVoteContest> =
         serde_json::from_reader(std::fs::File::open(choices_path)?)?;
@@ -39,7 +49,7 @@ pub fn encrypt(
         presentation.contest_encryption_policy == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
     let sign = presentation.voter_signing_policy == Some(VoterSigningPolicy::WITH_SIGNATURE);
     let ctx = RistrettoCtx::default();
-    let mut output = BufWriter::new(io::stdout().lock());
+    let mut output = BufWriter::new(output);
     for _ in 0..count {
         let (id, content) = if multi {
             let ballot = encrypt_decoded_multi_contest(&ctx, &choices, &style)?;

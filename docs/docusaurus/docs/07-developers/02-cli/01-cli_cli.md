@@ -23,14 +23,11 @@ step-cli load \
   --help
 ```
 
-The binary includes native encryption, fixtures and the internal load runtime. Load coordination requires Python with matplotlib, and k6; the repository devenv supplies these. Browser runs and report screenshots additionally need Node.js, `@playwright/test` and its matching Chromium installation. The devcontainer provides Chromium, which initialization discovers on `PATH`.
+The binary includes Rust coordination, native encryption, SQLite aggregation, SVG/HTML reporting and election fixtures. HTTP workloads require only k6 alongside the CLI; the repository devenv provides it. Browser runs and report screenshots additionally need Node.js, `@playwright/test` and its matching Chromium installation. The devcontainer provides Chromium, which initialization discovers on `PATH`.
 
-For a coordinator outside devenv, install those dependencies in your environment before running `load check`. A Python virtual environment can supply the reporting dependencies:
+For browser workloads or report screenshots outside devenv, install Playwright:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install matplotlib 'psycopg[binary]'
 npm install \
   --prefix .load-browser \
   --save-exact @playwright/test@1.62.1

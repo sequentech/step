@@ -18,7 +18,7 @@ fn collect(directory: &Path, root: &Path, entries: &mut Vec<String>) {
             }
         } else if matches!(
             path.extension().and_then(|x| x.to_str()),
-            Some("py" | "js" | "json" | "html" | "css" | "sh")
+            Some("js" | "json" | "html" | "css" | "rs" | "toml" | "lock")
         ) || path.file_name().unwrap() == "Dockerfile"
         {
             let relative = path.strip_prefix(root).unwrap().to_str().unwrap();
@@ -36,6 +36,12 @@ fn main() {
     let mut entries = Vec::new();
     collect(&root.join("packages/voting-load"), root, &mut entries);
     for relative in [
+        "packages/step-cli/src/load/config.rs",
+        "packages/step-cli/src/load/files.rs",
+        "packages/step-cli/src/load/input.rs",
+        "packages/step-cli/src/load/worker.rs",
+        "packages/voting-portal/src/queries/GetVoterStatus.ts",
+        "packages/voting-portal/src/queries/InsertCastVote.ts",
         "packages/admin-portal/public/roboto/Roboto_latin_400.woff2",
         "packages/admin-portal/public/roboto/Roboto_latin_700.woff2",
         "LICENSES/Apache-2.0.txt",

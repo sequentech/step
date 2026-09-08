@@ -6,7 +6,7 @@ title: Voting worker design
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-`step-cli load` owns the public lifecycle. The internal runtime in `packages/voting-load` contains one finite executor shared by k6 and Chromium, provisioning, aggregation and optional diagnostic capture. Native ballot encryption is part of `step-cli` and uses `sequent-core`.
+`step-cli load` owns the public lifecycle. Its Rust modules handle provisioning, shared-hash census generation, encryption, finite worker ownership and disk-backed aggregation. Container images compile a small Rust worker from those same modules; workers carry no administrator CLI clients. `packages/voting-load` contains the engine adapters and optional development diagnostics. Native ballot encryption uses `sequent-core`.
 
 ## Ownership and memory
 

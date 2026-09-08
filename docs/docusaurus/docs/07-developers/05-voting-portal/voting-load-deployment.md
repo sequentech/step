@@ -34,7 +34,21 @@ Choose **one** execution method below, finish its configuration, then prepare an
 
 ## Docker
 
-Build the worker image, set `execution.image` and `execution.network` in the workload **before preparation**, then run:
+For a remote target, set the image and Docker network in `remote.yaml` before preparation:
+
+```yaml group="engine" tab="k6"
+execution:
+  image: voting-load:k6
+  network: bridge
+```
+
+```yaml group="engine" tab="Chromium"
+execution:
+  image: voting-load:chromium
+  network: bridge
+```
+
+Build the selected worker image, then prepare and run:
 
 ```bash group="engine" tab="k6"
 step-cli load image \
@@ -67,7 +81,7 @@ execution:
   network: container:devcontainer
 ```
 
-The images contain source and engine dependencies; the coordinator mounts prepared inputs and passes only the synthetic password. The CLI translates devcontainer bind mounts to daemon-host paths automatically. For unusual remote-daemon layouts, set `execution.docker_mount_source` to the host path of the prepared `inputs` directory.
+The images contain a standalone Rust worker and the selected engine; the coordinator mounts prepared inputs and passes only the synthetic password. The CLI translates devcontainer bind mounts to daemon-host paths automatically. For unusual remote-daemon layouts, set `execution.docker_mount_source` to the host path of the prepared `inputs` directory.
 
 ## Kubernetes
 

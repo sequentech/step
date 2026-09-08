@@ -49,7 +49,7 @@ unset LOAD_AUDIT_DSN
 
 ## Investigate a failure
 
-The run contains `settings.yaml` (effective configuration), `setup/` (private provisioning logs), `inputs/` (publication and encrypted shards), and `inputs/results/` (worker logs, samples and attempt markers). Existing-event preparation uses `census/` instead of `setup/`.
+The run contains `settings.yaml` (effective configuration), `setup/` (private provisioning logs), `inputs/` (publication and encrypted shards), and `inputs/results/` (worker logs, samples and attempt markers). Census CSV batches and import checkpoints live in `setup/census/`, including runs that reuse an existing event.
 
 `results.json` retains the request inventory for diagnostics. Enable `workload.trace_http` before preparation for sanitized per-fetch protocol logs. These details stay out of the summary report. Keep raw logs and inputs private: they may contain voter credentials, signed URLs and ballots.
 

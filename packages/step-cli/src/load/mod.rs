@@ -8,13 +8,23 @@
 //! `run` consumes that range once; a failed worker never makes it reusable.
 //! `report` merges individual samples and renders a portable HTML artifact.
 //!
-//! The CLI bundles the orchestration and engine adapters. Python, k6 and (for
-//! browser loads) Playwright are runtime dependencies, checked before provisioning.
+//! Orchestration, encryption and reporting are native Rust. The bundled k6 and
+//! Playwright adapters are checked before provisioning.
 //! Administrator credentials remain on the coordinator; workers receive only the
 //! synthetic password named by the configuration. See [`config::Settings`].
+mod census;
 mod config;
+mod coordinator;
 mod encryption;
+mod executor;
+mod files;
+mod image;
+mod input;
+mod presentation;
+mod provision;
 mod reference;
+mod report;
+mod worker;
 
 use anyhow::{bail, Context, Result};
 use clap::{Subcommand, ValueEnum};
@@ -57,6 +67,13 @@ pub enum Command {
         #[arg(long)]
         output: Option<PathBuf>,
     },
+    /// Internal coordinator subprocess; legacy client diagnostics remain in private logs.
+    #[command(hide = true)]
+    Setup {
+        settings: PathBuf,
+        base: PathBuf,
+        output: PathBuf,
+    },
     /// Build a source-only worker image from the bundled runtime.
     Image {
         /// Engine to include in the image.
@@ -68,6 +85,21 @@ pub enum Command {
         /// Push the built image using the current Docker registry credentials.
         #[arg(long)]
         push: bool,
+        /// Rust builder image for the standalone worker.
+        #[arg(long, default_value = "rust:1.90-bookworm")]
+        rust_image: String,
+        /// Image supplying the k6 executable.
+        #[arg(long, default_value = "grafana/k6:1.6.0")]
+        k6_image: String,
+        /// Base image for protocol workers.
+        #[arg(long, default_value = "debian:bookworm-slim")]
+        worker_image: String,
+        /// Base image for browser workers.
+        #[arg(long, default_value = "node:22-bookworm-slim")]
+        browser_image: String,
+        /// Playwright version, kept in sync with the portal test runner.
+        #[arg(long, default_value = "1.62.1")]
+        playwright_version: String,
     },
     /// Generate a documented workload using the configured tenant administrator.
     Init {
@@ -178,21 +210,6 @@ fn runtime() -> Result<PathBuf> {
     Ok(root)
 }
 
-/// Run the bundled coordinator; preserve its nonzero status and actionable diagnostics.
-fn invoke(settings: &Settings, arguments: &[String]) -> Result<()> {
-    let root = runtime()?;
-    let status = Process::new(&settings.runtime.python)
-        .arg(root.join("packages/voting-load/driver.py"))
-        .args(arguments)
-        .env("STEP_LOAD_CLI", std::env::current_exe()?)
-        .status()
-        .context("Cannot start Python; enter devenv shell or install the documented runtime")?;
-    if !status.success() {
-        bail!("Load command failed ({status}); inspect the run's private logs");
-    }
-    Ok(())
-}
-
 /// Resolve a run configuration from its immutable operator-settings snapshot.
 fn run_settings(directory: &Path) -> Result<Settings> {
     Settings::read(&directory.join("settings.yaml"))
@@ -211,26 +228,31 @@ impl Command {
                 }
                 Ok(())
             }
-            Self::Image { engine, tag, push } => {
-                let root = runtime()?;
-                let status = Process::new("bash")
-                    .arg(root.join("packages/voting-load/image.sh"))
-                    .arg(format!("{engine:?}").to_lowercase())
-                    .arg(tag)
-                    .status()?;
-                if !status.success() {
-                    bail!("Worker image build failed");
-                }
-                if *push
-                    && !Process::new("docker")
-                        .args(["push", tag])
-                        .status()?
-                        .success()
-                {
-                    bail!("Worker image push failed");
-                }
-                Ok(())
-            }
+            Self::Setup {
+                settings,
+                base,
+                output,
+            } => provision::setup(settings, base, output, &runtime()?),
+            Self::Image {
+                engine,
+                tag,
+                push,
+                rust_image,
+                k6_image,
+                worker_image,
+                browser_image,
+                playwright_version,
+            } => image::build(
+                &runtime()?,
+                *engine,
+                tag,
+                *push,
+                rust_image,
+                k6_image,
+                worker_image,
+                browser_image,
+                playwright_version,
+            ),
             Self::Encrypt {
                 style,
                 choices,
@@ -295,16 +317,7 @@ impl Command {
                 if output.exists() {
                     bail!("Run directory already exists; choose a fresh --output");
                 }
-                let serialized = serde_json::to_string(&settings)?;
-                invoke(
-                    &settings,
-                    &[
-                        "prepare".into(),
-                        config.canonicalize()?.display().to_string(),
-                        output.display().to_string(),
-                        serialized,
-                    ],
-                )
+                coordinator::prepare(&settings, config, output, &runtime()?)
             }
             Self::Run {
                 directory,
@@ -319,15 +332,7 @@ impl Command {
                 let executor = executor
                     .map(|e| format!("{e:?}").to_lowercase())
                     .unwrap_or(settings.execution.executor.clone());
-                invoke(
-                    &settings,
-                    &[
-                        "run".into(),
-                        directory.canonicalize()?.display().to_string(),
-                        workers.to_string(),
-                        executor,
-                    ],
-                )
+                executor::run(directory, &settings, workers, &executor, &runtime()?)
             }
             Self::Report {
                 directory,
@@ -336,18 +341,14 @@ impl Command {
                 screenshot,
             } => {
                 let settings = run_settings(directory)?;
-                invoke(
-                    &settings,
-                    &[
-                        "report".into(),
-                        directory.canonicalize()?.display().to_string(),
-                        dsn_env.clone().unwrap_or_default(),
-                        screenshot
-                            .as_ref()
-                            .map(|p| p.display().to_string())
-                            .unwrap_or_default(),
-                    ],
-                )?;
+                executor::report(directory, dsn_env.as_deref())?;
+                if let Some(destination) = screenshot {
+                    coordinator::screenshot(
+                        &settings,
+                        &directory.join("report.html"),
+                        destination,
+                    )?;
+                }
                 if *open {
                     let status = Process::new(&settings.runtime.opener)
                         .arg(directory.join("report.html"))
@@ -360,11 +361,11 @@ impl Command {
             }
             Self::Check { config } => {
                 let settings = Settings::read(config)?;
-                invoke(
-                    &settings,
-                    &["check".into(), serde_json::to_string(&settings)?],
-                )
+                coordinator::check(&settings)
             }
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
