@@ -139,7 +139,6 @@ native = [
     "dep:sqlx",
     "dep:tokio",
     "dep:b4",
-    "b4/native",
     "dep:colored",
     "dep:clap",
     "dep:tracing-subscriber",
