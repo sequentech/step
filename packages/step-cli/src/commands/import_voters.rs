@@ -41,15 +41,11 @@ pub struct ImportVoters {
 pub struct ImportUsers;
 
 impl ImportVoters {
-    pub fn run(&self) {
-        match import_voters(&self.election_event_id, &self.file_path, self.is_local) {
-            Ok(()) => {
-                println!("{}", "Success! Voters imported successfully!".green());
-            }
-            Err(err) => {
-                eprintln!("Error! Failed to import voters: {}", err)
-            }
-        }
+    /// Preserve import failures in the process exit status.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
+        import_voters(&self.election_event_id, &self.file_path, self.is_local)?;
+        println!("{}", "Success! Voters imported successfully!".green());
+        Ok(())
     }
 }
 
@@ -93,17 +89,26 @@ pub fn import_voters(
     let polling_interval = Duration::from_secs(3);
 
     loop {
-        match crate::utils::tasks::get_task_status(&task_execution_id) {
-            Ok(status) if status == "SUCCESS" => return Ok(()),
-            Ok(status) if status == "FAILED" => return Err("Import voters task failed".into()),
-            Ok(_) => {
-                if Instant::now().duration_since(start_time) >= timeout {
-                    return Err("Timeout while waiting for import voters task to complete".into());
-                }
-                sleep(polling_interval);
-            }
-            Err(e) => return Err(format!("Error checking task status: {}", e).into()),
+        crate::utils::read_config::refresh_and_save_token()?;
+        let status = crate::utils::tasks::get_task_status(&task_execution_id)?;
+        if import_finished(&status, start_time.elapsed(), timeout)? {
+            return Ok(());
         }
+        sleep(polling_interval);
+    }
+}
+
+/// Classify terminal task states before deciding whether another poll is useful.
+fn import_finished(
+    status: &str,
+    elapsed: Duration,
+    timeout: Duration,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    match status {
+        "SUCCESS" => Ok(true),
+        "FAILED" => Err("Import voters task failed".into()),
+        _ if elapsed >= timeout => Err("Timeout waiting for import voters".into()),
+        _ => Ok(false),
     }
 }
 
@@ -129,6 +134,17 @@ fn import_task_id(
 #[cfg(test)]
 mod response_tests {
     use super::*;
+
+    #[test]
+    fn success_and_polling_terminal_states() {
+        let response = serde_json::from_value(serde_json::json!({"data":{"import_users":{"task_execution":{"id":"task", "execution_status":"IN_PROGRESS"}}}})).unwrap();
+        assert_eq!(import_task_id(response).unwrap(), "task");
+        let deadline = Duration::from_secs(1);
+        assert!(import_finished("SUCCESS", deadline, deadline).unwrap());
+        assert!(import_finished("FAILED", Duration::ZERO, deadline).is_err());
+        assert!(!import_finished("IN_PROGRESS", Duration::ZERO, deadline).unwrap());
+        assert!(import_finished("IN_PROGRESS", deadline, deadline).is_err());
+    }
 
     #[test]
     fn errors_survive_partial_or_absent_data() {

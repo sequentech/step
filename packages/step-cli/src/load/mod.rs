@@ -37,15 +37,7 @@ use std::{
 };
 include!(concat!(env!("OUT_DIR"), "/load_assets.rs"));
 
-/// Supported journey implementations; both authenticate a distinct voter per iteration.
-#[derive(Clone, Copy, Debug, ValueEnum, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Engine {
-    /// Authenticated HTTP with native encryption completed before measurement.
-    K6,
-    /// Full browser rendering, selection, encryption and confirmation.
-    Chromium,
-}
+pub use config::Engine;
 
 /// Execution location. Worker ownership is identical across all locations.
 #[derive(Clone, Copy, Debug, ValueEnum)]
