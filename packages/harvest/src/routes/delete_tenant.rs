@@ -39,7 +39,7 @@ pub async fn delete_tenant_f(
     claims: JwtClaims,
 ) -> Result<Json<DeleteTenantOutput>, (Status, String)> {
     let input = body.into_inner();
-    let executer_name = claims
+    let executor_name = claims
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
@@ -48,7 +48,7 @@ pub async fn delete_tenant_f(
         &claims.hasura_claims.tenant_id,
         None,
         ETasksExecution::DELETE_TENANT,
-        &executer_name,
+        &executor_name,
     )
     .await
     .map_err(|error| {

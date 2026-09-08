@@ -14,12 +14,12 @@ pub async fn delete_tenant_related_documents(tenant_id: &str) -> Result<()> {
     let bucket = s3::get_private_bucket()?;
     s3::delete_files_from_s3(bucket, documents_prefix.clone(), s3::S3Endpoint::Server)
         .await
-        .map_err(|err| anyhow!("Error delete private files from s3: {err:?}"))?;
+        .map_err(|err| anyhow!("Error deleting private files from S3: {err:?}"))?;
 
     let public_bucket = s3::get_public_bucket()?;
     s3::delete_files_from_s3(public_bucket, documents_prefix, s3::S3Endpoint::Server)
         .await
-        .map_err(|err| anyhow!("Error delete public files from s3: {err:?}"))?;
+        .map_err(|err| anyhow!("Error deleting public files from S3: {err:?}"))?;
 
     Ok(())
 }

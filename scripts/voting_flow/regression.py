@@ -5,6 +5,8 @@
 
 from concurrent.futures import ThreadPoolExecutor
 import threading
+from pathlib import Path
+import subprocess
 import unittest
 
 import psycopg
@@ -55,6 +57,35 @@ class VotingFlowTests(unittest.TestCase):
 
         with ThreadPoolExecutor(max_workers=len(operations)) as executor:
             return list(executor.map(run, operations))
+
+    def test_concurrent_reference_index_prebuild_and_rollback(self):
+        """Reuse a concurrently built index in the transactional migration, then roll it back."""
+        root = Path(__file__).resolve().parents[2]
+        migration = root / "hasura/migrations/backend-db/1788808561206_ballot_style_voter_reference_index"
+        self.connection.execute("""
+            CREATE TABLE sequent_backend.ballot_style (
+                tenant_id uuid, election_event_id uuid, area_id uuid,
+                election_id uuid, id uuid, ballot_publication_id uuid, deleted_at timestamptz
+            )
+        """)
+        try:
+            for script in ["ballot_style_voter_reference_index.sql", "drop_ballot_style_voter_reference_index.sql"]:
+                subprocess.run([
+                    "psql", "-X", "--quiet", "--file", str(root / "scripts/postgres" / script),
+                ], env=self.db.env, check=True, stdout=subprocess.DEVNULL)
+                direction = "down" if script.startswith("drop_") else "up"
+                with self.connection.transaction():
+                    self.connection.execute((migration / f"{direction}.sql").read_text())
+                if direction == "up":
+                    self.assertEqual(self.connection.execute(
+                        "SELECT indisvalid FROM pg_index WHERE indexrelid = 'sequent_backend.ballot_style_voter_reference_idx'::regclass"
+                    ).fetchone(), (True,))
+                else:
+                    self.assertEqual(self.connection.execute(
+                        "SELECT to_regclass('sequent_backend.ballot_style_voter_reference_idx')"
+                    ).fetchone(), (None,))
+        finally:
+            self.connection.execute("DROP TABLE sequent_backend.ballot_style")
 
     def test_backfill_and_rollback(self):
         """Verify projection backfill and eligibility migration reapplication preserve valid schedules."""
