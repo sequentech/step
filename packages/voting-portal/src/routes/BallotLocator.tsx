@@ -35,7 +35,6 @@ import {
 import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_ELECTIONS} from "../queries/GetElections"
@@ -776,7 +775,6 @@ const BallotLocatorLogic = () => {
         : ""
 
     const dispatch = useAppDispatch()
-    const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
