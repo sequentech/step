@@ -27,16 +27,13 @@ import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client/react"
 import {
-    GetBallotStylesQuery,
     GetCastVoteQuery,
     GetElectionsQuery,
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -759,7 +756,6 @@ const BallotLocatorLogic = () => {
     const {globalSettings} = useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
-    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {data: dataElections, loading: loadingElections} = useQuery<GetElectionsQuery>(
         GET_ELECTIONS,
         {
@@ -791,12 +787,6 @@ const BallotLocatorLogic = () => {
         },
         skip: globalSettings.DISABLE_AUTH || !hasBallotId || loadingElections,
     })
-
-    useEffect(() => {
-        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-        }
-    }, [dataBallotStyles, dispatch])
 
     const validatedBallotId = isHex(inputBallotId ?? "")
 
