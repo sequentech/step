@@ -66,5 +66,4 @@ public final class RealmNames {
   public static Optional<String> electionEventIdFromRealmName(String realmName) {
     return parseEventRealmName(realmName).map(EventRealm::electionEventId);
   }
-
 }
