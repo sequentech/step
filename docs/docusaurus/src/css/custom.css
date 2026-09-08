@@ -164,3 +164,24 @@ body.home .navbar__brand .navbar__title {
   width: 190px;
   height: 190px;
 }
+
+/* Code variants share the theme's accessible tabs and light/dark palette. */
+.code-mode-tabs {
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  gap: 0.25rem;
+}
+
+.code-mode-tabs .tabs__item {
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  border-radius: var(--ifm-global-radius) var(--ifm-global-radius) 0 0;
+}
+
+.code-mode-tabs .tabs__item--active {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.code-mode-tabs .tabs__item:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: -2px;
+}
