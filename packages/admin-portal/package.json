@@ -26,7 +26,7 @@
     "apexcharts": "3.41.1",
     "buffer": "^6.0.3",
     "diff": "^5.1.0",
-    "dompurify": "^3.2.4",
+    "dompurify": "^3.4.0",
     "fs-extra": "^11.2.0",
     "graphql": "^16.8.1",
     "i18next": "^25.5.2",
@@ -35,7 +35,7 @@
     "jotai": "^2.6.0",
     "json-edit-react": "^1.17.1",
     "keycloak-js": "^26.2.1",
-    "lodash": "^4.17.21",
+    "lodash": "^4.18.1",
     "moment-timezone": "^0.5.46",
     "process": "^0.11.10",
     "ra-data-hasura": "0.6.0",
@@ -58,13 +58,13 @@
     "sql.js": "^1.13.0",
     "stream-browserify": "^3.0.0",
     "util": "^0.12.5",
-    "uuid": "9.0.0",
+    "uuid": "14.0.0",
     "web-vitals": "^5.1.0",
     "idb": "7.1.1"
   },
   "resolutions": {
     "graphql": "^16.8.1",
-    "dompurify": "^3.2.4",
+    "dompurify": "^3.4.0",
     "braces": "^3.0.3",
     "tinymce": "^7.0.0",
     "webpack-dev-server": "5.2.2",
@@ -72,7 +72,7 @@
     "ws": "^8.18.0",
     "follow-redirects": "^1.15.9",
     "semver": "^7.6.4",
-    "path-to-regexp": "^0.1.12",
+    "path-to-regexp": "^0.1.13",
     "@emotion/styled": "11.14.1"
   },
   "scripts": {

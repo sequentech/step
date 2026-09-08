@@ -48,7 +48,7 @@
     "ws": "^8.18.0",
     "follow-redirects": "^1.15.9",
     "semver": "^7.6.4",
-    "path-to-regexp": "^0.1.12"
+    "path-to-regexp": "^0.1.13"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",
