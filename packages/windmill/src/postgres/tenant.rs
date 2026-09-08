@@ -212,6 +212,40 @@ pub async fn get_tenant_by_id_if_exist(
     Ok(Some(tenant))
 }
 
+/// Closed set of tables cleared before deleting a tenant. User input can never
+/// become an SQL identifier; event-scoped rows use a separate predicate below.
+#[derive(Clone, Copy, Debug)]
+enum TenantCleanupTable {
+    Trustee,
+    Template,
+    ElectionType,
+    Document,
+    TasksExecution,
+    AreaContest,
+    ElectionResult,
+    EventExecution,
+    ScheduledEvent,
+    Secret,
+}
+
+impl TenantCleanupTable {
+    /// Return the schema identifier for this supported cleanup target.
+    fn table(self) -> &'static str {
+        match self {
+            Self::Trustee => "trustee",
+            Self::Template => "template",
+            Self::ElectionType => "election_type",
+            Self::Document => "document",
+            Self::TasksExecution => "tasks_execution",
+            Self::AreaContest => "area_contest",
+            Self::ElectionResult => "election_result",
+            Self::EventExecution => "event_execution",
+            Self::ScheduledEvent => "scheduled_event",
+            Self::Secret => "secret",
+        }
+    }
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn delete_tenant(hasura_transaction: &Transaction<'_>, tenant_id: &str) -> Result<()> {
     let tenant_uuid = parse_uuid_v4(tenant_id)?;
@@ -221,8 +255,13 @@ pub async fn delete_tenant(hasura_transaction: &Transaction<'_>, tenant_id: &str
     // caller refuses to delete a tenant that still has election events (see
     // count_tenant_election_events), and deleting an election event clears
     // every table scoped to it (see postgres::election_event::delete_election_event).
-    let related_tables = ["trustee", "template", "election_type"];
+    let related_tables = [
+        TenantCleanupTable::Trustee,
+        TenantCleanupTable::Template,
+        TenantCleanupTable::ElectionType,
+    ];
     for table in related_tables {
+        let table = table.table();
         let query = format!(
             r#"
             DELETE FROM sequent_backend.{}
@@ -248,15 +287,16 @@ pub async fn delete_tenant(hasura_transaction: &Transaction<'_>, tenant_id: &str
     // delete-tenant call leaves exactly this kind of orphan tasks_execution
     // row behind.
     let tenant_scoped_tables = [
-        "document",
-        "tasks_execution",
-        "area_contest",
-        "election_result",
-        "event_execution",
-        "scheduled_event",
-        "secret",
+        TenantCleanupTable::Document,
+        TenantCleanupTable::TasksExecution,
+        TenantCleanupTable::AreaContest,
+        TenantCleanupTable::ElectionResult,
+        TenantCleanupTable::EventExecution,
+        TenantCleanupTable::ScheduledEvent,
+        TenantCleanupTable::Secret,
     ];
     for table in tenant_scoped_tables {
+        let table = table.table();
         let query = format!(
             r#"
             DELETE FROM sequent_backend.{}

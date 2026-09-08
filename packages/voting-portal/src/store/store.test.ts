@@ -8,7 +8,15 @@ import {setElection} from "./elections/electionsSlice"
 test("a voter scope change removes prior eligibility and participation", () => {
     store.dispatch(clearVoterSession())
     const initial = store.getState()
-    store.dispatch(setElection({id: "election", presentation: {}} as any))
+    store.dispatch(
+        setElection({
+            id: "election",
+            tenant_id: "tenant",
+            election_event_id: "event",
+            image_document_id: "",
+            contests: [],
+        })
+    )
     store.dispatch(
         addCastVotes([
             {
