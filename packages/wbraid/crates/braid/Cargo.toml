@@ -132,7 +132,6 @@ fuzzing = ["dep:vsc"]
 # Native build with gRPC, filesystem, SQLite  
 native = [
     "dep:vsc",
-    "vsc/server",
     "dep:rayon",
     "dep:tonic",
     "dep:rusqlite",
@@ -160,7 +159,6 @@ native = [
 wasm-core = [
     "dep:vsc",
     "dep:toml",
-    "vsc/wasm",
     "dep:wasm-bindgen",
     "dep:wasm-bindgen-futures",
     "dep:js-sys",
