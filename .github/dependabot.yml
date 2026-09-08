@@ -8,11 +8,11 @@
 # are driven by the repository setting plus the dependency graph, and they
 # always target the default branch - they cannot be pointed at a release
 # branch. Release branches therefore get no alerts and no automated PRs, and
-# are covered instead by the dependency audit job in
-# .github/workflows/tests.yml, which runs on every branch.
+# are covered instead by .github/workflows/dependency_audit.yml, which runs on
+# every branch.
 #
-# Setting `target-branch` on an entry also disables security updates for that
-# entry, so it is deliberately absent here.
+# Do not set `target-branch` on these entries: it also disables security
+# updates for the entry it is set on.
 
 version: 2
 updates:
@@ -63,7 +63,7 @@ updates:
           - "*"
     open-pull-requests-limit: 5
 
-  # Python. Not previously configured at all, despite three requirements files.
+  # Python
   - package-ecosystem: "pip"
     directories:
       - "/scripts/tasks/dependencies"

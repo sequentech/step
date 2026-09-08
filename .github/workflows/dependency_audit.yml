@@ -21,10 +21,10 @@
 #                     branch out explicitly and scans it.
 #
 # Neither job fails the build yet. Several advisories in this tree have no
-# published fix or are blocked upstream - see the notes in the meta#12288 pull
-# requests - so a blocking job would be red permanently and would simply be
-# ignored. Curating an `osv-scanner.toml` ignore list with a documented reason
-# and review date for each, then making these blocking, is the follow-up.
+# published fix or are blocked by an upstream constraint, so a blocking job
+# would be red permanently and would simply be ignored. Curating an
+# `osv-scanner.toml` ignore list with a documented reason and review date for
+# each, then making these blocking, is the follow-up.
 
 name: Dependency Audit
 
