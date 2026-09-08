@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Dependency vulnerability audit.
+#
+# This exists because Dependabot alerts are only ever computed against the
+# default branch. Release branches get no alerts and no automated PRs, so a
+# vulnerability fixed on main can sit unnoticed on release/10.0 or release/9.0
+# indefinitely. This job runs on every branch and every pull request, reading
+# the same OSV / GitHub Advisory data Dependabot uses, and covers npm, Cargo,
+# Maven and pip in a single pass.
+#
+# The weekly schedule matters as much as the PR trigger: a quiet release branch
+# would otherwise never be re-checked as new advisories are published.
+#
+# `fail-on-vuln` is deliberately false for now. Several advisories in this tree
+# have no available fix or are blocked upstream - see the notes in the
+# meta#12288 pull requests - so a blocking job would be red permanently and
+# would simply be ignored. Curating an `osv-scanner.toml` ignore list with a
+# documented reason and review date for each, then flipping this to true, is
+# the intended follow-up.
+
+name: Dependency Audit
+
+on:
+  pull_request:
+  push:
+    branches: ['main', 'release/[0-9]+.[0-9]+']
+  schedule:
+    # Mondays 06:00 UTC, before the Dependabot version-update run.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  audit:
+    name: Scan dependencies
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.1
+    with:
+      # The `beyond` submodule is a separate private repository and its
+      # checkout needs `secrets.PAT`, which cannot be passed into this reusable
+      # workflow. It needs its own audit workflow in that repository.
+      checkout-submodules: false
+      upload-sarif: true
+      fail-on-vuln: false
+      scan-args: |-
+        --recursive
+        ./
