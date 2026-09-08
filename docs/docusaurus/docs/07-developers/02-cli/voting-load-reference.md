@@ -48,7 +48,7 @@ Options:
       --rust-image <RUST_IMAGE>
           Rust builder image for the standalone worker
 
-          [default: rust:1.90-bookworm]
+          [default: rust:1.96.0-bookworm]
 
       --k6-image <K6_IMAGE>
           Image supplying the k6 executable
