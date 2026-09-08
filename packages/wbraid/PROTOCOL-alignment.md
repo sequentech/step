@@ -34,7 +34,7 @@ completion rules are equation-for-equation aligned. The three known 0.6.3 tasks
 are confirmed as exactly the planned gaps. The evaluation found **one
 significant new gap**: the shuffle proof's Fiat-Shamir challenges bind less
 data than the description specifies — in particular the prover-chosen
-permutation commitments are not hashed into either challenge (C1 below). Four
+permutation commitments are not hashed into either challenge (C1 below). Six
 small description-precision fixes round out the list.
 
 ## A — verified aligned
@@ -102,8 +102,8 @@ here; the finding is a deviation from the specified strong-FS transcripts, and
 that alone warrants alignment — the description is the sound design.
 
 Provenance: this is a **known, tracked deficiency**, not a new discovery — the
-tag constants carry `#[crate::warning("Challenge inputs are incomplete. …")]`
-in the current tree, and the protocol-description work left implementation
+tag constants carried `#[crate::warning("Challenge inputs are incomplete. …")]`
+at evaluation time, and the protocol-description work left implementation
 notes with drop-in target code (this evaluation reached the same conclusion
 independently before reading them). The notes' essentials, recorded here so
 they survive the notes' deletion:
@@ -172,9 +172,9 @@ convert to scalar arithmetic if the committee bound ever grows. No action for
 
 | # | Where | Fix |
 |---|---|---|
-| D1 | §2.5 | The generators tag is group-qualified: `"independent_generators_ristretto"`, not `"independent_generators"` |
+| D1 | §2.5 | The generators tag is group-qualified: `"independent_generators_ristretto"`, not `"independent_generators"`. **Implemented 2026-08-28**: §2.5 names the group-qualified tag |
 | D2 | §2.4 | State the byte encoding of `len(P)` in the domain label. **Reversed 2026-08-27 from a doc-only fix to a code change**: the little-endian encoding in `domain_label` (`trustee/mod.rs`) is the *only* little-endian integer entering any hash transcript in braid/vsc — VSer lengths/integers and both hash counters are all big-endian — an inherited anomaly, not a convention. Decided: normalize the code to big-endian, riding along with C1 (which already invalidates all transcripts; none shipped), so the documented rule becomes uniform: *every 64-bit integer entering a hash transcript is big-endian*. §2.4 gets that sentence when the code lands. Verificatum interop is unaffected: `VmnChallenges` ignores the braid `context` parameter entirely and salts with VMN's own `rho` prefix (`v2v/src/challenges.rs`, `session.rs`) — the two derivations share no bytes. **Implemented 2026-08-27** alongside C1: `domain_label` is big-endian and §2.4 states the uniform rule |
-| D3 | §2.2 | Specify the encode trial order: the implementation searches `j` (byte 31) outer, `i` (byte 0) inner |
+| D3 | §2.2 | Specify the encode trial order: the implementation searches `j` (byte 31) outer, `i` (byte 0) inner. **Implemented 2026-08-28**: §2.2 states the nesting and why it matters |
 | D4 | §1.5/§2.1 (optional) | Note the implementation is group-generic and ristretto255 is the deployed instantiation |
 | D5 | §7.1 | **Found and fixed 2026-08-27** (a gloss in this evaluation's A19 row): the decryption proof context is the (now tally-scoped) label *alone* — braid never appended `H(L_t)`; instance binding comes from the u-list and factors hashed directly into the batching seed. The description said `ctx("decryption proof", L_t)`; corrected to `label(…)` with the explanation |
 | D6 | §6.1/§9.2 | **Found and fixed 2026-08-27**: the shuffle contexts' instance input (and the mix chain's links) are hashes of the **posted messages** — the ballot list `B` for the first mix, mix message `k` (output list + proof) thereafter — not the bare list `L_{k-1}`, of which they are a strict superset. §6.1 now defines this; §9.2 references it |
@@ -182,21 +182,28 @@ convert to scalar arithmetic if the committee bound ever grows. No action for
 ## E — out of braid scope (platform components)
 
 Ballot encoding (§5.1), client-side encryption (§5.2 — except `ctx_enc`, C2),
-the Benaloh challenge (§5.3), trackers and the ballot locator (§5.4 and its
-TO-BE-CONFIRMED items), result rules (§8), voter-facing verification (§9.1),
+the Benaloh challenge (§5.3), trackers and the ballot locator (§5.4 — its
+TO-BE-CONFIRMED items were resolved 2026-08-28 against the voting portal), result
+rules (§8), voter-facing verification (§9.1),
 and export signing. The independent election verifier (§9.2) is scheduled
 separately (0.6.4+, the `v2v` crate).
 
 ## Proposed effect on the 0.6.3 plan
 
+*(Every item below has since been executed; outcomes are noted inline.)*
+
 1. **Add C1 (shuffle Fiat-Shamir alignment) to 0.6.3**, ordered first or
    alongside task 1 — small, contained, and the only security-relevant code
-   divergence found.
+   divergence found. **Done** — implemented 2026-08-27 as the first 0.6.3 item.
 2. Tasks 1 and 2 proceed as planned (this evaluation confirms their scope);
-   task 2 absorbs C2 (define `ctx_enc`) and B3 (per-tally identifier).
-3. Apply the D fixes to `PROTOCOL.md` — cheap, can be done immediately.
-4. C3 is a note, not a task.
-5. The VSer canonicality audit remains the capstone, unaffected.
+   task 2 absorbs C2 (define `ctx_enc`) and B3 (per-tally identifier). **Done**
+   2026-08-27.
+3. Apply the D fixes to `PROTOCOL.md` — cheap, can be done immediately. D2, D5,
+   D6 applied 2026-08-27; D1, D3 applied 2026-08-28; D4 remains optional.
+4. C3 is a note, not a task. **Stands** — still accurate after the dkgd refactor
+   (`vk_factor` still exponentiates in `u32`).
+5. The VSer canonicality audit remains the capstone, unaffected. **Executed** —
+   the audit ran and concluded in the serialization rewrite (spec §11.1).
 
 ## How this was evaluated
 
