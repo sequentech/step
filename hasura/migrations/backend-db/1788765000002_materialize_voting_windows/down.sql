@@ -1,6 +1,8 @@
 -- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 -- SPDX-License-Identifier: AGPL-3.0-only
 
+DROP TRIGGER lock_voting_window_writer ON sequent_backend.scheduled_event;
+DROP FUNCTION sequent_backend.lock_voting_window_writer();
 DROP TRIGGER clear_election_voting_windows ON sequent_backend.scheduled_event;
 DROP TRIGGER update_election_voting_window ON sequent_backend.scheduled_event;
 DROP FUNCTION sequent_backend.clear_election_voting_windows();

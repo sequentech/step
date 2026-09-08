@@ -13,10 +13,10 @@ use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
+/// Commit tenant deletion before removing its external realm and objects.
 #[instrument(err)]
 async fn delete_tenant(tenant_id: String, realm: String) -> AnyhowResult<()> {
     let tenant_id_cloned = tenant_id.clone();
-    let realm_cloned = realm.clone();
 
     provide_hasura_transaction(|hasura_transaction| {
         Box::pin(async move {
@@ -32,17 +32,20 @@ async fn delete_tenant(tenant_id: String, realm: String) -> AnyhowResult<()> {
                 .await
                 .map_err(|err| anyhow!("Error deleting tenant from postgres db: {err}"))?;
 
-            delete_tenant_related_data(&tenant_id_cloned, &realm_cloned)
-                .await
-                .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))?;
-
             Ok(())
         })
     })
-    .await
+    .await?;
+
+    // External cleanup starts only after commit: rollback must leave a live
+    // tenant's realm and objects intact. Missing database rows permit retries.
+    delete_tenant_related_data(&tenant_id, &realm)
+        .await
+        .map_err(|e| anyhow!("Error deleting related non-transactional data: {e}"))
 }
 
-#[instrument(err)]
+/// Record completion only after both database and external cleanup succeed.
+#[instrument(err, skip(task_execution))]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn delete_tenant_t(
