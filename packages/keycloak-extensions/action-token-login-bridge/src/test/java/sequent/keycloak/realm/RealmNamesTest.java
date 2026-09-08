@@ -44,6 +44,7 @@ class RealmNamesTest {
         "150017",
         RealmNames.electionEventIdFromRealmName("tenant-acme-event-150017").orElseThrow());
   }
+
   @Test
   void extractsOnlyAdministrativeTenantRealmNames() {
     assertEquals("acme-prod", RealmNames.tenantIdFromRealmName("tenant-acme-prod").orElseThrow());

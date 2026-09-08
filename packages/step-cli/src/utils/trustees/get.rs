@@ -15,7 +15,9 @@ use graphql_client::{GraphQLQuery, Response};
 pub struct GetTrustees;
 
 impl GetTrustees {
-    fn fetch() -> Result<Vec<get_trustees::GetTrusteesSequentBackendTrustee>, Box<dyn std::error::Error>> {
+    fn fetch(
+    ) -> Result<Vec<get_trustees::GetTrusteesSequentBackendTrustee>, Box<dyn std::error::Error>>
+    {
         let config = read_config()?;
         let client = reqwest::blocking::Client::new();
 

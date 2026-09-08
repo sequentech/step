@@ -53,10 +53,14 @@ fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Erro
     loop {
         match crate::utils::tasks::get_task_status(task_execution_id) {
             Ok(status) if status == "SUCCESS" => return Ok(()),
-            Ok(status) if status == "FAILED" => return Err("Export tenant config task failed".into()),
+            Ok(status) if status == "FAILED" => {
+                return Err("Export tenant config task failed".into())
+            }
             Ok(_) => {
                 if Instant::now().duration_since(start_time) >= timeout {
-                    return Err("Timeout while waiting for export tenant config task to complete".into());
+                    return Err(
+                        "Timeout while waiting for export tenant config task to complete".into(),
+                    );
                 }
                 sleep(polling_interval);
             }
@@ -81,7 +85,8 @@ fn export_tenant_config(tenant_id: &str) -> Result<String, Box<dyn std::error::E
         .send()?;
 
     if response.status().is_success() {
-        let response_body: Response<export_tenant_config_mutation::ResponseData> = response.json()?;
+        let response_body: Response<export_tenant_config_mutation::ResponseData> =
+            response.json()?;
         if let Some(data) = response_body.data {
             let Some(output) = data.export_tenant_config else {
                 return Err(Box::from("failed exporting tenant config"));

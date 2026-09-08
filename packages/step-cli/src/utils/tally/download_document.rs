@@ -24,7 +24,9 @@ pub struct FetchDocumentOutput {
 /// Like `fetch_document`, but for a document not tied to any election event
 /// (e.g. a tenant config export) — `election_event_id` is optional in the
 /// underlying query.
-pub fn fetch_document_url(document_id: &str) -> Result<FetchDocumentOutput, Box<dyn std::error::Error>> {
+pub fn fetch_document_url(
+    document_id: &str,
+) -> Result<FetchDocumentOutput, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -68,7 +70,10 @@ pub fn fetch_document_url(document_id: &str) -> Result<FetchDocumentOutput, Box<
 /// internal `minio` service name. Use this when step-cli isn't necessarily
 /// running inside the devcontainer (e.g. against a remote deployment), where
 /// the presigned URL's own host is already the one to connect to.
-pub fn download_file_plain(presigned_url: &str, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn download_file_plain(
+    presigned_url: &str,
+    output_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder()
         .redirect(reqwest::redirect::Policy::default())
         .build()?;

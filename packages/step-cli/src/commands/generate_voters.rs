@@ -40,8 +40,14 @@ fn election_alias(el: &Value) -> String {
     };
     field("en", "alias")
         .or_else(|| field("en", "name"))
-        .or_else(|| i18n.values().find_map(|v| v.get("alias").and_then(Value::as_str)))
-        .or_else(|| i18n.values().find_map(|v| v.get("name").and_then(Value::as_str)))
+        .or_else(|| {
+            i18n.values()
+                .find_map(|v| v.get("alias").and_then(Value::as_str))
+        })
+        .or_else(|| {
+            i18n.values()
+                .find_map(|v| v.get("name").and_then(Value::as_str))
+        })
         .unwrap_or("Unknown")
         .to_string()
 }

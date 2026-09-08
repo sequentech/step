@@ -57,8 +57,7 @@ public final class RealmNames {
     String tenantId = realmName.substring(prefix.length());
     // The event segment is reserved by the event-realm grammar. Reject malformed
     // event names too, so a smart link cannot treat one as an administrative realm.
-    if (tenantId.isBlank()
-        || Arrays.asList(tenantId.split("-", -1)).contains(EVENT_SEGMENT)) {
+    if (tenantId.isBlank() || Arrays.asList(tenantId.split("-", -1)).contains(EVENT_SEGMENT)) {
       return Optional.empty();
     }
     return Optional.of(tenantId);
