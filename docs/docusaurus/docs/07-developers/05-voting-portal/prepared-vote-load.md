@@ -29,7 +29,7 @@ Preparation includes census import, one publication bootstrap and native encrypt
 
 Accepted casts/s uses the interval from the first journey start to the last completion, including the final in-flight work. Global p50/p99 are calculated from individual samples in disk-backed SQLite. The report does not average per-worker percentiles or treat a successful HTTP status with GraphQL errors as a successful vote.
 
-An API receipt confirms API acceptance. Independent persistence verification needs database observation; add `report --dsn-env LOAD_AUDIT_DSN` for a batched receipt audit, or use the [diagnostic capture](./voting-flow-e2e.md) for SQL attribution. The worker deliberately does not execute one administrative database query per voter.
+An API receipt confirms API acceptance. Independent persistence verification needs database observation; follow the [receipt-audit commands](./voter-status-performance.md#read-and-refresh-results) for a batched receipt audit, or use the [diagnostic capture](./voting-flow-e2e.md) for SQL attribution. The worker deliberately does not execute one administrative database query per voter.
 
 ## Failure and capacity
 

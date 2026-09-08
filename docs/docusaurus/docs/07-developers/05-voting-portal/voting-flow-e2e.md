@@ -23,13 +23,58 @@ There is no separate `GetElections` request in this path. The list comes from pu
 
 ## Capture a diagnostic journey
 
-Run in the devcontainer's `devenv shell`, from the repository containing the E2E harness. Provision an active, published event and an unused synthetic voter first. The target JSON supplies `engine: "chromium"`, `expected_path: "s3"`, the portal login URL, credentials, tenant/event IDs, explicit allowed origins, and observer database configuration. DSNs are supplied through the environment variables named by `databases.*.dsn_env`.
+Run in the devcontainer's `devenv shell`. First complete [election setup](./voter-status-performance.md#prepare-an-election-from-the-command-line), but do not run the load: the diagnostic capture casts as the first voter in that census. Do not subsequently use that same census range for a voting load.
 
-`databases.backend` and `databases.keycloak` each require `dsn_env` and `jsonlog_glob`. The observer needs readable PostgreSQL JSON logs with statement logging enabled. `sql_clients` optionally maps client IPs to service names. Keep the target inside an ignored directory; `credentials` contains the selected census row, including its password and configured match fields.
+The observer requires read access to both databases and their PostgreSQL JSON statement logs. The database servers must already have `log_destination = 'jsonlog'` and either `log_statement = 'all'` or `log_min_duration_statement = 0`; capture checks these settings but does not change them. Enter log paths visible **inside the devcontainer**, not paths that exist only inside the database container. This SQL diagnostic is optional; the regular runner does not require database access.
 
-```sh
-python3 scripts/voting_e2e/capture.py PRIVATE_TARGET PRIVATE_CAPTURE
+Create the private capture target from the setup configuration:
+
+```bash
+umask 077
+read -rs -p 'Backend observer PostgreSQL DSN: ' VOTING_E2E_BACKEND_DSN
+read -rs -p 'Keycloak observer PostgreSQL DSN: ' VOTING_E2E_KEYCLOAK_DSN
+read -r -p 'Backend JSON log glob (for example /logs/backend/*.json): ' LOAD_BACKEND_LOGS
+read -r -p 'Keycloak JSON log glob (for example /logs/keycloak/*.json): ' LOAD_KEYCLOAK_LOGS
+export VOTING_E2E_BACKEND_DSN VOTING_E2E_KEYCLOAK_DSN
+export LOAD_BACKEND_LOGS LOAD_KEYCLOAK_LOGS
+
+python3 - <<'PYTHON'
+import json
+import os
+from pathlib import Path
+
+config = json.loads(Path(".cache/voting-scale/setup/config.json").read_text())
+target = {
+    "engine": "chromium",
+    "expected_path": "s3",
+    "mode": "journey",
+    **{key: config[key] for key in (
+        "login_url", "tenant_id", "election_event_id", "allowed_origins"
+    )},
+    "credentials": {
+        "username": config["username_prefix"] + str(config["start"]),
+        "password": os.environ[config["password_env"]],
+    },
+    "databases": {
+        "backend": {
+            "dsn_env": "VOTING_E2E_BACKEND_DSN",
+            "jsonlog_glob": os.environ["LOAD_BACKEND_LOGS"],
+        },
+        "keycloak": {
+            "dsn_env": "VOTING_E2E_KEYCLOAK_DSN",
+            "jsonlog_glob": os.environ["LOAD_KEYCLOAK_LOGS"],
+        },
+    },
+}
+Path(".cache/voting-scale/capture-target.json").write_text(json.dumps(target, indent=2) + "\n")
+PYTHON
+
+python3 scripts/voting_e2e/capture.py \
+  .cache/voting-scale/capture-target.json \
+  .cache/voting-scale/capture
 ```
+
+For a different census schema, the `credentials` object must contain that voter's actual login fields. `sql_clients` optionally maps database client IPs to service names; without it the report retains the IP addresses.
 
 A successful capture automatically writes **`profile.json`**. No hand-maintained list of assets or GraphQL requests is needed. The compiler preserves request order, duplicates and start offsets, replaces login/cast steps with protocol adapters and replaces signed URLs with publication bindings. New unsupported POSTs, missing downloads and unverified journeys fail profile generation.
 

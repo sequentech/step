@@ -114,7 +114,9 @@ Inside the dev container, from `/workspaces/step`, run:
 
 ```sh
 devenv shell python3 scripts/test_cast_vote_scalability.py \
-  --rust-tests --benchmark --output /tmp/voting-flow-results.json
+  --rust-tests \
+  --benchmark \
+  --output /tmp/voting-flow-results.json
 ```
 
 Everything runs inside devenv. The harness creates a disposable PostgreSQL cluster
@@ -187,8 +189,15 @@ concurrency means different voters submit simultaneously, not 64 submissions
 contending for one voter's lock. Same-voter races are covered by regressions.
 The 1M votes fixture needs roughly 25 GB of temporary database storage; allow at
 least 50 GB free for its data, indexes and WAL. Runs can take several minutes.
-Use `--benchmark --scenario 100k-votes` to rerun one case, or repeat `--scenario`
-to select several; omitting it runs the full matrix.
+To rerun one case:
+
+```sh
+devenv shell python3 scripts/test_cast_vote_scalability.py \
+  --benchmark \
+  --scenario 100k-votes
+```
+
+Repeat `--scenario` to select several cases; omitting it runs the full matrix.
 
 PostgreSQL `pg_stat_statements` counts reads, writes and transaction starts,
 including nested trigger SQL. The driver records logical connection checkouts.
@@ -215,13 +224,24 @@ A normal documentation build needs no raw JSON or database benchmark.
 To measure a new full matrix and regenerate the tables and graphs together:
 
 ```sh
-devenv shell python3 scripts/test_cast_vote_scalability.py --benchmark
+devenv shell python3 scripts/test_cast_vote_scalability.py \
+  --benchmark
 devenv shell python3 scripts/voting_flow/schedules.py
 devenv shell python3 scripts/voting_flow/report.py
 ```
 
-Use `--output` on either benchmark to keep separate runs, and pass their directory
-to `report.py --input-dir PATH`. The renderer expects `voting-flow.json` from a
+To keep a separate full run and generate its report:
+
+```sh
+mkdir -p .cache/voting-flow/recheck
+devenv shell python3 scripts/test_cast_vote_scalability.py \
+  --benchmark \
+  --output .cache/voting-flow/recheck/voting-flow.json
+devenv shell python3 scripts/voting_flow/schedules.py \
+  --output .cache/voting-flow/recheck/schedule-indexes.json
+devenv shell python3 scripts/voting_flow/report.py \
+  --input-dir .cache/voting-flow/recheck
+``` The renderer expects `voting-flow.json` from a
 full matrix and `schedule-indexes.json`; it fails with generation instructions
 if either is missing. Running the scripts again produces new measurements,
 not byte-for-byte copies of historical timings. Retain local JSON when auditing
@@ -231,8 +251,10 @@ To add the optional release verification section after generating the full
 matrix and schedule diagnostic on that checkout:
 
 ```sh
-devenv shell python3 scripts/test_cast_vote_scalability.py --benchmark \
-  --scenario 100k-votes --scenario 100k-votes-1k-areas \
+devenv shell python3 scripts/test_cast_vote_scalability.py \
+  --benchmark \
+  --scenario 100k-votes \
+  --scenario 100k-votes-1k-areas \
   --scenario 100k-votes-10k-areas \
   --scenario 1m-votes-64-voters-200-elections-10k-areas \
   --output .cache/voting-flow/voting-flow-release-10.json
