@@ -15,15 +15,6 @@ from measurements import journey_metrics, percentile
 
 
 MARKER = "<!-- generated-e2e-results -->"
-CHECK_LABELS = {
-    "selector": "Playwright button interaction",
-    "wasm": "Basic WASM execution",
-    "webCrypto": "WebCrypto SHA-256 execution",
-    "stylesheetObserved": "Stylesheet request observed",
-    "contextIsolation": "Cookies isolated between voters",
-    "harFlushed": "HAR saved on context close",
-    "harBodySizesValid": "Transferred response-body sizes",
-}
 
 
 def request_key(request: dict) -> tuple[str, str, str]:
@@ -223,28 +214,6 @@ def render(directory: Path) -> str:
         f"Report generated: {datetime.now(timezone.utc).date().isoformat()}.",
         "",
     ]
-    probe_path = directory / "probe.json"
-    if probe_path.exists():
-        probe = json.loads(probe_path.read_text())
-        lines += [
-            f"Obscura {probe['version']}, Playwright {probe.get('playwright_version', 'unrecorded')}, {probe.get('architecture', 'unrecorded')} synthetic compatibility check ({probe['measured_at']}):",
-            "",
-            "| Check | Result |",
-            "|---|---|",
-        ]
-        lines += [
-            f"| {CHECK_LABELS.get(name, name)} | {'Passed' if passed else 'Failed'} |"
-            for name, passed in probe["checks"].items()
-        ]
-        lines += [
-            f"| {CHECK_LABELS.get(name, name)} | {'Available' if passed else 'Unavailable'} |"
-            for name, passed in probe.get("coverage", {}).items()
-        ]
-        lines += [
-            "",
-            f"Probe interval: {probe['elapsed_ms']} ms. This is one synthetic browser check, not login-to-cast latency or a throughput benchmark.",
-            "",
-        ]
     preflight_path = directory / "preflight.json"
     if preflight_path.exists():
         preflight = json.loads(preflight_path.read_text())

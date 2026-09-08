@@ -12,7 +12,6 @@ export default defineConfig({
     testIgnore: [
         "capture.spec.ts",
         "scale.spec.ts",
-        "obscura.spec.ts",
         "status.spec.ts",
         "prepare.spec.ts",
         "prepared.spec.ts",

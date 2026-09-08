@@ -66,11 +66,9 @@ def connect(database: dict):
 
 
 def preflight(target: dict) -> dict:
-    """Require live portal/CDP endpoints and readable statement logs for both databases."""
+    """Require a live portal and readable statement logs for both databases."""
     results = {}
     endpoints = {"portal": target["login_url"]}
-    if target.get("engine", "chromium") == "obscura":
-        endpoints["obscura"] = target["cdp_url"].rstrip("/") + "/json/version"
     for name, url in endpoints.items():
         try:
             with urllib.request.urlopen(url, timeout=5) as response:

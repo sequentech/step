@@ -308,7 +308,6 @@ def dispatch(args):
                 engine=args.engine,
                 login_url=target["login_url"],
                 allowed_origins=target["allowed_origins"],
-                cdp_url=target.get("cdp_url"),
                 pacing=getattr(args, "pacing", 1),
             ),
         )

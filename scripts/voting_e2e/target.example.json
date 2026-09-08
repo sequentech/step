@@ -1,6 +1,5 @@
 {
   "login_url": "http://127.0.0.1:3000/tenant/REPLACE/event/REPLACE/login",
-  "cdp_url": "http://127.0.0.1:9222",
   "tenant_id": "REPLACE",
   "election_event_id": "REPLACE",
   "credentials": {
