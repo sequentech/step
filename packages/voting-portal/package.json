@@ -40,6 +40,7 @@
     "path-to-regexp": "^0.1.12"
   },
   "scripts": {
+        "typecheck:e2e": "tsc -p tsconfig.capture.json",
     "test": "jest --config jest.config.cjs",
     "test:login-hints:e2e": "nightwatch test/e2e/login_hints.test.ts --env firefox",
     "start": "PORT=3000 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
@@ -75,6 +76,7 @@
     "@graphql-codegen/client-preset": "^5.0.0",
     "@graphql-codegen/introspection": "5.0.0",
     "@nightwatch/react": "^3.1.2",
+    "@playwright/test": "^1.49.0",
     "@storybook/addon-actions": "^9.0.8",
     "@storybook/addon-essentials": "^8.6.15",
     "@storybook/addon-interactions": "^8.6.15",

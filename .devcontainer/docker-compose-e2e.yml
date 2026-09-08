@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Local diagnostic overlay. Keep expensive statement/plan logging out of capacity runs.
+x-e2e-postgres-command: &e2e-postgres-command
+  - postgres
+  - -c
+  - config_file=/etc/postgresql/postgresql.conf
+  - -c
+  - log_statement=all
+  - -c
+  - log_file_mode=0644
+  - -c
+  - log_parameter_max_length=0
+  - -c
+  - session_preload_libraries=auto_explain
+  - -c
+  - auto_explain.log_min_duration=0
+  - -c
+  - auto_explain.log_nested_statements=on
+  - -c
+  - auto_explain.log_analyze=off
+
+services:
+  postgres:
+    command: *e2e-postgres-command
+  postgres-keycloak:
+    command: *e2e-postgres-command
+  devcontainer:
+    volumes:
+      - db_logs:/logs/backend:ro
+      - keycloak_db_logs:/logs/keycloak:ro
