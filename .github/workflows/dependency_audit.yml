@@ -7,19 +7,24 @@
 # This exists because Dependabot alerts are only ever computed against the
 # default branch. Release branches get no alerts and no automated PRs, so a
 # vulnerability fixed on main can sit unnoticed on release/10.0 or release/9.0
-# indefinitely. This job runs on every branch and every pull request, reading
-# the same OSV / GitHub Advisory data Dependabot uses, and covers npm, Cargo,
-# Maven and pip in a single pass.
+# indefinitely. This reads the same OSV / GitHub Advisory data Dependabot uses
+# and covers npm, Cargo, Maven and pip in a single pass.
 #
-# The weekly schedule matters as much as the PR trigger: a quiet release branch
-# would otherwise never be re-checked as new advisories are published.
+# Two jobs, because the triggers cannot be served the same way:
 #
-# `fail-on-vuln` is deliberately false for now. Several advisories in this tree
-# have no available fix or are blocked upstream - see the notes in the
-# meta#12288 pull requests - so a blocking job would be red permanently and
-# would simply be ignored. Curating an `osv-scanner.toml` ignore list with a
-# documented reason and review date for each, then flipping this to true, is
-# the intended follow-up.
+#   audit           - pull requests and pushes. Scans the ref that triggered
+#                     it, and uploads SARIF to the Security tab.
+#   scheduled-audit - the weekly sweep. Scheduled workflows in GitHub Actions
+#                     only ever run from the default branch, so a plain
+#                     `schedule` trigger would re-scan main and never touch a
+#                     release branch. This job therefore checks each supported
+#                     branch out explicitly and scans it.
+#
+# Neither job fails the build yet. Several advisories in this tree have no
+# published fix or are blocked upstream - see the notes in the meta#12288 pull
+# requests - so a blocking job would be red permanently and would simply be
+# ignored. Curating an `osv-scanner.toml` ignore list with a documented reason
+# and review date for each, then making these blocking, is the follow-up.
 
 name: Dependency Audit
 
@@ -38,16 +43,52 @@ permissions:
   security-events: write
 
 jobs:
+  # Pull requests and pushes: scan the triggering ref and publish to the
+  # Security tab.
   audit:
-    name: Scan dependencies
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.5.1
     with:
-      # The `beyond` submodule is a separate private repository and its
-      # checkout needs `secrets.PAT`, which cannot be passed into this reusable
-      # workflow. It needs its own audit workflow in that repository.
+      # `beyond` is a separate private repository and its checkout needs
+      # `secrets.PAT`, which cannot be passed into a reusable workflow. It
+      # needs its own audit workflow there.
       checkout-submodules: false
       upload-sarif: true
       fail-on-vuln: false
       scan-args: |-
         --recursive
         ./
+
+  # Weekly sweep across the supported branches. Runs from the default branch
+  # (scheduled workflows always do) but scans each branch's own manifests.
+  scheduled-audit:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Scheduled scan (${{ matrix.branch }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+          - main
+          - release/10.0
+          - release/9.0
+    steps:
+      - name: Check out ${{ matrix.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          persist-credentials: false
+
+      - name: Scan ${{ matrix.branch }}
+        # Table output to the job log rather than SARIF: code scanning
+        # associates uploads with the ref that triggered the run, so results
+        # for other branches would be filed against the default branch and be
+        # actively misleading.
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            ghcr.io/google/osv-scanner:v2.5.1 \
+            scan source --recursive /src \
+            || echo "::warning title=Vulnerabilities found::osv-scanner reported findings on ${{ matrix.branch }} - see the log above"
