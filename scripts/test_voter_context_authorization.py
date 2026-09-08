@@ -110,6 +110,8 @@ def main():
             name: "{}" if name.endswith("election-ids") else str(uuid.uuid4()),
         }
         result = query(QUERY, variables, changed)
+        if name in ("x-hasura-tenant-id", "x-hasura-election-event-id"):
+            assert result["sequent_backend_election_event"] == []
         assert result["sequent_backend_ballot_style"] == []
         assert result["sequent_backend_cast_vote"] == []
     for name in ("tenantId", "electionEventId"):

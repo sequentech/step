@@ -50,6 +50,21 @@ BEGIN
 END;
 $$;
 
+-- Serialize schedule writers before they acquire row locks. Per-election
+-- locks cannot prevent inverse ordering across several statements in one
+-- transaction. Vote casting only reads the projection and never takes this lock.
+CREATE FUNCTION sequent_backend.lock_voting_window_writer()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    PERFORM pg_advisory_xact_lock(hashtextextended('voting-window-writer', 0));
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER lock_voting_window_writer
+BEFORE INSERT OR UPDATE OR DELETE ON sequent_backend.scheduled_event
+FOR EACH STATEMENT EXECUTE FUNCTION sequent_backend.lock_voting_window_writer();
+
 CREATE FUNCTION sequent_backend.refresh_election_voting_window(
     target_tenant uuid, target_event uuid, target_election uuid
 ) RETURNS void LANGUAGE plpgsql AS $$
@@ -62,12 +77,9 @@ DECLARE
     task_prefix text := format('tenant_%s_event_%s_election_%s_',
         target_tenant, target_event, target_election);
 BEGIN
-    -- Only configuration writers take this lock. Votes merely read the
-    -- committed projection. A fresh query after the lock prevents two writers
-    -- changing different endpoints from overwriting each other's committed work.
-    PERFORM pg_advisory_xact_lock(hashtextextended(
-        format('voting-window:%s:%s:%s', target_tenant, target_event, target_election), 0
-    ));
+    -- Direct refreshes use the same lock as source-table writers. A fresh
+    -- query after waiting sees endpoints committed by the preceding writer.
+    PERFORM pg_advisory_xact_lock(hashtextextended('voting-window-writer', 0));
 
     SELECT
         count(*) FILTER (WHERE task_id = task_prefix || 'START_VOTING_PERIOD'),

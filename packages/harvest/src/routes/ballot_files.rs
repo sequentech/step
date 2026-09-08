@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use rocket::{http::Status, serde::json::Json};
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::{authorization::VoterClient, jwt::JwtClaims};
+use sequent_core::types::permissions::VoterPermissions;
 use serde::Deserialize;
 use serde_json::Value;
 use windmill::services::{
@@ -24,11 +25,8 @@ fn voter_scope(
             .hasura_claims
             .allowed_roles
             .iter()
-            .any(|r| r == "user")
-        || !matches!(
-            claims.azp.as_str(),
-            "voting-portal" | "voting-portal-kiosk" | "ivr-voting"
-        )
+            .any(|r| r == &VoterPermissions::CAST_VOTE.to_string())
+        || claims.azp.parse::<VoterClient>().is_err()
     {
         return Err(denied());
     }
@@ -47,7 +45,8 @@ pub async fn get_ballot_files_urls(
     claims: JwtClaims,
 ) -> Result<Json<Value>, (Status, String)> {
     let (area, elections) = voter_scope(&claims, &body.election_event_id)?;
-    let failure = |_: anyhow::Error| {
+    let failure = |error: anyhow::Error| {
+        tracing::error!(error = %error, "Unable to load published ballot files");
         (
             Status::InternalServerError,
             "Unable to load published ballot files".to_owned(),
@@ -83,7 +82,16 @@ mod tests {
     #[test]
     fn publication_urls_require_event_area_role_and_voter_client() {
         let valid = claims();
-        assert!(voter_scope(&valid, "event").is_ok());
+        for client in [
+            "voting-portal",
+            "voting-portal-kiosk",
+            "onsite-voting-portal",
+            "ivr-voting",
+        ] {
+            let mut voter = valid.clone();
+            voter.azp = client.into();
+            assert!(voter_scope(&voter, "event").is_ok());
+        }
         assert!(voter_scope(&valid, "other").is_err());
         let mut missing = valid.clone();
         missing.hasura_claims.area_id = None;
