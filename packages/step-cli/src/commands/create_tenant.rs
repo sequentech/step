@@ -29,7 +29,8 @@ pub struct CreateTenant {
 pub struct InsertTenant;
 
 impl CreateTenant {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match create_tenant(&self.slug) {
             Ok(id) => {
                 println!(
@@ -38,10 +39,9 @@ impl CreateTenant {
                     id.cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to create tenant: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
 
@@ -51,6 +51,7 @@ fn wait_for_task(task_execution_id: &str) -> Result<(), Box<dyn std::error::Erro
     let polling_interval = Duration::from_secs(3);
 
     loop {
+        crate::utils::read_config::refresh_and_save_token()?;
         match crate::utils::tasks::get_task_status(task_execution_id) {
             Ok(status) if status == "SUCCESS" => return Ok(()),
             Ok(status) if status == "FAILED" => return Err("Create tenant task failed".into()),

@@ -11,7 +11,8 @@ use colored::Colorize;
 pub struct ListTrustees;
 
 impl ListTrustees {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match GetTrustees::get_all() {
             Ok(trustees) => {
                 for (name, public_key) in &trustees {
@@ -23,9 +24,8 @@ impl ListTrustees {
                     trustees.len().to_string().cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to list trustees: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }

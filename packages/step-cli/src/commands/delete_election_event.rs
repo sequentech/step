@@ -29,7 +29,8 @@ pub struct DeleteElectionEventCLI {
 pub struct DeleteElectionEvent;
 
 impl DeleteElectionEventCLI {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match delete_election_event(&self.election_event_id) {
             Ok(id) => {
                 println!(
@@ -38,10 +39,9 @@ impl DeleteElectionEventCLI {
                     id.cyan()
                 );
             }
-            Err(err) => {
-                eprintln!("Error! Failed to delete election event: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
 

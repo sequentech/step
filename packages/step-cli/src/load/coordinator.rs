@@ -164,7 +164,13 @@ pub fn prepare(settings: &Settings, source: &Path, directory: &Path, assets: &Pa
         !directory.exists(),
         "Run directory already exists; choose a fresh output"
     );
-    files::directory(directory)?;
+    if let Some(parent) = directory
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        files::directory(parent)?;
+    }
+    files::claim_directory(directory)?;
     let directory = directory.canonicalize()?;
     settings.create(&directory.join("settings.yaml"))?;
     let setup = directory.join("setup");

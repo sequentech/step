@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-ARG RUST_IMAGE=rust:1.90-bookworm
+ARG RUST_IMAGE=rust:1.96.0-bookworm
 ARG K6_IMAGE=grafana/k6:1.6.0
 ARG WORKER_IMAGE=debian:bookworm-slim
 ARG BROWSER_IMAGE=node:22-bookworm-slim

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Local diagnostic overlay. Keep expensive statement/plan logging out of capacity runs.
+# Synthetic-data-only local diagnostic overlay. SQL text can contain literal values. Keep expensive statement/plan logging out of capacity runs.
 x-e2e-postgres-command: &e2e-postgres-command
   - postgres
   - -c
@@ -9,7 +9,7 @@ x-e2e-postgres-command: &e2e-postgres-command
   - -c
   - log_statement=all
   - -c
-  - log_file_mode=0644
+  - log_file_mode=0600
   - -c
   - log_parameter_max_length=0
   - -c

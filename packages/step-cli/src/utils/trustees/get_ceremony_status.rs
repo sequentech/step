@@ -36,9 +36,13 @@ pub fn get_keys_ceremony_status(
     if response.status().is_success() {
         let response_body: Response<get_keys_ceremony::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
-            Ok(data
-                .sequent_backend_keys_ceremony_by_pk
-                .and_then(|k| k.execution_status))
+            data.sequent_backend_keys_ceremony_by_pk
+                .map(|ceremony| {
+                    ceremony
+                        .execution_status
+                        .ok_or_else(|| "Keys ceremony has no execution status".into())
+                })
+                .transpose()
         } else if let Some(errors) = response_body.errors {
             let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
             Err(Box::from(error_messages.join(", ")))

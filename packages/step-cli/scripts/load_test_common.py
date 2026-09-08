@@ -136,9 +136,7 @@ class StepCliError(RuntimeError):
 
 
 def run_step(step_cli_bin: str, *args: str) -> str:
-    """Runs `step-cli step <args>`. step-cli always exits 0 even on failure
-    (commands eprintln "Error! ..." and return); detect failure by scanning
-    the captured output instead of the exit code."""
+    """Reject nonzero exits and legacy commands that report failure only in output."""
     proc = subprocess.run(
         [step_cli_bin, "step", *args],
         stdout=subprocess.PIPE,
@@ -148,7 +146,7 @@ def run_step(step_cli_bin: str, *args: str) -> str:
     )
     out = _ANSI_RE.sub("", proc.stdout)
     print(out, file=sys.stderr)
-    if re.search(r"^Error!", out, re.MULTILINE):
+    if proc.returncode != 0 or re.search(r"^Error!", out, re.MULTILINE):
         raise StepCliError(f"step-cli step {' '.join(args)} failed")
     return out
 

@@ -80,26 +80,13 @@ pub fn import_voters(
         .post(&config.endpoint_url)
         .bearer_auth(config.auth_token)
         .json(&request_body)
-        .send()?;
+        .send()?
+        .error_for_status()?;
 
     let response_body: Response<import_users::ResponseData> =
         response.json().map_err(|e| format!("{:?}", e))?;
 
-    let task_execution_id = match (response_body.data, response_body.errors) {
-        (Some(data), _) => {
-            let output = data.import_users.ok_or("failed starting import task")?;
-            output.task_execution.id
-        }
-        (None, Some(errors)) => {
-            let messages = errors
-                .into_iter()
-                .map(|e| e.message)
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Err(messages.into());
-        }
-        _ => return Err("Unknown error: empty data and no GraphQL errors".into()),
-    };
+    let task_execution_id = import_task_id(response_body)?;
 
     let start_time = Instant::now();
     let timeout = Duration::from_secs(300);
@@ -117,5 +104,50 @@ pub fn import_voters(
             }
             Err(e) => return Err(format!("Error checking task status: {}", e).into()),
         }
+    }
+}
+
+/// Preserve field-level GraphQL failures even when Hasura also returns partial data.
+fn import_task_id(
+    response: Response<import_users::ResponseData>,
+) -> Result<String, Box<dyn std::error::Error>> {
+    if let Some(errors) = response.errors.filter(|errors| !errors.is_empty()) {
+        return Err(errors
+            .into_iter()
+            .map(|error| error.message)
+            .collect::<Vec<_>>()
+            .join(", ")
+            .into());
+    }
+    response
+        .data
+        .and_then(|data| data.import_users)
+        .map(|output| output.task_execution.id)
+        .ok_or_else(|| "Import returned no task".into())
+}
+
+#[cfg(test)]
+mod response_tests {
+    use super::*;
+
+    #[test]
+    fn errors_survive_partial_or_absent_data() {
+        for data in [
+            serde_json::Value::Null,
+            serde_json::json!({"import_users": null}),
+        ] {
+            let response = serde_json::from_value(
+                serde_json::json!({"data": data, "errors": [{"message": "Import denied"}]}),
+            )
+            .unwrap();
+            assert_eq!(
+                import_task_id(response).unwrap_err().to_string(),
+                "Import denied"
+            );
+        }
+        assert!(
+            import_task_id(serde_json::from_value(serde_json::json!({"data":null})).unwrap())
+                .is_err()
+        );
     }
 }

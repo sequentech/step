@@ -14,7 +14,7 @@ use std::{
 
 const PRIVATE_DIRECTORY_MODE: u32 = 0o700;
 
-/// Claim a fresh private directory atomically; an existing census must not be reused.
+/// Claim a fresh private directory atomically; an existing census or run must not be reused.
 pub fn claim_directory(path: &Path) -> Result<()> {
     fs::DirBuilder::new()
         .mode(PRIVATE_DIRECTORY_MODE)

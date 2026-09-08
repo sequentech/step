@@ -106,15 +106,12 @@ class PostgresLogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="voting-e2e-pg-") as directory:
             root = Path(directory)
             data = root / "data"
-            with socket.socket() as sock:
-                sock.bind(("127.0.0.1", 0))
-                port = sock.getsockname()[1]
             subprocess.run(
                 ["initdb", "-D", str(data), "-A", "trust", "-U", "postgres"],
                 check=True,
                 capture_output=True,
             )
-            options = f"-p {port} -k {root} -c listen_addresses=127.0.0.1 -c logging_collector=on -c log_destination=jsonlog -c log_statement=all -c log_directory={root}/logs -c log_filename=capture.log -c session_preload_libraries=auto_explain -c auto_explain.log_min_duration=0 -c auto_explain.log_nested_statements=on"
+            options = f"-k {root} -c listen_addresses= -c logging_collector=on -c log_destination=jsonlog -c log_statement=all -c log_directory={root}/logs -c log_filename=capture.log -c session_preload_libraries=auto_explain -c auto_explain.log_min_duration=0 -c auto_explain.log_nested_statements=on"
             subprocess.run(
                 [
                     "pg_ctl",
@@ -131,7 +128,7 @@ class PostgresLogTests(unittest.TestCase):
                 capture_output=True,
             )
             try:
-                dsn = f"host=127.0.0.1 port={port} user=postgres"
+                dsn = f"host={root} user=postgres"
                 with psycopg.connect(dsn, autocommit=True) as connection:
                     connection.execute("CREATE DATABASE backend")
                     connection.execute("CREATE DATABASE keycloak")

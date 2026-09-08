@@ -19,7 +19,8 @@ pub struct GetKeyCeremonyStatus {
 }
 
 impl GetKeyCeremonyStatus {
-    pub fn run(&self) {
+    /// Execute the command, preserving failures for shell automation.
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         match get_keys_ceremony_status(&self.election_event_id, &self.key_ceremony_id) {
             Ok(Some(status)) => {
                 println!(
@@ -29,11 +30,10 @@ impl GetKeyCeremonyStatus {
                 );
             }
             Ok(None) => {
-                eprintln!("Error! Keys ceremony not found: {}", self.key_ceremony_id)
+                return Err(format!("Keys ceremony not found: {}", self.key_ceremony_id).into());
             }
-            Err(err) => {
-                eprintln!("Error! Failed to get keys ceremony status: {}", err)
-            }
+            Err(err) => return Err(err),
         }
+        Ok(())
     }
 }
