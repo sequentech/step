@@ -29,17 +29,27 @@ use std::fmt;
 /// a cross-event statement
 pub const GENERIC_EVENT: &'static str = "Generic Event";
 
+/// The optional fields are skipped when serializing because the JSON of a
+/// message is what the Logs tab, the CSV and the PDF export show: an entry that
+/// does not apply to an election, an area or a ballot reads better without the
+/// null placeholders. Borsh, which is what is signed and stored, is unaffected.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
     pub sender_signature: StrandSignature,
     pub system_signature: StrandSignature,
     pub statement: Statement,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifact: Option<Vec<u8>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub election_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub area_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ballot_id: Option<String>,
 }
 
@@ -772,6 +782,42 @@ mod tests {
             message.statement.head.description,
             "Inbound request ReplacePin Succeeded."
         );
+        Ok(())
+    }
+
+    #[test]
+    fn message_json_omits_the_fields_the_entry_has_no_value_for() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen()?,
+            "windmill",
+            StrandSignatureSk::r#gen()?,
+        );
+        let message = Message::external_api_request_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(None),
+            &signing_data,
+            None, /* voter_id: the voter does not exist yet */
+            Some("voter-name".to_string()),
+            ExtApiRequestDirection::Inbound,
+            ExtApiName::Datafix,
+            "voter_id=voter-name; AddVoter Failed: Area not found for W-1 (error_code=area-not-found)"
+                .to_string(),
+            None, /* area_id */
+        )?;
+
+        let json: serde_json::Value = serde_json::from_str(&message.to_string())?;
+        let object = json.as_object().expect("the message is a JSON object");
+        for field in ["artifact", "user_id", "election_id", "area_id", "ballot_id"] {
+            assert!(!object.contains_key(field), "{field} should not be written");
+        }
+        assert_eq!(object["username"], "voter-name");
+
+        let subject = &json["statement"]["body"]["ExternalApiRequest"][1];
+        assert!(!subject
+            .as_object()
+            .expect("the subject is a JSON object")
+            .contains_key("user_id"));
+        assert_eq!(subject["username"], "voter-name");
         Ok(())
     }
 

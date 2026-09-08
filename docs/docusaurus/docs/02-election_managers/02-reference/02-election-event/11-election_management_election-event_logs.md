@@ -49,5 +49,8 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   The reason is only recorded here; the API reply carries the error code alone.
 - **User id** and **username** identify the voter (the Datafix voter id is the
   username) and the message's `area_id` is the voter's area, as in Keycloak
-  events. `election_id` stays empty because these operations apply to the
-  whole election event.
+  events. A field the entry has no value for is left out of the message
+  instead of being written as `null`: `election_id` always, because these
+  operations apply to the whole election event, and `user_id`/`area_id` when
+  the voter cannot be resolved, as in an `AddVoter` that failed before the
+  voter was created.
