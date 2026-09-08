@@ -12,9 +12,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 Step-by-step instructions for running the telephone (IVR/DTMF) load test:
 provisioning an election event with many voters, then driving many
-simulated phone calls against it. See
-[Telephone Load Testing — Design](telephone-load-testing-design.md) for how
-this works under the hood.
+simulated phone calls against it. The setup script provisions through `step-cli`; the runner starts independent `ivr-cli` processes against real Keycloak and Hasura services, without telephony infrastructure.
 
 All commands below assume a terminal opened **inside the dev container**
 (VS Code Dev Containers or GitHub Codespaces) — that's where `cargo`,
@@ -60,9 +58,16 @@ default release build path — so a release build is enough, no need to keep
 using `cargo run`:
 
 ```bash
-cd packages && CARGO_TARGET_DIR=/workspaces/step/packages/step-cli/rust-local-target cargo build --release -p step-cli
-cd ../beyond/packages && CARGO_TARGET_DIR=/workspaces/step/beyond/packages/rust-local-target cargo build --release -p ivr-cli
-cd /workspaces/step
+CARGO_TARGET_DIR=/workspaces/step/packages/step-cli/rust-local-target \
+cargo build \
+  --manifest-path packages/step-cli/Cargo.toml \
+  --release \
+  --package step-cli
+CARGO_TARGET_DIR=/workspaces/step/beyond/packages/rust-local-target \
+cargo build \
+  --manifest-path beyond/packages/Cargo.toml \
+  --release \
+  --package ivr-cli
 export PATH="/workspaces/step/packages/step-cli/rust-local-target/release:$PATH"
 ```
 
@@ -85,8 +90,7 @@ and voters CSV (with a single tenant, that's just one subdirectory).
 
 By default Stage 1 provisions `setup.tenant_id` itself. Set
 `setup.new_tenants: N` to instead create `N` brand-new tenants and import
-the *same* election event into each — Stage 2 then places calls (or casts
-online votes) across every tenant `tenants.json` lists. Leaving `tenant_id`
+the *same* election event into each — Stage 2 then places calls across every tenant `tenants.json` lists. Leaving `tenant_id`
 unset defaults `new_tenants` to `1`, so omitting it entirely provisions one
 fresh tenant instead of reusing an existing one (creating a tenant needs
 `setup.keycloak_admin_user`/`keycloak_admin_password` — a Keycloak
@@ -145,6 +149,12 @@ Keycloak admin console → the realm printed above → Clients →
 `ivr-service`/`ivr-voting` → Credentials tab — rather than reusing a value
 from a previous run's election event.
 
+### Match the IVR authentication and ballot
+
+Telephone credentials must be numeric and no longer than eight digits. The setup starts usernames at 100 (`setup.voter_username_start`); use a `RandomNumeric` password policy with at most eight digits. The realm's `/ivr-config` endpoint defines the actual login fields, which may be voter ID and PIN or [date of birth and PIN](dob-pin-direct-grant-authenticator.md).
+
+The setup opens the `TELEPHONE` voting channel explicitly. Opening only `ONLINE` does not make a voter eligible for a telephone call. All generated voters use `setup.voter_area_name` (the first area by default), because one DTMF ballot template must match the contests offered to every voter.
+
 ## 2. Get a DTMF template
 
 `packages/step-cli/scripts/dtmf-template.example.txt` — the default for
@@ -169,8 +179,10 @@ Then drive one call by hand, noting every prompt and keystroke:
 ```bash
 PHONE_CONFIG_PATH=packages/step-cli/scripts/telephone-load-test-output/calls/phone_config.json \
 beyond/packages/rust-local-target/release/ivr-cli \
-  --bundle dev --system-number +111111111111 \
-  --number +15550000000 --show-internal-state
+  --bundle dev \
+  --system-number +111111111111 \
+  --number +15550000000 \
+  --show-internal-state
 ```
 
 Log in with the first row of the voters CSV. Transcribe the full keystroke
@@ -180,13 +192,28 @@ lines with `{{VOTER_ID}}`/`{{PIN}}` or `{{DOB}}`/`{{PIN}}` — check which
 fields this realm's IVR flow expects first:
 
 ```bash
-TOKEN=$(curl -sf -X POST "http://keycloak:8090/realms/<realm>/protocol/openid-connect/token" \
-  -d grant_type=client_credentials -d client_id=ivr-service -d client_secret=<KEYCLOAK_IVR_SERVICE_CLIENT_SECRET> \
+read -r -p 'Election realm from summary.json: ' IVR_REALM
+read -rs -p 'ivr-service client secret: ' IVR_CLIENT_SECRET
+TOKEN=$(curl \
+  --fail \
+  --silent \
+  --show-error \
+  --request POST \
+  --data-urlencode grant_type=client_credentials \
+  --data-urlencode client_id=ivr-service \
+  --data-urlencode "client_secret=$IVR_CLIENT_SECRET" \
+  "http://keycloak:8090/realms/$IVR_REALM/protocol/openid-connect/token" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
-curl -sf -H "Authorization: Bearer $TOKEN" "http://keycloak:8090/realms/<realm>/ivr-config"
+curl \
+  --fail \
+  --silent \
+  --show-error \
+  --header "Authorization: Bearer $TOKEN" \
+  "http://keycloak:8090/realms/$IVR_REALM/ivr-config"
+unset TOKEN IVR_CLIENT_SECRET
 ```
 
-(`<realm>` is `summary.json`'s `keycloak_realm` — the election event's own
+(`IVR_REALM` is `summary.json`'s `keycloak_realm` — the election event's own
 realm, not the tenant's; see the note in [step 1](#1-stage-1--provision-the-election-event-and-voters).
 The client secret goes in `telephone_run.keycloak_ivr_service_client_secret`
 in `layers.yaml` — or `.devcontainer/.env.development` for the local
@@ -255,13 +282,12 @@ rows, its Keycloak realm, and its ImmuDB and document-store data — the
 command blocks and polls until that task finishes (or fails/times out after
 5 minutes), so a `Success!` means cleanup is actually done, not just queued.
 
-To do this by hand instead, for each pair the script would print:
+To delete an event by hand, [authenticate the CLI](../02-cli/01-cli_cli.md#authenticate-a-tenant-administrator) against its tenant, then run:
 
 ```bash
-step-cli step config --tenant-id "$TENANT_ID" --endpoint-url ... --keycloak-url ... \
-  --keycloak-user "$ADMIN_PORTAL_USER" --keycloak-password "$ADMIN_PORTAL_PASSWORD" \
-  --keycloak-client-id api-key-client --keycloak-client-secret "$API_KEY_CLIENT_SECRET"
-step-cli step delete-election-event --election-event-id "$ELECTION_EVENT_ID"
+read -r -p 'Synthetic election event ID from summary.json: ' ELECTION_EVENT_ID
+step-cli step delete-election-event \
+  --election-event-id "$ELECTION_EVENT_ID"
 ```
 
 `delete-tenant` deletes a tenant outright — its Postgres/Hasura rows (trustees,
@@ -283,11 +309,12 @@ such an environment, add the `tenant-delete` role to the bootstrap tenant's
 realm by hand — Keycloak admin console → bootstrap tenant realm → Realm roles
 → create `tenant-delete`, then assign it to `$ADMIN_PORTAL_USER`'s role (or
 the role it inherits it from) — otherwise `delete-tenant` fails with an
-authorization error. To do this by hand:
+authorization error. After authenticating the CLI against the bootstrap tenant, delete a disposable tenant with:
 
 ```bash
-step-cli step config --tenant-id "$BOOTSTRAP_TENANT_ID" ... # as above, but the bootstrap tenant
-step-cli step delete-tenant --tenant-id "$TENANT_ID"
+read -r -p 'Disposable tenant ID to delete: ' TENANT_ID
+step-cli step delete-tenant \
+  --tenant-id "$TENANT_ID"
 ```
 
 The bootstrap tenant itself is never deleted, even once its election event is
