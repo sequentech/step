@@ -22,6 +22,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--upstream", required=True)
     parser.add_argument("--log", type=Path, required=True)
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Listener address; select a container-reachable address explicitly when needed",
+    )
     parser.add_argument("--port", type=int, default=3032)
     args = parser.parse_args()
     upstream = urlsplit(args.upstream)
@@ -33,6 +38,7 @@ def main():
     ):
         parser.error("Use an HTTP origin without credentials or a path")
     os.umask(0o077)
+    args.log.parent.mkdir(parents=True, exist_ok=True)
     lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
@@ -82,7 +88,7 @@ def main():
                 with lock, args.log.open("a") as stream:
                     stream.write(json.dumps(record) + "\n")
 
-    ThreadingHTTPServer(("0.0.0.0", args.port), Handler).serve_forever()
+    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

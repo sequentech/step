@@ -70,6 +70,12 @@ fn census_uses_one_valid_hash_and_quoted_csv_with_unique_names() {
     input.settings.workload.password_env = key.clone();
     std::env::set_var(&key, "Synthetic test password");
     census::generate(&input, &output).unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(
+        std::fs::metadata(&output).unwrap().permissions().mode() & 0o777,
+        0o700
+    );
+    assert!(census::generate(&input, &output).is_err());
     std::env::remove_var(&key);
     let mut rows = Vec::new();
     let mut hash = None;

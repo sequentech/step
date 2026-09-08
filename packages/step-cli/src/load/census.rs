@@ -17,7 +17,7 @@ use std::{num::NonZeroU32, path::Path, time::Instant};
 /// A plaintext password column must never accompany the supplied hash.
 pub fn generate(input: &Input, output: &Path) -> Result<()> {
     input.validate()?;
-    std::fs::DirBuilder::new().create(output)?;
+    files::claim_directory(output)?;
     let start = Instant::now();
     let mut salt = [0; 16];
     SystemRandom::new()
