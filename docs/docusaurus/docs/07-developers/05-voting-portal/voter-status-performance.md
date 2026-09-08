@@ -76,10 +76,10 @@ Edit `voting-load.yaml` before preparation. All effective defaults are written b
 workload:
   engine: k6
   mode: vote
-  count: 1000000
+  count: 10000
   username_prefix: load-
   start: 0
-  shard_size: 10000
+  shard_size: 1000
   concurrency: 20
   password_env: LOAD_PASSWORD
 execution:
@@ -95,20 +95,22 @@ min_casts_per_second: 100
 workload:
   engine: chromium
   mode: vote
-  count: 1000000
+  count: 1000
   username_prefix: load-
   start: 0
-  shard_size: 10000
-  concurrency: 20
+  shard_size: 100
+  concurrency: 2
   password_env: LOAD_PASSWORD
 execution:
-  workers: 20
+  workers: 4
 goals:
   status_ms: {p50: 100, p99: 500}
   cast_ms: {p50: 100, p99: 500}
   journey_ms: {p50: 2000, p99: 5000}
-min_casts_per_second: 100
+min_casts_per_second: 1
 ```
+
+Start with 100 voters when checking a deployment. The examples above use 10,000 voters for k6 and 1,000 for Chromium; increase load only after reviewing the smaller run. Goals are workload targets, not promised capacity.
 
 A worker loads one shard at a time. Census generation computes one shared password hash and streams it into CSV; login still verifies every password. k6 ballots have fresh randomness and unique IDs even when every voter selects the same candidates. Preparation time is excluded from measured throughput.
 
@@ -282,7 +284,16 @@ Open `report.html` from the run directory. It is a self-contained document suita
 
 ![Example voting-load report captured from an actual local run](/img/voting-load-report.png)
 
-The image illustrates the report layout, not deployment capacity.
+### Local example: 100 voters per engine
+
+These full voting journeys ran sequentially on the same local devcontainer deployment on 8 September 2026. Each engine used four workers with two concurrent voters per worker and its own census range. All 200 unique API receipts matched persisted PostgreSQL ballots. The screenshot shows the Chromium run.
+
+| Engine | Successful voters | Workers × concurrency | Duration | Casts/s | Status p50 / p99 | Cast p50 / p99 | Journey p50 / p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| k6 | 100/100 | 4 × 2 | 1.84 s | 54.29 | 24.0 / 47.1 ms | 25.0 / 232.9 ms | 129.0 / 340.1 ms |
+| Chromium | 100/100 | 4 × 2 | 62.80 s | 1.59 | 32.9 / 80.9 ms | 18.7 / 36.4 ms | 4837.5 / 6000.1 ms |
+
+Preparation is excluded. Chromium includes page rendering and browser encryption; k6 uses prepared encrypted ballots. These small local runs illustrate the report and verify the journey; they are not deployment capacity estimates. No latency or throughput goals were configured for these examples.
 
 ### Interpret the measurements
 
