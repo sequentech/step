@@ -84,11 +84,11 @@ Register enough running trustees for the configured ceremony threshold. Continue
 
 ## Reference and development
 
-Use `step-cli load reference` for configuration defaults and command options. The [generated reference](../05-voting-portal/voting-load-reference.md) is produced from the CLI help and configuration rustdoc.
+Use `step-cli load reference` for configuration defaults and command options. The [generated reference](./voting-load-reference.md) is produced from the CLI help and configuration rustdoc.
 
 ```bash
 step-cli load reference \
-  --output docs/docusaurus/docs/07-developers/05-voting-portal/voting-load-reference.md
+  --output docs/docusaurus/docs/07-developers/02-cli/voting-load-reference.md
 cargo test \
   --manifest-path packages/step-cli/Cargo.toml
 cargo doc \
