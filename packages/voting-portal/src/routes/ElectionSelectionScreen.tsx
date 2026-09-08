@@ -29,7 +29,6 @@ import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {
     IBallotStyle,
     selectBallotStyleByElectionId,
-    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
     setBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
@@ -38,24 +37,21 @@ import {selectElectionById, setElection, selectElectionIds} from "../store/elect
 import {AppDispatch} from "../store/store"
 import {
     addCastVotes,
+    parseCastVoteStatus,
     CastVoteStatus,
     selectCastVotesByElectionId,
 } from "../store/castVotes/castVotesSlice"
 import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-router-dom"
 import {useQuery} from "@apollo/client/react"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
+import {isApolloTransportError} from "../services/ApolloErrors"
+import {useVoterContext} from "../hooks/useVoterContext"
 import {
-    GetBallotStylesQuery,
     GetCastVotesQuery,
-    GetElectionEventQuery,
-    GetElectionsQuery,
     GetSupportMaterialsQuery,
     GetSupportMaterialsAcknowledgmentQuery,
 } from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
 import {ELECTIONS_LIST} from "../fixtures/election"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {
     ElectionScreenErrorType,
@@ -150,6 +146,8 @@ const PageActions = styled(Box)`
 `
 
 interface ElectionWrapperProps {
+    summary?: import("../services/PublishedBallots").BallotSummary
+
     electionId: string
     bypassChooser: boolean
     canVoteTest: boolean
@@ -194,6 +192,7 @@ const isElectionEventVotingClosed = (electionEvent?: IElectionEvent): boolean =>
 
 const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     electionId,
+    summary,
     bypassChooser,
     canVoteTest,
     materialsGate,
@@ -243,8 +242,9 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     }
 
     const isEarlyVotingPolicyEnabled = () => {
-        let area_presentation = ballotStyle?.ballot_eml?.area_presentation as IAreaPresentation
-        return area_presentation.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
+        let area_presentation = (summary?.area_presentation ??
+            ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
+        return area_presentation?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
     }
     const isEarlyVotingOpen = () => {
         let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
@@ -277,14 +277,12 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             return false
         }
 
-        if (ballotStyle?.ballot_eml.num_allowed_revotes === 0) {
+        if (election.num_allowed_revotes === 0) {
             return true
         }
 
         return (
-            isPreview ||
-            (castVotes.length < (ballotStyle?.ballot_eml.num_allowed_revotes ?? 1) &&
-                isVotingOpen())
+            isPreview || (castVotes.length < (election.num_allowed_revotes ?? 1) && isVotingOpen())
         )
     }
 
@@ -315,7 +313,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             console.log("visitedBypassChooser")
             return
         }
-        if (bypassChooser && ballotStyle) {
+        if (bypassChooser && election) {
             console.log("setVisitedBypassChooser")
             setVisitedBypassChooser(true)
             onClickToVote()
@@ -335,7 +333,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             onClickToVote={canVote() ? onClickToVote : undefined}
             onClickBallotLocator={handleClickBallotLocator}
             resultsUrl={resultsUrl}
-            electionDates={ballotStyle?.ballot_eml?.election_dates}
+            electionDates={summary?.election_dates ?? ballotStyle?.ballot_eml?.election_dates}
             isStarted={isVotingStarted()}
             className={electionClassName}
             formatDateTime={(input) =>
@@ -391,7 +389,6 @@ const ElectionSelectionScreen: React.FC = () => {
     const eventDefaultLanguageCode =
         electionEvent?.presentation?.language_conf?.default_language_code
     const oneBallotStyle = useAppSelector(selectFirstBallotStyle)
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
     const electionIds = useAppSelector(selectElectionIds)
     const dispatch = useAppDispatch()
     const [canVoteTest, setCanVoteTest] = useState<boolean>(true)
@@ -400,14 +397,9 @@ const ElectionSelectionScreen: React.FC = () => {
         selectCastVotesByElectionId(String(testElectionId || tenantId))
     )
     const [openChooserHelp, setOpenChooserHelp] = useState(false)
-    // Derived directly from the published ballot style snapshot (not the live
-    // election event) on every render, so a policy change only takes effect
-    // after the next publication, and the correct value is available as soon
-    // as oneBallotStyle is - no extra render cycle lag through a state+effect
-    // pair that would otherwise let a stale "Off" default flash through
-    // (visible in particular on a hard page refresh).
+    // Presentation comes from the immutable S3 publication snapshot.
     const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        oneBallotStyle?.ballot_eml.election_event_presentation?.materials
+        electionEvent?.presentation?.materials
     )
     const isMaterialsVisible = materialsPolicy !== ESupportMaterialsPolicy.OFF
     const isMaterialsMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
@@ -430,36 +422,16 @@ const ElectionSelectionScreen: React.FC = () => {
             ? `${globalSettings.RESULTS_PORTAL_URL.replace(/\/+$/, "")}/${eventId}`
             : undefined
 
-    const {
-        error: errorBallotStyles,
-        data: dataBallotStyles,
-        loading: loadingBallotStyles,
-    } = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES, {
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElections,
-        data: dataElections,
-        loading: loadingElections,
-    } = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: ballotStyleElectionIds,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
-
-    const {
-        error: errorElectionEvent,
-        data: dataElectionEvent,
-        loading: loadingElectionEvent,
-    } = useQuery<GetElectionEventQuery>(GET_ELECTION_EVENT, {
-        variables: {
-            electionEventId: eventId,
-            tenantId,
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    const voterContext = useVoterContext()
+    const dataBallotStyles = voterContext.data
+    const dataElectionEvent = voterContext.data
+    const dataElections = voterContext.elections
+    const errorBallotStyles = voterContext.error
+    const errorElectionEvent = voterContext.error
+    const errorElections = voterContext.error
+    const loadingBallotStyles = voterContext.loading
+    const loadingElectionEvent = voterContext.loading
+    const loadingElections = voterContext.loading
 
     // Materials
     const {
@@ -512,14 +484,28 @@ const ElectionSelectionScreen: React.FC = () => {
         ) ??
             false)
 
+    const hasPendingCastVotes = useAppSelector((state) =>
+        Object.values(state.castVotes).some((votes) =>
+            votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)
+        )
+    )
     const {
-        data: castVotes,
+        data: polledCastVotes,
         error: errorCastVote,
         startPolling: startCastVotePolling,
         stopPolling: stopCastVotePolling,
     } = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
-        skip: globalSettings.DISABLE_AUTH,
+        // The bootstrap supplies the initial cast metadata. Only unresolved
+        // casts need the existing narrow polling query.
+        fetchPolicy: "network-only",
+        skip:
+            globalSettings.DISABLE_AUTH ||
+            (!hasPendingCastVotes &&
+                !voterContext.data?.sequent_backend_cast_vote.some(
+                    (vote) => vote.status === CastVoteStatus.IN_PROGRESS
+                )),
     })
+    const castVotes = polledCastVotes ?? voterContext.data
 
     const materialsPath = `/tenant/${tenantId}/event/${eventId}/materials${location.search}`
     const materialsTitle =
@@ -533,9 +519,14 @@ const ElectionSelectionScreen: React.FC = () => {
         navigate(materialsPath)
     }
 
-    const hasNoElections = !loadingElections && dataElections?.sequent_backend_election.length === 0
+    // An empty style result is already definitive; do not send an empty-ID
+    // election query just to discover that there are no eligible elections.
+    const hasNoElections =
+        !loadingBallotStyles &&
+        !loadingElections &&
+        dataElections?.sequent_backend_election.length === 0
     const isPublished = useMemo(
-        () => !!dataElectionEvent?.sequent_backend_election_event[0].status?.is_published,
+        () => !!dataElectionEvent?.sequent_backend_election_event[0]?.status?.is_published,
         [dataElectionEvent?.sequent_backend_election_event]
     )
 
@@ -558,10 +549,10 @@ const ElectionSelectionScreen: React.FC = () => {
             if (errorBallotStyles?.message.includes("x-hasura-area-id")) {
                 setErrorMsg(ElectionScreenErrorType.NO_AREA)
             } else if (
-                errorElections?.networkError ||
-                errorElectionEvent?.networkError ||
-                errorBallotStyles?.networkError ||
-                errorCastVote?.networkError
+                isApolloTransportError(errorElections) ||
+                isApolloTransportError(errorElectionEvent) ||
+                isApolloTransportError(errorBallotStyles) ||
+                isApolloTransportError(errorCastVote)
             ) {
                 setErrorMsg(ElectionScreenErrorType.NETWORK)
             } else {
@@ -676,7 +667,14 @@ const ElectionSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (castVotes?.sequent_backend_cast_vote) {
             const castVoteList = castVotes.sequent_backend_cast_vote
-            dispatch(addCastVotes(castVoteList))
+            dispatch(
+                addCastVotes(
+                    castVoteList.map((vote) => ({
+                        ...vote,
+                        status: parseCastVoteStatus(vote.status),
+                    }))
+                )
+            )
 
             const hasUnresolvedCastVotes = castVoteList.some(
                 (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
@@ -696,8 +694,7 @@ const ElectionSelectionScreen: React.FC = () => {
     ])
 
     useEffect(() => {
-        const skipPolicy =
-            oneBallotStyle?.ballot_eml.election_event_presentation?.skip_election_list ?? false
+        const skipPolicy = electionEvent?.presentation?.skip_election_list ?? false
         console.log("skipPolicy", skipPolicy)
         const newBypassChooser =
             skipPolicy &&
@@ -851,6 +848,7 @@ const ElectionSelectionScreen: React.FC = () => {
                 {!hasNoElections ? (
                     electionIds.map((electionId) => (
                         <ElectionWrapper
+                            summary={voterContext.summaries?.[electionId]}
                             electionId={electionId}
                             key={electionId}
                             bypassChooser={bypassChooser}

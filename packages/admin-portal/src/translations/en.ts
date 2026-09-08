@@ -252,6 +252,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Delete tenant",
                 PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
@@ -1297,6 +1298,7 @@ const englishTranslation = {
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
+                "tenant-delete": "Delete Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
