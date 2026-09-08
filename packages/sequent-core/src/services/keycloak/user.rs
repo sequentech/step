@@ -10,7 +10,7 @@ use keycloak::{
         CredentialRepresentation, GroupRepresentation, UPAttribute, UPConfig,
         UPGroup, UserRepresentation,
     },
-    KeycloakError,
+    KeycloakError, KeycloakTokenSupplier,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -22,6 +22,7 @@ use tracing::{info, instrument};
 use super::PubKeycloakAdmin;
 
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
+
 #[derive(Debug)]
 pub struct GroupInfo {
     pub group_id: String,
@@ -42,6 +43,27 @@ async fn error_check(
     }
 
     Ok(response)
+}
+
+fn created_user_id(headers: &reqwest::header::HeaderMap) -> Result<String> {
+    let location = headers
+        .get(reqwest::header::LOCATION)
+        .context("Keycloak created the user without returning its location")?
+        .to_str()?;
+    let url = reqwest::Url::parse(location)?;
+    let mut segments =
+        url.path_segments().context("Invalid user location")?.rev();
+    let id = segments
+        .next()
+        .filter(|id| !id.is_empty())
+        .context("Keycloak created the user without returning its id")?;
+    if segments.next() != Some("users")
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return Err(anyhow!("Invalid Keycloak user location"));
+    }
+    Ok(id.to_string())
 }
 
 /// A user profile constraint that Keycloak refused a write against.
@@ -170,9 +192,6 @@ impl User {
             .as_ref()?
             .get(AUTHORIZED_ELECTION_IDS_NAME)
             .cloned();
-
-        info!("get_authorized_election_ids: {:?}", result);
-        info!("attributes: {:?}", self.attributes);
 
         result
     }
@@ -395,7 +414,6 @@ impl KeycloakAdminClient {
         credentials: Option<Vec<CredentialRepresentation>>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        info!("Editing user in keycloak ?: {:?}", attributes);
         let mut current_user: UserRepresentation = self
             .client
             .realm_users_with_user_id_get(realm, user_id, None)
@@ -473,7 +491,7 @@ impl KeycloakAdminClient {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, user, attributes), err)]
     pub async fn create_user(
         self: &KeycloakAdminClient,
         realm: &str,
@@ -482,47 +500,35 @@ impl KeycloakAdminClient {
         groups: Option<Vec<String>>,
     ) -> Result<User> {
         let mut new_user_keycloak: UserRepresentation = user.clone().into();
+        new_user_keycloak.id = None;
         new_user_keycloak.attributes = attributes.clone();
-        info!("Creating user in keycloak ?: {:?}", new_user_keycloak);
         new_user_keycloak.groups = groups.clone();
-        self.client
-            .realm_users_post(realm, new_user_keycloak.clone())
-            .await
-            .map_err(|err| {
-                // Keep the KeycloakError as the source so callers can downcast
-                // it and react to the HTTP status Keycloak returned.
-                let message =
-                    format!("Failed to create user in keycloak: {:?}", err);
-                anyhow::Error::new(err).context(message)
-            })?;
-        let found_users = self
+        // The generated client's POST discards Location. Use the server's
+        // assigned id instead of searching by a possibly absent username.
+        let admin = Self::pub_new().await?;
+        let mut endpoint =
+            reqwest::Url::parse(&format!("{}/admin/realms/", admin.url))?;
+        endpoint
+            .path_segments_mut()
+            .map_err(|_| anyhow!("Invalid Keycloak URL"))?
+            .pop_if_empty()
+            .extend([realm, "users"]);
+        let response = admin
             .client
-            .realm_users_get(
-                realm,
-                Some(false),
-                None,
-                None,
-                Some(true),
-                Some(true),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                user.username.clone(),
-            )
-            .await
-            .map_err(|err| {
-                anyhow!("Failed to find user in keycloak: {:?}", err)
-            })?;
-
-        match found_users.first() {
-            Some(found_user) => Ok(found_user.clone().into()),
-            None => Ok(user.clone()),
-        }
+            .post(endpoint)
+            .bearer_auth(admin.token_supplier.get(&admin.url).await?)
+            .json(&new_user_keycloak)
+            .send()
+            .await?;
+        let response = error_check(response).await.map_err(|err| {
+            // Keep the KeycloakError as the source so callers can downcast
+            // it and react to the HTTP status Keycloak returned.
+            let message =
+                format!("Failed to create user in keycloak: {:?}", err);
+            anyhow::Error::new(err).context(message)
+        })?;
+        let user_id = created_user_id(response.headers())?;
+        self.get_user(realm, &user_id).await
     }
 
     #[instrument(skip(self), err)]
@@ -579,8 +585,8 @@ impl KeycloakAdminClient {
 
     pub fn get_attribute_name(name: &Option<String>) -> Option<String> {
         match name.as_deref() {
-            Some(FIRST_NAME) => Some("first_name".to_string()),
-            Some(LAST_NAME) => Some("last_name".to_string()),
+            Some(FIRST_NAME) => Some(FIRST_NAME_ATTRIBUTE.to_string()),
+            Some(LAST_NAME) => Some(LAST_NAME_ATTRIBUTE.to_string()),
             Some(other) => Some(other.to_string()),
             None => None,
         }
@@ -671,6 +677,33 @@ impl KeycloakAdminClient {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn created_voter_id_comes_only_from_a_valid_location() {
+        use reqwest::header::{HeaderMap, LOCATION};
+        assert!(super::created_user_id(&HeaderMap::new()).is_err());
+        for location in [
+            "https://keycloak/admin/realms/event/users/",
+            "not-a-url",
+            "https://keycloak/admin/realms/event/groups/id",
+            "https://keycloak/admin/realms/event/users/id?other=user",
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(LOCATION, location.parse().unwrap());
+            assert!(super::created_user_id(&headers).is_err());
+        }
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            LOCATION,
+            "https://keycloak/admin/realms/event/users/server-assigned-id"
+                .parse()
+                .unwrap(),
+        );
+        assert_eq!(
+            super::created_user_id(&headers).unwrap(),
+            "server-assigned-id"
+        );
+    }
+
     use super::{
         get_user_profile_validation_errors, is_keycloak_bad_request,
         KeycloakAdminClient,

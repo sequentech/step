@@ -895,10 +895,12 @@ pub async fn get_file_from_s3(
 
 /// Lists a prefix and streams each matching file into a temporary path so
 /// export code can package files without buffering them all in memory.
-#[instrument(err)]
+/// Document objects must be allowlisted from trusted access metadata first.
+#[instrument(err, skip(exportable_document_ids))]
 pub async fn get_files_from_s3(
     s3_bucket: String,
     prefix: String,
+    exportable_document_ids: &std::collections::HashSet<String>,
 ) -> Result<Vec<TempPath>> {
     let resolved_target = get_s3_list_target(&s3_bucket, S3Endpoint::Server)
         .await
@@ -932,6 +934,13 @@ pub async fn get_files_from_s3(
                     None
                 }
             });
+
+            if !is_exportable_document(
+                document_id.as_deref(),
+                exportable_document_ids,
+            ) {
+                continue;
+            }
 
             // Get object from S3
             let s3_object = client
@@ -967,6 +976,13 @@ pub async fn get_files_from_s3(
     }
 
     Ok(file_paths)
+}
+
+fn is_exportable_document(
+    document_id: Option<&str>,
+    allowed_ids: &std::collections::HashSet<String>,
+) -> bool {
+    document_id.is_none_or(|id| allowed_ids.contains(id))
 }
 
 #[instrument(err)]
@@ -1034,6 +1050,18 @@ pub async fn get_files_names_bytes_from_s3(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn event_archive_skips_secret_and_uncommitted_documents_before_download() {
+        let allowed = std::collections::HashSet::from(["ordinary".to_string()]);
+        assert!(super::is_exportable_document(Some("ordinary"), &allowed));
+        assert!(!super::is_exportable_document(Some("secret"), &allowed));
+        assert!(!super::is_exportable_document(
+            Some("uncommitted"),
+            &allowed
+        ));
+        assert!(super::is_exportable_document(None, &allowed));
+    }
+
     use super::{
         get_s3_endpoint_style, join_s3_path, parse_bucket_hosted_endpoint,
         resolve_s3_list_target_parts, ResolvedS3ListTargetParts, S3Endpoint,

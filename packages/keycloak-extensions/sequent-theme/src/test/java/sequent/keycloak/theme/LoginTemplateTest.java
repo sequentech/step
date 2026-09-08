@@ -23,7 +23,7 @@ class LoginTemplateTest {
 
     assertTrue(
         template.contains(
-            "<#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>"));
+            "<#assign structuredCredential = ['structured', 'pattern']?seq_contains(realm.attributes['credential-input-policy']!'standard')>"));
     assertTrue(template.contains("data-structured-credential"));
     assertTrue(
         template.contains("realm.attributes['credential-input-pattern']!'dddd-dddd-dddd-dddd'"));

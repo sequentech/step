@@ -84,11 +84,6 @@ import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDa
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-`
-
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
@@ -115,7 +110,7 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 const StyledIcon = styled(Icon)`
     min-width: 14px;
@@ -152,8 +147,8 @@ const AuditButton: React.FC<AuditButtonProps> = ({onClick}) => {
             variant="warning"
             onClick={onClick}
         >
-            <Icon icon={faFire} size="sm" />
-            <Box>{t("reviewScreen.auditButton")}</Box>
+            <Icon className="audit-button-icon" icon={faFire} size="sm" />
+            <Box className="audit-button-label">{t("reviewScreen.auditButton")}</Box>
         </StyledButton>
     )
 }
@@ -171,6 +166,7 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
 
     return (
         <Dialog
+            className="audit-ballot-dialog"
             handleClose={handleClose}
             open={auditBallotHelp}
             title={t("reviewScreen.auditBallotHelpDialog.title")}
@@ -206,7 +202,7 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
             disabled={isCastingBallot}
             onClick={onClick}
         >
-            <Box>
+            <Box className="cast-ballot-label">
                 {t(
                     isFullyAcclaimed
                         ? "reviewScreen.acclamation.finishButton"
@@ -214,9 +210,9 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
                 )}
             </Box>
             {isCastingBallot ? (
-                <StyledCircularProgress color="inherit" />
+                <StyledCircularProgress className="cast-ballot-progress" color="inherit" />
             ) : (
-                <StyledIcon icon={faAngleRight} size="sm" />
+                <StyledIcon className="cast-ballot-icon" icon={faAngleRight} size="sm" />
             )}
         </StyledButton>
     )
@@ -425,6 +421,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 // Save contests to session storage and perform reauthentication
                 const ballotData: SessionBallotData = {
                     ballotId,
+                    auditButtonCfg,
                     electionId: ballotStyle.election_id,
                     isDemo: true,
                     ballot: JSON.stringify("{}"),
@@ -467,6 +464,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             // Save contests to session storage and perform reauthentication
             const ballotData: SessionBallotData = {
                 ballotId,
+                auditButtonCfg,
                 electionId: ballotStyle.election_id,
                 isDemo,
                 ballot: JSON.stringify(hashableBallot),
@@ -493,7 +491,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
         : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
     return (
-        <Box sx={{marginBottom: "10px", marginTop: "10px"}}>
+        <Box className="review-actions" sx={{marginBottom: "10px", marginTop: "10px"}}>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
@@ -501,15 +499,15 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 />
             ) : null}
             <ActionsContainer className="actions-container">
-                <StyledLink
+                <StyledButton
+                    className="edit-ballot-button"
+                    component={RouterLink}
                     to={backNavigateTo}
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("reviewScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
+                    <Icon className="edit-ballot-icon" icon={faAngleLeft} size="sm" />
+                    <Box className="edit-ballot-label">{t("reviewScreen.backButton")}</Box>
+                </StyledButton>
                 {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW && !isFullyAcclaimed ? (
                     <AuditButton onClick={() => setAuditBallotHelp(true)} />
                 ) : null}
@@ -525,6 +523,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 />
             </ActionsContainer>
             <Dialog
+                className="confirm-cast-ballot-dialog"
                 handleClose={handleCloseCastVoteDialog}
                 open={isConfirmCastVoteModal}
                 title={t(
@@ -752,13 +751,14 @@ export const ReviewScreen: React.FC = () => {
             return submit({error: errorType}, {method: "post"})
         }
 
-        // set ConfirmationScreenData (ballotId and isDemo) to a new object in redux state, so it can be read later on from the confirmation screen
+        // Restore confirmation data after the reauthentication reload.
         dispatch(
             setConfirmationScreenData({
                 electionId: ballotData.electionId,
                 confirmationScreenData: {
                     ballotId: ballotData.ballotId,
                     isDemo: ballotData.isDemo,
+                    auditButtonCfg: ballotData.auditButtonCfg,
                 },
             })
         )
@@ -796,13 +796,18 @@ export const ReviewScreen: React.FC = () => {
 
     if (!ballotStyle || (!auditableBallot && !isFullyAcclaimed)) {
         return errorMsg ? (
-            <Box sx={{margin: "auto 0"}}>
+            <Box className="review-error-screen" sx={{margin: "auto 0"}}>
                 {/* The only message on the screen, and it blocks the voter from
                     casting, so it interrupts rather than waiting for a pause. */}
-                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                <WarnBox
+                    className="cast-ballot-error"
+                    variant="error"
+                    announcement={EWarnBoxAnnouncement.ASSERTIVE}
+                >
                     {errorMsg}
                 </WarnBox>
                 <Box
+                    className="review-error-actions"
                     sx={{
                         display: "flex",
                         justifyContent: "center",
@@ -810,16 +815,19 @@ export const ReviewScreen: React.FC = () => {
                         marginTop: "16px",
                     }}
                 >
-                    <StyledLink to={backLink} sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                            <Icon icon={faAngleLeft} size="sm" />
-                            <Box>{t("reviewScreen.backButton")}</Box>
-                        </StyledButton>
-                    </StyledLink>
+                    <StyledButton
+                        className="back-button"
+                        component={RouterLink}
+                        to={backLink}
+                        sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    >
+                        <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
+                        <Box className="back-button-label">{t("reviewScreen.backButton")}</Box>
+                    </StyledButton>
                 </Box>
             </Box>
         ) : (
-            <CircularProgress aria-label={t("a11y.loading")} />
+            <CircularProgress className="review-progress" aria-label={t("a11y.loading")} />
         )
     }
 
@@ -841,6 +849,7 @@ export const ReviewScreen: React.FC = () => {
                 />
             )}
             <BallotIdHelpDialog
+                className="review-ballot-id-help-dialog"
                 handleClose={handleCloseDialogIdHelp}
                 open={openBallotIdHelp}
                 title={t("reviewScreen.ballotIdHelpDialog.title")}
@@ -869,20 +878,22 @@ export const ReviewScreen: React.FC = () => {
                     handleClose={handleCloseDialogAuditHelp}
                 />
             ) : null}
-            <Box marginTop="48px">
+            <Box className="stepper-box" marginTop="48px">
                 <Stepper selected={2} />
             </Box>
             <StyledTitle
+                className="screen-title"
                 variant="h4"
                 component="h1"
                 fontSize="24px"
                 fontWeight="bold"
                 sx={{margin: 0}}
             >
-                <Box>
+                <Box className="screen-title-text">
                     {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
                 </Box>
                 <IconButton
+                    buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -892,6 +903,7 @@ export const ReviewScreen: React.FC = () => {
                     })}
                 />
                 <Dialog
+                    className="screen-help-dialog review-help-dialog"
                     handleClose={() => setReviewScreenHelp(false)}
                     open={openReviewScreenHelp}
                     title={t(
@@ -916,11 +928,20 @@ export const ReviewScreen: React.FC = () => {
                 </Dialog>
             </StyledTitle>
             {errorMsg && (
-                <WarnBox variant="error" announcement={EWarnBoxAnnouncement.ASSERTIVE}>
+                <WarnBox
+                    className="cast-ballot-error"
+                    variant="error"
+                    announcement={EWarnBoxAnnouncement.ASSERTIVE}
+                >
                     {errorMsg}
                 </WarnBox>
             )}
-            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                className="screen-description"
+                variant="body2"
+                component="div"
+                sx={{color: theme.palette.customGrey.main}}
+            >
                 {stringToHtml(
                     isFullyAcclaimed
                         ? t("reviewScreen.acclamation.description")
@@ -931,7 +952,7 @@ export const ReviewScreen: React.FC = () => {
                 )}
             </Typography>
             {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-${index}`}>
+                <Box key={question.id} className={`contest-container contest-${index}`}>
                     <Question
                         ballotStyle={ballotStyle}
                         question={question}

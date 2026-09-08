@@ -61,18 +61,13 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
     gap: 16px;
-`
-
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
 `
 
 const Step1Container = styled(Box)`
@@ -87,21 +82,25 @@ const ActionButtons: React.FC = () => {
     const backLink = useRootBackLink()
 
     return (
-        <ActionsContainer>
+        <ActionsContainer className="actions-container">
             <StyledButton
+                className="print-audit-button"
                 onClick={triggerPrint}
                 variant="secondary"
                 sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
             >
-                <Icon icon={faPrint} size="sm" />
-                <Box>{t("auditScreen.printButton")}</Box>
+                <Icon className="print-audit-icon" icon={faPrint} size="sm" />
+                <Box className="print-audit-label">{t("auditScreen.printButton")}</Box>
             </StyledButton>
-            <StyledLink to={backLink} sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}>
-                <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                    <Box>{t("auditScreen.restartButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
-                </StyledButton>
-            </StyledLink>
+            <StyledButton
+                className="restart-voting-button"
+                component={RouterLink}
+                to={backLink}
+                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+            >
+                <Box className="restart-voting-label">{t("auditScreen.restartButton")}</Box>
+                <Icon className="restart-voting-icon" icon={faAngleRight} size="sm" />
+            </StyledButton>
         </ActionsContainer>
     )
 }
@@ -163,8 +162,9 @@ const AuditScreen: React.FC = () => {
     return (
         <PageLimit maxWidth="lg" className="audit-screen screen">
             <BallotHash hash={ballotHash || ""} onHelpClick={() => setOpenBallotIdHelp(true)} />
-            <Box marginTop="24px">
+            <Box className="stepper-box" marginTop="24px">
                 <Dialog
+                    className="audit-ballot-id-help-dialog"
                     handleClose={() => setOpenBallotIdHelp(false)}
                     open={openBallotIdHelp}
                     title={t("reviewScreen.ballotIdHelpDialog.title")}
@@ -176,9 +176,10 @@ const AuditScreen: React.FC = () => {
                 </Dialog>
                 <Stepper selected={4} warning={true} />
             </Box>
-            <StyledTitle variant="h4" component="h1" fontSize="24px">
-                <Box>{t("auditScreen.title")}</Box>
+            <StyledTitle className="screen-title" variant="h4" component="h1" fontSize="24px">
+                <Box className="screen-title-text">{t("auditScreen.title")}</Box>
                 <IconButton
+                    buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -186,6 +187,7 @@ const AuditScreen: React.FC = () => {
                     ariaLabel={t("a11y.helpAbout", {topic: t("auditScreen.title")})}
                 />
                 <Dialog
+                    className="screen-help-dialog audit-help-dialog"
                     handleClose={() => setOpenStep1Help(false)}
                     open={openStep1Help}
                     title={t("auditScreen.step1HelpDialog.title")}
@@ -195,12 +197,24 @@ const AuditScreen: React.FC = () => {
                     {stringToHtml(t("auditScreen.step1HelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
+            <Typography
+                className="screen-description"
+                variant="body2"
+                component="div"
+                sx={{color: theme.palette.customGrey.main}}
+            >
                 {stringToHtml(t("auditScreen.description"))}
             </Typography>
-            <StyledTitle variant="h5" component="h2" fontWeight="bold" fontSize="18px">
-                <Box>{t("auditScreen.step1Title")}</Box>
+            <StyledTitle
+                className="audit-download-title"
+                variant="h5"
+                component="h2"
+                fontWeight="bold"
+                fontSize="18px"
+            >
+                <Box className="audit-download-title-text">{t("auditScreen.step1Title")}</Box>
                 <IconButton
+                    buttonClassName="audit-download-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -208,6 +222,7 @@ const AuditScreen: React.FC = () => {
                     ariaLabel={t("a11y.helpAbout", {topic: t("auditScreen.step1Title")})}
                 />
                 <Dialog
+                    className="audit-download-help-dialog"
                     handleClose={() => setOpenStep1Help(false)}
                     open={openStep1Help}
                     title={t("auditScreen.step1HelpDialog.title")}
@@ -217,8 +232,9 @@ const AuditScreen: React.FC = () => {
                     {stringToHtml(t("auditScreen.step1HelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Step1Container>
+            <Step1Container className="audit-download-container">
                 <Typography
+                    className="audit-download-description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
@@ -226,35 +242,62 @@ const AuditScreen: React.FC = () => {
                     {stringToHtml(t("auditScreen.step1Description"))}
                 </Typography>
                 <StyledButton
+                    className="download-auditable-ballot-button"
                     sx={{minWidth: "unset", padding: "10px 16px"}}
                     onClick={downloadAuditableBallot}
                     disabled={isUndefined(auditableBallot)}
                 >
-                    <Icon icon={faDownload} size="sm" />
-                    <Box sx={{display: {xs: "none", md: "flex"}}}>
+                    <Icon className="download-auditable-ballot-icon" icon={faDownload} size="sm" />
+                    <Box
+                        className="download-auditable-ballot-label"
+                        sx={{display: {xs: "none", md: "flex"}}}
+                    >
                         {t("auditScreen.downloadButton")}
                     </Box>
                 </StyledButton>
             </Step1Container>
 
-            <InfoDataBox>{(auditableBallot && JSON.stringify(auditableBallot)) || ""}</InfoDataBox>
-            <StyledTitle variant="h5" component="h2" fontWeight="bold" fontSize="18px">
-                <Box>{t("auditScreen.step2Title")}</Box>
+            <InfoDataBox className="auditable-ballot-data">
+                {(auditableBallot && JSON.stringify(auditableBallot)) || ""}
+            </InfoDataBox>
+            <StyledTitle
+                className="audit-verification-title"
+                variant="h5"
+                component="h2"
+                fontWeight="bold"
+                fontSize="18px"
+            >
+                <Box className="audit-verification-title-text">{t("auditScreen.step2Title")}</Box>
             </StyledTitle>
-            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
-                <StyledLinkContainer>
+            <Typography
+                className="audit-verification-description"
+                variant="body2"
+                component="div"
+                sx={{color: theme.palette.customGrey.main}}
+            >
+                <StyledLinkContainer className="audit-verification-links">
                     <Trans
                         i18nKey="auditScreen.step2Description"
                         components={{
-                            VerifierLink: <a target="_blank" href={verifierHref} />,
+                            VerifierLink: (
+                                <a
+                                    className="ballot-verifier-link"
+                                    target="_blank"
+                                    href={verifierHref}
+                                />
+                            ),
                         }}
                     />
                 </StyledLinkContainer>
             </Typography>
-            <Box margin="15px 0 25px 0">
+            <Box className="audit-warning-container" margin="15px 0 25px 0">
                 {/* Static advice that is part of the page, not a response to
                     anything the voter did, so it is read in document order. */}
-                <WarnBox variant="warning" announcement={EWarnBoxAnnouncement.SILENT}>
+                <WarnBox
+                    className="audit-warning"
+                    variant="warning"
+                    announcement={EWarnBoxAnnouncement.SILENT}
+                >
                     {stringToHtml(t("auditScreen.bottomWarning"))}
                 </WarnBox>
             </Box>

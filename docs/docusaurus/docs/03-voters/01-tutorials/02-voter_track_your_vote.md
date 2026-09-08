@@ -34,6 +34,8 @@ From this screen, you can directly access the Ballot Locator prefilled to lookup
 <li>You can copy the Ballot ID and manually enter it in the Ballot Locator Screen at a later stage. See the explanation for this in Option 2.</li>
 </ul>
 
+When available for your election, the **Copy Ballot ID** button appears next to the ID on both the Review and Confirmation screens. It copies the complete ID, even when the displayed ID is shortened. If the copy button is hidden on Review, it is also hidden on Confirmation.
+
 :::tip
 **Alternative:** You can also click in the `Print` button and the same options will be available but originating from the PDF you downloaded instead.
 :::

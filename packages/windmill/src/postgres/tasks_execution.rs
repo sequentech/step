@@ -175,6 +175,60 @@ pub async fn update_task_execution_status(
     Ok(())
 }
 
+/// Performs a terminal export status transition only while the task is still
+/// active. Duplicate or late deliveries must never change a terminal export
+/// from SUCCESS back to FAILED (or overwrite its document annotation).
+pub async fn update_export_task_execution_status_if_in_progress(
+    tenant_id: &str,
+    task_execution_id: &str,
+    new_status: TasksExecutionStatus,
+    new_logs: Option<Value>,
+    annotations: Value,
+) -> Result<bool> {
+    let db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to get database client from pool")?;
+    let task_execution_uuid =
+        parse_uuid_v4(task_execution_id).context("Failed to parse task_execution_id as UUID")?;
+    let tenant_uuid = parse_uuid_v4(tenant_id).context("Failed to parse tenant_id as UUID")?;
+
+    let statement = db_client
+        .prepare(
+            r#"
+            UPDATE sequent_backend.tasks_execution
+            SET
+                execution_status = $1,
+                logs = $2,
+                end_at = now(),
+                annotations = COALESCE(annotations, '{}'::jsonb) || $3::jsonb
+            WHERE
+                id = $4 AND
+                tenant_id = $5 AND
+                execution_status = 'IN_PROGRESS';
+            "#,
+        )
+        .await
+        .context("Failed to prepare conditional export task update")?;
+
+    let updated_rows = db_client
+        .execute(
+            &statement,
+            &[
+                &new_status.to_string(),
+                &new_logs,
+                &annotations,
+                &task_execution_uuid,
+                &tenant_uuid,
+            ],
+        )
+        .await
+        .context("Failed to conditionally update export task status")?;
+
+    Ok(updated_rows == 1)
+}
+
 /// Merges task annotations using an existing Hasura transaction.
 ///
 /// This is used by workflows that must commit their durable retry state in
@@ -283,6 +337,25 @@ pub async fn get_task_by_id_with_transaction(
     row.try_into()
         .map(|wrapper: TasksExecutionWrapper| wrapper.0)
         .context("Error converting database row to TasksExecution")
+}
+
+/// Serializes all attempts for one export task. Transaction-scoped advisory
+/// locks are released automatically on commit, rollback, connection loss, or
+/// worker crash, so a redelivery can safely recover instead of being stranded.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_export_task_with_transaction(
+    hasura_transaction: &Transaction<'_>,
+    task_id: &str,
+) -> Result<()> {
+    let statement = hasura_transaction
+        .prepare("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+        .await?;
+    hasura_transaction
+        .query_one(&statement, &[&task_id])
+        .await
+        .context("Error locking export task")?;
+
+    Ok(())
 }
 
 #[instrument(skip(), err)]

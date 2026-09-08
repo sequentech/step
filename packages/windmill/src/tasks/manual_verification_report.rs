@@ -23,6 +23,7 @@ pub async fn generate_report(
     voter_id: &str,
     mode: GenerateReportMode,
     report_clone: Option<Report>,
+    may_read_secret_attributes: bool,
 ) -> AnyhowResult<()> {
     let mut db_client: DbClient = get_hasura_pool()
         .await
@@ -69,6 +70,7 @@ pub async fn generate_report(
             &hasura_transaction,
             &keycloak_transaction,
             None,
+            may_read_secret_attributes,
         )
         .await
         .map_err(|err| anyhow!("Error generating ballot receipt report: {err:?}"))?;
@@ -90,6 +92,7 @@ pub async fn generate_manual_verification_report(
     election_event_id: String,
     voter_id: String,
     report: Option<Report>,
+    may_read_secret_attributes: bool,
 ) -> Result<()> {
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
@@ -102,6 +105,7 @@ pub async fn generate_manual_verification_report(
                     &voter_id,
                     GenerateReportMode::REAL,
                     report,
+                    may_read_secret_attributes,
                 )
                 .await
             })

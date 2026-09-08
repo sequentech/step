@@ -10,6 +10,9 @@ use crate::services::election_statistics::update_election_statistics;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::providers::{email_sender::EmailSender, sms_sender::SmsSender};
 use crate::services::users::{list_users, list_users_with_vote_info, ListUsersFilter};
+use crate::services::voter_secret_attributes::{
+    decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
+};
 use crate::types::error::Result;
 
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
@@ -37,7 +40,7 @@ use sequent_core::types::templates::{
 use sequent_core::util::aws::get_from_env_aws_config;
 use serde_json::json;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use strand::info;
 use tracing::{event, info, instrument, Level};
@@ -94,16 +97,13 @@ fn get_variables(
 /// Builds the delivery record posted to the immutable electoral log.
 ///
 /// The record keeps what an auditor needs to confirm a delivery — the channel, the address it
-/// went to, and the rendered subject — but never the rendered bodies. Those bodies carry the
+/// went to — but never rendered subjects or bodies. Those fields can carry
 /// notification URL, including any `login_hint__*` values, and the electoral log cannot be
 /// redacted once written.
-fn delivery_audit_message(channel: &str, receiver: &str, subject: Option<&str>) -> String {
+fn delivery_audit_message(channel: &str, receiver: &str) -> String {
     let mut record = Map::new();
     record.insert("channel".to_string(), json!(channel));
     record.insert("receiver".to_string(), json!(receiver));
-    if let Some(subject) = subject {
-        record.insert("subject".to_string(), json!(subject));
-    }
     Value::Object(record).to_string()
 }
 
@@ -119,7 +119,7 @@ async fn send_template_sms(
             .map_err(|err| anyhow!("{}", err))?;
 
         sender.send(receiver.into(), message.clone()).await?;
-        return Ok(Some(delivery_audit_message("sms", receiver, None)));
+        return Ok(Some(delivery_audit_message("sms", receiver)));
     } else {
         event!(Level::INFO, "Receiver empty, ignoring..");
     }
@@ -159,11 +159,7 @@ pub async fn send_template_email(
             .await
             .map_err(|err| anyhow!("error sending email: {err:?}"))?;
 
-        return Ok(Some(delivery_audit_message(
-            "email",
-            receiver,
-            Some(&subject),
-        )));
+        return Ok(Some(delivery_audit_message("email", receiver)));
     } else {
         // Log the event if the receiver or template is missing
         event!(
@@ -361,6 +357,40 @@ pub async fn send_template(
                 .await?
         }
     };
+    let requested_secret_names = body
+        .secret_attribute_names
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
+    // Undeclared secrets are stripped whatever the profile's state; decrypting
+    // declared ones additionally requires a valid configuration.
+    let configured_secret_names = if let Some(event_id) = election_event_id.as_deref() {
+        let config = get_secret_attribute_config(&tenant_id, event_id)
+            .await
+            .map_err(|error| {
+                anyhow!("Error reading the secret-attribute configuration: {error:#}")
+            })?;
+        if requested_secret_names.is_empty() {
+            config.redacted_names().clone()
+        } else {
+            config.validated_names()?
+        }
+    } else {
+        HashSet::new()
+    };
+    if let Some(name) = requested_secret_names
+        .iter()
+        .find(|name| !configured_secret_names.contains(*name))
+    {
+        return Err(Error::String(format!(
+            "Template requested `{name}`, which is not configured as an encrypted voter attribute"
+        )));
+    }
+    if !requested_secret_names.is_empty() && election_event_id.is_none() {
+        return Err(Error::String(
+            "Encrypted voter attributes require an election event".to_string(),
+        ));
+    }
 
     let mut keycloak_db_client: DbClient = get_keycloak_pool()
         .await
@@ -479,9 +509,30 @@ pub async fn send_template(
         };
 
         for user in filtered_users.iter() {
+            let mut render_user = user.clone();
+            if let Some(event_id) = election_event_id.as_deref() {
+                decrypt_user_attributes(
+                    &mut render_user,
+                    &tenant_id,
+                    event_id,
+                    &requested_secret_names,
+                )
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to decrypt declared secret attributes for voter {}",
+                        user.id.as_deref().unwrap_or("unknown")
+                    )
+                })?;
+            }
+            strip_undeclared_secret_attributes(
+                &mut render_user,
+                &configured_secret_names,
+                &requested_secret_names,
+            );
             let success = send_template_email_or_sms(
                 &hasura_transaction,
-                &user,
+                &render_user,
                 &election_event,
                 &tenant_id,
                 Some(admin_id.clone()),
@@ -700,19 +751,18 @@ mod tests {
 
     #[test]
     fn delivery_audit_message_keeps_delivery_metadata_without_rendered_bodies() {
-        let email = delivery_audit_message("email", "voter@example.com", Some("Your voting link"));
+        let email = delivery_audit_message("email", "voter@example.com");
 
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&email).expect("valid audit JSON"),
             json!({
                 "channel": "email",
                 "receiver": "voter@example.com",
-                "subject": "Your voting link",
             })
         );
         assert!(!email.contains("login_hint__"));
 
-        let sms = delivery_audit_message("sms", "+34600000000", None);
+        let sms = delivery_audit_message("sms", "+34600000000");
 
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(&sms).expect("valid audit JSON"),

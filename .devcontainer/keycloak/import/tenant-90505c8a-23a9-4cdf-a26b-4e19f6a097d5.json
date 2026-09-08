@@ -1869,6 +1869,24 @@
         "attributes": {}
       },
       {
+        "id": "ef49e644-6ed4-4db9-9688-820993b531db",
+        "name": "voter-secret-attribute-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee774092-f4d3-4ac9-880e-9bed4ff67c08",
+        "name": "voter-secret-attribute-write",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "c5b7b9da-905c-4a00-a016-c0dc35812604",
         "name": "voter-write",
         "description": "",
@@ -2490,6 +2508,8 @@
         "election-event-data-tab",
         "user-create",
         "voter-read",
+        "voter-secret-attribute-read",
+        "voter-secret-attribute-write",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",

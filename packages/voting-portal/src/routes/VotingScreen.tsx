@@ -28,14 +28,7 @@ import Typography from "@mui/material/Typography"
 import {faCircleQuestion, faAngleLeft, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
-import {
-    Link as RouterLink,
-    redirect,
-    useLocation,
-    useNavigate,
-    useParams,
-    useSubmit,
-} from "react-router-dom"
+import {redirect, useLocation, useNavigate, useParams, useSubmit} from "react-router-dom"
 import {
     selectBallotSelectionByElectionId,
     resetBallotSelection,
@@ -55,18 +48,6 @@ import {canVoteSomeElection} from "../store/castVotes/castVotesSlice"
 import {IDecodedVoteContest} from "@sequentech/ui-core"
 import {sortContestList} from "@sequentech/ui-core"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
-
-const StyledLink = styled(RouterLink)`
-    margin: auto 0;
-    text-decoration: none;
-    /* ensure the link contains only a single tabbable element: the button below */
-    &:focus {
-        outline: none;
-    }
-    & *[tabindex] {
-        outline: none;
-    }
-`
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
@@ -98,7 +79,7 @@ const StyledButton = styled(Button)`
         text-overflow: ellipsis;
         padding: 5px;
     }
-`
+` as typeof Button
 
 interface ActionButtonProps {
     handleNext: () => void
@@ -119,6 +100,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     const backLink = useRootBackLink()
     const {tenantId, eventId, electionId} = useParams<TenantEventType & {electionId?: string}>()
     const location = useLocation()
+    const navigate = useNavigate()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
@@ -145,6 +127,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     return (
         <>
             <StyledButton
+                className="clear-selection-button"
                 sx={{
                     display: {sm: "none"},
                     width: "100%",
@@ -152,22 +135,26 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 variant="secondary"
                 onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
             >
-                <Box>{t("votingScreen.clearButton")}</Box>
+                <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
             </StyledButton>
 
-            <ActionsContainer>
-                <StyledLink
-                    to={pageIndex && pageIndex > 0 ? {search: location.search} : exitLink}
+            <ActionsContainer className="actions-container">
+                <StyledButton
+                    className="back-button"
                     sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                    onClick={() => handlePrev()}
+                    onClick={() => {
+                        handlePrev()
+                        if (!pageIndex || pageIndex <= 0) {
+                            navigate(exitLink)
+                        }
+                    }}
                 >
-                    <StyledButton sx={{width: {xs: "100%", sm: "200px"}}}>
-                        <Icon icon={faAngleLeft} size="sm" />
-                        <Box>{t("votingScreen.backButton")}</Box>
-                    </StyledButton>
-                </StyledLink>
+                    <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
+                    <Box className="back-button-label">{t("votingScreen.backButton")}</Box>
+                </StyledButton>
 
                 <StyledButton
+                    className="clear-selection-button"
                     sx={{
                         display: {xs: "none", sm: "block"},
                         width: {xs: "100%", sm: "200px"},
@@ -175,7 +162,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     variant="secondary"
                     onClick={() => (handleClearCustom ? handleClearCustom() : handleClear())}
                 >
-                    <Box>{t("votingScreen.clearButton")}</Box>
+                    <Box className="clear-selection-label">{t("votingScreen.clearButton")}</Box>
                 </StyledButton>
 
                 <StyledButton
@@ -184,8 +171,8 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     onClick={() => handleNext()}
                     disabled={disableNext}
                 >
-                    <Box>{t("votingScreen.reviewButton")}</Box>
-                    <Icon icon={faAngleRight} size="sm" />
+                    <Box className="next-button-label">{t("votingScreen.reviewButton")}</Box>
+                    <Icon className="next-button-icon" icon={faAngleRight} size="sm" />
                 </StyledButton>
             </ActionsContainer>
         </>
@@ -296,12 +283,16 @@ const ContestPagination: React.FC<ContestPaginationProps> = ({
                 without a route change. Moving focus here both orients the voter
                 and gets the new page number read out, so this is deliberately
                 not also a live region — that would announce it twice. */}
-            <VisuallyHidden tabIndex={-1} ref={pageAnnouncementRef}>
+            <VisuallyHidden
+                className="contest-page-announcement"
+                tabIndex={-1}
+                ref={pageAnnouncementRef}
+            >
                 {t("a11y.stepOf", {current: pageIndex + 1, total: contests.length})}
             </VisuallyHidden>
             {sortedContests &&
                 sortedContests.map((contest, index) => (
-                    <Box key={contest.id} className={`contest-${index}`}>
+                    <Box key={contest.id} className={`contest-container contest-${index}`}>
                         <Question
                             ballotStyle={ballotStyle}
                             question={contest}
@@ -518,7 +509,7 @@ const VotingScreen: React.FC = () => {
     }, [selectionState, ballotStyle])
 
     if (!ballotStyle || !election) {
-        return <CircularProgress aria-label={t("a11y.loading")} />
+        return <CircularProgress className="voting-progress" aria-label={t("a11y.loading")} />
     }
 
     const warnAllowContinue = (value: boolean) => {
@@ -533,7 +524,7 @@ const VotingScreen: React.FC = () => {
             <Box marginTop="48px" className="stepper-box">
                 <Stepper selected={1} />
             </Box>
-            <StyledTitle variant="h4" component="h1" className="title-container">
+            <StyledTitle variant="h4" component="h1" className="title-container screen-title">
                 <Box className="selected-election-title">
                     {translateFromPresentation(election, "name", i18n.language, {
                         defaultLanguageCode,
@@ -541,6 +532,7 @@ const VotingScreen: React.FC = () => {
                 </Box>
                 <IconButton
                     className="title-question"
+                    buttonClassName="screen-help-button"
                     icon={faCircleQuestion}
                     sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                     fontSize="16px"
@@ -550,6 +542,7 @@ const VotingScreen: React.FC = () => {
                     })}
                 />
                 <Dialog
+                    className="screen-help-dialog voting-help-dialog"
                     handleClose={() => setOpenBallotHelp(false)}
                     open={openBallotHelp}
                     title={t("votingScreen.ballotHelpDialog.title")}
@@ -561,7 +554,7 @@ const VotingScreen: React.FC = () => {
             </StyledTitle>
             {electionDescription ? (
                 <Typography
-                    className="description"
+                    className="description screen-description"
                     variant="body2"
                     component="div"
                     sx={{color: theme.palette.customGrey.main}}
@@ -581,6 +574,7 @@ const VotingScreen: React.FC = () => {
 
             {disableNextButton() ? (
                 <Dialog
+                    className="ballot-validation-dialog"
                     handleClose={(value) => setOpenNonVoted(false)}
                     open={openNotVoted}
                     title={t("votingScreen.nonVotedDialog.title")}
@@ -591,6 +585,7 @@ const VotingScreen: React.FC = () => {
                 </Dialog>
             ) : (
                 <Dialog
+                    className="ballot-validation-dialog"
                     handleClose={(value) => warnAllowContinue(value)}
                     open={openNotVoted}
                     title={t(

@@ -9,12 +9,14 @@ export const CREATE_USER = gql`
         $electionEventId: String
         $user: KeycloakUser2!
         $userRolesIds: [String!]
+        $secretAttributes: jsonb
     ) {
         create_user(
             tenant_id: $tenantId
             election_event_id: $electionEventId
             user: $user
             user_roles_ids: $userRolesIds
+            secret_attributes: $secretAttributes
         ) {
             id
             attributes

@@ -142,7 +142,8 @@ public class MultiAttributePasswordDirectGrantAuthenticator
             submittedValues,
             password,
             throttleConfig,
-            matchPolicy);
+            matchPolicy,
+            authConfig);
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -286,6 +287,8 @@ public class MultiAttributePasswordDirectGrantAuthenticator
             MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH.name()));
 
     return List.of(
+        EncryptedAttributeCredential.policyProperty(),
+        EncryptedAttributeCredential.attributeProperty(),
         new ProviderConfigProperty(
             CONFIG_FIELD,
             "IVR field labels",
