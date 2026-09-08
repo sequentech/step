@@ -23,8 +23,8 @@ const RegisterScreen: React.FC = () => {
     }, [navigate, isAuthenticated, tenantId, eventId, location.search])
 
     return (
-        <Box>
-            <CircularProgress aria-label={t("a11y.loading")} />
+        <Box className="register-screen screen">
+            <CircularProgress className="register-progress" aria-label={t("a11y.loading")} />
             {
                 // TODO: Handle error no login
             }

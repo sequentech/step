@@ -218,6 +218,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         <ErrorWrapper className="error-list" id={contestErrorsId(question.id)} role="status">
             {numAvailableChars < 0 ? (
                 <WarnBox
+                    className="write-in-error"
                     variant="warning"
                     id={writeInErrorId(question.id)}
                     // The write-in field points aria-describedby at this box, so
@@ -233,6 +234,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
             ) : null}
             {filteredSelection?.invalid_errors.map((error, index) => (
                 <WarnBox
+                    className="contest-validation-warning"
                     variant="warning"
                     key={index}
                     announcement={EWarnBoxAnnouncement.SILENT}
@@ -244,6 +246,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
             ))}
             {filteredSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox
+                    className="contest-validation-info"
                     variant="info"
                     key={index}
                     announcement={EWarnBoxAnnouncement.SILENT}

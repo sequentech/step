@@ -285,6 +285,7 @@ const App = () => {
 
     return (
         <StyledAppWrapper
+            className="voting-portal-wrapper"
             customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
         >
             <StyledApp className="voting-portal app-root">

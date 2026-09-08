@@ -229,11 +229,15 @@ export const AnswersList: React.FC<AnswersListProps> = ({
                 // has to be a nested list with a heading rather than bold text
                 // sitting loose among the <li> candidates.
                 return (
-                    <SubtypeItem key={subtypePresentation.name}>
-                        <SubtypeHeading variant="body1" component="h4">
+                    <SubtypeItem className="candidates-subtype" key={subtypePresentation.name}>
+                        <SubtypeHeading
+                            className="candidates-subtype-title"
+                            variant="body1"
+                            component="h4"
+                        >
                             {subtypeName}
                         </SubtypeHeading>
-                        <SubtypeList role="list">
+                        <SubtypeList className="candidates-subtype-list" role="list">
                             {subtypeCandidates.map((candidate, candidateIndex) => (
                                 <Answer
                                     ballotStyle={ballotStyle}

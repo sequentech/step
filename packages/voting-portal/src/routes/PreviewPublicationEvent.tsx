@@ -164,8 +164,14 @@ export const PreviewPublicationEvent: React.FC = () => {
     }
 
     return (
-        <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
-            <CircularProgress aria-label={t("a11y.loading")} />
+        <Box
+            className="preview-publication-screen screen"
+            sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}
+        >
+            <CircularProgress
+                className="preview-publication-progress"
+                aria-label={t("a11y.loading")}
+            />
         </Box>
     )
 }

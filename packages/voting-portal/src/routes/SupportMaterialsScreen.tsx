@@ -195,11 +195,12 @@ const SupportMaterialsScreen: React.FC = () => {
     }
 
     return (
-        <PageLimit maxWidth="lg">
-            <Box marginTop="48px">
+        <PageLimit className="support-materials-screen screen" maxWidth="lg">
+            <Box className="stepper-box" marginTop="48px">
                 <Stepper selected={0} />
             </Box>
             <Box
+                className="support-materials-header"
                 sx={{
                     display: "flex",
                     flexDirection: "row",
@@ -208,9 +209,9 @@ const SupportMaterialsScreen: React.FC = () => {
                     minHeight: "100px",
                 }}
             >
-                <Box>
-                    <StyledTitle variant="h1">
-                        <Box>
+                <Box className="support-materials-heading">
+                    <StyledTitle className="screen-title" variant="h1">
+                        <Box className="screen-title-text">
                             {materialsTitles &&
                                 (translateFromPresentation(
                                     materialsTitles,
@@ -222,6 +223,7 @@ const SupportMaterialsScreen: React.FC = () => {
                         </Box>
                     </StyledTitle>
                     <Typography
+                        className="screen-description"
                         variant="body1"
                         component="div"
                         sx={{color: theme.palette.customGrey.contrastText}}
@@ -238,11 +240,15 @@ const SupportMaterialsScreen: React.FC = () => {
                         )}
                     </Typography>
                 </Box>
-                <Button startIcon={<ChevronLeftIcon />} onClick={handleNavigateMaterials}>
+                <Button
+                    className="back-button"
+                    startIcon={<ChevronLeftIcon className="back-button-icon" />}
+                    onClick={handleNavigateMaterials}
+                >
                     {t("materials.common.back")}
                 </Button>
             </Box>
-            <ElectionContainer>
+            <ElectionContainer className="support-materials-list">
                 {materialsList?.map((material: ISupportMaterial) => (
                     <ElectionWrapper
                         material={material as Sequent_Backend_Support_Material}
@@ -252,15 +258,21 @@ const SupportMaterialsScreen: React.FC = () => {
                 ))}
             </ElectionContainer>
             {isMandatory ? (
-                <Box sx={{marginTop: "20px"}}>
+                <Box className="materials-acknowledgement" sx={{marginTop: "20px"}}>
                     {acknowledgeError ? (
-                        <Alert severity="error" sx={{marginBottom: "16px"}}>
+                        <Alert
+                            className="materials-acknowledgement-error"
+                            severity="error"
+                            sx={{marginBottom: "16px"}}
+                        >
                             {acknowledgeError}
                         </Alert>
                     ) : null}
                     <FormControlLabel
+                        className="materials-acknowledgement-label"
                         control={
                             <Checkbox
+                                className="materials-acknowledgement-checkbox"
                                 checked={acknowledgeChecked}
                                 disabled={!allMaterialsViewed}
                                 onChange={(event) => setAcknowledgeChecked(event.target.checked)}
@@ -271,7 +283,7 @@ const SupportMaterialsScreen: React.FC = () => {
                         }
                         label={t("materials.mandatory.checkboxLabel")}
                     />
-                    <Box sx={{marginTop: "16px"}}>
+                    <Box className="materials-actions" sx={{marginTop: "16px"}}>
                         <Button
                             className="materials-continue-button"
                             disabled={!acknowledgeChecked || acknowledging}
