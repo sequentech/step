@@ -16,7 +16,7 @@
     "nohoist": ["**/node_modules/@storybook", "**/storybook"]
   },
   "devDependencies": {
-    "storybook": "8.6.15",
+    "storybook": "8.6.17",
     "@storybook/addon-docs": "8.6.15",
     "@storybook/addon-essentials": "8.6.15",
     "@storybook/addon-interactions": "8.6.15",
