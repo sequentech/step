@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use ordered_float::NotNan;
@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
@@ -23,9 +23,8 @@ impl TryFrom<Row> for ResultsContestWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsContestWrapper(ResultsContest {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -132,15 +131,15 @@ pub async fn update_results_contest_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -195,13 +194,13 @@ pub async fn get_results_contest(
     election_id: &str,
     contest_id: &str,
 ) -> Result<ResultsContest> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let statement = hasura_transaction
         .prepare(
@@ -304,46 +303,32 @@ pub async fn insert_results_contests(
                 results_event_id: results_event_uuid,
                 elegible_census: contest.elegible_census,
                 total_votes: contest.total_votes,
-                total_votes_percent: contest.total_votes_percent.clone().map(|n| n.into()),
+                total_votes_percent: contest.total_votes_percent.map(|n| n.into()),
                 total_auditable_votes: contest.total_auditable_votes,
                 total_auditable_votes_percent: contest
                     .total_auditable_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_valid_votes: contest.total_valid_votes,
-                total_valid_votes_percent: contest
-                    .total_valid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_valid_votes_percent: contest.total_valid_votes_percent.map(|n| n.into()),
                 total_invalid_votes: contest.total_invalid_votes,
-                total_invalid_votes_percent: contest
-                    .total_invalid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_invalid_votes_percent: contest.total_invalid_votes_percent.map(|n| n.into()),
                 explicit_invalid_votes: contest.explicit_invalid_votes,
                 explicit_invalid_votes_percent: contest
                     .explicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_invalid_votes: contest.implicit_invalid_votes,
                 implicit_invalid_votes_percent: contest
                     .implicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_blank_votes: contest.total_blank_votes,
                 explicit_blank_votes: contest.explicit_blank_votes,
                 implicit_blank_votes: contest.implicit_blank_votes,
-                total_blank_votes_percent: contest
-                    .total_blank_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_blank_votes_percent: contest.total_blank_votes_percent.map(|n| n.into()),
                 explicit_blank_votes_percent: contest
                     .explicit_blank_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_blank_votes_percent: contest
                     .implicit_blank_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 voting_type: contest.voting_type.clone(),
                 counting_algorithm: contest.counting_algorithm.clone(),
@@ -474,9 +459,9 @@ pub async fn get_event_results_contest(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction

@@ -100,7 +100,7 @@ impl SessionMaster {
         }
 
         for (i, h) in self.session_sets.iter_mut().enumerate() {
-            let boards = std::mem::replace(&mut h.boards, vec![]);
+            let boards = std::mem::take(&mut h.boards);
 
             if h.sender.is_closed() {
                 warn!("Sender was closed, rebuilding set..");
@@ -163,7 +163,7 @@ impl SessionSet {
     /// 2) Make the requests from the bulletin board, with chunking.
     /// 3) Receive the responses from the server.
     /// 4) Distribute the messages to their handling SessionM's
-    /// and run one trustee step.
+    ///    and run one trustee step.
     /// 5) Gather all messages produced by the SessionM's
     /// 6) Post the messages to the bulletin board.
     ///
@@ -208,7 +208,7 @@ impl SessionSet {
                             }
                         }
 
-                        let boards_set: HashSet<String> = HashSet::from_iter(boards.into_iter());
+                        let boards_set: HashSet<String> = HashSet::from_iter(boards);
 
                         session_map.retain(|k, _v| {
                             let ret = boards_set.contains(k);
@@ -238,7 +238,7 @@ impl SessionSet {
                         )>,
                     > = session_map
                         .keys()
-                        .map(|k| Ok((k.clone(), self.session_factory.create_session(&k)?)))
+                        .map(|k| Ok((k.clone(), self.session_factory.create_session(k)?)))
                         .collect();
 
                     if let Ok(new_sessions) = new_sessions {
@@ -335,7 +335,7 @@ impl SessionSet {
                         continue;
                     };
 
-                    if messages.len() > 0 {
+                    if !messages.is_empty() {
                         let next_bytes: usize = messages
                             .iter()
                             .map(|m| m.artifact.as_ref().map(|v| v.len()).unwrap_or(0))
@@ -345,7 +345,7 @@ impl SessionSet {
                     }
                 }
 
-                if post_messages.len() > 0 {
+                if !post_messages.is_empty() {
                     info!(
                         "Set {}: posting messages for {} boards with {:.3} MB",
                         self.name,

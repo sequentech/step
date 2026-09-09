@@ -129,9 +129,7 @@ pub fn get_points(
     }
     match contest.get_counting_algorithm() {
         CountingAlgType::PluralityAtLarge => Some(1),
-        CountingAlgType::Borda => {
-            Some((contest.max_votes as i64) - candidate.selected)
-        }
+        CountingAlgType::Borda => Some(contest.max_votes - candidate.selected),
         // "borda-mas-madrid" => return scope.contest.max -
         // scope.option.selected
         CountingAlgType::BordaNauru => Some(1 + candidate.selected), /* 1 / (1 + candidate. */

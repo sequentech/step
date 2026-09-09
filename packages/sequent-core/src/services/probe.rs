@@ -9,30 +9,15 @@ use tokio::sync::Mutex;
 use warp::Future;
 use warp::{http::Response, Filter};
 
+type ProbeFuture = std::pin::Pin<Box<dyn Future<Output = bool> + Send>>;
+type ProbeCheck = Arc<Mutex<Box<dyn Fn() -> ProbeFuture + Send + Sync>>>;
+
 pub struct ProbeHandler {
     address: SocketAddr,
     live_path: String,
     ready_path: String,
-    is_live: Arc<
-        Mutex<
-            Box<
-                dyn Fn() -> std::pin::Pin<
-                        Box<dyn std::future::Future<Output = bool> + Send>,
-                    > + Send
-                    + Sync,
-            >,
-        >,
-    >,
-    is_ready: Arc<
-        Mutex<
-            Box<
-                dyn Fn() -> std::pin::Pin<
-                        Box<dyn std::future::Future<Output = bool> + Send>,
-                    > + Send
-                    + Sync,
-            >,
-        >,
-    >,
+    is_live: ProbeCheck,
+    is_ready: ProbeCheck,
 }
 
 impl ProbeHandler {

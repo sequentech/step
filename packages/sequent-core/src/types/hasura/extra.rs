@@ -8,8 +8,7 @@ use crate::ballot::{
     ElectionEventStatistics, ElectionEventStatus, ElectionPresentation,
     ElectionStatistics, ElectionStatus,
 };
-use anyhow::{anyhow, Result};
-use borsh::{BorshDeserialize, BorshSerialize};
+use anyhow::Result;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::default::Default;
@@ -121,6 +120,10 @@ impl Candidate {
     EnumString,
     Default,
     JsonSchema,
+)]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the public status variants and their default serialized names"
 )]
 pub enum TasksExecutionStatus {
     #[default]

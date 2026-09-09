@@ -23,7 +23,7 @@ use deadpool_postgres::Transaction;
 use electoral_log::assign_value;
 use electoral_log::messages::message::{Message, SigningData};
 use electoral_log::messages::newtypes::{CertificateAuthEventAction, *};
-use electoral_log::messages::statement::{StatementBody, StatementType};
+use electoral_log::messages::statement::StatementType;
 use electoral_log::{
     ElectoralLogMessage, ElectoralLogVarCharColumn, SqlCompOperators, WhereClauseBTreeMap,
 };
@@ -484,15 +484,13 @@ pub struct ElectoralLog {
 }
 
 pub fn flatten_election_ids(election_ids: Option<Vec<String>>) -> Option<String> {
-    election_ids
-        .map(|ids| {
-            if ids.len() == 1 {
-                Some(ids[0].clone())
-            } else {
-                None
-            }
-        })
-        .flatten()
+    election_ids.and_then(|ids| {
+        if ids.len() == 1 {
+            Some(ids[0].clone())
+        } else {
+            None
+        }
+    })
 }
 
 impl ElectoralLog {
@@ -555,14 +553,14 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
-    #[instrument(skip(voter_signing_key), err)]
+    #[instrument(skip(_voter_signing_key), err)]
     pub async fn for_voter(
         hasura_transaction: &Transaction<'_>,
         elog_database: &str,
         tenant_id: &str,
         event_id: &str,
         user_id: &str,
-        voter_signing_key: &Option<StrandSignaturePk>,
+        _voter_signing_key: &Option<StrandSignaturePk>,
     ) -> Result<Self> {
         let protocol_manager = get_protocol_manager::<RistrettoCtx>(
             hasura_transaction,
@@ -587,6 +585,10 @@ impl ElectoralLog {
     /// We need to pass in the log database because the vault
     /// will post a public key message if it needs to generates
     /// a signing key.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing audit API argument order for actor, scope and signed-message fields."
+    )]
     #[instrument(err, skip(hasura_transaction))]
     pub async fn for_admin_user(
         hasura_transaction: &Transaction<'_>,
@@ -646,7 +648,7 @@ impl ElectoralLog {
         let system_sk = protocol_manager.get_signing_key().clone();
         let sd = SigningData::new(system_sk.clone(), "", system_sk.clone());
 
-        let pseudonym = hash_voter_id(&user_id)?;
+        let pseudonym = hash_voter_id(user_id)?;
         let message = Message::voter_public_key_message(
             TenantIdString(tenant_id.to_string()),
             EventIdString(event_id.to_string()),
@@ -690,6 +692,10 @@ impl ElectoralLog {
     /// in the context of one event and the notification will only
     /// be present in its log, even if the corresponding signing private key
     /// would be used in other events.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing audit API argument order for actor, scope and signed-message fields."
+    )]
     pub async fn post_admin_pk(
         hasura_transaction: &Transaction<'_>,
         elog_database: &str,
@@ -738,6 +744,10 @@ impl ElectoralLog {
         ret
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing audit API argument order for actor, scope and signed-message fields."
+    )]
     #[instrument(skip(self, pseudonym_h, vote_h))]
     pub async fn post_cast_vote(
         &self,
@@ -791,6 +801,10 @@ impl ElectoralLog {
         Ok(())
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing audit API argument order for actor, scope and signed-message fields."
+    )]
     #[instrument(skip(self, pseudonym_h))]
     pub async fn post_cast_vote_error(
         &self,
@@ -883,6 +897,10 @@ impl ElectoralLog {
         self.post(&message).await
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing audit API argument order for actor, scope and signed-message fields."
+    )]
     #[instrument(skip_all, fields(direction = %direction, api_name = %api_name), err)]
     pub async fn post_external_api_request(
         &self,
@@ -937,6 +955,10 @@ impl ElectoralLog {
     /// it. `artifact` carries the JSON of old/new values applied, for a
     /// `ChangesApplied` entry (`None` for `PatchGenerated`, which has nothing
     /// to apply yet).
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing audit API argument order for actor, scope and signed-message fields."
+    )]
     #[instrument(skip(self, artifact), fields(kind = %kind), err)]
     pub async fn post_external_reconciliation(
         &self,
@@ -1515,7 +1537,7 @@ impl GetElectoralLogBody {
                     }
                     OrderField::StatementTimestamp | OrderField::Created => { // sql TIMESTAMP type
                         // these have their own column and are inside of Message´s column as well
-                        let datetime = ISO8601::to_date_utc(&value)
+                        let datetime = ISO8601::to_date_utc(value)
                             .map_err(|err| anyhow!("Failed to parse timestamp: {:?}", err))?;
                         let ts: i64 = datetime.timestamp();
                         let ts_end: i64 = ts + 60; // Search along that minute, the second is not specified by the front.
@@ -1560,7 +1582,7 @@ impl GetElectoralLogBody {
                         .enumerate()
                         .map(|(i, _)| format!("@param_area{}", i))
                         .collect();
-                    for (i, area) in area_ids.into_iter().enumerate() {
+                    for (i, area) in area_ids.iter().enumerate() {
                         let param_name = format!("param_area{}", i);
                         params.push(create_named_param(
                             param_name.clone(),
@@ -1622,7 +1644,7 @@ impl GetElectoralLogBody {
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
-            if order_by_clauses.len() > 0 {
+            if !order_by_clauses.is_empty() {
                 clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
             }
         }
@@ -1693,11 +1715,11 @@ impl ElectoralLogRow {
     }
 
     pub fn user_id(&self) -> Option<&str> {
-        self.user_id.as_ref().map(|s| s.as_str())
+        self.user_id.as_deref()
     }
 
     pub fn username(&self) -> Option<&str> {
-        self.username.as_ref().map(|s| s.as_str())
+        self.username.as_deref()
     }
 
     pub fn statement_head_data(&self) -> Result<StatementHeadDataString> {
@@ -1757,7 +1779,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut id = 0;
         let mut created: i64 = 0;
-        let mut sender_pk = String::from("");
+        let mut _sender_pk = String::from("");
         let mut statement_timestamp: i64 = 0;
         let mut statement_kind = String::from("");
         let mut message = vec![];
@@ -1773,7 +1795,7 @@ impl TryFrom<&Row> for ElectoralLogRow {
                     assign_value!(Value::Ts, value, created)
                 }
                 c if c.ends_with(".sender_pk)") => {
-                    assign_value!(Value::S, value, sender_pk)
+                    assign_value!(Value::S, value, _sender_pk)
                 }
                 c if c.ends_with(".statement_timestamp)") => {
                     assign_value!(Value::Ts, value, statement_timestamp)
@@ -1920,9 +1942,7 @@ pub async fn list_electoral_log(input: GetElectoralLogBody) -> Result<DataList<E
     client.close_session().await?;
     Ok(DataList {
         items: rows,
-        total: TotalAggregate {
-            aggregate: aggregate,
-        },
+        total: TotalAggregate { aggregate },
     })
 }
 
@@ -1969,7 +1989,7 @@ pub async fn list_cast_vote_messages(
     username: &str,
 ) -> Result<CastVoteMessagesOutput> {
     ensure!(
-        ballot_id_filter.chars().count() % 2 == 0 && ballot_id_filter.is_ascii(),
+        ballot_id_filter.chars().count().is_multiple_of(2) && ballot_id_filter.is_ascii(),
         "Incorrect ballot_id, the length must be an even number of characters"
     );
     // The limits are used to cut the output after filtering the ballot id.
@@ -2017,7 +2037,7 @@ pub async fn list_cast_vote_messages(
         let t_entries = electoral_log_messages.len();
         info!("Got {t_entries} entries. Offset: {offset}, limit: {limit}, total: {total}");
         for message in electoral_log_messages.iter() {
-            match CastVoteEntry::from_elog_message(&message)? {
+            match CastVoteEntry::from_elog_message(message)? {
                 Some(entry) if !ballot_id_filter.is_empty() => {
                     // If there is filter exit at the first match
                     filter_matched = true;

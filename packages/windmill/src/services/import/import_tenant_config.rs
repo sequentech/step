@@ -92,7 +92,7 @@ pub async fn import_tenant_config_zip(
         let mut cursor = Cursor::new(&mut file_contents[..]);
 
         // Process and import tenant configurations
-        if file_name.contains(&EDocuments::TENANT_CONFIG.to_file_name())
+        if file_name.contains(EDocuments::TENANT_CONFIG.to_file_name())
             && import_options.include_tenant == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
@@ -105,7 +105,7 @@ pub async fn import_tenant_config_zip(
         }
 
         // Process and import roles & permissions configurations
-        if file_name.contains(&EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name())
+        if file_name.contains(EDocuments::ROLES_PERMISSIONS_CONFIG.to_file_name())
             && import_options.include_roles == Some(true)
         {
             let temp_file = read_into_tmp_file(&mut cursor)
@@ -114,7 +114,7 @@ pub async fn import_tenant_config_zip(
 
             read_roles_config_file(temp_file, &realm, tenant_id).await?;
         }
-        if file_name.contains(&EDocuments::KEYCLOAK_CONFIG.to_file_name())
+        if file_name.contains(EDocuments::KEYCLOAK_CONFIG.to_file_name())
             && import_options.include_keycloak.unwrap_or(false)
         {
             info!("Starting Keycloak config import from file: {}", file_name);

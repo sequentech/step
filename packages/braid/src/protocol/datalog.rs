@@ -6,11 +6,11 @@ pub use log::{debug, error, info, trace};
 use std::collections::HashSet;
 
 use crate::protocol::action::Action;
-pub(self) use crate::protocol::predicate::*;
+use crate::protocol::predicate::*;
 
-pub(self) use crate::util::ProtocolError;
-pub(self) use b4::messages::newtypes::*;
-pub(self) use strand::hash::Hash;
+use crate::util::ProtocolError;
+use b4::messages::newtypes::*;
+use strand::hash::Hash;
 
 /// Marks a value in a THashes array as empty.
 pub(crate) const NULL_HASH: [u8; 64] = [0u8; 64];
@@ -160,7 +160,7 @@ pub(crate) fn run(predicates: &Vec<Predicate>) -> Result<HashSet<Action>, Protoc
             actions.insert(a);
         });
 
-        if next.2.len() > 0 {
+        if !next.2.is_empty() {
             let mut errs = vec![];
             next.2.iter().for_each(|d| {
                 error!("Datalog returned error {:?}", d);

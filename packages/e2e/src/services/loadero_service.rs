@@ -6,7 +6,7 @@ use anyhow::{anyhow, Context, Result};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{env, error::Error, thread, time::Duration};
+use std::{env, thread, time::Duration};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TestConfig {
@@ -47,7 +47,7 @@ pub fn init_loadero_test(
     participants_count: u64,
 ) -> Result<String> {
     let test_id =
-        create_test(&loadero_url, test_config).context("Failed to create test in Loadero")?;
+        create_test(loadero_url, test_config).context("Failed to create test in Loadero")?;
 
     create_test_participants(loadero_url, &test_id, participants_count)
         .with_context(|| format!("Failed to create participants for test ID {}", test_id))?;
@@ -63,7 +63,7 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
         .parse()
         .context("LOADERO_INTERVAL_POLLING_TIME must be an string")?;
 
-    let run_id = launch_test(&loadero_url, &test_id)
+    let run_id = launch_test(loadero_url, test_id)
         .with_context(|| format!("Failed to launch test ID {}", test_id))?;
 
     println!("Test {} (run ID {})", test_id, run_id);
@@ -72,7 +72,7 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
     let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
     loop {
         println!("check status:");
-        match check_test_status(&loadero_url, &test_id, &run_id) {
+        match check_test_status(loadero_url, test_id, &run_id) {
             Ok((pass, fail)) => {
                 println!(
                     "Test {} (run ID {}): Passed {} times, Failed {} times",
@@ -197,7 +197,7 @@ pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
         if let Some(results) = response_json["results"].as_array() {
             for result in results {
                 if let (Some(id), Some(name)) = (result["id"].as_i64(), result["name"].as_str()) {
-                    if test_name == name.to_string() {
+                    if test_name == name {
                         return Ok(Some(id.to_string()));
                     }
                 }
@@ -210,11 +210,11 @@ pub fn get_test_id_by_name(test_name: String) -> Result<Option<String>> {
         let error_message = response
             .text()
             .unwrap_or_else(|_| "Could not read response body".to_string());
-        return Err(anyhow!(
+        Err(anyhow!(
             "HTTP Status: {}\nError Message: {}",
             status,
             error_message
-        ));
+        ))
     }
 }
 
@@ -327,10 +327,10 @@ pub fn update_script(test_id: &str, test_config: TestConfig) -> Result<()> {
         let error_message = response
             .text()
             .unwrap_or_else(|_| "Could not read response body".to_string());
-        return Err(anyhow!(
+        Err(anyhow!(
             "Update Test error: HTTP Status: {}\nError Message: {}",
             status,
             error_message
-        ));
+        ))
     }
 }

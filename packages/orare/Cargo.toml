@@ -38,3 +38,6 @@ sequent-core = { path = "../sequent-core", features = ["reports", "log", "areas"
 default = []
 aws_lambda = ["sequent-core/s3"]
 openwhisk = []
+
+[lints.rust]
+unsafe_code = "forbid"

@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
+use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::electoral_log::{
     list_electoral_log as get_logs, ElectoralLogRow, GetElectoralLogBody,

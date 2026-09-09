@@ -2,12 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::KeysCeremony;
 use serde_json::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, info, instrument, Level};
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct KeysCeremonyWrapper(pub KeysCeremony);
@@ -123,11 +123,15 @@ pub async fn get_keys_ceremony_by_id(
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
     keys_ceremonies
-        .get(0)
-        .map(|keys_ceremony| keys_ceremony.clone())
+        .first()
+        .cloned()
         .ok_or(anyhow!("Keys ceremony {keys_ceremony_id} not found"))
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_keys_ceremony(
     hasura_transaction: &Transaction<'_>,
@@ -207,10 +211,7 @@ pub async fn insert_keys_ceremony(
         })
         .collect::<Result<Vec<KeysCeremony>>>()?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction, status), err)]
@@ -254,7 +255,7 @@ pub async fn update_keys_ceremony_status(
         .await
         .map_err(|err| anyhow!("Error running the update_keys_ceremony_status query: {err}"))?;
 
-    if 0 == rows.len() {
+    if rows.is_empty() {
         return Err(anyhow!("No keys ceremony found"));
     }
 

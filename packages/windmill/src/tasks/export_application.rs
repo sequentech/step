@@ -6,10 +6,9 @@ use crate::{
     services::{export::export_application::process_export, tasks_execution::update_fail},
     types::error::{Error, Result},
 };
-use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
@@ -26,7 +25,8 @@ pub async fn export_application(
         Ok(_) => (),
         Err(err) => {
             let err_str = format!("Error sending export_application task: {err:?}");
-            update_fail(&task_execution, &err_str).await;
+            // update_fail logs its own error; preserve the original operation failure.
+            let _ = update_fail(&task_execution, &err_str).await;
             return Err(Error::String(err_str));
         }
     }

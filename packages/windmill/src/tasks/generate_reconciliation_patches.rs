@@ -558,6 +558,10 @@ fn write_batch_to_all_outputs<EW: Write, SW: Write, CW: Write>(
 /// object rather than `serde_json::to_writer(&ReconciliationDiff {..})`
 /// because `items` must be streamed before these fields are known — see the
 /// call site's comment.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing serialized envelope fields explicit in their writer helper; changing grouping has no format benefit."
+)]
 fn write_envelope_tail<W: Write>(
     writer: &mut W,
     sequence: i64,

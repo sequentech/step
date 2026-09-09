@@ -3,14 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::{
-    self, AreaAnnotations, AreaPresentation, CandidatePresentation,
-    ContestPresentation, EOverVotePolicy, ElectionEventPresentation,
-    ElectionPresentation, I18nContent, StringifiedPeriodDates,
-    TieBreakingPolicy, WeightedVotingPolicy,
+    self, AreaPresentation, CandidatePresentation, ContestPresentation,
+    EOverVotePolicy, ElectionEventPresentation, ElectionPresentation,
+    I18nContent, StringifiedPeriodDates, TieBreakingPolicy,
 };
 
 use crate::serialization::deserialize_with_path::deserialize_value;
-use crate::services::translations::{Alias, Name};
 use crate::types::ceremonies::CountingAlgType;
 use crate::types::hasura::core::{self as hasura_types};
 use anyhow::{anyhow, Context, Result};
@@ -36,6 +34,10 @@ pub fn parse_i18n_field(
     Some(content)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing assembly API with distinct area, election, contest, candidate, date and key inputs"
+)]
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area
@@ -59,7 +61,7 @@ pub fn create_ballot_style(
     let election_event_presentation: ElectionEventPresentation = election_event
         .presentation
         .clone()
-        .map(|presentation| deserialize_value(presentation))
+        .map(deserialize_value)
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election Event presentation {:?}", err)
@@ -69,7 +71,7 @@ pub fn create_ballot_style(
     let election_event_annotations: HashMap<String, String> = election_event
         .annotations
         .clone()
-        .map(|annotations| deserialize_value(annotations))
+        .map(deserialize_value)
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election Event annotations {:?}", err)
@@ -79,7 +81,7 @@ pub fn create_ballot_style(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|presentation| deserialize_value(presentation))
+        .map(deserialize_value)
         .transpose()
         .map_err(|err| {
             anyhow!("Error parsing election presentation {:?}", err)
@@ -89,7 +91,7 @@ pub fn create_ballot_style(
     let election_annotations: HashMap<String, String> = election
         .annotations
         .clone()
-        .map(|annotations| deserialize_value(annotations))
+        .map(deserialize_value)
         .transpose()
         .map_err(|err| anyhow!("Error parsing election annotations {:?}", err))?
         .unwrap_or_default();
@@ -174,7 +176,7 @@ fn resolve_multi_contest_encoding_mode(
         let contest_presentation = contest
             .presentation
             .clone()
-            .map(|presentation_value| deserialize_value(presentation_value))
+            .map(deserialize_value)
             .unwrap_or(Ok(ContestPresentation::new()))?;
 
         if matches!(
@@ -200,7 +202,7 @@ fn create_contest(
     let contest_presentation = contest
         .presentation
         .clone()
-        .map(|presentation_value| deserialize_value(presentation_value))
+        .map(deserialize_value)
         .unwrap_or(Ok(ContestPresentation::new()))?;
     let name_i18n = parse_i18n_field(&contest_presentation.i18n, "name");
     let description_i18n =
@@ -209,12 +211,11 @@ fn create_contest(
 
     let candidates: Vec<ballot::Candidate> = sorted_candidates
         .iter()
-        .enumerate()
-        .map(|(_i, candidate)| {
+        .map(|candidate| {
             let candidate_presentation = candidate
                 .presentation
                 .clone()
-                .map(|presentation_value| deserialize_value(presentation_value))
+                .map(deserialize_value)
                 .unwrap_or(Ok(CandidatePresentation::new()))?;
 
             let name_i18n =
@@ -244,13 +245,13 @@ fn create_contest(
                 description: candidate.description.clone(),
                 description_i18n,
                 alias: candidate_alias.clone(),
-                alias_i18n: alias_i18n,
+                alias_i18n,
                 candidate_type: candidate.r#type.clone(),
                 presentation: Some(candidate_presentation),
                 annotations: candidate
                     .annotations
                     .clone()
-                    .map(|value| deserialize_value(value))
+                    .map(deserialize_value)
                     .transpose()?,
             })
         })
@@ -308,7 +309,7 @@ fn create_contest(
         annotations: contest
             .annotations
             .clone()
-            .map(|value| deserialize_value(value))
+            .map(deserialize_value)
             .transpose()?,
         tie_breaking_policy,
     })

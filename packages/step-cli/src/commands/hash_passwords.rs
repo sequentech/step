@@ -7,7 +7,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use clap::Args;
 use colored::Colorize;
 use csv::{ReaderBuilder, StringRecord, WriterBuilder};
-use rand::thread_rng;
+use rand::rng;
 use rand::Rng;
 use rayon::prelude::*;
 use ring::{digest, pbkdf2};
@@ -73,8 +73,8 @@ impl HashPasswords {
             .map(|record| {
                 let password = record.get(password_index).unwrap_or("");
                 let mut salt_bytes: Credential = Default::default();
-                thread_rng().fill(&mut salt_bytes);
-                let password_salt = BASE64_STANDARD.encode(&salt_bytes);
+                rng().fill(&mut salt_bytes);
+                let password_salt = BASE64_STANDARD.encode(salt_bytes);
                 let hashed_password =
                     hash_password(&password.to_string(), &salt_bytes, &self.iterations)?;
                 let new_fields: Vec<&str> = record
@@ -116,6 +116,6 @@ fn hash_password(password: &String, salt: &[u8], iterations: &NonZeroU32) -> Res
         &mut output,
     );
 
-    let generated_hash = BASE64_STANDARD.encode(&output);
+    let generated_hash = BASE64_STANDARD.encode(output);
     Ok(generated_hash)
 }

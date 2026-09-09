@@ -145,7 +145,6 @@ pub enum CredentialInputPolicy {
     #[serde(rename = "standard")]
     STANDARD,
     #[strum(
-        serialize = "structured",
         serialize = "pattern",
         to_string = "structured"
     )]

@@ -6,7 +6,6 @@
 
 use anyhow::Context;
 use anyhow::{anyhow, Result};
-use celery::Celery;
 use clap::Parser;
 use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;

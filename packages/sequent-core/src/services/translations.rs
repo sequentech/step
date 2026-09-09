@@ -4,10 +4,9 @@
 
 use crate::{
     ballot::{
-        Contest, ContestEncryptionPolicy, ContestPresentation,
-        DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
-        ElectionEventPresentation, ElectionPresentation, I18nContent,
-        LanguageDetectionPolicy, VotingPortalDateTimeFormat,
+        Contest, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
+        DelegatedVotingPolicy, ElectionEventPresentation, ElectionPresentation,
+        I18nContent, LanguageDetectionPolicy, VotingPortalDateTimeFormat,
         WeightedVotingPolicy,
     },
     serialization::deserialize_with_path::deserialize_value,
@@ -147,30 +146,22 @@ impl Alias for Election {
 
 impl Name for Contest {
     fn get_name(&self, language: &str) -> String {
-        let alias = self
-            .alias_i18n
-            .clone()
-            .map(|alias_i18n| {
-                alias_i18n
-                    .get(language)
-                    .cloned()
-                    .or(alias_i18n.get(DEFAULT_LANG).cloned())
-                    .or(Some(self.alias.clone()))
-                    .flatten()
-            })
-            .flatten();
-        let name = self
-            .name_i18n
-            .clone()
-            .map(|name_i18n| {
-                name_i18n
-                    .get(language)
-                    .cloned()
-                    .or(name_i18n.get(DEFAULT_LANG).cloned())
-                    .or(Some(self.name.clone()))
-                    .flatten()
-            })
-            .flatten();
+        let alias = self.alias_i18n.clone().and_then(|alias_i18n| {
+            alias_i18n
+                .get(language)
+                .cloned()
+                .or(alias_i18n.get(DEFAULT_LANG).cloned())
+                .or(Some(self.alias.clone()))
+                .flatten()
+        });
+        let name = self.name_i18n.clone().and_then(|name_i18n| {
+            name_i18n
+                .get(language)
+                .cloned()
+                .or(name_i18n.get(DEFAULT_LANG).cloned())
+                .or(Some(self.name.clone()))
+                .flatten()
+        });
 
         alias.or(name).unwrap_or("-".into())
     }

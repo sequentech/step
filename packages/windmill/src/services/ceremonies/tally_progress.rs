@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::weight_batches::contest_weight_batches;
-use anyhow::{anyhow, Context, Result};
-use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use anyhow::Result;
+use b4::messages::{message::Message, statement::StatementType};
 use sequent_core::types::{
     ceremonies::{TallyElection, TallyElectionStatus},
     hasura::core::{TallySession, TallySessionContest},
 };
 use std::collections::{HashMap, HashSet};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[instrument(skip_all)]
-fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<i64> {
+fn get_session_ids_by_type(messages: &[Message], kind: StatementType) -> Vec<i64> {
     let mut plaintext_batch_ids: Vec<i64> = messages
         .iter()
         .map(|message| {
@@ -24,7 +24,7 @@ fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<
         })
         .filter(|value| *value > -1)
         .collect();
-    plaintext_batch_ids.sort_by_key(|id| id.clone());
+    plaintext_batch_ids.sort_by_key(|id| *id);
     plaintext_batch_ids.dedup();
     plaintext_batch_ids
 }
@@ -33,7 +33,7 @@ fn get_session_ids_by_type(messages: &Vec<Message>, kind: StatementType) -> Vec<
 pub async fn generate_tally_progress(
     tally_session: TallySession,
     tally_session_contest: Vec<TallySessionContest>,
-    messages: &Vec<Message>,
+    messages: &[Message],
 ) -> Result<Vec<TallyElection>> {
     let mut complete_map: HashMap<String, Vec<i64>> = HashMap::new();
     // let tally_session = tally_session_data
@@ -49,7 +49,7 @@ pub async fn generate_tally_progress(
     for contest in &tally_session_contest {
         let mut batch_ids = complete_map
             .get(&contest.election_id)
-            .map(|v| v.clone())
+            .cloned()
             .unwrap_or(vec![]);
         // Every batch the area owns, not just the first. Under weighting the
         // batch at `session_id` is not posted at all when no voter has an odd
@@ -71,19 +71,13 @@ pub async fn generate_tally_progress(
     let mut decrypting_batch_ids: Vec<i64> =
         get_session_ids_by_type(messages, StatementType::DecryptionFactors);
 
-    decrypting_batch_ids = decrypting_batch_ids
-        .into_iter()
-        .filter(|value| !finished_batch_ids.contains(&value))
-        .collect();
+    decrypting_batch_ids.retain(|value| !finished_batch_ids.contains(value));
 
     let mut mixing_batch_ids: Vec<i64> = get_session_ids_by_type(messages, StatementType::Mix);
 
-    mixing_batch_ids = mixing_batch_ids
-        .into_iter()
-        .filter(|value| {
-            !finished_batch_ids.contains(&value) && !decrypting_batch_ids.contains(&value)
-        })
-        .collect();
+    mixing_batch_ids.retain(|value| {
+        !finished_batch_ids.contains(value) && !decrypting_batch_ids.contains(value)
+    });
 
     let mut tally_elections_status: Vec<TallyElection> = complete_map
         .iter()
@@ -109,8 +103,9 @@ pub async fn generate_tally_progress(
                     + 0.4 * (num_decrypting_contests as f64)
                     + (num_finished_contests as f64))
                 / (total as f64);
-            // clamp values to 0-100
-            progress = progress.min(100.0).max(0.0);
+            // Every map entry owns at least one batch: contest_weight_batches
+            // rejects empty masks. The bounded integer counts keep this finite.
+            progress = progress.clamp(0.0, 100.0);
             let new_status = if num_finished_contests >= total {
                 TallyElectionStatus::SUCCESS
             } else if num_decrypting_contests == 0 && num_mixing_contests > 0 {

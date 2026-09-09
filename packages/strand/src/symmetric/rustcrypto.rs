@@ -55,8 +55,7 @@ impl EncryptionData {
 }
 
 pub fn gen_key() -> Array<u8, U32> {
-    let key = chacha20poly1305::ChaCha20Poly1305::generate_key().unwrap();
-    key
+    chacha20poly1305::ChaCha20Poly1305::generate_key().unwrap()
 }
 pub fn encrypt(
     key: Array<u8, U32>,
@@ -69,7 +68,7 @@ pub fn encrypt(
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)
-        .map_err(|e| StrandError::Chacha20Error(e))?;
+        .map_err(StrandError::Chacha20Error)?;
 
     Ok(EncryptionData {
         encrypted_bytes: encrypted,
@@ -81,11 +80,11 @@ pub fn decrypt(
     key: &Array<u8, U32>,
     ed: &EncryptionData,
 ) -> Result<Vec<u8>, StrandError> {
-    let cipher = ChaCha20Poly1305::new(&key);
+    let cipher = ChaCha20Poly1305::new(key);
     let bytes: &[u8] = &ed.encrypted_bytes;
     let decrypted = cipher
         .decrypt(&ed.nonce.into(), bytes)
-        .map_err(|e| StrandError::Chacha20Error(e))?;
+        .map_err(StrandError::Chacha20Error)?;
 
     Ok(decrypted)
 }
@@ -94,6 +93,10 @@ pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
     let key = Array::<u8, U32>::try_from(bytes).to_owned();
 
     key.map_err(|e| StrandError::InvalidSymmetricKeyLength(e.to_string()))
+}
+
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }
 
 #[cfg(test)]
@@ -112,12 +115,8 @@ mod tests {
 
         let encrypted = encrypt(key, &data).unwrap();
 
-        let decrypted = decrypt((&key).into(), &encrypted).unwrap();
+        let decrypted = decrypt(&key, &encrypted).unwrap();
 
         assert_eq!(data.to_vec(), decrypted);
     }
-}
-
-pub fn info() -> String {
-    format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }

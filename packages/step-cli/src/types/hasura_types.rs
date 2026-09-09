@@ -9,8 +9,3 @@ use serde_json::Value;
 pub type uuid = String;
 pub type jsonb = Value;
 pub type timestamptz = String;
-pub type bytea = String;
-pub type text = String;
-pub type varchar = String;
-pub type numeric = f64;
-pub type json = Value;

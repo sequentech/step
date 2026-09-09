@@ -6,7 +6,6 @@ use super::error::{Error, Result};
 use super::CliRun;
 use crate::config::PipeConfig;
 use crate::pipes::error::Error as PipesError;
-use crate::pipes::generate_db::GenerateDatabase;
 use crate::pipes::generate_reports::{ElectionReportDataComputed, GenerateReports};
 use crate::pipes::pipe_inputs::PipeInputs;
 use crate::pipes::PipeManager;
@@ -67,15 +66,13 @@ impl State {
     #[instrument(skip_all)]
     pub fn get_next(&self) -> Option<PipeName> {
         let stage_name = self.cli.stage.clone();
-        self.get_stage(&stage_name)
-            .map(|stage| {
-                if stage.current_pipe == stage.previous_pipe {
-                    None
-                } else {
-                    stage.current_pipe
-                }
-            })
-            .flatten()
+        self.get_stage(&stage_name).and_then(|stage| {
+            if stage.current_pipe == stage.previous_pipe {
+                None
+            } else {
+                stage.current_pipe
+            }
+        })
     }
 
     #[instrument(skip_all)]
@@ -114,7 +111,7 @@ impl State {
             .find(|s| s.name == stage_name)
             .ok_or(Error::PipeNotFound)?;
 
-        stage.previous_pipe = stage.current_pipe.clone();
+        stage.previous_pipe = stage.current_pipe;
         stage.current_pipe = next_pipe;
         stage.current_pipe = next_pipe;
 

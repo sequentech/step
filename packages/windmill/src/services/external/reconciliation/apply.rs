@@ -23,6 +23,8 @@
 //! path — this module re-validates the same underlying condition
 //! (`VoterCastVoteState`, including unresolved and valid votes) directly.
 
+pub type UserStateUpdate = (Option<bool>, HashMap<String, Vec<String>>);
+
 use crate::postgres::area::{get_area_by_id, get_area_id_from_event_by_name};
 use crate::postgres::cast_vote::get_voter_cast_vote_state;
 use crate::services::external::reconciliation::diff::DiffItem;
@@ -160,7 +162,7 @@ async fn apply_voter_changes_locked(
             hasura_transaction,
             &parse_uuid_v4(tenant_id)?,
             &parse_uuid_v4(election_event_id)?,
-            &user_id,
+            user_id,
         )
         .await?;
         if state.has_unresolved_vote || state.has_valid_vote {
@@ -186,7 +188,7 @@ async fn apply_voter_changes_locked(
         tenant_id,
         election_event_id,
         realm,
-        &user_id,
+        user_id,
         items,
     )
     .await
@@ -320,9 +322,7 @@ async fn validate_old_values(
 /// exactly as Keycloak expects, and derives the `enabled` transition from any
 /// `Enabled` item's new value. Purely mechanical: diff.rs already decided
 /// every value, this just collects them.
-fn keycloak_edit_from_items(
-    items: &[DiffItem],
-) -> std::result::Result<(Option<bool>, HashMap<String, Vec<String>>), String> {
+fn keycloak_edit_from_items(items: &[DiffItem]) -> std::result::Result<UserStateUpdate, String> {
     let mut enabled = None;
     let mut attributes: HashMap<String, Vec<String>> = HashMap::new();
     for item in items {

@@ -4,19 +4,14 @@
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
-use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
-use uuid::Uuid;
-use windmill::services::celery_app::get_celery_app;
+use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
-use windmill::services::tasks_execution::*;
-use windmill::types::tasks::ETasksExecution;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GeneratePreviewUrlInput {

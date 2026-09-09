@@ -8,7 +8,6 @@ use crate::services::providers::sms_sender::{SmsSender, SmsTransport};
 use crate::services::vault::check_master_secret;
 use core::time::Duration;
 use deadpool_postgres::Timeouts;
-use sequent_core::services::keycloak::get_client_credentials;
 use sequent_core::services::probe::ProbeHandler;
 use sequent_core::services::s3;
 use std::net::SocketAddr;
@@ -60,7 +59,7 @@ async fn check_celery(_app_name: &AppName) -> Option<bool> {
 
     match celery_app.check_consumer_health(&queues_to_check).await {
         Ok(health_info) => {
-            let mut all_healthy = true;
+            let all_healthy = true;
 
             for health in &health_info {
                 info!(
@@ -216,7 +215,7 @@ async fn readiness_test(app_name: &AppName) -> bool {
         celery_ok, hasura_db_ok, keycloak_db_ok, aws_secrets_ok, s3_ok, sms_sender_ok
     );
 
-    let data = vec![
+    let data = [
         celery_ok,
         hasura_db_ok,
         keycloak_db_ok,

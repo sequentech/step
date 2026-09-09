@@ -10,7 +10,7 @@ use rust_decimal::Decimal;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::results::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use tokio_postgres::row::Row;
 use tokio_postgres::types::ToSql;
@@ -23,9 +23,8 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
 
     fn try_from(item: Row) -> Result<Self> {
         let documents_value: Option<Value> = item.try_get("documents")?;
-        let documents: Option<ResultDocuments> = documents_value
-            .map(|value| deserialize_value(value))
-            .transpose()?;
+        let documents: Option<ResultDocuments> =
+            documents_value.map(deserialize_value).transpose()?;
 
         Ok(ResultsAreaContestWrapper(ResultsAreaContest {
             id: item.try_get::<_, Uuid>("id")?.to_string(),
@@ -119,6 +118,10 @@ impl TryFrom<Row> for ResultsAreaContestWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn update_results_area_contest_documents(
     hasura_transaction: &Transaction<'_>,
@@ -131,18 +134,18 @@ pub async fn update_results_area_contest_documents(
     documents: &ResultDocuments,
 ) -> Result<()> {
     let documents_value = serde_json::to_value(documents.clone())?;
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
-    let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
+    let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
         .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
-    let contest_uuid: uuid::Uuid = parse_uuid_v4(&contest_id)
+    let contest_uuid: uuid::Uuid = parse_uuid_v4(contest_id)
         .map_err(|err| anyhow!("Error parsing contest_id as UUID: {}", err))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
@@ -200,18 +203,18 @@ pub async fn get_results_area_contest(
     contest_id: Option<&str>,
     area_id: &str,
 ) -> Result<Option<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
-    let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
+    let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {err:?}"))?;
     let area_uuid: uuid::Uuid =
-        parse_uuid_v4(&area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
+        parse_uuid_v4(area_id).map_err(|err| anyhow!("Error parsing area_id as UUID: {err:?}"))?;
 
     let (contest_uuid, contest_clause): (Option<uuid::Uuid>, &str) = match contest_id {
         Some(contest_id) => {
-            let c_uuid = parse_uuid_v4(&contest_id)
+            let c_uuid = parse_uuid_v4(contest_id)
                 .map_err(|err| anyhow!("Error parsing contest_id as UUID: {err:?}"))?;
             let clause = " AND contest_id = $5";
             (Some(c_uuid), clause)
@@ -249,7 +252,7 @@ pub async fn get_results_area_contest(
     }
 
     let rows = hasura_transaction
-        .query(&statement, &params.as_slice())
+        .query(&statement, params.as_slice())
         .await
         .map_err(|err| anyhow!("Error running the query: {:?}", err))?;
 
@@ -320,46 +323,34 @@ pub async fn insert_results_area_contests(
                 results_event_id: results_event_uuid,
                 elegible_census: area_contest.elegible_census,
                 total_votes: area_contest.total_votes,
-                total_votes_percent: area_contest.total_votes_percent.clone().map(|n| n.into()),
+                total_votes_percent: area_contest.total_votes_percent.map(|n| n.into()),
                 total_auditable_votes: area_contest.total_auditable_votes,
                 total_auditable_votes_percent: area_contest
                     .total_auditable_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_valid_votes: area_contest.total_valid_votes,
-                total_valid_votes_percent: area_contest
-                    .total_valid_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_valid_votes_percent: area_contest.total_valid_votes_percent.map(|n| n.into()),
                 total_invalid_votes: area_contest.total_invalid_votes,
                 total_invalid_votes_percent: area_contest
                     .total_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 explicit_invalid_votes: area_contest.explicit_invalid_votes,
                 explicit_invalid_votes_percent: area_contest
                     .explicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_invalid_votes: area_contest.implicit_invalid_votes,
                 implicit_invalid_votes_percent: area_contest
                     .implicit_invalid_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 total_blank_votes: area_contest.total_blank_votes,
                 explicit_blank_votes: area_contest.explicit_blank_votes,
                 implicit_blank_votes: area_contest.implicit_blank_votes,
-                total_blank_votes_percent: area_contest
-                    .total_blank_votes_percent
-                    .clone()
-                    .map(|n| n.into()),
+                total_blank_votes_percent: area_contest.total_blank_votes_percent.map(|n| n.into()),
                 explicit_blank_votes_percent: area_contest
                     .explicit_blank_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 implicit_blank_votes_percent: area_contest
                     .implicit_blank_votes_percent
-                    .clone()
                     .map(|n| n.into()),
                 annotations: area_contest.annotations.clone(),
             })
@@ -481,13 +472,12 @@ pub async fn get_event_results_area_contest(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Vec<ResultsAreaContest>> {
-    let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
+    let tenant_uuid: uuid::Uuid = parse_uuid_v4(tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {err:?}"))?;
-    let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
+    let election_event_uuid: uuid::Uuid = parse_uuid_v4(election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {err:?}"))?;
 
-    let statement_str = format!(
-        r#"
+    let statement_str = r#"
                 SELECT
                     *
                 FROM
@@ -496,7 +486,7 @@ pub async fn get_event_results_area_contest(
                     tenant_id = $1 AND
                     election_event_id = $2;
             "#
-    );
+    .to_string();
 
     let statement = hasura_transaction.prepare(statement_str.as_str()).await?;
 

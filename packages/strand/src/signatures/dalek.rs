@@ -44,7 +44,7 @@ use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 use crate::rng::StrandRng;
 use crate::util;
@@ -65,8 +65,7 @@ impl StrandSignature {
     }
 
     pub fn from_bytes(bytes: [u8; 64]) -> Result<StrandSignature, StrandError> {
-        let signature = Signature::try_from(bytes)
-            .map_err(|e| StrandError::Generic(e.to_string()))?;
+        let signature = Signature::from(bytes);
 
         Ok(StrandSignature(signature))
     }
@@ -116,8 +115,8 @@ impl StrandSignaturePk {
 
     /// Parses a spki der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignaturePk, StrandError> {
-        let sk = VerifyingKey::from_public_key_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        let sk = VerifyingKey::from_public_key_der(bytes)
+            .map_err(|e| Error::other(e.to_string()))?;
 
         Ok(StrandSignaturePk(sk))
     }
@@ -141,8 +140,7 @@ impl StrandSignaturePk {
     pub fn from_bytes(
         bytes: [u8; 32],
     ) -> Result<StrandSignaturePk, StrandError> {
-        let sk = VerifyingKey::from_bytes(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))?;
+        let sk = VerifyingKey::from_bytes(&bytes).map_err(Error::other)?;
 
         Ok(StrandSignaturePk(sk))
     }
@@ -183,8 +181,8 @@ impl StrandSignatureSk {
 
     /// Parses a pkcs#8 v1 or v2 der representation.
     pub fn from_der(bytes: &[u8]) -> Result<StrandSignatureSk, StrandError> {
-        let sk = SigningKey::from_pkcs8_der(&bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e.to_string()))?;
+        let sk = SigningKey::from_pkcs8_der(bytes)
+            .map_err(|e| Error::other(e.to_string()))?;
 
         Ok(StrandSignatureSk(sk))
     }
@@ -237,8 +235,7 @@ impl BorshDeserialize for StrandSignaturePk {
     ) -> Result<Self, std::io::Error> {
         let bytes = <[u8; 32]>::deserialize_reader(reader)?;
 
-        StrandSignaturePk::from_bytes(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+        StrandSignaturePk::from_bytes(bytes).map_err(Error::other)
     }
 }
 
@@ -257,8 +254,7 @@ impl BorshDeserialize for StrandSignature {
         reader: &mut R,
     ) -> Result<Self, std::io::Error> {
         let bytes = <[u8; 64]>::deserialize_reader(reader)?;
-        StrandSignature::from_bytes(bytes)
-            .map_err(|e| Error::new(ErrorKind::Other, e))
+        StrandSignature::from_bytes(bytes).map_err(Error::other)
     }
 }
 
@@ -366,6 +362,10 @@ impl<'de> Deserialize<'de> for StrandSignature {
     }
 }
 
+pub fn info() -> String {
+    format!("{}, FIPS_ENABLED: FALSE", module_path!())
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -377,9 +377,9 @@ pub(crate) mod tests {
         openssl pkey -in test25519.der -outform der -pubout -out pk.der
         openssl base64 -in pk.der -out pk.b64
     */
-    const SK_STR: &'static str =
+    const SK_STR: &str =
         "MC4CAQAwBQYDK2VwBCIEII6bMx4lMnY83pVId7YbeOYGHoSZAnP7KjR/WsjaXkc9";
-    const PK_STR: &'static str =
+    const PK_STR: &str =
         "MCowBQYDK2VwAyEApnH8A4iAauMx0tZOx9JrpnG37adrUPiXg5klJ7fZRLU=";
 
     #[test]
@@ -510,8 +510,4 @@ pub(crate) mod tests {
 
         assert!(ok.is_ok());
     }
-}
-
-pub fn info() -> String {
-    format!("{}, FIPS_ENABLED: FALSE", module_path!())
 }

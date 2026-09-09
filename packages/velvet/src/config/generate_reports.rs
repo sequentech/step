@@ -2,18 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use sequent_core::{
-    ballot::ConsolidatedReportPolicy,
-    types::{
-        ceremonies::TallyType,
-        date_time::{DateFormat, TimeZone},
-        hasura::core::TallySessionConfiguration,
-        templates::PrintToPdfOptionsLocal,
-    },
+use sequent_core::types::{
+    ceremonies::TallyType, hasura::core::TallySessionConfiguration,
+    templates::PrintToPdfOptionsLocal,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::{collections::HashMap, str::FromStr};
+use serde_json::Value;
+use std::collections::HashMap;
 use strum_macros::EnumString;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -40,4 +35,4 @@ pub struct ContestReportConfig {
     pub candidates_order: CandidatesOrderPolicy,
 }
 
-pub const CONTEST_REPORT_CONFIG: &'static str = "sequent:velvet:contest-report-config";
+pub const CONTEST_REPORT_CONFIG: &str = "sequent:velvet:contest-report-config";

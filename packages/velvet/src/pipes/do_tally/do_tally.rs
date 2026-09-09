@@ -17,11 +17,9 @@ use crate::pipes::{
 use crate::utils::HasId;
 use rayon::prelude::*;
 use sequent_core::{
-    ballot::{BallotStyle, Candidate},
-    ballot_style,
+    ballot::Candidate,
     services::area_tree::TreeNodeArea,
-    sqlite::election_event,
-    types::ceremonies::{ScopeOperation, TallyOperation},
+    types::ceremonies::ScopeOperation,
     types::hasura::core::TallySheet,
     types::participation::VotesByChannel,
     types::tally_sheets::VotingChannel,
@@ -38,11 +36,11 @@ use std::cmp;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
-use tracing::{debug, event, info, instrument, Level, Value as TracingValue};
+use tracing::{debug, info, instrument};
 use uuid::Uuid;
 
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
@@ -63,7 +61,7 @@ impl DoTally {
 
 #[instrument]
 pub fn list_tally_sheet_subfolders(path: &Path) -> Vec<PathBuf> {
-    let subfolders = list_subfolders(&path);
+    let subfolders = list_subfolders(path);
     let tally_sheet_folders: Vec<PathBuf> = subfolders
         .into_iter()
         .filter(|path| {
@@ -112,7 +110,7 @@ impl DoTally {
     fn save_tally_sheets_breakdown(
         &self,
         tally_sheet_results: &Vec<(ContestResult, TallySheet)>,
-        base_file_path: &PathBuf,
+        base_file_path: &Path,
     ) -> Result<()> {
         let base_breakdown_path = base_file_path.join(OUTPUT_BREAKDOWNS_FOLDER);
         let mut breakdown_map: HashMap<VotingChannel, ContestResult> = HashMap::new();
@@ -129,7 +127,7 @@ impl DoTally {
         }
 
         for (channel, contest_result) in breakdown_map {
-            let breakdown_folder_path = base_breakdown_path.join(&channel.to_string());
+            let breakdown_folder_path = base_breakdown_path.join(channel.to_string());
             fs::create_dir_all(&breakdown_folder_path)?;
             let breakdown_file_path = breakdown_folder_path.join(OUTPUT_CONTEST_RESULT_FILE);
             debug!("breakdown_file_path: {}", breakdown_file_path.display());
@@ -284,8 +282,8 @@ impl Pipe for DoTally {
                     let tally_sheets_dir = tally_sheets_dir_base.clone();
 
                     // These are specific to the contest and need to be cloned for use in area processing.
-                    let election_id_for_contest = contest_input.election_id.clone();
-                    let contest_id_for_contest = contest_input.id.clone();
+                    let election_id_for_contest = contest_input.election_id;
+                    let contest_id_for_contest = contest_input.id;
                     let contest_object = contest_input.contest.clone();
                     let contest_op = get_contest_tally_operation(&contest_object);
 
@@ -341,9 +339,9 @@ impl Pipe for DoTally {
                         .par_iter()
                         .map(|area_input| {
                             // Clone data needed per area task.
-                            let area_id = area_input.id.clone();
-                            let election_id = election_id_for_contest.clone();
-                            let contest_id = contest_id_for_contest.clone();
+                            let area_id = area_input.id;
+                            let election_id = election_id_for_contest;
+                            let contest_id = contest_id_for_contest;
 
                             let base_input_path = PipeInputs::build_path(
                                 &input_dir,

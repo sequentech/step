@@ -42,7 +42,7 @@ pub async fn get_count_areas(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_areas: i64 = if rows.len() == 0 {
+    let total_areas: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_areas")?
@@ -86,7 +86,7 @@ pub async fn get_count_elections(
 
     // all rows contain the count and if there's no rows well, count is clearly
     // zero
-    let total_elections: i64 = if rows.len() == 0 {
+    let total_elections: i64 = if rows.is_empty() {
         0
     } else {
         rows[0].try_get::<&str, i64>("total_elections")?

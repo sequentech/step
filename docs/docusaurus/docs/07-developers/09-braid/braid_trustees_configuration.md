@@ -106,9 +106,9 @@ If you prefer to use a configuration file instead of secrets management, you can
 
 Example `trustee.toml`:
 ```toml
-signing_key_sk = "MC4CAQAwBQYDK2VwBCIEIJAtmrHtGFYiS5tUQepIlrFtCCcKHeSzzuJ2pZqH4bat"
-signing_key_pk = "MCowBQYDK2VwAyEAy1vJM4P85hJ1WAPZpRX3/QsOT2usIAuVy4/+t5VHHDs="
-encryption_key = "lQr2vrVuZJ5PAoOkVSfLfuIG7mxt8exlgAnRMBi+4rg"
+signing_key_sk = "<generated-signing_key_sk>"
+signing_key_pk = "<generated-signing_key_pk>"
+encryption_key = "<generated-encryption_key>"
 ```
 
 ## Configuration Generation

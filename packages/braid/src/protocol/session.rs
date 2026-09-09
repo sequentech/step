@@ -46,10 +46,10 @@ impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Session<C, 
     /// A step performs the following operations
     ///
     /// 1) Retrieve new messages from the remote board (as per
-    /// trustee::get_last_external_id)
+    ///    trustee::get_last_external_id)
     /// 2) Run the trustee step
     /// 3) Post the messages returned by the trustee
-    /// to the remote board
+    ///    to the remote board
     pub async fn step(&mut self) -> Result<(usize, StepResult), ProtocolError> {
         let mut board = self.board_factory.get_board();
 

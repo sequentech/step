@@ -5,13 +5,10 @@
 use std::str::FromStr;
 
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local, Utc};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
+use sequent_core::serialization::deserialize_with_path::{self};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use strum_macros::{Display, EnumString};
 use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -49,7 +46,7 @@ impl TryFrom<Row> for ReportWrapper {
                 .map(|val| val.to_string()),
             report_type: item.get("report_type"),
             template_alias: item.get("template_alias"),
-            cron_config: cron_config,
+            cron_config,
             created_at: item.get("created_at"),
             encryption_policy: EReportEncryption::from_str(
                 item.get::<_, String>("encryption_policy").as_str(),
@@ -178,7 +175,7 @@ pub async fn get_report_by_id(
         .collect::<Result<Vec<Report>>>()
         .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
 
-    Ok(reports.get(0).cloned())
+    Ok(reports.first().cloned())
 }
 
 /// Returns ONLY THE FIRST the template_alias which matches these arguments,
@@ -230,7 +227,7 @@ pub async fn get_template_alias_for_report(
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     // If found report is found, return the associated template_alias
-    if let Some(row) = rows.get(0) {
+    if let Some(row) = rows.first() {
         let template_alias: Option<String> = row.get("template_alias");
         return Ok(template_alias);
     }
@@ -268,7 +265,7 @@ pub async fn get_template_alias_for_report(
         .map_err(|err| anyhow!("Error executing query: {err}"))?;
 
     // If found, return
-    if let Some(row) = rows.get(0) {
+    if let Some(row) = rows.first() {
         let template_alias: Option<String> = row.get("template_alias");
         return Ok(template_alias);
     } else {
@@ -418,7 +415,7 @@ pub async fn get_report_by_type(
         parse_uuid_v4(tenant_id).with_context(|| "Error parsing tenant_id as UUID")?;
     let election_event_uuid = parse_uuid_v4(election_event_id)
         .with_context(|| "Error parsing election_event_id as UUID")?;
-    let election_uuid = election_id.as_ref().and_then(|id| parse_uuid_v4(&id).ok());
+    let election_uuid = election_id.as_ref().and_then(|id| parse_uuid_v4(id).ok());
 
     let statement = hasura_transaction
         .prepare(
@@ -458,5 +455,5 @@ pub async fn get_report_by_type(
         .collect::<Result<Vec<Report>>>()
         .map_err(|err| anyhow!("Error converting rows into Report: {err:?}"))?;
 
-    Ok(reports.get(0).cloned())
+    Ok(reports.first().cloned())
 }

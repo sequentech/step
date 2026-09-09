@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
 
         let mut step_error = false;
         for board_name in &boards {
-            if ignored_boards.contains(&board_name) {
+            if ignored_boards.contains(board_name) {
                 info!("Ignoring board '{}'..", board_name);
                 continue;
             }
@@ -138,13 +138,13 @@ async fn main() -> Result<()> {
                 std::env::var("TRUSTEE_NAME").unwrap_or_else(|_| "Self".to_string()),
                 board_name.to_string(),
                 sk.clone(),
-                ek.clone(),
+                ek,
                 storage,
                 None,
             );
             let board = HttpB3BoardParams::new(&args.b4_url).await;
 
-            let session = Session::new(&board_name, trustee, board);
+            let session = Session::new(board_name, trustee, board);
             session_map.insert(board_name.clone(), session);
         }
 
@@ -193,7 +193,7 @@ async fn main() -> Result<()> {
         }
 
         loop_count = (loop_count + 1) % i64::MAX;
-        println!("");
+        println!();
         sleep(Duration::from_millis(1000)).await;
     }
 

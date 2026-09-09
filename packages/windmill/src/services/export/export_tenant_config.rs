@@ -7,7 +7,7 @@ use crate::services::export::export_tenant;
 use crate::types::documents::EDocuments;
 use anyhow::{anyhow, Context, Result};
 use csv::Writer;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use keycloak::types::RealmRepresentation;
 use sequent_core::services::keycloak::{get_tenant_realm, KeycloakAdminClient};
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use tempfile::NamedTempFile;
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 use zip::write::FileOptions;
 
 pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<NamedTempFile> {
@@ -32,7 +32,7 @@ pub async fn write_export_keycloak_config(data: RealmRepresentation) -> Result<N
 
 pub async fn write_export_roles_permissions_config(
     data: RealmRepresentation,
-    tenant_id: &str,
+    _tenant_id: &str,
 ) -> Result<NamedTempFile> {
     let headers = vec!["role", "permissions"];
 
@@ -90,7 +90,7 @@ pub async fn process_export_zip(
         tenant_id
     );
 
-    let tenant_data = export_tenant::read_tenant_export_data(&hasura_transaction, tenant_id)
+    let tenant_data = export_tenant::read_tenant_export_data(hasura_transaction, tenant_id)
         .await
         .map_err(|e| anyhow!("Error reading tenant data: {e:?}"))?;
 
@@ -100,7 +100,7 @@ pub async fn process_export_zip(
 
     let temp_path = export_tenant::write_export_document(
         tenant_data,
-        &hasura_transaction,
+        hasura_transaction,
         document_id,
         tenant_id,
     )
@@ -166,17 +166,17 @@ pub async fn process_export_zip(
 
     let upload_path = &zip_path;
 
-    let zip_size = std::fs::metadata(&upload_path)
+    let zip_size = std::fs::metadata(upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
         .len();
 
     // Upload the ZIP file to Hasura
-    let document = upload_and_return_document(
-        &hasura_transaction,
+    let _document = upload_and_return_document(
+        hasura_transaction,
         upload_path.to_str().ok_or(anyhow!("Empty upload path"))?,
         zip_size,
         "application/zip",
-        &tenant_id.to_string(),
+        tenant_id,
         None,
         &zip_filename,
         Some(document_id.to_string()),

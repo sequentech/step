@@ -19,7 +19,6 @@ use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::util::date_time::get_date_and_time;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use uuid::Uuid;
 
 /// Wrapper struct for data specific to the ballot and the voter
 /// which won't be needed in the preview mode.
@@ -109,7 +108,7 @@ impl TemplateRenderer for BallotTemplate {
             return Err(anyhow!("Empty election_id"));
         };
 
-        let (area_id, voter_id, ballot_id, ballot_tracker_url, time_zone, date_format) =
+        let (area_id, voter_id, ballot_id, ballot_tracker_url, _time_zone, _date_format) =
             match &self.ballot_data {
                 Some(ballot_data) => (
                     ballot_data.area_id.as_str(),
@@ -150,8 +149,7 @@ impl TemplateRenderer for BallotTemplate {
 
         // Verify that the vote has been casted
         if !cast_votes.iter().any(|cv| {
-            cv.ballot_id.as_deref().map_or(false, |id| id == ballot_id)
-                && cv.area_id.as_deref().map_or(false, |id| id == area_id)
+            (cv.ballot_id.as_deref() == Some(ballot_id)) && (cv.area_id.as_deref() == Some(area_id))
         }) {
             return Err(anyhow!("BallotID not found in cast votes for {voter_id}"));
         }

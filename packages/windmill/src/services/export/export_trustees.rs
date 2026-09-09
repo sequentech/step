@@ -11,9 +11,8 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::TasksExecution;
 use std::env;
 use std::fs::File;
-use std::io::{Seek, Write};
-use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, info, instrument, Level};
+use std::io::Write;
+use tracing::{info, instrument};
 use zip::write::FileOptions;
 
 #[instrument(err, skip(transaction))]
@@ -80,14 +79,14 @@ pub async fn read_trustees_config_base(
     let zip_size = std::fs::metadata(&encrypted_zip_path)?.len();
 
     // Upload the ZIP file (encrypted or original) to Hasura
-    let document = upload_and_return_document(
-        &transaction,
+    let _document = upload_and_return_document(
+        transaction,
         encrypted_zip_path
             .to_str()
             .ok_or(anyhow!("Empty encrypted zip path"))?,
         zip_size,
         "application/zip",
-        &tenant_id.to_string(),
+        tenant_id,
         None,
         &zip_filename,
         Some(document_id.to_string()),
@@ -120,14 +119,14 @@ pub async fn read_trustees_config(
 
     match res {
         Ok(_) => {
-            update_complete(&task_execution, Some(document_id.to_string()))
+            update_complete(task_execution, Some(document_id.to_string()))
                 .await
                 .context("Failed to update task execution status to COMPLETED")?;
             Ok(())
         }
         Err(err) => {
             let err_str = format!("Failed reading trustees config: {err:?}");
-            update_fail(&task_execution, &err_str).await.context(
+            update_fail(task_execution, &err_str).await.context(
                 "Failed to update task reading trustees config execution status to FAILED",
             )?;
             Err(err)

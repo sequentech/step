@@ -688,7 +688,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         // Copying
         // prefix_challenge_input.add("cs",
         // &StrandVector::<C::E>(cs.to_vec()))?;
-        let cs = serialize_flatten(&cs)?;
+        let cs = serialize_flatten(cs)?;
         prefix_challenge_input.add("cs", &cs)?;
         prefix_challenge_input.add("label", &label.to_vec())?;
 
@@ -758,7 +758,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let bytes = challenge_input.get_bytes()?;
 
-        Ok(self.ctx.hash_to_exp(&bytes)?)
+        self.ctx.hash_to_exp(&bytes)
     }
 }
 
@@ -791,7 +791,7 @@ fn serialize_flatten<T: Send + Sync + StrandSerialize>(
         v.par().map(|v| v.strand_serialize()).collect();
 
     // Ok(bytes?.into_iter().flatten().collect())
-    Ok(bytes?.strand_serialize()?)
+    bytes?.strand_serialize()
 }
 /*
 // For some reason, deriving these does not work

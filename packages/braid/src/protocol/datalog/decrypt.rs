@@ -38,8 +38,8 @@ crepe! {
     DecryptionFactorsAcc(cfg_h, batch, new_dfactor_hs, new_ts, n + 1) <-
     ConfigurationSignedAll(cfg_h, _self_p, _num_t, threshold),
     DecryptionFactorsAcc(cfg_h, batch, dfactor_hs, ts, n),
-    // n accumulator is 0-based, threshold is 1-based, so the last value of n + 1 is threshold - 1
-    (n + 1 <= threshold - 1),
+    // n counts the current 0-based accumulator; extend it until n reaches threshold - 1.
+    (n < threshold - 1),
     PublicKeySignedAll(cfg_h, pk_h, shares_hs),
     Ballots(cfg_h, batch, _, pk_h, selected),
     // Trustees are 1 based, so n - 1

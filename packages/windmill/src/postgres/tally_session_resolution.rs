@@ -5,8 +5,7 @@
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::ceremonies::{
-    TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
-    TallySessionResolutionType,
+    TallySessionResolution, TallySessionResolutionData, TallySessionResolutionType,
 };
 use tokio_postgres::Row;
 use tracing::{info, instrument};

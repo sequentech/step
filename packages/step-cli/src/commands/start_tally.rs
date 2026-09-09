@@ -64,7 +64,7 @@ pub fn start_ceremony(
 
     let elections = match election_ids {
         Some(el) => el,
-        None => GetElections::get_by_election_event(&election_event_id)?,
+        None => GetElections::get_by_election_event(election_event_id)?,
     };
 
     let variables = create_tally_ceremony::Variables {

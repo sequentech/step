@@ -17,9 +17,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::From;
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
-
-use super::PubKeycloakAdmin;
+use tracing::instrument;
 
 pub const MULTIVALUE_USER_ATTRIBUTE_SEPARATOR: &str = "|";
 
@@ -158,7 +156,7 @@ impl User {
             self.attributes
                 .as_ref()?
                 .get(MOBILE_PHONE_ATTR_NAME)?
-                .get(0)?
+                .first()?
                 .to_string(),
         )
     }
@@ -168,7 +166,7 @@ impl User {
             self.attributes
                 .as_ref()?
                 .get(attribute_name)?
-                .get(0)?
+                .first()?
                 .to_string(),
         )
     }
@@ -201,7 +199,7 @@ impl User {
             self.attributes
                 .as_ref()?
                 .get(AREA_ID_ATTR_NAME)?
-                .get(0)?
+                .first()?
                 .to_string(),
         )
     }
@@ -209,15 +207,13 @@ impl User {
     pub fn get_votes_info_by_election_id(
         &self,
     ) -> Option<HashMap<String, VotesInfo>> {
-        self.votes_info.as_ref().and_then(|votes_info_vec| {
-            Some(
-                votes_info_vec
-                    .iter()
-                    .map(|votes_info| {
-                        (votes_info.election_id.clone(), votes_info.clone())
-                    })
-                    .collect::<HashMap<String, VotesInfo>>(),
-            )
+        self.votes_info.as_ref().map(|votes_info_vec| {
+            votes_info_vec
+                .iter()
+                .map(|votes_info| {
+                    (votes_info.election_id.clone(), votes_info.clone())
+                })
+                .collect::<HashMap<String, VotesInfo>>()
         })
     }
 }
@@ -249,8 +245,8 @@ impl From<UserRepresentation> for User {
             id: item.id.clone(),
             attributes: item.attributes.clone(),
             email: item.email.clone(),
-            email_verified: item.email_verified.clone(),
-            enabled: item.enabled.clone(),
+            email_verified: item.email_verified,
+            enabled: item.enabled,
             first_name: item.first_name.clone(),
             last_name: item.last_name.clone(),
             username: item.username.clone(),
@@ -271,8 +267,8 @@ impl From<User> for UserRepresentation {
             credentials: None,
             disableable_credential_types: None,
             email: item.email.clone(),
-            email_verified: item.email_verified.clone(),
-            enabled: item.enabled.clone(),
+            email_verified: item.email_verified,
+            enabled: item.enabled,
             federated_identities: None,
             federation_link: None,
             first_name: item.first_name.clone(),
@@ -286,16 +282,19 @@ impl From<User> for UserRepresentation {
             self_: None,
             service_account_client_id: None,
             username: item.username.clone(),
-            application_roles: None,
-            social_links: None,
             totp: None,
             user_profile_metadata: None,
+            ..Default::default()
         }
     }
 }
 
 impl KeycloakAdminClient {
     #[instrument(skip(self), err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing list API separating realm context, filters and pagination"
+    )]
     pub async fn list_users(
         self,
         tenant_id: &str,
@@ -309,18 +308,18 @@ impl KeycloakAdminClient {
         let user_representations: Vec<UserRepresentation> = self
             .client
             .realm_users_get(
-                realm.clone(),
+                realm,
                 Some(false),
                 email.clone(),
                 None,
                 None,
                 None,
-                offset.clone(),
+                offset,
                 None,
                 None,
                 None,
                 None,
-                limit.clone(),
+                limit,
                 None,
                 search.clone(),
                 None,
@@ -353,6 +352,10 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self, password), err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing optional-field update API and its password wrapper callers"
+    )]
     pub async fn edit_user(
         self,
         realm: &str,
@@ -366,24 +369,21 @@ impl KeycloakAdminClient {
         password: Option<String>,
         temporary: Option<bool>,
     ) -> Result<User> {
-        let credentials = match password {
-            Some(val) => Some(
-                [
-                    // the new credential
-                    vec![CredentialRepresentation {
-                        type_: Some("password".to_string()),
-                        temporary: match temporary {
-                            Some(temportay) => Some(temportay),
-                            _ => Some(true),
-                        },
-                        value: Some(val),
-                        ..Default::default()
-                    }],
-                ]
-                .concat(),
-            ),
-            None => None,
-        };
+        let credentials = password.map(|val| {
+            [
+                // the new credential
+                vec![CredentialRepresentation {
+                    type_: Some("password".to_string()),
+                    temporary: match temporary {
+                        Some(temportay) => Some(temportay),
+                        _ => Some(true),
+                    },
+                    value: Some(val),
+                    ..Default::default()
+                }],
+            ]
+            .concat()
+        });
 
         self.edit_user_with_credentials(
             realm,
@@ -401,6 +401,10 @@ impl KeycloakAdminClient {
     }
 
     #[instrument(skip(self, credentials), err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing optional-field update API shared by credential and password callers"
+    )]
     pub async fn edit_user_with_credentials(
         self,
         realm: &str,
@@ -428,7 +432,7 @@ impl KeycloakAdminClient {
         current_user.attributes = match attributes {
             Some(val) => {
                 let mut new_attributes =
-                    current_user.attributes.unwrap_or(HashMap::new());
+                    current_user.attributes.unwrap_or_default();
                 for (key, value) in val.iter() {
                     new_attributes.insert(key.clone(), value.clone());
                 }
@@ -546,7 +550,7 @@ impl KeycloakAdminClient {
     ) -> Result<UserProfileConfiguration> {
         let response: UPConfig = self
             .client
-            .realm_users_profile_get(&realm)
+            .realm_users_profile_get(realm)
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         Ok(Self::get_formatted_user_profile_configuration(response))
@@ -561,7 +565,7 @@ impl KeycloakAdminClient {
         let response: Vec<GroupRepresentation> = self
             .client
             .realm_users_with_user_id_groups_get(
-                &realm, user_id, None, None, None, None,
+                realm, user_id, None, None, None, None,
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
@@ -593,14 +597,14 @@ impl KeycloakAdminClient {
     }
 
     pub fn get_formatted_attributes(
-        attributes_res: &Vec<UPAttribute>,
+        attributes_res: &[UPAttribute],
     ) -> Vec<UserProfileAttribute> {
         let formatted_attributes: Vec<UserProfileAttribute> = attributes_res
             .iter()
             .filter(|attr| match (&attr.permissions, &attr.name) {
                 (Some(permissions), Some(name)) => {
                     let has_permission =
-                        permissions.edit.as_ref().map_or(true, |edit| {
+                        permissions.edit.as_ref().is_none_or(|edit| {
                             edit.contains(&PERMISSION_TO_EDIT.to_string())
                         });
 
@@ -647,7 +651,7 @@ impl KeycloakAdminClient {
     }
 
     pub fn get_formatted_groups(
-        groups: &Vec<UPGroup>,
+        groups: &[UPGroup],
     ) -> Vec<UserProfileAttributeGroup> {
         groups
             .iter()
@@ -664,9 +668,8 @@ impl KeycloakAdminClient {
         configuration: UPConfig,
     ) -> UserProfileConfiguration {
         let attributes: Vec<UPAttribute> =
-            configuration.attributes.map(Into::into).unwrap_or_default();
-        let groups: Vec<UPGroup> =
-            configuration.groups.map(Into::into).unwrap_or_default();
+            configuration.attributes.unwrap_or_default();
+        let groups: Vec<UPGroup> = configuration.groups.unwrap_or_default();
 
         UserProfileConfiguration {
             attributes: Self::get_formatted_attributes(&attributes),
@@ -708,7 +711,6 @@ mod tests {
         get_user_profile_validation_errors, is_keycloak_bad_request,
         KeycloakAdminClient,
     };
-    use anyhow::Context;
     use keycloak::{
         types::{UPAttribute, UPAttributePermissions, UPConfig, UPGroup},
         KeycloakError,
@@ -719,7 +721,7 @@ mod tests {
             name: Some(name.to_string()),
             group: group.map(str::to_string),
             permissions: Some(UPAttributePermissions {
-                edit: Some(vec!["admin".to_string()].into()),
+                edit: Some(vec!["admin".to_string()]),
                 view: None,
             }),
             ..Default::default()
@@ -729,29 +731,23 @@ mod tests {
     #[test]
     fn formats_profile_attributes_and_groups_without_reordering() {
         let configuration = UPConfig {
-            attributes: Some(
-                vec![
-                    editable_attribute("first", Some("identity")),
-                    editable_attribute("tenant-id", Some("internal")),
-                    editable_attribute("second", Some("contact")),
-                ]
-                .into(),
-            ),
-            groups: Some(
-                vec![
-                    UPGroup {
-                        name: Some("identity".to_string()),
-                        display_header: Some("Identity".to_string()),
-                        ..Default::default()
-                    },
-                    UPGroup {
-                        name: Some("contact".to_string()),
-                        display_header: Some("Contact".to_string()),
-                        ..Default::default()
-                    },
-                ]
-                .into(),
-            ),
+            attributes: Some(vec![
+                editable_attribute("first", Some("identity")),
+                editable_attribute("tenant-id", Some("internal")),
+                editable_attribute("second", Some("contact")),
+            ]),
+            groups: Some(vec![
+                UPGroup {
+                    name: Some("identity".to_string()),
+                    display_header: Some("Identity".to_string()),
+                    ..Default::default()
+                },
+                UPGroup {
+                    name: Some("contact".to_string()),
+                    display_header: Some("Contact".to_string()),
+                    ..Default::default()
+                },
+            ]),
             ..Default::default()
         };
 
@@ -783,9 +779,7 @@ mod tests {
         let formatted =
             KeycloakAdminClient::get_formatted_user_profile_configuration(
                 UPConfig {
-                    attributes: Some(
-                        vec![editable_attribute("first", None)].into(),
-                    ),
+                    attributes: Some(vec![editable_attribute("first", None)]),
                     groups: None,
                     ..Default::default()
                 },

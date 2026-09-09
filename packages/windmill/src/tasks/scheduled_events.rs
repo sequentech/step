@@ -1,15 +1,8 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::{
-    election::{get_election_by_id, update_election_presentation},
-    scheduled_event::find_all_active_events,
-};
-use crate::services::{
-    celery_app::get_celery_app,
-    database::{get_hasura_pool, get_keycloak_pool},
-    tasks_execution::update_fail,
-};
+use crate::postgres::scheduled_event::find_all_active_events;
+use crate::services::{celery_app::get_celery_app, database::get_hasura_pool};
 use crate::tasks::{
     manage_election_allow_tally::manage_election_allow_tally,
     manage_election_dates::manage_election_date,
@@ -19,16 +12,14 @@ use crate::tasks::{
     manage_election_init_report::manage_election_init_report,
     manage_election_voting_period_end::manage_election_voting_period_end,
 };
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use anyhow::anyhow;
 use celery::{error::TaskError, Celery};
 use chrono::prelude::*;
 use chrono::Duration;
-use deadpool_postgres::{Client as DbClient, Transaction};
-use sequent_core::ballot::{ElectionPresentation, InitReport, VotingPeriodEnd};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::types::scheduled_event::*;
 use std::sync::Arc;
 use tracing::instrument;
@@ -36,12 +27,8 @@ use tracing::{event, info, Level};
 
 #[instrument]
 pub fn get_datetime(event: &ScheduledEvent) -> Option<DateTime<Local>> {
-    let Some(cron_config) = event.cron_config.clone() else {
-        return None;
-    };
-    let Some(scheduled_date) = cron_config.scheduled_date else {
-        return None;
-    };
+    let cron_config = event.cron_config.clone()?;
+    let scheduled_date = cron_config.scheduled_date?;
     ISO8601::to_date(&scheduled_date).ok()
 }
 
@@ -333,28 +320,25 @@ pub async fn handle_election_allow_tally(
     let payload: ManageAllowTallyPayload = deserialize_value(event_payload)
         .map_err(|e| anyhow!("Error deserializing manage election date payload {}", e))?;
     // run the actual task in a different async task
-    match payload.election_id.clone() {
-        Some(election_id) => {
-            let task = celery_app
-                .send_task(
-                    manage_election_allow_tally::new(
-                        tenant_id.clone(),
-                        election_event_id.clone(),
-                        scheduled_event.id.clone(),
-                        election_id,
-                    )
-                    .with_eta(datetime.with_timezone(&Utc))
-                    .with_expires_in(120),
+    if let Some(election_id) = payload.election_id.clone() {
+        let task = celery_app
+            .send_task(
+                manage_election_allow_tally::new(
+                    tenant_id.clone(),
+                    election_event_id.clone(),
+                    scheduled_event.id.clone(),
+                    election_id,
                 )
-                .await
-                .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
-            event!(
-                Level::INFO,
-                "Sent manage_election_allow_tally task {}",
-                task.task_id
-            );
-        }
-        None => {}
+                .with_eta(datetime.with_timezone(&Utc))
+                .with_expires_in(120),
+            )
+            .await
+            .map_err(|e| anyhow!("Error sending task to celery {}", e))?;
+        event!(
+            Level::INFO,
+            "Sent manage_election_allow_tally task {}",
+            task.task_id
+        );
     }
     Ok(())
 }
@@ -383,7 +367,7 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
     let to_be_run_now = scheduled_events
         .iter()
         .filter(|event| {
-            let Some(formatted_date) = get_datetime(&event) else {
+            let Some(formatted_date) = get_datetime(event) else {
                 return false;
             };
             formatted_date < nsecs_later
@@ -402,7 +386,7 @@ pub async fn scheduled_events(rate_seconds: u64) -> Result<()> {
                 handle_allow_voting_period_end(celery_app.clone(), scheduled_event).await?;
             }
             EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD => {
-                if let Err(err) = handle_voting_event(celery_app.clone(), &scheduled_event).await {
+                if let Err(err) = handle_voting_event(celery_app.clone(), scheduled_event).await {
                     event!(
                         Level::ERROR,
                         "Event {} failed with error {}",

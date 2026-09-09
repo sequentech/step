@@ -11,10 +11,9 @@
 //! per the "Patch Files Format" spec.
 
 use crate::services::external::datafix_types::{
-    DatafixReconciliationField, ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
+    DatafixReconciliationField, ParsedDatafixReconciliationRow,
 };
 use crate::services::external::reconciliation::diff::DiffItem;
-use crate::services::external::types::ReconciliationPatchTarget;
 use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -215,6 +214,8 @@ pub fn sha256_hex(content: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::external::datafix_types::FILE_CHANNEL_INTERNET;
+    use crate::services::external::types::ReconciliationPatchTarget;
     use crate::services::external::types::{
         ReconciliationChangeCategory, SequentReconciliationField,
     };

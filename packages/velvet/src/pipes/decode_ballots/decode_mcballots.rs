@@ -3,16 +3,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::pipes::error::{Error, Result};
-use crate::pipes::pipe_inputs::{InputElectionConfig, PipeInputs, BALLOTS_FILE};
+use crate::pipes::pipe_inputs::{PipeInputs, BALLOTS_FILE};
 use crate::pipes::Pipe;
 use num_bigint::BigUint;
 use sequent_core::ballot::{Contest, MultiContestEncodingMode};
 use sequent_core::ballot_codec::multi_ballot::{
     BallotChoices, DecodedBallotChoices, MultiBallotCodecContext,
 };
-use sequent_core::plaintext::{
-    map_decoded_ballot_choices_to_decoded_contests, DecodedVoteChoice, DecodedVoteContest,
-};
+use sequent_core::plaintext::{map_decoded_ballot_choices_to_decoded_contests, DecodedVoteContest};
 use uuid::Uuid;
 
 use std::collections::HashMap;
@@ -43,7 +41,7 @@ impl DecodeMCBallots {
     #[instrument(err, skip(contests))]
     fn decode_ballots(
         path: &Path,
-        contests: &Vec<Contest>,
+        contests: &[Contest],
         include_decline_to_vote: bool,
         include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
@@ -98,30 +96,6 @@ impl DecodeMCBallots {
 
         Ok(decoded_ballots)
     }
-
-    // contest_id -> (area_id -> dvc)
-    #[instrument(skip_all)]
-    fn get_contest_dvc_map(
-        election_input: &InputElectionConfig,
-    ) -> HashMap<String, HashMap<String, DecodedVoteChoice>> {
-        let mut ret = HashMap::new();
-
-        for contest in &election_input.contest_list {
-            let mut map = HashMap::new();
-            for candidate in &contest.contest.candidates {
-                let choice = DecodedVoteChoice {
-                    id: candidate.id.clone(),
-                    selected: -1,
-                    write_in_text: None,
-                };
-                map.insert(candidate.id.clone(), choice);
-            }
-
-            ret.insert(contest.id.to_string(), map);
-        }
-
-        ret
-    }
 }
 
 impl Pipe for DecodeMCBallots {
@@ -131,9 +105,6 @@ impl Pipe for DecodeMCBallots {
         let mut serial_number_counter = 1;
         for election_input in &self.pipe_inputs.election_list {
             let area_contest_map = election_input.get_area_contest_map();
-            // contest_id -> (area_id -> dvc)
-            let contest_dvc_map: HashMap<String, HashMap<String, DecodedVoteChoice>> =
-                Self::get_contest_dvc_map(election_input);
             // contest_id -> (area_id -> dvc)
             let mut output_map: HashMap<String, HashMap<Uuid, Vec<DecodedVoteContest>>> =
                 HashMap::new();
@@ -213,7 +184,7 @@ impl Pipe for DecodeMCBallots {
                                 dbc.clone(),
                                 &contests,
                             )
-                            .map_err(|err| Error::UnexpectedError(err))?;
+                            .map_err(Error::UnexpectedError)?;
 
                             for decoded_contest in decoded_contests {
                                 if !output_map.contains_key(&decoded_contest.contest_id) {
@@ -224,9 +195,7 @@ impl Pipe for DecodeMCBallots {
                                     .get_mut(&decoded_contest.contest_id)
                                     .expect("impossible");
 
-                                if !area_dvc_map.contains_key(&area_id) {
-                                    area_dvc_map.insert(area_id.clone(), vec![]);
-                                }
+                                area_dvc_map.entry(area_id).or_default();
                                 let values = area_dvc_map.get_mut(&area_id).expect("impossible");
                                 values.push(decoded_contest);
                             }

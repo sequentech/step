@@ -1,4 +1,5 @@
-# syntax=docker/dockerfile:1.7
+# Use the accepted Docker Engine's bundled BuildKit frontend; no frontend image
+# is downloaded when the controlled offline build reads this definition.
 
 # SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 #
@@ -17,8 +18,15 @@ ARG OID4VP_VERSION=0.6.2
 ARG OID4VP_SHA256=f6cd968bc77fec4f8e1417d3caeefe4920941e01b119f152f1c9186bbd2b2e15
 
 # Start with a Maven base image to compile the Keycloak provider extensions.
-FROM maven:3-amazoncorretto-17 AS spis-build
-RUN dnf install -y findutils && dnf clean all
+# The Maven local repository. The controlled production build supplies it from the accepted
+# external inputs with `--build-context maven-repository=<directory>`, which `prepare vendor`
+# fills with the artifacts these poms resolve; without that override the stage is empty and
+# Maven resolves from its remote repositories, which is what a build outside the production
+# workflow does.
+FROM scratch AS maven-repository
+
+FROM maven:3-amazoncorretto-17@sha256:771f7b6dbf09ad8b9a0ca910b8b852650d1cff3e6c5d29c81e8f0a0c3d631642 AS spis-build
+COPY --from=maven-repository / /root/.m2/repository/
 COPY ./keycloak-extensions/ /build/context/packages/keycloak-extensions/
 WORKDIR /build/context
 RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
@@ -29,36 +37,51 @@ RUN --mount=from=beyond,source=.,target=/build/beyond-context,readonly \
         mkdir -p beyond/packages; \
         cp -a /build/beyond-context/packages/keycloak-extensions "${beyond_keycloak_extensions_dir}"; \
     fi; \
-    find "${keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
-    if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
-        find "${beyond_keycloak_extensions_dir}" -name target -type d -prune -exec rm -rf {} +; \
-    fi; \
-    mvn -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
+    rm -rf "${keycloak_extensions_dir}"/target "${keycloak_extensions_dir}"/*/target; \
+    rm -rf "${beyond_keycloak_extensions_dir}"/target "${beyond_keycloak_extensions_dir}"/*/target; \
+    mvn --offline -B -f "${keycloak_extensions_dir}/pom.xml" clean package; \
     mkdir -p /build/keycloak-provider-jars /build/keycloak-provider-conf; \
     cp "${keycloak_extensions_dir}/quarkus.properties" /build/keycloak-provider-conf/quarkus.properties; \
     provider_dirs="${keycloak_extensions_dir}"; \
     if [ -d "${beyond_keycloak_extensions_dir}" ]; then \
         provider_dirs="${provider_dirs} ${beyond_keycloak_extensions_dir}"; \
     fi; \
-    find ${provider_dirs} \
-        -path '*/target/*.jar' \
-        ! -name 'original-*.jar' \
-        ! -name '*-tests.jar' \
-        -exec cp -t /build/keycloak-provider-jars/ {} +
+    for dir in ${provider_dirs}; do \
+        for jar in "${dir}"/*/target/*.jar "${dir}"/target/*.jar; do \
+            [ -f "${jar}" ] || continue; \
+            case "${jar##*/}" in original-*.jar|*-tests.jar) continue ;; esac; \
+            cp "${jar}" /build/keycloak-provider-jars/; \
+        done; \
+    done
 
-# Build the oid4vp extension from source (requires Java 21)
-FROM maven:3-amazoncorretto-21 AS oid4vp-build
+# The source archive of the oid4vp extension. The controlled production build supplies it
+# from the accepted external inputs with `--build-context oid4vp-src=<directory holding
+# oid4vp.tar.gz>`, which replaces this stage and leaves the download below unbuilt. Without
+# that override the archive is downloaded from its publisher and checked against
+# OID4VP_SHA256, which is what a build outside the production workflow does.
+FROM maven:3-amazoncorretto-21@sha256:81de222c1f34ac467bf968e1800b73fb41e714427c0212ba004296ea972e808a AS oid4vp-download
 ARG OID4VP_VERSION
 ARG OID4VP_SHA256
 RUN curl -fsSL -o /tmp/oid4vp.tar.gz \
     https://github.com/ba-itsys/keycloak-extension-oid4vp/archive/refs/tags/v${OID4VP_VERSION}.tar.gz \
- && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
+ && echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c -
+
+FROM scratch AS oid4vp-src
+COPY --from=oid4vp-download /tmp/oid4vp.tar.gz /oid4vp.tar.gz
+
+# Build the oid4vp extension from source (requires Java 21)
+FROM maven:3-amazoncorretto-21@sha256:81de222c1f34ac467bf968e1800b73fb41e714427c0212ba004296ea972e808a AS oid4vp-build
+ARG OID4VP_VERSION
+ARG OID4VP_SHA256
+COPY --from=maven-repository / /root/.m2/repository/
+COPY --from=oid4vp-src /oid4vp.tar.gz /tmp/oid4vp.tar.gz
+RUN echo "${OID4VP_SHA256}  /tmp/oid4vp.tar.gz" | sha256sum -c - \
  && mkdir -p /build \
  && tar -xzf /tmp/oid4vp.tar.gz -C /build \
  && cd /build/keycloak-extension-oid4vp-${OID4VP_VERSION} \
- && mvn -B clean package -DskipTests
+ && mvn --offline -B clean package -DskipTests
 
-FROM quay.io/keycloak/keycloak:26.6.1 AS builder
+FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad AS builder
 ARG OID4VP_VERSION
 
 # The extension OID4VP_VERSION v0.6.2 requires Keycloak 26.6.1 or later, as
@@ -99,7 +122,7 @@ COPY --chown=keycloak:keycloak \
 
 RUN /opt/keycloak/bin/kc.sh build 
 
-FROM quay.io/keycloak/keycloak:26.6.1
+FROM quay.io/keycloak/keycloak:26.6.1@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
 COPY --from=builder /opt/keycloak/ /opt/keycloak/
 COPY --from=spis-build /build/keycloak-provider-conf/quarkus.properties /opt/keycloak/conf/quarkus.properties
 

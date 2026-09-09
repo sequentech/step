@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::BallotStyle;
 use tokio_postgres::row::Row;
@@ -40,6 +38,10 @@ impl TryFrom<Row> for BallotStyleWrapper {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip(hasura_transaction, ballot_eml))]
 pub async fn insert_ballot_style(
     hasura_transaction: &Transaction<'_>,
@@ -102,10 +104,7 @@ pub async fn insert_ballot_style(
         .collect::<Result<Vec<BallotStyle>>>()
         .with_context(|| "Error converting rows into documents")?;
 
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+    elements.first().cloned().ok_or(anyhow!("Row not inserted"))
 }
 
 #[instrument(skip(hasura_transaction), err)]

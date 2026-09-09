@@ -86,7 +86,7 @@ pub async fn get_secret_by_key(
         .collect::<Result<Vec<Secret>>>()
         .with_context(|| "Error converting rows into Secrets")?;
 
-    if 0 == secrets.len() {
+    if secrets.is_empty() {
         return Ok(None);
     } else if secrets.len() > 1 {
         return Err(anyhow!("Found too many secrets: {}", secrets.len()));

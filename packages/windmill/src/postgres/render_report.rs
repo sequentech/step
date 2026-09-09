@@ -4,9 +4,7 @@
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::{pdf, reports};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
-use serde_json::{Map, Value};
 use tracing::instrument;
 
 use crate::postgres::tenant::get_tenant_by_id;
@@ -39,7 +37,7 @@ pub async fn render_report_task(
             write_into_named_temp_file(&render.into_bytes(), "reports-", ".html")
                 .with_context(|| "Error writing to file")?;
         upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "text/plain",
@@ -59,7 +57,7 @@ pub async fn render_report_task(
                 .with_context(|| "Error writing to file")?;
 
         let _document = upload_and_return_document(
-            &hasura_transaction,
+            hasura_transaction,
             &temp_path_string,
             file_size,
             "application/pdf",

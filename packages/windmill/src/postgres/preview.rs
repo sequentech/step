@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Preview;
 use tokio_postgres::row::Row;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 pub struct PreviewWrapper(pub Preview);
@@ -66,7 +66,7 @@ pub async fn insert_preview(
         )
         .await?;
 
-    let rows: Vec<Row> = hasura_transaction
+    let _rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[&tenant_uuid, &document_uuid, &url, &requested_by],

@@ -11,7 +11,6 @@ use dotenv::dotenv;
 use sequent_core::util::init_log::init_log;
 use std::env;
 use tower_http::cors::{Any, CorsLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use b4::{db, handlers, s3, state::AppState};
 

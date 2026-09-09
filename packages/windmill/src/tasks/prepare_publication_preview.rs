@@ -16,13 +16,14 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::VotingStatus;
+use sequent_core::types::hasura::core::Election;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::core::{Document, SupportMaterial};
 use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
@@ -85,7 +86,7 @@ pub async fn prepare_publication_preview_task(
     document_id: String,
 ) -> AnyhowResult<String> {
     let ballot_styles_json = get_publication_json(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
         ballot_publication_id.clone(),
@@ -95,7 +96,7 @@ pub async fn prepare_publication_preview_task(
     .await?;
 
     let election_event: ElectionEvent =
-        get_election_event_by_id(&hasura_transaction, &tenant_id, &election_event_id)
+        get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "Can't find election event")?;
 
@@ -103,10 +104,10 @@ pub async fn prepare_publication_preview_task(
         serde_json::to_value(election_event).with_context(|| "Error serializing election event")?;
 
     let elections_json =
-        get_elections_json_with_open_status(&hasura_transaction, &tenant_id, &election_event_id)
+        get_elections_json_with_open_status(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
     let (support_materials_json, documents_json) =
-        get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
+        get_support_material_documents_json(hasura_transaction, &tenant_id, &election_event_id)
             .await?;
     let pub_preview = PublicationPreview {
         ballot_styles: ballot_styles_json,
@@ -170,21 +171,69 @@ pub async fn get_elections_json_with_open_status(
     tenant_id: &str,
     election_event_id: &str,
 ) -> AnyhowResult<Value> {
-    let mut elections = get_elections(&hasura_transaction, tenant_id, election_event_id)
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Can't find open elections")?;
 
-    let open_elections = elections
-        .iter_mut()
-        .map(|election| {
-            let mut status = get_election_status(election.status.clone()).unwrap_or_default();
-            status.voting_status = VotingStatus::OPEN;
-            election
-        })
-        .collect::<Vec<_>>();
+    elections_json_with_open_status(elections)
+}
+
+fn elections_json_with_open_status(mut elections: Vec<Election>) -> AnyhowResult<Value> {
+    for election in &mut elections {
+        let mut status = get_election_status(election.status.clone()).unwrap_or_default();
+        status.voting_status = VotingStatus::OPEN;
+        election.status =
+            Some(serde_json::to_value(status).context("Error serializing preview status")?);
+    }
 
     let open_elections_json =
-        serde_json::to_value(open_elections).with_context(|| "Error serializing open elections")?;
+        serde_json::to_value(elections).with_context(|| "Error serializing open elections")?;
 
     Ok(open_elections_json)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::ballot::ElectionStatus;
+    use serde_json::json;
+
+    #[test]
+    fn preview_opens_the_serialized_copy_and_preserves_other_status_fields() {
+        let status = ElectionStatus {
+            is_published: Some(true),
+            ..Default::default()
+        };
+        let election: Election = serde_json::from_value(json!({
+            "id": "election", "tenant_id": "tenant", "election_event_id": "event", "status": status
+        }))
+        .unwrap();
+        let preview = elections_json_with_open_status(vec![election.clone()]).unwrap();
+        let preview_status = get_election_status(Some(preview[0]["status"].clone())).unwrap();
+        assert_eq!(preview_status.voting_status, VotingStatus::OPEN);
+        assert_eq!(preview_status.is_published, Some(true));
+        assert_eq!(
+            preview_status.kiosk_voting_status,
+            status.kiosk_voting_status
+        );
+        assert_eq!(
+            get_election_status(election.status).unwrap().voting_status,
+            VotingStatus::NOT_STARTED
+        );
+    }
+
+    #[test]
+    fn preview_supplies_open_status_when_no_status_is_stored() {
+        let election: Election = serde_json::from_value(json!({
+            "id": "election", "tenant_id": "tenant", "election_event_id": "event"
+        }))
+        .unwrap();
+        let preview = elections_json_with_open_status(vec![election]).unwrap();
+        assert_eq!(
+            get_election_status(Some(preview[0]["status"].clone()))
+                .unwrap()
+                .voting_status,
+            VotingStatus::OPEN
+        );
+    }
 }

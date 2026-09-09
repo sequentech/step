@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::jwt::*;
 use crate::services::keycloak::{
-    get_third_party_client_access_token, KeycloakAdminClient,
-    PubKeycloakAdminToken,
+    get_third_party_client_access_token, PubKeycloakAdminToken,
 };
 use anyhow::{anyhow, Result as AnyhowResult};
-use keycloak::{KeycloakAdmin, KeycloakAdminToken};
 use rocket::http::HeaderMap;
 use rocket::http::Status;
 use rocket::outcome::try_outcome;
@@ -17,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
-use tracing::{error, info, instrument, warn};
+use tracing::{error, instrument, warn};
 
 const TENANT_ID_HEADER: &str = "tenant-id";
 const EVENT_ID_HEADER: &str = "event-id";
@@ -162,8 +160,8 @@ fn parse_datafix_headers(headers: &HeaderMap) -> Option<DatafixHeaders> {
     );
 
     let mut auth_collection = authorization.split(":");
-    let client_id = auth_collection.nth(0); // get the first item and consumes it
-    let client_secret = auth_collection.nth(0);
+    let client_id = auth_collection.next(); // get the first item and consumes it
+    let client_secret = auth_collection.next();
     let (client_id, client_secret) =
         if let (Some(client_id), Some(client_secret)) =
             (client_id, client_secret)
@@ -308,7 +306,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
             &authorization.client_id,
             &authorization.client_secret,
             &tenant_id,
-            &lst_acc_tkn,
+            lst_acc_tkn,
         )
         .await
         {
@@ -318,7 +316,7 @@ impl<'r> FromRequest<'r> for DatafixClaims {
                     authorization.client_id,
                     authorization.client_secret,
                     tenant_id.clone(),
-                    &lst_acc_tkn,
+                    lst_acc_tkn,
                 )
                 .await
                 {

@@ -111,7 +111,7 @@ pub fn decode_permission_labels(claims: &JwtClaims) -> Vec<String> {
     // Process each item: trim whitespace and surrounding quotes
     let keys: Vec<String> = items
         .map(|item| item.trim().trim_matches('"').to_string())
-        .filter(|item| item.len() > 0)
+        .filter(|item| !item.is_empty())
         .collect();
     keys
 }
@@ -154,38 +154,50 @@ pub fn has_gold_permission(claims: &JwtClaims) -> bool {
 #[cfg(test)]
 mod tests {
     use crate::services::jwt::*;
-    use jsonwebtoken::TokenData;
+
     use jsonwebtoken::{
-        decode, decode_header, Algorithm, DecodingKey, Validation,
+        decode, decode_header, errors::ErrorKind, Algorithm, DecodingKey,
+        Validation,
     };
     use serde::{Deserialize, Serialize};
+
     #[derive(Debug, Serialize, Deserialize)]
     struct Claims {}
 
+    // Signed once with a disposable test key. Only its public modulus and the
+    // signature remain; the claims are synthetic and expired since Unix time 1.
+    const RSA_MODULUS: &str = "pT-Q5Noy87kgcU8Mhtjf5dZNOEoBh6O4RX1Vi426dDRoXwzMJyyl6eL8MPu2Ck89QPX1YL2mzYPOh7oz6asY928mgB_tYVmVlqZq2Foga_W0STDoGH_r8RdIVnMkI2ZuV8gkJlBzAP0uXxPDfMLecAWz6fYt3rU12NhX_HeNYkNSbZxOTX5k1mGLhwnYdIxFs5WQfgXOkK45EdbS5ccLcjN51g20JDjEPtLerX5dOc9sSf0NGS7RlYdl4sVFQi5upyn1dhSbg2Z0tbPMwIE7cQqNVfQsCIoT6qJGKC674fwTW4x-KAesbbthrYxtP34pxMlNw_DeLJ5XTcdM-enxWw";
+
+    fn synthetic_rs256_token() -> String {
+        let header = r#"{"alg":"RS256","typ":"JWT"}"#;
+        let claims = r#"{"acr":"1","allowed-origins":[],"aud":"synthetic-client","azp":"synthetic-client","email_verified":false,"exp":1,"https://hasura.io/jwt/claims":{"x-hasura-allowed-roles":["voter"],"x-hasura-default-role":"voter","x-hasura-tenant-id":"synthetic-tenant","x-hasura-user-id":"synthetic-user"},"iat":0,"iss":"https://issuer.example.invalid","jti":"synthetic-jwt-id","scope":"openid","sub":"synthetic-subject","typ":"Bearer"}"#;
+        let signature = "Ezs-VLRQqn3IoWJSl00nrDKpYDXGYaVyaKVFCMdeLQY6nCSlbCoM9_PtT4hSWlRc5VvnIVppDxRbdJKfZmLDTPJyvpOqKv9mRJB8maNAWne9Bcivjlv7w3hityUfD93XSNFBIaJ_rCO34qAOjRB3g4HfflMvHPlg8FZYmHNE_LIy0g4TcO4CRK8Gc-YP8n5X0_GyNissug927Pbi5iYkxz0buNElFGON_rTrmBnY34EivABPJdzYI1dNFeVmC5lMAd-ZspabMQySgc4jrIslY_-LRAd4OriUPSpT9J6wQy0eKG17rvAbxdTru1tIijPxeNmTujCTC7TW9cDs4cUOjg";
+        format!(
+            "{}.{}.{}",
+            general_purpose::URL_SAFE_NO_PAD.encode(header),
+            general_purpose::URL_SAFE_NO_PAD.encode(claims),
+            signature
+        )
+    }
+
     #[test]
-    fn test_jwt() {
-        let token: &str = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJJYXRJRWFNd004REEyVGFWa3ZEQklxbjcxQ2plRjhLeEx5VU9MbnBjRXlJIn0.eyJleHAiOjE3MDA0NDM1NzgsImlhdCI6MTcwMDQ0MzI3OCwiYXV0aF90aW1lIjoxNzAwNDQzMjc3LCJqdGkiOiI3NzRmNDY4OC03NjlhLTQyYzQtOGRiYS01YmJjNzdjYzFlOWEiLCJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjgwOTAvcmVhbG1zL2VsZWN0b3JhbC1wcm9jZXNzIiwiYXVkIjoiYWNjb3VudCIsInN1YiI6ImEyMDM3NmQ2LWU1M2EtNGVkZi1hZmMzLWNjMThiYjhlMjNlNSIsInR5cCI6IkJlYXJlciIsImF6cCI6ImFkbWluLXBvcnRhbCIsIm5vbmNlIjoiNmZmNDhhMDgtMTFmZC00MTUzLTgzZWUtYzljZWE1MGI1NTE1Iiwic2Vzc2lvbl9zdGF0ZSI6IjhhOWYwYzFjLTA2YzYtNDNkNS05OGY5LWZhYWFjZTNmYzZiYyIsImFjciI6IjEiLCJhbGxvd2VkLW9yaWdpbnMiOlsiKiJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1lbGVjdG9yYWwtcHJvY2VzcyIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iLCJteS1yZWFsbS1yb2xlIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWRtaW4tcG9ydGFsIjp7InJvbGVzIjpbImFkbWluLXVzZXIiXX0sImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwiLCJzaWQiOiI4YTlmMGMxYy0wNmM2LTQzZDUtOThmOS1mYWFhY2UzZmM2YmMiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImh0dHBzOi8vaGFzdXJhLmlvL2p3dC9jbGFpbXMiOnsieC1oYXN1cmEtZGVmYXVsdC1yb2xlIjoiYWRtaW4tdXNlciIsIngtaGFzdXJhLXRlbmFudC1pZCI6IjkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSIsIngtaGFzdXJhLXVzZXItaWQiOiJhMjAzNzZkNi1lNTNhLTRlZGYtYWZjMy1jYzE4YmI4ZTIzZTUiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbImRlZmF1bHQtcm9sZXMtZWxlY3RvcmFsLXByb2Nlc3MiLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIiwibXktcmVhbG0tcm9sZSJdfSwibmFtZSI6ImFkbWluIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiYWRtaW4iLCJnaXZlbl9uYW1lIjoiYWRtaW4iLCJmYW1pbHlfbmFtZSI6IiJ9.DDD4zfpUqYOuy_Q1jgF5Cw0uJV9LGiO10GhhE42S9f2xfjw8tnKaV6WzqJrMFjFKMvuixsoXyXKTGeNuW-XyAK7LD7wdPIM2rZPgyXTdzQhSnKBSFjQu87CU_is4ii9I5I3r3PGsVp821F_sWo9oG0_u3tphEl80FYYGINtHxZMvCc1BiikJIBP1tA_Dtl8qq2IfDuOeMO82vWgfNH6VmZwf92GmjkJfKMaAYf3nytRPtv-YvKc6HfWipYGwtt8kua4SlDavOw32Ec7osc_44gMhBL3FZrrikLhJPJ6n-iQBQstbMKTLLeowE4cqNkdhcnHjflmbGBEyY9242jkdqg";
-        let n: &str = "q8-wv_ypwU2h2PjANU2_NNQT5NNVzI8au8Nzh7SD7Va2GJ41oef0zxa5SOIipBqcnbAcX9hCSaBqjg5CbSWy6XMWky54QzjDWdGhq9sqXIA6TAf2vKsrbL5daNQsRwBLwguB9QQKw52cL7T2NcIPS-y3H1oxPTfNUA92p2K8Eg7S3UN-kzxSyoytSJsO75HW20qrOcLls9u3_2wkMxy4Dn9ves4rcAEOR6IoMZVtOyZ8UBxiF552VhF1bC9yU6WSnDWaKdhACMf4mW2nJk5IvPF16iQ_cw2YJ5ro1KSVVra5WzPCZTIPuIu1IRWnZDgASnYJdrAu_pbNLO-JlwqGuQ";
-        let e: &str = "AQAB";
-        let _decoded = decode_jwt(token).unwrap();
-        let header = decode_header(token);
-        let token = decode::<Claims>(
+    fn expired_synthetic_rs256_token_is_rejected() {
+        let token = synthetic_rs256_token();
+        assert!(decode_jwt(&token).is_ok());
+        let result = decode::<Claims>(
             &token,
-            &DecodingKey::from_rsa_components(n, e).unwrap(),
+            &DecodingKey::from_rsa_components(RSA_MODULUS, "AQAB").unwrap(),
             &Validation::new(Algorithm::RS256),
         );
-        println!("{:?}", header);
-        println!("{:?}", token);
-        assert!(format!("{:?}", token).contains("ExpiredSignature"));
+        assert_eq!(result.unwrap_err().kind(), &ErrorKind::ExpiredSignature);
     }
+
     #[test]
-    fn test_jwt2() {
-        let token: &str = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJodi00Tk4zdVZXb3Z5clBTOXFkcVUwYWZUQWQtTmZmdENySW56SzRibktNIn0.eyJleHAiOjE3MTU3Njk1MTEsImlhdCI6MTcxNTc2OTIxMSwiYXV0aF90aW1lIjoxNzE1NzY5MjEwLCJqdGkiOiJjOGM4NTljZC01ODg4LTRjZTctYjUzZS0yMjQzODNiNDhjNWUiLCJpc3MiOiJodHRwczovL2tleWNsb2FrLXVhLnNlcXVlbnQudm90ZS9hdXRoL3JlYWxtcy90ZW5hbnQtOTA1MDVjOGEtMjNhOS00Y2RmLWEyNmItNGUxOWY2YTA5N2Q1LWV2ZW50LTM4OGIzZWZmLWU1ODMtNGE1Ni04MmI3LTBhZDE1ZWFhNDA5YSIsInN1YiI6IjY2OTcxYWIwLTFlNmQtNGZjNS1iNzI2LTliZmRkNzgyNDAyMSIsInR5cCI6IkJlYXJlciIsImF6cCI6InZvdGluZy1wb3J0YWwiLCJub25jZSI6ImQzNThjZmQ4LTFlYWQtNDlkYy04NWJjLThlMWYwMTE4MjIxMCIsInNlc3Npb25fc3RhdGUiOiI2Y2RmN2I1ZC1lYmMwLTRjOTUtODFlMC00MWE2NjE5NDlhMWIiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbIioiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbInVzZXIiXX0sInNjb3BlIjoib3BlbmlkIGVtYWlsIHByb2ZpbGUiLCJzaWQiOiI2Y2RmN2I1ZC1lYmMwLTRjOTUtODFlMC00MWE2NjE5NDlhMWIiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaHR0cHM6Ly9oYXN1cmEuaW8vand0L2NsYWltcyI6eyJ4LWhhc3VyYS1kZWZhdWx0LXJvbGUiOiJ1c2VyIiwieC1oYXN1cmEtYXJlYS1pZCI6IjI4YmRmOWIyLTA2YmMtNDRkZC1iMzJkLTc1OTIwNGJlMTlkNSIsIngtaGFzdXJhLXRlbmFudC1pZCI6IjkwNTA1YzhhLTIzYTktNGNkZi1hMjZiLTRlMTlmNmEwOTdkNSIsIngtaGFzdXJhLXVzZXItaWQiOiI2Njk3MWFiMC0xZTZkLTRmYzUtYjcyNi05YmZkZDc4MjQwMjEiLCJ4LWhhc3VyYS1hbGxvd2VkLXJvbGVzIjpbInVzZXIiXX0sIm5hbWUiOiJCRUdPw5FBIENFQkFMTE9TIENBTUFSRVJPIC0iLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJiLmNlYmFsbG9zQHVhLmVzIiwiZ2l2ZW5fbmFtZSI6IkJFR0_DkUEgQ0VCQUxMT1MgQ0FNQVJFUk8iLCJmYW1pbHlfbmFtZSI6Ii0iLCJlbWFpbCI6ImIuY2ViYWxsb3NAdWEuZXMifQ.G6IwhFvxrCFxKicbcoVcwuOVSWTRjcy31RWqHWha8E5Kz7tNn8KpUsADy595rZEsLeG5tGvyJ98PMoN2L7RInGKssxx6zRGo5kwa5qHW2sndTwyvjrjPlaZlTB3tNPa2uqTOn6ztfFfqFmAlKB2ig29NThUyqIHnMq502jPPK3a3LZcPBrAvrOUtlEJPxO3MKz2ItQy-YfAdIajR1T1BJmo5b-nzMqpEPFFae1rxKAV5SgyOhhSL2R-K5rKfmoJiUhudB132cgioWAcsw8L1LzA6esIPSn5apN_4y13LcqtbCPXJi0PxDwkKx4r5M-LUwWCcJMneI3aLOGs-cxo8pQ";
-
-        let decoded = decode_jwt(token);
-        println!("{:?}", decoded);
-
-        let header = decode_header(token);
-        assert!(true);
+    fn synthetic_rs256_token_decodes_claims_and_header() {
+        let token = synthetic_rs256_token();
+        let claims = decode_jwt(&token).unwrap();
+        assert_eq!(claims.iss, "https://issuer.example.invalid");
+        assert_eq!(claims.sub, "synthetic-subject");
+        assert_eq!(decode_header(&token).unwrap().alg, Algorithm::RS256);
     }
 }

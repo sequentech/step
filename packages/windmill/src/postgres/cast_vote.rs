@@ -147,6 +147,10 @@ fn cast_vote_annotations(
     })?)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction, content, cast_ballot_signature), err)]
 pub async fn insert_cast_vote(
     hasura_transaction: &Transaction<'_>,

@@ -39,11 +39,6 @@ struct ConfirmMessageRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct ConfirmMessageResponse {
-    success: bool,
-}
-
-#[derive(Debug, Deserialize)]
 struct GetMessagesResponse {
     messages: Vec<MessageWithUrl>,
 }
@@ -79,17 +74,18 @@ enum ContentTypeDto {
 pub struct HttpB3 {
     client: reqwest::Client,
     base_url: String,
-    s3_client: aws_sdk_s3::Client,
-    bucket_name: String,
+    // Retain the constructor context; HTTP uploads use server-issued URLs.
+    _s3_client: aws_sdk_s3::Client,
+    _bucket_name: String,
 }
 
 impl HttpB3 {
-    pub async fn new(base_url: &str, s3_client: aws_sdk_s3::Client, bucket_name: &str) -> HttpB3 {
+    pub async fn new(base_url: &str, _s3_client: aws_sdk_s3::Client, _bucket_name: &str) -> HttpB3 {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: base_url.to_string(),
-            s3_client,
-            bucket_name: bucket_name.to_string(),
+            _s3_client,
+            _bucket_name: _bucket_name.to_string(),
         }
     }
 
@@ -328,8 +324,8 @@ impl HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            s3_client: self.s3_client.clone(),
-            bucket_name: self.bucket_name.clone(),
+            _s3_client: self.s3_client.clone(),
+            _bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -340,8 +336,8 @@ impl BoardFactory<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            s3_client: self.s3_client.clone(),
-            bucket_name: self.bucket_name.clone(),
+            _s3_client: self.s3_client.clone(),
+            _bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -351,8 +347,8 @@ impl BoardFactoryMulti<HttpB3> for HttpB3BoardParams {
         HttpB3 {
             client: reqwest::Client::new(),
             base_url: self.base_url.clone(),
-            s3_client: self.s3_client.clone(),
-            bucket_name: self.bucket_name.clone(),
+            _s3_client: self.s3_client.clone(),
+            _bucket_name: self.bucket_name.clone(),
         }
     }
 }
@@ -362,7 +358,7 @@ impl BoardMulti for HttpB3 {
 
     async fn get_messages_multi(
         &self,
-        requests: &Vec<(String, i64)>,
+        requests: &[(String, i64)],
     ) -> Result<(Vec<b4::HttpBoardMessages>, bool)> {
         use b4::api_types::{BoardMessageRequest, GetMessagesMultiRequest};
 

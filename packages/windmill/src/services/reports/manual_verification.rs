@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
-use crate::postgres::reports::{Report, ReportType};
+use crate::postgres::reports::ReportType;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -90,8 +90,8 @@ impl TemplateRenderer for ManualVerificationTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         let manual_verification_url = get_manual_verification_url(
             &self.ids.tenant_id,

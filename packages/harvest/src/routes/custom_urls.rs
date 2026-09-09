@@ -11,10 +11,10 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::custom_url::{
-    get_page_rule, set_custom_url, PageRule, PreviousCustomUrls, Target,
+    get_page_rule, set_custom_url, PreviousCustomUrls,
 };
 use windmill::services::database::get_hasura_pool;
 
@@ -33,14 +33,14 @@ pub struct GetCustomUrlInput {
 }
 
 #[derive(Serialize)]
-struct GetCustomUrlOutput {
+pub struct GetCustomUrlOutput {
     success: bool,
     message: String,
     origin: String,
 }
 
 #[derive(Serialize)]
-struct UpdateCustomUrlOutput {
+pub struct UpdateCustomUrlOutput {
     success: bool,
     message: String,
 }
@@ -126,9 +126,9 @@ pub async fn update_custom_url(
     )
     .await
     {
-        Ok(message) => {
+        Ok(_message) => {
             info!("Custom URL successfully updated");
-            let success_message = format!("Success updating custom URL");
+            let success_message = "Success updating custom URL".to_string();
             Ok(Json(UpdateCustomUrlOutput {
                 success: true,
                 message: success_message,
@@ -171,7 +171,7 @@ pub async fn get_custom_url(
         Some(r) => {
             let origin = r
                 .targets
-                .get(0)
+                .first()
                 .map(|target| target.constraint.value.clone());
 
             match origin {

@@ -3,25 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election::get_election_by_id;
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
-use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use async_trait::async_trait;
 use celery::error::TaskError;
 use chrono::Duration;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionStatus, VotingStatus, VotingStatusChannel};
+use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
-use serde::{Deserialize, Serialize};
+use tracing::info;
 use tracing::instrument;
-use tracing::{error, event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -69,8 +64,7 @@ async fn manage_election_date_wrapper(
         EventProcessors::END_VOTING_PERIOD => VotingStatus::CLOSED,
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
             return Ok(());
         }
     };
@@ -82,8 +76,7 @@ async fn manage_election_date_wrapper(
         EventProcessors::END_VOTING_PERIOD => vec![VotingStatusChannel::ONLINE],
         _ => {
             info!("Invalid scheduled event type: {:?}", event_processor);
-            stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
-                .await?;
+            stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id).await?;
             return Ok(());
         }
     };
@@ -101,7 +94,7 @@ async fn manage_election_date_wrapper(
     .await;
     info!("result: {result:?}");
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_manage_date.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_manage_date.id)
         .await
         .map_err(|err| anyhow!("Error stopping scheduled event: {err:?}"))?;
 

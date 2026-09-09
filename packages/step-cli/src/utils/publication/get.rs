@@ -11,7 +11,6 @@ use graphql_client::{GraphQLQuery, Response};
     query_path = "src/graphql/get_ballot_publication_status.graphql",
     response_derives = "Debug,Clone,Deserialize,Serialize"
 )]
-
 pub struct GetBallotPublicationStatus;
 
 impl GetBallotPublicationStatus {

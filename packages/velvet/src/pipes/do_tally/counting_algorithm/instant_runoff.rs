@@ -2,17 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+#[cfg(test)]
+use sequent_core::ballot::Candidate;
+
 use super::Result;
 use super::{CountingAlgorithm, Error};
+#[cfg(test)]
+use crate::pipes::do_tally::CandidateResult;
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    counting_algorithm::utils::*, tally::Tally, BlankVotes, ContestResult, ExtendedMetricsContest,
+    InvalidVotes,
 };
 use rand::prelude::IndexedRandom;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use rayon::vec;
-use sequent_core::ballot::{Candidate, Contest, TieBreakingPolicy, Weight};
+use rand::rng;
+use sequent_core::ballot::{Contest, TieBreakingPolicy, Weight};
 use sequent_core::plaintext::{DecodedVoteChoice, DecodedVoteContest};
 use sequent_core::types::ceremonies::{
     ScopeOperation, TallyOperation, TallySessionResolutionData, TieBreakingMethod,
@@ -110,11 +113,10 @@ impl BallotsStatus<'_> {
                 contest,
                 &explicit_blank_candidate_ids,
             );
-            ballots.push((status, vote, weight.clone()));
+            ballots.push((status, vote, *weight));
         }
         let total_ballots = votes.len() as u64;
         extended_metrics.total_ballots = total_ballots;
-        let count_blank = blank_votes.total();
         extended_metrics.total_declined_to_vote = count_declined_to_vote;
         extended_metrics.total_blank_ballots = count_blank_ballots;
         let count_valid = total_ballots
@@ -355,10 +357,8 @@ impl RunoffStatus {
     ) -> Option<(CandidateReference, Vec<CandidateReference>)> {
         // FULL TIE: All active candidates have the same (lowest) number of votes
         // No meaningful elimination possible → winner decided by tiebreak policy
-        let mut rng = thread_rng();
-        let Some(winner_id) = candidates_to_eliminate.choose(&mut rng) else {
-            return None;
-        };
+        let mut rng = rng();
+        let winner_id = candidates_to_eliminate.choose(&mut rng)?;
         let winner_name = self.get_candidate_name(winner_id).unwrap_or_default();
         info!(
             "IRV full tie detected among {} candidates. Selecting winner by lot: {} ({})",
@@ -398,7 +398,7 @@ impl RunoffStatus {
 
         self.tie_resolutions.push(resolution_data);
 
-        return Some((winner, eliminated));
+        Some((winner, eliminated))
     }
 
     pub fn determine_winner_by_external_procedure(
@@ -484,7 +484,7 @@ impl RunoffStatus {
 
         if active_count == reduced_list.len() {
             // if all active candidates have the same wins (all to be eliminated) then there is a winner tie, so end the election and the winner will be decided by tie breaking policy.
-            return None;
+            None
         } else {
             // Simultaneous Elimination can create corner cases where a winner is decided unfairly.
             // So many electoral systems pick a random candidate from the reduced list instead.
@@ -499,7 +499,7 @@ impl RunoffStatus {
                     name: self.get_candidate_name(candidate_id).unwrap_or_default(),
                 });
             }
-            return Some(eliminated);
+            Some(eliminated)
         }
     }
 
@@ -510,8 +510,8 @@ impl RunoffStatus {
     #[instrument(skip_all)]
     pub fn find_first_active_choice(
         &self,
-        choices: &Vec<DecodedVoteChoice>,
-        active_candidate_ids: &Vec<String>,
+        choices: &[DecodedVoteChoice],
+        active_candidate_ids: &[String],
     ) -> Option<String> {
         let mut choices: Vec<DecodedVoteChoice> = choices
             .iter()
@@ -519,7 +519,7 @@ impl RunoffStatus {
             .cloned()
             .collect();
 
-        choices.sort_by(|a, b| a.selected.cmp(&b.selected));
+        choices.sort_by_key(|a| a.selected);
         for choice in choices {
             if active_candidate_ids.contains(&choice.id) {
                 return Some(choice.id.clone());
@@ -574,11 +574,9 @@ impl RunoffStatus {
                 .filter_candidates_by_number_of_wins(&candidates_wins, max_wins)
                 .first()
                 .cloned();
-            round.winner = winner_id.and_then(|id| {
-                Some(CandidateReference {
-                    id: id.clone(),
-                    name: self.get_candidate_name(&id).unwrap_or_default(),
-                })
+            round.winner = winner_id.map(|id| CandidateReference {
+                id: id.clone(),
+                name: self.get_candidate_name(&id).unwrap_or_default(),
             });
         }
 
@@ -623,7 +621,7 @@ impl RunoffStatus {
         self.rounds.push(round);
         self.round_count += 1;
 
-        return continue_next_round;
+        continue_next_round
     }
 
     /// Order name_references to have the best results at the beginning
@@ -690,7 +688,7 @@ impl InstantRunoff {
         let (candidate_result, process_results) = match op {
             TallyOperation::SkipCandidateResults => (vec![], None),
             _ => {
-                let mut runoff = RunoffStatus::initialize_runoff(&contest);
+                let mut runoff = RunoffStatus::initialize_runoff(contest);
                 runoff.run(&mut ballots_status);
 
                 let mut vote_count: HashMap<String, u64> = HashMap::new(); // vote_count has only the last round results or it could be left empty because the full results are in runoff_value
@@ -709,7 +707,7 @@ impl InstantRunoff {
                 let candidate_result = self.tally.create_candidate_results(
                     vote_count,
                     blank_votes,
-                    count_invalid_votes.clone(),
+                    count_invalid_votes,
                     extended_metrics.clone(),
                     count_valid,
                     count_invalid,
@@ -736,7 +734,7 @@ impl CountingAlgorithm for InstantRunoff {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.scope_operation {
-            ScopeOperation::Contest(op) if op == TallyOperation::AggregateResults => {
+            ScopeOperation::Contest(TallyOperation::AggregateResults) => {
                 self.tally.aggregate_results()?
             }
             ScopeOperation::Contest(op) => self.process_ballots(op)?,

@@ -6,7 +6,6 @@ use super::sql_utils::escape_sql_literal;
 use crate::postgres::cast_vote::{
     count_distinct_voters_by_channel_query, count_votes_per_day_query, CastVoteRelation,
 };
-use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
     is_datafix_election_event_by_id, voted_via_not_internet_channel,
 };
@@ -22,7 +21,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
-use strand::signature::{StrandSignaturePk, StrandSignatureSk};
 use strum_macros::{Display, EnumString};
 use tokio::fs::File;
 use tokio::io::{copy, AsyncWriteExt, BufWriter};
@@ -116,7 +114,7 @@ pub async fn find_area_ballots(
     let area_id = escape_sql_literal(area_id);
     let election_id = escape_sql_literal(election_id);
     let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
-    let default_channel = escape_sql_literal(&VotingStatusChannel::ONLINE.to_string());
+    let default_channel = escape_sql_literal(VotingStatusChannel::ONLINE.as_ref());
     let areas_statement = format!(
         r#"
                     SELECT DISTINCT ON (election_id, voter_id_string)
@@ -149,9 +147,8 @@ pub async fn find_area_ballots(
 
     let reader = hasura_transaction.copy_out(&copy_out_query).await?;
 
-    let adapt_pg_error_to_io_error = |pg_err: tokio_postgres::Error| {
-        std::io::Error::new(std::io::ErrorKind::Other, pg_err.to_string())
-    };
+    let adapt_pg_error_to_io_error =
+        |pg_err: tokio_postgres::Error| std::io::Error::other(pg_err.to_string());
     let io_error_stream = reader.map_err(adapt_pg_error_to_io_error);
 
     let async_reader = StreamReader::new(io_error_stream);
@@ -509,6 +506,10 @@ fn validate_votes_time_range(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing scoped vote-count query arguments, time resolution and source relation explicit."
+)]
 #[instrument(skip(transaction), err)]
 pub async fn get_count_votes_per_day(
     transaction: &Transaction<'_>,
@@ -536,6 +537,10 @@ pub async fn get_count_votes_per_day(
     .await
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing scoped vote-count query arguments, time resolution and source relation explicit."
+)]
 async fn get_count_votes_per_day_from_relation(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -687,7 +692,7 @@ pub async fn get_users_with_vote_info(
 
         user_votes_map
             .entry(voter_id_string)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(VotesInfo {
                 election_id: election_id.to_string(),
                 num_votes: num_votes as usize,
@@ -709,7 +714,7 @@ pub async fn get_users_with_vote_info(
         // If this is a "datafix" event, adjust the votes_info by checking the user's attributes
         if is_datafix_event {
             if let Some(attributes) = &user.attributes {
-                if voted_via_not_internet_channel(&attributes) {
+                if voted_via_not_internet_channel(attributes) {
                     votes_info = vec![VotesInfo {
                         election_id: "".to_string(), // Not used for datafix
                         num_votes: 1,
@@ -776,22 +781,12 @@ pub async fn get_top_count_votes_by_ip(
         0
     };
 
-    let ip_pattern: Option<String> = if let Some(ip_val) = filter.ip {
-        Some(format!("%{ip_val}%"))
-    } else {
-        None
-    };
+    let ip_pattern: Option<String> = filter.ip.map(|ip_val| format!("%{ip_val}%"));
 
-    let country_pattern: Option<String> = if let Some(country_val) = filter.country {
-        Some(format!("%{country_val}%"))
-    } else {
-        None
-    };
+    let country_pattern: Option<String> =
+        filter.country.map(|country_val| format!("%{country_val}%"));
     let election_id_pattern: Option<Uuid> = if let Some(election_id_val) = filter.election_id {
-        match parse_uuid_v4(&election_id_val) {
-            Ok(uuid) => Some(uuid),
-            Err(e) => None,
-        }
+        parse_uuid_v4(&election_id_val).ok()
     } else {
         None
     };

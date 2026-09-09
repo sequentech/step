@@ -142,8 +142,8 @@ pub(crate) mod tests {
         assert_eq!(plaintext, decoded);
 
         // prove
-        let big_x = c_.gr.divp(&c1.gr, &ctx).modp(&ctx);
-        let big_y = c_.mhr.divp(&c1.mhr, &ctx).modp(&ctx);
+        let big_x = c_.gr.divp(&c1.gr, ctx).modp(ctx);
+        let big_y = c_.mhr.divp(&c1.mhr, ctx).modp(ctx);
 
         let k = zkp.icp_prover_1();
         let (c, e, r) = zkp.icp_verifier_2(&k);
@@ -172,8 +172,8 @@ pub(crate) mod tests {
         let c_ = c_different.mul(&one);
 
         // proof with a different ciphertext re-randomization should fail
-        let big_x = c_.gr.divp(&c1.gr, &ctx).modp(&ctx);
-        let big_y = c_.mhr.divp(&c1.mhr, &ctx).modp(&ctx);
+        let big_x = c_.gr.divp(&c1.gr, ctx).modp(ctx);
+        let big_y = c_.mhr.divp(&c1.mhr, ctx).modp(ctx);
 
         let k = zkp.icp_prover_1();
         let (c, e, r) = zkp.icp_verifier_2(&k);
@@ -197,14 +197,14 @@ pub(crate) mod tests {
             mhr: ctx
                 .rnd(&mut rng)
                 .mul(&ctx.emod_pow(&pk.element, &x))
-                .modp(&ctx),
+                .modp(ctx),
             gr: ctx.gmod_pow(&x),
         };
         let c_ = c1.mul(&not_one);
 
         // proof with a non-rerandomization (not multiplying by one) should fail
-        let big_x = c_.gr.divp(&c1.gr, &ctx).modp(&ctx);
-        let big_y = c_.mhr.divp(&c1.mhr, &ctx).modp(&ctx);
+        let big_x = c_.gr.divp(&c1.gr, ctx).modp(ctx);
+        let big_y = c_.mhr.divp(&c1.mhr, ctx).modp(ctx);
 
         let k = zkp.icp_prover_1();
         let (c, e, r) = zkp.icp_verifier_2(&k);

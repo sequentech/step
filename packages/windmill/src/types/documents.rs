@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
-#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
+#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames)]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the public document identifiers and their existing derived string representations used by export/import callers."
+)]
 pub enum EDocuments {
     ELECTION_EVENT,
     VOTERS,
@@ -49,6 +53,10 @@ impl EDocuments {
     }
 }
 
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the public tally-document variant API used by the existing import and export routines."
+)]
 pub enum ETallyDocuments {
     TALLY_SESSION,
     TALLY_SESSION_CONTEST,

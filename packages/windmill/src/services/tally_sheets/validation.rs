@@ -78,17 +78,17 @@ mod tests {
     /// A contest with `max_votes` marks allowed per ballot and `candidates`
     /// numbered `cand-1..=candidates`.
     fn contest(max_votes: i64, candidates: usize) -> BallotContest {
-        let mut contest = BallotContest::default();
-        contest.max_votes = max_votes;
-        contest.counting_algorithm = Some(CountingAlgType::PluralityAtLarge);
-        contest.candidates = (1..=candidates)
-            .map(|index| {
-                let mut candidate = Candidate::default();
-                candidate.id = format!("cand-{index}");
-                candidate
-            })
-            .collect();
-        contest
+        BallotContest {
+            max_votes,
+            counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
+            candidates: (1..=candidates)
+                .map(|index| Candidate {
+                    id: format!("cand-{index}"),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        }
     }
 
     fn tally_sheet(

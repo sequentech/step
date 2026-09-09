@@ -167,8 +167,8 @@ impl<C: Ctx, B: Board, S: crate::protocol::board::LocalBoardStorage> Verifier<C,
             .artifact
             .as_ref()
             .unwrap();
-        let cfg_h = strand::hash::hash_to_array(&cfg_bytes)?;
-        let cfg = Configuration::<C>::strand_deserialize(&cfg_bytes)?;
+        let cfg_h = strand::hash::hash_to_array(cfg_bytes)?;
+        let cfg = Configuration::<C>::strand_deserialize(cfg_bytes)?;
         info!("Verifying configuration [{}]", dbg_hash(&cfg_h));
 
         vr.add_result(
@@ -311,7 +311,7 @@ impl Verified {
         let child = vr
             .children
             .get_mut(b)
-            .expect(&format!("no target for batch '{}'", b));
+            .unwrap_or_else(|| panic!("no target for batch '{}'", b));
 
         assert_eq!(self.get_batch(), target.get_batch());
 
@@ -384,6 +384,11 @@ pub struct VerificationResult {
     children: HashMap<String, VerificationResult>,
 }
 
+/// A verification check name, result and explanatory metadata.
+pub type VerificationCheck = (String, bool, String);
+/// A batch name and its verification checks.
+pub type BatchVerificationChecks = (String, Vec<VerificationCheck>);
+
 impl VerificationResult {
     fn new(name: &str) -> VerificationResult {
         VerificationResult {
@@ -399,7 +404,7 @@ impl VerificationResult {
         let value = self
             .targets
             .get_mut(&name)
-            .expect(&format!("no target for '{}'", &name));
+            .unwrap_or_else(|| panic!("no target for '{}'", &name));
         value.result = result;
         value.metadata = metadata.to_string();
     }
@@ -410,14 +415,14 @@ impl VerificationResult {
     fn totals(&self) -> (u64, u64, usize) {
         let mut ok = 0;
         let mut not_ok = 0;
-        for (_name, value) in &self.targets {
+        for value in self.targets.values() {
             if value.result {
-                ok = ok + 1;
+                ok += 1;
             } else {
-                not_ok = not_ok + 1;
+                not_ok += 1;
             }
         }
-        for (_name, child) in &self.children {
+        for child in self.children.values() {
             let (ok_, not_ok_, _) = child.totals();
             ok += ok_;
             not_ok += not_ok_;
@@ -427,7 +432,7 @@ impl VerificationResult {
     }
 
     /// Get root-level checks (board-wide checks)
-    pub fn get_root_checks(&self) -> Vec<(String, bool, String)> {
+    pub fn get_root_checks(&self) -> Vec<VerificationCheck> {
         self.targets
             .iter()
             .map(|(check, item)| (check.to_string(), item.result, item.metadata.clone()))
@@ -435,7 +440,7 @@ impl VerificationResult {
     }
 
     /// Get batch-level checks organized by batch
-    pub fn get_batch_checks(&self) -> Vec<(String, Vec<(String, bool, String)>)> {
+    pub fn get_batch_checks(&self) -> Vec<BatchVerificationChecks> {
         self.children
             .iter()
             .map(|(batch_name, child)| {
@@ -450,7 +455,7 @@ impl VerificationResult {
     }
 
     /// Get all checks as a flat list with their pass/fail status
-    pub fn get_all_checks(&self) -> Vec<(String, bool, String)> {
+    pub fn get_all_checks(&self) -> Vec<VerificationCheck> {
         let mut checks = Vec::new();
 
         // Add own checks

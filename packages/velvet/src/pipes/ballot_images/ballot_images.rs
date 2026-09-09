@@ -120,10 +120,10 @@ impl BallotImages {
                 ))
             })?;
 
-        let pdf_options = match pipe_config.pdf_options.clone() {
-            Some(options) => Some(options.to_print_to_pdf_options()),
-            None => None,
-        };
+        let pdf_options = pipe_config
+            .pdf_options
+            .clone()
+            .map(|options| options.to_print_to_pdf_options());
 
         let bytes_pdf = if pipe_config.enable_pdfs {
             let bytes_html = bytes_html.clone();
@@ -147,7 +147,7 @@ impl BallotImages {
             .stage
             .pipe_config(self.pipe_inputs.stage.current_pipe)
             .and_then(|pc| pc.config)
-            .map(|value| serde_json::from_value(value))
+            .map(serde_json::from_value)
             .transpose()?
             .unwrap_or_default();
         Ok(pipe_config)
@@ -193,14 +193,13 @@ impl Pipe for BallotImages {
                         let (bytes_pdf, bytes_html) = self.print_ballot_images(
                             decoded_ballots_file.as_path(),
                             &contest_input.contest,
-                            &election_input,
+                            election_input,
                             &pipe_config,
                             &area_input.area.name,
                         )?;
 
                         let path = PipeInputs::build_path(
-                            &self
-                                .pipe_inputs
+                            self.pipe_inputs
                                 .cli
                                 .output_dir
                                 .join(&pipe_type_data.pipe_name_output_dir)
@@ -219,7 +218,7 @@ impl Pipe for BallotImages {
                                 .truncate(true)
                                 .create(true)
                                 .open(file)?;
-                            file.write_all(&some_bytes_pdf)?;
+                            file.write_all(some_bytes_pdf)?;
                         }
 
                         let file = path.join(&pipe_type_data.output_file_html);
@@ -315,7 +314,7 @@ fn compute_data(data: TemplateData) -> ComputedTemplateData {
                 .filter(|can| can.is_selected())
                 .count();
 
-            let is_blank = selected_candidates.len() == 0;
+            let is_blank = selected_candidates.is_empty();
             let undervotes = data.contest.max_votes - (num_selected as i64);
             let mut overvotes = 0;
             if (num_selected as i64) > data.contest.max_votes {

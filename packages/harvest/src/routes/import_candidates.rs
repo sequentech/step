@@ -10,7 +10,7 @@ use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use windmill::services::tasks_execution::*;
 use windmill::{
     tasks::import_candidates::import_candidates_task,

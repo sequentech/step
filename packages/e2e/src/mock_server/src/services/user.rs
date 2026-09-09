@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use chrono::NaiveDate;
 use csv::ReaderBuilder;
 use rand::Rng;
@@ -90,7 +90,7 @@ pub fn load_users(csv_path: &str) -> Result<usize, anyhow::Error> {
         inserted_count += rows_effected;
     }
 
-    Ok((inserted_count))
+    Ok(inserted_count)
 }
 
 pub fn get_users_from_db() -> anyhow::Result<Vec<User>> {
@@ -155,8 +155,8 @@ pub fn random_user_by_country(country: &str) -> Result<Option<User>> {
     if users.is_empty() {
         Ok(None)
     } else {
-        let mut rng = rand::thread_rng();
-        let idx = rng.gen_range(0..users.len());
+        let mut rng = rand::rng();
+        let idx = rng.random_range(0..users.len());
         Ok(Some(users[idx].clone()))
     }
 }

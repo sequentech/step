@@ -116,6 +116,10 @@ add-keycloak-data-to-tarball() {
 }
 
 add-trustees-data-to-tarball() {
+    for trustee in trustee1 trustee2 trustee3; do
+        test -s "$PROJECT_ROOT/.devcontainer/trustees-data/$trustee/$trustee.toml" \
+            || fatal "Provision the persistent $trustee configuration before packaging; see .devcontainer/trustees-data/README.md"
+    done
     tmpdir=$(mktemp -d)
     cp -r $PROJECT_ROOT/.devcontainer/trustees-data $tmpdir/trustees-data
     tar --append -C $tmpdir --file=$DELIVERABLE_TARBALL trustees-data

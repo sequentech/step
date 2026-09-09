@@ -4,13 +4,12 @@
 
 use super::{CountingAlgorithm, Error};
 use crate::pipes::do_tally::{
-    counting_algorithm::utils::*, tally::Tally, BlankVotes, CandidateResult, ContestResult,
-    ExtendedMetricsContest, InvalidVotes,
+    counting_algorithm::utils::*, tally::Tally, BlankVotes, ContestResult, ExtendedMetricsContest,
+    InvalidVotes,
 };
 use sequent_core::types::ceremonies::{ScopeOperation, TallyOperation};
-use std::cmp;
 use std::collections::HashMap;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 use super::Result;
 
@@ -49,7 +48,7 @@ impl PluralityAtLarge {
             extended_metrics = update_extended_metrics(
                 vote,
                 &extended_metrics,
-                &contest,
+                contest,
                 &explicit_blank_candidate_ids,
             );
 
@@ -101,7 +100,7 @@ impl PluralityAtLarge {
             _ => self.tally.create_candidate_results(
                 vote_count,
                 blank_votes,
-                count_invalid_votes.clone(),
+                count_invalid_votes,
                 extended_metrics.clone(),
                 count_valid,
                 count_invalid,
@@ -126,7 +125,7 @@ impl CountingAlgorithm for PluralityAtLarge {
     #[instrument(err, skip_all)]
     fn tally(&self) -> Result<ContestResult> {
         let contest_result = match self.tally.scope_operation {
-            ScopeOperation::Contest(op) if op == TallyOperation::AggregateResults => {
+            ScopeOperation::Contest(TallyOperation::AggregateResults) => {
                 self.tally.aggregate_results()?
             }
             ScopeOperation::Contest(op) => self.process_ballots(op)?,

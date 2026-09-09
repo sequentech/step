@@ -2,7 +2,6 @@ use crate::postgres::area::{get_area_by_id, get_areas_by_election_id};
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::postgres::election::get_election_by_id;
 use crate::postgres::results_area_contest::get_results_area_contest;
 use crate::postgres::results_election::{
     get_election_results, get_results_election_by_results_event_id,
@@ -11,7 +10,6 @@ use crate::postgres::tally_session::get_tally_sessions_by_election_event_id;
 use crate::postgres::tally_session_execution::get_tally_session_executions;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
 use crate::services::election_dates::get_election_dates;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::users::{
     count_keycloak_enabled_users, count_keycloak_enabled_users_by_attrs, AttributesFilterBy,
     AttributesFilterOption,
@@ -24,10 +22,8 @@ use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::{Area, Election, ElectionEvent};
 use sequent_core::types::keycloak::AREA_ID_ATTR_NAME;
 use sequent_core::types::scheduled_event::ScheduledEvent;
-use sequent_core::util::temp_path::*;
 use sequent_core::util::version::{ENV_VAR_APP_HASH, ENV_VAR_APP_VERSION};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use strand::hash::hash_b64;
@@ -101,7 +97,7 @@ pub async fn generate_election_votes_data(
     .await
     .map_err(|e| anyhow!("Error fetching election results: {:?}", e))?;
 
-    if let Some(result) = election_results.get(0) {
+    if let Some(result) = election_results.first() {
         let total_ballots = result.total_voters;
         let voters_turnout = if let Some(total_ballots) = total_ballots {
             calc_voters_turnout(total_ballots, registered_voters)?
@@ -154,7 +150,7 @@ pub async fn generate_election_area_votes_data(
     if let Some(result) = area_results {
         let total_ballots = result.total_votes;
         let voters_turnout = if let (Some(registered_voters), Some(total_ballots)) =
-            (registered_voters.clone(), total_ballots)
+            (registered_voters, total_ballots)
         {
             calc_voters_turnout(total_ballots, registered_voters)?
         } else {
@@ -208,7 +204,7 @@ pub async fn get_total_number_of_registered_voters_for_area_id(
         },
     );
     let num_of_registered_voters_by_area_id =
-        count_keycloak_enabled_users_by_attrs(&keycloak_transaction, &realm, Some(attributes))
+        count_keycloak_enabled_users_by_attrs(keycloak_transaction, realm, Some(attributes))
             .await
             .map_err(|err| {
                 anyhow!("Error getting count of enabled users by area_id attribute: {err}")
@@ -221,7 +217,7 @@ pub async fn get_total_number_of_registered_voters(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
 ) -> Result<i64> {
-    let num_of_registered_voters = count_keycloak_enabled_users(&keycloak_transaction, &realm)
+    let num_of_registered_voters = count_keycloak_enabled_users(keycloak_transaction, realm)
         .await
         .map_err(|err| anyhow!("Error getting count of enabled users: {err}"))?;
     Ok(num_of_registered_voters)
@@ -338,9 +334,9 @@ pub async fn get_results_hash(
     election_id: &str,
 ) -> Result<String> {
     let tally_sessions = get_tally_sessions_by_election_event_id(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
         false,
     )
     .await
@@ -355,8 +351,7 @@ pub async fn get_results_hash(
                 .as_ref()
                 .map(|ids| ids.contains(&election_id.to_string()))
                 .unwrap_or(false)
-                && tally_session.tally_type.clone().unwrap_or_default()
-                    == String::from("ELECTORAL_RESULTS")
+                && tally_session.tally_type.clone().unwrap_or_default() == "ELECTORAL_RESULTS"
         })
         .collect::<Vec<_>>();
 
@@ -374,7 +369,7 @@ pub async fn get_results_hash(
         tally_session_id,
     )
     .await
-    .map_err(|err| anyhow!("Error getting the tally session executions"))?;
+    .map_err(|_err| anyhow!("Error getting the tally session executions"))?;
 
     // the first execution is the latest one
     let tally_session_execution = tally_session_executions
@@ -444,7 +439,7 @@ pub async fn process_elections(
 
         region_posts_map
             .entry(election_general_data.geographical_region.clone())
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(election_general_data.post.clone());
 
         let election_dates = get_election_dates(&election, scheduled_events.clone())
@@ -457,7 +452,7 @@ pub async fn process_elections(
 
         elections_data.push(UserDataElection {
             election_dates,
-            election_name: election_name,
+            election_name,
             election_annotations: election_general_data,
         });
     }

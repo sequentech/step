@@ -177,7 +177,7 @@ impl Plugin {
 
         let plugin_store = PluginStore {
             resource_table: ResourceTable::new(),
-            wasi: wasi,
+            wasi,
             transactions_manager,
             plugin_auth: PluginAuth::new(),
         };
@@ -243,7 +243,7 @@ impl Plugin {
             .context(anyhow!("Export {hook} not found in component"))?;
 
         let func: Func = instance
-            .get_func(&mut *store, &func_index)
+            .get_func(&mut *store, func_index)
             .context(anyhow!("Function {hook} not found in instance"))?;
 
         let wasm_args: Vec<_> = args.into_iter().map(|arg| arg.to_val()).collect();
@@ -266,6 +266,12 @@ impl Plugin {
 }
 
 pub struct PluginAuth;
+
+impl Default for PluginAuth {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PluginAuth {
     pub fn new() -> Self {

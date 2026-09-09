@@ -11,7 +11,7 @@ use crate::services::tasks_execution::{
 use crate::types::error::{Error, Result};
 use anyhow::Context;
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction as _};
+use deadpool_postgres::Client as DbClient;
 use sequent_core::services::s3;
 use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::util;

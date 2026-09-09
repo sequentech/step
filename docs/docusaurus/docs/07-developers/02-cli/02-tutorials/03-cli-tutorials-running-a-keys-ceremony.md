@@ -62,10 +62,10 @@ If the command succeeds, you will see output similar to:
 
 
 ```bash 
-Success! Successfully started key ceremony. ID: d9792af0-71b8-4952-8aac-94bc0fead5f7
+Success! Successfully started key ceremony. ID: <CEREMONY_ID>
 ```
 📌 Important:
-Save the Key Ceremony ID (d9792af0-71b8-4952-8aac-94bc0fead5f7 in this example).
+Save the Key Ceremony ID returned by the command.
 You will need it in Step 2.
 
 ---

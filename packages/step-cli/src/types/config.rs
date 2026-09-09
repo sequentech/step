@@ -4,10 +4,6 @@
 
 use serde::{Deserialize, Serialize};
 
-pub use sequent_core::util::external_config::{
-    DuplicateVotes, ExternalConfigData, GenerateApplications, GenerateVoters,
-};
-
 #[derive(Serialize, Deserialize)]
 pub struct ConfigData {
     pub endpoint_url: String,

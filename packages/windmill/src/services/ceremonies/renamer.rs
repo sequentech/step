@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -19,7 +19,7 @@ pub fn rename_folders(replacements: &HashMap<String, String>, folder_path: &Path
         .filter(|e| e.file_type().is_dir())
         .collect();
 
-    directories.sort_by(|a, b| b.depth().cmp(&a.depth()));
+    directories.sort_by_key(|entry| std::cmp::Reverse(entry.depth()));
 
     // Rename directories
     for entry in directories {

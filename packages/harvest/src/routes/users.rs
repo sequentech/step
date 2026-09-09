@@ -6,7 +6,7 @@ use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::futures::future::join_all;
 use rocket::http::Status;
@@ -14,12 +14,12 @@ use rocket::response::{Responder, Result as ResponseResult};
 use rocket::serde::json::Json;
 use rocket::Request;
 use sequent_core::services::jwt;
+use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::keycloak::{
     get_event_realm, get_realm_password_policy, get_tenant_realm,
     get_user_profile_validation_errors, is_keycloak_bad_request,
     PasswordPolicyViolation, UserProfileValidationError,
 };
-use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
     User, UserProfileAttribute, UserProfileConfiguration, PERMISSION_LABELS,
     TENANT_ID_ATTR_NAME,
@@ -48,7 +48,6 @@ use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
 use windmill::services::external::utils::datafix_annotations;
-use windmill::services::keycloak_events::list_keycloak_events_by_type;
 use windmill::services::tasks_execution::*;
 use windmill::services::users::list_users_has_voted;
 use windmill::services::users::{
@@ -316,8 +315,7 @@ pub async fn delete_users(
     )?;
 
     let select_all = input.select_all.unwrap_or(false);
-    if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty())
-    {
+    if !select_all && input.users_id.as_ref().is_none_or(|ids| ids.is_empty()) {
         return Err((
             Status::BadRequest,
             "No voters selected and select_all was not set".to_string(),
@@ -504,7 +502,7 @@ pub async fn count_users(
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -607,7 +605,7 @@ pub async fn get_users(
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
@@ -1015,17 +1013,16 @@ pub async fn create_user(
             keycloak_user_error(error, "Error creating user in Keycloak")
         })?;
 
-    match (user.id.clone(), &input.user_roles_ids) {
-        (Some(id), Some(user_roles_ids)) => {
-            let res: Vec<_> = user_roles_ids
-                .into_iter()
-                .map(|role_id| client.set_user_role(&realm, &id, &role_id))
-                .collect();
+    if let (Some(id), Some(user_roles_ids)) =
+        (user.id.clone(), &input.user_roles_ids)
+    {
+        let res: Vec<_> = user_roles_ids
+            .iter()
+            .map(|role_id| client.set_user_role(&realm, &id, role_id))
+            .collect();
 
-            join_all(res).await;
-        }
-        _ => (),
-    };
+        join_all(res).await;
+    }
 
     if let Some(secret_attributes) = input.secret_attributes {
         if !secret_attributes.is_empty() {
@@ -1128,8 +1125,6 @@ pub struct EditUserBody {
     temporary: Option<bool>,
 }
 
-const MOBILE_NUMBER_ATTRIBUTE: &str = "sequent.read-only.mobile-number";
-
 pub struct EditUserError(JsonError);
 
 impl std::fmt::Debug for EditUserError {
@@ -1189,49 +1184,6 @@ impl<'r> Responder<'r, 'static> for EditUserError {
     fn respond_to(self, request: &'r Request<'_>) -> ResponseResult<'static> {
         self.0.respond_to(request)
     }
-}
-
-pub async fn check_edit_email_tlf(
-    client: &KeycloakAdminClient,
-    input: &EditUserBody,
-    realm: &str,
-    attributes: &HashMap<String, Vec<String>>,
-) -> Result<()> {
-    let user = client.get_user(realm, &input.user_id).await?;
-    let mut changes: Vec<String> = vec![];
-
-    let mut current_attributes = user.attributes.unwrap_or_default();
-    current_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
-    let mut new_attributes = attributes.clone();
-    new_attributes.remove(MOBILE_NUMBER_ATTRIBUTE);
-    if current_attributes != new_attributes {
-        changes.push("attributes".to_string());
-    }
-
-    if input.enabled != user.enabled {
-        changes.push("enabled".to_string());
-    }
-    if input.first_name != user.first_name {
-        changes.push("first_name".to_string());
-    }
-    if input.last_name != user.last_name {
-        changes.push("last_name".to_string());
-    }
-    if input.username != user.username {
-        changes.push("username".to_string());
-    }
-    if input.password.is_some() {
-        changes.push("password".to_string());
-    }
-    if input.temporary.is_some() {
-        changes.push("temporary".to_string());
-    }
-
-    if changes.len() > 0 {
-        return Err(anyhow!("Can't change user properties: {:?}", changes));
-    }
-
-    Ok(())
 }
 
 #[instrument(skip(claims, body), ret)]
@@ -1386,8 +1338,10 @@ pub async fn edit_user(
     // check if the voter has voted
     if !voter_voted_edit {
         if let Some(election_event_id) = input.election_event_id.clone() {
-            let mut user = User::default();
-            user.id = Some(input.user_id.clone());
+            let user = User {
+                id: Some(input.user_id.clone()),
+                ..Default::default()
+            };
             let voters = get_users_with_vote_info(
                 &hasura_transaction,
                 &input.tenant_id,
@@ -1406,15 +1360,16 @@ pub async fn edit_user(
             let Some(voter) = voters.first() else {
                 return Err((
                     Status::InternalServerError,
-                    format!("Error listing voter with vote info"),
+                    "Error listing voter with vote info".to_string(),
                 )
                     .into());
             };
             if let Some(votes_info) = voter.votes_info.clone() {
-                if votes_info.len() > 0 {
+                if !votes_info.is_empty() {
                     return Err((
                         Status::Unauthorized,
-                        format!("Can't edit a voter that has already cast its ballot"),
+                        "Can't edit a voter that has already cast its ballot"
+                            .to_string(),
                     )
                         .into());
                 }
@@ -1422,7 +1377,7 @@ pub async fn edit_user(
         }
     }
 
-    let mut new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+    let mut new_attributes = input.attributes.clone().unwrap_or_default();
     if let Some(secret_attributes) = input.secret_attributes.clone() {
         if !secret_attributes.is_empty() {
             let election_event_id =
@@ -1987,7 +1942,7 @@ pub async fn export_users_f(
 
     let celery_app = get_celery_app().await;
 
-    let celery_task = match celery_app
+    let _celery_task = match celery_app
         .send_task(export_users::export_users::new(
             ExportBody::Users {
                 tenant_id: body.tenant_id,
@@ -2045,7 +2000,7 @@ pub async fn export_tenant_users_f(
     input: Json<ExportTenantUsersBody>,
 ) -> Result<Json<export_users::ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    let required_perm = Permissions::USER_READ;
+    let _required_perm = Permissions::USER_READ;
 
     authorize(
         &claims,
@@ -2078,7 +2033,7 @@ pub async fn export_tenant_users_f(
     };
 
     let output = export_users::ExportUsersOutput {
-        document_id: document_id,
+        document_id,
         error_msg: None,
         task_execution: None,
     };

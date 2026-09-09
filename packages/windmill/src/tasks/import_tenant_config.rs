@@ -3,17 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::import::import_tenant_config::import_tenant_config_zip;
-use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
-use crate::{
-    services::import::import_election_event::{self as import_election_event_service},
-    types::error::Result,
-};
+use crate::types::error::Result;
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use sequent_core::types::hasura::core::TasksExecution;
 use serde::{Deserialize, Serialize};
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImportOptions {

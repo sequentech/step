@@ -3,26 +3,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election::{get_election_by_id, update_election_presentation};
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
-use crate::services::database::get_hasura_pool;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use crate::services::voting_status::{self};
-use crate::types::error::{Error, Result};
+use crate::types::error::Result;
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use async_trait::async_trait;
 use celery::error::TaskError;
 use chrono::Duration;
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, VotingPeriodEnd, VotingStatus};
-use sequent_core::serialization::deserialize_with_path::{self, deserialize_value};
+use sequent_core::ballot::VotingPeriodEnd;
+use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::scheduled_event::*;
-use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use tracing::{error, event, info, Level};
+use tracing::{event, info, Level};
 use uuid::Uuid;
 
 #[instrument(err)]
@@ -72,9 +66,9 @@ async fn manage_election_voting_period_end_wrapped(
         .ok_or(anyhow!("Can't read presentation"))?;
 
     let mut new_election_presentation = election_presentation.clone();
-    new_election_presentation.voting_period_end = if (event_payload.allow_voting_period_end
+    new_election_presentation.voting_period_end = if event_payload.allow_voting_period_end
         == Some(true)
-        || event_payload.allow_voting_period_end == None)
+        || event_payload.allow_voting_period_end.is_none()
     {
         Some(VotingPeriodEnd::ALLOWED)
     } else {
@@ -89,7 +83,7 @@ async fn manage_election_voting_period_end_wrapped(
     )
     .await?;
 
-    stop_scheduled_event(&hasura_transaction, &tenant_id, &scheduled_event.id)
+    stop_scheduled_event(hasura_transaction, &tenant_id, &scheduled_event.id)
         .await
         .with_context(|| "Error stopping scheduled event")?;
 

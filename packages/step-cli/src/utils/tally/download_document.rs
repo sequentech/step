@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{types::hasura_types::*, utils::read_config::read_config};
+use crate::utils::read_config::read_config;
 use graphql_client::{GraphQLQuery, Response};
 use reqwest::blocking::Client;
+use std::fs;
 use std::path::Path;
-use std::{fs, io};
 use url::Url;
 
 #[derive(GraphQLQuery)]

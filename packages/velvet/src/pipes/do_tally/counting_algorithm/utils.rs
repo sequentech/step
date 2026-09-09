@@ -2,16 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use super::Result;
+#[cfg(test)]
+use sequent_core::ballot::Candidate;
+
 use crate::pipes::do_tally::ExtendedMetricsContest;
 use sequent_core::plaintext::DecodedVoteContest;
 use sequent_core::{
-    ballot::{BallotStyle, Candidate, Contest, Weight},
+    ballot::{BallotStyle, Contest, Weight},
     types::ceremonies::{CountingAlgType, TallyOperation},
 };
 use std::collections::HashSet;
 use std::str::FromStr;
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -133,11 +135,7 @@ fn count_actual_votes(
 fn calculate_undervotes(actual_votes: u64, contest: &Contest) -> u64 {
     // Calculate undervotes based on max_votes
     let max_votes = contest.max_votes as u64;
-    if actual_votes < max_votes {
-        max_votes - actual_votes
-    } else {
-        0
-    }
+    max_votes.saturating_sub(actual_votes)
 }
 
 fn calculate_valid_votes(actual_votes: u64, contest: &Contest) -> u64 {
@@ -151,11 +149,7 @@ fn calculate_valid_votes(actual_votes: u64, contest: &Contest) -> u64 {
 
 fn calculate_overvotes(actual_votes: u64, contest: &Contest) -> u64 {
     // Calculate overvotes if actual votes exceed max_votes
-    if actual_votes > (contest.max_votes as u64) {
-        actual_votes - (contest.max_votes as u64)
-    } else {
-        0
-    }
+    actual_votes.saturating_sub(contest.max_votes as u64)
 }
 
 #[instrument(skip_all)]
@@ -199,14 +193,14 @@ pub fn get_contest_tally_operation(contest: &Contest) -> TallyOperation {
     let annotations = contest.annotations.clone().unwrap_or_default();
     let operation = annotations
         .get("tally_operation")
-        .map(|val| val.clone())
+        .cloned()
         .unwrap_or_default();
     TallyOperation::from_str(&operation).unwrap_or(default_tally_op)
 }
 
 #[instrument(skip_all)]
 pub fn get_area_tally_operation(
-    ballot_styles: &Vec<BallotStyle>,
+    ballot_styles: &[BallotStyle],
     counting_alg: CountingAlgType,
     area_id: &Uuid,
 ) -> TallyOperation {
@@ -224,18 +218,17 @@ pub fn get_area_tally_operation(
 }
 
 #[instrument(skip_all)]
-pub fn get_area_weight(ballot_styles: &Vec<BallotStyle>, area_id: &Uuid) -> Weight {
+pub fn get_area_weight(ballot_styles: &[BallotStyle], area_id: &Uuid) -> Weight {
     let area_ballot_style: Option<&BallotStyle> = ballot_styles
         .iter()
         .find(|bs| bs.area_id == area_id.to_string());
 
     area_ballot_style
-        .map(|bs| {
+        .and_then(|bs| {
             bs.area_annotations
                 .as_ref()
                 .map(|area_annotations| area_annotations.get_weight())
         })
-        .flatten()
         .unwrap_or_default()
 }
 
@@ -291,7 +284,7 @@ mod tests {
     #[test]
     fn area_weight_falls_back_to_the_neutral_weight() {
         let area_id = Uuid::new_v4();
-        assert_eq!(*get_area_weight(&vec![], &area_id), Some(1));
+        assert_eq!(*get_area_weight(&[], &area_id), Some(1));
 
         let ballot_styles = vec![ballot_style_with(&area_id, None)];
         assert_eq!(*get_area_weight(&ballot_styles, &area_id), Some(1));

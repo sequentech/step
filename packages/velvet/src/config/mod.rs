@@ -5,5 +5,9 @@
 pub mod ballot_images_config;
 pub mod generate_reports;
 
+#[expect(
+    clippy::module_inception,
+    reason = "Preserve the existing module layout, re-exports and caller paths during the construct review"
+)]
 mod config;
 pub use config::*;

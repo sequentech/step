@@ -123,11 +123,8 @@ impl GetPgauditBody {
         }
 
         // Handle order_by
-        if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
-                .order_by
-                .as_ref()
-                .unwrap()
+        if let (false, Some(order_by)) = (to_count, self.order_by.as_ref()) {
+            let order_by_clauses: Vec<String> = order_by
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
@@ -149,9 +146,9 @@ impl GetPgauditBody {
         }
 
         // Handle offset
-        if !to_count && self.offset.is_some() {
+        if let (false, Some(offset)) = (to_count, self.offset) {
             let offset_param_name = String::from("offset");
-            let offset = std::cmp::max(self.offset.unwrap(), 0);
+            let offset = std::cmp::max(offset, 0);
             clauses.push(format!("OFFSET @{}", offset_param_name));
             params
                 .push(create_named_param(offset_param_name, Value::N(offset)));
@@ -298,10 +295,8 @@ async fn audit_list_service(
 
     client.close_session().await?;
     Ok(Json(DataList {
-        items: items,
-        total: TotalAggregate {
-            aggregate: aggregate,
-        },
+        items,
+        total: TotalAggregate { aggregate },
     }))
 }
 

@@ -31,6 +31,7 @@ COPY ./step-cli ./step-cli
 COPY ./orare ./orare
 COPY ./wrap-map-err ./wrap-map-err
 COPY ./braid/scripts ./braid/scripts
+COPY ./third_party ./third_party
 COPY ./Cargo.toml ./Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./.cargo ./.cargo

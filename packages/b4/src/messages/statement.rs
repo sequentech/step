@@ -321,38 +321,38 @@ impl Statement {
                 ts = *ts_;
                 kind = StatementType::Ballots;
                 cfg = cfg_h.0;
-                batch = bch.clone();
+                batch = *bch;
             }
             Self::Mix(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Mix;
                 cfg = cfg_h.0;
-                batch = bch.clone();
+                batch = *bch;
             }
             Self::MixSigned(ts_, cfg_h, bch, mix_no, _, _) => {
                 ts = *ts_;
                 kind = StatementType::MixSigned;
                 cfg = cfg_h.0;
-                batch = bch.clone();
-                mix_number = mix_no.clone();
+                batch = *bch;
+                mix_number = *mix_no;
             }
             Self::DecryptionFactors(ts_, cfg_h, bch, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::DecryptionFactors;
                 cfg = cfg_h.0;
-                batch = bch.clone();
+                batch = *bch;
             }
             Self::Plaintexts(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::Plaintexts;
                 cfg = cfg_h.0;
-                batch = bch.clone();
+                batch = *bch;
             }
             Self::PlaintextsSigned(ts_, cfg_h, bch, _, _, _, _) => {
                 ts = *ts_;
                 kind = StatementType::PlaintextsSigned;
                 cfg = cfg_h.0;
-                batch = bch.clone();
+                batch = *bch;
             }
         }
 
@@ -393,8 +393,7 @@ impl BorshSerialize for ChannelsHashes {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| borsh::to_vec(t)).collect();
+        let vecs: Result<Vec<Vec<u8>>, std::io::Error> = vector.iter().map(borsh::to_vec).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -421,8 +420,7 @@ impl BorshSerialize for SharesHashes {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| borsh::to_vec(t)).collect();
+        let vecs: Result<Vec<Vec<u8>>, std::io::Error> = vector.iter().map(borsh::to_vec).collect();
         let inside = vecs?;
 
         inside.serialize(writer)
@@ -449,8 +447,7 @@ impl BorshSerialize for DecryptionFactorsHashes {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let vector = &self.0;
 
-        let vecs: Result<Vec<Vec<u8>>, std::io::Error> =
-            vector.iter().map(|t| borsh::to_vec(t)).collect();
+        let vecs: Result<Vec<Vec<u8>>, std::io::Error> = vector.iter().map(borsh::to_vec).collect();
         let inside = vecs?;
 
         inside.serialize(writer)

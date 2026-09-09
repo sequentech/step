@@ -15,9 +15,8 @@ use tokio_stream::StreamExt; // Added for streaming
 use tracing::{error, info, instrument, warn};
 
 const IMMUDB_DEFAULT_LIMIT: usize = 900;
-const IMMUDB_DEFAULT_ENTRIES_TX_LIMIT: usize = 50;
 const IMMUDB_DEFAULT_OFFSET: usize = 0;
-const ELECTORAL_LOG_TABLE: &'static str = "electoral_log_messages";
+const ELECTORAL_LOG_TABLE: &str = "electoral_log_messages";
 /// 36 chars + EOL + some padding
 const ID_VARCHAR_LENGTH: usize = 40;
 /// Longest possible statement kind must be < 40
@@ -205,10 +204,8 @@ impl TryFrom<&Row> for Aggregate {
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
         let mut count = 0;
 
-        for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            match column.as_str() {
-                _ => assign_value!(Value::N, value, count),
-            }
+        for (_, value) in row.columns.iter().zip(row.values.iter()) {
+            assign_value!(Value::N, value, count);
         }
         Ok(Aggregate { count })
     }
@@ -217,10 +214,10 @@ impl TryFrom<&Row> for Aggregate {
 impl BoardClient {
     #[instrument(skip(password), level = "trace")]
     pub async fn new(server_url: &str, username: &str, password: &str) -> Result<BoardClient> {
-        let mut client = Client::new(&server_url, username, password).await?;
+        let mut client = Client::new(server_url, username, password).await?;
         client.login().await?;
 
-        Ok(BoardClient { client: client })
+        Ok(BoardClient { client })
     }
 
     /// Get all electoral log messages whose id is bigger than `last_id`
@@ -307,6 +304,10 @@ impl BoardClient {
     /// columns_matcher represents the columns that will be used to filter the messages,
     /// The order as defined ElectoralLogVarCharColumn is important for preformance to match the indexes.
     /// BTreeMap ensures the order is preserved no matter the insertion sequence.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing query API with explicit database, time bounds, filters, ordering and pagination"
+    )]
     pub async fn get_electoral_log_messages_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
@@ -330,6 +331,10 @@ impl BoardClient {
     }
 
     #[instrument(skip_all, err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Keep the internal query implementation aligned with the existing filtered-message API"
+    )]
     async fn get_filtered<K: Display, V: Display>(
         &mut self,
         board_db: &str,
@@ -373,7 +378,7 @@ impl BoardClient {
                 .collect::<Vec<String>>()
                 .join(", ")
         } else {
-            format!("ORDER BY id desc")
+            "ORDER BY id desc".to_string()
         };
 
         self.client.use_database(board_db).await?;
@@ -637,18 +642,17 @@ impl BoardClient {
         self.client.new_tx(mode).await
     }
 
-    pub async fn commit(&mut self, transaction_id: &String) -> Result<CommittedSqlTx> {
+    pub async fn commit(&mut self, transaction_id: &str) -> Result<CommittedSqlTx> {
         self.client.commit(transaction_id).await
     }
 
     // Insert messages in batch using an existing session/transaction
     pub async fn insert_electoral_log_messages_batch(
         &mut self,
-        transaction_id: &String,
+        transaction_id: &str,
         messages: &[ElectoralLogMessage],
     ) -> Result<()> {
         info!("Insert {} messages in batch..", messages.len());
-        let mut sql_results = vec![];
         for message in messages {
             let message_sql = format!(
                 r#"
@@ -720,54 +724,37 @@ impl BoardClient {
                 NamedParam {
                     name: String::from("user_id"),
                     value: Some(SqlValue {
-                        value: match message.user_id.clone() {
-                            Some(user_id) => Some(Value::S(user_id)),
-                            None => None,
-                        },
+                        value: message.user_id.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("username"),
                     value: Some(SqlValue {
-                        value: match message.username.clone() {
-                            Some(username) => Some(Value::S(username)),
-                            None => None,
-                        },
+                        value: message.username.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("election_id"),
                     value: Some(SqlValue {
-                        value: match message.election_id.clone() {
-                            Some(election_id) => Some(Value::S(election_id)),
-                            None => None,
-                        },
+                        value: message.election_id.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("area_id"),
                     value: Some(SqlValue {
-                        value: match message.area_id.clone() {
-                            Some(area_id) => Some(Value::S(area_id)),
-                            None => None,
-                        },
+                        value: message.area_id.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("ballot_id"),
                     value: Some(SqlValue {
-                        value: match message.ballot_id.clone() {
-                            Some(ballot_id) => Some(Value::S(ballot_id)),
-                            None => None,
-                        },
+                        value: message.ballot_id.clone().map(Value::S),
                     }),
                 },
             ];
-            let result = self
-                .client
+            self.client
                 .tx_sql_exec(&message_sql, transaction_id, params)
                 .await?;
-            sql_results.push(result);
         }
         Ok(())
     }
@@ -859,46 +846,31 @@ impl BoardClient {
                 NamedParam {
                     name: String::from("user_id"),
                     value: Some(SqlValue {
-                        value: match message.user_id.clone() {
-                            Some(user_id) => Some(Value::S(user_id)),
-                            None => None,
-                        },
+                        value: message.user_id.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("username"),
                     value: Some(SqlValue {
-                        value: match message.username.clone() {
-                            Some(username) => Some(Value::S(username)),
-                            None => None,
-                        },
+                        value: message.username.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("election_id"),
                     value: Some(SqlValue {
-                        value: match message.election_id.clone() {
-                            Some(election_id) => Some(Value::S(election_id)),
-                            None => None,
-                        },
+                        value: message.election_id.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("area_id"),
                     value: Some(SqlValue {
-                        value: match message.area_id.clone() {
-                            Some(area_id) => Some(Value::S(area_id)),
-                            None => None,
-                        },
+                        value: message.area_id.clone().map(Value::S),
                     }),
                 },
                 NamedParam {
                     name: String::from("ballot_id"),
                     value: Some(SqlValue {
-                        value: match message.ballot_id.clone() {
-                            Some(ballot_id) => Some(Value::S(ballot_id)),
-                            None => None,
-                        },
+                        value: message.ballot_id.clone().map(Value::S),
                     }),
                 },
             ];
@@ -999,7 +971,7 @@ impl BoardClient {
         // List tables and create them if missing
         if !self.client.has_tables().await? {
             info!("no tables! let's create them");
-            self.client.sql_exec(&tables, vec![]).await?;
+            self.client.sql_exec(tables, vec![]).await?;
         }
         for index in indexes {
             info!("Inserting index...");
@@ -1016,7 +988,7 @@ pub(crate) mod tests {
     use super::*;
     use serial_test::serial;
 
-    const BOARD_DB: &'static str = "testdb";
+    const BOARD_DB: &str = "testdb";
 
     async fn set_up() -> BoardClient {
         let mut b = BoardClient::new("http://localhost:3322", "immudb", "immudb")

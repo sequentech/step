@@ -48,7 +48,7 @@ impl DuplicateVotes {
             .await?
             .get()
             .await
-            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e.to_string()))?;
+            .map_err(|e| anyhow::anyhow!("Error getting hasura client: {}", e))?;
 
         let keycloak_query = "\
             SELECT ue.id FROM user_entity AS ue \

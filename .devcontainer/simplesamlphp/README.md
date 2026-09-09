@@ -58,7 +58,7 @@ This guide includes:
 
 ### Certificate Management
 
-- **Development:** Self-signed certificates in `cert/` directory
+- **Development:** Run `.devcontainer/scripts/initialize-command.sh` from the repository root before building. It generates a fresh local key/certificate pair in `cert/`, excluded from Git, and preserves an existing pair on subsequent starts. Reimport the new public certificate in local Keycloak when renewing the pair. See [local certificates](../certs/README.md).
 - **Production:** Third-parties must use valid certificates from a trusted CA
 - **Never commit private keys** to version control
 

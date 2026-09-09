@@ -59,6 +59,7 @@ pub mod tasks_execution;
 pub mod tasks_semaphore;
 pub mod temp_path;
 pub mod to_result;
+#[cfg(feature = "miru")]
 pub mod transmission;
 pub mod users;
 pub mod vault;

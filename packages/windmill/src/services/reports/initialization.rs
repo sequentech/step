@@ -6,12 +6,12 @@ use crate::postgres::reports::ReportType;
 use crate::services::temp_path::*;
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::pdf;
 use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
+use tracing::instrument;
 use velvet::pipes::generate_reports::TemplateData;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -76,8 +76,8 @@ impl TemplateRenderer for InitializationTemplate {
     #[instrument(err, skip_all)]
     async fn prepare_user_data(
         &self,
-        hasura_transaction: &Transaction<'_>,
-        keycloak_transaction: &Transaction<'_>,
+        _hasura_transaction: &Transaction<'_>,
+        _keycloak_transaction: &Transaction<'_>,
     ) -> Result<Self::UserData> {
         Err(anyhow::anyhow!("Unimplemented"))
     }

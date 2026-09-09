@@ -4,7 +4,7 @@
 use crate::postgres::document::get_document;
 use crate::services::ceremonies::velvet_tally::generate_initial_state;
 use crate::services::compress::extract_archive_to_temp_dir;
-use crate::services::consolidation::create_transmission_package_service::download_tally_tar_gz_to_file;
+use crate::services::consolidation::tally_download::download_tally_tar_gz_to_file;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
 use crate::services::tasks_execution::{update_complete, update_fail};
@@ -46,7 +46,7 @@ pub async fn get_tally_pdf_config(
 
     let tally_path = extract_archive_to_temp_dir(tar_gz_file.path(), false)?;
 
-    let tally_path_path = tally_path.into_path();
+    let tally_path_path = tally_path.keep();
 
     let state = generate_initial_state(&tally_path_path, "decode-ballots")?;
 

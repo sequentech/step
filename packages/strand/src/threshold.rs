@@ -99,7 +99,7 @@ pub fn verify_share<C: Ctx>(
     v_key_factor: &C::E,
     ctx: &C,
 ) -> bool {
-    ctx.gmod_pow(&share) == *v_key_factor
+    ctx.gmod_pow(share) == *v_key_factor
 }
 
 /// Computes the factor of the verification key for the receiving trustee using
@@ -159,7 +159,7 @@ pub fn verify_decryption_factor<C: Ctx>(
     label: &[u8],
     zkp: &Zkp<C>,
 ) -> Result<bool, StrandError> {
-    zkp.verify_decryption(&vk, &df, &c.mhr, &c.gr, &proof, &label)
+    zkp.verify_decryption(vk, df, &c.mhr, &c.gr, proof, label)
 }
 
 /// Computes the Lagrange coefficient for the given trustee.

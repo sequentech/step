@@ -4,12 +4,10 @@
 
 use crate::services::authorization::authorize;
 use anyhow::Result;
-use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::ballot::{Enrollment, Otp};
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
@@ -26,7 +24,7 @@ pub struct SetVoterAuthentication {
 }
 
 #[derive(Serialize)]
-struct SetVoterAuthenticationOutput {
+pub struct SetVoterAuthenticationOutput {
     success: bool,
     message: String,
 }

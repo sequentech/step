@@ -1,17 +1,17 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use b4::messages::newtypes::BatchNumber;
 use chrono::{DateTime, Local};
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TallySessionContest;
 use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde::Serialize;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
-use tracing::{event, instrument, warn, Level};
+use tracing::{instrument, warn};
 use uuid::Uuid;
 
 pub struct TallySessionContestWrapper(pub TallySessionContest);
@@ -82,6 +82,10 @@ pub async fn update_tally_session_contests_annotations(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_tally_session_contest(
     hasura_transaction: &Transaction<'_>,
@@ -327,7 +331,7 @@ pub async fn insert_many_tally_session_contests(
                 election_event_id: parse_uuid_v4(&c.election_event_id)?,
                 area_id: parse_uuid_v4(&c.area_id)?,
                 contest_id: c.contest_id.map(|s| parse_uuid_v4(&s)).transpose()?,
-                session_id: c.session_id.clone(),
+                session_id: c.session_id,
                 created_at: c.created_at,
                 last_updated_at: c.last_updated_at,
                 labels: c.labels.clone(),

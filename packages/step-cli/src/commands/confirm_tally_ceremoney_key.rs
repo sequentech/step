@@ -2,9 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::{
-    types::hasura_types::*,
-    utils::{read_config::read_config, trustees::store_private_key::get_private_key_content},
+use crate::utils::{
+    read_config::read_config, trustees::store_private_key::get_private_key_content,
 };
 use clap::Args;
 use colored::Colorize;
@@ -54,7 +53,7 @@ pub fn confirm_key(
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
-    let key = get_private_key_content(&election_event_id, &config.username)?;
+    let key = get_private_key_content(election_event_id, &config.username)?;
 
     let variables = restore_private_key::Variables {
         election_event_id: election_event_id.to_string(),

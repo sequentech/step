@@ -240,7 +240,7 @@ async fn process_locked_cast_vote(
                 response @ (SoapRequestResponse::AlreadyNotVoted
                 | SoapRequestResponse::Fault(_)
                 | SoapRequestResponse::Rejected(_)) => {
-                    let changed = transition_cast_vote(
+                    let _changed = transition_cast_vote(
                         &cast_vote,
                         CastVoteStatus::InProgress,
                         CastVoteStatus::Valid,

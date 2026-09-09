@@ -8,17 +8,14 @@ use crate::postgres::election::{
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony;
 use crate::postgres::trustee;
-use crate::services::celery_app::get_celery_app;
 use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::services::protocol_manager::get_election_board;
-use crate::tasks::create_keys::{create_keys, CreateKeysBody};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
+use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{
     CeremoniesPolicy, KeysCeremonyExecutionStatus, KeysCeremonyStatus, Trustee, TrusteeStatus,
@@ -101,11 +98,12 @@ pub async fn get_private_key(
         .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
-    if let None = current_status
+    if current_status
         .trustees
         .clone()
         .into_iter()
         .find(|trustee| trustee.name == trustee_name)
+        .is_none()
     {
         return Err(anyhow!("Trustee not part of the keys ceremony"));
     }
@@ -136,7 +134,7 @@ pub async fn get_private_key(
             .clone()
             .into_iter()
             .map(|trustee| {
-                if (trustee.name == trustee_name) {
+                if trustee.name == trustee_name {
                     Ok(Trustee {
                         name: trustee.name,
                         status: TrusteeStatus::KEY_RETRIEVED,
@@ -182,8 +180,7 @@ pub async fn find_trustee_private_key(
     keys_ceremony: &KeysCeremony,
 ) -> Result<String> {
     let (board_name, _) =
-        get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
-            .await?;
+        get_keys_ceremony_board(transaction, tenant_id, election_event_id, keys_ceremony).await?;
 
     let trustee_public_key = trustee::get_trustee_by_name(transaction, tenant_id, trustee_name)
         .await?
@@ -232,12 +229,18 @@ pub async fn check_private_key(
         .with_context(|| "error parsing keys ceremony current status")?;
 
     // check the trustee is part of this ceremony
-    if let None = current_status.trustees.clone().into_iter().find(|trustee| {
-        (trustee.name == trustee_name
-            && (trustee.status == TrusteeStatus::KEY_GENERATED
-                || trustee.status == TrusteeStatus::KEY_RETRIEVED
-                || trustee.status == TrusteeStatus::KEY_CHECKED))
-    }) {
+    if current_status
+        .trustees
+        .clone()
+        .into_iter()
+        .find(|trustee| {
+            trustee.name == trustee_name
+                && (trustee.status == TrusteeStatus::KEY_GENERATED
+                    || trustee.status == TrusteeStatus::KEY_RETRIEVED
+                    || trustee.status == TrusteeStatus::KEY_CHECKED)
+        })
+        .is_none()
+    {
         return Err(anyhow!(
             "Trustee not part of the keys ceremony or has invalid state"
         ));
@@ -267,7 +270,7 @@ pub async fn check_private_key(
             .trustees
             .iter()
             .map(|trustee| {
-                if (trustee.name == trustee_name) {
+                if trustee.name == trustee_name {
                     Ok(Trustee {
                         name: trustee.name.clone(),
                         status: TrusteeStatus::KEY_CHECKED,
@@ -311,6 +314,10 @@ pub async fn check_private_key(
     Ok(true)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(err)]
 pub async fn create_keys_ceremony(
     transaction: &Transaction<'_>,
@@ -325,7 +332,7 @@ pub async fn create_keys_ceremony(
     is_automatic_ceremony: bool,
 ) -> Result<String> {
     // verify trustee names and fetch their objects to get their ids
-    let trustees = trustee::get_trustees_by_name(&transaction, &tenant_id, &trustee_names)
+    let trustees = trustee::get_trustees_by_name(transaction, &tenant_id, &trustee_names)
         .await
         .with_context(|| "can't find trustees")?;
 
@@ -345,10 +352,10 @@ pub async fn create_keys_ceremony(
 
     // get the election event
     let election_event =
-        get_election_event_by_id(&transaction, &tenant_id, &election_event_id).await?;
+        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
 
     let keys_ceremonies =
-        keys_ceremony::get_keys_ceremonies(&transaction, &tenant_id, &election_event_id)
+        keys_ceremony::get_keys_ceremonies(transaction, &tenant_id, &election_event_id)
             .await
             .with_context(|| "error listing existing keys ceremonies")?;
 
@@ -378,7 +385,7 @@ pub async fn create_keys_ceremony(
         }
     } else {
         // it's an event ceremony, then there can be no other keys ceremony
-        if keys_ceremonies.len() > 0 {
+        if !keys_ceremonies.is_empty() {
             return Err(anyhow!("Can't create an election event keys ceremony when there are already existing keys ceremonies."));
         }
     };
@@ -404,7 +411,7 @@ pub async fn create_keys_ceremony(
     let is_default = election_id.is_none();
 
     let elections = set_election_keys_ceremony(
-        &transaction,
+        transaction,
         &tenant_id,
         &election_event_id,
         election_id.clone(),
@@ -432,7 +439,7 @@ pub async fn create_keys_ceremony(
 
     // insert keys-ceremony into the database using postgres
     keys_ceremony::insert_keys_ceremony(
-        &transaction,
+        transaction,
         keys_ceremony_id.clone(),
         tenant_id.clone(),
         election_event_id.clone(),
@@ -455,7 +462,7 @@ pub async fn create_keys_ceremony(
     // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
     let election_ids = election_id.clone().map(|id| vec![id]);
     let electoral_log = ElectoralLog::for_admin_user(
-        &transaction,
+        transaction,
         &board_name,
         &tenant_id,
         &election_event.id,

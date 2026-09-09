@@ -9,7 +9,6 @@ use rocket::serde::json::Json;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
 use sequent_core::services::jwt::{has_gold_permission, JwtClaims};
 use sequent_core::types::permissions::Permissions;
-use sequent_core::types::tally_sheets::VotingChannel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
@@ -74,7 +73,7 @@ pub async fn update_event_status(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let _commit = hasura_transaction
+    hasura_transaction
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
@@ -134,7 +133,7 @@ pub async fn update_election_status(
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let _commit = hasura_transaction
+    hasura_transaction
         .commit()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;

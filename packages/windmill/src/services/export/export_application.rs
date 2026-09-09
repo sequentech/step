@@ -2,20 +2,14 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::application::get_applications_by_election;
-use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
-use anyhow::Context;
 use anyhow::{anyhow, Result};
-use base64::write;
 use csv::Writer;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{Application, Document};
-use sequent_core::util::temp_path::{
-    generate_temp_file, get_file_size, write_into_named_temp_file,
-};
-use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, info, instrument, Level};
+use sequent_core::util::temp_path::write_into_named_temp_file;
+use tracing::{info, instrument};
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
@@ -63,7 +57,7 @@ pub async fn write_export_document(
     let mut writer = Writer::from_writer(vec![]);
     writer.write_record(&headers)?;
     for application in temp_file_path.clone() {
-        writer.write_record(&[
+        writer.write_record([
             &application.id,
             &application
                 .created_at
@@ -93,7 +87,7 @@ pub async fn write_export_document(
     let data_bytes = writer
         .into_inner()
         .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
-    let (temp_path, temp_path_string, file_size) =
+    let (_temp_path, temp_path_string, file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".csv")
             .map_err(|e| anyhow!("Error writing the applications into temp file: {e:?}"))?;
 
@@ -134,7 +128,7 @@ pub async fn process_export(
         Box::pin(async move {
             // Fetch the data into a temp file instead of a vector
             let temp_file = read_export_data(
-                &hasura_transaction,
+                hasura_transaction,
                 &tenant_id,
                 &election_event_id,
                 &election_id,
@@ -143,7 +137,7 @@ pub async fn process_export(
 
             // Pass the temp file to the write_export_document function
             write_export_document(
-                &hasura_transaction,
+                hasura_transaction,
                 temp_file,
                 &document_id,
                 &tenant_id,

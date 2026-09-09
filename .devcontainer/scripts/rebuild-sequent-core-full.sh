@@ -21,32 +21,14 @@ echo "==> Building sequent-core WASM..."
 wasm-pack build --mode no-install --out-name index --release --target web \
     --features=wasmtest,default_features
 
-echo "==> Packing..."
-wasm-pack -v pack . 2>&1 | tee output.log
-
-echo "==> Updating yarn.lock..."
+echo "==> Placing the package where the workspace packages expect it..."
 cd "$PACKAGES_DIR"
-hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
-hash="${hash}\\\""
-awk -v hash="${hash}" '
-  /sequent-core-0.1.0.tgz#/ {
-    sub(/#.*/, "#"hash"")
-  }
-  { print }
-' yarn.lock > yarn.lock.tmp
-mv yarn.lock.tmp yarn.lock
-rm sequent-core/output.log
-
-echo "==> Clearing yarn cache and replacing tgz files..."
 rm -Rf /home/vscode/.cache/yarn/
-rm -f ./ui-core/rust/sequent-core-0.1.0.tgz \
-      ./admin-portal/rust/sequent-core-0.1.0.tgz \
-      ./voting-portal/rust/sequent-core-0.1.0.tgz \
-      ./ballot-verifier/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+for dir in ui-core admin-portal voting-portal ballot-verifier; do
+    rm -rf "./${dir}/rust/pkg"
+    mkdir -p "./${dir}/rust"
+    cp -a sequent-core/pkg "./${dir}/rust/pkg"
+done
 
 echo "==> Cleaning node_modules and dist..."
 rm -rf node_modules */node_modules dist */dist

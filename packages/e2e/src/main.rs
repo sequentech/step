@@ -33,7 +33,7 @@ pub struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let result = match args.test_type.as_str() {
+    match args.test_type.as_str() {
         "enrollment" => run_enrollment_test(&args)?,
         "voting" => run_voting_test(&args)?,
         "login" => run_login_test(&args)?,

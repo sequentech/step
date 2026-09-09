@@ -179,7 +179,7 @@ pub(crate) struct S;
 impl S {
     pub(crate) fn run(
         &self,
-        predicates: &Vec<Predicate>,
+        predicates: &[Predicate],
     ) -> (HashSet<RootVerified>, HashSet<Target>, HashSet<Verified>) {
         let mut runtime = Crepe::new();
         let inputs: Vec<InP> = predicates.iter().map(|p| InP(*p)).collect();

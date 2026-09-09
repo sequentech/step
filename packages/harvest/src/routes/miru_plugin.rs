@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
+use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt;
@@ -15,10 +14,7 @@ use windmill::services::tasks_execution::*;
 use windmill::tasks::miru_plugin_tasks::upload_signature_task;
 use windmill::types::tasks::ETasksExecution;
 use windmill::{
-    services::{
-        celery_app::get_celery_app,
-        consolidation::upload_signature_service::upload_transmission_package_signature_service,
-    },
+    services::celery_app::get_celery_app,
     tasks::miru_plugin_tasks::{
         create_transmission_package_task, send_transmission_package_task,
     },
@@ -75,7 +71,7 @@ pub async fn create_transmission_package(
         vec![Permissions::MIRU_CREATE],
     )?;
     let celery_app = get_celery_app().await;
-    let celery_task = match celery_app
+    let _celery_task = match celery_app
         .send_task(create_transmission_package_task::new(
             tenant_id,
             body.election_id.clone(),

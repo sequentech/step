@@ -18,7 +18,6 @@
 //! assert_eq!(g_ab, g_ba);
 //! ```
 use std::io::Error;
-use std::io::ErrorKind;
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
@@ -424,10 +423,7 @@ impl BorshDeserialize for RistrettoPointS {
         CompressedRistretto(bytes)
             .decompress()
             .map(RistrettoPointS)
-            .ok_or(Error::new(
-                ErrorKind::Other,
-                "Failed to decode ristretto point",
-            ))
+            .ok_or(Error::other("Failed to decode ristretto point"))
 
         /* let ctx = RistrettoCtx::default();
 
@@ -460,7 +456,7 @@ impl BorshDeserialize for ScalarS {
         let bytes = <[u8; 32]>::deserialize_reader(reader)?;
         let opt: Option<ScalarS> =
             Scalar::from_canonical_bytes(bytes).map(ScalarS).into();
-        opt.ok_or(Error::new(ErrorKind::Other, "Failed to decode scalar"))
+        opt.ok_or(Error::other("Failed to decode scalar"))
         /* let ctx = RistrettoCtx::default();
 
         ctx.exp_from_bytes(&bytes)
@@ -508,7 +504,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);
-        let plaintext = to_plaintext_array(&fill.to_vec());
+        let plaintext = to_plaintext_array(fill.as_ref());
         test_elgamal_generic(&ctx, plaintext);
     }
 
@@ -519,7 +515,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);
-        let plaintext = to_plaintext_array(&fill.to_vec());
+        let plaintext = to_plaintext_array(fill.as_ref());
         test_elgamal_enc_pok_generic(&ctx, plaintext);
     }
 
@@ -554,7 +550,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);
-        let plaintext = to_plaintext_array(&fill.to_vec());
+        let plaintext = to_plaintext_array(fill.as_ref());
         test_vdecryption_generic(&ctx, plaintext);
     }
 
@@ -565,7 +561,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);
-        let plaintext = to_plaintext_array(&fill.to_vec());
+        let plaintext = to_plaintext_array(fill.as_ref());
         test_distributed_generic(&ctx, plaintext);
     }
 
@@ -578,7 +574,7 @@ mod tests {
         for _ in 0..10 {
             let mut fill = [0u8; 30];
             csprng.fill_bytes(&mut fill);
-            let p = to_plaintext_array(&fill.to_vec());
+            let p = to_plaintext_array(fill.as_ref());
             ps.push(p);
         }
         test_distributed_serialization_generic(&ctx, ps);
@@ -606,7 +602,7 @@ mod tests {
         for _ in 0..1000 {
             let mut fill = [0u8; 30];
             csprng.fill_bytes(&mut fill);
-            let p = to_plaintext_array(&fill.to_vec());
+            let p = to_plaintext_array(fill.as_ref());
             ps.push(p);
         }
 
@@ -754,7 +750,7 @@ mod tests {
         let ctx = RistrettoCtx;
         let mut fill = [0u8; 30];
         csprng.fill_bytes(&mut fill);
-        let plaintext = to_plaintext_array(&fill.to_vec());
+        let plaintext = to_plaintext_array(fill.as_ref());
 
         test_threshold_generic(&ctx, trustees, threshold, plaintext);
     }

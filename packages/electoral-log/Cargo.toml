@@ -32,3 +32,6 @@ tracing-tree = "0.4"
 
 [dev-dependencies]
 serial_test = "3.2"
+
+[lints.rust]
+unsafe_code = "forbid"

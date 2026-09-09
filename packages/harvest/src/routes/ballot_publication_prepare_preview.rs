@@ -10,7 +10,7 @@ use sequent_core::services::jwt;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use tracing::{info, instrument};
+use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::*;

@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{anyhow, Context, Result};
-use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::scheduled_event::*;
@@ -36,9 +35,7 @@ impl TryFrom<Row> for ScheduledEventWrapper {
         let cron_config_js: Option<Value> = item
             .try_get("cron_config")
             .map_err(|err| anyhow!("Error deserializing cron_config: {err}"))?;
-        let cron_config: Option<CronConfig> = cron_config_js
-            .map(|val| deserialize_value(val))
-            .transpose()?;
+        let cron_config: Option<CronConfig> = cron_config_js.map(deserialize_value).transpose()?;
 
         Ok(ScheduledEventWrapper(ScheduledEvent {
             id: item
@@ -59,7 +56,7 @@ impl TryFrom<Row> for ScheduledEventWrapper {
             labels: item.get("labels"),
             annotations: item.get("annotations"),
             event_processor: event_processors,
-            cron_config: cron_config,
+            cron_config,
             event_payload: item.get("event_payload"),
             task_id: item.get("task_id"),
         }))
@@ -150,7 +147,7 @@ pub async fn find_scheduled_event_by_id(
         .collect::<Result<Vec<ScheduledEvent>>>()
         .with_context(|| "Error converting rows into ScheduledEvent")?;
 
-    Ok(scheduled_events.get(0).cloned())
+    Ok(scheduled_events.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -194,7 +191,7 @@ pub async fn find_scheduled_event_by_task_id(
         .collect::<Result<Vec<ScheduledEvent>>>()
         .with_context(|| "Error converting rows into ScheduledEvent")?;
 
-    Ok(scheduled_events.get(0).cloned())
+    Ok(scheduled_events.first().cloned())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -499,7 +496,7 @@ pub async fn insert_new_scheduled_event(
     };
     let cron_config_js: Option<Value> = new_event
         .cron_config
-        .map(|config| serde_json::to_value(config))
+        .map(serde_json::to_value)
         .transpose()?;
     let event_processor_s: Option<String> = new_event
         .event_processor

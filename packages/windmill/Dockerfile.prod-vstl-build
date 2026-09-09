@@ -7,7 +7,6 @@ FROM windmill-build-dependencies
 # Copy the compiled binaries from the builder stage (beat + windmill:main)
 COPY --from=windmill-compile /app/target/release/main /usr/local/bin/main
 COPY --from=windmill-compile /app/target/release/beat /usr/local/bin/beat
-COPY --from=windmill-compile /usr/local/bin/ecies-tool.jar /usr/local/bin/ecies-tool.jar
 WORKDIR /usr/local/bin
 # Run the windmill binary, it's possible to run 'beat' as well
 CMD ["main", "consume", "-q", "short_queue", "tally_queue", "beat", "reports_queue", "communication_queue", "import_export_queue"]

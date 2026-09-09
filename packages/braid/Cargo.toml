@@ -166,3 +166,6 @@ wasm = ["wasm-core"]
 
 # Memory profiling (native only)
 jemalloc = ["dep:tikv-jemalloc-ctl", "dep:tikv-jemallocator"]
+
+[lints.rust]
+unsafe_code = "deny"

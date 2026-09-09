@@ -30,9 +30,9 @@ use tracing::{error, instrument, warn};
 use uuid::Uuid;
 /// Disable the voter, datafix users are not actually deleted but just disabled.
 /// Note: voter_id in Datafix API represents the username in Keycloak/Sequent´s system.
-#[instrument(skip(hasura_transaction, keycloak_transaction))]
+#[instrument(skip(_hasura_transaction, keycloak_transaction))]
 pub async fn disable_datafix_voter(
-    hasura_transaction: &Transaction<'_>,
+    _hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
@@ -202,9 +202,9 @@ pub async fn update_datafix_voter(
 
 /// Mark a voter as having voted via a given channel
 /// Also disables the voter so it cannot vote online
-#[instrument(skip(hasura_transaction, keycloak_transaction))]
+#[instrument(skip(_hasura_transaction, keycloak_transaction))]
 pub async fn mark_as_voted_via_channel(
-    hasura_transaction: &Transaction<'_>,
+    _hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
@@ -250,9 +250,9 @@ pub async fn mark_as_voted_via_channel(
 /// Unmark a voter as having voted. Re-enable only when MarkVoted was the
 /// operation that disabled the account; an unrelated administrator disable
 /// and its reason must survive this call.
-#[instrument(skip(hasura_transaction, keycloak_transaction))]
+#[instrument(skip(_hasura_transaction, keycloak_transaction))]
 pub async fn unmark_voter_as_voted(
-    hasura_transaction: &Transaction<'_>,
+    _hasura_transaction: &Transaction<'_>,
     keycloak_transaction: &Transaction<'_>,
     tenant_id: &str,
     datafix_event_id: &str,
@@ -322,6 +322,10 @@ fn plan_unmark_voter_edit(user: &User) -> (Option<bool>, HashMap<String, Vec<Str
 }
 
 /// Generate a new password.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the PIN replacement API with its separate transaction, voter, election and annotation inputs."
+)]
 #[instrument(skip(hasura_transaction, keycloak_transaction, datafix_annotations))]
 pub async fn replace_voter_pin(
     hasura_transaction: &Transaction<'_>,

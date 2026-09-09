@@ -90,9 +90,9 @@ The admin portal is a React-based web application for administrative functions.
 | uuid | 9.0.0 | MIT | RFC9562 UUIDs |
 | web-vitals | ^5.1.0 | Apache-2.0 | Easily measure performance metrics in JavaScript |
 
-## B3
+## B4
 
-B3 is a Rust-based component providing cryptographic utilities and core functionality.
+B4 is the Rust bulletin board: the server binary and the client library the other components use to publish to and read from the board.
 
 | Dependency | Version | License | Description |
 |------------|---------|---------|-------------|

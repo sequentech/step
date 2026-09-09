@@ -11,7 +11,7 @@ use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::VoterPermissions;
 use sequent_core::{services::jwt::JwtClaims, types::date_time::TimeZone};
 use serde::{Deserialize, Serialize};
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::tasks_execution::post;
@@ -112,6 +112,6 @@ pub async fn create_ballot_receipt(
         id: document_id,
         ballot_id: input.ballot_id,
         status: "pending".to_string(),
-        task_execution: task_execution,
+        task_execution,
     }))
 }

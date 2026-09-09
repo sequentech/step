@@ -38,10 +38,7 @@ pub struct PublishBallot;
 
 impl PublishChanges {
     pub fn run(&self) {
-        match publish_changes(
-            &self.election_event_id,
-            self.election_id.as_ref().map(String::as_str),
-        ) {
+        match publish_changes(&self.election_event_id, self.election_id.as_deref()) {
             Ok(id) => {
                 println!(
                     "{} {}",

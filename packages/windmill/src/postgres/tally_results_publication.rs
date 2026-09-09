@@ -94,6 +94,10 @@ impl TryFrom<Row> for TallyResultsPublication {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 pub async fn validate_new_publication_source(
     tx: &Transaction<'_>,
     tenant_id: &str,

@@ -20,29 +20,14 @@ which wasm-bindgen
 wasm-bindgen --version
 
 wasm-pack build --mode no-install --out-name index --release --target web --features=wasmtest,default_features
-wasm-pack -v pack . 2>&1 | tee output.log
 
+# The package is a dependency of the workspace packages as a directory (file:./rust/pkg),
+# not as a committed tarball, so it is copied into place and yarn.lock never changes.
 cd ..
-hash=$(grep "shasum:" sequent-core/output.log | awk '{printf $4}')
-awk -v hash="${hash}" '
-  /^"sequent-core@file:/ { in_sequent = 1 }
-  /^"[^"]+":$/ && !/^"sequent-core@file:/ { in_sequent = 0 }
-  /sequent-core-0.1.0.tgz#/ {
-    sub(/#.*/, "#"hash"\"")
-  }
-  /^  uid "/ && in_sequent {
-    sub(/"[^"]*"$/, "\""hash"\"")
-  }
-  { print }
-' yarn.lock > yarn.lock.tmp
-
-mv yarn.lock.tmp yarn.lock
-
-rm sequent-core/output.log
-rm ./ui-core/rust/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ui-core/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./admin-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./voting-portal/rust/sequent-core-0.1.0.tgz
-cp sequent-core/pkg/sequent-core-0.1.0.tgz ./ballot-verifier/rust/sequent-core-0.1.0.tgz
+for dir in ui-core admin-portal voting-portal ballot-verifier; do
+    rm -rf "./${dir}/rust/pkg"
+    mkdir -p "./${dir}/rust"
+    cp -a sequent-core/pkg "./${dir}/rust/pkg"
+done
 
 rm -rf node_modules ui-core/node_modules voting-portal/node_modules ballot-verifier/node_modules admin-portal/node_modules

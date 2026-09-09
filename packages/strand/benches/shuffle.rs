@@ -40,11 +40,9 @@ fn test_shuffle_generic<C: Ctx>(ctx: C, n: usize) {
 
     let (e_primes, rs, perm) = shuffler.gen_shuffle(&es);
     let proof = shuffler
-        .gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &vec![])
+        .gen_proof(es.clone(), &e_primes, rs, hs.clone(), perm, &[])
         .unwrap();
-    let ok = shuffler
-        .check_proof(&proof, es, e_primes, hs, &vec![])
-        .unwrap();
+    let ok = shuffler.check_proof(&proof, es, e_primes, hs, &[]).unwrap();
 
     assert!(ok);
 }
@@ -95,7 +93,8 @@ fn bench_shuffle(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(10);
 
-    for i in [100usize].iter() {
+    {
+        let i = &100usize;
         group.bench_with_input(BenchmarkId::new("ristretto", i), i, |b, i| {
             b.iter(|| shuffle_ristretto(*i))
         });

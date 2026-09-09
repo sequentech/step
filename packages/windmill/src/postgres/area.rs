@@ -2,14 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::import::import_election_event::ImportElectionEventSchema;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::area_tree::{TreeNode, TreeNodeArea};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::{hasura::core::Area, keycloak::UserArea};
 use serde::{Deserialize, Serialize};
-use sha2::digest::const_oid::db::rfc5911::ID_AES_192_CBC;
 use std::collections::HashMap;
 use tokio_postgres::row::Row;
 use tracing::instrument;
@@ -47,7 +45,7 @@ pub async fn get_areas(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    area_ids: &Vec<String>,
+    area_ids: &[String],
 ) -> Result<Vec<UserArea>> {
     let area_uuids: Vec<Uuid> = area_ids
         .iter()
@@ -358,7 +356,7 @@ pub async fn get_area_by_id(
         .map(|row| -> Result<Area> { row.try_into().map(|res: AreaWrapper| -> Area { res.0 }) })
         .collect::<Result<Vec<Area>>>()?;
 
-    Ok(areas.get(0).map(|area| area.clone()))
+    Ok(areas.first().cloned())
 }
 
 #[instrument(err, skip_all)]
@@ -385,10 +383,9 @@ pub async fn upsert_area_parents(
         let parent_id: Option<Uuid> = area
             .parent_id
             .clone()
-            .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-            .flatten();
+            .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
-        let rows: Vec<Row> = hasura_transaction
+        let _rows: Vec<Row> = hasura_transaction
             .query(
                 &statement,
                 &[
@@ -406,7 +403,7 @@ pub async fn upsert_area_parents(
 }
 
 #[instrument(err, skip_all)]
-pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area>) -> Result<()> {
+pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &[Area]) -> Result<()> {
     let tree_node_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::<()>::from_areas(tree_node_areas)?;
     let areas_map: HashMap<String, Area> = areas
@@ -435,8 +432,7 @@ pub async fn insert_areas(hasura_transaction: &Transaction<'_>, areas: &Vec<Area
         let parent_id: Option<Uuid> = area
             .parent_id
             .clone()
-            .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-            .flatten();
+            .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
         let _rows: Vec<Row> = hasura_transaction
             .query(
@@ -683,14 +679,13 @@ pub async fn delete_area_contests(
     area_id: &str,
 ) -> Result<()> {
     // Delete existing area_contest rows for this area
-    let query: String = format!(
-        r#"
+    let query: String = r#"
             DELETE FROM sequent_backend.area_contest 
             WHERE tenant_id = $1 
             AND election_event_id = $2 
             AND area_id = $3;
             "#
-    );
+    .to_string();
 
     // Now prepare the statement with the dynamically generated query
     let statement = hasura_transaction.prepare(&query).await?;
@@ -733,8 +728,7 @@ pub async fn update_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
     let parent_id: Option<Uuid> = area
         .parent_id
         .clone()
-        .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-        .flatten();
+        .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
     let _rows: Vec<Row> = hasura_transaction
         .query(
@@ -774,8 +768,7 @@ pub async fn insert_area(hasura_transaction: &Transaction<'_>, area: Area) -> Re
     let parent_id: Option<Uuid> = area
         .parent_id
         .clone()
-        .map(|parent_id| parse_uuid_v4(&parent_id).ok())
-        .flatten();
+        .and_then(|parent_id| parse_uuid_v4(&parent_id).ok());
 
     let _rows: Vec<Row> = hasura_transaction
         .query(

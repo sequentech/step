@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -13,19 +13,16 @@ use sequent_core::{
 };
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use windmill::postgres::reports::ReportType;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 
-use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
-use windmill::{
-    postgres::reports::{get_report_by_type, ReportType},
-    services::reports_vault::get_report_key_pair,
-};
+use windmill::services::reports_vault::get_report_key_pair;
+use windmill::services::tasks_execution::*;
 use windmill::{
     postgres::{document::get_document, reports::get_report_by_id},
     services::{
@@ -103,7 +100,7 @@ pub async fn render_document_pdf(
     };
 
     if let Some(media_type) = found_document.media_type {
-        if "text/html".to_string() != media_type {
+        if "text/html" != media_type {
             return Err((
                 Status::InternalServerError,
                 format!("Invalid document type: {}", media_type),
@@ -201,7 +198,7 @@ pub async fn generate_template(
                 format!("Error obtaining keycloak transaction: {e:?}"),
             )
         })?;
-    let hasura_transaction =
+    let _hasura_transaction =
         hasura_db_client.transaction().await.map_err(|e| {
             (
                 Status::InternalServerError,
@@ -257,7 +254,7 @@ pub async fn generate_template(
         })?;
 
     Ok(Json(GenerateTemplateResponse {
-        document_id: document_id,
+        document_id,
         task_execution: task_execution.clone(),
     }))
 }
@@ -416,7 +413,7 @@ pub async fn generate_report(
         })?;
 
     Ok(Json(GenerateReportResponse {
-        document_id: document_id,
+        document_id,
         encryption_policy: report.encryption_policy,
         task_execution: task_execution.clone(),
     }))

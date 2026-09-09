@@ -127,7 +127,7 @@ impl<T: Send + Sync> StrandRectangle<T> {
     }
 
     pub fn width(&self) -> usize {
-        if self.rows.len() < 1 {
+        if self.rows.is_empty() {
             0
         } else {
             self.rows[0].len()
@@ -170,7 +170,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         ciphertexts: &StrandRectangle<Ciphertext<C>>,
     ) -> (StrandRectangle<Ciphertext<C>>, Vec<Vec<C::X>>, Vec<usize>) {
         let perm: Vec<usize> = gen_permutation(ciphertexts.rows().len());
-        let (result, rs) = self.apply_permutation(&perm, &ciphertexts);
+        let (result, rs) = self.apply_permutation(&perm, ciphertexts);
 
         (result, rs, perm)
     }
@@ -289,12 +289,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 "N != h_generators.len()".to_string(),
             ));
         }
-        if N <= 0 {
+        if N == 0 {
             return Err(StrandError::Generic(
                 "Cannot shuffle 0 ciphertexts".to_string(),
             ));
         }
-        if width <= 0 {
+        if width == 0 {
             return Err(StrandError::Generic(
                 "Cannot shuffle 0-width ciphertexts".to_string(),
             ));
@@ -355,8 +355,8 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         r_tilde = r_tilde.modq(ctx);
         // r_prime = r_prime.modq(ctx);
 
-        for w in 0..width {
-            r_star[w] = r_star[w].modq(ctx);
+        for value in &mut r_star {
+            *value = value.modq(ctx);
         }
 
         let omegas: Vec<C::X> = (0..3).map(|_| ctx.rnd_exp(&mut rng)).collect();
@@ -540,12 +540,12 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                 "N != h_generators.len()".to_string(),
             ));
         }
-        if N <= 0 {
+        if N == 0 {
             return Err(StrandError::Generic(
                 "Cannot check proof on 0 ciphertexts".to_string(),
             ));
         }
-        if width <= 0 {
+        if width == 0 {
             return Err(StrandError::Generic(
                 "Cannot check proof on 0-width ciphertexts".to_string(),
             ));
@@ -862,7 +862,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
 
         let bytes = challenge_input.get_bytes()?;
 
-        Ok(self.ctx.hash_to_exp(&bytes)?)
+        self.ctx.hash_to_exp(&bytes)
     }
 }
 

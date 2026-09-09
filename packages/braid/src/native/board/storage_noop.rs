@@ -43,6 +43,12 @@ pub struct NoOpStorage {
     transient: Mutex<Vec<HttpB3Message>>,
 }
 
+impl Default for NoOpStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NoOpStorage {
     pub fn new() -> Self {
         NoOpStorage {

@@ -3,28 +3,36 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use base64::prelude::*;
-use bytes::Bytes;
-use sequent_core::services::pdf::PrintToPdfOptions;
-use serde::{Deserialize, Serialize};
-use std::io::Read;
-use tracing::{info, instrument};
-use warp::{reply::Response, Filter, Rejection, Reply};
+use serde::Deserialize;
+use tracing::info;
+use warp::{Filter, Rejection, Reply};
 
 use crate::io::{Input, Output};
 
 #[derive(Debug, Deserialize)]
 pub struct OpenWhiskInput {
-    action_name: String,
-    action_version: String,
-    activation_id: String,
-    deadline: String,
-    namespace: String,
-    transaction_id: String,
+    #[serde(rename = "action_name")]
+    _action_name: String,
+    #[serde(rename = "action_version")]
+    _action_version: String,
+    #[serde(rename = "activation_id")]
+    _activation_id: String,
+    #[serde(rename = "deadline")]
+    _deadline: String,
+    #[serde(rename = "namespace")]
+    _namespace: String,
+    #[serde(rename = "transaction_id")]
+    _transaction_id: String,
     value: Input,
 }
 
-#[derive(Debug)]
 struct CustomError(String);
+
+impl std::fmt::Debug for CustomError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("CustomError").field(&self.0).finish()
+    }
+}
 impl warp::reject::Reject for CustomError {}
 
 async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
@@ -44,7 +52,7 @@ async fn handle_render_impl(input: Input) -> Result<impl Reply, Rejection> {
             Ok(warp::reply::json(&payload))
         },
         Input::S3 { .. } => {
-            Err(CustomError(format!("You are trying to provide a document through the S3 mechanism to a lambda running locally on OpenWhisk. Please, provide the HTML document directly as an input to the lambda instead")).into())
+            Err(CustomError("You are trying to provide a document through the S3 mechanism to a lambda running locally on OpenWhisk. Please, provide the HTML document directly as an input to the lambda instead".to_string()).into())
         }
     }
 }
@@ -54,7 +62,7 @@ pub async fn start_server() {
 
     // Create the render route
     // Create the init/run routes
-    let init = warp::path("init").and(warp::post()).map(|| warp::reply());
+    let init = warp::path("init").and(warp::post()).map(warp::reply);
 
     let run = warp::path("run")
         .and(warp::post())

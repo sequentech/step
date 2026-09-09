@@ -5,13 +5,13 @@ use crate::services::ceremonies::serialize_logs::sort_logs;
 use sequent_core::types::ceremonies::Log;
 use sequent_core::{serialization::deserialize_with_path, services::date::ISO8601};
 use serde_json::value::Value;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 #[instrument]
 pub fn general_start_log() -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("Task started"),
+        log_text: "Task started".to_string(),
     }]
 }
 
@@ -22,7 +22,7 @@ pub fn append_general_log(current_logs: &Option<Value>, message: &str) -> Vec<Lo
         deserialize_with_path::deserialize_value(value).unwrap_or_else(|_| Vec::new());
     logs.push(Log {
         created_date: ISO8601::to_string(&ISO8601::now()),
-        log_text: format!("{}", message),
+        log_text: message.to_string(),
     });
     sort_logs(&logs)
 }

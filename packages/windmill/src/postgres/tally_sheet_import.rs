@@ -94,6 +94,10 @@ impl TryFrom<Row> for TallySheetImportItemReviewSnapshot {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve the existing database API argument order for transaction, record scope and column values."
+)]
 #[instrument(err, skip_all)]
 pub async fn insert_tally_sheet_import(
     transaction: &Transaction<'_>,

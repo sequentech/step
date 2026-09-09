@@ -29,7 +29,7 @@ impl CharacterMap for Utf8Map {
         Ok(s.as_bytes().to_vec())
     }
     fn to_string(&self, bytes: &[u8]) -> Result<String, String> {
-        str::from_utf8(&bytes)
+        str::from_utf8(bytes)
             .map_err(|e| format!("{}", e))
             .map(|s| s.to_string())
     }
@@ -58,7 +58,7 @@ impl CharacterMap for Base32Map {
             .iter()
             .map(|b| {
                 TO_CHAR
-                    .get(&b)
+                    .get(b)
                     .ok_or(format!("Byte '{}' cannot be mapped to char", b))
                     .copied()
             })
@@ -162,9 +162,8 @@ mod tests {
         let map = Utf8Map;
         // arbitrary range
         for i in 0u32..1024u32 {
-            let char = char::from_u32(i);
-            if char.is_some() {
-                let char = char.unwrap().to_string();
+            if let Some(char) = char::from_u32(i) {
+                let char = char.to_string();
                 let forward = map.to_bytes(&char).unwrap();
                 let backward = map.to_string(&forward).unwrap();
 
@@ -179,14 +178,14 @@ mod tests {
         const MAX_LEN: usize = 40;
         let mut rng = rand::thread_rng();
 
-        let writein: String = (0..MAX_LEN)
+        let _writein: String = (0..MAX_LEN)
             .map(|_| {
                 let idx = rng.gen_range(0..CHARSET.len());
                 CHARSET[idx] as char
             })
             .collect();
 
-        let mut contest = get_contest_candidates_n(190);
+        let contest = get_contest_candidates_n(190);
 
         let choices: Vec<DecodedVoteChoice> = (0..190)
             .map(|i| DecodedVoteChoice {
@@ -209,7 +208,7 @@ mod tests {
         let c = contest.available_write_in_characters(&vote);
         assert_eq!(c, Ok(232));
 
-        let result = contest.encode_plaintext_contest_to_bytes(&vote).unwrap();
+        let _result = contest.encode_plaintext_contest_to_bytes(&vote).unwrap();
         let raw_ballot = contest.encode_to_raw_ballot(&vote).unwrap();
 
         println!("{:?} {:?}", raw_ballot.bases, raw_ballot.choices)

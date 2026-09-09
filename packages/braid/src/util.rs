@@ -96,7 +96,7 @@ pub fn hash_from_vec(bytes: &[u8]) -> Result<Hash, StrandError> {
 /// Returns base64 no pad decode.
 pub fn decode_base64(s: &String) -> Result<Vec<u8>> {
     general_purpose::STANDARD_NO_PAD
-        .decode(&s)
+        .decode(s)
         .map_err(|error| anyhow!(error))
 }
 

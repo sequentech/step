@@ -22,7 +22,7 @@ fn encrypt<C: Ctx>(ctx: &C, pk: &PublicKey<C>, data: C::P, n: usize) {
         let randomness = ctx.rnd_exp(&mut rng);
         let c = pk.encrypt_with_randomness(&plaintext, &randomness);
 
-        let _proof = zkp.encryption_popk(&randomness, c.mhr(), c.gr(), &vec![]);
+        let _proof = zkp.encryption_popk(&randomness, c.mhr(), c.gr(), &[]);
     }
 }
 
@@ -34,7 +34,7 @@ fn encrypt_ristretto(
     let mut csprng = OsRng;
     let mut fill = [0u8; 30];
     csprng.try_fill_bytes(&mut fill).unwrap();
-    let plaintext = to_ristretto_plaintext_array(&fill.to_vec());
+    let plaintext = to_ristretto_plaintext_array(fill.as_ref());
     encrypt(ctx, pk, plaintext, n);
 }
 
@@ -112,7 +112,8 @@ fn bench_encrypt(c: &mut Criterion) {
     group.sampling_mode(SamplingMode::Flat);
     group.sample_size(10);
 
-    for i in [10usize].iter() {
+    {
+        let i = &10usize;
         group.bench_with_input(BenchmarkId::new("ristretto", i), i, |b, i| {
             b.iter(|| encrypt_ristretto(&rctx, &rpk, *i))
         });

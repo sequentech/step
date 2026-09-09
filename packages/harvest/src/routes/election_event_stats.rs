@@ -107,8 +107,8 @@ pub async fn get_election_event_stats(
 
     let total_elections: i64 = get_count_elections(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
     )
     .await
     .map_err(|err| {
@@ -120,8 +120,8 @@ pub async fn get_election_event_stats(
 
     let total_areas: i64 = get_count_areas(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
     )
     .await
     .map_err(|err| {
@@ -133,12 +133,12 @@ pub async fn get_election_event_stats(
 
     let votes_per_day: Vec<CastVotesPerDay> = get_count_votes_per_day(
         &hasura_transaction,
-        &tenant_id.as_str(),
-        &input.election_event_id.as_str(),
-        &input.start_date.as_str(),
-        &input.end_date.as_str(),
+        tenant_id.as_str(),
+        input.election_event_id.as_str(),
+        input.start_date.as_str(),
+        input.end_date.as_str(),
         None,
-        &input.user_timezone.as_str(),
+        input.user_timezone.as_str(),
         input.time_resolution,
         input.bucket_count,
     )
@@ -162,8 +162,8 @@ pub async fn get_election_event_stats(
         total_distinct_voters,
         voters_by_channel,
         total_areas,
-        total_eligible_voters: total_eligible_voters.into(),
-        total_elections: total_elections.into(),
+        total_eligible_voters,
+        total_elections,
         votes_per_day,
     }))
 }

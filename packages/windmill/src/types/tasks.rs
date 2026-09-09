@@ -2,9 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use strum_macros::{Display, EnumString, EnumVariantNames};
+use strum_macros::{Display, EnumString, VariantNames};
 
-#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, EnumVariantNames)]
+#[derive(Display, Debug, PartialEq, Eq, Clone, EnumString, VariantNames)]
+#[expect(
+    non_camel_case_types,
+    reason = "Preserve the task identifiers and derived strings stored in task-execution records and consumed by existing callers."
+)]
 pub enum ETasksExecution {
     EXPORT_ELECTION_EVENT,
     EXPORT_TENANT_CONFIG,

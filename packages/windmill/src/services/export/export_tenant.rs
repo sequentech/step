@@ -7,11 +7,11 @@ use crate::types::documents::EDocuments;
 use anyhow::Context;
 use anyhow::{anyhow, Result};
 use csv::Writer;
-use deadpool_postgres::{Client as DbClient, Transaction};
+use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::Tenant;
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use tempfile::{NamedTempFile, TempPath};
-use tracing::{event, info, instrument, Level};
+use tempfile::TempPath;
+use tracing::instrument;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_tenant_export_data(
@@ -23,13 +23,13 @@ pub async fn read_tenant_export_data(
     Ok(tenant)
 }
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(_transaction))]
 pub async fn write_export_document(
     data: Tenant,
-    transaction: &Transaction<'_>,
+    _transaction: &Transaction<'_>,
     document_id: &str,
     tenant_id: &str,
-) -> Result<(TempPath)> {
+) -> Result<TempPath> {
     let headers = vec![
         "id".to_string(),
         "slug".to_string(),
@@ -62,7 +62,7 @@ pub async fn write_export_document(
         .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
 
     // Write the serialized data into a temporary file
-    let (temp_path, temp_path_string, file_size) =
+    let (temp_path, _temp_path_string, _file_size) =
         write_into_named_temp_file(&data_bytes, &name, ".csv")
             .with_context(|| "Failed to write tenant into temp file")?;
 

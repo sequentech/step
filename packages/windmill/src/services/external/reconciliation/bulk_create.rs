@@ -23,6 +23,8 @@
 //! characters) and Keycloak's event system entirely, so nothing that
 //! listens for Keycloak admin events fires for these voters.
 
+pub type BulkCreatePartition = (Vec<DiffItem>, Vec<(String, String)>);
+
 use crate::postgres::keycloak_realm::get_realm_id;
 use crate::services::external::reconciliation::diff::DiffItem;
 use anyhow::{anyhow, Context, Result};
@@ -173,7 +175,7 @@ pub async fn apply_voters_added_bulk(
     realm: &str,
     voter_group_name: &str,
     voters: &HashMap<String, Vec<DiffItem>>,
-) -> Result<(Vec<DiffItem>, Vec<(String, String)>)> {
+) -> Result<BulkCreatePartition> {
     let mut applied_items = Vec::new();
     let mut row_failures: Vec<(String, String)> = Vec::new();
 

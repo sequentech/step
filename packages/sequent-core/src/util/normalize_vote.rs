@@ -15,7 +15,7 @@ pub fn normalize_vote_contest(
     input: &DecodedVoteContest,
     tally_type: CountingAlgType,
     remove_errors: bool,
-    invalid_choice_ids: &Vec<String>,
+    invalid_choice_ids: &[String],
 ) -> DecodedVoteContest {
     let mut original = input.clone();
     let filtered_choices: Vec<&DecodedVoteChoice> = original
@@ -37,7 +37,7 @@ pub fn normalize_vote_contest(
 }
 
 pub fn normalize_election(
-    input: &Vec<DecodedVoteContest>,
+    input: &[DecodedVoteContest],
     ballot_style: &BallotStyle,
     remove_errors: bool,
 ) -> Result<Vec<DecodedVoteContest>> {
@@ -48,8 +48,7 @@ pub fn normalize_election(
         .map(|contest| (contest.id.clone(), contest))
         .collect();
     let mut result: Vec<DecodedVoteContest> = input
-        .clone()
-        .into_iter()
+        .iter()
         // Acclaimed contests are never encoded, so a decoded ballot never
         // mentions them and neither does its normalized form. A contest that
         // is not in the ballot style at all is still an error below.
@@ -68,7 +67,7 @@ pub fn normalize_election(
                 ))?;
             let invalid_candidate_ids = contest.get_invalid_candidate_ids();
             Ok(normalize_vote_contest(
-                &decoded_contest,
+                decoded_contest,
                 contest.get_counting_algorithm(),
                 remove_errors,
                 &invalid_candidate_ids,
@@ -96,15 +95,7 @@ pub fn normalize_vote_choice(
         };
     }
 
-    original.write_in_text = match original.write_in_text {
-        Some(text) => {
-            if text.len() > 0 {
-                Some(text)
-            } else {
-                None
-            }
-        }
-        None => None,
-    };
+    original.write_in_text =
+        original.write_in_text.filter(|text| !text.is_empty());
     original
 }

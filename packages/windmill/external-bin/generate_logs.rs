@@ -5,11 +5,10 @@
 use anyhow::{Context, Result};
 use base64::engine::general_purpose;
 use base64::Engine;
-use chrono::{TimeZone, Utc};
 use clap::Parser;
 use csv::Writer;
 use electoral_log::messages::message::Message;
-use immudb_rs::{sql_value::Value as ImmudbSqlValue, Client};
+use immudb_rs::Client;
 use serde::Deserialize;
 use std::collections::HashMap; // Added for HashMap
 use std::fs::{self, File};

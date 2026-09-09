@@ -6,8 +6,7 @@ use sequent_core::services::s3;
 use sequent_core::util::temp_path::generate_temp_file;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::io::{BufWriter, Write};
-use tempfile::NamedTempFile;
+use std::io::BufWriter;
 use tracing::{event, instrument, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -40,7 +39,7 @@ pub fn get_cache_policy() -> Result<String> {
 #[instrument(err)]
 pub async fn get_jwks() -> Result<Vec<JWKKey>> {
     let minio_private_uri =
-        env::var("AWS_S3_PRIVATE_URI").map_err(|err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
+        env::var("AWS_S3_PRIVATE_URI").map_err(|_err| anyhow!("AWS_S3_PRIVATE_URI must be set"))?;
     let bucket = s3::get_public_bucket()?;
 
     let hasura_endpoint = format!(
@@ -66,7 +65,7 @@ pub async fn get_jwks() -> Result<Vec<JWKKey>> {
 #[instrument(err)]
 pub async fn download_realm_jwks_from_keycloak(realm: &str) -> Result<Vec<JWKKey>> {
     let keycloak_url =
-        env::var("KEYCLOAK_URL").map_err(|err| anyhow!("KEYCLOAK_URL must be set"))?;
+        env::var("KEYCLOAK_URL").map_err(|_err| anyhow!("KEYCLOAK_URL must be set"))?;
     let hasura_endpoint = format!(
         "{}/realms/{}/protocol/openid-connect/certs",
         keycloak_url, realm
@@ -100,7 +99,7 @@ pub async fn upsert_realm_jwks(realm: &str) -> Result<()> {
         .into_iter()
         .filter(|key| !existing_kids.contains(&key.kid))
         .collect();
-    if 0 == new_jwks.len() {
+    if new_jwks.is_empty() {
         event!(Level::INFO, "Jwks for realm {} already present", realm);
         return Ok(());
     }

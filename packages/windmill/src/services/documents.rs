@@ -3,21 +3,21 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::document::{insert_document, insert_document_with_annotations};
-use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use anyhow::{anyhow, Context, Result as AnyhowResult};
+use anyhow::{Context, Result as AnyhowResult};
 use deadpool_postgres::Transaction;
-use deadpool_postgres::{Client as DbClient, Transaction as _};
 
-use sequent_core::services::connection;
 use sequent_core::types::hasura::core::{Document, DocumentAnnotations};
 use tempfile::NamedTempFile;
 use tracing::{info, instrument};
 
 use crate::postgres;
 use crate::types::error::Result;
-use sequent_core::services::date::ISO8601;
 use sequent_core::services::s3;
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep document identity, storage metadata and visibility explicit across the existing upload callers."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn upload_and_return_document(
     hasura_transaction: &Transaction<'_>,
@@ -45,6 +45,10 @@ pub async fn upload_and_return_document(
     .await
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep document identity, storage metadata and visibility explicit across the existing upload callers."
+)]
 #[instrument(skip(hasura_transaction, annotations), err)]
 pub async fn upload_and_return_document_with_annotations(
     hasura_transaction: &Transaction<'_>,
@@ -73,6 +77,10 @@ pub async fn upload_and_return_document_with_annotations(
     .await
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep document identity, storage metadata and visibility explicit across the existing upload callers."
+)]
 async fn upload_and_return_document_inner(
     hasura_transaction: &Transaction<'_>,
     file_path: &str,
@@ -135,6 +143,10 @@ async fn upload_and_return_document_inner(
 /// The document is associated with the given election event ID and tenant ID.
 /// The Document path does not include the document ID and will be used
 /// for when the UI does not have access to the document ID.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep document identity, storage metadata and visibility explicit across the existing upload callers."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn upload_and_return_public_event_document(
     hasura_transaction: &Transaction<'_>,
@@ -178,6 +190,10 @@ pub async fn upload_and_return_public_event_document(
     Ok(document)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep document identity, storage metadata and visibility explicit across the existing upload callers."
+)]
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_upload_url(
     hasura_transaction: &Transaction<'_>,
@@ -190,11 +206,11 @@ pub async fn get_upload_url(
     election_event_id: Option<String>,
 ) -> Result<(Document, String)> {
     let document = insert_document(
-        &hasura_transaction,
-        &tenant_id,
+        hasura_transaction,
+        tenant_id,
         election_event_id.clone(),
-        &name,
-        &media_type,
+        name,
+        media_type,
         size.try_into()?,
         is_public,
         None,
@@ -203,12 +219,12 @@ pub async fn get_upload_url(
     .map_err(|err| format!("Error inserting document: {:?}", err))?;
 
     let path = match is_public {
-        true => s3::get_public_document_key(&tenant_id, &document.id, &name),
+        true => s3::get_public_document_key(tenant_id, &document.id, name),
         false => s3::get_document_key(
-            &tenant_id.to_string(),
+            tenant_id,
             election_event_id.clone().as_deref(),
             &document.id,
-            &name.to_string(),
+            name,
         ),
     };
     let url = s3::get_upload_url(path.to_string(), is_public, is_local.unwrap_or(false)).await?;

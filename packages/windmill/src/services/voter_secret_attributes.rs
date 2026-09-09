@@ -221,7 +221,7 @@ fn derive_key(
     output_key_material
         .fill(&mut key_bytes)
         .map_err(|_| anyhow!("Failed to materialize voter secret-attribute key"))?;
-    Ok(SymmetricKey::from_slice(&key_bytes).to_owned())
+    Ok(SymmetricKey::from(key_bytes))
 }
 
 fn encrypt_with_master_secret(

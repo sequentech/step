@@ -168,7 +168,7 @@ impl<C: Ctx> Status<C> {
         }
     }
     /// Shows status information using ascii tables.
-    fn to_string(&self) -> String {
+    fn render_tables(&self) -> String {
         let mut boards = vec![];
 
         boards.push("Trustees".to_string());
@@ -177,12 +177,12 @@ impl<C: Ctx> Status<C> {
             ascii_table.set_max_width(205);
             ascii_table
                 .column(0)
-                .set_header(format!("trustee {}", i.to_string()))
+                .set_header(format!("trustee {}", i))
                 .set_align(Align::Left);
 
             let data1: Vec<String> = self.statement_keys[i]
                 .iter()
-                .map(|k| format!("{}-{}", k.kind.to_string(), k.signer_position))
+                .map(|k| format!("{}-{}", k.kind, k.signer_position))
                 .collect();
             let data2: Vec<String> = self.artifact_keys[i]
                 .iter()
@@ -226,7 +226,7 @@ impl<C: Ctx> Status<C> {
             ])
         }
         boards.push("Last step messages".to_string());
-        if data.len() > 0 {
+        if !data.is_empty() {
             boards.push(ascii_table.format(data));
         } else {
             boards.push("-".to_string());
@@ -266,7 +266,7 @@ impl<C: Ctx> Status<C> {
         boards.push(ascii_table.format(data));
 
         boards.push("Last actions".to_string());
-        if self.last_actions.len() > 0 {
+        if !self.last_actions.is_empty() {
             boards.push(format!("{:?}", self.last_actions));
         } else {
             boards.push("-".to_string());
@@ -279,7 +279,7 @@ impl<C: Ctx> Status<C> {
 /// Constructs the repl context used to interact with the protocol.
 fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContext<C> {
     let mut selected = [NULL_TRUSTEE; MAX_TRUSTEES];
-    selected[0..threshold.len()].copy_from_slice(&threshold);
+    selected[0..threshold.len()].copy_from_slice(threshold);
 
     let pmkey: StrandSignatureSk = StrandSignatureSk::generate().unwrap();
     let pm: ProtocolManager<C> = ProtocolManager {
@@ -288,7 +288,6 @@ fn mk_context<C: Ctx>(ctx: C, n_trustees: u8, threshold: &[usize]) -> ReplContex
     };
 
     let trustees: Vec<Trustee<C, crate::native::board::NoOpStorage>> = (0..n_trustees)
-        .into_iter()
         .map(|i| {
             let kp = StrandSignatureSk::generate().unwrap();
             // let encryption_key = ChaCha20Poly1305::generate_key(&mut csprng);
@@ -372,10 +371,7 @@ fn log<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option<
             .unwrap();
     }
 
-    Ok(Some(format!(
-        "Log level is set to {}",
-        new_level.to_string()
-    )))
+    Ok(Some(format!("Log level is set to {}", new_level)))
 }
 
 /// Quits
@@ -417,7 +413,7 @@ fn status<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
         messages,
         actions,
     );
-    Ok(Some(status.to_string()))
+    Ok(Some(status.render_tables()))
 }
 
 /// Posts random ballots.
@@ -455,7 +451,7 @@ fn ballots<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Opt
     let ballots: Vec<Ciphertext<C>> = ps
         .iter()
         .map(|p| {
-            let encoded = ctx.encode(&p).unwrap();
+            let encoded = ctx.encode(p).unwrap();
             pk.encrypt(&encoded)
         })
         .collect();
@@ -491,10 +487,10 @@ fn plaintexts<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result
         .iter()
         .map(|p| context.ctx.encode(p).unwrap())
         .collect();
-    if encoded.len() > 0 {
+    if !encoded.is_empty() {
         Ok(Some(format!("Plaintexts {:?}", encoded)))
     } else {
-        Ok(Some(format!("No plaintexts found")))
+        Ok(Some("No plaintexts found".to_string()))
     }
 }
 /// Shows and checks the validity of decryptions.
@@ -522,7 +518,7 @@ fn decrypted<C: Ctx>(_args: ArgMatches, context: &mut ReplContext<C>) -> Result<
             set1 == set2
         )))
     } else {
-        Ok(Some(format!("No decrypted plaintexts found")))
+        Ok(Some("No decrypted plaintexts found".to_string()))
     }
 }
 
@@ -606,7 +602,7 @@ fn step<C: Ctx>(args: ArgMatches, context: &mut ReplContext<C>) -> Result<Option
 }
 
 /// Simulates posting to the bulletin board.
-fn send(messages: &Vec<Message>, remote: &mut VectorBoard) {
+fn send(messages: &[Message], remote: &mut VectorBoard) {
     for m in messages.iter() {
         info!("Adding message {:?} to remote", m);
         remote.add(m.try_clone().unwrap());

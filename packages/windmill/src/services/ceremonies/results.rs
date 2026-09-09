@@ -2,12 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::area::{self, get_areas, get_areas_by_ids, get_event_areas};
-use crate::postgres::area_contest::{export_area_contests, get_area_contests_by_area_contest_ids};
-use crate::postgres::contest::{export_contests, get_contest_by_election_ids};
-use crate::postgres::document;
-use crate::postgres::election::{get_elections, get_elections_by_ids};
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::results_area_contest::insert_results_area_contests;
 use crate::postgres::results_area_contest_candidate::insert_results_area_contest_candidates;
 use crate::postgres::results_contest::insert_results_contests;
@@ -22,16 +16,14 @@ use rusqlite::Connection;
 use rusqlite::Transaction as SqliteTransaction;
 use sequent_core::sqlite::results_event::find_results_event_sqlite;
 use sequent_core::types::ceremonies::{TallySessionDocuments, TallyType};
+use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::TallySessionExecution;
-use sequent_core::types::hasura::core::{Area, TallySession};
 use sequent_core::types::results::*;
 use sequent_core::util::temp_path::get_file_size;
 use serde_json::json;
 use std::cmp;
 use std::path::PathBuf;
-use tempfile::{NamedTempFile, TempPath};
-use tracing::info;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use uuid::Uuid;
 use velvet::cli::state::State;
 use velvet::pipes::generate_db::DATABASE_FILENAME;
@@ -268,18 +260,18 @@ pub async fn save_results(
     }
     insert_results_contests(
         hasura_transaction,
-        tenant_id.into(),
-        election_event_id.into(),
-        results_event_id.into(),
+        tenant_id,
+        election_event_id,
+        results_event_id,
         results_contests.clone(),
     )
     .await?;
 
     insert_results_area_contests(
         hasura_transaction,
-        tenant_id.into(),
-        election_event_id.into(),
-        results_event_id.into(),
+        tenant_id,
+        election_event_id,
+        results_event_id,
         results_area_contests.clone(),
     )
     .await?;
@@ -314,6 +306,10 @@ pub async fn save_results(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all)]
 pub async fn generate_results_id_if_necessary(
     hasura_transaction: &Transaction<'_>,
@@ -331,7 +327,7 @@ pub async fn generate_results_id_if_necessary(
     let previous_session_ids = previous_execution.session_ids.unwrap_or(vec![]);
     let session_ids = session_ids_opt.unwrap_or(vec![]);
 
-    if !force_new_id && !(session_ids.len() > previous_session_ids.len()) {
+    if !force_new_id && (session_ids.len() <= previous_session_ids.len()) {
         return Ok(None);
     }
 
@@ -342,8 +338,8 @@ pub async fn generate_results_id_if_necessary(
 
         insert_results_event(
             hasura_transaction,
-            &tenant_id,
-            &election_event_id,
+            tenant_id,
+            election_event_id,
             &results_event.id,
         )
         .await?;
@@ -353,6 +349,10 @@ pub async fn generate_results_id_if_necessary(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all)]
 pub async fn process_results_tables(
     hasura_transaction: &Transaction<'_>,
@@ -360,7 +360,7 @@ pub async fn process_results_tables(
     state_opt: Option<State>,
     tenant_id: &str,
     election_event_id: &str,
-    tally_session_id: &str,
+    _tally_session_id: &str,
     session_ids: Option<Vec<i64>>,
     previous_execution: TallySessionExecution,
     areas: &Vec<Area>,
@@ -412,6 +412,10 @@ pub async fn process_results_tables(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip(hasura_transaction, state_opt, previous_execution, areas))]
 pub async fn populate_results_tables(
     hasura_transaction: &Transaction<'_>,

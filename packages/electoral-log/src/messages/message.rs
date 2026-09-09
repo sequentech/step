@@ -27,7 +27,7 @@ use std::fmt;
 /// We use this when the statement is not related to any election event
 /// For the moment the only case is admin_public_key_message, which is
 /// a cross-event statement
-pub const GENERIC_EVENT: &'static str = "Generic Event";
+pub const GENERIC_EVENT: &str = "Generic Event";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
@@ -54,6 +54,10 @@ impl fmt::Display for Message {
 
 impl Message {
     #[instrument(skip_all, err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the external API audit constructor with explicit signed event, operation and voter context"
+    )]
     pub fn external_api_request_message(
         event_id: EventIdString,
         election_id: ElectionIdString,
@@ -96,6 +100,10 @@ impl Message {
     /// old/new values applied, for a `ChangesApplied` entry) can be carried —
     /// `from_body` always signs with `artifact: None`.
     #[instrument(skip_all, err)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve explicit reconciliation identity, sequence, timestamps, hashes and signing context"
+    )]
     pub fn external_reconciliation_message(
         event_id: EventIdString,
         kind: ExternalReconciliationKind,
@@ -133,6 +141,10 @@ impl Message {
         )
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing signed vote-event constructor and its voter, network and area context"
+    )]
     pub fn cast_vote_message(
         event: EventIdString,
         election: ElectionIdString,
@@ -159,6 +171,10 @@ impl Message {
         )
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the channel-aware signed vote-event constructor and its existing caller contract"
+    )]
     pub fn cast_vote_with_channel_message(
         event: EventIdString,
         election: ElectionIdString,
@@ -192,6 +208,10 @@ impl Message {
         )
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Keep both vote-event constructors on the same explicit body, signing and audit-context path"
+    )]
     fn cast_vote_message_from_body(
         event: EventIdString,
         election: ElectionIdString,
@@ -222,6 +242,10 @@ impl Message {
         )
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the existing signed vote-error constructor and its voter, network and area context"
+    )]
     pub fn cast_vote_error_message(
         event: EventIdString,
         election: ElectionIdString,
@@ -466,6 +490,10 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, None, area_id, None)
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the public-key audit constructor with explicit tenant, event, voter and signing context"
+    )]
     pub fn voter_public_key_message(
         tenant_id: TenantIdString,
         event: EventIdString,
@@ -577,6 +605,10 @@ impl Message {
         )
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Keep statement signing and the existing optional audit metadata explicit for all message constructors"
+    )]
     fn from_body(
         event: EventIdString,
         body: StatementBody,
@@ -604,6 +636,10 @@ impl Message {
         )
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Preserve the dual-signature message API with explicit signing keys and optional audit metadata"
+    )]
     pub fn sign(
         statement: Statement,
         artifact: Option<Vec<u8>>,
@@ -619,7 +655,7 @@ impl Message {
         let bytes = statement.strand_serialize()?;
         let sender_signature: StrandSignature = sender_sk.sign(&bytes)?;
         let system_signature: StrandSignature = system_sk.sign(&bytes)?;
-        let sender_pk = StrandSignaturePk::from_sk(&sender_sk)?;
+        let sender_pk = StrandSignaturePk::from_sk(sender_sk)?;
         let sender = Sender::new(sender_name.to_string(), sender_pk);
 
         Ok(Message {

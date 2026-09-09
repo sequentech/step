@@ -22,12 +22,10 @@ use anyhow::{anyhow, Context, Result as AnyhowResult};
 use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
-use rocket::http::Status;
 use sequent_core::ballot::{ContestEncryptionPolicy, ElectionEventPresentation};
 use sequent_core::ballot_codec::multi_ballot::BallotChoices;
 use sequent_core::types::hasura::core::{
-    self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
-    Election, ElectionEvent, KeysCeremony,
+    Area, AreaContest, BallotPublication, Candidate, Contest, Election, ElectionEvent, KeysCeremony,
 };
 use sequent_core::types::scheduled_event::ScheduledEvent;
 use serde::{Deserialize, Serialize};
@@ -65,7 +63,7 @@ pub fn get_elections_contests_map_for_area(
     area_contests_map: &HashMap<String, AreaContest>,
 ) -> AnyhowResult<HashMap<String, HashSet<String>>> {
     let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
-    if 0 == election_ids.len() {
+    if election_ids.is_empty() {
         return Err(anyhow!("No election ids"));
     }
     let area_ids: Vec<String> = areas_tree
@@ -77,7 +75,7 @@ pub fn get_elections_contests_map_for_area(
     let area_contests: Vec<AreaContest> = area_contests_map
         .values()
         .filter(|area_contest| area_ids.contains(&area_contest.area_id))
-        .map(|val| val.clone())
+        .cloned()
         .collect();
     // election_id, set<contest>
     let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
@@ -108,6 +106,10 @@ pub fn get_elections_contests_map_for_area(
     Ok(election_contest_map)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep election, area, publication and ceremony inputs explicit when assembling the existing ballot style."
+)]
 pub async fn create_ballot_style_postgres(
     transaction: &Transaction<'_>,
     area: &Area,
@@ -119,7 +121,7 @@ pub async fn create_ballot_style_postgres(
     contests_map: &HashMap<String, Contest>,
     candidates_map: &HashMap<String, Candidate>,
     area_contests_map: &HashMap<String, AreaContest>,
-    scheduled_events: &Vec<ScheduledEvent>,
+    scheduled_events: &[ScheduledEvent],
     keys_ceremonies_map: &HashMap<String, KeysCeremony>,
 ) -> Result<()> {
     let election_contest_map = get_elections_contests_map_for_area(
@@ -142,7 +144,7 @@ pub async fn create_ballot_style_postgres(
             .map(|contest_id| {
                 contests_map
                     .get(contest_id)
-                    .map(|val| val.clone())
+                    .cloned()
                     .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
             })
             .collect::<Result<Vec<Contest>>>()?;
@@ -154,11 +156,11 @@ pub async fn create_ballot_style_postgres(
                 };
                 contest_ids.contains(&contest_id)
             })
-            .map(|candidate| candidate.clone())
+            .cloned()
             .collect();
         let public_key = if let Some(keys_ceremony_id) = election.keys_ceremony_id.clone() {
             if let Some(keys_ceremony) = keys_ceremonies_map.get(&keys_ceremony_id) {
-                if let Some(status) = keys_ceremony.status().ok() {
+                if let Ok(status) = keys_ceremony.status() {
                     status.public_key
                 } else {
                     None
@@ -171,7 +173,7 @@ pub async fn create_ballot_style_postgres(
         };
 
         let election_dates =
-            get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
+            get_election_dates(election, scheduled_events.to_owned()).unwrap_or_default();
 
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
@@ -383,7 +385,7 @@ async fn generate_election_event_ballot_styles(
             &transaction,
             area,
             &areas_tree,
-            &tenant_id,
+            tenant_id,
             &election_event,
             &ballot_publication,
             &elections_map,

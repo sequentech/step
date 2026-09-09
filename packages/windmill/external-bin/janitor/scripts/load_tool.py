@@ -62,8 +62,11 @@ def run_generate_voters(args):
     sequence_email_number = voters_config.get("sequence_email_number", True)
     sequence_start_number = voters_config.get("sequence_start_number", 0)
     voter_password = voters_config.get("voter_password", "Qwerty1234!")
-    password_salt = voters_config.get("password_salt", "sppXH6/iePtmIgcXfTHmjPS2QpLfILVMfmmVOLPKlic=")
-    hashed_password = voters_config.get("hashed_password", "V0rb8+HmTneV64qto5f0G2+OY09x2RwPeqtK605EUz0=")
+    password_salt = voters_config.get("password_salt", "")
+    hashed_password = voters_config.get("hashed_password", "")
+    if any(field in fields and field not in excluded_columns
+           for field in ("password_salt", "hashed_password")) and not (password_salt and hashed_password):
+        raise ValueError("Supply a matching password salt/verifier, or generate a password CSV and run step-cli step hash-passwords")
     min_age = voters_config.get("min_age", 18)
     max_age = voters_config.get("max_age", 90)
     overseas_reference = voters_config.get("overseas_reference", "B")

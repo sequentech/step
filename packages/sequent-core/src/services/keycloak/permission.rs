@@ -32,7 +32,7 @@ impl From<Permission> for RoleRepresentation {
             description: item.description.clone(),
             id: item.id.clone(),
             name: item.name.clone(),
-            scope_param_required: None,
+            ..Default::default()
         }
     }
 }
@@ -48,20 +48,15 @@ impl KeycloakAdminClient {
     ) -> Result<(Vec<Permission>, usize)> {
         let role_representations: Vec<RoleRepresentation> = self
             .client
-            .realm_roles_get(realm.clone(), None, None, None, search.clone())
+            .realm_roles_get(realm, None, None, None, search.clone())
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         let count = role_representations.len();
-        let start = offset.unwrap_or(0);
-        let end = match limit {
-            Some(num) => usize::min(count, start + num),
-            None => count,
-        };
-        let slized_role_representations = &role_representations[start..end];
-        let permissions = slized_role_representations
-            .into_iter()
-            .map(|role| role.clone().into())
-            .collect();
+        let permissions =
+            super::pagination::page(&role_representations, offset, limit)
+                .iter()
+                .map(|role| role.clone().into())
+                .collect();
         Ok((permissions, count))
     }
 
@@ -96,7 +91,7 @@ impl KeycloakAdminClient {
         permissions_name: &Vec<String>,
     ) -> Result<()> {
         let permission_roles: Vec<_> = permissions_name
-            .into_iter()
+            .iter()
             .map(|permission_name| {
                 self.client
                     .realm_roles_with_role_name_get(realm, permission_name)

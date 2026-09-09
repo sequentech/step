@@ -6,5 +6,9 @@ pub mod counting_algorithm;
 mod error;
 pub mod tally;
 
+#[expect(
+    clippy::module_inception,
+    reason = "Preserve the existing module layout, re-exports and caller paths during the construct review"
+)]
 mod do_tally;
 pub use do_tally::*;

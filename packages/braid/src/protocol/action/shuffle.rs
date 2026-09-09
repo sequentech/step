@@ -75,7 +75,7 @@ pub(crate) fn mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     };
 
     // Null mix
-    if ciphertexts.0.len() == 0 {
+    if ciphertexts.0.is_empty() {
         let mix = Mix::null(*mix_no);
         let m = Message::mix_msg(cfg, *batch, *source_h, &mix, trustee)?;
         return Ok(vec![m]);
@@ -164,11 +164,11 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     let mix_number = mix.mix_number;
 
     // Null mix
-    if source_cs.0.len() == 0 {
-        if (mix.ciphertexts.0.len() != 0) || mix.proof.is_some() {
-            return Err(ProtocolError::VerificationError(format!(
-                "A null mix should have no outout ciphertexts or proof"
-            )));
+    if source_cs.0.is_empty() {
+        if (!mix.ciphertexts.0.is_empty()) || mix.proof.is_some() {
+            return Err(ProtocolError::VerificationError(
+                "A null mix should have no outout ciphertexts or proof".to_string(),
+            ));
         }
 
         let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;
@@ -176,9 +176,9 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     }
 
     let Some(proof) = mix.proof else {
-        return Err(ProtocolError::VerificationError(format!(
-            "Mix cannot be null if there are source ciphertexts"
-        )));
+        return Err(ProtocolError::VerificationError(
+            "Mix cannot be null if there are source ciphertexts".to_string(),
+        ));
     };
 
     let dkg_pk = trustee
@@ -200,9 +200,9 @@ pub(crate) fn sign_mix<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
     );
 
     if !ok {
-        return Err(ProtocolError::VerificationError(format!(
-            "Mix verification failed"
-        )));
+        return Err(ProtocolError::VerificationError(
+            "Mix verification failed".to_string(),
+        ));
     }
 
     let m = Message::mix_signed_msg(cfg, *batch, *source_h, *cipher_h, mix_number, trustee)?;

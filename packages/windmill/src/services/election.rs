@@ -8,12 +8,8 @@ use sequent_core::ballot::{ElectionEventPresentation, LockedDown};
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::services::translations::{Alias, Name};
 use sequent_core::types::hasura::core::Election;
-use sequent_core::types::keycloak::{User, VotesInfo};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use tokio_postgres::row::Row;
-use tracing::{info, instrument};
-use uuid::Uuid;
+use tracing::instrument;
 
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;

@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+pub type CheckedBallotHashes = (
+    PseudonymHash,
+    CastVoteHash,
+    Option<(StrandSignaturePk, StrandSignature)>,
+);
+
 use crate::postgres;
 use crate::postgres::area::get_area_by_id;
 use crate::postgres::election::get_election_by_id;
@@ -12,15 +18,13 @@ use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::external::utils::{
-    datafix_annotations, external_voter_lock_key, is_datafix_election_event,
-    DATAFIX_VOTER_LOCK_SECS,
+    datafix_annotations, external_voter_lock_key, DATAFIX_VOTER_LOCK_SECS,
 };
 use crate::services::pg_lock::PgLock;
 use crate::services::protocol_manager::get_protocol_manager;
 use crate::services::users::get_username_by_id;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::message::Signer;
-use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Local};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
@@ -30,8 +34,8 @@ use sequent_core::ballot::verify_ballot_signature;
 use sequent_core::ballot::ContestEncryptionPolicy;
 use sequent_core::ballot::EGracePeriodPolicy;
 use sequent_core::ballot::{
-    AreaPresentation, EarlyVotingPolicy, ElectionPresentation, ElectionStatus, VoterSigningPolicy,
-    VotingPeriodDates, VotingStatus, VotingStatusChannel,
+    AreaPresentation, ElectionPresentation, ElectionStatus, VotingPeriodDates, VotingStatus,
+    VotingStatusChannel,
 };
 use sequent_core::ballot::{HashableBallot, HashableBallotContest, SignedHashableBallot};
 use sequent_core::encrypt::hash_ballot;
@@ -51,7 +55,6 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::{ElectionEvent, VotingChannels};
 use sequent_core::types::scheduled_event::*;
 use serde::{Deserialize, Serialize};
-use serde_json::Serializer;
 use strand::backend::ristretto::RistrettoCtx;
 use strand::hash::{hash_to_array, Hash, HashWrapper};
 use strand::serialization::StrandSerialize;
@@ -61,7 +64,7 @@ use strand::signature::StrandSignatureSk;
 use strand::util::StrandError;
 use strand::zkp::Zkp;
 use strum_macros::Display;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -71,49 +74,6 @@ pub struct InsertCastVoteInput {
     pub election_id: Uuid,
     pub content: String,
 }
-impl InsertCastVoteInput {
-    /// Returns a byte representation of this object suitable for hashing
-    /// and then signing.
-    ///
-    /// To avoid adding the borsh dependency we do the serialization
-    /// manually. This requires an invertible map which we get
-    /// by prepending a fixed length prefix to each field
-    /// with its size. Because the maximum representation of a usize is
-    /// 8, we use 8 as the fixed size length prefix.
-    pub(crate) fn get_bytes_for_signing(&self) -> Vec<u8> {
-        let mut ret: Vec<u8> = vec![];
-
-        let bytes = self.ballot_id.as_bytes();
-        let mut length = [0u8; 8];
-        let b = bytes.len().to_le_bytes();
-        let l = b.len();
-        length[0..l].copy_from_slice(&bytes[0..l]);
-
-        ret.extend(&length);
-        ret.extend(bytes);
-
-        let bytes = self.election_id.as_bytes();
-        let mut length = [0u8; 8];
-        let b = bytes.len().to_le_bytes();
-        let l = b.len();
-        length[0..l].copy_from_slice(&bytes[0..l]);
-
-        ret.extend(&length);
-        ret.extend(bytes);
-
-        let bytes = self.content.as_bytes();
-        let mut length = [0u8; 8];
-        let b = bytes.len().to_le_bytes();
-        let l = b.len();
-        length[0..l].copy_from_slice(&bytes[0..l]);
-
-        ret.extend(&length);
-        ret.extend(bytes);
-
-        ret
-    }
-}
-
 pub type InsertCastVoteOutput = CastVote;
 
 /// Outcome of a cast-vote insert, distinguishing the follow-up each needs:
@@ -250,7 +210,7 @@ fn skip_or_propagate(cast_vote_err: CastVoteError) -> Result<InsertCastVoteResul
 }
 
 #[derive(Debug)]
-struct CastVoteIds<'a> {
+pub struct CastVoteIds<'a> {
     election_event_id: &'a str,
     tenant_id: &'a str,
     voter_id: &'a str,
@@ -330,6 +290,10 @@ impl CastVoteError {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing ballot-validation, voter-context and transaction inputs explicit; grouping them would change the cast-vote caller contract."
+)]
 #[instrument(skip(input), err)]
 pub async fn try_insert_cast_vote(
     input: InsertCastVoteInput,
@@ -595,14 +559,7 @@ pub async fn try_insert_cast_vote(
 pub fn deserialize_and_check_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
-) -> Result<
-    (
-        PseudonymHash,
-        CastVoteHash,
-        Option<(StrandSignaturePk, StrandSignature)>,
-    ),
-    CastVoteError,
-> {
+) -> Result<CheckedBallotHashes, CastVoteError> {
     let signed_hashable_ballot: SignedHashableBallot = deserialize_str(&input.content)
         .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
 
@@ -613,11 +570,11 @@ pub fn deserialize_and_check_ballot(
     let computed_hash = hash_ballot(&hashable_ballot)
         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
-    /// Verifies that the ballot_id corresponds to the hash of the ballot content
-    /// The function serves as a security check to ensure that
-    /// a ballot's content matches its claimed ID.
-    /// This is crucial for maintaining the integrity of the voting system
-    /// by preventing ballot tampering or substitution.
+    // Verifies that the ballot_id corresponds to the hash of the ballot content
+    // The function serves as a security check to ensure that
+    // a ballot's content matches its claimed ID.
+    // This is crucial for maintaining the integrity of the voting system
+    // by preventing ballot tampering or substitution.
     if computed_hash != input.ballot_id {
         return Err(CastVoteError::BallotIdMismatch(format!(
             "Expected {} but got {}",
@@ -663,14 +620,7 @@ pub fn deserialize_and_check_ballot(
 pub fn deserialize_and_check_multi_ballot(
     input: &InsertCastVoteInput,
     voter_id: &str,
-) -> Result<
-    (
-        PseudonymHash,
-        CastVoteHash,
-        Option<(StrandSignaturePk, StrandSignature)>,
-    ),
-    CastVoteError,
-> {
+) -> Result<CheckedBallotHashes, CastVoteError> {
     let signed_hashable_multi_ballot: SignedHashableMultiBallot =
         deserialize_str(&input.content)
             .map_err(|e| CastVoteError::DeserializeBallotFailed(e.to_string()))?;
@@ -682,11 +632,11 @@ pub fn deserialize_and_check_multi_ballot(
     let computed_hash = hash_multi_ballot(&hashable_multi_ballot)
         .map_err(|e| CastVoteError::SerializeBallotFailed(e.to_string()))?;
 
-    /// Verifies that the ballot_id corresponds to the hash of the ballot content
-    /// The function serves as a security check to ensure that
-    /// a ballot's content matches its claimed ID.
-    /// This is crucial for maintaining the integrity of the voting system
-    /// by preventing ballot tampering or substitution.
+    // Verifies that the ballot_id corresponds to the hash of the ballot content
+    // The function serves as a security check to ensure that
+    // a ballot's content matches its claimed ID.
+    // This is crucial for maintaining the integrity of the voting system
+    // by preventing ballot tampering or substitution.
     if computed_hash != input.ballot_id {
         return Err(CastVoteError::BallotIdMismatch(format!(
             "Expected {} but got {}",
@@ -730,10 +680,14 @@ pub fn deserialize_and_check_multi_ballot(
         input,
         hasura_transaction,
         election_event,
-        signing_key,
+        _signing_key,
         voter_signature_data
     ),
     err
+)]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing ballot-validation, voter-context and transaction inputs explicit; grouping them would change the cast-vote caller contract."
 )]
 pub async fn insert_cast_vote_and_commit<'a>(
     input: InsertCastVoteInput,
@@ -741,7 +695,7 @@ pub async fn insert_cast_vote_and_commit<'a>(
     election_event: ElectionEvent,
     voting_channel: VotingStatusChannel,
     ids: CastVoteIds<'a>,
-    signing_key: StrandSignatureSk,
+    _signing_key: StrandSignatureSk,
     auth_time: &Option<i64>,
     voter_ip: &Option<String>,
     voter_country: &Option<String>,
@@ -858,7 +812,7 @@ async fn get_electoral_log(
         tenant_id,
         &election_event.id,
         board_name.as_str(),
-        &sk,
+        sk,
     )
     .await;
 
@@ -888,6 +842,10 @@ fn effective_voting_channel_for_status(
 /// the election state. The requested channel continues to drive status, date,
 /// and grace-period checks; the effective channel is derived only after the
 /// vote has passed those checks so channel persistence cannot broaden access.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing ballot-validation, voter-context and transaction inputs explicit; grouping them would change the cast-vote caller contract."
+)]
 fn check_status_with_loaded_election(
     now: DateTime<Local>,
     auth_time_local: DateTime<Local>,
@@ -1008,6 +966,10 @@ fn check_status_with_loaded_election(
     Ok(effective_voting_channel)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing ballot-validation, voter-context and transaction inputs explicit; grouping them would change the cast-vote caller contract."
+)]
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -1041,7 +1003,7 @@ async fn check_status(
     };
 
     let election_opt = get_election_by_id(
-        &hasura_transaction,
+        hasura_transaction,
         tenant_id,
         election_event_id,
         election_id,
@@ -1056,27 +1018,23 @@ async fn check_status(
     let election_presentation: ElectionPresentation = election
         .presentation
         .clone()
-        .map(|value| deserialize_value(value).ok())
-        .flatten()
+        .and_then(|value| deserialize_value(value).ok())
         .unwrap_or(Default::default());
 
-    let scheduled_events = find_scheduled_event_by_election_event_id(
-        &hasura_transaction,
-        tenant_id,
-        election_event_id,
-    )
-    .await
-    .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
+    let scheduled_events =
+        find_scheduled_event_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
+            .await
+            .map_err(|e| CastVoteError::CheckStatusInternalFailed(e.to_string()))?;
 
     // these dates are used to check by scheduled event date
     // (even if the even hasn't been executed)
     let dates: VotingPeriodDates = generate_voting_period_dates(
         scheduled_events.clone(),
-        &tenant_id,
-        &election_event_id,
+        tenant_id,
+        election_event_id,
         Some(election_id),
     )
-    .unwrap_or(Default::default());
+    .unwrap_or_default();
 
     let election_status: ElectionStatus = election
         .status
@@ -1116,6 +1074,10 @@ async fn check_status(
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing ballot-validation, voter-context and transaction inputs explicit; grouping them would change the cast-vote caller contract."
+)]
 #[instrument(skip_all, err)]
 async fn check_previous_votes(
     voter_id_string: &str,
@@ -1140,7 +1102,7 @@ async fn check_previous_votes(
         // process_cast_vote pipeline promotes the previous vote. `discarded`
         // votes do not count (they never became a recorded vote).
         postgres::cast_vote::get_cast_votes(
-            &hasura_transaction,
+            hasura_transaction,
             tenant_uuid,
             election_event_uuid,
             election_uuid,
@@ -1153,7 +1115,7 @@ async fn check_previous_votes(
     let (same, other): (Vec<Uuid>, Vec<Uuid>) = result
         .into_iter()
         .filter_map(|cv| cv.area_id.and_then(|id| parse_uuid_v4(&id).ok()))
-        .partition(|cv_area_id| cv_area_id.to_string() == area_id.to_string());
+        .partition(|cv_area_id| cv_area_id.to_string() == area_id);
 
     info!("get cast votes returns same: {:?}", same);
 
@@ -1165,7 +1127,7 @@ async fn check_previous_votes(
             same.len()
         )));
     }
-    if other.len() > 0 {
+    if !other.is_empty() {
         return Err(CastVoteError::CheckVotesInOtherAreasFailed(format!(
             "Cannot insert cast vote, votes already present in other area(s) ({}, {:?})",
             voter_id_string, other

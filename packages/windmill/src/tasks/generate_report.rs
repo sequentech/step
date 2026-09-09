@@ -28,7 +28,6 @@ use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use sequent_core::types::hasura::core::TasksExecution;
 use std::str::FromStr;
-use tracing::info;
 use tracing::instrument;
 
 pub async fn generate_report(

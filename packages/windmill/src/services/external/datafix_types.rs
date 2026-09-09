@@ -189,13 +189,13 @@ impl PasswordPolicy {
         let pin = match self.characters {
             CharactersPolicy::Numeric => {
                 let mut pass = String::new();
-                let mut rng = rand::thread_rng();
+                let mut rng = rand::rng();
                 for _ in 0..self.size {
-                    pass.push_str(rng.gen_range(0..10).to_string().as_str());
+                    pass.push_str(rng.random_range(0..10).to_string().as_str());
                 }
                 pass
             }
-            CharactersPolicy::Alphanumeric => rand::thread_rng()
+            CharactersPolicy::Alphanumeric => rand::rng()
                 .sample_iter(distr::Alphanumeric)
                 .take(self.size)
                 .map(char::from)

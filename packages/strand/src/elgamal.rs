@@ -97,6 +97,9 @@ pub struct PrivateKey<C: Ctx> {
     pub(crate) ctx: C,
 }
 
+/// Ciphertext, proof of plaintext knowledge, and encryption randomness, in that order.
+pub type ProvenEncryption<C> = (Ciphertext<C>, Schnorr<C>, <C as Ctx>::X);
+
 impl<C: Ctx> PublicKey<C> {
     pub fn encrypt(&self, plaintext: &C::E) -> Ciphertext<C> {
         let mut rng = self.ctx.get_rng();
@@ -107,7 +110,7 @@ impl<C: Ctx> PublicKey<C> {
         &self,
         plaintext: &C::E,
         label: &[u8],
-    ) -> Result<(Ciphertext<C>, Schnorr<C>, C::X), StrandError> {
+    ) -> Result<ProvenEncryption<C>, StrandError> {
         let mut rng = self.ctx.get_rng();
         let zkp = Zkp::new(&self.ctx);
         let randomness = self.ctx.rnd_exp(&mut rng);

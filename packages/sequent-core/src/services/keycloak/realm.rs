@@ -5,22 +5,18 @@ use crate::serialization::deserialize_with_path::deserialize_str;
 use crate::services::{
     keycloak::KeycloakAdminClient, replace_uuids::replace_uuids,
 };
-use crate::types::keycloak::{Role, TENANT_ID_ATTR_NAME};
+use crate::types::keycloak::TENANT_ID_ATTR_NAME;
 use anyhow::{anyhow, Context, Result};
 use keycloak::types::{
     AuthenticationExecutionInfoRepresentation, GroupRepresentation,
     RealmRepresentation, RoleRepresentation,
 };
-use keycloak::{
-    KeycloakAdmin, KeycloakAdminToken, KeycloakError, KeycloakTokenSupplier,
-};
+use keycloak::{KeycloakError, KeycloakTokenSupplier};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use reqwest::Client;
-use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use serde_json::json;
+use std::collections::HashMap;
 use std::env;
-use std::hash::RandomState;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
@@ -118,6 +114,9 @@ pub fn get_tenant_realm(tenant_id: &str) -> String {
     format!("tenant-{}", tenant_id)
 }
 
+pub type RealmReplacements =
+    (Option<(String, String)>, Option<(String, String)>);
+
 /// Extracts tenant_id and election_event_id replacements from a realm config.
 ///
 /// This function parses the realm name to extract the old tenant_id and
@@ -137,7 +136,7 @@ pub fn extract_realm_replacements(
     realm_config: &RealmRepresentation,
     new_tenant_id: &str,
     new_election_event_id: &Option<String>,
-) -> (Option<(String, String)>, Option<(String, String)>) {
+) -> RealmReplacements {
     // Get the realm name
     let Some(realm_name) = realm_config.realm.as_ref() else {
         return (None, None);
@@ -280,7 +279,7 @@ impl KeycloakAdminClient {
         // see https://docs.rs/keycloak/latest/src/keycloak/rest/generated_rest.rs.html#6315-6334
         let mut builder = client
             .client
-            .post(&format!(
+            .post(format!(
                 "{}/admin/realms/{board_name}/partial-export",
                 client.url
             ))
@@ -288,7 +287,7 @@ impl KeycloakAdminClient {
                 client.token_supplier.get(&client.url).await.map_err(
                     |error| {
                         error!("error obtaining token: {error:?}");
-                        return error;
+                        error
                     },
                 )?,
             );
@@ -296,20 +295,20 @@ impl KeycloakAdminClient {
         builder = builder.query(&[("exportGroupsAndRoles", true)]);
         let response = builder.send().await.map_err(|error| {
             error!("error sending built query: {error:?}");
-            return error;
+            error
         })?;
         Ok(
             error_check(response)
             .await
             .map_err(|error| {
                 error!("error checking response for realm name {board_name:?}: {error:?}");
-                return error;
+                error
             })?
             .json()
             .await
             .map_err(|error| {
                 error!("error mapping to json: {error:?}");
-                return error;
+                error
             })?
         )
     }
@@ -470,7 +469,7 @@ impl KeycloakAdminClient {
                 }
             })?;
             // The ID is the trailing part of the URL
-            if let Some(id) = location_str.split('/').last() {
+            if let Some(id) = location_str.split('/').next_back() {
                 return Ok(Some(id.to_string()));
             }
         }
@@ -483,7 +482,7 @@ impl KeycloakAdminClient {
         tenant_id: &str,
         keycloak_client: &PubKeycloakAdmin,
         group_id: &str,
-        roles: &Vec<RoleRepresentation>,
+        roles: &[RoleRepresentation],
         action: RoleAction,
     ) -> Result<(), KeycloakError> {
         let realm = format!("tenant-{}", tenant_id);
@@ -608,14 +607,16 @@ impl KeycloakAdminClient {
                     keycloak_client.url, realm, locale
                 );
 
-                let response = keycloak_client
+                keycloak_client
                 .client
                 .post(&url)
                 .bearer_auth(keycloak_client.token_supplier.get(&keycloak_client.url).await?) // Use the access token for authorization
                 .json(&locale_texts)
                 .send()
                 .await
-                .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+                .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?
+                .error_for_status()
+                .with_context(|| format!("Keycloak rejected localization texts for locale '{locale}'"))?;
             }
         }
 
@@ -635,7 +636,7 @@ impl KeycloakAdminClient {
         let realm_get_result = self.client.realm_get(board_name).await;
         let replaced_ids_config = if replace_ids {
             let realm_config: RealmRepresentation =
-                deserialize_str(&json_realm_config)?;
+                deserialize_str(json_realm_config)?;
             let (tenant_id_replacement, election_event_id_replacement) =
                 extract_realm_replacements(
                     &realm_config,
@@ -799,7 +800,7 @@ impl KeycloakAdminClient {
         match realm_get_result {
             Ok(_) => self
                 .client
-                .realm_put(&board_name, realm)
+                .realm_put(board_name, realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
             Err(_) => self
@@ -868,5 +869,64 @@ mod tests {
             ),
             "voting-portal,results-portal"
         );
+    }
+}
+
+#[cfg(all(test, feature = "log"))]
+mod localization_contract_tests {
+    use super::*;
+    use crate::services::keycloak::test_support::*;
+    use keycloak::KeycloakAdmin;
+    use serde_json::Value;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn localization_import_propagates_http_failure_and_accepts_success() {
+        for (status, should_succeed) in
+            [("403 Forbidden", false), ("204 No Content", true)]
+        {
+            let service = server(status, "").await;
+            let token_supplier = token().try_into().unwrap();
+            let client = reqwest::Client::new();
+            let admin = KeycloakAdminClient {
+                client: KeycloakAdmin::new(
+                    &service.url,
+                    token_supplier,
+                    client.clone(),
+                ),
+            };
+            let public = PubKeycloakAdmin {
+                url: service.url,
+                client,
+                token_supplier: token().try_into().unwrap(),
+            };
+            let result = admin
+                .update_localization_texts_from_import(
+                    Some(HashMap::from([(
+                        "en".into(),
+                        HashMap::from([(
+                            "test.key".into(),
+                            "Test value".into(),
+                        )]),
+                    )])),
+                    &public,
+                    "synthetic-tenant",
+                )
+                .await;
+            let request = service.request.await.unwrap();
+            assert_eq!(request.request_line, "POST /admin/realms/tenant-synthetic-tenant/localization/en HTTP/1.1\r\n");
+            assert_eq!(
+                request.headers.get("authorization"),
+                Some(&format!("Bearer {ACCESS}"))
+            );
+            assert_eq!(
+                serde_json::from_slice::<Value>(&request.body).unwrap(),
+                json!({"test.key": "Test value"})
+            );
+            assert_eq!(
+                result.is_ok(),
+                should_succeed,
+                "HTTP status {status} must determine import success"
+            );
+        }
     }
 }

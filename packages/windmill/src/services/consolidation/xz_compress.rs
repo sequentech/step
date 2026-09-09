@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use std::io::prelude::*;
 use std::io::Cursor;
 use tracing::instrument;
-use xz2::read::{XzDecoder, XzEncoder};
+use xz2::read::XzEncoder;
 
 const XZ_COMPRESSION_LEVEL: u32 = 9;
 

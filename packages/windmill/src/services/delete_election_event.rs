@@ -7,9 +7,7 @@ use crate::postgres::election::get_elections;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::protocol_manager::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
-use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
-use futures::future::try_join_all;
 use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use tracing::info;
@@ -18,11 +16,11 @@ use tracing::{event, instrument, Level};
 #[instrument(err)]
 pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
     let client = KeycloakAdminClient::new().await?;
-    remove_realm_jwks(&realm).await?;
+    remove_realm_jwks(realm).await?;
 
     let realm_exists = client
         .client
-        .realm_get(&realm)
+        .realm_get(realm)
         .await
         .map_err(|err| anyhow!("Keycloak error: {err:?}"));
 
@@ -31,7 +29,7 @@ pub async fn delete_keycloak_realm(realm: &str) -> Result<()> {
     if realm_exists.is_ok() {
         client
             .client
-            .realm_delete(&realm)
+            .realm_delete(realm)
             .await
             .map_err(|err| anyhow!("Keycloak error: {err:?}"))?;
     }
@@ -48,7 +46,7 @@ pub async fn delete_event_b3(
     let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
     let board_name = get_event_board(tenant_id, election_event_id, &slug);
 
-    let elections = get_elections(&hasura_transaction, tenant_id, election_event_id).await?;
+    let elections = get_elections(hasura_transaction, tenant_id, election_event_id).await?;
     board_client.delete_board(board_name.as_str()).await?;
 
     for election in elections {
@@ -76,7 +74,7 @@ pub async fn delete_election_event_b3(
     }
 
     for election_id in election_ids {
-        let board_name = get_election_board(tenant_id, &election_id, &slug);
+        let board_name = get_election_board(tenant_id, election_id, &slug);
         let existing: Option<b4::client::pgsql::B3IndexRow> =
             board_client.get_board(board_name.as_str()).await?;
 

@@ -4,7 +4,7 @@
 
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
-use deadpool_postgres::{Client, Transaction};
+use deadpool_postgres::Transaction;
 use tracing::instrument;
 use uuid::Uuid;
 

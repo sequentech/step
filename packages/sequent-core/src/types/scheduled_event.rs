@@ -6,7 +6,7 @@
 use crate::ballot::format_date;
 use crate::ballot::ScheduledEventDates;
 use crate::ballot::VotingPeriodDates;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -162,12 +162,10 @@ pub fn generate_voting_period_dates(
 
     Ok(VotingPeriodDates {
         start_date: start_date
-            .map(|val| val.cron_config.map(|val| val.scheduled_date))
-            .flatten()
+            .and_then(|val| val.cron_config.map(|val| val.scheduled_date))
             .flatten(),
         end_date: end_date
-            .map(|val| val.cron_config.map(|val| val.scheduled_date))
-            .flatten()
+            .and_then(|val| val.cron_config.map(|val| val.scheduled_date))
             .flatten(),
     })
 }
@@ -198,9 +196,7 @@ pub fn prepare_scheduled_dates(
     Ok(scheduled_events
         .iter()
         .filter_map(|scheduled_event| {
-            let Some(ref event_payload) = scheduled_event.event_payload else {
-                return None;
-            };
+            let event_payload = scheduled_event.event_payload.as_ref()?;
             let Ok(ManageElectionDatePayload {
                 election_id: se_election_id,
                 ..
@@ -208,18 +204,15 @@ pub fn prepare_scheduled_dates(
             else {
                 return None;
             };
-            let Some(ref event_processor) = scheduled_event.event_processor
-            else {
-                return None;
-            };
-            if !date_event_processors.contains(&event_processor)
+            let event_processor = scheduled_event.event_processor.as_ref()?;
+            if !date_event_processors.contains(event_processor)
                 || (se_election_id.is_some()
                     && election_id.is_some()
                     && se_election_id.as_deref() != election_id)
             {
                 return None;
             }
-            return Some((
+            Some((
                 event_processor.to_string(),
                 ScheduledEventDates {
                     scheduled_at: scheduled_event
@@ -231,7 +224,7 @@ pub fn prepare_scheduled_dates(
                         "-",
                     )),
                 },
-            ));
+            ))
         })
         .collect())
 }

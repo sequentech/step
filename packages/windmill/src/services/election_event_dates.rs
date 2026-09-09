@@ -4,14 +4,11 @@
 
 use std::str::FromStr;
 
-use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
-use sequent_core::ballot::{ElectionPresentation, VotingPeriodDates};
-use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::scheduled_event::*;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn manage_dates(
@@ -21,8 +18,8 @@ pub async fn manage_dates(
     scheduled_date: Option<&str>,
     event_processor: &str,
 ) -> Result<()> {
-    let event_processor_val: EventProcessors = EventProcessors::from_str(&event_processor)
-        .map_err(|err| {
+    let event_processor_val: EventProcessors =
+        EventProcessors::from_str(event_processor).map_err(|err| {
             anyhow!("Error mapping {event_processor:?} into an EventProcessor: {err:?}")
         })?;
 

@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Build the sequent-core WebAssembly package
+description: >
+  Build packages/sequent-core to WebAssembly with the pinned toolchain and place the resulting
+  package in the rust/pkg directory of every workspace package that depends on it. The package
+  is not committed, so this runs before any yarn install in packages/.
+
+inputs:
+  features:
+    description: Cargo features passed to wasm-pack
+    required: false
+    default: wasmtest,default_features
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Nix
+      uses: cachix/install-nix-action@v25
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Cache the Cargo registry and the WebAssembly target directory
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          packages/sequent-core/target
+        key: ${{ runner.os }}-sequent-core-wasm-${{ hashFiles('packages/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-sequent-core-wasm-
+
+    - name: Build the WebAssembly package
+      shell: bash
+      working-directory: packages/sequent-core
+      run: |
+        nix develop --command bash -c '
+          set -euo pipefail
+          wasm-pack --version
+          wasm-bindgen --version
+          wasm-pack build --mode no-install --release --target web --out-name index \
+              --features=${{ inputs.features }}
+        '
+
+    - name: Place it where the workspace packages expect it
+      shell: bash
+      working-directory: packages
+      run: |
+        set -euo pipefail
+        for dir in ui-core admin-portal voting-portal ballot-verifier; do
+          rm -rf "${dir}/rust/pkg"
+          mkdir -p "${dir}/rust"
+          cp -a sequent-core/pkg "${dir}/rust/pkg"
+        done

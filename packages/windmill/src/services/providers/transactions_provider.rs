@@ -36,7 +36,7 @@ where
                 .rollback()
                 .await
                 .with_context(|| format!("Rollback error after transaction error {:?}", err))?;
-            return Err(anyhow!("{}", err).into());
+            return Err(anyhow!("{}", err));
         }
     }
 
@@ -78,7 +78,7 @@ pub async fn provide_hasura_transaction<F>(handler: F) -> Result<()>
 where
     for<'a> F: FnOnce(&'a Transaction<'a>) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
 {
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
         .await
@@ -126,7 +126,7 @@ where
                 .rollback(&tx_id)
                 .await
                 .with_context(|| format!("Rollback error after transaction error: {:?}", err))?;
-            return Err(anyhow!("{}", err).into());
+            return Err(anyhow!("{}", err));
         }
     }
 
@@ -147,7 +147,7 @@ where
         &'a str,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>,
 {
-    let mut client: ImmudbClient = get_immudb_client()
+    let client: ImmudbClient = get_immudb_client()
         .await
         .map_err(|e| anyhow!("Error getting Immudb client: {}", e))?;
 

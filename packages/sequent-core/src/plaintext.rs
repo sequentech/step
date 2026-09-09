@@ -3,11 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::ballot_codec::multi_ballot::{
     votable_contests, BallotChoices, DecodedBallotChoices,
-    DecodedContestChoice, DecodedContestChoices,
 };
 use crate::ballot_codec::PlaintextCodec;
 use crate::multi_ballot::AuditableMultiBallotContests;
-use crate::types::ceremonies::CountingAlgType;
 use crate::{ballot::*, multi_ballot::AuditableMultiBallot};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -212,7 +210,7 @@ pub fn map_to_decoded_contest<C: Ctx<P = [u8; 30]>>(
 /// ballot has nothing to say about them.
 pub fn map_decoded_ballot_choices_to_decoded_contests(
     decoded_ballot_choices: DecodedBallotChoices,
-    contests: &Vec<Contest>,
+    contests: &[Contest],
 ) -> Result<Vec<DecodedVoteContest>, String> {
     let mut decoded_contests = vec![];
 
@@ -253,7 +251,7 @@ pub fn map_decoded_ballot_choices_to_decoded_contests(
         }
 
         let decoded_contest = DecodedVoteContest {
-            contest_id: contest_id,
+            contest_id,
             is_explicit_invalid: found_ballot_choices.is_explicit_invalid,
             is_decline_to_vote: decoded_ballot_choices.is_explicit_invalid,
             is_blank_ballot: decoded_ballot_choices.is_blank_ballot,

@@ -36,10 +36,10 @@ pub(super) fn gen_channel<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
 
     // Generate a keypair for share transport
     let sk = strand::elgamal::PrivateKey::gen(&ctx);
-    let label = cfg.label(0, format!("channel pk proof"));
+    let label = cfg.label(0, "channel pk proof".to_string());
     let (pk, proof) = sk.get_pk_and_proof(&label)?;
 
-    let ed = trustee.encrypt_share_sk(&sk, &cfg)?;
+    let ed = trustee.encrypt_share_sk(&sk, cfg)?;
     let channel = Channel::new(pk.element().clone(), proof, ed);
 
     let m = Message::channel_msg(cfg, &channel, true, trustee)?;
@@ -63,7 +63,7 @@ pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage
     let ctx: C = Default::default();
     let cfg = trustee.get_configuration(configuration_h)?;
     let zkp = Zkp::new(&ctx);
-    let label = cfg.label(0, format!("channel pk proof"));
+    let label = cfg.label(0, "channel pk proof".to_string());
 
     assert_eq!(
         datalog::hashes_count(&channels_hs.0),
@@ -82,18 +82,18 @@ pub(super) fn sign_channels<C: Ctx, S: crate::protocol::board::LocalBoardStorage
         let pk_element = channel.channel_pk.clone();
         let ok = zkp.schnorr_verify(&pk_element, None, &channel.pk_proof, &label);
         if !ok {
-            return Err(ProtocolError::VerificationError(format!(
-                "Failed to verify schnorr proof on channel"
-            )));
+            return Err(ProtocolError::VerificationError(
+                "Failed to verify schnorr proof on channel".to_string(),
+            ));
         }
 
         // Check that our own Channel is at the correct posistion and decrypts correctly
         if i == *self_pos {
             let sk = trustee.decrypt_share_sk(&channel, cfg)?;
             if *sk.pk_element() != pk_element {
-                return Err(ProtocolError::VerificationError(format!(
-                    "Failed to decrypt self channel"
-                )));
+                return Err(ProtocolError::VerificationError(
+                    "Failed to decrypt self channel".to_string(),
+                ));
             }
         }
     }
@@ -147,7 +147,7 @@ pub(super) fn compute_shares<C: Ctx, S: crate::protocol::board::LocalBoardStorag
     }
 
     let shares = Shares {
-        commitments: commitments,
+        commitments,
         encrypted_shares: s,
     };
     let m = Message::shares_msg(cfg, &shares, trustee)?;
@@ -233,9 +233,9 @@ pub(super) fn sign_pk<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
         let m = Message::public_key_msg(cfg, &actual, shares_hs, channels_hs, false, trustee)?;
         Ok(vec![m])
     } else {
-        Err(ProtocolError::VerificationError(format!(
-            "Mismatch when comparing computed public key with retrieved one"
-        )))
+        Err(ProtocolError::VerificationError(
+            "Mismatch when comparing computed public key with retrieved one".to_string(),
+        ))
     }
 }
 
@@ -295,7 +295,7 @@ fn compute_pk_<C: Ctx, S: crate::protocol::board::LocalBoardStorage>(
                     .get_channel(&ChannelHash(*my_channel_h), *self_pos)
                     .add_context("Retrieving channel for self")?;
 
-                let sk = trustee.decrypt_share_sk(&my_channel, &cfg)?;
+                let sk = trustee.decrypt_share_sk(&my_channel, cfg)?;
 
                 // Decrypt the share sent from i to us
                 let value = ctx.decrypt_exp(&share.encrypted_shares[*self_pos], sk)?;

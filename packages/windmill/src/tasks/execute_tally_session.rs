@@ -1,28 +1,30 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+pub type MappedPlaintextData = (
+    Vec<AreaContestDataType>,
+    i64,
+    bool,
+    TallyCeremonyStatus,
+    Option<Vec<i64>>,
+    Vec<ElectionCastVotes>,
+    Vec<TallySheet>,
+    ElectionEvent,
+    TallySession,
+);
+
 use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::keys_ceremony::{get_keys_ceremonies, get_keys_ceremony_by_id};
-use crate::postgres::reports::get_template_alias_for_report;
-use crate::postgres::reports::ReportType;
-use crate::postgres::results_event::insert_results_event;
-use crate::postgres::tally_session::get_tally_session_by_id;
-use crate::postgres::tally_session::{
-    update_tally_session_annotation, update_tally_session_status,
-};
+use crate::postgres::tally_session::update_tally_session_status;
 use crate::postgres::tally_session_contest::update_tally_session_contests_annotations;
 use crate::postgres::tally_session_execution::insert_tally_session_execution;
 use crate::postgres::tally_session_resolution::get_resolution_by_tally_session;
 use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
-use crate::postgres::template::get_template_by_alias;
-use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
-use crate::services::celery_app::get_celery_app;
-use crate::services::ceremonies::insert_ballots::{
-    get_elections_end_dates, insert_ballots_messages,
-};
+use crate::services::cast_votes::ElectionCastVotes;
+use crate::services::ceremonies::insert_ballots::insert_ballots_messages;
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
@@ -40,7 +42,6 @@ use crate::services::ceremonies::tally_session_error::handle_tally_session_error
 use crate::services::ceremonies::velvet_tally::run_velvet_tally;
 use crate::services::ceremonies::velvet_tally::AreaContestDataType;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
-use crate::services::election::get_election_event_elections;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
@@ -57,19 +58,17 @@ use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
     PUBLIC_ASSETS_ELECTORAL_RESULTS_TEMPLATE_SYSTEM, PUBLIC_ASSETS_INITIALIZATION_TEMPLATE_SYSTEM,
 };
-use crate::services::users::list_users;
-use crate::services::users::ListUsersFilter;
 use crate::services::weight_batches::{collect_weighted_plaintexts, contest_weight_batches};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
-use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
+use b4::messages::{message::Message, statement::StatementType};
 use celery::prelude::TaskError;
-use chrono::{DateTime, Duration, Utc};
+use chrono::Duration;
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
+use rand::SeedableRng;
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::ContestEncryptionPolicy;
@@ -81,7 +80,6 @@ use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
 use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
-use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
@@ -89,10 +87,7 @@ use sequent_core::types::ceremonies::TallyRunReason;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
-use sequent_core::types::ceremonies::{
-    TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
-    TallySessionResolutionType, TieBreakingMethod,
-};
+use sequent_core::types::ceremonies::{TallySessionResolutionData, TallySessionResolutionStatus};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::hasura::core::BallotStyle as BallotStyleHasura;
 use sequent_core::types::hasura::core::ElectionEvent;
@@ -103,7 +98,6 @@ use sequent_core::types::hasura::core::TallySessionContestAnnotations;
 use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::hasura::core::TallySheet;
 use sequent_core::types::templates::PrintToPdfOptionsLocal;
-use sequent_core::types::templates::ReportExtraConfig;
 use sequent_core::types::templates::SendTemplateBody;
 use serde_json;
 use std::collections::HashMap;
@@ -116,7 +110,7 @@ use tracing::{event, info, instrument, warn, Level};
 use uuid::Uuid;
 
 #[instrument(skip_all, err)]
-fn get_ballot_styles(ballot_styles: &Vec<BallotStyleHasura>) -> Result<Vec<BallotStyle>> {
+fn get_ballot_styles(ballot_styles: &[BallotStyleHasura]) -> Result<Vec<BallotStyle>> {
     // get ballot styles, from where we'll get the Contest(s)
     ballot_styles
         .iter()
@@ -175,19 +169,18 @@ fn generate_acclaimed_area_contests(
 async fn generate_area_contests_mc(
     _hasura_transaction: &Transaction<'_>,
     relevant_plaintexts: &Vec<&Message>,
-    ballot_styles: &Vec<BallotStyle>,
-    tally_session_contest: &Vec<TallySessionContest>,
-    areas: &Vec<Area>,
+    ballot_styles: &[BallotStyle],
+    tally_session_contest: &[TallySessionContest],
+    areas: &[Area],
     _tenant_id: &str,
     _election_event_id: &str,
 ) -> AnyhowResult<Vec<AreaContestDataType>> {
     let areas_map: HashMap<String, Area> = areas
-        .clone()
-        .into_iter()
-        .map(|area: Area| (area.id.clone(), area.clone()))
+        .iter()
+        .map(|area: &Area| (area.id.clone(), area.clone()))
         .collect();
     let mut almost_vec: Vec<AreaContestDataType> = vec![];
-    for session_election in tally_session_contest.clone() {
+    for session_election in tally_session_contest.iter().cloned() {
         let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
             ballot_style.area_id == session_election.area_id
                 && ballot_style.election_id == session_election.election_id
@@ -276,14 +269,13 @@ async fn generate_area_contests_mc(
 #[instrument(skip_all, err)]
 fn generate_area_contests(
     relevant_plaintexts: &Vec<&Message>,
-    ballot_styles: &Vec<BallotStyle>,
-    tally_session_contest: &Vec<TallySessionContest>,
-    areas: &Vec<Area>,
+    ballot_styles: &[BallotStyle],
+    tally_session_contest: &[TallySessionContest],
+    areas: &[Area],
 ) -> AnyhowResult<Vec<AreaContestDataType>> {
     let areas_map: HashMap<String, Area> = areas
-        .clone()
-        .into_iter()
-        .map(|area: Area| (area.id.clone(), area.clone()))
+        .iter()
+        .map(|area: &Area| (area.id.clone(), area.clone()))
         .collect();
 
     event!(
@@ -365,13 +357,17 @@ fn generate_area_contests(
     Ok(almost_vec)
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all, err)]
 async fn process_plaintexts(
     hasura_transaction: &Transaction<'_>,
     relevant_plaintexts: Vec<&Message>,
     ballot_styles: Vec<BallotStyle>,
     tally_session_contest: Vec<TallySessionContest>,
-    areas: &Vec<Area>,
+    areas: &[Area],
     tenant_id: &str,
     election_event_id: &str,
     contest_encryption_policy: ContestEncryptionPolicy,
@@ -423,7 +419,7 @@ async fn process_plaintexts(
         .into_iter()
         .filter(|area_contest| {
             event!(Level::WARN, "find_path_to_area {}", area_contest.area.id);
-            let Some(tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
+            let Some(_tree_path) = areas_tree.find_path_to_area(&area_contest.area.id) else {
                 event!(Level::WARN, "NOT FOUND");
                 return false;
             };
@@ -501,7 +497,7 @@ pub async fn count_cast_votes_election_with_census(
 
         let areas_set = election_areas_map
             .entry(area_contest.election_id.clone())
-            .or_insert_with(|| HashSet::new());
+            .or_default();
 
         if areas_set.contains(&area_contest.area_id) {
             continue;
@@ -516,6 +512,10 @@ pub async fn count_cast_votes_election_with_census(
     Ok(cast_votes_map.into_values().collect())
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all, err)]
 pub async fn upsert_ballots_messages(
     hasura_transaction: &Transaction<'_>,
@@ -524,8 +524,8 @@ pub async fn upsert_ballots_messages(
     election_event_id: &str,
     board_name: &str,
     trustee_names: Vec<String>,
-    messages: &Vec<Message>,
-    tally_session_contests: &Vec<TallySessionContest>,
+    messages: &[Message],
+    tally_session_contests: &[TallySessionContest],
     tally_session_hasura: &TallySession,
 ) -> Result<Vec<TallySessionContest>> {
     let contest_encryption_policy = tally_session_hasura
@@ -610,17 +610,17 @@ pub async fn upsert_ballots_messages(
 
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
     let Some(created_at) = &tally_session.created_at.clone() else {
-        return Err(Error::String(format!(
-            "Missing created_at for tally_session"
-        )));
+        return Err(Error::String(
+            "Missing created_at for tally_session".to_string(),
+        ));
     };
     Ok(created_at.timestamp())
 }
 
 #[instrument(skip_all, err)]
 pub fn clean_tally_sheets(
-    tally_sheet_rows: &Vec<TallySheet>,
-    ballot_styles: &Vec<BallotStyle>,
+    tally_sheet_rows: &[TallySheet],
+    ballot_styles: &[BallotStyle],
 ) -> Result<Vec<TallySheet>> {
     let contests_map: HashMap<String, Contest> = ballot_styles
         .iter()
@@ -653,13 +653,17 @@ pub fn clean_tally_sheets(
                     anyhow!("Invalid tally sheet {:?}, can't find contest", tally_sheet).into(),
                 );
             };
-            validate_tally_sheet(tally_sheet, &contest)?;
+            validate_tally_sheet(tally_sheet, contest)?;
 
             Ok(tally_sheet.clone())
         })
         .collect::<Result<Vec<TallySheet>>>()
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(skip_all, err)]
 async fn map_plaintext_data(
     hasura_transaction: &Transaction<'_>,
@@ -674,19 +678,7 @@ async fn map_plaintext_data(
     tally_session_contest: Vec<TallySessionContest>,
     ballot_styles: Vec<BallotStyleHasura>,
     force_recount: bool,
-) -> Result<
-    Option<(
-        Vec<AreaContestDataType>,
-        i64,
-        bool,
-        TallyCeremonyStatus,
-        Option<Vec<i64>>,
-        Vec<ElectionCastVotes>,
-        Vec<TallySheet>,
-        ElectionEvent,
-        TallySession,
-    )>,
-> {
+) -> Result<Option<MappedPlaintextData>> {
     // fetch election_event
     let Ok(election_event) =
         get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await
@@ -1026,7 +1018,7 @@ async fn map_plaintext_data(
     // make the target unreachable.
     let batch_ids = tally_session_contest
         .iter()
-        .map(|tsc| contest_weight_batches(tsc))
+        .map(contest_weight_batches)
         .collect::<AnyhowResult<Vec<_>>>()?
         .into_iter()
         .flatten()
@@ -1256,6 +1248,10 @@ fn should_force_initial_results(
     is_execution_completed && previous_results_event_id.is_none()
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Keep the existing tally and ceremony context, policies and data inputs explicit across current callers."
+)]
 #[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
@@ -1294,7 +1290,7 @@ pub async fn execute_tally_session_wrapped(
         .unwrap_or_default();
 
     let election_ids_default = election_ids.clone().unwrap_or_default();
-    let election_id = election_ids_default.get(0).map_or("", |v| v.as_str());
+    let election_id = election_ids_default.first().map_or("", |v| v.as_str());
 
     // Check the report type and create renderer according the report type
     let (report_content_template, report_system_template, pdf_options) =
@@ -1878,7 +1874,7 @@ mod tests {
         let cast_votes_count =
             count_cast_votes_election_with_census(&tally_session_contest).await?;
         let election_ee1e1 = cast_votes_count
-            .get(0)
+            .first()
             .ok_or(anyhow!("Election1 not found"))?;
         let election_ee1e2 = cast_votes_count
             .get(1)

@@ -135,7 +135,7 @@ impl RenderTemplate {
                 let vars_path: String = self
                     .system_vars
                     .clone()
-                    .ok_or(format!("System vars not provided"))?;
+                    .ok_or("System vars not provided".to_string())?;
                 let system_vars_content = fs::read_to_string(&vars_path)
                     .map_err(|e| format!("Could not read system variables file: {e:?}"))?;
                 let system_template_data: manual_verification::SystemData =
