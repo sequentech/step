@@ -1442,7 +1442,7 @@
         "bash",
         "--",
         "-c",
-        "cd packages/wbraid && cargo test --release"
+        "cd packages/wbraid && cargo test --release --features native,sqlite,postgres"
       ],
       "presentation": {
         "echo": true,
@@ -1466,7 +1466,7 @@
         "bash",
         "--",
         "-c",
-        "cd packages/wbraid && unset RUSTFLAGS && cargo fmt -- --check && cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D warnings && cargo clippy -p vsc --no-deps"
+        "cd packages/wbraid && unset RUSTFLAGS && cargo fmt -- --check && cargo clippy --workspace --exclude vsc --all-targets --no-deps --features native,sqlite,postgres -- -D warnings && cargo clippy -p vsc --no-deps"
       ],
       "presentation": {
         "echo": true,
