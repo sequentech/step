@@ -148,6 +148,8 @@ jobs:
       AWS_DEFAULT_REGION: us-east-1
       S3_BUCKET_NAME: wbraid-messages
       RUST_LOG: info,b4=debug,b4v6=debug
+      SQLITE_B4_PORT: 3005
+      POSTGRES_B4_PORT: 3006
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -169,59 +171,63 @@ jobs:
         run: cargo build --release --features postgres,sqlite --bin b4v6
 
       - name: Start b4v6 sqlite
+        background: true
+        env:
+          DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+        run: target/release/b4v6
+
+      - name: Wait b4v6 sqlite
+        env:
+          DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
         run: |
-          export DATABASE_URL="sqlite:${RUNNER_TEMP}/b4.db"
-          export WBRAID_B4_BIND=127.0.0.1:3005
-          export WBRAID_B4_URL=http://127.0.0.1:3005
-          
-          nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6_sqlite.log" 2>&1 &
-          
           for _ in $(seq 1 30); do
             if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
               exit 0
             fi
             sleep 1
           done
+          
           echo "b4v6 did not come up" >&2
-          cat "${RUNNER_TEMP}/b4v6_sqlite.log"
           exit 1
 
       - name: Run the live-b4 protocol tests with sqlite
         run: cargo test -p braid --release -- --ignored
         env:
           RUST_BACKTRACE: 'full'
-          WBRAID_B4_BIND: '127.0.0.1:3005'
-          WBRAID_B4_URL: 'http://127.0.0.1:3005'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
 
       - name: Start b4v6 postgres
+        background: true
+        env:
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+        run: target/release/b4v6
+
+      - name: Wait b4v6 postgres
+        env:
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
         run: |
-          export DATABASE_URL="postgres://postgres:postgres@localhost:5432/b4"
-          export WBRAID_B4_BIND=127.0.0.1:3006
-          export WBRAID_B4_URL=http://127.0.0.1:3006
-          
-          nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6_postgres.log" 2>&1 &
-          
           for _ in $(seq 1 30); do
             if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
               exit 0
             fi
             sleep 1
           done
+          
           echo "b4v6 did not come up" >&2
-          cat "${RUNNER_TEMP}/b4v6_postgres.log"
           exit 1
 
       - name: Run the live-b4 protocol tests with postgres
         run: cargo test -p braid --release -- --ignored
         env:
           RUST_BACKTRACE: 'full'
-          WBRAID_B4_BIND: '127.0.0.1:3006'
-          WBRAID_B4_URL: 'http://127.0.0.1:3006'
-
-      - name: Show the b4v6 log for sqlite
-        if: always()
-        run: cat "${RUNNER_TEMP}/b4v6_sqlite.log"
-
-      - name: Show the b4v6 log for postgres
-        if: always()
-        run: cat "${RUNNER_TEMP}/b4v6_postgres.log"
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
