@@ -91,10 +91,10 @@ mod tests {
 
     async fn test_app() -> TestApp {
         let db_path = std::env::temp_dir().join(format!("b4-app-test-{}.db", Uuid::new_v4()));
-        let pool = db::init_db_at(&format!("sqlite:{}?mode=rwc", db_path.display()))
+        let db = db::BoardDb::open_url(&format!("sqlite:{}?mode=rwc", db_path.display()))
             .await
             .unwrap();
-        let state = AppState::new(pool, offline_s3_client(), BUCKET.to_string());
+        let state = AppState::new(db, offline_s3_client(), BUCKET.to_string());
         TestApp {
             app: router(state),
             db_path,

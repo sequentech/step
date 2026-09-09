@@ -85,7 +85,7 @@ if ($Reset) {
 
 try {
     # Run the service from workspace root (not crates/b4)
-    cargo run --bin b4v6 --release
+    cargo run --bin b4v6 --features sqlite --release
 }
 finally {
     # Always return to original directory

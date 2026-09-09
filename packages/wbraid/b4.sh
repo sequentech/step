@@ -188,4 +188,4 @@ if [ "$RESET_DATA" -eq 1 ]; then
 fi
 
 # Run the service from workspace root.
-cargo run --bin b4v6 --release
+cargo run --bin b4v6 --features sqlite --release

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
@@ -24,13 +24,13 @@ use crate::api_types::{
     InitiateMessageResponse, ListBlobsResponse, MessageBlobWithUrl, MAX_INLINE_MESSAGE_SIZE,
 };
 
-use crate::{db, s3, state::AppState};
+use crate::{s3, state::AppState};
 
 pub async fn create_board(
     State(state): State<AppState>,
     Json(req): Json<CreateBoardRequest>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
-    let board = db::create_board(&state.db, &req.name).await.map_err(|e| {
+    let board = state.db.create_board(&req.name).await.map_err(|e| {
         tracing::error!("Failed to create board: {}", e);
         StatusCode::BAD_REQUEST
     })?;
@@ -46,7 +46,9 @@ pub async fn get_board(
     State(state): State<AppState>,
     Path(board_name): Path<String>,
 ) -> Result<Json<BoardResponse>, StatusCode> {
-    let board = db::get_board(&state.db, &board_name)
+    let board = state
+        .db
+        .get_board(&board_name)
         .await
         .map_err(|e| {
             tracing::error!("Failed to get board: {}", e);
@@ -64,7 +66,7 @@ pub async fn get_board(
 pub async fn list_boards(
     State(state): State<AppState>,
 ) -> Result<Json<BoardsListResponse>, StatusCode> {
-    let boards = db::list_boards(&state.db).await.map_err(|e| {
+    let boards = state.db.list_boards().await.map_err(|e| {
         tracing::error!("Failed to list boards: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
@@ -89,7 +91,9 @@ pub async fn initiate_message(
     Path(board_name): Path<String>,
     Json(req): Json<InitiateMessageRequest>,
 ) -> Result<Json<InitiateMessageResponse>, StatusCode> {
-    db::get_board(&state.db, &board_name)
+    state
+        .db
+        .get_board(&board_name)
         .await
         .map_err(|e| {
             tracing::error!("Failed to check board: {}", e);
@@ -135,7 +139,9 @@ pub async fn confirm_message(
     Path((board_name, s3_message_id)): Path<(String, String)>,
     Json(req): Json<ConfirmMessageRequest>,
 ) -> Result<Json<ConfirmMessageResponse>, StatusCode> {
-    db::get_board(&state.db, &board_name)
+    state
+        .db
+        .get_board(&board_name)
         .await
         .map_err(|e| {
             tracing::error!("Failed to check board: {}", e);
@@ -150,34 +156,26 @@ pub async fn confirm_message(
 
     if let Some(data) = req.data {
         // Inline message - store the opaque bytes as-is.
-        db::insert_message(
-            &state.db,
-            &board_name,
-            Some(data.as_slice()),
-            None,
-            &version,
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to insert inline message: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        state
+            .db
+            .insert_message(&board_name, Some(data.as_slice()), None, &version)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to insert inline message: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
     } else {
         // S3 message - the client has already uploaded to this key; just record
         // it (b4 never downloads or inspects the object).
         let s3_key = format!("{}/messages/{}", board_name, s3_message_id);
-        db::insert_message(
-            &state.db,
-            &board_name,
-            None,
-            Some(s3_key.as_str()),
-            &version,
-        )
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to insert S3 message: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
+        state
+            .db
+            .insert_message(&board_name, None, Some(s3_key.as_str()), &version)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to insert S3 message: {}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
     }
 
     tracing::info!(
@@ -197,7 +195,9 @@ pub async fn get_message(
         StatusCode::BAD_REQUEST
     })?;
 
-    let message = db::get_message(&state.db, &board_name, id_num)
+    let message = state
+        .db
+        .get_message(&board_name, id_num)
         .await
         .map_err(|e| {
             tracing::error!("Failed to get message: {}", e);
@@ -251,7 +251,9 @@ async fn fetch_board_messages(
 ) -> Result<Vec<crate::api_types::MessageBlob>, StatusCode> {
     if let Some(last_id) = query.last_id {
         let limit = query.limit.unwrap_or(100).min(1000);
-        let (messages, _truncated) = db::get_messages_after(&state.db, board_name, last_id, limit)
+        let (messages, _truncated) = state
+            .db
+            .get_messages_after(board_name, last_id, limit)
             .await
             .map_err(|e| {
                 tracing::error!("Failed to get messages after ID: {}", e);
@@ -259,7 +261,7 @@ async fn fetch_board_messages(
             })?;
         Ok(messages)
     } else {
-        db::list_messages(&state.db, board_name).await.map_err(|e| {
+        state.db.list_messages(board_name).await.map_err(|e| {
             tracing::error!("Failed to list messages: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })
