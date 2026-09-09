@@ -21,3 +21,9 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* SVG.js uses this off-screen surface for chart measurements, not page content.
+   Keep it measurable while excluding it from the accessibility tree. */
+body > svg[id^="SvgjsSvg"][width="2"][height="0"] {
+  visibility: hidden;
+}

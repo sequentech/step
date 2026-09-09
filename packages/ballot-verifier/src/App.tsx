@@ -135,7 +135,7 @@ const App = () => {
         <StyledAppWrapper customCss={customCss}>
             <StyledApp className="ballot-verifier app-root">
                 {globalSettings.DISABLE_AUTH ? <Header /> : <HeaderWithContext />}
-                <PageBanner marginBottom="auto">
+                <PageBanner marginBottom="auto" component="main" id="main-content" tabIndex={-1}>
                     <Routes>
                         <Route path="*" element={<NotFoundScreen />} />
                         <Route
