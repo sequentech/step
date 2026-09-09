@@ -5140,6 +5140,34 @@
       ]
     },
     {
+      "id": "1939ec99-9a6c-4871-b576-67abb5eb5e33",
+      "alias": "Email Message OTP Subflow",
+      "description": "Flow to determine if the Message OTP is required for the authentication",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorConfig": "condition-email",
+          "authenticator": "conditional-user-attr",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "email-sms",
+          "authenticator": "message-otp-authenticator",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 2,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "e90dde0f-62be-438c-93de-2a7e50db332c",
       "alias": "First broker login - Conditional OTP",
       "description": "Flow to determine if the OTP is required for the authentication",
@@ -5227,70 +5255,27 @@
       ]
     },
     {
-      "id": "14312dc7-73f8-4ff3-8da4-b90d7d15f885",
-      "alias": "Message OTP Subflow",
-      "description": "Flow to determine if the Message OTP is required for the authentication",
-      "providerId": "basic-flow",
-      "topLevel": false,
-      "builtIn": false,
-      "authenticationExecutions": [
-        {
-          "authenticator": "conditional-user-configured",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "voting-client",
-          "authenticator": "conditional-client",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 1,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "email-sms",
-          "authenticator": "message-otp-authenticator",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 1,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        }
-      ]
-    },
-    {
-      "id": "0b21c741-ea5f-4657-8d3a-d5e1e1961422",
-      "alias": "Normal OTP Subflow",
+      "id": "80b9b93e-d068-4386-b8de-3cea0265fdcf",
+      "alias": "Mobile Message OTP Subflow",
       "description": "",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
         {
-          "authenticator": "conditional-user-configured",
+          "authenticatorConfig": "require-sms-cond",
+          "authenticator": "conditional-user-attr",
           "authenticatorFlow": false,
-          "requirement": "DISABLED",
+          "requirement": "REQUIRED",
           "priority": 0,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
         {
-          "authenticator": "auth-otp-form",
+          "authenticatorConfig": "sms-otp",
+          "authenticator": "message-otp-authenticator",
           "authenticatorFlow": false,
-          "requirement": "DISABLED",
-          "priority": 0,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "otp-voting-client",
-          "authenticator": "conditional-client",
-          "authenticatorFlow": false,
-          "requirement": "DISABLED",
+          "requirement": "REQUIRED",
           "priority": 1,
           "autheticatorFlow": false,
           "userSetupAllowed": false
@@ -5377,6 +5362,32 @@
       ]
     },
     {
+      "id": "40463eca-7255-49be-ba97-0bcae568a833",
+      "alias": "WebAuthn Passwordless - silver conditional",
+      "description": "",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-configured",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
       "id": "9a160590-bae1-4d2e-9cab-ccdac5098451",
       "alias": "advanced / gold condition",
       "description": "",
@@ -5451,15 +5462,23 @@
           "requirement": "DISABLED",
           "priority": 4,
           "autheticatorFlow": true,
-          "flowAlias": "Message OTP Subflow",
+          "flowAlias": "WebAuthn Passwordless - silver conditional",
           "userSetupAllowed": false
         },
         {
           "authenticatorFlow": true,
-          "requirement": "DISABLED",
-          "priority": 5,
+          "requirement": "CONDITIONAL",
+          "priority": 6,
           "autheticatorFlow": true,
-          "flowAlias": "Normal OTP Subflow",
+          "flowAlias": "Email Message OTP Subflow",
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 7,
+          "autheticatorFlow": true,
+          "flowAlias": "Mobile Message OTP Subflow",
           "userSetupAllowed": false
         }
       ]
@@ -6030,6 +6049,14 @@
       }
     },
     {
+      "id": "4e70e07c-f925-4a0f-8486-8c560de5103f",
+      "alias": "condition-email",
+      "config": {
+        "userAttribute": "email",
+        "negate": "false"
+      }
+    },
+    {
       "id": "fdc47b8c-5417-4570-8867-3be6dc8dd0d7",
       "alias": "conditional OTP form",
       "config": {
@@ -6052,7 +6079,15 @@
         "telUserAttribute": "sequent.read-only.mobile-number",
         "emailUserAttribute": "sequent.read-only.email-address",
         "length": "6",
-        "ttl": "300"
+        "ttl": "300",
+        "max-receiver-reuse": "1",
+        "test-mode-code": "123456",
+        "resendCoudActivationTimer": "60",
+        "messageCourierAttribute": "EMAIL",
+        "test-mode": "false",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "true",
+        "one-time-link": "false"
       }
     },
     {
@@ -6064,7 +6099,15 @@
         "telUserAttribute": "sequent.read-only.mobile-number",
         "emailUserAttribute": "sequent.read-only.email-address",
         "length": "6",
-        "ttl": "300"
+        "ttl": "300",
+        "max-receiver-reuse": "1",
+        "test-mode-code": "123456",
+        "resendCoudActivationTimer": "60",
+        "messageCourierAttribute": "EMAIL",
+        "test-mode": "false",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "true",
+        "one-time-link": "false"
       }
     },
     {
@@ -6135,6 +6178,14 @@
       }
     },
     {
+      "id": "b4260b9a-3fca-4fa8-8e39-9fd9b3f8dda4",
+      "alias": "require-sms-cond",
+      "config": {
+        "userAttribute": "sequent.read-only.mobile-number",
+        "negate": "false"
+      }
+    },
+    {
       "id": "68cd831a-6406-4ba0-a3b5-1b48a80e4ee2",
       "alias": "review profile config",
       "config": {
@@ -6163,6 +6214,24 @@
       "config": {
         "loa-condition-level": "1",
         "loa-max-age": "36000"
+      }
+    },
+    {
+      "id": "349c13f5-8407-4a01-b4d5-b21692ca07a9",
+      "alias": "sms-otp",
+      "config": {
+        "test-mode-code": "123456",
+        "senderId": "Keycloak",
+        "deferredUserAttribute": "false",
+        "autoCreateCredentialAttribute": "false",
+        "max-receiver-reuse": "1",
+        "resendCoudActivationTimer": "60",
+        "test-mode": "false",
+        "ttl": "300",
+        "messageCourierAttribute": "SMS",
+        "length": "6",
+        "one-time-link": "false",
+        "telUserAttribute": "sequent.read-only.mobile-number"
       }
     },
     {
