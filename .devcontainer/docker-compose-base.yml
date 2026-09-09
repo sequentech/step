@@ -68,10 +68,11 @@ services:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b4_db_logs:/b4_logs
+      - b4v6_db_logs:/b4v6_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs /b4v6_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -208,6 +209,30 @@ services:
       aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors
       --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
 
+  postgres-b4v6:
+    profiles: [ "wbraid" ]
+    image: sequentech.local/postgresql-b4v6
+    build:
+      context: ./postgresql-b4v6
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - b4v6_db_data:/var/lib/postgresql
+      - b4v6_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+    user: "999:999"  # This ensures that the postgres user inside the container is used
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    depends_on:
+      - postgres-volume-init
+
   # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
   # run from the mounted checkout like the other Rust services: cargo-watch
   # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
@@ -237,7 +262,7 @@ services:
       "--watch", "Cargo.toml",
       "--watch", "Cargo.lock",
       "-x",
-      "run --bin b4v6 --release"
+      "run --bin b4v6 --features postgres --release"
     ]
     volumes_from:
       - devcontainer
@@ -246,6 +271,8 @@ services:
     depends_on:
       devcontainer:
         condition: service_started
+      postgres-b4v6:
+        condition: service_healthy
       localstack:
         condition: service_healthy
       configure-localstack:
@@ -254,9 +281,10 @@ services:
       RUSTFLAGS: ${RUSTFLAGS}
       RUST_BACKTRACE: ${RUST_BACKTRACE}
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
-      RUST_LOG: b4=info
+      RUST_LOG: b4=info,b4v6=info
       WBRAID_B4_BIND: 0.0.0.0:3005
-      DATABASE_URL: sqlite:/var/lib/b4v6/b4.db?mode=rwc
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
       AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
@@ -1051,3 +1079,5 @@ volumes:
   b4_db_logs:
   b4_db_data:
   b4v6_data:
+  b4v6_db_data:
+  b4v6_db_logs:

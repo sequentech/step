@@ -31,7 +31,7 @@ $env:RUST_LOG="b4=info"
 
 # Set database URL to workspace root b4.db
 $workspaceRoot = Get-Location
-$env:DATABASE_URL="sqlite:$workspaceRoot\b4.db?mode=rwc"
+$env:DATABASE_URL="sqlite:$workspaceRoot\b4.db"
 
 # Save current directory
 $originalDir = Get-Location
@@ -85,7 +85,7 @@ if ($Reset) {
 
 try {
     # Run the service from workspace root (not crates/b4)
-    cargo run --bin b4v6 --release
+    cargo run --bin b4v6 --features sqlite --release
 }
 finally {
     # Always return to original directory

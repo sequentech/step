@@ -8,7 +8,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use b4::{app, db, s3, state::AppState};
 
 /// The listen address.
-const BIND_ENV: &str = "WBRAID_B4_BIND";
 const DEFAULT_BIND: &str = "127.0.0.1:3005";
 
 #[tokio::main]
@@ -21,16 +20,16 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let db = db::init_db().await?;
+    let db = db::open_from_env().await?;
     let s3_client = s3::init_s3_client().await;
     let state = AppState::from_env(db, s3_client);
-    // Logged under the library's target so `RUST_LOG=b4=info` shows it: this
-    // binary is the `b4v6` crate, whose own target the scripts do not enable.
     tracing::info!("S3 bucket {:?}", state.bucket_name,);
 
     let app = app::router(state);
 
-    let bind = std::env::var(BIND_ENV).unwrap_or_else(|_| DEFAULT_BIND.to_string());
+    let bind = std::env::var("WBRAID_B4_BIND").unwrap_or_else(|_| DEFAULT_BIND.to_string());
+    tracing::info!("Binding to {bind}");
+
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     tracing::info!(
         "Bulletin board service listening on {}",

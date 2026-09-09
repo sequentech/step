@@ -53,7 +53,7 @@ jobs:
       # from leaking into vsc through the workspace wrapper; the second
       # invocation lints vsc's lib at exactly the levels upstream chose.
       - name: Clippy (workspace except vsc, all targets)
-        run: cargo clippy --workspace --exclude vsc --all-targets --no-deps -- -D warnings
+        run: cargo clippy --workspace --exclude vsc --features sqlite,postgres --all-targets --no-deps -- -D warnings
 
       - name: Clippy (vsc lib, upstream lint levels)
         run: cargo clippy -p vsc --no-deps
@@ -77,7 +77,7 @@ jobs:
       # interop tests are #[ignore]d: they need a running b4 + LocalStack or a
       # JVM with the Verificatum jars. The live-b4 ones run in the live-b4 job below.
       - name: Run tests
-        run: cargo test --release
+        run: cargo test --release --features sqlite,postgres
         env:
           RUST_BACKTRACE: 'full'
 
@@ -110,10 +110,8 @@ jobs:
 
   live-b4:
     name: Live b4 protocol tests
-    # Opt-in: a release build of b4 and braid plus two full protocol runs
-    # against a real b4 and the S3 emulator is slow, so only pull requests
-    # carrying the `wbraid-live-b4` label run it. The same two tests run in
-    # the devcontainer with `cargo test -p braid --release -- --ignored`
+    # The same two tests run in the devcontainer with
+    # `cargo test -p braid --release -- --ignored`
     # (TESTING.md, "Live-b4 tests").
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -127,6 +125,19 @@ jobs:
           --health-interval 5s
           --health-timeout 10s
           --health-retries 25
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: b4
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d b4"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       # b4 only presigns against this endpoint; the tests, on the same runner,
       # fetch the bodies from it. Credentials are LocalStack's dummies.
@@ -136,8 +147,9 @@ jobs:
       AWS_REGION: us-east-1
       AWS_DEFAULT_REGION: us-east-1
       S3_BUCKET_NAME: wbraid-messages
-      WBRAID_B4_BIND: 127.0.0.1:3005
-      WBRAID_B4_URL: http://127.0.0.1:3005
+      RUST_LOG: info,b4=debug,b4v6=debug
+      SQLITE_B4_PORT: 3005
+      POSTGRES_B4_PORT: 3006
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -156,27 +168,74 @@ jobs:
           aws s3api put-bucket-cors --bucket wbraid-messages --cors-configuration file://s3-cors.json
 
       - name: Build b4v6
-        run: cargo build --release --bin b4v6
+        run: cargo build --release --features postgres,sqlite --bin b4v6
 
-      - name: Start b4v6
+      - name: Start b4v6 sqlite
+        id: b4v6-sqlite
+        background: true
+        env:
+          DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+        run: target/release/b4v6
+
+      - name: Wait b4v6 sqlite
+        env:
+          DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
         run: |
-          DATABASE_URL="sqlite:${RUNNER_TEMP}/b4.db?mode=rwc" RUST_LOG=b4=info \
-            nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6.log" 2>&1 &
           for _ in $(seq 1 30); do
             if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
               exit 0
             fi
             sleep 1
           done
+          
           echo "b4v6 did not come up" >&2
-          cat "${RUNNER_TEMP}/b4v6.log"
           exit 1
 
-      - name: Run the live-b4 protocol tests
-        run: cargo test -p braid --release --test test_protocol -- --ignored test_protocol_http
+      - name: Run the live-b4 protocol tests with sqlite
+        run: cargo test -p braid --release -- --ignored
         env:
           RUST_BACKTRACE: 'full'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
 
-      - name: Show the b4v6 log
-        if: always()
-        run: cat "${RUNNER_TEMP}/b4v6.log"
+      - name: Start b4v6 postgres
+        id: b4v6-postgres
+        background: true
+        env:
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+        run: target/release/b4v6
+
+      - name: Wait b4v6 postgres
+        env:
+          DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          
+          echo "b4v6 did not come up" >&2
+          exit 1
+
+      - name: Run the live-b4 protocol tests with postgres
+        run: cargo test -p braid --release -- --ignored
+        env:
+          RUST_BACKTRACE: 'full'
+          WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+          WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
+
+      - name: Stop sqlite b4v6
+        cancel: b4v6-sqlite
+
+      - name: Stop postgres b4v6
+        cancel: b4v6-postgres

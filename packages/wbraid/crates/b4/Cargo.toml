@@ -16,12 +16,11 @@ path = "src/main.rs"
 # as reference; an operator monitor is a future diagnostics concern (§12).
 
 [features]
-default = ["native"]
-
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
+postgres = ["native", "sqlx/postgres", "sqlx/chrono"]
+sqlite = ["native", "sqlx/sqlite"]
 
 [dependencies]
-
 tokio = { workspace = true, optional = true }
 anyhow = { workspace = true }
 serde = { workspace = true }
@@ -35,7 +34,7 @@ tower = { version = "0.5", features = ["util"], optional = true }
 tower-http = { version = "0.6", features = ["cors"], optional = true }
 
 # Database
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"], optional = true }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls"], optional = true }
 
 # S3
 aws-config = { version = "1.5", features = ["behavior-version-latest"], optional = true }
@@ -46,4 +45,3 @@ uuid = { version = "1.10", features = ["v4", "serde"] }
 chrono = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
