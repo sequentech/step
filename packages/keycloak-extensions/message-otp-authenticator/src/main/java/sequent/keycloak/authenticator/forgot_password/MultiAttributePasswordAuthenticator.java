@@ -26,9 +26,11 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.KeycloakSessionFactory;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.models.UserSessionModel;
 import org.keycloak.models.credential.PasswordCredentialModel;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.userprofile.config.UPAttribute;
+import org.keycloak.sessions.AuthenticationSessionModel;
 
 /**
  * Authenticates a user by matching one or more configured user attributes against submitted form
@@ -44,6 +46,24 @@ import org.keycloak.representations.userprofile.config.UPAttribute;
 @AutoService(AuthenticatorFactory.class)
 public class MultiAttributePasswordAuthenticator implements Authenticator, AuthenticatorFactory {
   public static final String PROVIDER_ID = "multi-attribute-password-form";
+  public static final String EXISTING_USER_SESSION_POLICY = "existingUserSessionPolicy";
+
+  public enum ExistingUserSessionPolicy {
+    KEEP,
+    TERMINATE_BEFORE_LOGIN;
+
+    public static ExistingUserSessionPolicy fromString(String value) {
+      if (value == null || value.isBlank()) {
+        return KEEP;
+      }
+      for (ExistingUserSessionPolicy policy : values()) {
+        if (policy.name().equalsIgnoreCase(value)) {
+          return policy;
+        }
+      }
+      throw new IllegalArgumentException("No constant with text " + value + " found");
+    }
+  }
 
   /**
    * Shown for every failed attempt. Deliberately not Keycloak's {@code invalidUserMessage}: that
@@ -72,6 +92,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
 
   @Override
   public void authenticate(AuthenticationFlowContext context) {
+    applyExistingUserSessionPolicy(context);
     Response challengeResponse = challenge(context, new MultivaluedHashMap<>(), null);
     context.challenge(challengeResponse);
   }
@@ -107,14 +128,24 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     List<String> attributesToMatch =
         effectiveMatchAttributes(matchAttributes, submittedValues, optionalAttributes);
     MultiAttributeCredentialResolver.Resolution result =
-        resolveAuthenticatedUser(
-            context.getSession(),
-            context.getRealm(),
-            attributesToMatch,
-            submittedValues,
-            password,
-            throttleConfig,
-            matchPolicy);
+        EncryptedAttributeCredential.usesPassword(context.getAuthenticatorConfig())
+            ? resolveAuthenticatedUser(
+                context.getSession(),
+                context.getRealm(),
+                attributesToMatch,
+                submittedValues,
+                password,
+                throttleConfig,
+                matchPolicy)
+            : MultiAttributeCredentialResolver.resolveAuthenticatedUser(
+                context.getSession(),
+                context.getRealm(),
+                attributesToMatch,
+                submittedValues,
+                password,
+                throttleConfig,
+                matchPolicy,
+                context.getAuthenticatorConfig());
 
     // Set even on failure/lockout, before signaling the outcome - Keycloak's brute-force
     // accounting (DefaultAuthenticationFlow -> AuthenticationProcessor.logFailure()) only fires
@@ -127,6 +158,30 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
       lockedOut(context, formData, result.lockoutState());
     } else {
       fail(context, formData);
+    }
+  }
+
+  private void applyExistingUserSessionPolicy(AuthenticationFlowContext context) {
+    ExistingUserSessionPolicy policy =
+        ExistingUserSessionPolicy.fromString(
+            Utils.getString(
+                context.getAuthenticatorConfig(),
+                EXISTING_USER_SESSION_POLICY,
+                ExistingUserSessionPolicy.KEEP.name()));
+    if (policy != ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN) {
+      return;
+    }
+
+    AuthenticationSessionModel authenticationSession = context.getAuthenticationSession();
+    if (authenticationSession == null) {
+      return;
+    }
+
+    String sessionId = authenticationSession.getParentSession().getId();
+    UserSessionModel existingSession =
+        context.getSession().sessions().getUserSession(context.getRealm(), sessionId);
+    if (existingSession != null) {
+      context.getSession().sessions().removeUserSession(context.getRealm(), existingSession);
     }
   }
 
@@ -292,7 +347,9 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
     LoginFormsProvider form = context.form();
 
     if (formData.size() > 0) {
-      form.setFormData(formData);
+      MultivaluedMap<String, String> safeFormData = new MultivaluedHashMap<>(formData);
+      safeFormData.remove(FIELD_PASSWORD);
+      form.setFormData(safeFormData);
     }
     if (error != null) {
       form.setError(error);
@@ -395,7 +452,23 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             MultiAttributeCredentialResolver.MatchPolicy.REJECT_AMBIGUOUS.name(),
             MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH.name()));
 
+    ProviderConfigProperty existingUserSessionPolicy =
+        new ProviderConfigProperty(
+            EXISTING_USER_SESSION_POLICY,
+            "Existing browser session policy",
+            "KEEP preserves any existing browser session. TERMINATE_BEFORE_LOGIN removes the"
+                + " existing session before showing this login form, allowing a different user"
+                + " to authenticate on a shared device.",
+            ProviderConfigProperty.LIST_TYPE,
+            ExistingUserSessionPolicy.KEEP.name());
+    existingUserSessionPolicy.setOptions(
+        List.of(
+            ExistingUserSessionPolicy.KEEP.name(),
+            ExistingUserSessionPolicy.TERMINATE_BEFORE_LOGIN.name()));
+
     return List.of(
+        EncryptedAttributeCredential.policyProperty(),
+        EncryptedAttributeCredential.attributeProperty(),
         new ProviderConfigProperty(
             Utils.MATCH_ATTRIBUTES,
             "User attributes to match",
@@ -450,6 +523,7 @@ public class MultiAttributePasswordAuthenticator implements Authenticator, Authe
             ProviderConfigProperty.STRING_TYPE,
             Utils.MAX_ATTRIBUTE_LOOKUP_RESULTS_DEFAULT),
         matchPolicy,
+        existingUserSessionPolicy,
         new ProviderConfigProperty(
             Utils.HONOR_USER_PROFILE_REQUIRED,
             "Honor User Profile required attributes",

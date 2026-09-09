@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React, {useState} from "react"
+import {Typography} from "@mui/material"
 import {ExportElectionEventMutation} from "@/gql/graphql"
 import {EXPORT_ELECTION_EVENT} from "@/queries/ExportElectionEvent"
 import {useMutation} from "@apollo/client"
@@ -87,6 +88,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     electionEventId,
                     exportConfigurations: {
                         is_encrypted: isEncrypted,
+                        encrypt_with_password: encryptWithPassword,
                         include_voters: includeVoters,
                         activity_logs: activityLogs,
                         bulletin_board: bulletinBoard,
@@ -103,8 +105,9 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
 
             const generatedPassword = exportElectionEventData?.export_election_event?.password
             generatedPassword && setPassword(generatedPassword)
-            //if encrypt with password false reset state immediately otherwise wait until after password dialog is closed
-            !encryptWithPassword && resetState()
+            // Keep state until the generated-password dialog closes for every
+            // export that is encrypted, including formats that require it.
+            !isEncrypted && resetState()
 
             const documentId = exportElectionEventData?.export_election_event?.document_id
 
@@ -128,18 +131,8 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
         }
     }
 
-    const toggleCheckBoxWithPassword = (setter: (val: boolean) => void, newValue: boolean) => {
-        setter(newValue)
-        if (newValue) {
-            setEncryptWithPassword(newValue)
-        }
-    }
-
     const toggleBulletinBoard = (newValue: boolean) => {
         setBulletinBoard(newValue)
-        if (newValue) {
-            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
-        }
         // Tally has to be exported with bulletin board
         if (!newValue && tally) {
             setTally(false)
@@ -149,7 +142,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
     const toggleTallyCheckBox = (newValue: boolean) => {
         setTally(newValue)
         if (newValue) {
-            toggleCheckBoxWithPassword(setBulletinBoard, newValue)
+            setBulletinBoard(true)
         }
     }
 
@@ -175,13 +168,22 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                     <FormControlLabel
                         control={
                             <Checkbox
-                                disabled={bulletinBoard || reports || applications}
                                 checked={encryptWithPassword}
                                 onChange={() => setEncryptWithPassword(!encryptWithPassword)}
                             />
                         }
+                        className="export-encrypt-with-password"
                         label={String(t("electionEventScreen.export.encryptWithPassword"))}
                     />
+                    {!encryptWithPassword && (bulletinBoard || reports || applications) ? (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            className="export-password-forced-note"
+                        >
+                            {t("electionEventScreen.export.passwordForcedNote")}
+                        </Typography>
+                    ) : null}
                     <FormControlLabel
                         control={
                             <StyledCheckbox
@@ -240,7 +242,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={reports}
-                                onChange={() => toggleCheckBoxWithPassword(setReports, !reports)}
+                                onChange={() => setReports(!reports)}
                             />
                         }
                         label={String(t("electionEventScreen.export.reports"))}
@@ -249,9 +251,7 @@ export const ExportElectionEventDrawer: React.FC<ExportWrapperProps> = ({
                         control={
                             <StyledCheckbox
                                 checked={applications}
-                                onChange={() =>
-                                    toggleCheckBoxWithPassword(setApplications, !applications)
-                                }
+                                onChange={() => setApplications(!applications)}
                             />
                         }
                         label={String(t("electionEventScreen.export.applications"))}

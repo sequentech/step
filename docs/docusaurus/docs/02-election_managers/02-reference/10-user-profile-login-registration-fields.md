@@ -51,6 +51,17 @@ Attribute names must match those used in voter import files, the Admin Portal's 
 the authenticator's **User attributes to match** list. Renaming an attribute does not rename it in
 existing user records.
 
+### Secret voter attributes
+
+The `sequent.secret` annotation classifies an election-event voter attribute for encrypted storage.
+It is an Admin Portal and voter-level output feature; it is not an input type for the registration
+or login pages. Because Keycloak sees only its encrypted envelope, a secret attribute must not be
+shown to voters or used for login matching, registration, token mapping, uniqueness checks, or
+voter self-service.
+
+Configure secret fields and their administrator-only scope as described in
+[Protecting a Voter Attribute as Secret](../01-tutorials/99-admin_portal_tutorials_add-user-attributes-to-keycloak.md#protecting-a-voter-attribute-as-secret).
+
 ---
 
 ## Which pages use which attributes
@@ -325,7 +336,7 @@ username and password login page. On the registration form an attribute declarin
 
 Renders the password box as fixed-length digit groups. It remains the voter's ordinary Keycloak
 password, and applies to the login page and to the registration form in login mode with a password
-field. Set `credential-input-policy` to `structured` to enable it; the pattern, placeholder, input
+field. Set `credential-input-policy` to `structured` (or its equivalent alias `pattern`) to enable it; the pattern, placeholder, input
 behaviour and rollout steps are covered in
 [Structured PIN login](../../07-developers/06-keycloak/structured_pin_login.md).
 

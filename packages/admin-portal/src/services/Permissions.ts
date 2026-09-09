@@ -182,6 +182,8 @@ const AdminOperationMap: Record<string, IPermissions> = {
     //preview
     sequent_backend_preview: IPermissions.PREVIEW_READ,
     sequent_backend_previews: IPermissions.PREVIEW_READ,
+    // voter secret attributes
+    RevealVoterSecretAttribute: IPermissions.VOTER_READ,
 }
 
 const TrusteeOperationMap: Record<string, IPermissions> = {

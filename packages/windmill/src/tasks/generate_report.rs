@@ -38,6 +38,7 @@ pub async fn generate_report(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
     tally_session_id: Option<String>,
+    may_read_secret_attributes: bool,
 ) -> Result<(), anyhow::Error> {
     let tenant_id = report.tenant_id.clone();
     let election_event_id = report.election_event_id.clone();
@@ -113,6 +114,7 @@ pub async fn generate_report(
                     &hasura_transaction,
                     &keycloak_transaction,
                     task_execution,
+                    may_read_secret_attributes,
                 )
                 .await?;
         };
@@ -177,6 +179,7 @@ pub async fn generate_report(
     task_execution: Option<TasksExecution>,
     executer_username: Option<String>,
     tally_session_id: Option<String>,
+    may_read_secret_attributes: bool,
 ) -> Result<()> {
     let _permit = acquire_semaphore().await?;
     // Spawn the task using an async block
@@ -192,6 +195,7 @@ pub async fn generate_report(
                     task_execution_clone,
                     executer_username,
                     tally_session_id,
+                    may_read_secret_attributes,
                 )
                 .await
                 .map_err(|err| anyhow!("generate_report error: {:?}", err))

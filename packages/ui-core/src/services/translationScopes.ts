@@ -10,6 +10,19 @@ export enum ETranslationScope {
     ADMIN_PORTAL = "adminPortal",
 }
 
+let activeTranslationScope: ETranslationScope | undefined
+
+/**
+ * Sets the portal scope once when an application initializes its translations.
+ * Each portal is built as a separate application, so this module-level value is
+ * local to that portal's runtime.
+ */
+export const setActiveTranslationScope = (scope?: ETranslationScope): void => {
+    activeTranslationScope = scope
+}
+
+export const getActiveTranslationScope = (): ETranslationScope | undefined => activeTranslationScope
+
 export interface IParsedTranslationOverrideKey {
     key: string
     scope?: ETranslationScope

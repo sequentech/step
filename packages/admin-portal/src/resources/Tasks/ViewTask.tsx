@@ -235,6 +235,7 @@ export const ViewTask: React.FC<ViewTaskProps> = ({
     const downloadTrigger = exportDocumentId ? (
         <DownloadDocument
             documentId={exportDocumentId}
+            showReportPasswordDialog={task.type === ETasksExecution.GENERATE_REPORT}
             electionEventId={task.election_event_id ?? ""}
             fileName={null}
             onDownload={() => {

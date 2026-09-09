@@ -12,7 +12,7 @@ import {
     BooleanInput,
     useGetList,
 } from "react-admin"
-import {useMutation, useQuery} from "@apollo/client"
+import {useLazyQuery, useMutation, useQuery} from "@apollo/client"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {useAtomValue} from "jotai"
@@ -29,7 +29,10 @@ import {
     Autocomplete,
     Grid,
     TextField,
+    Button,
 } from "@mui/material"
+import {SecretAttributeInput} from "./SecretAttributeInput"
+import {useSecretRevealGuard} from "./useSecretRevealGuard"
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {
     CreateUserMutation,
@@ -58,6 +61,7 @@ import {
     getSelectOptionLabel,
     getStatedLengthBounds,
     getTranslationLabel,
+    isSecretAttribute,
     resolveOptionLabel,
     userBasicInfo,
 } from "@/services/UserService"
@@ -84,6 +88,7 @@ import {
     VoterField,
     VOTER_EDITOR_FIXED_FIELDS,
 } from "./VoterEditorLayout"
+import {REVEAL_VOTER_SECRET_ATTRIBUTE} from "@/queries/RevealVoterSecretAttribute"
 
 interface ListUserRolesProps {
     userId?: string
@@ -322,13 +327,22 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [selectedRolesOnCreate, setSelectedRolesOnCreate] = useState<string[]>([])
     const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([])
     const [phoneInputs, setPhoneInputs] = useState<{[key: string]: string[]}>({})
-    const {canEditVoters, canEditVotersWhoVoted, canEditVotersEmailTlf} = useUsersPermissions()
+    const {
+        canEditVoters,
+        canEditVotersWhoVoted,
+        canEditVotersEmailTlf,
+        canReadVoterSecretAttributes,
+        canWriteVoterSecretAttributes,
+    } = useUsersPermissions()
     const [tenantId] = useTenantStore()
     const refresh = useRefresh()
     const notify = useNotify()
     const authContext = useContext(AuthContext)
     const [createUser] = useMutation<CreateUserMutation>(CREATE_USER)
     const [edit_user] = useMutation<EditUserMutationResult>(EDIT_USER)
+    const [revealSecretAttribute] = useLazyQuery<{
+        reveal_voter_secret_attribute: {attribute_name: string; values: string[]}
+    }>(REVEAL_VOTER_SECRET_ATTRIBUTE, {fetchPolicy: "no-cache"})
     const [deleteUserRole] = useMutation<DeleteUserRoleMutation>(DELETE_USER_ROLE)
     const [setUserRole] = useMutation<SetUserRoleMutation>(SET_USER_ROLE)
     const [permissionLabels, setPermissionLabels] = useState<string[]>(
@@ -345,10 +359,21 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const [saveError, setSaveError] = useState("")
     const [saving, setSaving] = useState(false)
     const [lengthErrors, setLengthErrors] = useState<Record<string, string>>({})
+    const [secretAttributeValues, setSecretAttributeValues] = useState<Record<string, string[]>>({})
+    const [dirtySecretAttributes, setDirtySecretAttributes] = useState<Set<string>>(new Set())
+    const [revealedSecretAttributes, setRevealedSecretAttributes] = useState<Set<string>>(new Set())
+    const [revealingSecretAttributes, setRevealingSecretAttributes] = useState<Set<string>>(
+        new Set()
+    )
     // Guarded through a ref as well as state: two clicks dispatched before
     // React commits the first would both read the same stale state.
     const savingRef = useRef(false)
+    const revealingSecretAttributesRef = useRef<Set<string>>(new Set())
     const closedRef = useRef(false)
+    const beginSecretReveal = useSecretRevealGuard(
+        JSON.stringify([tenantId, electionEventId, id]),
+        canReadVoterSecretAttributes
+    )
 
     const [step, setStep] = useState<"edit" | "review">("edit")
     const baselineRef = useRef<UserBaseline>({
@@ -368,9 +393,15 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         if (step !== "review") {
             return []
         }
+        const secretAttributeChanges = Object.fromEntries(
+            Array.from(dirtySecretAttributes).map((name) => [
+                name,
+                (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
+            ])
+        )
         const userRows = computeUserDiff(
             baselineRef.current,
-            {user, phoneInputs, selectedActedTrustee},
+            {user, phoneInputs, selectedActedTrustee, secretAttributeChanges},
             userAttributes,
             t
         )
@@ -390,6 +421,8 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         selectedRoleIds,
         rolesList,
         t,
+        dirtySecretAttributes,
+        secretAttributeValues,
     ])
 
     useEffect(() => {
@@ -399,10 +432,29 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         setStep("edit")
         setSaveError("")
         setLengthErrors({})
+        setSecretAttributeValues({})
+        setDirtySecretAttributes(new Set())
+        setRevealedSecretAttributes(new Set())
+        revealingSecretAttributesRef.current.clear()
+        setRevealingSecretAttributes(new Set())
         savingRef.current = false
         closedRef.current = false
         setSaving(false)
     }, [id])
+
+    useEffect(() => {
+        if (canReadVoterSecretAttributes) {
+            return
+        }
+        revealingSecretAttributesRef.current.clear()
+        setRevealingSecretAttributes(new Set())
+        setRevealedSecretAttributes(new Set())
+        setSecretAttributeValues((previous) =>
+            Object.fromEntries(
+                Object.entries(previous).filter(([name]) => dirtySecretAttributes.has(name))
+            )
+        )
+    }, [canReadVoterSecretAttributes, dirtySecretAttributes])
 
     useEffect(() => {
         rolesInitializedRef.current = false
@@ -662,6 +714,19 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     const createUserAndPassword = async () => {
         let createdUserId: string | null | undefined
         try {
+            const secretNames = new Set(
+                userAttributes
+                    .filter(isSecretAttribute)
+                    .flatMap((attribute) => (attribute.name ? [attribute.name] : []))
+            )
+            const attributes = formatUserAtributes(user?.attributes) ?? {}
+            secretNames.forEach((name) => delete attributes[name])
+            const secretAttributes = Object.fromEntries(
+                Array.from(dirtySecretAttributes).map((name) => [
+                    name,
+                    (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
+                ])
+            )
             const {data} = await createUser({
                 variables: {
                     tenantId,
@@ -674,13 +739,14 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         email: user?.email,
                         username: user?.username,
                         attributes: {
-                            ...formatUserAtributes(user?.attributes),
+                            ...attributes,
                             ...(selectedArea && {"area-id": [selectedArea]}),
                             ...(phoneInputs && phoneInputs),
                             ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
                         },
                     },
                     userRolesIds: selectedRolesOnCreate,
+                    secretAttributes,
                 },
             })
             createdUserId = data?.create_user?.id
@@ -725,7 +791,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         setSaveError("")
         const diff = computeUserDiff(
             baselineRef.current,
-            {user, phoneInputs, selectedActedTrustee},
+            {
+                user,
+                phoneInputs,
+                selectedActedTrustee,
+                secretAttributeChanges: Object.fromEntries(
+                    Array.from(dirtySecretAttributes).map((name) => [
+                        name,
+                        (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
+                    ])
+                ),
+            },
             userAttributes,
             t
         )
@@ -760,6 +836,13 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
     }
 
     const handleEditUser = async () => {
+        const secretNames = new Set(
+            userAttributes
+                .filter(isSecretAttribute)
+                .flatMap((attribute) => (attribute.name ? [attribute.name] : []))
+        )
+        const attributes = formatUserAtributes(user?.attributes) ?? {}
+        secretNames.forEach((name) => delete attributes[name])
         return edit_user({
             variables: {
                 body: {
@@ -774,11 +857,17 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                         user?.password && user?.password.length > 0 ? user.password : undefined,
                     temporary: temporary,
                     attributes: {
-                        ...formatUserAtributes(user?.attributes),
+                        ...attributes,
                         ...(selectedArea && {"area-id": [selectedArea]}),
                         ...(phoneInputs && phoneInputs),
                         ...(selectedActedTrustee && {trustee: [selectedActedTrustee]}),
                     },
+                    secret_attributes: Object.fromEntries(
+                        Array.from(dirtySecretAttributes).map((name) => [
+                            name,
+                            (secretAttributeValues[name] ?? []).filter((value) => value !== ""),
+                        ])
+                    ),
                 },
             },
         })
@@ -955,6 +1044,78 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
         }
     }
 
+    const commitSecretAttribute = (attribute: UserProfileAttribute, values: string[]) => {
+        const name = attribute.name
+        if (!name) return
+        const message = (values.length ? values : [""])
+            .map((value) => attributeError(attribute, value))
+            .find(Boolean)
+        setLengthErrors((previous) => {
+            const {[name]: _removed, ...rest} = previous
+            return message ? {...rest, [name]: message} : rest
+        })
+        setSecretAttributeValues((previous) => ({...previous, [name]: values}))
+        setDirtySecretAttributes((previous) => new Set(previous).add(name))
+    }
+
+    const toggleSecretAttributeReveal = async (name: string) => {
+        if (revealedSecretAttributes.has(name)) {
+            setRevealedSecretAttributes((previous) => {
+                const next = new Set(previous)
+                next.delete(name)
+                return next
+            })
+            if (!dirtySecretAttributes.has(name)) {
+                setSecretAttributeValues((previous) => {
+                    const {[name]: _removed, ...rest} = previous
+                    return rest
+                })
+            }
+            return
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(secretAttributeValues, name)) {
+            if (!tenantId || !electionEventId || !id) return
+            const isCurrent = beginSecretReveal()
+            if (!isCurrent() || closedRef.current) return
+            if (revealingSecretAttributesRef.current.has(name)) return
+            revealingSecretAttributesRef.current.add(name)
+            setRevealingSecretAttributes((previous) => new Set(previous).add(name))
+            try {
+                const {data} = await revealSecretAttribute({
+                    variables: {
+                        tenantId,
+                        electionEventId,
+                        userId: id,
+                        attributeName: name,
+                    },
+                })
+                if (!isCurrent() || closedRef.current) return
+                setSecretAttributeValues((previous) => ({
+                    ...previous,
+                    [name]: data?.reveal_voter_secret_attribute.values ?? [],
+                }))
+            } catch {
+                if (!isCurrent() || closedRef.current) return
+                notify(t("usersAndRolesScreen.voters.secretAttribute.revealError"), {
+                    type: "error",
+                })
+                return
+            } finally {
+                if (isCurrent() && !closedRef.current) {
+                    revealingSecretAttributesRef.current.delete(name)
+                    setRevealingSecretAttributes((previous) => {
+                        const next = new Set(previous)
+                        next.delete(name)
+                        return next
+                    })
+                }
+            }
+        }
+
+        setRevealedSecretAttributes((previous) => new Set(previous).add(name))
+    }
+
     const aliasRenderer = useAliasRenderer()
 
     const searched = useRef("")
@@ -990,6 +1151,42 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 const displayName = attr.display_name ?? ""
                 const isRequired = isFieldRequired(attr)
                 const optionLabels = getInputOptionLabels(attr)
+                if (isSecretAttribute(attr)) {
+                    const name = attr.name
+                    const stored = Boolean(user?.attributes?.[name]?.length)
+                    return (
+                        <SecretAttributeInput
+                            key={name}
+                            label={getTranslationLabel(name, attr.display_name, t)}
+                            values={secretAttributeValues[name] ?? []}
+                            stored={stored}
+                            editable={
+                                canWriteVoterSecretAttributes &&
+                                (createMode || canEditVoters) &&
+                                !saving
+                            }
+                            multivalued={Boolean(attr.multivalued)}
+                            canReveal={
+                                dirtySecretAttributes.has(name) ||
+                                (stored && canReadVoterSecretAttributes)
+                            }
+                            revealed={revealedSecretAttributes.has(name)}
+                            revealing={revealingSecretAttributes.has(name) || saving}
+                            required={isRequired && (createMode || !stored)}
+                            error={!!lengthErrors[name]}
+                            helperText={lengthErrors[name] ?? lengthHint(attr)}
+                            labels={{
+                                reveal: t("usersAndRolesScreen.voters.secretAttribute.reveal"),
+                                hide: t("usersAndRolesScreen.voters.secretAttribute.hide"),
+                                clear: t("usersAndRolesScreen.voters.secretAttribute.clear"),
+                                add: t("usersAndRolesScreen.voters.secretAttribute.add"),
+                                remove: t("usersAndRolesScreen.voters.secretAttribute.remove"),
+                            }}
+                            onChange={(values) => commitSecretAttribute(attr, values)}
+                            onReveal={() => void toggleSecretAttributeReveal(name)}
+                        />
+                    )
+                }
                 if (attr.annotations?.inputType === "select") {
                     const configuredOptions: unknown = attr.validations?.options?.options
                     const options = Array.isArray(configuredOptions)
@@ -1274,7 +1471,24 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                 )
             }
         },
-        [user, permissionLabels, choices, electionsList, lengthErrors]
+        [
+            user,
+            permissionLabels,
+            choices,
+            electionsList,
+            lengthErrors,
+            secretAttributeValues,
+            dirtySecretAttributes,
+            revealedSecretAttributes,
+            revealingSecretAttributes,
+            saving,
+            toggleSecretAttributeReveal,
+            commitSecretAttribute,
+            canReadVoterSecretAttributes,
+            canWriteVoterSecretAttributes,
+            canEditVoters,
+            createMode,
+        ]
     )
 
     const visibleUserAttributes = useMemo(

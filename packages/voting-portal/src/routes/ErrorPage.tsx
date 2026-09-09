@@ -39,10 +39,20 @@ export function ErrorPage() {
 
     let content = (
         <>
-            <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
+            <StyledTitle
+                className="screen-title"
+                variant="h3"
+                component="h1"
+                sx={{marginBottom: "24px"}}
+            >
                 {t("errors.page.oopsWithoutStatus")}
             </StyledTitle>
-            <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
+            <Typography
+                className="error-description"
+                variant="h6"
+                component="p"
+                sx={{marginBottom: "24px"}}
+            >
                 {t("errors.page.somethingWrong")}
             </Typography>
         </>
@@ -51,15 +61,25 @@ export function ErrorPage() {
     if (isRouteErrorResponse(error)) {
         content = (
             <>
-                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
+                <StyledTitle
+                    className="screen-title"
+                    variant="h3"
+                    component="h1"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.oopsWithStatus", {status: error.status})}
                 </StyledTitle>
-                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
+                <Typography
+                    className="error-description"
+                    variant="h6"
+                    component="p"
+                    sx={{marginBottom: "24px"}}
+                >
                     {error.statusText}
                 </Typography>
                 {error.data?.message && (
-                    <Typography>
-                        <i>{error.data.message}</i>
+                    <Typography className="error-description">
+                        <i className="error-detail">{error.data.message}</i>
                     </Typography>
                 )}
             </>
@@ -70,10 +90,20 @@ export function ErrorPage() {
     ) {
         content = (
             <>
-                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
+                <StyledTitle
+                    className="screen-title"
+                    variant="h3"
+                    component="h1"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.certAuthFailedTitle")}
                 </StyledTitle>
-                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
+                <Typography
+                    className="error-description"
+                    variant="h6"
+                    component="p"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.certAuthFailedMessage")}
                 </Typography>
             </>
@@ -84,10 +114,20 @@ export function ErrorPage() {
     ) {
         content = (
             <>
-                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
+                <StyledTitle
+                    className="screen-title"
+                    variant="h3"
+                    component="h1"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.invalidLoginHintParametersTitle")}
                 </StyledTitle>
-                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
+                <Typography
+                    className="error-description"
+                    variant="h6"
+                    component="p"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.invalidLoginHintParametersMessage")}
                 </Typography>
             </>
@@ -95,14 +135,24 @@ export function ErrorPage() {
     } else if (isErrorType) {
         content = (
             <>
-                <StyledTitle variant="h3" component="h1" sx={{marginBottom: "24px"}}>
+                <StyledTitle
+                    className="screen-title"
+                    variant="h3"
+                    component="h1"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.oopsWithoutStatus")}
                 </StyledTitle>
-                <Typography variant="h6" component="p" sx={{marginBottom: "24px"}}>
+                <Typography
+                    className="error-description"
+                    variant="h6"
+                    component="p"
+                    sx={{marginBottom: "24px"}}
+                >
                     {t("errors.page.somethingWrong")}
                 </Typography>
-                <Typography>
-                    <i>{error.message}</i>
+                <Typography className="error-description">
+                    <i className="error-detail">{error.message}</i>
                 </Typography>
             </>
         )
@@ -116,6 +166,7 @@ export function ErrorPage() {
                 logoutFn={authContext.isAuthenticated ? authContext.logout : undefined}
             />
             <Box
+                className="error-content"
                 id="error-page"
                 sx={{
                     width: "100%",
@@ -132,8 +183,10 @@ export function ErrorPage() {
                     error instanceof VotingPortalError &&
                     error.type === VotingPortalErrorType.NO_ELECTION_EVENT
                 ) && (
-                    <StyledLink to={backLink}>
-                        <Button sx={{textDecoration: "none"}}>{t("common.goBack")}</Button>
+                    <StyledLink className="error-back-link" to={backLink}>
+                        <Button className="back-button" sx={{textDecoration: "none"}}>
+                            {t("common.goBack")}
+                        </Button>
                     </StyledLink>
                 )}
             </Box>
