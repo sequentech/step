@@ -170,10 +170,12 @@ jobs:
 
       - name: Start b4v6 sqlite
         run: |
-          DATABASE_URL="sqlite:${RUNNER_TEMP}/b4.db" \
-          WBRAID_B4_BIND=127.0.0.1:3005 \
-          WBRAID_B4_URL=http://127.0.0.1:3005 \
-            nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6_sqlite.log" 2>&1 &
+          export DATABASE_URL="sqlite:${RUNNER_TEMP}/b4.db"
+          export WBRAID_B4_BIND=127.0.0.1:3005
+          export WBRAID_B4_URL=http://127.0.0.1:3005
+          
+          nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6_sqlite.log" 2>&1 &
+          
           for _ in $(seq 1 30); do
             if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
               exit 0
@@ -193,10 +195,12 @@ jobs:
 
       - name: Start b4v6 postgres
         run: |
-          DATABASE_URL="postgres://postgres:postgres@localhost:5432/b4" \
-          WBRAID_B4_BIND=127.0.0.1:3006 \
-          WBRAID_B4_URL=http://127.0.0.1:3006 \
-            nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6_postgres.log" 2>&1 &
+          export DATABASE_URL="postgres://postgres:postgres@localhost:5432/b4"
+          export WBRAID_B4_BIND=127.0.0.1:3006
+          export WBRAID_B4_URL=http://127.0.0.1:3006
+          
+          nohup target/release/b4v6 > "${RUNNER_TEMP}/b4v6_postgres.log" 2>&1 &
+          
           for _ in $(seq 1 30); do
             if curl -sf "${WBRAID_B4_URL}/boards" > /dev/null; then
               exit 0
