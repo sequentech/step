@@ -28,7 +28,7 @@ impl BoardDb {
             .split_once(':')
             .map(|(scheme, _)| scheme)
             .ok_or_else(|| anyhow!("missing scheme in database url"))?;
-        tracing::info!("Opening database url '{url}'");
+        tracing::debug!("Opening database url '{url}'");
 
         #[cfg(feature = "sqlite")]
         {

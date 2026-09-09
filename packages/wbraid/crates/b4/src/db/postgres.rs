@@ -14,7 +14,7 @@ pub struct PostgresBackend {
 
 impl PostgresBackend {
     pub async fn open(url: &str) -> Result<Self> {
-        tracing::info!("Connecting to postgres database: {}", url);
+        tracing::info!("Connecting to postgres database");
 
         let connect_options = {
             let mut options = sqlx::postgres::PgConnectOptions::from_str(url)?;
