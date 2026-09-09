@@ -1,3 +1,4 @@
+use std::str::FromStr;
 // SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -15,19 +16,44 @@ impl PostgresBackend {
     pub async fn open(url: &str) -> Result<Self> {
         tracing::info!("Connecting to postgres database: {}", url);
 
+        let connect_options = {
+            let mut options = sqlx::postgres::PgConnectOptions::from_str(url)?;
+            if let Ok(val) = std::env::var("WBRAID_B4_PG_HOST") {
+                options = options.host(val.trim());
+            }
+            if let Ok(val) = std::env::var("WBRAID_B4_PG_PORT") {
+                options = options.port(
+                    val.trim()
+                        .parse::<u16>()
+                        .context("can't parse WBRAID_B4_PG_PORT as u16")?,
+                );
+            }
+            if let Ok(val) = std::env::var("WBRAID_B4_PG_USER") {
+                options = options.username(val.trim());
+            }
+            if let Ok(val) = std::env::var("WBRAID_B4_PG_PASSWORD") {
+                options = options.password(val.trim());
+            }
+            if let Ok(val) = std::env::var("WBRAID_B4_PG_DATABASE") {
+                options = options.database(val.trim());
+            }
+
+            options
+        };
+
         let pool = {
             let mut options = sqlx::postgres::PgPoolOptions::new();
-            if let Ok(val) = std::env::var("PG_MAX_CONNECTIONS") {
+            if let Ok(val) = std::env::var("WBRAID_B4_PG_MAX_CONNECTIONS") {
                 options = options.max_connections(
                     val.trim()
                         .parse::<u32>()
-                        .context("can't parse PG_MAX_CONNECTIONS as u32")?,
+                        .context("can't parse WBRAID_B4_PG_MAX_CONNECTIONS as u32")?,
                 );
             }
 
             options
         }
-        .connect(url)
+        .connect_with(connect_options)
         .await
         .context("failed to connect to postgres db")?;
 
