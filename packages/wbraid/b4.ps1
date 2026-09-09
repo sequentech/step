@@ -31,7 +31,7 @@ $env:RUST_LOG="b4=info"
 
 # Set database URL to workspace root b4.db
 $workspaceRoot = Get-Location
-$env:DATABASE_URL="sqlite:$workspaceRoot\b4.db?mode=rwc"
+$env:DATABASE_URL="sqlite:$workspaceRoot\b4.db"
 
 # Save current directory
 $originalDir = Get-Location

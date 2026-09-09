@@ -284,7 +284,7 @@ mod tests {
     impl TempDb {
         async fn new() -> Self {
             let path = std::env::temp_dir().join(format!("b4-db-test-{}.db", Uuid::new_v4()));
-            let url = format!("sqlite:{}?mode=rwc", path.display());
+            let url = format!("sqlite:{}", path.display());
             let backend = SqliteBackend::open(&url)
                 .await
                 .expect("failed to open temp db");
