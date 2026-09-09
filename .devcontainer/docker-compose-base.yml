@@ -221,6 +221,7 @@ services:
       - b4v6_db_logs:/logs
     command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
     user: "999:999"  # This ensures that the postgres user inside the container is used
     healthcheck:
@@ -270,6 +271,8 @@ services:
     depends_on:
       devcontainer:
         condition: service_started
+      postgres-b4v6:
+        condition: service_healthy
       localstack:
         condition: service_healthy
       configure-localstack:
@@ -281,7 +284,7 @@ services:
       RUST_LOG: b4=info,b4v6=info
       WBRAID_B4_BIND: 0.0.0.0:3005
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
-      DATABASE_URL: postgres://postgres-b4v6:5432/b4
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
       AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
