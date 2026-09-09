@@ -17,8 +17,8 @@ path = "src/main.rs"
 
 [features]
 native = ["dep:tokio", "dep:sqlx", "dep:aws-config", "dep:aws-sdk-s3", "dep:axum", "dep:tower", "dep:tower-http"]
-postgres = ["sqlx/postgres", "sqlx/chrono"]
-sqlite = ["sqlx/sqlite"]
+postgres = ["native", "sqlx/postgres", "sqlx/chrono"]
+sqlite = ["native", "sqlx/sqlite"]
 
 [dependencies]
 tokio = { workspace = true, optional = true }

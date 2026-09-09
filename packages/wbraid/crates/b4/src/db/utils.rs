@@ -4,7 +4,7 @@
 macro_rules! dispatch_db {
     ($self:expr, $method:ident ($($arg:expr),* $(,)?)) => {{
         #[cfg(not(any(feature = "sqlite", feature = "postgres")))]
-        compile_error!("enable at least one db backend");
+        compile_error!("at least one db backend feature needs to be enabled for dispatcher");
 
         match $self {
             #[cfg(feature="sqlite")]
