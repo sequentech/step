@@ -33,10 +33,17 @@ function fixture() {
 }
 const using = fn => {const f=fixture();try {return fn(f);} finally {f.clean();}};
 test('exports exactly selected articles and images, with offline links and identities',()=>using(f=>{
-  const m=f.run();assert.equal(m.documents.length,4);assert.equal(Object.keys(m.files).length,10);
-  const html=fs.readFileSync(path.join(f.out,'AGD-01/001.html'),'utf8');
-  assert.match(html,/\.\.\/AGD-02\/001.html#detail/);assert.match(html,/test-only/);assert.match(html,/synthetic-v0/);
-  assert.doesNotMatch(html,/PRIVATE|SECRET|<script|<button|loading=/);assert.equal(fs.existsSync(path.join(f.out,'internal.html')),false);
+  const m=f.run();assert.equal(m.documents.length,4);assert.equal(Object.keys(m.files).length,5);
+  assert.equal(m.schema,2);assert.equal(m.format,'pdf');
+  const inspected=JSON.parse(execFileSync('python3',['-c',`import json,sys
+from pypdf import PdfReader
+r=PdfReader(sys.argv[1],strict=True)
+print(json.dumps({'text': ''.join(p.extract_text() for p in r.pages), 'links': [dict(a.get_object().get('/A',{})) for p in r.pages for a in p.get('/Annots',[])], 'anchors':list(r.named_destinations)}))`,path.join(f.out,'AGD-01.pdf')],{encoding:'utf8'}));
+  assert.match(inspected.text,/test-only/);assert.match(inspected.text,/synthetic-v0/);
+  assert.doesNotMatch(inspected.text,/PRIVATE|SECRET|Copy/);
+  assert.ok(inspected.links.some(a=>a['/S']==='/GoToR' && a['/F']==='AGD-02.pdf' && a['/D']==='source-001-detail'));
+  assert.ok(inspected.anchors.includes('source-001'));
+  assert.deepEqual(fs.readdirSync(f.out).sort(),['AGD-01.pdf','AGD-02.pdf','AGD-03.pdf','AGD-04.pdf','index.pdf','manifest.json']);
   for (const [name,digest] of Object.entries(m.files)) assert.equal(sha(fs.readFileSync(path.join(f.out,name))),digest);
   assert.equal(m.external_references.length,4);assert.throws(f.run,/already exists/);
 }));
@@ -54,7 +61,7 @@ test('refuses dirty source even when timestamps are restored',()=>using(f=>{
   const p=path.join(f.root,f.selection.documents[0].sources[0]);const stat=fs.statSync(p);fs.appendFileSync(p,'changed');fs.utimesSync(p,stat.atime,stat.mtime);assert.throws(f.run,/clean selected source/);
 }));
 function changeArticle(f, content) {
-  const p=path.join(f.build,'docs/page1.html');fs.writeFileSync(p,`<article><div class="markdown"><h1>Page 1</h1>${content}</div></article>`);
+  const p=path.join(f.build,'docs/page1.html');fs.writeFileSync(p,`<article><div class="markdown"><h1>Page 1</h1><h2 id="detail">Details</h2>${content}</div></article>`);
   f.manifest.pages[0].sha256=sha(fs.readFileSync(p));f.record();
 }
 test('refuses unselected local links, absent fragments and remote images',()=>using(f=>{
@@ -89,4 +96,37 @@ test('checks committed media larger than a subprocess output buffer',()=>using(f
   f.selection.commit=f.git('rev-parse','HEAD');f.manifest.source_commit=f.selection.commit;
   f.manifest.files[name]=sha(fs.readFileSync(path.join(f.root,name)));f.record();
   assert.equal(f.run().documents.length,4);assert.equal(fs.existsSync(path.join(f.out,'large.bin')),false);
+}));
+
+test('refuses omitted text, overflowing layout and undecodable local images',()=>using(f=>{
+  changeArticle(f,'<p style="display:none">A mandatory acceptance step must not disappear.</p>');
+  assert.throws(f.run,/lost.*(text|block)/);assert.equal(fs.existsSync(f.out),false);
+  changeArticle(f,'<p style="position:absolute;left:2000px">A mandatory acceptance step exceeds the printed page.</p>');
+  assert.throws(f.run,/page bounds/);assert.equal(fs.existsSync(f.out),false);
+  changeArticle(f,'<img src="/manual/assets/image.png">');
+  const image=path.join(f.build,'assets/image.png');
+  fs.writeFileSync(image,Buffer.from([137,80,78,71,13,10,26,10,0,0]));
+  f.manifest.assets['assets/image.png']=sha(fs.readFileSync(image));f.record();
+  assert.throws(f.run,/rendering warning/);assert.equal(fs.existsSync(f.out),false);
+}));
+
+test('retains repeated source pages in distinct handbooks without anchor collisions',()=>using(f=>{
+  f.selection.documents[0].sources.push(f.selection.documents[1].sources[0]);
+  const m=f.run();
+  assert.equal(m.documents[0].pages.length,2);
+  assert.equal(m.documents[0].pages[1].anchor,'source-002');
+  assert.ok(m.documents[0].pages[1].start_page>m.documents[0].pages[0].start_page);
+}));
+
+
+test('retains complete articles across physical PDF pages',()=>using(f=>{
+  changeArticle(f,Array.from({length:100},(_,i)=>`<p>Paragraph ${i+1}: Complete preparation and operational instructions must survive pagination with accurate source destinations.</p>`).join(''));
+  const m=f.run();assert.ok(m.documents[0].page_count>3);
+  assert.equal(m.documents[0].pages[0].start_page,2);
+}));
+
+
+test('prints warning callouts with compact decorative icons',()=>using(f=>{
+  changeArticle(f,'<div class="theme-admonition"><div class="admonitionHeading_test"><span class="admonitionIcon_test"><svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"></path></svg></span>Warning</div><p>Read this preparation warning before proceeding.</p></div>');
+  const m=f.run();assert.equal(m.documents[0].page_count,2);
 }));

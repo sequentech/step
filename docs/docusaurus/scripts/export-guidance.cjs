@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const os = require('node:os');
 const {execFileSync} = require('node:child_process');
 const cheerio = require('cheerio');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -81,10 +82,13 @@ function exportGuidance({site, selection, out}) {
   }
   const links = [];
   const wrap = (title, content) => '<!doctype html><html lang="en"><meta charset="utf-8"><title>'+escape(title)+'</title><style>'+ 
-    'body{font:11pt/1.5 sans-serif;max-width:1100px;margin:2em auto;padding:1em;color:#111;background:white}'+
-    'img{max-width:100%;height:auto}table{border-collapse:collapse}th,td{border:1px solid #aaa;padding:.4em}'+
-    'pre{white-space:pre-wrap;overflow-wrap:anywhere}h1,h2,h3{break-after:avoid}a{color:#153b67}'+
-    '.hash-link{display:none}aside{border-left:4px solid #777;padding-left:1em}@page{margin:15mm}'+
+    'body{font:10pt/1.4 DejaVu Sans,sans-serif;color:#111;background:white}section{break-before:page}'+
+    'img{max-width:100%;max-height:220mm;height:auto}table{border-collapse:collapse;width:100%;table-layout:fixed}tr{break-inside:avoid}th,td{overflow-wrap:anywhere;border:1px solid #aaa;padding:.4em}'+
+    'pre,code{white-space:pre-wrap;overflow-wrap:anywhere;font-family:DejaVu Sans Mono,monospace}pre,pre *,code,code *{color:#111!important;background:transparent!important}'+
+    'pre{border:1px solid #bbb;padding:.5em}h1,h2,h3{break-after:avoid}a{color:#153b67}'+
+    '.theme-admonition{border-left:3px solid #777;padding:.6em 1em;margin:1em 0}.guidance-admonition-heading{font-weight:bold;break-after:avoid}'+
+    '.guidance-admonition-icon{display:inline-block;margin-right:.4em}.guidance-admonition-icon svg{width:1.1em;height:1.1em}'+
+    '.hash-link{display:none}aside{border-left:4px solid #777;padding-left:1em}@page{size:A4;margin:18mm;@bottom-center{content:counter(page)}}'+
     '</style><body>'+content+'</body></html>';
   for (const item of prepared) {
     const {doc, page, filename} = item;
@@ -105,6 +109,14 @@ function exportGuidance({site, selection, out}) {
           throw Error('Unsupported resource in '+page.source);
         if (name === 'href' && element.tagName !== 'a' && !value.startsWith('#')) throw Error('Unsupported SVG resource in '+page.source);
       }
+    });
+    // Docusaurus supplies decorative icons independently of the selected Markdown.
+    article.find('svg[class*="iconExternalLink"]').remove();
+    article.find('.theme-admonition [class*="admonitionIcon"]').addClass('guidance-admonition-icon');
+    article.find('.theme-admonition [class*="admonitionHeading"]').addClass('guidance-admonition-heading');
+    article.find('svg').each((_, svg) => {
+      if (!$(svg).parent().hasClass('guidance-admonition-icon') || $(svg).find('*').toArray().some(el => el.tagName !== 'path'))
+        throw Error(page.source+': SVG content needs an explicit offline rendering adapter');
     });
     article.find('img').each((_, image) => {
       const url = new URL($(image).attr('src'), 'https://guidance.invalid'+page.permalink);
@@ -129,7 +141,7 @@ function exportGuidance({site, selection, out}) {
       const url = new URL(href,'https://guidance.invalid'+page.permalink);
       if (url.origin !== 'https://guidance.invalid') {
         if (!['https:','http:','mailto:'].includes(url.protocol)) throw Error('Unsupported link protocol: '+href);
-        links.push({page:filename,href}); return;
+        $(anchor).attr('href',url.href); links.push({page:filename,href:url.href}); return;
       }
       const targets = routeTargets.get(url.pathname.replace(/\/$/,''));
       const target = targets?.find(t => t.doc.id === doc.id) || targets?.[0];
@@ -152,14 +164,53 @@ function exportGuidance({site, selection, out}) {
   const index = docs.map(d => `<li><a href="${d.id}/index.html">${escape(d.id)}: ${escape(d.title)} — ${escape(d.version)}</a></li>`).join('');
   output.set('index.html',Buffer.from(wrap('Consumer guidance',`<h1>Consumer guidance</h1><p>${escape(selection.toe_reference)}; release ${escape(selection.tag)}.</p><ul>${index}</ul>`)));
   for (const [name,bytes] of images) output.set(name,bytes);
-  const manifest = {schema:1,tag:selection.tag,commit:selection.commit,toe_reference:selection.toe_reference,
-    documents:docs.map(doc => ({...doc,pages:prepared.filter(p => p.doc.id === doc.id).map(p => ({source:p.page.source,source_sha256:p.source_sha256,html:p.filename,title:p.page.title}))})),
-    external_references:links, files:Object.fromEntries([...output].sort().map(([name,bytes]) => [name,sha(bytes)]))};
-  // Validate everything before creating any output. The caller's run retains failed-build logs.
-  fs.mkdirSync(out,{recursive:true});
-  for (const [name,bytes] of output) {fs.mkdirSync(path.dirname(path.join(out,name)),{recursive:true});fs.writeFileSync(path.join(out,name),bytes);}
-  fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
-  return manifest;
+  // HTML is private renderer input only. Deliver four searchable handbooks and a PDF index.
+  const pdfName = name => name === 'index.html' ? 'index.pdf' : name.split('/')[0]+'.pdf';
+  const anchorName = name => 'source-'+path.posix.basename(name,'.html');
+  const convert = (name, bytes) => {
+    const $ = cheerio.load(bytes);
+    $('.hash-link').remove();
+    const ids = new Set();
+    $('[id]').each((_, el) => {
+      const id = $(el).attr('id');
+      if (ids.has(id)) throw Error('Duplicate guidance heading/anchor in '+name+': '+id);
+      ids.add(id); $(el).attr('id',anchorName(name)+'-'+id);
+    });
+    $('a[href]').each((_, el) => {
+      const href = $(el).attr('href');
+      if (/^(https?:|mailto:)/.test(href)) return;
+      const [relative, fragment] = href.split('#');
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(name),relative || path.posix.basename(name)));
+      const destination = anchorName(target)+(fragment ? '-'+decodeURIComponent(fragment) : '');
+      $(el).attr('href',pdfName(target) === pdfName(name) ? '#'+destination : 'https://guidance.invalid/'+pdfName(target)+'#'+encodeURIComponent(destination));
+    });
+    $('img').each((_, el) => $(el).attr('src',path.posix.normalize(path.posix.join(path.posix.dirname(name),$(el).attr('src')))));
+    const blocks = $('h1,h2,h3,h4,h5,h6,p,li,td,th,pre,dt,dd,figcaption').toArray()
+      .filter(el => !$(el).find('h1,h2,h3,h4,h5,h6,p,li,td,th,pre,dt,dd,figcaption').length)
+      .map(el => $(el).text()).filter(text => text.trim());
+    return {html:`<section id="${anchorName(name)}">${$('body').html()}</section>`, text:$('body').text(),blocks};
+  };
+  const renderDocs = docs.map(doc => {
+    const names = [doc.id+'/index.html', ...prepared.filter(p => p.doc.id === doc.id).map(p => p.filename)];
+    const sections = names.map(name => convert(name,output.get(name)));
+    return {filename:doc.id+'.pdf',title:doc.id+': '+doc.title,
+      html:wrap(doc.title,sections.map(s => s.html).join('')),texts:sections.map(s => s.text),blocks:sections.flatMap(s => s.blocks)};
+  });
+  const indexSection = convert('index.html',output.get('index.html'));
+  renderDocs.push({filename:'index.pdf',title:'Consumer guidance',html:wrap('Consumer guidance',indexSection.html),texts:[indexSection.text],blocks:indexSection.blocks});
+  const manifest = {schema:2,format:'pdf',tag:selection.tag,commit:selection.commit,toe_reference:selection.toe_reference,
+    documents:docs.map(doc => ({...doc,pdf:doc.id+'.pdf',pages:prepared.filter(p => p.doc.id === doc.id).map(p => ({source:p.page.source,source_sha256:p.source_sha256,pdf:doc.id+'.pdf',anchor:anchorName(p.filename),title:p.page.title}))})),
+    external_references:links.map(link => ({...link,page:pdfName(link.page)}))};
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(),'guidance-pdf-'));
+  try {
+    for (const [name,bytes] of images) {fs.mkdirSync(path.dirname(path.join(temp,name)),{recursive:true});fs.writeFileSync(path.join(temp,name),bytes);}
+    fs.writeFileSync(path.join(temp,'input.json'),JSON.stringify({manifest,documents:renderDocs}));
+    execFileSync('python3',[path.join(__dirname,'render-guidance.py'),temp],{stdio:['ignore','pipe','pipe']});
+    const rendered = path.join(temp,'result');
+    const result = JSON.parse(fs.readFileSync(path.join(rendered,'manifest.json')));
+    fs.cpSync(rendered,out,{recursive:true,errorOnExist:true,force:false});
+    return result;
+  } finally {fs.rmSync(temp,{recursive:true,force:true});}
 }
 if (require.main === module) {
   const opts = {};
