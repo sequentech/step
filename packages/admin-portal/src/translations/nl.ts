@@ -802,6 +802,10 @@ const dutchTranslation: TranslationType = {
                 statusLabel: "Status",
                 waitingKeys: "Wachten op sleutelgeneratie...",
                 started: "Gestart op",
+                actions: {
+                    participate: "Deelnemen aan sleutelceremonie",
+                    view: "Sleutelceremonie bekijken",
+                },
                 breadCrumbs: {
                     configure: "Configureren",
                     ceremony: "Ceremonie",

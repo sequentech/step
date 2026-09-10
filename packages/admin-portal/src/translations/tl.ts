@@ -801,6 +801,10 @@ const tagalogTranslation: TranslationType = {
                 statusLabel: "Katayuan",
                 waitingKeys: "Naghihintay sa Paglikha ng mga Susi..",
                 started: "Nagsimula noong",
+                actions: {
+                    participate: "Lumahok sa seremonya ng mga susi",
+                    view: "Tingnan ang seremonya ng mga susi",
+                },
                 breadCrumbs: {
                     configure: "I-configure",
                     ceremony: "Seremonya",

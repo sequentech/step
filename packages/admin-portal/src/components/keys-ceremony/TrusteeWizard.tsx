@@ -37,10 +37,15 @@ const hasTrusteeCheckedKeys = (
     authContext: AuthContextValues
 ) => {
     const status: IExecutionStatus = ceremony.status
-    return status.trustees.find(
+    return status.trustees.some(
         (trustee) => trustee.name === authContext.trustee && trustee.status === TStatus.KEY_CHECKED
     )
 }
+
+export const isTrusteeActionable = (
+    ceremony: Sequent_Backend_Keys_Ceremony,
+    authContext: AuthContextValues
+) => isTrusteeParticipating(ceremony, authContext) && !hasTrusteeCheckedKeys(ceremony, authContext)
 
 interface TrusteeWizardProps {
     electionEvent?: Sequent_Backend_Election_Event
