@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler} from "react"
+import React, {
+    PropsWithChildren,
+    useEffect,
+    useState,
+    DragEventHandler,
+    ChangeEventHandler,
+} from "react"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
 import {useForwardedRef} from "@sequentech/ui-core"
@@ -61,6 +67,22 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         const innerRef = useForwardedRef(inputRef)
         const [dragActive, setDragActive] = useState(false)
         const [fileName, setFileName] = useState<string>("")
+
+        useEffect(() => {
+            const preventFileNavigation = (event: DragEvent) => {
+                if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+                    event.preventDefault()
+                }
+            }
+
+            document.addEventListener("dragover", preventFileNavigation)
+            document.addEventListener("drop", preventFileNavigation)
+
+            return () => {
+                document.removeEventListener("dragover", preventFileNavigation)
+                document.removeEventListener("drop", preventFileNavigation)
+            }
+        }, [])
 
         // handle drag events
         const handleDrag: DragEventHandler<HTMLElement> = (e) => {
