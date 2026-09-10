@@ -2,7 +2,44 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {orderItemsByIds} from "./utils"
+import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
+import {canTrusteeRestorePrivateKey, orderItemsByIds} from "./utils"
+
+describe("canTrusteeRestorePrivateKey", () => {
+    it.each([ITallyExecutionStatus.STARTED, ITallyExecutionStatus.CONNECTED])(
+        "allows a waiting trustee while the tally accepts keys (%s)",
+        (executionStatus) => {
+            expect(canTrusteeRestorePrivateKey(ITallyTrusteeStatus.WAITING, executionStatus)).toBe(
+                true
+            )
+        }
+    )
+
+    it.each([
+        ITallyExecutionStatus.NOT_STARTED,
+        ITallyExecutionStatus.IN_PROGRESS,
+        ITallyExecutionStatus.AWAITING_INPUT,
+        ITallyExecutionStatus.SUCCESS,
+        ITallyExecutionStatus.CANCELLED,
+    ])("does not allow key restoration while the tally is %s", (executionStatus) => {
+        expect(canTrusteeRestorePrivateKey(ITallyTrusteeStatus.WAITING, executionStatus)).toBe(
+            false
+        )
+    })
+
+    it("does not allow a trustee whose key is already restored", () => {
+        expect(
+            canTrusteeRestorePrivateKey(
+                ITallyTrusteeStatus.KEY_RESTORED,
+                ITallyExecutionStatus.STARTED
+            )
+        ).toBe(false)
+    })
+
+    it("does not allow a user who is absent from the tally ceremony", () => {
+        expect(canTrusteeRestorePrivateKey(null, ITallyExecutionStatus.STARTED)).toBe(false)
+    })
+})
 
 describe("orderItemsByIds", () => {
     const items = [
