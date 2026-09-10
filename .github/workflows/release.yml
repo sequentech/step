@@ -62,7 +62,7 @@ jobs:
         fi
 
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0 # Fetches all history for all tags and branches
 
@@ -72,7 +72,7 @@ jobs:
         git config --local user.name "GitHub Action"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: '24'
 
@@ -128,7 +128,7 @@ jobs:
     - name: Checkout new release branch
       # If the output of the previous job is not empty, then checkout the new branch
       if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH != ''
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0 # Fetches all history for all tags and branches
         ref: ${{ needs.create-release-branch.outputs.NEW_RELEASE_BRANCH }}
@@ -136,7 +136,7 @@ jobs:
     - name: Checkout selected branch
       # If the output of the previous job is empty, then checkout as usual
       if: needs.create-release-branch.outputs.NEW_RELEASE_BRANCH == ''
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0 # Fetches all history for all tags and branches
 
@@ -150,7 +150,7 @@ jobs:
         git config --local user.name "GitHub Action"
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: '24'
 
@@ -307,7 +307,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Fetches all history for all tags and branches
 
@@ -325,7 +325,7 @@ jobs:
     if: always()
     steps:
       - name: Slack Workflow Notification
-        uses: Gamesight/slack-workflow-status@v1.2.0
+        uses: Gamesight/slack-workflow-status@v2.0.0
         with:
           # Required Input
           repo_token: ${{secrets.GITHUB_TOKEN}}
@@ -336,7 +336,7 @@ jobs:
       - name: Slack additional info
         # Don't send slack notification if cleanup job deleted the release
         if: ${{ needs.cleanup.result != 'success' }}
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v4.0.0
         with:
           payload: |
             {
