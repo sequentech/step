@@ -102,12 +102,17 @@ async fn claim(pool: &Pool, tenant: &str, event: &str, publication: &str) -> Res
     Ok(lease)
 }
 
-async fn freeze(pool: &Pool, tenant: &str, event: &str, publication: &str) -> Result<()> {
+async fn generation_data(
+    pool: &Pool,
+    tenant: &str,
+    event: &str,
+    publication: &str,
+) -> Result<PublicationData> {
     let mut db = pool.get().await?;
     let tx = db.transaction().await?;
-    save_snapshot(&tx, tenant, event, publication).await?;
+    let data = publication_data(&tx, tenant, event, publication).await?;
     tx.commit().await?;
-    Ok(())
+    Ok(data)
 }
 
 async fn files(
@@ -158,7 +163,7 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
             CREATE TABLE sequent_backend.ballot_style(id uuid PRIMARY KEY, tenant_id uuid, election_event_id uuid, election_id uuid, area_id uuid, created_at timestamptz, last_updated_at timestamptz, annotations jsonb, labels jsonb, ballot_eml text, ballot_signature bytea, status text, deleted_at timestamptz, ballot_publication_id uuid);
             CREATE TABLE sequent_backend.lock(key text PRIMARY KEY,value text,expiry_date timestamptz);
             CREATE TABLE sequent_backend.document(id uuid PRIMARY KEY,tenant_id uuid,election_event_id uuid,name text,media_type text,size bigint,is_public bool,annotations jsonb,labels jsonb,created_at timestamptz,last_updated_at timestamptz);").await?;
-        db.batch_execute(include_str!("../../../../../../hasura/migrations/backend-db/1788909000000_ballot_publication_snapshot/up.sql")).await?;
+        db.batch_execute(include_str!("../../../../../../hasura/migrations/backend-db/1788909000000_ballot_publication_style_index/up.sql")).await?;
     }
     let tenant = Uuid::new_v4();
     let event = Uuid::new_v4();
@@ -195,31 +200,39 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
                     &[&Uuid::new_v4(),&tenant,&event,&election,&Uuid::new_v4(),&publication,&eml]).await?;
             }
         }
-        freeze(&pool, &t, &ev, &p).await?;
-        let first_lease = claim(&pool, &t, &ev, &p).await?;
-        let failed_root = format!("tenant-{tenant}/event-{event}/publication-{publication}/{}",first_lease.value);
+        let failed_publication = Uuid::new_v4();
+        let failed_id = failed_publication.to_string();
+        pool.get().await?.execute("INSERT INTO sequent_backend.ballot_publication(id,tenant_id,election_event_id,election_ids) VALUES ($1,$2,$3,$4)", &[&failed_publication,&tenant,&event,&vec![election]]).await?;
+        pool.get().await?.execute("INSERT INTO sequent_backend.ballot_style(id,tenant_id,election_event_id,election_id,area_id,ballot_publication_id,ballot_eml) VALUES ($1,$2,$3,$4,$5,$6,$7)", &[&Uuid::new_v4(),&tenant,&event,&election,&area,&failed_publication,&eml]).await?;
+        let first_data = generation_data(&pool, &t, &ev, &failed_id).await?;
+        let first_lease = claim(&pool, &t, &ev, &failed_id).await?;
+        let failed_root = format!("tenant-{tenant}/event-{event}/publication-{failed_publication}/{}",first_lease.value);
         // Fail after the other objects upload; neither a reference nor readiness may commit.
         client.put_object().bucket(&bucket).key(format!("{failed_root}/event.json"))
             .body(ByteStream::from_static(b"{}")).send().await?;
-        assert!(prepare_publication_files(&pool,&t,&ev,&p,&first_lease).await.is_err());
+        let upload_result = prepare_publication_files(&pool,&t,&ev,&failed_id,&first_lease,first_data).await;
+        assert!(upload_result.is_err());
+        let task_id = Uuid::new_v4();
+        let task: sequent_core::types::hasura::core::TasksExecution = serde_json::from_value(json!({
+            "id": task_id, "tenant_id": tenant, "election_event_id": event,
+            "name": "generate", "task_type": "generate", "execution_status": "IN_PROGRESS",
+            "created_at": chrono::Utc::now(), "executed_by_user": "test"
+        }))?;
+        pool.get().await?.batch_execute("CREATE TABLE sequent_backend.tasks_execution(id uuid, tenant_id uuid, execution_status text, logs jsonb, end_at timestamptz, annotations jsonb)").await?;
+        pool.get().await?.execute("INSERT INTO sequent_backend.tasks_execution(id,tenant_id,execution_status) VALUES ($1,$2,'IN_PROGRESS')", &[&task_id,&tenant]).await?;
+        assert!(crate::tasks::update_election_event_ballot_styles::record_generation_result(&task,upload_result).await.is_err());
+        let task_row = pool.get().await?.query_one("SELECT execution_status,logs,end_at IS NOT NULL FROM sequent_backend.tasks_execution WHERE id=$1", &[&task_id]).await?;
+        assert_eq!(task_row.get::<_,String>(0), "FAILED");
+        assert!(task_row.get::<_,Value>(1).to_string().contains("Ballot publication object verification failed"));
+        assert!(task_row.get::<_,bool>(2));
         {
             let db = pool.get().await?;
-            let row = db.query_one("SELECT is_generated,annotations FROM sequent_backend.ballot_publication WHERE id=$1", &[&publication]).await?;
+            let row = db.query_one("SELECT is_generated,annotations FROM sequent_backend.ballot_publication WHERE id=$1", &[&failed_publication]).await?;
             assert_eq!(row.get::<_,Option<bool>>(0), Some(false));
             assert!(row.get::<_,Option<Value>>(1).is_none());
             db.execute("UPDATE sequent_backend.lock SET expiry_date=clock_timestamp()-interval '1 second' WHERE key=$1", &[&first_lease.key]).await?;
-            // Recovery must use the frozen metadata, even after administrative edits.
+            // A fresh generation uses current metadata after administrative edits.
             db.execute("UPDATE sequent_backend.election_event SET description='after', presentation=$1", &[&json!({"logo_url":"current-logo"})]).await?;
-        }
-        {
-            let mut db = pool.get().await?;
-            let tx = db.transaction().await?;
-            let (preview_event, preview_elections) = preview_snapshot(&tx, &t, &ev, &p).await?.unwrap();
-            assert_eq!(preview_event["description"], "before");
-            assert_eq!(preview_elections.len(), 2);
-            assert!(preview_snapshot(&tx, &Uuid::new_v4().to_string(), &ev, &p).await?.is_none());
-            assert!(preview_snapshot(&tx, &t, &Uuid::new_v4().to_string(), &p).await?.is_none());
-            tx.rollback().await?;
         }
         let lease = claim(&pool, &t, &ev, &p).await?;
         {
@@ -228,10 +241,10 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
             assert!(lock_generation(&tx, &first_lease).await.is_err());
             tx.rollback().await?;
         }
-        tokio::time::timeout(Duration::from_secs(30), prepare_publication_files(&pool,&t,&ev,&p,&lease)).await??;
+        tokio::time::timeout(Duration::from_secs(30), prepare_publication_files(&pool,&t,&ev,&p,&lease,generation_data(&pool,&t,&ev,&p).await?)).await??;
         let root = format!("tenant-{tenant}/event-{event}/publication-{publication}/{}",lease.value);
         let event_object = object(&client,&bucket,&format!("{root}/event.json")).await?;
-        assert_eq!(event_object["description"], "before");
+        assert_eq!(event_object["description"], "after");
         let style_object = object(&client, &bucket, &format!("{root}/style-{style}.json")).await?;
         for (id, original) in [(style, eml), (other_style, other_eml)] {
             let wire = object(&client,&bucket,&format!("{root}/style-{id}.json")).await?;
@@ -261,8 +274,6 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
         assert_eq!(archive.len(),1);
         assert!(archive[0].file_name().unwrap().to_str().unwrap().contains(&format!("document_{document}_export.json")));
         assert_eq!(serde_json::from_slice::<Value>(&std::fs::read(&archive[0])?)?,json!({"document":true}));
-        // Repeating completed work does not write a new root or require a new lease.
-        prepare_publication_files(&pool,&t,&ev,&p,&lease).await?;
         assert_eq!(files(&pool,&t,&ev,&a,&ids).await?["files"], json!([]));
         pool.get().await?.execute("UPDATE sequent_backend.ballot_publication SET published_at=now() WHERE id=$1", &[&publication]).await?;
         let response = files(&pool,&t,&ev,&a,&ids).await?;
@@ -284,9 +295,9 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
             db.execute("INSERT INTO sequent_backend.ballot_style(id,tenant_id,election_event_id,election_id,area_id,ballot_publication_id,ballot_eml) VALUES ($1,$2,$3,$4,$5,$6,$7)", &[&replacement,&tenant,&event,&election,&area,&partial,&eml]).await?;
         }
         let partial_id = partial.to_string();
-        freeze(&pool,&t,&ev,&partial_id).await?;
+        let partial_data = generation_data(&pool,&t,&ev,&partial_id).await?;
         let partial_lease = claim(&pool,&t,&ev,&partial_id).await?;
-        prepare_publication_files(&pool,&t,&ev,&partial_id,&partial_lease).await?;
+        prepare_publication_files(&pool,&t,&ev,&partial_id,&partial_lease,partial_data).await?;
         assert_eq!(files(&pool,&t,&ev,&a,&ids).await?["files"][0]["id"],json!(style));
         {
             let mut db = pool.get().await?;
@@ -306,7 +317,7 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
         assert_eq!(changed["files"][0]["num_allowed_revotes"],7);
         pool.get().await?.execute("UPDATE sequent_backend.ballot_publication SET deleted_at=now() WHERE id=$1", &[&partial]).await?;
         assert_eq!(files(&pool,&t,&ev,&a,&ids).await?["files"],json!([]));
-        assert!(prepare_publication_files(&pool,&t,&ev,&partial_id,&partial_lease).await.is_err());
+        assert!(generation_data(&pool,&t,&ev,&partial_id).await.is_err());
         Ok(())
     }.await;
     let cleanup = sequent_core::services::s3::delete_files_from_s3(

@@ -97,20 +97,19 @@ def run_generation_regressions(database):
             id uuid, tenant_id uuid, election_event_id uuid, ballot_publication_id uuid
         );
     """)
-    migration = ROOT / "hasura/migrations/backend-db/1788909000000_ballot_publication_snapshot"
+    migration = ROOT / "hasura/migrations/backend-db/1788909000000_ballot_publication_style_index"
     database.apply(migration)
     assert db.execute(
         "SELECT indisvalid FROM pg_index WHERE indexrelid='sequent_backend.ballot_style_publication_page_idx'::regclass"
     ).fetchone() == (True,)
-    publication, generation = uuid4(), uuid4()
+    publication = uuid4()
     first, second = str(uuid4()), str(uuid4())
     key = "publication-regression"
     scope = (TENANT, EVENT, publication)
     root = f"tenant-{TENANT}/event-{EVENT}/publication-{publication}/{second}"
     db.execute("INSERT INTO sequent_backend.ballot_publication (tenant_id,election_event_id,id) VALUES (%s,%s,%s)", scope)
-    db.execute("INSERT INTO sequent_backend.ballot_publication_snapshot VALUES (%s,%s,%s,%s,'{}')", (*scope, generation))
     db.execute("INSERT INTO sequent_backend.lock VALUES (%s,%s,clock_timestamp()+interval '5 minutes')", (key, first))
-    complete_args = (*scope, generation, root, "ballot_files_v1")
+    complete_args = (*scope, root, "ballot_files_v1")
 
     with psycopg.connect(database.dsn) as owner, psycopg.connect(database.dsn) as contender:
         assert production_query(owner, "lock_publication_generation.sql", (key, first)).fetchone()
@@ -133,7 +132,6 @@ def run_generation_regressions(database):
     for change in (
         "UPDATE sequent_backend.ballot_publication SET deleted_at=now()",
         "UPDATE sequent_backend.ballot_publication SET published_at=now()",
-        "UPDATE sequent_backend.ballot_publication_snapshot SET generation_id=gen_random_uuid()",
     ):
         with db.transaction(force_rollback=True):
             db.execute(change)
@@ -149,7 +147,6 @@ def run_generation_regressions(database):
     assert db.execute("SELECT is_generated,annotations->>'ballot_files_v1' FROM sequent_backend.ballot_publication").fetchone() == (True, root)
     assert production_query(db, "complete_ballot_publication_files.sql", complete_args).fetchone() is None
     db.execute("DELETE FROM sequent_backend.ballot_publication")
-    assert db.execute("SELECT count(*) FROM sequent_backend.ballot_publication_snapshot").fetchone() == (0,)
     database.apply(migration, "down")
     database.apply(migration)
     print("Generation fencing: takeover, expiry, rollback, readiness, deletion and migration rollback passed")

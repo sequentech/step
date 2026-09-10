@@ -242,13 +242,16 @@ pub async fn update_election_event_ballot_styles(
     .await?;
 
     let result = async {
-        generate_election_event_ballot_styles(
+        let Some(data) = generate_election_event_ballot_styles(
             tenant_id,
             election_event_id,
             ballot_publication_id,
             &lock,
         )
-        .await?;
+        .await?
+        else {
+            return Ok(());
+        };
         let pool = get_hasura_pool().await;
         publication_files::prepare_publication_files(
             &pool,
@@ -256,6 +259,7 @@ pub async fn update_election_event_ballot_styles(
             election_event_id,
             ballot_publication_id,
             &lock,
+            data,
         )
         .await
     }
@@ -281,7 +285,7 @@ async fn generate_election_event_ballot_styles(
     election_event_id: &str,
     ballot_publication_id: &str,
     lease: &PgLock,
-) -> AnyhowResult<()> {
+) -> AnyhowResult<Option<publication_files::PublicationData>> {
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -307,16 +311,15 @@ async fn generate_election_event_ballot_styles(
     else {
         return Err(anyhow!("can't find ballot publication"));
     };
-    if !publication_needs_generation(&ballot_publication)?
-        || publication_files::has_snapshot(
-            &transaction,
-            tenant_id,
-            election_event_id,
-            ballot_publication_id,
-        )
-        .await?
-    {
-        return Ok(());
+    if !publication_needs_generation(&ballot_publication)? {
+        publication_files::require_publication_files(&ballot_publication)?;
+        return Ok(None);
+    }
+    if transaction.query_opt(
+        "SELECT 1 FROM sequent_backend.ballot_style WHERE tenant_id=$1 AND election_event_id=$2 AND ballot_publication_id=$3 LIMIT 1",
+        &[&Uuid::parse_str(tenant_id)?, &Uuid::parse_str(election_event_id)?, &Uuid::parse_str(ballot_publication_id)?],
+    ).await?.is_some() {
+        return Err(anyhow!("Previous ballot generation did not complete; generate a new publication"));
     }
     let (
         election_event,
@@ -383,7 +386,7 @@ async fn generate_election_event_ballot_styles(
         )
         .await?;
     }
-    publication_files::save_snapshot(
+    let data = publication_files::publication_data(
         &transaction,
         tenant_id,
         election_event_id,
@@ -396,7 +399,7 @@ async fn generate_election_event_ballot_styles(
         .commit()
         .await
         .with_context(|| "Commit failed")?;
-    Ok(())
+    Ok(Some(data))
 }
 
 /// Completed publications are immutable; repeated task delivery is a no-op.

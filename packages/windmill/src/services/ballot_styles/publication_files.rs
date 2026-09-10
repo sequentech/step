@@ -10,7 +10,7 @@ use sequent_core::services::s3::{
     get_shared_s3_client, S3Endpoint,
 };
 use sequent_core::types::hasura::core::BallotPublication;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
@@ -27,8 +27,7 @@ pub const GENERATION_LEASE_SECONDS: i64 = 300;
 const STYLE_PAGE_SIZE: i64 = 8;
 const UPLOAD_CONCURRENCY: usize = 4;
 
-#[derive(Serialize, Deserialize)]
-struct SnapshotData {
+pub struct PublicationData {
     event: Value,
     elections: Vec<Value>,
     style_count: i64,
@@ -96,43 +95,13 @@ async fn heartbeat(pool: &Pool, lease: &PgLock) -> Result<()> {
     Ok(())
 }
 
-pub async fn has_snapshot(
+/// Read metadata in the transaction that generates the ballot styles.
+pub async fn publication_data(
     tx: &Transaction<'_>,
     tenant: &str,
     event: &str,
     publication: &str,
-) -> Result<bool> {
-    Ok(tx.query_opt(
-        "SELECT 1 FROM sequent_backend.ballot_publication_snapshot WHERE tenant_id=$1 AND election_event_id=$2 AND ballot_publication_id=$3",
-        &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event)?, &Uuid::parse_str(publication)?],
-    ).await?.is_some())
-}
-
-/// Load frozen publication metadata for the admin preview; legacy publications have none.
-pub async fn preview_snapshot(
-    tx: &Transaction<'_>,
-    tenant: &str,
-    event: &str,
-    publication: &str,
-) -> Result<Option<(Value, Vec<Value>)>> {
-    let row = tx.query_opt(
-        "SELECT snapshot FROM sequent_backend.ballot_publication_snapshot WHERE tenant_id=$1 AND election_event_id=$2 AND ballot_publication_id=$3",
-        &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event)?, &Uuid::parse_str(publication)?],
-    ).await?;
-    row.map(|row| {
-        let snapshot: SnapshotData = serde_json::from_value(row.get(0))?;
-        Ok((snapshot.event, snapshot.elections))
-    })
-    .transpose()
-}
-
-/// Freeze metadata in the same database snapshot that produced the ballot styles.
-pub async fn save_snapshot(
-    tx: &Transaction<'_>,
-    tenant: &str,
-    event: &str,
-    publication: &str,
-) -> Result<()> {
+) -> Result<PublicationData> {
     let tenant = Uuid::parse_str(tenant)?;
     let event = Uuid::parse_str(event)?;
     let publication = Uuid::parse_str(publication)?;
@@ -170,16 +139,11 @@ pub async fn save_snapshot(
         "SELECT count(*) FROM sequent_backend.ballot_style WHERE tenant_id=$1 AND election_event_id=$2 AND ballot_publication_id=$3",
         &[&tenant, &event, &publication],
     ).await?.get(0);
-    let data = serde_json::to_value(SnapshotData {
+    Ok(PublicationData {
         event: event_data,
         elections,
         style_count,
-    })?;
-    tx.execute(
-        "INSERT INTO sequent_backend.ballot_publication_snapshot (tenant_id,election_event_id,ballot_publication_id,generation_id,snapshot) VALUES ($1,$2,$3,$4,$5)",
-        &[&tenant, &event, &publication, &Uuid::new_v4(), &data],
-    ).await?;
-    Ok(())
+    })
 }
 
 /// Split only the shared JSON value, preserving the exact original EML bytes.
@@ -287,61 +251,25 @@ async fn upload_batch(client: &Client, bucket: &str, objects: Vec<(String, Value
     Ok(())
 }
 
-/// Upload frozen metadata and paged styles without retaining a database connection.
+/// Upload generation metadata and paged styles without retaining a database connection.
 pub async fn prepare_publication_files(
     pool: &Pool,
     tenant: &str,
     event: &str,
     publication: &str,
     lease: &PgLock,
+    mut data: PublicationData,
 ) -> Result<()> {
     let tenant_id = Uuid::parse_str(tenant)?;
     let event_id = Uuid::parse_str(event)?;
     let publication_id = Uuid::parse_str(publication)?;
-    let (generation_id, mut snapshot) = {
-        let db = pool.get().await?;
-        let row = db
-            .query_opt(
-                r#"
-            SELECT p.annotations, p.is_generated, s.generation_id, s.snapshot
-            FROM sequent_backend.ballot_publication p
-            LEFT JOIN sequent_backend.ballot_publication_snapshot s
-              ON s.tenant_id=p.tenant_id AND s.election_event_id=p.election_event_id
-              AND s.ballot_publication_id=p.id
-            WHERE p.tenant_id=$1 AND p.election_event_id=$2 AND p.id=$3 AND p.deleted_at IS NULL
-        "#,
-                &[&tenant_id, &event_id, &publication_id],
-            )
-            .await?
-            .context("Publication was removed during generation")?;
-        let annotations: Option<Value> = row.try_get("annotations")?;
-        if row
-            .try_get::<_, Option<bool>>("is_generated")?
-            .unwrap_or(false)
-        {
-            let root = annotations
-                .as_ref()
-                .and_then(|v| v.get(FILES_ANNOTATION))
-                .and_then(Value::as_str)
-                .context("Generated publication has no prepared S3 files")?;
-            return validate_publication_root(root, tenant_id, event_id, publication_id);
-        }
-        let generation: Option<Uuid> = row.try_get("generation_id")?;
-        let data: Option<Value> = row.try_get("snapshot")?;
-        (
-            generation.context("Missing ballot generation snapshot")?,
-            serde_json::from_value::<SnapshotData>(
-                data.context("Missing ballot generation snapshot")?,
-            )?,
-        )
-    };
     let attempt = Uuid::parse_str(&lease.value)?;
     let root =
         format!("tenant-{tenant_id}/event-{event_id}/publication-{publication_id}/{attempt}");
     let bucket = get_private_bucket()?;
     let client = get_shared_s3_client(S3Endpoint::Server).await?;
     heartbeat(pool, lease).await?;
-    for elections in snapshot.elections.chunks(STYLE_PAGE_SIZE as usize) {
+    for elections in data.elections.chunks(STYLE_PAGE_SIZE as usize) {
         heartbeat(pool, lease).await?;
         let mut objects = Vec::new();
         for data in elections {
@@ -388,18 +316,12 @@ pub async fn prepare_publication_files(
         }
         upload_batch(&client, &bucket, objects).await?;
     }
-    if styles_read != snapshot.style_count {
+    if styles_read != data.style_count {
         bail!("Ballot styles changed during publication upload");
     }
-    snapshot.event["ballot_eml_presentation"] =
+    data.event["ballot_eml_presentation"] =
         Value::String(shared_presentation.map(|(raw, _)| raw).unwrap_or_default());
-    upload(
-        &client,
-        &bucket,
-        &format!("{root}/event.json"),
-        &snapshot.event,
-    )
-    .await?;
+    upload(&client, &bucket, &format!("{root}/event.json"), &data.event).await?;
     heartbeat(pool, lease).await?;
 
     let mut db = pool.get().await?;
@@ -412,7 +334,6 @@ pub async fn prepare_publication_files(
             &tenant_id,
             &event_id,
             &publication_id,
-            &generation_id,
             &root,
             &FILES_ANNOTATION,
         ],
@@ -421,7 +342,7 @@ pub async fn prepare_publication_files(
     .context("Publication was removed, completed or replaced during upload")?;
     // This one mutable login configuration is event-wide. Serialize its write
     // with event edits/deletion and read live metadata: an older draft finishing
-    // late must not overwrite it with an obsolete generation snapshot.
+    // late must not overwrite it with obsolete metadata.
     let event_presentation: Option<Value> = tx
         .query_one(
             "SELECT presentation FROM sequent_backend.election_event WHERE tenant_id=$1 AND id=$2",
@@ -431,7 +352,7 @@ pub async fn prepare_publication_files(
         .get(0);
     let public_config = match event_presentation.as_ref().filter(|value| !value.is_null()) {
         Some(presentation) => Some(serde_json::to_vec(&ElectionEventConfig {
-            id: generation_id.to_string(),
+            id: attempt.to_string(),
             tenant_id: tenant.to_owned(),
             election_event_id: event.to_owned(),
             election_event_presentation: serde_json::from_value(presentation.clone())?,
@@ -468,7 +389,7 @@ pub async fn prepare_publication_files(
             "application/json",
             bytes.len().try_into()?,
             true,
-            Some(generation_id.to_string()),
+            Some(attempt.to_string()),
         )
         .await?;
     }
@@ -491,7 +412,7 @@ struct VoterFileReference {
     channels: Option<Value>,
 }
 
-/// Read only identifiers, active references and live policy, never EML or snapshots.
+/// Read only identifiers, active references and live policy, never EML or publication metadata.
 pub async fn load_voter_files(
     tx: &Transaction<'_>,
     tenant: &str,

@@ -21,19 +21,40 @@ pub async fn update_election_event_ballot_styles(
     ballot_publication_id: String,
     task_execution: TasksExecution,
 ) -> Result<()> {
-    match ballot_style::update_election_event_ballot_styles(
+    let result = ballot_style::update_election_event_ballot_styles(
         &tenant_id,
         &election_event_id,
         &ballot_publication_id,
     )
-    .await
-    {
+    .await;
+    let result = record_generation_result(&task_execution, result).await;
+    if let Err(error) = &result {
+        if let Err(log_error) = log_ballot_publication_failure(
+            &task_execution,
+            &ballot_publication_id,
+            BallotPublicationStage::Generate,
+            &format!("{error:#}"),
+        )
+        .await
+        {
+            error!(task_id = %task_execution.id,
+                "Could not record ballot generation failure in the electoral log: {log_error:?}");
+        }
+    }
+    result
+}
+
+pub(crate) async fn record_generation_result(
+    task_execution: &TasksExecution,
+    result: anyhow::Result<()>,
+) -> Result<()> {
+    match result {
         Ok(()) => {
             // The Publish screen polls this record, so a dropped status
             // update leaves the task pending indefinitely. The generation
             // itself succeeded and is still reported as such; surface the
             // bookkeeping failure so it is alertable rather than invisible.
-            if let Err(status_error) = update_complete(&task_execution, None).await {
+            if let Err(status_error) = update_complete(task_execution, None).await {
                 error!(
                     task_id = %task_execution.id,
                     "Ballot styles were generated but the task execution could not be marked complete: {status_error:?}"
@@ -42,23 +63,10 @@ pub async fn update_election_event_ballot_styles(
             Ok(())
         }
         Err(error) => {
-            if let Err(status_error) = update_fail(&task_execution, &error.to_string()).await {
+            if let Err(status_error) = update_fail(task_execution, &format!("{error:#}")).await {
                 error!(
                     task_id = %task_execution.id,
                     "Ballot style generation failed and the task execution could not be marked failed: {status_error:?}"
-                );
-            }
-            if let Err(log_error) = log_ballot_publication_failure(
-                &task_execution,
-                &ballot_publication_id,
-                BallotPublicationStage::Generate,
-                &error.to_string(),
-            )
-            .await
-            {
-                error!(
-                    task_id = %task_execution.id,
-                    "Could not record ballot generation failure in the electoral log: {log_error:?}"
                 );
             }
             Err(Error::Anyhow(error))

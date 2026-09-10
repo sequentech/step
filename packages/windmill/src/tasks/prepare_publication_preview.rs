@@ -6,7 +6,6 @@ use crate::postgres::document::{get_document, get_support_material_documents};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
-use crate::services::ballot_styles::publication_files::preview_snapshot;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
@@ -133,19 +132,6 @@ pub async fn prepare_publication_preview_task(
     let mut elections_json =
         get_elections_json_with_open_status(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
-    if let Some((event, elections)) = preview_snapshot(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication_id,
-    )
-    .await?
-    {
-        for (key, value) in event.as_object().context("Invalid event snapshot")? {
-            election_event_json[key] = value.clone();
-        }
-        elections_json = Value::Array(elections);
-    }
     open_preview_election(&mut election_event_json);
     if let Some(elections) = elections_json.as_array_mut() {
         elections.retain(|election| {

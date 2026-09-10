@@ -12,7 +12,7 @@ The existing per-voter/election revote trigger remains necessary.
 ## Migration rollout
 
 Apply `1788765000002_validate_voting_schedules` and
-`1788909000000_ballot_publication_snapshot` before exercising the new generation
+`1788909000000_ballot_publication_style_index` before exercising the new generation
 flow. The Hasura migrations create their indexes normally within the migration
 transaction. Index creation blocks writes until the transaction commits; allow
 an appropriate maintenance window for populated tables.
@@ -31,17 +31,21 @@ voting-window table, its five helper functions, or its three triggers.
 
 Development databases that applied the earlier version must roll back that
 version using the original migration files and then apply the revised version.
-Editing or renaming files does not rerun an already recorded Hasura migration.
+The same rollback/reapply requirement applies to version `1788909000000` if
+the earlier snapshot-table migration was applied: its revised form creates only
+the publication paging index. Editing or renaming files does not rerun an
+already recorded Hasura migration.
 Previously generated publications without prepared files must be regenerated
 under a new publication ID.
 
 ## Publication lifecycle
 
-Generation commits signed styles and frozen event/election metadata together.
-The snapshot table is internal and is not exposed through Hasura metadata or
-loaded by voter requests. A retry reuses that database generation. Uploads use
-a separate UUID per task lease under
-`tenant-{tenant}/event-{event}/publication-{publication}/{attempt}`.
+Generation commits signed styles and keeps the matching event/election metadata
+in memory for the upload. No snapshot table is used. Uploads use a UUID per task
+lease under `tenant-{tenant}/event-{event}/publication-{publication}/{attempt}`.
+An S3 failure marks the task FAILED and leaves the publication unready. Generation
+has no automatic task retries; an incomplete publication with stored styles
+requires a new publication. Uploaded objects from a failed attempt are not activated.
 
 Immutable ballot uploads read eight styles per page, send at most four objects
 concurrently, and hold no database connection while awaiting S3. Conditional writes and exact
@@ -70,7 +74,7 @@ release their database connection before signing five-minute URLs. The two S3
 endpoint clients share one process-level SDK configuration and its refreshable
 credential cache.
 
-Admin Preview uses frozen publication metadata and opens both event and election
+Admin Preview uses current event/election metadata and stored ballot styles and opens both event and election
 status only in its exported payload. It commits the preview document before
 reporting task completion and reuses that document on completion retries.
 
@@ -82,7 +86,7 @@ and psycopg available. Each starts and removes its own database cluster.
 
 Run `python3 scripts/test_ballot_files.py` with disposable PostgreSQL utilities
 and a development private/public S3 service configured. It creates random test
-prefixes, verifies failure/retry, frozen metadata, partial publication, live
+prefixes, verifies upload failure/task status, generation metadata, partial publication, live
 policy, document filtering and listing pagination, then removes its own S3 data.
 It must never receive an application database DSN. The script limits Cargo to
 one job; set `CARGO_TARGET_DIR` to an existing compatible build cache. Do not run
