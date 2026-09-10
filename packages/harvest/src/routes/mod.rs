@@ -11,6 +11,7 @@ pub mod custom_urls;
 pub mod datafix_reconciliation;
 pub mod delete_certificate_authority;
 pub mod delete_election_event;
+pub mod delete_tenant;
 pub mod document_password;
 pub mod election_dates;
 pub mod election_event_stats;
@@ -64,3 +65,5 @@ pub mod users;
 pub mod voter_electoral_log;
 pub mod voter_information_letter;
 pub mod voting_status;
+
+pub mod ballot_files;
