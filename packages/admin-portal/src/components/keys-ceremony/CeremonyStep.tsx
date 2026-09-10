@@ -222,7 +222,7 @@ export const CeremonyStep: React.FC<CeremonyStepProps> = ({
                         <WizardStyles.NextButton
                             color="info"
                             onClick={goNext}
-                            disabled={isNextDisabled && !status.public_key}
+                            disabled={isNextDisabled}
                         >
                             <ArrowForwardIosIcon />
                             {t("common.label.next")}
