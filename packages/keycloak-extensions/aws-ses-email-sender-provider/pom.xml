@@ -17,16 +17,16 @@ SPDX-License-Identifier: AGPL-3.0-only
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<aws.version>2.33.9</aws.version>
-		<aws.sts.version>1.12.791</aws.sts.version>
-		<keycloak.version>26.6.1</keycloak.version>
+		<aws.version>2.54.13</aws.version>
+		<aws.sts.version>1.12.797</aws.sts.version>
+		<keycloak.version>26.7.0</keycloak.version>
 		<maven.compiler.release>17</maven.compiler.release>
 		<jakarta.validation.version>3.1.1</jakarta.validation.version>
-		<jakarta.mail.version>2.1.4</jakarta.mail.version>
-		<maven.compiler.version>3.14.0</maven.compiler.version>
-		<maven.shade.version>3.6.1</maven.shade.version>		
-		<junit.version>5.13.4</junit.version>
-        <mockito.version>5.19.0</mockito.version>
+		<jakarta.mail.version>2.1.5</jakarta.mail.version>
+		<maven.compiler.version>3.16.0</maven.compiler.version>
+		<maven.shade.version>3.6.2</maven.shade.version>		
+		<junit.version>6.1.3</junit.version>
+        <mockito.version>5.23.0</mockito.version>
 	</properties>
 
 	<dependencyManagement>
@@ -157,7 +157,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
-				<version>2.46.1</version>
+				<version>3.10.2</version>
 				<configuration>
 					<java>
 						<googleJavaFormat>
