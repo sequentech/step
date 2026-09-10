@@ -85,7 +85,7 @@ jobs:
 
     steps:
     - name: Check Out Repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Resolve beyond submodule commit
       if: matrix.service == 'keycloak'
@@ -94,7 +94,7 @@ jobs:
 
     - name: Check out beyond submodule
       if: matrix.service == 'keycloak'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: sequentech/beyond
         ref: ${{ steps.beyond.outputs.sha }}
@@ -107,17 +107,17 @@ jobs:
       run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c 1-7)" >> $GITHUB_ENV
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
 
     - name: Login to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: docker.io
         username: ${{ vars.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@v6
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -128,7 +128,7 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v2
 
     - name: Build & Push to ECR
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: ${{ matrix.context }}
         file: ${{ matrix.file }}
