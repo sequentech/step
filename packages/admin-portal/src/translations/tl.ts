@@ -2069,6 +2069,7 @@ const tagalogTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Suriin ang Iyong Encrypted Private Key Backups",
+                verifyButton: "Beripikahin ang key",
                 subtitle:
                     "I-upload ang isang Backup ng Encrypted Private Key upang suriin kung ito ay tama. Maaari mong subukan ng maraming beses hangga't kinakailangan, mula sa iyong iba't ibang backups:",
                 errorUploading: "Di-wastong Encrypted Private Key Backup, mangyaring subukan muli",

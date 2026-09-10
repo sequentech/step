@@ -2064,6 +2064,7 @@ const galegoTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verificar as túas Copias de Seguridade da Chave Privada Cifrada",
+                verifyButton: "Verificar a chave",
                 subtitle:
                     "Carga unha Copia de Seguridade da Chave Privada Cifrada para comprobar que é correcta. Podes probar tantas veces como necesites, desde as túas diferentes copias de seguridade:",
                 errorUploading:
