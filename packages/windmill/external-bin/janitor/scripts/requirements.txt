@@ -1,5 +1,5 @@
-Faker==13.3.4
-psycopg2==2.9.10
+Faker==40.38.0
+psycopg2==2.9.12
 openpyxl==3.1.5
 pyzipper==0.4.0
 python-dotenv==1.2.3
