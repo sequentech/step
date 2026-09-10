@@ -1,0 +1,448 @@
+# Persistent Volumes for Postgres/Keycloak
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: step-infra
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: step-infra
+data:
+  00-airgap.sh: |
+    #!/bin/bash
+    set -e
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+      CREATE DATABASE keycloak;
+      CREATE DATABASE hasura;
+      CREATE DATABASE b3;
+    EOSQL
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: postgres
+          image: sequentech.local/postgresql
+          imagePullPolicy: Never
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: pg-data
+              mountPath: /var/lib/postgresql
+            - name: pg-init-script
+              mountPath: /docker-entrypoint-initdb.d/00-airgap.sh
+              subPath: 00-airgap.sh
+      volumes:
+        - name: pg-data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: pg-init-script
+          configMap:
+            name: postgres-init-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs
+  namespace: step-infra
+spec:
+  selector:
+    app: rustfs
+  ports:
+    - name: api
+      port: 9000
+    - name: console
+      port: 9001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustfs
+  namespace: step-infra
+spec:
+  selector:
+    matchLabels:
+      app: rustfs
+  template:
+    metadata:
+      labels:
+        app: rustfs
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      initContainers:
+        - name: fix-permissions
+          image: debian:bookworm
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "chmod 777 /data"]
+          volumeMounts:
+            - name: storage
+              mountPath: /data
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:latest
+          imagePullPolicy: IfNotPresent
+          args: ["server", "--console-address", ":9001", "/data"]
+          env:
+            - name: RUSTFS_ROOT_USER
+              value: "admin"
+            - name: RUSTFS_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: RUSTFS_ROOT_PASSWORD
+          ports:
+            - containerPort: 9000
+            - containerPort: 9001
+          volumeMounts:
+            - name: storage
+              mountPath: /data
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: rustfs-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: step-infra
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+    - name: management
+      port: 15672
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.12.11-management
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: step-infra
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - port: 8090
+      targetPort: 8090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: keycloak
+          image: sequentech.local/keycloak
+          imagePullPolicy: Never
+          args: ["start-dev", "--import-realm"]
+          env:
+            - name: KC_HTTP_PORT
+              value: "8090"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+            - name: KC_HOSTNAME_STRICT_HTTPS
+              value: "false"
+            - name: KC_PROXY
+              value: "edge"
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: jdbc:postgresql://postgres:5432/keycloak
+            - name: KC_DB_USERNAME
+              value: postgres
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: step-secrets
+                  key: KC_DB_PASSWORD
+          ports:
+            - containerPort: 8090
+          volumeMounts:
+            - name: realm-import
+              mountPath: /opt/keycloak/data/import/tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+              subPath: tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json
+      volumes:
+        - name: realm-import
+          configMap:
+            name: keycloak-realm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: immudb
+  namespace: step-infra
+spec:
+  selector:
+    app: immudb
+  ports:
+    - name: grpc
+      port: 3322
+    - name: metrics
+      port: 9497
+    - name: console
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immudb
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: immudb
+  template:
+    metadata:
+      labels:
+        app: immudb
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: immudb
+          image: gitea.gitea:3000/admin/immudb:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3322
+            - containerPort: 9497
+            - containerPort: 8080
+          env:
+            - name: IMMUDB_PGSQL_SERVER
+              value: "true"
+          volumeMounts:
+            - name: immudb-data
+              mountPath: /var/lib/immudb
+      volumes:
+        - name: immudb-data
+          persistentVolumeClaim:
+            claimName: immudb-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trustee1
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trustee1
+  template:
+    metadata:
+      labels:
+        app: trustee1
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: trustee1
+          image: gitea.gitea:3000/admin/braid:latest
+          imagePullPolicy: Always
+          env:
+            - name: TRUSTEE_NAME
+              value: "trustee1"
+            - name: B4_URL
+              value: "http://b4.step-apps.svc.cluster.local:50051"
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+          volumeMounts:
+            - name: trustee1-data
+              mountPath: /opt/braid
+      volumes:
+        - name: trustee1-data
+          persistentVolumeClaim:
+            claimName: trustee1-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trustee2
+  namespace: step-infra
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trustee2
+  template:
+    metadata:
+      labels:
+        app: trustee2
+    spec:
+      imagePullSecrets:
+        - name: gitea-pull-secret
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: trustee2
+          image: gitea.gitea:3000/admin/braid:latest
+          imagePullPolicy: Always
+          env:
+            - name: TRUSTEE_NAME
+              value: "trustee2"
+            - name: B4_URL
+              value: "http://b4.step-apps.svc.cluster.local:50051"
+          envFrom:
+            - configMapRef:
+                name: step-env
+            - secretRef:
+                name: step-secrets
+          volumeMounts:
+            - name: trustee2-data
+              mountPath: /opt/braid
+      volumes:
+        - name: trustee2-data
+          persistentVolumeClaim:
+            claimName: trustee2-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immudb-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trustee1-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: trustee2-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rustfs-pvc
+  namespace: step-infra
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
