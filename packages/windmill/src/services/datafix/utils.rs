@@ -79,12 +79,12 @@ pub async fn get_event_id_and_datafix_annotations(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     requester_datafix_id: &str,
-) -> Result<(String, DatafixAnnotations), JsonErrorResponse> {
+) -> Result<(String, DatafixAnnotations), DatafixError> {
     let election_events = get_all_tenant_election_events(hasura_transaction, tenant_id)
         .await
         .map_err(|err| {
-            error!("Error getting election events: {err}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
+            error!("Error getting election events: {err:?}");
+            DatafixError::internal(format!("Error getting election events: {err}"))
         })?;
 
     let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
@@ -121,7 +121,10 @@ pub async fn get_event_id_and_datafix_annotations(
     }
 
     warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
-    return Err(DatafixResponse::error(DatafixErrorCode::EventNotFound));
+    Err(DatafixError::new(
+        DatafixErrorCode::EventNotFound,
+        format!("Datafix event not found for datafix id {requester_datafix_id}"),
+    ))
 }
 
 /// Composes the area name from the voter information, following the naming contract:
@@ -162,14 +165,14 @@ pub async fn find_user_area_by_name(
     tenant_id: &str,
     election_event_id: &str,
     voter_info: &VoterInformationBody,
-) -> Result<UserArea, JsonErrorResponse> {
+) -> Result<UserArea, DatafixError> {
     // Compose the full area name from the voter information
     let area_concat = compose_area_name(voter_info);
     let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
         .await
         .map_err(|e| {
             error!("Error getting event areas: {e:?}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
+            DatafixError::internal(format!("Error getting event areas: {e}"))
         })?;
 
     // Find the id that matches the full name.
@@ -191,7 +194,10 @@ pub async fn find_user_area_by_name(
         }),
         None => {
             error!("Error. Area not found for {}", area_concat);
-            Err(DatafixResponse::error(DatafixErrorCode::AreaNotFound))
+            Err(DatafixError::new(
+                DatafixErrorCode::AreaNotFound,
+                format!("Area not found for {area_concat}"),
+            ))
         }
     }
 }
@@ -202,23 +208,28 @@ pub async fn get_user_id(
     keycloak_transaction: &Transaction<'_>,
     realm: &str,
     username: &str,
-) -> Result<String, JsonErrorResponse> {
+) -> Result<String, DatafixError> {
     let user_ids = get_users_by_username(keycloak_transaction, realm, username)
         .await
         .map_err(|e| {
             error!("Error getting users by username: {e:?}");
-            DatafixResponse::error(DatafixErrorCode::InternalError)
+            DatafixError::internal(format!("Error getting users by username: {e}"))
         })?;
 
     match user_ids.len() {
         0 => {
             error!("Error getting users by username: Not Found");
-            return Err(DatafixResponse::error(DatafixErrorCode::VoterNotFound));
+            Err(DatafixError::new(
+                DatafixErrorCode::VoterNotFound,
+                "Voter not found",
+            ))
         }
         1 => Ok(user_ids[0].clone()),
         _ => {
             error!("Error getting users by username: Multiple users Found");
-            return Err(DatafixResponse::error(DatafixErrorCode::InternalError));
+            Err(DatafixError::internal(
+                "Multiple users found for the username",
+            ))
         }
     }
 }
@@ -320,6 +331,7 @@ pub async fn post_operation_result_to_electoral_log(
     election_event_id: &str,
     user_id: Option<&str>,
     username: &str,
+    area_id: Option<&str>,
     direction: ExtApiRequestDirection,
     operation: String,
 ) -> Result<()> {
@@ -340,6 +352,7 @@ pub async fn post_operation_result_to_electoral_log(
             None,
             user_id.map(str::to_string),
             Some(username.to_string()),
+            area_id.map(str::to_string),
             direction,
             ExtApiName::Datafix,
             operation,

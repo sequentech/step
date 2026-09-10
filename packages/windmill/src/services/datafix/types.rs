@@ -13,6 +13,7 @@ use rocket::serde::json::Json;
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use strum_macros::{Display, EnumString};
 use tracing::{instrument, warn};
 
@@ -129,6 +130,47 @@ impl DatafixResponse {
                 error_code: Some(error_code),
             }),
         )
+    }
+}
+
+/// Failure of a Datafix operation: the stable [`DatafixErrorCode`] answered
+/// to the caller plus the internal reason, which is recorded in the electoral
+/// log entry of the operation and never sent to the caller — converting into
+/// the HTTP reply drops it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatafixError {
+    pub code: DatafixErrorCode,
+    pub detail: String,
+}
+
+impl DatafixError {
+    #[instrument(skip(detail))]
+    pub fn new(code: DatafixErrorCode, detail: impl Into<String>) -> Self {
+        Self {
+            code,
+            detail: detail.into(),
+        }
+    }
+
+    /// Shorthand for the most common code, an unexpected internal failure.
+    #[instrument(skip(detail))]
+    pub fn internal(detail: impl Into<String>) -> Self {
+        Self::new(DatafixErrorCode::InternalError, detail)
+    }
+}
+
+/// Renders exactly the text the electoral log records after `Failed: `.
+impl fmt::Display for DatafixError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (error_code={})", self.detail, self.code)
+    }
+}
+
+impl std::error::Error for DatafixError {}
+
+impl From<DatafixError> for JsonErrorResponse {
+    fn from(err: DatafixError) -> Self {
+        DatafixResponse::error(err.code)
     }
 }
 
@@ -467,10 +509,41 @@ impl ParsedDatafixReconciliationRow {
 #[cfg(test)]
 mod tests {
     use super::{
-        channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixErrorCode,
-        DatafixResponse, FILE_CHANNEL_INTERNET,
+        channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixError,
+        DatafixErrorCode, DatafixResponse, JsonErrorResponse, FILE_CHANNEL_INTERNET,
     };
     use rocket::http::Status;
+
+    #[test]
+    fn datafix_error_displays_its_reason_and_code() {
+        let err = DatafixError::new(
+            DatafixErrorCode::InvalidRequest,
+            "Cannot replace pin because the user is disabled",
+        );
+        assert_eq!(
+            err.to_string(),
+            "Cannot replace pin because the user is disabled (error_code=invalid-request)"
+        );
+        assert_eq!(
+            DatafixError::internal("Error editing user").code,
+            DatafixErrorCode::InternalError
+        );
+    }
+
+    #[test]
+    fn datafix_error_reply_keeps_the_code_and_drops_the_reason() {
+        let response: JsonErrorResponse =
+            DatafixError::new(DatafixErrorCode::VoterNotFound, "Voter not found").into();
+        assert_eq!(response.0, Status::NotFound);
+        assert_eq!(
+            serde_json::to_value(&*response.1).unwrap(),
+            serde_json::json!({
+                "code": 404,
+                "message": "Not Found",
+                "error_code": "voter-not-found"
+            })
+        );
+    }
 
     #[test]
     fn error_reply_carries_the_documented_status_and_error_code() {
