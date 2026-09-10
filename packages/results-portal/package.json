@@ -20,17 +20,17 @@
     "react-apexcharts": "1.4.1",
     "react-dom": "19.1.1",
     "react-i18next": "15.7.3",
-    "react-router": "7.12.0",
+    "react-router": "7.18.2",
     "sql.js": "^1.13.0"
   },
   "resolutions": {
     "braces": "^3.0.3",
-    "webpack-dev-server": "^5.2.2",
+    "webpack-dev-server": "^5.2.6",
     "micromatch": "^4.0.8",
-    "ws": "^8.18.0",
-    "follow-redirects": "^1.15.9",
+    "ws": "^8.21.0",
+    "follow-redirects": "^1.16.0",
     "semver": "^7.6.4",
-    "path-to-regexp": "^0.1.12"
+    "path-to-regexp": "^0.1.13"
   },
   "scripts": {
     "start": "PORT=3004 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs --mode development",
@@ -85,8 +85,8 @@
     "style-loader": "^4.0.0",
     "ts-loader": "9.5.4",
     "typescript": "^5.9.2",
-    "webpack": "5.94.0",
+    "webpack": "5.104.1",
     "webpack-cli": "6.0.1",
-    "webpack-dev-server": "^5.2.2"
+    "webpack-dev-server": "5.2.6"
   }
 }

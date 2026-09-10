@@ -56,7 +56,10 @@ module.exports = function (env, argv) {
                 },
                 {
                     test: /\.(js|ts)x?$/,
-                    exclude: /node_modules/,
+                    // Workspace packages are symlinked, so webpack resolves them
+                    // to real paths outside node_modules. Their dist/ bundles are
+                    // already built and must not be transpiled again.
+                    exclude: /node_modules|[\\/]dist[\\/]/,
                     use: [
                         "babel-loader",
                         {
