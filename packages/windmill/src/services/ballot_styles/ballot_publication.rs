@@ -346,13 +346,7 @@ pub async fn update_publish_ballot(
         ));
     }
 
-    super::publication_files::prepare_publication_files(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication_id,
-    )
-    .await?;
+    super::publication_files::require_publication_files(&ballot_publication)?;
 
     if ballot_publication.published_at.is_some() {
         return Ok(());

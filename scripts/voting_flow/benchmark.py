@@ -252,7 +252,6 @@ def prepare_votes(database, fixture, content, scenario):
         )
     connection.execute("VACUUM ANALYZE sequent_backend.cast_vote")
     connection.execute("ANALYZE sequent_backend.scheduled_event")
-    connection.execute("ANALYZE sequent_backend.election_voting_window")
     connection.execute("ANALYZE sequent_backend.area")
     connection.execute("ANALYZE sequent_backend.election")
 

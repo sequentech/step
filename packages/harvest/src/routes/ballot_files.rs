@@ -7,7 +7,8 @@ use sequent_core::types::permissions::VoterPermissions;
 use serde::Deserialize;
 use serde_json::Value;
 use windmill::services::{
-    ballot_styles::publication_files::voter_files, database::get_hasura_pool,
+    ballot_styles::publication_files::{load_voter_files, presign_voter_files},
+    database::get_hasura_pool,
 };
 
 #[derive(Deserialize)]
@@ -53,18 +54,21 @@ pub async fn get_ballot_files_urls(
         )
     };
     let result: anyhow::Result<Value> = async {
-        let mut client = get_hasura_pool().await.get().await?;
-        let tx = client.transaction().await?;
-        let files = voter_files(
-            &tx,
-            &claims.hasura_claims.tenant_id,
-            &body.election_event_id,
-            &area,
-            &elections,
-        )
-        .await?;
-        tx.commit().await?;
-        Ok(files)
+        let references = {
+            let mut client = get_hasura_pool().await.get().await?;
+            let tx = client.transaction().await?;
+            let references = load_voter_files(
+                &tx,
+                &claims.hasura_claims.tenant_id,
+                &body.election_event_id,
+                &area,
+                &elections,
+            )
+            .await?;
+            tx.commit().await?;
+            references
+        };
+        presign_voter_files(references).await
     }
     .await;
     result.map(Json).map_err(failure)

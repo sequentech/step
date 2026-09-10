@@ -12,6 +12,8 @@ if __name__ == "__main__":
             [
                 "cargo",
                 "test",
+                "--jobs",
+                "1",
                 "-p",
                 "windmill",
                 "--lib",
@@ -24,7 +26,7 @@ if __name__ == "__main__":
             env={
                 **os.environ,
                 "BALLOT_FILES_TEST_DSN": database.dsn,
-                "CARGO_TARGET_DIR": str(ROOT / "packages/windmill/rust-local-target"),
+                "CARGO_TARGET_DIR": os.environ.get("CARGO_TARGET_DIR", str(ROOT / "packages/windmill/rust-local-target")),
             },
             check=True,
             stdout=subprocess.PIPE,

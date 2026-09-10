@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use celery::error::TaskError;
+use electoral_log::messages::newtypes::BallotPublicationStage;
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::{error, instrument};
 
 use crate::services::ballot_styles::ballot_style;
+use crate::services::electoral_log::log_ballot_publication_failure;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::types::error::{Error, Result};
 
@@ -44,6 +46,19 @@ pub async fn update_election_event_ballot_styles(
                 error!(
                     task_id = %task_execution.id,
                     "Ballot style generation failed and the task execution could not be marked failed: {status_error:?}"
+                );
+            }
+            if let Err(log_error) = log_ballot_publication_failure(
+                &task_execution,
+                &ballot_publication_id,
+                BallotPublicationStage::Generate,
+                &error.to_string(),
+            )
+            .await
+            {
+                error!(
+                    task_id = %task_execution.id,
+                    "Could not record ballot generation failure in the electoral log: {log_error:?}"
                 );
             }
             Err(Error::Anyhow(error))
