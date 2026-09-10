@@ -8,6 +8,7 @@ import {
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus,
+    isKeysCeremonyTerminal,
 } from "@/services/KeyCeremony"
 import {Sequent_Backend_Election_Event, Sequent_Backend_Keys_Ceremony} from "@/gql/graphql"
 import {Alert, CircularProgress} from "@mui/material"
@@ -74,21 +75,18 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         status.public_key !== undefined &&
         currentCeremony.execution_status === EStatus.IN_PROGRESS &&
         !status.trustees.find((trustee) => trustee.status === TStatus.WAITING)
+    const ceremonyTerminal = isKeysCeremonyTerminal(currentCeremony.execution_status as EStatus)
 
     const calculateCurrentStep: () => WizardStep = () => {
+        if (ceremonyTerminal) {
+            return WizardStep.Status
+        }
         // If trustee is not participating, show status step
         if (!trusteeParticipating) {
             return WizardStep.Status
-            // If trustee is participating but is not started, show status step
         } else if (currentCeremony.execution_status === EStatus.USER_CONFIGURATION) {
             return WizardStep.Status
-            // If trustee is participating but is not started, show status step
-        } else if (
-            currentCeremony.execution_status === EStatus.CANCELLED ||
-            currentCeremony.execution_status === EStatus.SUCCESS
-        ) {
-            return WizardStep.Success
-            // if the trustee has not checked the key, then show the start screen
+            // If the trustee has not checked the key, then show the start screen
         } else if (
             currentCeremony.execution_status === EStatus.IN_PROGRESS &&
             !trusteeCheckedKeys
@@ -102,14 +100,16 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const [currentStep, setCurrentStep] = useState<WizardStep>(calculateCurrentStep())
 
     useEffect(() => {
-        if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
+        if (ceremonyTerminal) {
+            setCurrentStep(WizardStep.Status)
+        } else if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
             setCurrentStep(WizardStep.Start)
         } else if (!keysGenerated) {
             setCurrentStep(WizardStep.Not_Generated)
         } else {
             setCurrentStep(WizardStep.Status)
         }
-    }, [trusteeCheckedKeys, trusteeParticipating, keysGenerated])
+    }, [ceremonyTerminal, trusteeCheckedKeys, trusteeParticipating, keysGenerated])
 
     const checkKeysGenerated = () => {
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
