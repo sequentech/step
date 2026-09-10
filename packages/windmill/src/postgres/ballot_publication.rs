@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{DateTime, Local};
 use deadpool_postgres::Transaction;
 use sequent_core::services::date::ISO8601;
@@ -43,6 +43,27 @@ impl TryFrom<Row> for BallotPublicationWrapper {
                 .map(|val| val.to_string()),
         }))
     }
+}
+
+/// Serialize generation and final publication for an event until commit or rollback.
+/// Unlike the task lease, this lock cannot expire while a worker is still writing.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn lock_publication_event(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<()> {
+    hasura_transaction
+        .query_opt(
+            include_str!("sql/lock_publication_event.sql"),
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+            ],
+        )
+        .await?
+        .context("Can't find ballot publication election event")?;
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
