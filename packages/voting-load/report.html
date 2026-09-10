@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voting performance · $verdict</title>
+<style>
+@font-face{font-family:Report Sans;src:url(data:font/woff2;base64,$regular_font) format("woff2");font-weight:400;font-display:block}
+@font-face{font-family:Report Sans;src:url(data:font/woff2;base64,$bold_font) format("woff2");font-weight:700;font-display:block}
+svg text{font-family:"Report Sans",sans-serif!important}
+:root{color-scheme:light;--ink:#142d3a;--muted:#607680;--line:#dce5e8;--teal:#087f76;--paper:#fff;--background:#f3f6f6}
+*{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--ink);font:15px/1.55 "Report Sans",sans-serif}main{max-width:1180px;margin:auto;padding:40px 36px 28px}.brand{font-size:12px;font-weight:750;letter-spacing:.17em;text-transform:uppercase;color:var(--teal)}header{display:flex;align-items:center;justify-content:space-between;margin:14px 0 28px}h1{font-size:36px;line-height:1.15;letter-spacing:-.035em;margin:8px 0 12px}h2{font-size:17px;margin:0 0 16px}p{margin:8px 0;color:var(--muted)}.badge{border-radius:30px;padding:8px 16px;font-size:13px;font-weight:700;background:$badge_background;color:$badge_color}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}.card,.panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:22px}.label{font-size:12px;color:var(--muted);font-weight:650}.value{font-size:31px;line-height:1.2;letter-spacing:-.04em;font-weight:700;margin:10px 0 4px}.note{font-size:12px;color:var(--muted)}.chart{padding:22px 22px 4px;margin-bottom:20px}.chart svg{display:block;width:100%;height:auto}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:650}td,th{padding:11px 0;border-bottom:1px solid var(--line)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tbody tr:last-child td{border:0}.pass{color:var(--teal)}.fail{color:#b33a32}.errors{padding:16px 22px;background:#fff0ed;border-radius:10px;margin:18px 0;color:#953c33}.errors li{margin:6px 0}footer{font-size:12px;margin-top:22px;color:var(--muted);display:flex;justify-content:space-between;gap:30px}footer p{max-width:700px}@media(max-width:750px){main{padding:22px 16px}.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}header{align-items:flex-start}h1{font-size:28px}footer{display:block}}@media print{body{background:white}main{padding:0}.panel,.card{break-inside:avoid}}
+</style>
+</head>
+<body><main>
+<div class="brand">Sequent / Voting performance</div>
+<header><div><h1>$title</h1><p>$subtitle</p></div><span class="badge">$verdict</span></header>
+<section class="cards">$cards</section>
+<section class="panel chart"><h2>Performance over the measured run</h2>$chart</section>
+<div class="grid">
+<section class="panel"><h2>Response times</h2><table><thead><tr><th>Stage</th><th class="num">p50</th><th class="num">p99</th></tr></thead><tbody>$latency_rows</tbody></table><p class="note">p50 is the median. 99% of measured responses completed within p99.</p></section>
+<section class="panel"><h2>Goals</h2>$goals</section>
+</div>
+$errors
+<footer><p>$coverage $verification</p><p>Preparation excluded.<br>All workers combined.</p></footer>
+</main><script type="text/plain" id="font-license">$font_license</script></body></html>

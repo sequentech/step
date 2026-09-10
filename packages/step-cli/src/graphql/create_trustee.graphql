@@ -1,0 +1,7 @@
+mutation CreateTrusteeMutation($name: String!, $publicKey: String!, $tenantId: uuid!) {
+  insert_sequent_backend_trustee_one(
+    object: { name: $name, public_key: $publicKey, tenant_id: $tenantId }
+  ) {
+    id
+  }
+}
