@@ -13,10 +13,10 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-strum = "0.27"
-strum_macros = "0.27"
+strum = "0.28"
+strum_macros = "0.28"
 reqwest = { version = "0.12", features = ["blocking", "json"] }
-graphql_client = "0.14"
+graphql_client = "0.16"
 rayon = "1.5"
 sequent-core = { path="../sequent-core", features = ["keycloak", "probe", "reports","default_features"] }
 windmill = { path="../windmill" }
@@ -25,7 +25,7 @@ immudb-rs = { path="../immudb-rs" }
 electoral-log = { path="../electoral-log" }
 
 uuid = { version = "1.5", features = ["v4", "fast-rng"] }
-fake = { version = "4", features = ["derive"] }
+fake = { version = "5", features = ["derive"] }
 csv = "1.1"
 rand = "0.9"
 chrono = "0.4"
@@ -35,8 +35,8 @@ deadpool-postgres = { version = "0.14", features = ["rt_tokio_1", "serde"] }
 
 hex = "0.4"
 ring = "0.17"
-sha2 = "0.10"
-base64 = "0.22"
+sha2 = "0.11"
+base64 = "0.23"
 
 colored = "3.0"
 
