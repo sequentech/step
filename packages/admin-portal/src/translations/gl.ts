@@ -2048,8 +2048,12 @@ const galegoTranslation: TranslationType = {
                 subtitle:
                     "Para continuar, por favor descarga e almacena a túa Chave Privada Cifrada en polo menos dous dispositivos diferentes:",
                 downloadButton: "Descargar a túa Chave Privada Cifrada",
-                errorDownloading: "Erro de descarga: {{error}}",
+                downloaded: "Chave Privada Cifrada descargada correctamente.",
                 errorEmptyKey: "Erro de descarga, ficheiro baleiro",
+                unexpectedError: "Non se puido descargar a clave privada. Téntao de novo.",
+                alreadyVerified: "A túa chave privada xa se descargara e verificara.",
+                unavailable:
+                    "A descarga da clave privada xa non está dispoñible porque a cerimonia avanzou.",
                 confirmdDialog: {
                     ok: "Confirmar Copias de Seguridade e Continuar",
                     cancel: "Volver Atrás",
@@ -2070,7 +2074,6 @@ const galegoTranslation: TranslationType = {
                     "Copia de Seguridade da Chave Privada Cifrada inválida, por favor intenta de novo",
                 errorEmptyFile: "Ficheiro baleiro ou non atopado",
                 verified: "Copia de seguridade verificada correctamente.",
-                downloaded: "Chave Privada Cifrada xerada correctamente.",
             },
         },
         miruExport: {

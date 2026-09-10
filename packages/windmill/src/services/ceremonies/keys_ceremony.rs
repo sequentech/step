@@ -30,6 +30,10 @@ use tracing::instrument;
 use tracing::{event, info, Level};
 use uuid::Uuid;
 
+#[derive(Debug, thiserror::Error)]
+#[error("Private key download is no longer available")]
+pub struct PrivateKeyDownloadUnavailable;
+
 // returns (board_name, election_id), where the election_id might be None for an event Board
 #[instrument(skip(transaction), err)]
 pub async fn get_keys_ceremony_board(
@@ -90,9 +94,7 @@ pub async fn get_private_key(
     .await?;
     // check keys_ceremony has correct execution status
     if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        return Err(anyhow!(
-            "Keys ceremony status should be in ExecutionStatus::IN_PROGRESS which is set when config message has been added to the board and trustees are working."
-        ));
+        return Err(PrivateKeyDownloadUnavailable.into());
     }
 
     // get ceremony status

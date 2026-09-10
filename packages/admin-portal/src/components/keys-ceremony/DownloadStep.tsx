@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {useMutation} from "@apollo/client"
 import React, {useContext, useState} from "react"
-import {FormControlLabel, FormGroup, Typography, Checkbox} from "@mui/material"
+import {Alert, FormControlLabel, FormGroup, Typography, Checkbox} from "@mui/material"
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos"
 import DownloadIcon from "@mui/icons-material/Download"
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIos"
@@ -18,8 +18,14 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {GET_PRIVATE_KEY} from "@/queries/GetPrivateKey"
 import {Dialog} from "@sequentech/ui-essentials"
-import {useNotify} from "react-admin"
+import {useGetOne, useNotify} from "react-admin"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {
+    IKeysCeremonyExecutionStatus as EStatus,
+    IKeysCeremonyTrusteeStatus as TStatus,
+} from "@/services/KeyCeremony"
+import {isPrivateKeyDownloadUnavailableError} from "@/services/privateKeyDownloadError"
 
 export interface DownloadStepProps {
     electionEvent: Sequent_Backend_Election_Event
@@ -36,10 +42,12 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [downloaded, setDownloaded] = useState<boolean>(false)
     const [downloading, setDownloading] = useState<boolean>(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
     const [errors, setErrors] = useState<String | null>(null)
+    const [downloadUnavailable, setDownloadUnavailable] = useState(false)
     const notify = useNotify()
     const aliasRenderer = useAliasRenderer()
 
@@ -57,10 +65,30 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
     }
     const {firstCheckbox, secondCheckbox} = checkboxState
 
+    const {data: latestCeremony} = useGetOne<Sequent_Backend_Keys_Ceremony>(
+        "sequent_backend_keys_ceremony",
+        {id: currentCeremony.id},
+        {refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS}
+    )
+    const isDownloadUnavailable =
+        downloadUnavailable ||
+        (latestCeremony?.execution_status ?? currentCeremony.execution_status) !==
+            EStatus.IN_PROGRESS
+    const trusteeStatus = (latestCeremony?.status ?? currentCeremony.status)?.trustees?.find(
+        (trustee: {name: string}) => trustee.name === authContext.trustee
+    )?.status
+    const downloadUnavailableMessage =
+        trusteeStatus === TStatus.KEY_CHECKED
+            ? "keysGeneration.downloadStep.alreadyVerified"
+            : "keysGeneration.downloadStep.unavailable"
+
     const [getPrivateKeysMutation] = useMutation<GetPrivateKeyMutation>(GET_PRIVATE_KEY)
     const download = async () => {
         setErrors(null)
         setDownloaded(false)
+        if (isDownloadUnavailable) {
+            return
+        }
         setDownloading(true)
         try {
             const {data, errors} = await getPrivateKeysMutation({
@@ -71,9 +99,11 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
             })
             setDownloading(false)
             if (errors) {
-                setErrors(
-                    t("keysGeneration.downloadStep.errorDownloading", {error: errors.toString()})
-                )
+                if (isPrivateKeyDownloadUnavailableError({graphQLErrors: errors})) {
+                    setDownloadUnavailable(true)
+                } else {
+                    setErrors(t("keysGeneration.downloadStep.unexpectedError"))
+                }
                 return null
             } else {
                 const privateKey = data?.get_private_key?.private_key_base64
@@ -92,11 +122,13 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                 tempLink.click()
                 setDownloaded(true)
             }
-        } catch (exception: any) {
+        } catch (exception: unknown) {
             setDownloading(false)
-            setErrors(
-                t("keysGeneration.downloadStep.errorDownloading", {error: exception.toString()})
-            )
+            if (isPrivateKeyDownloadUnavailableError(exception)) {
+                setDownloadUnavailable(true)
+            } else {
+                setErrors(t("keysGeneration.downloadStep.unexpectedError"))
+            }
             return null
         }
     }
@@ -116,6 +148,7 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     <WizardStyles.DownloadButton
                         color="primary"
                         onClick={download}
+                        disabled={downloading || isDownloadUnavailable}
                         className="keys-download-download-button"
                     >
                         <DownloadIcon />
@@ -123,12 +156,15 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
                     </WizardStyles.DownloadButton>
                     <WizardStyles.StatusBox>
                         {downloading ? <WizardStyles.DownloadProgress /> : null}
+                        {isDownloadUnavailable ? (
+                            <Alert severity="info">{t(downloadUnavailableMessage)}</Alert>
+                        ) : null}
                         {downloaded ? (
                             <WizardStyles.SucessMessage
                                 variant="body1"
                                 className="keys-download-success"
                             >
-                                {t("keysGeneration.checkStep.downloaded")}
+                                {t("keysGeneration.downloadStep.downloaded")}
                             </WizardStyles.SucessMessage>
                         ) : null}
                         {errors ? (

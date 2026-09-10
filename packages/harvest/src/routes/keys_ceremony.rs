@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::anyhow;
 use anyhow::{Context, Result};
@@ -19,7 +20,7 @@ use tracing::{error, event, instrument, Level};
 use windmill::postgres;
 use windmill::postgres::election::get_elections;
 use windmill::services::ceremonies::keys_ceremony::{
-    self, validate_permission_labels,
+    self, validate_permission_labels, PrivateKeyDownloadUnavailable,
 };
 use windmill::services::database::get_hasura_pool;
 
@@ -40,7 +41,7 @@ pub struct CheckPrivateKeyOutput {
 }
 
 // The main function to get the private key
-#[instrument(skip(claims))]
+#[instrument(skip(body, claims))]
 #[post("/check-private-key", format = "json", data = "<body>")]
 pub async fn check_private_key(
     body: Json<CheckPrivateKeyInput>,
@@ -109,19 +110,44 @@ pub struct GetPrivateKeyOutput {
     private_key_base64: String,
 }
 
+fn private_key_download_unavailable() -> JsonError {
+    ErrorResponse::new(
+        Status::Conflict,
+        "Private key download is no longer available",
+        ErrorCode::PrivateKeyDownloadUnavailable,
+    )
+}
+
+fn private_key_download_internal_error() -> JsonError {
+    ErrorResponse::new(
+        Status::InternalServerError,
+        "Failed to download private key",
+        ErrorCode::InternalServerError,
+    )
+}
+
 // The main function to get the private key
 #[instrument(skip(claims))]
 #[post("/get-private-key", format = "json", data = "<body>")]
 pub async fn get_private_key(
     body: Json<GetPrivateKeyInput>,
     claims: JwtClaims,
-) -> Result<Json<GetPrivateKeyOutput>, (Status, String)> {
+) -> Result<Json<GetPrivateKeyOutput>, JsonError> {
     authorize(
         &claims,
         true,
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::TRUSTEE_CEREMONY],
-    )?;
+    )
+    .map_err(|(status, message)| {
+        let code =
+            if status == Status::Unauthorized || status == Status::Forbidden {
+                ErrorCode::Unauthorized
+            } else {
+                ErrorCode::UnknownError
+            };
+        ErrorResponse::new(status, &message, code)
+    })?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
@@ -129,12 +155,18 @@ pub async fn get_private_key(
         .await
         .get()
         .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+        .map_err(|error| {
+            error!("Failed to get database client for private key download: {error:#}");
+            private_key_download_internal_error()
+        })?;
 
-    let hasura_transaction = hasura_db_client
-        .transaction()
-        .await
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let hasura_transaction =
+        hasura_db_client.transaction().await.map_err(|error| {
+            error!(
+                "Failed to start private key download transaction: {error:#}"
+            );
+            private_key_download_internal_error()
+        })?;
 
     let encrypted_private_key = keys_ceremony::get_private_key(
         &hasura_transaction,
@@ -144,7 +176,21 @@ pub async fn get_private_key(
         input.keys_ceremony_id.clone(),
     )
     .await
-    .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    .map_err(|error| {
+        if error
+            .downcast_ref::<PrivateKeyDownloadUnavailable>()
+            .is_some()
+        {
+            private_key_download_unavailable()
+        } else {
+            error!(
+                election_event_id = %input.election_event_id,
+                keys_ceremony_id = %input.keys_ceremony_id,
+                "Failed to download private key: {error:#}"
+            );
+            private_key_download_internal_error()
+        }
+    })?;
 
     event!(
         Level::INFO,
@@ -153,11 +199,10 @@ pub async fn get_private_key(
         input.keys_ceremony_id.clone(),
     );
 
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "error comitting transaction")
-        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    hasura_transaction.commit().await.map_err(|error| {
+        error!("Failed to commit private key download transaction: {error:#}");
+        private_key_download_internal_error()
+    })?;
 
     Ok(Json(GetPrivateKeyOutput {
         private_key_base64: encrypted_private_key,
