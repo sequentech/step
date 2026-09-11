@@ -28,8 +28,8 @@ const STYLE_PAGE_SIZE: i64 = 8;
 const UPLOAD_CONCURRENCY: usize = 4;
 
 pub struct PublicationData {
-    event: Value,
-    elections: Vec<Value>,
+    pub(crate) event: Value,
+    pub(crate) elections: Vec<Value>,
     style_count: i64,
 }
 
@@ -175,7 +175,7 @@ pub(super) fn ordered_json_string(value: &impl Serialize) -> Result<String> {
 
 /// Existing signed styles can have equivalent JSON encoded in a different order.
 /// Keep their original EML when it cannot reuse the shared bytes exactly.
-fn share_event_presentation(
+pub(crate) fn share_event_presentation(
     data: &mut Value,
     shared: &mut Option<(String, Value)>,
 ) -> Result<Value> {
@@ -199,7 +199,7 @@ fn share_event_presentation(
     Ok(parsed)
 }
 
-async fn upload(client: &Client, bucket: &str, key: &str, value: &Value) -> Result<()> {
+pub(crate) async fn upload(client: &Client, bucket: &str, key: &str, value: &Value) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(60), async {
         let bytes = serde_json::to_vec(value)?;
         let result = client

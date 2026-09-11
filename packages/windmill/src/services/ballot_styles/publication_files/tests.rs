@@ -159,7 +159,7 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
         db.batch_execute("DROP SCHEMA sequent_backend CASCADE; CREATE SCHEMA sequent_backend;
             CREATE TABLE sequent_backend.election_event(id uuid PRIMARY KEY, tenant_id uuid, presentation jsonb, description text, status jsonb);
             CREATE TABLE sequent_backend.election(id uuid PRIMARY KEY, tenant_id uuid, election_event_id uuid, annotations jsonb, created_at timestamptz, description text, is_consolidated_ballot_encoding bool, labels jsonb, last_updated_at timestamptz, presentation jsonb, spoil_ballot_option bool, num_allowed_revotes integer, voting_channels jsonb, status jsonb);
-            CREATE TABLE sequent_backend.ballot_publication(id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb, election_ids uuid[], election_id uuid, is_generated bool DEFAULT false, published_at timestamptz, deleted_at timestamptz, PRIMARY KEY (id,tenant_id,election_event_id));
+            CREATE TABLE sequent_backend.ballot_publication(id uuid, tenant_id uuid, election_event_id uuid, annotations jsonb, labels jsonb, created_at timestamptz DEFAULT now(), created_by_user_id text, election_ids uuid[], election_id uuid, is_generated bool DEFAULT false, published_at timestamptz, deleted_at timestamptz, PRIMARY KEY (id,tenant_id,election_event_id));
             CREATE TABLE sequent_backend.ballot_style(id uuid PRIMARY KEY, tenant_id uuid, election_event_id uuid, election_id uuid, area_id uuid, created_at timestamptz, last_updated_at timestamptz, annotations jsonb, labels jsonb, ballot_eml text, ballot_signature bytea, status text, deleted_at timestamptz, ballot_publication_id uuid);
             CREATE TABLE sequent_backend.lock(key text PRIMARY KEY,value text,expiry_date timestamptz);
             CREATE TABLE sequent_backend.document(id uuid PRIMARY KEY,tenant_id uuid,election_event_id uuid,name text,media_type text,size bigint,is_public bool,annotations jsonb,labels jsonb,created_at timestamptz,last_updated_at timestamptz);").await?;
@@ -276,6 +276,7 @@ async fn publication_objects_and_authorized_references() -> Result<()> {
         assert_eq!(serde_json::from_slice::<Value>(&std::fs::read(&archive[0])?)?,json!({"document":true}));
         assert_eq!(files(&pool,&t,&ev,&a,&ids).await?["files"], json!([]));
         pool.get().await?.execute("UPDATE sequent_backend.ballot_publication SET published_at=now() WHERE id=$1", &[&publication]).await?;
+        super::super::publication_archive::tests::round_trip(&pool,&t,&ev,&p).await?;
         let response = files(&pool,&t,&ev,&a,&ids).await?;
         assert_eq!(response["files"].as_array().unwrap().len(), 1);
         assert_eq!(response["files"][0]["version"], root);

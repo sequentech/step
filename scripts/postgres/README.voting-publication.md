@@ -65,9 +65,16 @@ or write after event deletion. This is the one S3 upload that retains a database
 connection; private ballot activation is governed by the fenced database reference.
 
 Document exports paginate and download only recognized document keys whose IDs
-are authorized by the database. Publication objects and uncommitted documents
-are excluded. Importing a clone requires new publication artifacts; this does
-not add historical signed-publication restoration.
+are authorized by the database. Uncommitted documents are excluded. Selecting
+publications also exports their database records and the exact private objects
+referenced by their file roots, under `publication_files/` in the archive.
+
+Import remaps publication, ballot-style and event entity IDs and uploads the
+files under the imported event's private prefix. Generated/published state is
+restored only after every required upload succeeds. Missing or inconsistent
+files fail the import. The original event's S3 objects remain untouched.
+Older EML-only exports restore generated drafts and rebuild their private files;
+those exports did not contain publication dates or the full publication records.
 
 Voter requests read current authorization, active roots and voting policy, then
 release their database connection before signing five-minute URLs. The two S3

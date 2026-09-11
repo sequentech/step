@@ -490,7 +490,7 @@ pub fn replace_ids(
     // - Preserving UUIDs in Keycloak authenticator configurations
     // - Preserving tenant_id and election_event_id in the keep list before UUID replacement
     // - Applying explicit tenant_id and election_event_id replacements after UUID replacement
-    let (new_data, replacement_map) = replace_realm_ids(
+    let (new_data, mut replacement_map) = replace_realm_ids(
         data_str,
         vec![], // Empty keep list - replace_realm_ids will populate it automatically
         tenant_id_replacement,
@@ -499,6 +499,18 @@ pub fn replace_ids(
 
     // Parse the modified JSON string back into the structured format
     let data: ImportElectionEventSchema = deserialize_str(&new_data)?;
+
+    // Explicit realm replacements are applied to the JSON but omitted from its
+    // map. Publication imports also need these scopes, including identity maps
+    // when importing back into the same tenant or keeping the event ID.
+    replacement_map.insert(
+        original_data.tenant_id.to_string(),
+        data.tenant_id.to_string(),
+    );
+    replacement_map.insert(
+        original_data.election_event.id.clone(),
+        data.election_event.id.clone(),
+    );
 
     // Return both the modified schema and the UUID replacement mapping
     Ok((data, replacement_map))
@@ -1183,10 +1195,10 @@ pub async fn process_document(
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {
-        for (file_name, mut file_contents) in zip_entries {
+        for (file_name, file_contents) in &zip_entries {
             info!("Importing file: {:?}", file_name);
 
-            let mut cursor = Cursor::new(&mut file_contents[..]);
+            let mut cursor = Cursor::new(&file_contents[..]);
 
             if file_name.contains(&format!("{}", EDocuments::ACTIVITY_LOGS.to_file_name())) {
                 let mut temp_file = NamedTempFile::new()
@@ -1350,6 +1362,7 @@ pub async fn process_document(
                     &election_event_schema.election_event.id,
                     temp_file,
                     replacement_map.clone(),
+                    &zip_entries,
                 )
                 .await
                 .with_context(|| "Error importing publications")?;
@@ -1573,4 +1586,50 @@ pub async fn maybe_create_scheduled_event(
     .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod publication_import_mapping_tests {
+    use super::*;
+
+    #[test]
+    fn includes_scope_mappings_from_the_event_import_path() {
+        let tenant = Uuid::new_v4().to_string();
+        let event = Uuid::new_v4().to_string();
+        let document = Uuid::new_v4().to_string();
+        let input = serde_json::json!({
+            "tenant_id": tenant,
+            "election_event": {
+                "id": event, "tenant_id": tenant, "is_archived": false,
+                "encryption_protocol": "RSA", "annotations": {"document_id": document}
+            },
+            "elections": [], "contests": [], "candidates": [], "areas": [],
+            "area_contests": [], "reports": []
+        });
+        let original: ImportElectionEventSchema = serde_json::from_value(input.clone()).unwrap();
+        for target_tenant in [tenant.clone(), Uuid::new_v4().to_string()] {
+            for target_event in [None, Some(event.clone()), Some(Uuid::new_v4().to_string())] {
+                let (imported, ids) = replace_ids(
+                    &input.to_string(),
+                    &original,
+                    target_event.clone(),
+                    target_tenant.clone(),
+                )
+                .unwrap();
+                assert_eq!(ids.get(&tenant), Some(&target_tenant));
+                assert_eq!(ids.get(&event), Some(&imported.election_event.id));
+                assert_eq!(imported.election_event.tenant_id, target_tenant);
+                if let Some(expected) = target_event {
+                    assert_eq!(imported.election_event.id, expected);
+                } else {
+                    assert_ne!(imported.election_event.id, event);
+                }
+                assert_ne!(ids[&document], document);
+                assert_eq!(
+                    imported.election_event.annotations.unwrap()["document_id"],
+                    ids[&document]
+                );
+            }
+        }
+    }
 }
