@@ -73,7 +73,7 @@ fn zero_seats_and_more_seats_than_candidates_have_bounded_outputs() {
 }
 
 #[test]
-fn acclaimed_winners_preserve_configured_order_and_have_no_vote_totals() {
+fn acclaimed_winners_preserve_candidate_result_order_and_have_no_vote_totals() {
     let mut result = election_result(&[("bea", 1), ("blank", 50), ("ada", 99), ("invalid", 50)]);
     result.contest.is_acclaimed = Some(true);
     let winners = MarkWinners::get_winners(&result);

@@ -12,11 +12,13 @@ use sequent_core::types::ceremonies::{CountingAlgType, ScopeOperation, TallyOper
 use velvet::pipes::do_tally::tally::Tally;
 use velvet::pipes::do_tally::ContestResult;
 
+pub const CONTEST_ID: &str = "council";
+
 pub fn candidate(id: &str, name: &str) -> Candidate {
     Candidate {
         id: id.into(),
         name: Some(name.into()),
-        contest_id: "council".into(),
+        contest_id: CONTEST_ID.into(),
         ..Default::default()
     }
 }
@@ -34,7 +36,7 @@ pub fn contest() -> Contest {
     });
 
     Contest {
-        id: "council".into(),
+        id: CONTEST_ID.into(),
         min_votes: 0,
         max_votes: 2,
         winning_candidates_num: 2,
@@ -52,7 +54,7 @@ pub fn contest() -> Contest {
 
 pub fn ballot(selected: &[&str]) -> DecodedVoteContest {
     DecodedVoteContest {
-        contest_id: "council".into(),
+        contest_id: CONTEST_ID.into(),
         is_explicit_invalid: false,
         is_decline_to_vote: false,
         is_blank_ballot: false,
@@ -88,11 +90,19 @@ pub fn tally(ballots: Vec<(DecodedVoteContest, Weight)>) -> Tally {
 
 /// Compare by candidate identity; aggregation is allowed to change vector order.
 pub fn candidate_counts(result: &ContestResult) -> std::collections::BTreeMap<String, u64> {
-    result
+    let counts = result
         .candidate_result
         .iter()
         .map(|entry| (entry.candidate.id.clone(), entry.total_count))
-        .collect()
+        .collect::<std::collections::BTreeMap<_, _>>();
+    // A map would silently discard duplicate rows. Treat that as a broken
+    // result, even if the surviving count happened to match the expected total.
+    assert_eq!(
+        counts.len(),
+        result.candidate_result.len(),
+        "candidate result contains duplicate identities",
+    );
+    counts
 }
 
 pub fn candidate_percentage(result: &ContestResult, id: &str) -> f64 {
