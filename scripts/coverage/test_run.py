@@ -137,6 +137,32 @@ issue = "https://github.com/sequentech/meta/issues/13292"
             self.assertEqual(run.measure("sequent-core", True, True), 2)
         self.assertFalse(any("--tests" in command for command in commands))
 
+    def test_cleanup_precedes_tests_and_failure_stops_measurement(self) -> None:
+        commands = []
+        def failing_cleanup(command: list[str], log: Path, environment: dict[str, str]) -> str:
+            commands.append(command)
+            if command[:3] == ["cargo", "llvm-cov", "clean"]:
+                self.assertIn("--workspace", command)
+                raise CoverageError("Stale profile cleanup failed")
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=failing_cleanup):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        self.assertTrue(any("clean" in command for command in commands))
+        self.assertFalse(any("--tests" in command for command in commands))
+
+    def test_successful_run_cleans_before_collecting_new_counters(self) -> None:
+        commands = []
+        def record(command: list[str], log: Path, environment: dict[str, str]) -> str:
+            commands.append(command)
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=record):
+            self.assertEqual(run.measure("sequent-core", False, True), 0)
+        cleanup = commands.index(["cargo", "llvm-cov", "clean", "--workspace"])
+        collect = next(index for index, command in enumerate(commands) if "--tests" in command)
+        self.assertLess(cleanup, collect)
+
     def test_strict_shortfall_fails(self) -> None:
         self.covered = 94
         code, summary = self.attempt()

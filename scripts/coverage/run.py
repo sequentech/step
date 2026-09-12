@@ -161,8 +161,8 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     if offline:
         # Report generation also invokes Cargo metadata internally.
         environment["CARGO_NET_OFFLINE"] = "true"
-    # Profiles share dependency compilation, but cargo-llvm-cov clears old counters
-    # at the start. Run one coverage process per checkout at a time.
+    # Profiles share dependency compilation. Clear counters explicitly below:
+    # --no-report intentionally preserves them for multi-invocation collection.
     environment["CARGO_LLVM_COV_TARGET_DIR"] = str(
         WORKSPACE / "target" / "package-coverage"
     )
@@ -227,6 +227,11 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
             arguments.extend(["--features", ",".join(profile["features"])])
         if offline:
             arguments.append("--offline")
+        execute(
+            ["cargo", "llvm-cov", "clean", "--workspace"],
+            output / "clean.log",
+            environment,
+        )
         test_command = ["cargo", "llvm-cov", "--tests", "--no-report", *arguments]
         test_log = execute(test_command, output / "tests.log", environment)
         counts = re.findall(
