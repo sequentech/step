@@ -289,7 +289,7 @@ impl GenerateVoters {
         let mut wtr = Writer::from_path(&csv_file_path)?;
         wtr.write_record(&final_fields)?;
 
-        let mut username_counter = 0;
+        let mut username_counter = voters_config.username_start_number;
         let mut area_cycle = areas.iter().cycle();
 
         for i in 0..num_users {
