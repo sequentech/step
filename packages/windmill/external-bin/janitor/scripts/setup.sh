@@ -52,6 +52,13 @@ echo -e "${GREEN}Step 3/7:${RESET} Checking Python installation..."
 python3 --version
 pip3 --version
 
+# python-dotenv requires Python 3.10 or newer. Fail here with a clear message
+# rather than midway through pip's resolver.
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo -e "${RED}Python 3.10 or newer is required (found $(python3 --version 2>&1)).${RESET}" >&2
+    exit 1
+fi
+
 # Create install directory
 echo -e "${GREEN}Step 4/7:${RESET} Creating install directory at ${BOLD}$INSTALL_DIR${RESET}..."
 mkdir -p "$INSTALL_DIR"
@@ -70,8 +77,8 @@ cat > requirements.txt <<EOF
 Faker==13.3.4
 psycopg2==2.9.10
 openpyxl==3.1.5
-pyzipper==0.3.6
-python-dotenv==1.0.1
+pyzipper==0.4.0
+python-dotenv==1.2.3
 pybars3==0.9.7
 EOF
 pip install -r requirements.txt
