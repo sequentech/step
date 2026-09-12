@@ -13,15 +13,20 @@ use velvet::config::{Config, PipeConfig};
 use velvet::pipes::pipe_inputs::{PipeInputs, DEFAULT_DIR_CONFIGS};
 use velvet::pipes::pipe_name::PipeName;
 
+const STAGE_ID: &str = "main";
+const DECODE_PIPE_ID: &str = "decode";
+const TALLY_PIPE_ID: &str = "tally";
+const WINNERS_PIPE_ID: &str = "winners";
+
 fn configuration() -> Value {
     json!({
         "version": "1.0.0",
         "stages": {
-            "order": ["main"],
-            "main": { "pipeline": [
-                {"id": "decode", "pipe": "VelvetDecodeBallots"},
-                {"id": "tally", "pipe": "VelvetDoTally"},
-                {"id": "winners", "pipe": "VelvetMarkWinners"}
+            "order": [STAGE_ID],
+            (STAGE_ID): { "pipeline": [
+                {"id": DECODE_PIPE_ID, "pipe": "VelvetDecodeBallots"},
+                {"id": TALLY_PIPE_ID, "pipe": "VelvetDoTally"},
+                {"id": WINNERS_PIPE_ID, "pipe": "VelvetMarkWinners"}
             ]}
         }
     })
@@ -32,8 +37,8 @@ fn configuration_requires_defined_stages_and_unique_transformations() {
     let directory = tempdir().unwrap();
     let path = directory.path().join("pipeline.json");
     let cli = CliRun {
-        stage: "main".into(),
-        pipe_id: "tally".into(),
+        stage: STAGE_ID.into(),
+        pipe_id: TALLY_PIPE_ID.into(),
         config: path.clone(),
         input_dir: directory.path().join("input"),
         output_dir: directory.path().join("output"),
@@ -46,11 +51,11 @@ fn configuration_requires_defined_stages_and_unique_transformations() {
     let mut missing_stage = valid.clone();
     missing_stage["stages"]["order"] = json!(["absent"]);
     let mut duplicate_pipe = valid.clone();
-    duplicate_pipe["stages"]["main"]["pipeline"][2]["pipe"] = json!("VelvetDoTally");
+    duplicate_pipe["stages"][STAGE_ID]["pipeline"][2]["pipe"] = json!("VelvetDoTally");
     let mut unknown_pipe = valid.clone();
-    unknown_pipe["stages"]["main"]["pipeline"][1]["pipe"] = json!("VelvetDoesNotExist");
+    unknown_pipe["stages"][STAGE_ID]["pipeline"][1]["pipe"] = json!("VelvetDoesNotExist");
     let mut wrong_type = valid;
-    wrong_type["stages"]["main"]["pipeline"][0]["pipe"] = json!(42);
+    wrong_type["stages"][STAGE_ID]["pipeline"][0]["pipe"] = json!(42);
 
     for invalid in [missing_stage, duplicate_pipe, unknown_pipe, wrong_type] {
         fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
@@ -63,10 +68,10 @@ fn configuration_requires_defined_stages_and_unique_transformations() {
 #[test]
 fn pipeline_neighbors_stop_at_both_ends_and_preserve_per_pipe_settings() {
     let config: Config = serde_json::from_value(configuration()).unwrap();
-    let mut pipeline = config.stages.stages_def["main"].pipeline.clone();
+    let mut pipeline = config.stages.stages_def[STAGE_ID].pipeline.clone();
     pipeline[1].config = Some(json!({"audit": true}));
     let mut stage = Stage {
-        name: "main".into(),
+        name: STAGE_ID.into(),
         pipeline,
         current_pipe: Some(PipeName::DecodeBallots),
         previous_pipe: None,
@@ -113,8 +118,8 @@ fn malformed_election_folder_names_return_errors_without_panicking() {
     let configs = directory.path().join(DEFAULT_DIR_CONFIGS);
     fs::create_dir_all(&configs).unwrap();
     let cli = CliRun {
-        stage: "main".into(),
-        pipe_id: "tally".into(),
+        stage: STAGE_ID.into(),
+        pipe_id: TALLY_PIPE_ID.into(),
         config: directory.path().join("pipeline.json"),
         input_dir: directory.path().to_path_buf(),
         output_dir: directory.path().join("output"),
@@ -123,7 +128,7 @@ fn malformed_election_folder_names_return_errors_without_panicking() {
         PipeInputs::new(
             cli.clone(),
             Stage {
-                name: "main".into(),
+                name: STAGE_ID.into(),
                 pipeline: vec![],
                 current_pipe: None,
                 previous_pipe: None,
@@ -153,8 +158,8 @@ fn command_line_requires_an_explicit_stage_pipe_and_all_file_locations() {
     let valid = [
         "velvet",
         "run",
-        "main",
-        "tally",
+        STAGE_ID,
+        TALLY_PIPE_ID,
         "--config",
         "pipeline.json",
         "--input-dir",

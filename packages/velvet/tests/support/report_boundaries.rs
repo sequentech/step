@@ -6,6 +6,9 @@
 use super::*;
 use sequent_core::ballot::CandidatePresentation;
 
+const STAGE_ID: &str = "main";
+const PIPE_ID: &str = "reports";
+
 fn candidate_result(id: &str, position: Option<i64>) -> CandidateResult {
     CandidateResult {
         candidate: Candidate {
@@ -66,8 +69,8 @@ fn report_pipe(config: PipeConfigGenerateReports) -> GenerateReports {
 
     GenerateReports::new(PipeInputs {
         cli: CliRun {
-            stage: "main".into(),
-            pipe_id: "reports".into(),
+            stage: STAGE_ID.into(),
+            pipe_id: PIPE_ID.into(),
             config: PathBuf::new(),
             input_dir: PathBuf::new(),
             output_dir: PathBuf::new(),
@@ -77,11 +80,11 @@ fn report_pipe(config: PipeConfigGenerateReports) -> GenerateReports {
         root_path_tally_sheets: PathBuf::new(),
         root_path_database: PathBuf::new(),
         stage: Stage {
-            name: "main".into(),
+            name: STAGE_ID.into(),
             current_pipe: Some(PipeName::GenerateReports),
             previous_pipe: None,
             pipeline: vec![PipeConfig {
-                id: "reports".into(),
+                id: PIPE_ID.into(),
                 pipe: PipeName::GenerateReports,
                 config: Some(serde_json::to_value(config).unwrap()),
             }],

@@ -4,6 +4,7 @@
 //! A local paper-ballot workflow must carry the same independently counted
 //! totals through tallying, winner selection and the reports shown to operators.
 
+use sequent_core::types::tally_sheets::{TallySheetStatus, VotingChannel};
 use serde_json::json;
 use std::fs;
 use velvet::cli::{state::State, test_all::generate_ballots, CliRun};
@@ -83,8 +84,8 @@ impl PaperElection {
             "id": id, "tenant_id": contest.contest.tenant_id,
             "election_event_id": contest.contest.election_event_id,
             "election_id": election.id, "contest_id": contest.id, "area_id": area.id,
-            "created_by_user_id": "test-operator", "status": "APPROVED", "version": 1,
-            "channel": "PAPER",
+            "created_by_user_id": "test-operator", "status": TallySheetStatus::APPROVED, "version": 1,
+            "channel": VotingChannel::PAPER,
             "content": {
                 "area_id": area.id, "contest_id": contest.id, "census": 100,
                 "total_valid_votes": marks + blanks, "total_blank_votes": blanks,

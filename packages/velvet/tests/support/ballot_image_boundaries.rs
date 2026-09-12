@@ -14,6 +14,9 @@ use serde_json::json;
 use tempfile::tempdir;
 use uuid::Uuid;
 
+const STAGE_ID: &str = "main";
+const PIPE_ID: &str = "images";
+
 fn candidate(id: &str, name: &str) -> Candidate {
     Candidate {
         id: id.into(),
@@ -78,8 +81,8 @@ fn ballot(selected: &[&str]) -> DecodedBallotChoices {
 fn image_pipe() -> MCBallotImages {
     MCBallotImages::new(PipeInputs {
         cli: CliRun {
-            stage: "main".into(),
-            pipe_id: "images".into(),
+            stage: STAGE_ID.into(),
+            pipe_id: PIPE_ID.into(),
             config: PathBuf::new(),
             input_dir: PathBuf::new(),
             output_dir: PathBuf::new(),
@@ -89,7 +92,7 @@ fn image_pipe() -> MCBallotImages {
         root_path_tally_sheets: PathBuf::new(),
         root_path_database: PathBuf::new(),
         stage: Stage {
-            name: "main".into(),
+            name: STAGE_ID.into(),
             pipeline: vec![],
             current_pipe: None,
             previous_pipe: None,
@@ -169,6 +172,10 @@ fn missing_candidate_metadata_has_a_deterministic_sort_position() {
     choices[1].candidate = None;
     sort_candidates(&mut choices, CandidatesOrder::Alphabetical);
     assert_eq!(choices[0].choice.id, "bea");
+    // Alphabetical sorting moved the missing metadata to index 0. Index 1 is
+    // Ada's populated entry; the next check exercises a different ordering.
+    assert!(choices[0].candidate.is_none());
+    assert_eq!(choices[1].choice.id, "ada");
     choices[1].candidate.as_mut().unwrap().presentation = Some(CandidatePresentation {
         sort_order: Some(4),
         ..Default::default()
@@ -311,7 +318,7 @@ fn file_image_pipe(root: &Path, ballots: &[DecodedBallotChoices]) -> MCBallotIma
     });
     pipe.pipe_inputs.stage.current_pipe = Some(PipeName::MCBallotImages);
     pipe.pipe_inputs.stage.pipeline = vec![PipeConfig {
-        id: "images".into(),
+        id: PIPE_ID.into(),
         pipe: PipeName::MCBallotImages,
         config: Some(serde_json::to_value(config).unwrap()),
     }];
