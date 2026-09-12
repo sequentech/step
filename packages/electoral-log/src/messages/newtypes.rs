@@ -302,3 +302,17 @@ pub struct ResultsPublicationDetails {
     pub visibility_scope: ResultsPublicationVisibilityScopeString,
     pub contest_ids: Vec<ContestIdString>,
 }
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub enum BallotPublicationStage {
+    Generate,
+    Publish,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub struct BallotPublicationFailure {
+    pub publication_id: BallotPublicationIdString,
+    pub task_id: String,
+    pub stage: BallotPublicationStage,
+    pub error: ErrorMessageString,
+}
