@@ -1,0 +1,102 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Rust package coverage
+
+on:
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/coverage/**'
+      - '.github/workflows/rust-coverage.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/coverage/**'
+      - '.github/workflows/rust-coverage.yml'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Package feature profile to measure
+        type: choice
+        options: [sequent-core, strand]
+        default: sequent-core
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-coverage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reporter-tests:
+    name: Coverage tooling tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install the Python coverage tool
+        run: python3 -m pip install coverage==7.16.0 ruff==0.16.7
+      - name: Check Python formatting and imports
+        run: |
+          ruff format --check --config scripts/coverage/ruff.toml scripts/coverage
+          ruff check --config scripts/coverage/ruff.toml scripts/coverage
+      - name: Test the coverage decisions
+        env:
+          COVERAGE_FILE: coverage/tooling/.coverage
+        run: |
+          mkdir -p coverage/tooling
+          python3 -m coverage run --branch --source=scripts/coverage --omit='*/test_*.py' -m unittest discover -s scripts/coverage
+          python3 -m coverage report --fail-under=95
+          python3 -m coverage html -d coverage/tooling/html
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: coverage-tooling
+          path: coverage/tooling/
+          retention-days: 7
+
+  package-baseline:
+    # This reports progress toward 95%; it does not certify that target. Keep
+    # the package ticket open until the strict command passes its scope check.
+    name: Core package coverage baseline
+    # Existing PR jobs already run the Rust suites. Keep the initial coverage
+    # pilot on demand so a new report does not double every PR's build minutes.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: reporter-tests
+    env:
+      COVERAGE_PROFILE: ${{ inputs.profile || 'sequent-core' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+      - name: Install the repository Rust toolchain
+        run: |
+          rustup show active-toolchain
+          rustup component add llvm-tools-preview
+      - name: Install cargo-llvm-cov 0.9.1
+        run: |
+          curl --fail --location --silent --show-error --output /tmp/cargo-llvm-cov.tar.gz https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz
+          echo 'b3f68e625481fed9b16444174f3fa5ebcdbde4a1878803a35eabe2dcefcdc41a  /tmp/cargo-llvm-cov.tar.gz' | sha256sum --check
+          tar -xzf /tmp/cargo-llvm-cov.tar.gz -C "$HOME/.cargo/bin"
+      - name: Measure package coverage
+        run: python3 scripts/coverage/run.py "$COVERAGE_PROFILE" --baseline
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: coverage-${{ env.COVERAGE_PROFILE }}
+          path: coverage/${{ env.COVERAGE_PROFILE }}/
+          if-no-files-found: error
+          retention-days: 7
