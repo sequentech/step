@@ -75,7 +75,7 @@ package = "wrap-map-err"
 features = []
 limitations = [
     "Native parser/expansion tests and compiled public macro consumers; no ignored cases or source exclusions.",
-    "LLVM measures the runtime expansion helpers; the proc_macro entry point runs at compile time and is not part of runtime line counters.",
+    "LLVM combines runtime unit-test counters with compiler-time macro expansion counters from the compiled consumer fixtures.",
     "Branch coverage, arbitrary aliases not named Result and the full Windmill/Celery task integration are separate scopes.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13299"

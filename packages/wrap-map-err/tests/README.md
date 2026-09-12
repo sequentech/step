@@ -22,8 +22,8 @@ python3 scripts/coverage/run.py wrap-map-err --offline
 ```
 
 The original package had no tests. Do not interpret the lack of a valid runtime
-coverage report as a measured zero. Runtime coverage measures expansion helpers;
-the native proc-macro entry point executes in the compiler, outside those line
-counters. Public integration tests cover it through compilation. No source files
+coverage report as a measured zero. LLVM records both the expansion helpers exercised by runtime unit tests and
+the public proc-macro entry point exercised while compiling consumer fixtures.
+The package percentage combines those two phases; it is not runtime-only coverage. No source files
 or positive counters are excluded. Branch coverage and full Windmill/Celery task
 integration remain separate evidence requirements in Meta #13299.
