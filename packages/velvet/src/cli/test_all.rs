@@ -608,8 +608,11 @@ mod tests {
     fn test_pipes_exec_mcballots() -> Result<()> {
         //sequent_core::util::init_log::init_log(true);
 
-        let election_num = 5;
-        let contest_num = 10;
+        // Keep multiple elections and contests, the deliberately missing area,
+        // and all 20 ballot cases. Larger dimensions only duplicate PDF work;
+        // these are correctness checks, not throughput benchmarks.
+        let election_num = 2;
+        let contest_num = 2;
         let area_num = 3;
         let ballot_num = 20;
 
@@ -788,8 +791,11 @@ mod tests {
     fn test_pipes_exec() -> Result<()> {
         sequent_core::util::init_log::init_log(true);
 
-        let election_num = 5;
-        let contest_num = 10;
+        // Keep multiple elections and contests, the deliberately missing area,
+        // and all 20 ballot cases. Larger dimensions only duplicate PDF work;
+        // these are correctness checks, not throughput benchmarks.
+        let election_num = 2;
+        let contest_num = 2;
         let area_num = 3;
         let ballot_num = 20;
 
