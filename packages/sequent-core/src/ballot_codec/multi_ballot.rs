@@ -807,7 +807,7 @@ impl BallotChoices {
         bytes: &[u8; 30],
         style: &BallotStyle,
     ) -> Result<DecodedBallotChoices, String> {
-        let bytes = vec::decode_array_to_vec(&bytes);
+        let bytes = vec::decode_array_to_vec(bytes)?;
         let bigint = bigint::decode_bigint_from_bytes(&bytes)?;
 
         Self::decode_from_bigint(
@@ -3023,83 +3023,70 @@ mod tests {
         }
     }
 
-    // Quarantined: flaky. `random_ballot()` uses an unseeded `thread_rng()`, and the
-    // verification loop below tracks slot positions with a fragile "skip past zero
-    // slots" heuristic that desyncs on some random draws (~6.5% failure rate),
-    // misreading a contest's `is_explicit_invalid` slot. Needs deterministic seeding
-    // plus reconstructing expected slot positions from the style layout instead of the
-    // heuristic. Tracking issue: https://github.com/sequentech/meta/issues/12418
     #[test]
-    #[ignore = "flaky: unseeded RNG + fragile index tracking; see sequentech/meta tracking issue"]
     fn test_mixed_radix_encode() {
-        let (ballot, style) = random_ballot(5);
+        // Fix the complete slot layout rather than searching past zero slots.
+        // A zero inside contest a, an invalid empty contest b, and padding at
+        // the end of contest c must not shift the next contest's flag.
+        // Regression: https://github.com/sequentech/meta/issues/12418.
+        let mut contest_a = test_contest("a", 4, 3);
+        contest_a.candidates.reverse();
+        let contests =
+            vec![test_contest("c", 3, 2), contest_a, test_contest("b", 2, 2)];
+        let ballot = BallotChoices::new(
+            false,
+            false,
+            vec![
+                ContestChoices::new(
+                    "c".into(),
+                    vec![ContestChoice::new("1".into(), 0)],
+                    false,
+                ),
+                ContestChoices::new(
+                    "a".into(),
+                    vec![
+                        ContestChoice::new("3".into(), 0),
+                        ContestChoice::new("2".into(), -1),
+                        ContestChoice::new("1".into(), 0),
+                    ],
+                    false,
+                ),
+                ContestChoices::new("b".into(), vec![], true),
+            ],
+            CountingAlgType::PluralityAtLarge,
+        );
 
-        let mixed_radix = ballot.encode_to_raw_ballot(&style).unwrap();
+        // Candidate digits are their sorted, one-based IDs; 0 is an unset
+        // slot. These vectors are written out independently of codec helpers.
+        let cases = [
+            (
+                MultiContestEncodingMode::LEGACY,
+                vec![2, 5, 5, 5, 2, 3, 3, 2, 4, 4],
+                vec![0, 4, 0, 2, 1, 0, 0, 0, 2, 0],
+            ),
+            (
+                MultiContestEncodingMode::EXPANDED_CAPACITY,
+                vec![2, 5, 5, 5, 5, 2, 3, 3, 2, 4, 4, 4],
+                vec![0, 4, 0, 2, 0, 1, 0, 0, 0, 2, 0, 0],
+            ),
+        ];
 
-        let include_decline_to_vote = style.decline_to_vote_enabled();
-        let mut index = if include_decline_to_vote {
-            assert_eq!(
-                mixed_radix.choices[0],
-                u64::from(ballot.is_explicit_invalid),
-                "ballot-level decline-to-vote flag should be at index 0"
-            );
-            1
-        } else {
-            0
-        };
+        for (mode, expected_bases, expected_choices) in cases {
+            let mut style = test_ballot_style(contests.clone());
+            style.multi_contest_encoding_mode = Some(mode);
+            let encoded = ballot.encode_to_raw_ballot(&style).unwrap();
+            assert_eq!(encoded.bases, expected_bases);
+            assert_eq!(encoded.choices, expected_choices);
 
-        let mut sorted_choices = ballot.choices.clone();
-        sorted_choices.sort_by_key(|c| c.contest_id.clone());
-
-        for choices in sorted_choices.iter() {
-            let contest = style
-                .contests
-                .iter()
-                .find(|c| c.id == choices.contest_id)
-                .unwrap();
-
-            assert_eq!(
-                mixed_radix.choices[index],
-                u64::from(choices.is_explicit_invalid)
-            );
-            index += 1;
-
-            let mut candidate_ids: Vec<String> =
-                contest.candidates.iter().map(|c| c.id.clone()).collect();
-            candidate_ids.sort();
-
-            // Each contest occupies exactly max_votes slots after its
-            // flag(s); remember where they start so we can skip any
-            // trailing unset slots once all choices are verified.
-            let contest_slots_start = index;
-            let contest_max_votes = usize::try_from(contest.max_votes).unwrap();
-
-            for choice in choices.choices.iter() {
-                if choice.selected < -1 {
-                    assert_eq!(mixed_radix.choices[index], 0);
-                    index += 1;
-                    continue;
-                }
-
-                let mut value;
-                // skip past unset values
-                loop {
-                    value = mixed_radix.choices[index] as usize;
-                    if value == 0 {
-                        index += 1;
-                    } else {
-                        break;
-                    }
-                }
-
-                assert_eq!(choice.candidate_id, candidate_ids[value - 1]);
-
-                index += 1;
-            }
-
-            // Skip past any remaining unset slots of this contest so the
-            // next contest's flags are read from the correct position.
-            index = contest_slots_start + contest_max_votes;
+            // Enabling decline adds exactly one ballot-level bit before the
+            // same contest layout. It must not move or consume a contest flag.
+            style.election_presentation = Some(ElectionPresentation {
+                decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
+                ..Default::default()
+            });
+            let encoded = ballot.encode_to_raw_ballot(&style).unwrap();
+            assert_eq!(encoded.bases, [vec![2], expected_bases].concat());
+            assert_eq!(encoded.choices, [vec![0], expected_choices].concat());
         }
     }
 
