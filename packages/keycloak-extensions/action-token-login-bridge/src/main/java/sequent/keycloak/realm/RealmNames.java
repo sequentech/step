@@ -48,26 +48,22 @@ public final class RealmNames {
     return Optional.of(new EventRealm(tenantId, electionEventId));
   }
 
-  public static Optional<String> electionEventIdFromRealmName(String realmName) {
-    return parseEventRealmName(realmName).map(EventRealm::electionEventId);
+  /** Extract the tenant identifier from an administrative tenant realm, not an event realm. */
+  public static Optional<String> tenantIdFromRealmName(String realmName) {
+    String prefix = TENANT_SEGMENT + "-";
+    if (realmName == null || !realmName.startsWith(prefix)) {
+      return Optional.empty();
+    }
+    String tenantId = realmName.substring(prefix.length());
+    // The event segment is reserved by the event-realm grammar. Reject malformed
+    // event names too, so a smart link cannot treat one as an administrative realm.
+    if (tenantId.isBlank() || Arrays.asList(tenantId.split("-", -1)).contains(EVENT_SEGMENT)) {
+      return Optional.empty();
+    }
+    return Optional.of(tenantId);
   }
 
-  public static Optional<String> tenantIdFromRealmName(String realmName) {
-    if (realmName == null || realmName.isBlank()) {
-      return Optional.empty();
-    }
-
-    String[] parts = realmName.split("-", -1);
-    if (parts.length < 2 || !TENANT_SEGMENT.equals(parts[0])) {
-      return Optional.empty();
-    }
-    for (int i = 1; i < parts.length; i++) {
-      if (EVENT_SEGMENT.equals(parts[i])) {
-        return Optional.empty();
-      }
-    }
-
-    String tenantId = String.join("-", Arrays.copyOfRange(parts, 1, parts.length));
-    return tenantId.isBlank() ? Optional.empty() : Optional.of(tenantId);
+  public static Optional<String> electionEventIdFromRealmName(String realmName) {
+    return parseEventRealmName(realmName).map(EventRealm::electionEventId);
   }
 }

@@ -32,6 +32,7 @@ use rust_decimal::prelude::ToPrimitive;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::JwtClaims;
+use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::util::retry::retry_with_exponential_backoff;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -54,6 +55,43 @@ pub const MAX_ROWS_PER_PAGE: usize = 50;
 pub const BALLOT_ID_LENGTH_BYTES: usize = STRAND_HASH_LENGTH_BYTES / 2;
 /// Ballot_id input is in HEX, each byte is represented in 2 chars.
 pub const BALLOT_ID_LENGTH_CHARS: usize = BALLOT_ID_LENGTH_BYTES * 2;
+
+/// Record failures after the publication transaction has ended, so rollback
+/// cannot erase the diagnostic and the external write holds no DB connection.
+#[instrument(skip_all, err)]
+pub async fn log_ballot_publication_failure(
+    task: &TasksExecution,
+    publication_id: &str,
+    stage: BallotPublicationStage,
+    error_message: &str,
+) -> Result<()> {
+    let event_id = task
+        .election_event_id
+        .as_deref()
+        .context("Publication task has no election event")?;
+    let log = {
+        let mut db = get_hasura_pool().await.get().await?;
+        let tx = db.transaction().await?;
+        let event = get_election_event_by_id(&tx, &task.tenant_id, event_id).await?;
+        let board = get_election_event_board(event.bulletin_board_reference)
+            .context("Election event is missing its electoral-log board")?;
+        let log = ElectoralLog::new(&tx, &task.tenant_id, Some(event_id), &board).await?;
+        tx.commit().await?;
+        log
+    };
+    let message = Message::ballot_publication_failure_message(
+        EventIdString(event_id.to_owned()),
+        BallotPublicationFailure {
+            publication_id: BallotPublicationIdString(publication_id.to_owned()),
+            task_id: task.id.clone(),
+            stage,
+            error: ErrorMessageString(error_message.to_owned()),
+        },
+        &log.sd,
+        Some(task.executed_by_user.clone()),
+    )?;
+    log.post(&message).await
+}
 
 /// Identifies the admin user whose request caused a voter password change.
 /// The password itself must never be added to this context or to the
@@ -545,6 +583,29 @@ impl ElectoralLog {
             sd: SigningData::new(sender_sk.clone(), "", system_sk),
             elog_database: elog_database.to_string(),
         })
+    }
+
+    /// Construct a system-authored audit message using an already loaded key.
+    /// The empty sender name preserves the system identity used by `new` and
+    /// `new_from_sk`; voter attribution belongs in the message's actor fields.
+    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &StrandSignatureSk) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
+    /// Reuses an election's already loaded system signing key. This is the
+    /// same signing identity as `for_voter`, without another database lookup.
+    pub fn for_voter_with_signing_key(
+        elog_database: &str,
+        user_id: &str,
+        system_sk: &StrandSignatureSk,
+    ) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
     }
 
     /// Returns an electoral log whose posts will have the given voter

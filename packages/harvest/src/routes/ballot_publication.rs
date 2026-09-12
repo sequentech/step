@@ -5,6 +5,7 @@ use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
+use electoral_log::messages::newtypes::BallotPublicationStage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
@@ -26,6 +27,7 @@ use windmill::{
             PublicationDiff,
         },
         database::get_hasura_pool,
+        electoral_log::log_ballot_publication_failure,
         tasks_execution::{
             post as post_task_execution,
             update_complete as update_task_execution_complete,
@@ -147,6 +149,25 @@ pub struct PublishBallotOutput {
     ballot_publication_id: String,
 }
 
+async fn record_publish_failure(
+    task: &TasksExecution,
+    publication_id: &str,
+    message: &str,
+) -> Result<()> {
+    let status_result = update_task_execution_fail(task, message).await;
+    if let Err(error) = log_ballot_publication_failure(
+        task,
+        publication_id,
+        BallotPublicationStage::Publish,
+        message,
+    )
+    .await
+    {
+        tracing::error!(task_id = %task.id, "Could not record publication failure in the electoral log: {error:?}");
+    }
+    status_result
+}
+
 #[instrument(skip(claims))]
 #[post("/publish-ballot", format = "json", data = "<body>")]
 pub async fn publish_ballot(
@@ -231,9 +252,13 @@ pub async fn publish_ballot(
         if let Err(rollback_error) = hasura_transaction.rollback().await {
             let message =
                 format!("{failure_message}\nRollback failed: {rollback_error}");
-            update_task_execution_fail(&task_execution, &message)
-                .await
-                .ok();
+            record_publish_failure(
+                &task_execution,
+                &input.ballot_publication_id,
+                &message,
+            )
+            .await
+            .ok();
             return Err(ErrorResponse::new(
                 Status::InternalServerError,
                 &response_message,
@@ -241,7 +266,7 @@ pub async fn publish_ballot(
             ));
         }
 
-        update_task_execution_fail(&task_execution, &failure_message)
+        record_publish_failure(&task_execution, &input.ballot_publication_id, &failure_message)
             .await
             .map_err(|task_error| {
                 ErrorResponse::new(
@@ -269,9 +294,13 @@ pub async fn publish_ballot(
 
     if let Err(commit_error) = hasura_transaction.commit().await {
         let failure_message = format!("Commit failed: {commit_error}");
-        update_task_execution_fail(&task_execution, &failure_message)
-            .await
-            .ok();
+        record_publish_failure(
+            &task_execution,
+            &input.ballot_publication_id,
+            &failure_message,
+        )
+        .await
+        .ok();
         return Err(ErrorResponse::new(
             Status::InternalServerError,
             &failure_message,
@@ -286,9 +315,13 @@ pub async fn publish_ballot(
             "Ballot was published, but task {} could not be marked complete: {task_error}",
             task_execution.id
         );
-        update_task_execution_fail(&task_execution, &failure_message)
-            .await
-            .ok();
+        record_publish_failure(
+            &task_execution,
+            &input.ballot_publication_id,
+            &failure_message,
+        )
+        .await
+        .ok();
         return Err(ErrorResponse::new(
             Status::InternalServerError,
             &failure_message,

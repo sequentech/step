@@ -15,7 +15,7 @@ use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
+use crate::services::export::export_ballot_publication::export_election_event_config_file;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::{
@@ -646,39 +646,42 @@ pub async fn process_export_zip(
             .start_file(&publications_filename, options)
             .map_err(|e| anyhow!("Error starting ballot publications file in ZIP: {e:?}"))?;
 
-        let temp_path = export_ballot_publication::export_ballot_publications(
-            &hasura_transaction,
-            document_id,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error exporting ballot publications: {err}"))?;
+        let (publications, files) =
+            crate::services::ballot_styles::publication_archive::export_publication_archive(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await?;
+        std::io::Write::write_all(&mut zip_writer, &serde_json::to_vec(&publications)?)?;
+        for (name, path) in files {
+            zip_writer.start_file(name, options)?;
+            std::io::copy(&mut File::open(path)?, &mut zip_writer)?;
+        }
 
-        let mut ballot_publication_file = File::open(temp_path)
-            .map_err(|e| anyhow!("Error opening temporary ballot publications file: {e:?}"))?;
-        std::io::copy(&mut ballot_publication_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
+        if publications.has_generated_publications() {
+            // Handle election event config file (which is created in ballot publication)
+            let election_event_config = format!(
+                "{}-{}.json",
+                EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
+                election_event_id
+            );
 
-        // Handle election event config file (which is created in ballot publication)
-        let election_event_config = format!(
-            "{}-{}.json",
-            EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
-            election_event_id
-        );
+            zip_writer
+                .start_file(&election_event_config, options)
+                .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
+            let election_event_config_temp_path =
+                export_election_event_config_file(tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
 
-        zip_writer
-            .start_file(&election_event_config, options)
-            .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
-        let election_event_config_temp_path =
-            export_election_event_config_file(tenant_id, election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
-
-        let mut election_event_config_file = File::open(election_event_config_temp_path)
-            .map_err(|e| anyhow!("Error opening temporary election event config file: {e:?}"))?;
-        std::io::copy(&mut election_event_config_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
+            let mut election_event_config_file = File::open(election_event_config_temp_path)
+                .map_err(|e| {
+                    anyhow!("Error opening temporary election event config file: {e:?}")
+                })?;
+            std::io::copy(&mut election_event_config_file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
+        }
     }
 
     // add protocol manager secrets

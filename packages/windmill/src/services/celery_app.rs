@@ -16,6 +16,7 @@ use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
 use crate::tasks::create_ballot_receipt::create_ballot_receipt;
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
+use crate::tasks::delete_tenant::delete_tenant_t;
 use crate::tasks::delete_users::delete_users;
 use crate::tasks::edit_user::edit_user;
 use crate::tasks::electoral_log::{
@@ -290,6 +291,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             create_transmission_package_task,
             send_transmission_package_task,
             delete_election_event_t,
+            delete_tenant_t,
             delete_users,
             export_tasks_execution,
             scheduled_reports,
@@ -356,6 +358,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             create_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
             send_transmission_package_task::NAME => &Queue::Short.queue_name(&slug),
             delete_election_event_t::NAME => &Queue::Short.queue_name(&slug),
+            delete_tenant_t::NAME => &Queue::Short.queue_name(&slug),
             // Same queue as import_users/export_users: same order of
             // magnitude of work over the same voter set.
             delete_users::NAME => &Queue::ImportExport.queue_name(&slug),
