@@ -552,6 +552,17 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
                     .to_string(),
             ));
         }
+        if es
+            .rows()
+            .iter()
+            .chain(e_primes.rows())
+            .any(|row| row.len() != width)
+        {
+            return Err(StrandError::Generic(
+                "Ciphertext matrix rows must all have the same width"
+                    .to_string(),
+            ));
+        }
         let (h_initial, h_generators) =
             self.generators.split_first().ok_or_else(|| {
                 StrandError::Generic("Missing shuffle generators".to_string())

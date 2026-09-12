@@ -170,6 +170,22 @@ fn product_shuffle_rejects_incomplete_proofs_rows_and_columns() {
     assert!(shuffler
         .check_proof(&proof, &original, &fewer_columns, b"fixture")
         .is_err());
+
+    // Public construction and Borsh decoding enforce rectangular rows. Check
+    // the internal unchecked path too: its first row can hide a short later row.
+    let mut ragged_original_rows = original.rows().to_vec();
+    ragged_original_rows[1].pop();
+    let ragged_original = StrandRectangle::new_unchecked(ragged_original_rows);
+    assert!(shuffler
+        .check_proof(&proof, &ragged_original, &shuffled, b"fixture")
+        .is_err());
+    let mut ragged_shuffled_rows = shuffled.rows().to_vec();
+    ragged_shuffled_rows[2].pop();
+    let ragged_shuffled = StrandRectangle::new_unchecked(ragged_shuffled_rows);
+    assert!(shuffler
+        .check_proof(&proof, &original, &ragged_shuffled, b"fixture")
+        .is_err());
+
     let empty = StrandRectangle::new_unchecked(vec![]);
     let empty_generators = generators[..1].to_vec();
     let empty_shuffler =
