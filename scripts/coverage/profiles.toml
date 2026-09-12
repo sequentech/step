@@ -29,3 +29,16 @@ limitations = [
 issue = "https://github.com/sequentech/meta/issues/13293"
 
 [profiles.strand.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
+"src/random/mod.rs" = "Module declaration only; the rand implementation is measured."
+"src/signatures/mod.rs" = "Module declaration only; the Dalek implementation is measured."
+"src/symmetric/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
+"src/backend/malachite.rs" = "Disabled malachite feature; requires its own backend run before claiming coverage of that configuration."
+"src/backend/num_bigint.rs" = "Disabled num_bigint feature; requires its own backend run before claiming coverage of that configuration."
+"src/backend/rug.rs" = "Disabled rug feature; requires its own backend run before claiming coverage of that configuration."
+"src/wasm.rs" = "Disabled wasm feature; browser exports require a separate WASM run."
+"src/wasm/test.rs" = "Browser-only test module under the disabled wasm feature."
+"src/wasm/test/bench.rs" = "Browser benchmark harness under the disabled wasm feature."
+"src/wasm/test/demo.rs" = "Browser demonstration under the disabled wasm feature."
+"src/wasm/test/test.rs" = "Browser test harness under the disabled wasm feature."
