@@ -155,3 +155,7 @@ pub async fn refresh_results_publication_index(
     .map_err(map_service_error)?;
     Ok(Json(output))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/publication_errors.rs"]
+mod boundary_tests;

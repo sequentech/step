@@ -157,7 +157,11 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-")
     output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
     started = time.monotonic()
-    environment = dict(os.environ, CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
+    environment = dict(os.environ)
+    # Profiles may declare public, synthetic fixture settings. These override
+    # ambient service endpoints so a test cannot inherit a production database.
+    environment.update(profile.get("test_environment", {}))
+    environment.update(CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
     if offline:
         # Report generation also invokes Cargo metadata internally.
         environment["CARGO_NET_OFFLINE"] = "true"
@@ -200,6 +204,8 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 ).hexdigest(),
                 "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
                 "features": profile["features"],
+                "test_environment": profile.get("test_environment", {}),
+                "compiler_coverage": profile.get("compiler_coverage", False),
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
                 "issue": profile["issue"],
@@ -227,8 +233,16 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
             arguments.extend(["--features", ",".join(profile["features"])])
         if offline:
             arguments.append("--offline")
+        # Runtime counters can be cleared without recompiling the workspace.
+        # Proc-macro coverage also executes during compilation, so those
+        # profiles explicitly rebuild to avoid losing their entry-point counts.
+        cleanup = (
+            "--workspace"
+            if profile.get("compiler_coverage", False)
+            else "--profraw-only"
+        )
         execute(
-            ["cargo", "llvm-cov", "clean", "--workspace"],
+            ["cargo", "llvm-cov", "clean", cleanup],
             output / "clean.log",
             environment,
         )

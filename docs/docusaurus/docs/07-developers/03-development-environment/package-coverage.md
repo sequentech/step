@@ -114,8 +114,26 @@ only repeat the implementation. For a regression, preserve the failing observati
 before fixing it, then rerun the full package suite and relevant consumers.
 
 Add a profile only after checking its Cargo features and required services. The
-initial profiles deliberately omit Harvest, Windmill and Step CLI until their
-synthetic local service recipes are ready. Their work is tracked separately:
+profiles state their dependencies explicitly:
+
+| Profile | Local requirements and scope |
+| --- | --- |
+| `sequent-core` | Native application features; synthetic fixtures. |
+| `strand` | Default native cryptographic backend. |
+| `velvet` | Chrome for in-place PDF tests; `DOC_RENDERER_BACKEND=inplace`. |
+| `wrap-map-err` | Compiler expansion and runtime parser tests. |
+| `harvest` | Local Rocket client and public SQL configuration supplied by the profile; service workers are not started. |
+
+For example, run `python3 scripts/coverage/run.py harvest --baseline --offline`.
+A `test_environment` table contains only public fixture settings and overrides
+matching inherited environment variables. Never put deployment secrets in it.
+Runtime profiles clear raw counters while preserving compiled dependencies;
+`compiler_coverage = true` also rebuilds the workspace for compiler-time macro
+counters. Both modes keep fresh-counter and source-identity checks.
+
+The package READMEs describe their test boundaries. Successful database, identity,
+broker and storage workflows still need their corresponding local fixtures.
+Package progress remains tracked separately:
 
 | Work | Meta issue |
 | --- | --- |
@@ -123,6 +141,7 @@ synthetic local service recipes are ready. Their work is tracked separately:
 | Sequent Core | [#13292](https://github.com/sequentech/meta/issues/13292) |
 | Strand | [#13293](https://github.com/sequentech/meta/issues/13293) |
 | Velvet | [#13294](https://github.com/sequentech/meta/issues/13294) |
+| wrap-map-err | [#13299](https://github.com/sequentech/meta/issues/13299) |
 | Harvest | [#13295](https://github.com/sequentech/meta/issues/13295) |
 | Windmill | [#13296](https://github.com/sequentech/meta/issues/13296) |
 | Step CLI | [#13297](https://github.com/sequentech/meta/issues/13297) |

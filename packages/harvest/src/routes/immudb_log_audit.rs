@@ -389,3 +389,7 @@ mod tests {
         assert!(params.is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/audit_query_boundaries.rs"]
+mod boundary_tests;
