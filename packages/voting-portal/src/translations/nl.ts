@@ -279,6 +279,9 @@ const dutchTranslation: TranslationType = {
             ballotId: "Stembiljet ID",
             printButton: "Afdrukken",
             finishButton: "Voltooien",
+            remainingElectionsError:
+                "We konden niet controleren of u nog aan andere verkiezingen kunt deelnemen. Probeer het opnieuw.",
+            retryButton: "Opnieuw proberen",
             verifyCastTitle: "Verifieer dat uw stembiljet is uitgebracht",
             verifyCastDescription:
                 "U kunt op elk moment verifiëren dat uw stembiljet correct is uitgebracht met behulp van de volgende QR-code:",
@@ -391,6 +394,9 @@ const dutchTranslation: TranslationType = {
                 oopsWithStatus: "Oeps! {{status}}",
                 oopsWithoutStatus: "Oeps! Onverwachte Fout",
                 somethingWrong: "Er is iets misgegaan.",
+                invalidLoginHintParametersTitle: "Ongeldige stemlink",
+                invalidLoginHintParametersMessage:
+                    "Deze stemlink bevat ongeldige inloggegevens. Vraag een nieuwe link aan en probeer het opnieuw.",
                 certAuthFailedTitle: "Certificaatauthenticatie Mislukt",
                 certAuthFailedMessage:
                     "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",

@@ -279,6 +279,9 @@ const basqueTranslation: TranslationType = {
             ballotId: "Bozketa IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",
+            remainingElectionsError:
+                "Ezin izan dugu egiaztatu botoa emateko beste hauteskunderik duzun. Saiatu berriro.",
+            retryButton: "Saiatu berriro",
             verifyCastTitle: "Egiaztatu zure bozketa eman dela",
             verifyCastDescription:
                 "Zure bozketa zuzen eman dela egiaztatu dezakezu edozein unetan hurrengo QR kodea erabiliz:",
@@ -391,6 +394,9 @@ const basqueTranslation: TranslationType = {
                 oopsWithStatus: "Hara! {{status}}",
                 oopsWithoutStatus: "Hara! Ustekabeko Errorea",
                 somethingWrong: "Zerbait oker joan da.",
+                invalidLoginHintParametersTitle: "Bozkatzeko esteka baliogabea",
+                invalidLoginHintParametersMessage:
+                    "Bozkatzeko esteka honek saioa hasteko informazio baliogabea dauka. Eskatu beste esteka bat eta saiatu berriro.",
                 certAuthFailedTitle: "Ziurtagiriaren Autentifikazio Errorea",
                 certAuthFailedMessage:
                     "Ezin izan da zure ziurtagiria egiaztatu. Mesedez, egiaztatu boto-emaile ziurtagiri baliogarri bat erabiltzen ari zarela eta saiatu berriro.",

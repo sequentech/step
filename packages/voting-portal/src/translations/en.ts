@@ -275,6 +275,9 @@ const englishTranslation = {
             ballotId: "Ballot ID",
             printButton: "Print",
             finishButton: "Finish",
+            remainingElectionsError:
+                "We couldn’t check whether you have more elections to vote in. Please retry.",
+            retryButton: "Retry",
             verifyCastTitle: "Verify that your ballot has been cast",
             verifyCastDescription:
                 "You can verify your ballot has been cast correctly at any moment using the following QR code:",

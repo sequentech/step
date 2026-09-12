@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, CircularProgress, Typography} from "@mui/material"
+import {Alert, Box, CircularProgress, Typography} from "@mui/material"
 import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
 import {
@@ -20,7 +20,6 @@ import {
 import {
     stringToHtml,
     IElectionEventPresentation,
-    EVotingStatus,
     IAuditableMultiBallot,
     IAuditableSingleBallot,
     EElectionEventContestEncryptionPolicy,
@@ -37,14 +36,14 @@ import {
     selectAuditableBallot,
     selectIsBlankBallot,
 } from "../store/auditableBallots/auditableBallotsSlice"
-import {canVoteSomeElection, CastVoteStatus} from "../store/castVotes/castVotesSlice"
+import {canVoteElection} from "../store/castVotes/castVotesSlice"
+import {useVoterContext} from "../hooks/useVoterContext"
+import {isElectionOpenForVoting} from "../services/VotingAvailability"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {
     selectBallotStyleByElectionId,
-    selectBallotStyleElectionIds,
     selectFirstBallotStyle,
 } from "../store/ballotStyles/ballotStylesSlice"
 import {AuthContext} from "../providers/AuthContextProvider"
@@ -55,14 +54,16 @@ import Stepper from "../components/Stepper"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {provideBallotService} from "../services/BallotService"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
-import {GetCastVotesQuery, GetDocumentQuery, GetElectionsQuery} from "../gql/graphql"
-import {GET_ELECTIONS} from "../queries/GetElections"
+import {
+    CreateBallotReceiptMutation,
+    CreateBallotReceiptMutationVariables,
+    GetDocumentQuery,
+} from "../gql/graphql"
 import {downloadUrl} from "@sequentech/ui-core"
 import {
     ConfirmationScreenData,
     selectConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
-import {GET_CAST_VOTES} from "../queries/GetCastVotes"
 import {GET_DOCUMENT} from "../queries/GetDocument"
 
 const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
@@ -124,7 +125,6 @@ interface ActionButtonsProps {
     electionId?: string
     ballotTrackerUrl?: string
     ballotId: string
-    isGoldenAuth: boolean
     isFullyAcclaimed: boolean
 }
 
@@ -132,19 +132,24 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     ballotTrackerUrl,
     electionId,
     ballotId,
-    isGoldenAuth,
     isFullyAcclaimed,
 }) => {
     const {isKiosk, logout} = useContext(AuthContext)
     const {t} = useTranslation()
     const {tenantId, eventId} = useParams<TenantEventType>()
-    const canVote = useAppSelector(canVoteSomeElection())
+    const storedCastVotes = useAppSelector((state) => state.castVotes)
+    const completedAcclaimedElections = useAppSelector(
+        (state) => state.extra.completedAcclaimedElections
+    )
     const navigate = useNavigate()
     const location = useLocation()
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
     const dispatch = useAppDispatch()
     const electionEvent = useAppSelector(selectElectionEventById(eventId))
-    const [createBallotReceipt] = useMutation(CREATE_BALLOT_RECEIPT)
+    const [createBallotReceipt] = useMutation<
+        CreateBallotReceiptMutation,
+        CreateBallotReceiptMutationVariables
+    >(CREATE_BALLOT_RECEIPT)
     const [documentId, setDocumentId] = useState<string | null>(null)
     const {getDocumentUrl} = useGetPublicDocumentUrl()
     const {globalSettings} = useContext(SettingsContext)
@@ -155,13 +160,9 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     const [isPolling, setIsPolling] = useState<boolean>(false)
 
     let presentation = electionEvent?.presentation as IElectionEventPresentation | undefined
-    const ballotStyleElectionIds = useAppSelector(selectBallotStyleElectionIds)
-    const {data: dataElections} = useQuery<GetElectionsQuery>(GET_ELECTIONS, {
-        variables: {
-            electionIds: ballotStyleElectionIds?.length ? ballotStyleElectionIds : [electionId],
-        },
-        skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
-    })
+    // Eligibility includes elections whose ballots have never been downloaded,
+    // including after a direct entry or golden-policy reauthentication.
+    const voterContext = useVoterContext()
 
     const {
         data: ballotReceiptDocuments,
@@ -176,48 +177,36 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         skip: !documentId, // Skip query if no documentId
     })
 
-    const isAnyVotingStatusOpen = dataElections?.sequent_backend_election.some(
-        (item) => item.status.voting_status === EVotingStatus.OPEN
-    )
-
-    const {data: castVotes} = useQuery<GetCastVotesQuery>(GET_CAST_VOTES, {
-        skip: globalSettings.DISABLE_AUTH || !isGoldenAuth,
-    })
-
-    function isAllowedToCastVote() {
-        if (isGoldenAuth) {
-            // Can´t use canVote when isGoldenAuth because the state in redux was removed at logout.
-            const election = dataElections?.sequent_backend_election.filter(
-                (item) => item.id === electionId
-            )[0]
-            const numAllowedRevotes = election?.num_allowed_revotes ?? 1
-            const electionCastVotes =
-                castVotes?.sequent_backend_cast_vote.filter(
-                    (castVote) =>
-                        castVote.election_id === electionId &&
-                        castVote.status !== CastVoteStatus.DISCARDED
-                ) ?? []
-            console.log(numAllowedRevotes, electionCastVotes, election?.id, electionId, castVotes)
-            if (numAllowedRevotes === 0) {
-                return true
-            }
-
-            return electionCastVotes.length < numAllowedRevotes
-        } else {
-            return canVote
+    const canVote = voterContext.data?.sequent_backend_election.some((election) => {
+        // Bootstrap includes earlier votes, while Redux also has the cast that
+        // just completed. Merge by ID so cached metadata neither loses nor
+        // double-counts that vote after normal or golden authentication.
+        const votes = new Map<string, {status?: string | null}>()
+        for (const vote of voterContext.data?.sequent_backend_cast_vote ?? []) {
+            if (vote.election_id === election.id) votes.set(vote.id, vote)
         }
-    }
+        for (const vote of storedCastVotes[election.id] || []) votes.set(vote.id, vote)
+        return (
+            canVoteElection(
+                election,
+                Array.from(votes.values()),
+                completedAcclaimedElections?.[election.id]
+            ) &&
+            isElectionOpenForVoting({
+                electionStatus: election.status,
+                eventStatus: voterContext.data?.sequent_backend_election_event[0]?.status,
+                channels: election.voting_channels,
+                areaPresentation: voterContext.summaries?.[election.id]?.area_presentation,
+                isKiosk: isKiosk(),
+            })
+        )
+    })
+    const waitingForEligibility =
+        !globalSettings.DISABLE_AUTH && (voterContext.loading || !voterContext.data)
 
     const onClickFinishButton = useCallback(() => {
-        console.log("isGoldenAuth: ", isGoldenAuth)
-        console.log(
-            "onClickFinishButton",
-            isAnyVotingStatusOpen,
-            isAllowedToCastVote(),
-            canVote,
-            globalSettings.DISABLE_AUTH
-        )
-        if ((isAnyVotingStatusOpen && isAllowedToCastVote()) || globalSettings.DISABLE_AUTH) {
+        if (waitingForEligibility) return
+        if (canVote || globalSettings.DISABLE_AUTH) {
             navigate(`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`)
         } else {
             const redirectUrl = isKiosk()
@@ -225,7 +214,18 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                 : presentation?.redirect_finish_url
             logout(redirectUrl)
         }
-    }, [isAnyVotingStatusOpen, canVote])
+    }, [
+        waitingForEligibility,
+        canVote,
+        globalSettings.DISABLE_AUTH,
+        navigate,
+        tenantId,
+        eventId,
+        location.search,
+        isKiosk,
+        presentation,
+        logout,
+    ])
 
     useEffect(() => {
         if (ballotStyle) {
@@ -245,6 +245,10 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             return
         }
         if (!documentId) {
+            if (!ballotTrackerUrl) {
+                setIsHitPrint(false)
+                return
+            }
             const res = await createBallotReceipt({
                 variables: {
                     ballot_id: ballotId,
@@ -298,6 +302,27 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
     return (
         <>
+            {voterContext.error && !globalSettings.DISABLE_AUTH ? (
+                <Alert
+                    severity="error"
+                    className="remaining-elections-error"
+                    action={
+                        <StyledButton
+                            className="remaining-elections-retry-button"
+                            variant="secondary"
+                            onClick={() => void voterContext.retry()}
+                            disabled={voterContext.loading}
+                        >
+                            {t("confirmationScreen.retryButton")}
+                        </StyledButton>
+                    }
+                >
+                    {t("confirmationScreen.remainingElectionsError")}
+                </Alert>
+            ) : null}
+            <VisuallyHidden className="remaining-elections-status" role="status">
+                {waitingForEligibility && !voterContext.error ? t("a11y.loading") : ""}
+            </VisuallyHidden>
             <ActionsContainer className="actions-container">
                 {/* There is no ballot to receipt when nothing was cast. */}
                 {isFullyAcclaimed ? null : (
@@ -305,7 +330,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                         <StyledButton
                             className="print-receipt-button"
                             onClick={printBallotReceiptReport}
-                            disabled={isHitPrint}
+                            disabled={isHitPrint || (!isDemo && !documentId && !ballotTrackerUrl)}
                             variant="secondary"
                             sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
                         >
@@ -336,6 +361,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
                 <StyledButton
                     className="finish-button"
                     onClick={onClickFinishButton}
+                    disabled={waitingForEligibility || !!voterContext.error}
                     sx={{width: {xs: "100%", sm: "200px"}}}
                 >
                     <Box className="finish-button-label">
@@ -569,6 +595,7 @@ const ConfirmationScreen: React.FC = () => {
                                 />
                             </DecorativeIconBox>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
@@ -578,6 +605,7 @@ const ConfirmationScreen: React.FC = () => {
                                 {ballotId.current}
                             </BallotIdLink>
                             <BallotIdLink
+                                data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
                                 target={!isDemo ? "_blank" : undefined}
@@ -682,7 +710,6 @@ const ConfirmationScreen: React.FC = () => {
                 ballotTrackerUrl={ballotTrackerUrl}
                 electionId={electionId}
                 ballotId={ballotId.current ?? ""}
-                isGoldenAuth={confirmationScreenData ? true : false}
                 isFullyAcclaimed={isFullyAcclaimed}
             />
         </PageLimit>
