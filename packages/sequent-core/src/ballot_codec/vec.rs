@@ -29,7 +29,7 @@ pub fn encode_vec_to_array(data: &[u8]) -> Result<[u8; 30], String> {
     }
     let mut plaintext_array = [0; ENVELOPE_BYTES];
     plaintext_array[0] = plaintext_length as u8;
-    plaintext_array[1..=plaintext_length].copy_from_slice(data);
+    plaintext_array[1..1 + plaintext_length].copy_from_slice(data);
     Ok(plaintext_array)
 }
 
