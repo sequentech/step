@@ -1,72 +1,87 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
-//
 // SPDX-License-Identifier: AGPL-3.0-only
 
-extern crate proc_macro;
-
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as Tokens;
 use quote::quote;
-use syn::{parse_quote, ItemFn, ReturnType, Type};
+use syn::{parse_quote, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
 
-/// The `wrap_map_err` attribute macro transforms a function that returns a
-/// `Result<T, E>` into one that returns a `Result<T, ProvidedError>` by mapping
-/// the error with `Into::into`.
+#[cfg(test)]
+#[path = "../tests/support/expansion.rs"]
+mod tests;
+
+/// Convert a function's returned error using `Into::into`.
 ///
-/// If the function does not return a `Result`, the macro leaves it unchanged.
+/// Accepts `Result<T, E>` and `Result<T>` aliases with a default error type,
+/// including qualified paths. Other return types remain unchanged. The body
+/// keeps its original error context for both `return` and `?`; synchronous and
+/// asynchronous functions share this contract. Const functions cannot use the
+/// non-const conversion and receive a compiler diagnostic.
 #[proc_macro_attribute]
 pub fn wrap_map_err(attr: TokenStream, item: TokenStream) -> TokenStream {
-    wrap_map_err_impl(attr.into(), item.into()).into()
+    expand_attribute(attr.into(), item.into()).into()
 }
 
-/// Internal helper that uses proc_macro2 for compatibility in unit tests
-fn wrap_map_err_impl(
-    attr: proc_macro2::TokenStream,
-    item: proc_macro2::TokenStream,
-) -> proc_macro2::TokenStream {
-    let mut input: ItemFn = syn::parse2(item).expect("Failed to parse function");
-    let error_type: Type = syn::parse2(attr).expect("Expected an error type as an argument");
+/// Convert parser errors into ordinary compiler diagnostics, preserving their
+/// source spans instead of panicking inside the compiler's macro process.
+fn expand_attribute(attr: Tokens, item: Tokens) -> Tokens {
+    transform(attr, item).unwrap_or_else(syn::Error::into_compile_error)
+}
 
-    if let ReturnType::Type(_, ref mut ret_type) = input.sig.output {
-        // Extract the Ok type from the original Result.
-        let ok_type = if let Type::Path(type_path) = ret_type.as_ref() {
-            if let Some(segment) = type_path.path.segments.last() {
-                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                    if args.args.len() == 2 {
-                        if let syn::GenericArgument::Type(ty) = &args.args[0] {
-                            quote! { #ty }
-                        } else {
-                            quote! { () }
-                        }
-                    } else {
-                        quote! { () }
-                    }
-                } else {
-                    quote! { () }
-                }
-            } else {
-                quote! { () }
-            }
-        } else {
-            quote! { () }
-        };
+fn transform(attr: Tokens, item: Tokens) -> syn::Result<Tokens> {
+    let mut function: ItemFn = syn::parse2(item)?;
+    let target_error: Type = syn::parse2(attr)?;
+    let Some((original_type, success_type)) = result_types(&function.sig.output) else {
+        return Ok(quote! { #function });
+    };
+    if let Some(const_token) = function.sig.constness {
+        return Err(syn::Error::new_spanned(
+            const_token,
+            "wrap_map_err cannot convert errors in a const function",
+        ));
+    }
 
-        // Save the original return type.
-        let orig_ret_type = ret_type.clone();
-        // Replace the return type with Result<OkType, ProvidedError>.
-        *ret_type = syn::parse2(quote! { Result<#ok_type, #error_type> })
-            .expect("Failed to parse new return type");
-
-        // Wrap the original function body with error mapping.
-        let block = &input.block;
-        input.block = syn::parse2(quote!({
-            let result: #orig_ret_type = #block;
-            result.map_err(::std::convert::Into::into)
-        }))
-        .expect("Failed to parse new function body");
-
-        quote! { #input }
+    let original_return = &function.sig.output;
+    let original_body = &function.block;
+    let body = if function.sig.asyncness.is_some() {
+        // An async block gives early returns their own boundary while keeping
+        // awaits lazy. Its result annotation also preserves '?' conversions
+        // through the original error type, before the outer conversion.
+        quote! { let result: #original_type = (async #original_body).await; }
     } else {
-        // Function doesn't return a Result – leave unchanged.
-        quote! { #input }
+        quote! { let result = (|| #original_return #original_body)(); }
+    };
+
+    function.block = Box::new(parse_quote!({
+        #body
+        result.map_err(::core::convert::Into::into)
+    }));
+    function.sig.output = parse_quote!(-> ::core::result::Result<#success_type, #target_error>);
+    Ok(quote! { #function })
+}
+
+/// Inspect syntax only. A proc macro cannot resolve arbitrary type aliases, so
+/// only a path ending in Result with one or two type arguments is recognized.
+fn result_types(output: &ReturnType) -> Option<(&Type, &Type)> {
+    let ReturnType::Type(_, return_type) = output else {
+        return None;
+    };
+    let Type::Path(path) = return_type.as_ref() else {
+        return None;
+    };
+    let segment = path.path.segments.last()?;
+    if segment.ident != "Result" {
+        return None;
+    }
+    let PathArguments::AngleBracketed(arguments) = &segment.arguments else {
+        return None;
+    };
+    let arguments: Vec<_> = arguments.args.iter().collect();
+    match arguments.as_slice() {
+        [GenericArgument::Type(success)]
+        | [GenericArgument::Type(success), GenericArgument::Type(_)] => {
+            Some((return_type.as_ref(), success))
+        }
+        _ => None,
     }
 }
