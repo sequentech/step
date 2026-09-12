@@ -46,3 +46,27 @@ payload errors describe the length without including plaintext contents.
 The package-wide 95% coverage target remains tracked in
 [Meta #13292](https://github.com/sequentech/meta/issues/13292). Passing these boundary
 tests alone does not close that target or establish deployment-level security.
+
+## Extended boundary checks
+
+The additional integration test files exercise production entry points with
+synthetic data and explicit expected outcomes:
+
+- `voting_policies.rs`: distinguish warnings from blocked navigation; check blank,
+  overvote, undervote and ranked-choice rules, missing decoded state, acclaimed
+  contests, and explicit-invalid markers.
+- `ballot_style_construction.rs`: preserve election and candidate identity,
+  deterministic ordering, translations, demo-key markings, and election-wide
+  encoding capacity; reject malformed presentation and annotation fields.
+- `ballot_signatures.rs`: reject replay into another ballot or election and changes
+  to signed fields; reproduce ciphertext from disclosed audit randomness and
+  preserve decoded selections through the public serialization boundaries.
+- `serialization_boundaries.rs`: independently specified Borsh/Base64 bytes,
+  nested configuration error paths, attribute conversion and file integrity.
+- `identity_inputs.rs`: malformed claims, authentication freshness, extreme
+  timestamps, calendar boundaries and identifier replacement consistency.
+
+The timestamp regression failed with an integer-overflow panic before the fix.
+Timestamp parsing now rejects unrepresentable dates without multiplying seconds
+into milliseconds. Claims tests do not replace identity-provider signature or
+service integration tests.
