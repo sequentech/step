@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {useContext, useEffect, useState, useRef} from "react"
+import {useContext, useEffect, useState, useRef, useCallback} from "react"
 import {useApolloClient, useQuery} from "@apollo/client/react"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
@@ -33,12 +33,31 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
         data: Loaded
     }>()
     const renewed = useRef(false)
+    const [retryCount, setRetryCount] = useState(0)
+    const [retrying, setRetrying] = useState(false)
     useEffect(() => {
         renewed.current = false
-    }, [client, tenantId, eventId, selectedElectionId])
+    }, [client, tenantId, eventId, selectedElectionId, retryCount])
     const [downloadError, setDownloadError] = useState<Error>()
+    const retry = useCallback(async () => {
+        setRetrying(true)
+        setDownloadError(undefined)
+        setLoaded(undefined)
+        try {
+            // A failed object download can reuse the authorized metadata.
+            // Expired URLs still use the bounded renewal below.
+            if (result.error || !result.data) await result.refetch()
+        } catch {
+            // useQuery exposes request failures through result.error.
+        } finally {
+            setRetrying(false)
+            // An explicit retry must restart failed downloads even when the
+            // authorized metadata has not changed.
+            setRetryCount((count) => count + 1)
+        }
+    }, [result.refetch, result.error, result.data])
     useEffect(() => {
-        if (!result.data || skip || globalSettings.DISABLE_AUTH) return
+        if (!result.data || result.error || retrying || skip || globalSettings.DISABLE_AUTH) return
         let active = true
         setDownloadError(undefined)
         const load = async () => {
@@ -105,6 +124,9 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
     }, [
         client,
         result.data,
+        result.error,
+        retryCount,
+        retrying,
         selectedElectionId,
         tenantId,
         eventId,
@@ -123,8 +145,9 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
         loading:
             !skip &&
             !globalSettings.DISABLE_AUTH &&
-            !downloadError &&
-            (result.loading || (!!result.data && !data)),
+            (retrying ||
+                (!result.error && !downloadError && (result.loading || (!!result.data && !data)))),
+        retry,
         refetch: result.refetch,
     }
 }

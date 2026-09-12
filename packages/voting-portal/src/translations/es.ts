@@ -281,6 +281,9 @@ const spanishTranslation: TranslationType = {
             ballotId: "Localizador del Voto",
             printButton: "Imprimir",
             finishButton: "Finalizar",
+            remainingElectionsError:
+                "No pudimos comprobar si tienes más elecciones en las que votar. Vuelve a intentarlo.",
+            retryButton: "Reintentar",
             verifyCastTitle: "Compruebe que su voto ha sido emitido",
             verifyCastDescription:
                 "Puede comprobar en todo momento que su papeleta se ha emitido correctamente utilizando el siguiente código QR:",

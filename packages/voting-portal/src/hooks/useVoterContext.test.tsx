@@ -81,7 +81,7 @@ function response(count: number, eventId = "event") {
     }
 }
 
-function setup(count: number) {
+function setup(count: number, networkError?: () => Error | undefined) {
     const operations: string[] = []
     const variables: unknown[] = []
     const client = new ApolloClient({
@@ -92,6 +92,11 @@ function setup(count: number) {
                     operations.push(operation.operationName || "")
                     variables.push(operation.variables)
                     const timer = setTimeout(() => {
+                        const error = networkError?.()
+                        if (error) {
+                            observer.error(error)
+                            return
+                        }
                         observer.next({data: response(count, operation.variables.electionEventId)})
                         observer.complete()
                     }, 10)
@@ -239,6 +244,96 @@ test("mismatched immutable election data is rejected before caching", async () =
     const {result, unmount} = renderHook(() => useVoterContext(), {wrapper})
     await waitFor(() => expect(result.current.error).toBeDefined())
     expect(result.current.data).toBeUndefined()
+    unmount()
+    client.stop()
+})
+
+test("retry restarts failed downloads with unchanged metadata and keeps successful objects", async () => {
+    const {client, operations, wrapper} = setup(2)
+    const original = global.fetch
+    let failSummary = true
+    global.fetch = jest.fn(async (url, init) =>
+        failSummary && String(url).endsWith("/summary-1")
+            ? new Response("temporary failure", {status: 503})
+            : original(url, init)
+    )
+    const {result, unmount} = renderHook(() => useVoterContext(), {wrapper})
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(result.current.loading).toBe(false)
+    const statusData = client.readQuery({
+        query: GET_VOTER_STATUS,
+        variables: {electionEventId: "event"},
+    })
+    await act(async () => {
+        await result.current.retry()
+    })
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(result.current.loading).toBe(false)
+    failSummary = false
+    await act(async () => {
+        await result.current.retry()
+    })
+    await waitFor(() => expect(result.current.data?.sequent_backend_election).toHaveLength(2))
+    expect(result.current.error).toBeUndefined()
+    expect(result.current.loading).toBe(false)
+    expect(client.readQuery({query: GET_VOTER_STATUS, variables: {electionEventId: "event"}})).toBe(
+        statusData
+    )
+    expect(operations).toEqual(["GetVoterStatus"])
+    expect(downloads.filter((url) => url.endsWith("/event"))).toHaveLength(1)
+    expect(downloads.filter((url) => url.endsWith("/summary-0"))).toHaveLength(1)
+    expect(downloads.some((url) => url.includes("/style-"))).toBe(false)
+    unmount()
+    client.stop()
+})
+
+test("retry reports repeated metadata request failures and recovers when the request succeeds", async () => {
+    let failRequest = true
+    const {client, operations, wrapper} = setup(1, () =>
+        failRequest ? new Error("offline") : undefined
+    )
+    const {result, unmount} = renderHook(() => useVoterContext(), {wrapper})
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(result.current.loading).toBe(false)
+    await act(async () => {
+        await result.current.retry()
+    })
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(result.current.loading).toBe(false)
+    expect(downloads).toHaveLength(0)
+    failRequest = false
+    await act(async () => {
+        await result.current.retry()
+    })
+    await waitFor(() => expect(result.current.data?.sequent_backend_election).toHaveLength(1))
+    expect(result.current.error).toBeUndefined()
+    expect(result.current.loading).toBe(false)
+    expect(operations).toEqual(["GetVoterStatus", "GetVoterStatus", "GetVoterStatus"])
+    unmount()
+    client.stop()
+})
+
+test("an explicit retry gets one new expired-URL renewal and can recover", async () => {
+    const {client, operations, wrapper} = setup(1)
+    const original = global.fetch
+    global.fetch = jest.fn(async () => new Response("expired", {status: 403}))
+    const {result, unmount} = renderHook(() => useVoterContext(), {wrapper})
+    await waitFor(() => expect(result.current.error).toBeDefined())
+    expect(operations).toHaveLength(2)
+    let expiredOnce = true
+    global.fetch = jest.fn(async (url, init) => {
+        if (expiredOnce) {
+            expiredOnce = false
+            return new Response("expired", {status: 403})
+        }
+        return original(url, init)
+    })
+    await act(async () => {
+        await result.current.retry()
+    })
+    await waitFor(() => expect(result.current.data?.sequent_backend_election).toHaveLength(1))
+    expect(result.current.error).toBeUndefined()
+    expect(operations).toHaveLength(3)
     unmount()
     client.stop()
 })

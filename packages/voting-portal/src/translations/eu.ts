@@ -279,6 +279,9 @@ const basqueTranslation: TranslationType = {
             ballotId: "Bozketa IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",
+            remainingElectionsError:
+                "Ezin izan dugu egiaztatu botoa emateko beste hauteskunderik duzun. Saiatu berriro.",
+            retryButton: "Saiatu berriro",
             verifyCastTitle: "Egiaztatu zure bozketa eman dela",
             verifyCastDescription:
                 "Zure bozketa zuzen eman dela egiaztatu dezakezu edozein unetan hurrengo QR kodea erabiliz:",

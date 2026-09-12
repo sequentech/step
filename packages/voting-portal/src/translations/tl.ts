@@ -278,6 +278,9 @@ const tagalogTranslation: TranslationType = {
             ballotId: "ID ng Balota",
             printButton: "I-print",
             finishButton: "Tapos na",
+            remainingElectionsError:
+                "Hindi namin masuri kung mayroon ka pang ibang eleksiyong maaaring botohan. Pakisubukang muli.",
+            retryButton: "Subukang muli",
             verifyCastTitle: "Tiyakin na ang iyong balota ay nai-submit",
             verifyCastDescription:
                 "Maaari mong tiyakin na ang iyong balota ay nai-submit nang tama anumang oras gamit ang sumusunod na QR code:",

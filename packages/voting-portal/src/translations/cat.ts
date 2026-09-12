@@ -281,6 +281,9 @@ const catalanTranslation: TranslationType = {
             ballotId: "Localitzador del Vot",
             printButton: "Imprimir",
             finishButton: "Finalitzar",
+            remainingElectionsError:
+                "No hem pogut comprovar si tens més eleccions en què votar. Torna-ho a provar.",
+            retryButton: "Torna-ho a provar",
             verifyCastTitle: "Comproveu que el seu vot ha estat emès",
             verifyCastDescription:
                 "Pot comprovar en tot moment que la seva papereta s'ha emès correctament utilitzant el següent codi QR:",

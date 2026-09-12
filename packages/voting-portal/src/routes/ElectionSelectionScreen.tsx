@@ -45,6 +45,7 @@ import {Link as RouterLink, useLocation, useNavigate, useParams} from "react-rou
 import {useQuery} from "@apollo/client/react"
 import {isApolloTransportError} from "../services/ApolloErrors"
 import {useVoterContext} from "../hooks/useVoterContext"
+import {isElectionOpenForVoting} from "../services/VotingAvailability"
 import {
     GetCastVotesQuery,
     GetSupportMaterialsQuery,
@@ -223,32 +224,20 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
     let electionClassName = getElectionClassName(election)
 
     const electionStatus = election?.status as IElectionStatus | null
-    const isVotingOpen = () => {
-        let isOnlineVotingOpen: boolean =
-            (electionStatus?.voting_status as EVotingStatus) === EVotingStatus.OPEN
-
-        if (isKiosk) {
-            return isKioskOpen() && isElectionEventKioskOpen(electionEvent)
-        } else {
-            return (
-                (isOnlineVotingOpen && isElectionEventOnlineVotingOpen(electionEvent)) ||
-                (isEarlyVotingOpen() && isElectionEventEarlyVotingOpen(electionEvent))
-            )
-        }
-    }
-
-    const isKioskOpen = () => {
-        return (electionStatus?.kiosk_voting_status as EVotingStatus) === EVotingStatus.OPEN
-    }
+    const isVotingOpen = () =>
+        isElectionOpenForVoting({
+            electionStatus,
+            eventStatus: electionEvent?.status as IElectionEventStatus | null,
+            channels: election.voting_channels,
+            areaPresentation:
+                summary?.area_presentation ?? ballotStyle?.ballot_eml.area_presentation,
+            isKiosk,
+        })
 
     const isEarlyVotingPolicyEnabled = () => {
         let area_presentation = (summary?.area_presentation ??
             ballotStyle?.ballot_eml?.area_presentation) as IAreaPresentation | undefined
         return area_presentation?.allow_early_voting === EEarlyVotingPolicy.ALLOW_EARLY_VOTING
-    }
-    const isEarlyVotingOpen = () => {
-        let isOpen = electionStatus?.early_voting_status === EVotingStatus.OPEN
-        return isEarlyVotingPolicyEnabled() && isOpen
     }
 
     const isVotingStarted = () => {
@@ -486,7 +475,9 @@ const ElectionSelectionScreen: React.FC = () => {
 
     const hasPendingCastVotes = useAppSelector((state) =>
         Object.values(state.castVotes).some((votes) =>
-            votes.some((vote) => vote.status === CastVoteStatus.IN_PROGRESS)
+            // The cast action returns no status. Refresh that record before
+            // deciding whether it was accepted or discarded asynchronously.
+            votes.some((vote) => vote.status == null || vote.status === CastVoteStatus.IN_PROGRESS)
         )
     )
     const {
@@ -676,9 +667,9 @@ const ElectionSelectionScreen: React.FC = () => {
                 )
             )
 
-            const hasUnresolvedCastVotes = castVoteList.some(
-                (castVote) => castVote.status === CastVoteStatus.IN_PROGRESS
-            )
+            const hasUnresolvedCastVotes =
+                hasPendingCastVotes ||
+                castVoteList.some((castVote) => castVote.status === CastVoteStatus.IN_PROGRESS)
             if (hasUnresolvedCastVotes) {
                 startCastVotePolling(globalSettings.QUERY_POLL_INTERVAL_MS)
             } else {
@@ -687,6 +678,7 @@ const ElectionSelectionScreen: React.FC = () => {
         }
     }, [
         castVotes,
+        hasPendingCastVotes,
         dispatch,
         globalSettings.QUERY_POLL_INTERVAL_MS,
         startCastVotePolling,

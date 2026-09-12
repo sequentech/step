@@ -278,6 +278,9 @@ const frenchTranslation: TranslationType = {
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",
+            remainingElectionsError:
+                "Nous n’avons pas pu vérifier s’il vous reste des élections auxquelles voter. Veuillez réessayer.",
+            retryButton: "Réessayer",
             verifyCastTitle: "Vérifiez que votre vote a été émis",
             verifyCastDescription:
                 "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous:",

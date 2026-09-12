@@ -279,6 +279,9 @@ const galegoTranslation: TranslationType = {
             ballotId: "ID da Papeleta",
             printButton: "Imprimir",
             finishButton: "Rematar",
+            remainingElectionsError:
+                "Non puidemos comprobar se tes máis eleccións nas que votar. Téntao de novo.",
+            retryButton: "Tentar de novo",
             verifyCastTitle: "Verifica que o teu voto foi emitido",
             verifyCastDescription:
                 "Podes verificar en calquera momento que o teu voto foi emitido correctamente usando o seguinte código QR:",
