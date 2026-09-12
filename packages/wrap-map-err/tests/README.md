@@ -8,7 +8,10 @@ them. These controls check actual generated Rust: default-error Result aliases,
 qualified Results and renamed `TaskResult`/`WrapResult` imports, borrowed generic values, early returns, question marks,
 unchanged non-Result functions, and asynchronous suspension/resumption. A leaf
 error that can convert only to the original error type guards against silently
-changing the meaning of `?`.
+changing the meaning of `?`. A Send-but-not-Sync owned argument checks async
+capture semantics; opaque success types exercise inference in the private body
+annotation. Unsafe-function consumers verify that Rust’s lexical unsafe context
+survives wrapping.
 
 `support/expansion.rs` checks syntax that cannot be a compiled consumer: invalid
 attributes, non-function items, unsupported Result arguments and const-function
