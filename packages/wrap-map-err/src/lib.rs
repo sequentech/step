@@ -13,7 +13,8 @@ mod tests;
 /// Convert a function's returned error using `Into::into`.
 ///
 /// Accepts `Result<T, E>` and `Result<T>` aliases with a default error type,
-/// including qualified paths. Other return types remain unchanged. The body
+/// including qualified paths and conventional aliases ending in `Result` (such
+/// as `TaskResult`). Other return types remain unchanged. The body
 /// keeps its original error context for both `return` and `?`; synchronous and
 /// asynchronous functions share this contract. Const functions cannot use the
 /// non-const conversion and receive a compiler diagnostic.
@@ -61,7 +62,9 @@ fn transform(attr: Tokens, item: Tokens) -> syn::Result<Tokens> {
 }
 
 /// Inspect syntax only. A proc macro cannot resolve arbitrary type aliases, so
-/// only a path ending in Result with one or two type arguments is recognized.
+/// recognize the Result naming convention with one or two type arguments.
+/// Existing Celery tasks rename the import to TaskResult or WrapResult; those
+/// still need conversion. Rust checks that the annotated value has map_err.
 fn result_types(output: &ReturnType) -> Option<(&Type, &Type)> {
     let ReturnType::Type(_, return_type) = output else {
         return None;
@@ -70,7 +73,7 @@ fn result_types(output: &ReturnType) -> Option<(&Type, &Type)> {
         return None;
     };
     let segment = path.path.segments.last()?;
-    if segment.ident != "Result" {
+    if !segment.ident.to_string().ends_with("Result") {
         return None;
     }
     let PathArguments::AngleBracketed(arguments) = &segment.arguments else {

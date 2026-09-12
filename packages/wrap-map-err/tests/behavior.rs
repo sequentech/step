@@ -205,3 +205,28 @@ fn async_wrapping_keeps_the_future_lazy_sendable_and_resumable() {
     assert_eq!(future.as_mut().poll(&mut context), Poll::Ready(Ok(43)));
     assert_eq!(polls.load(Ordering::SeqCst), 2);
 }
+
+// Existing Celery consumers rename their Result import to keep it distinct
+// from anyhow::Result. The annotation must convert those aliases too.
+type TaskResult<T> = Result<T>;
+type WrapResult<T> = Result<T>;
+
+#[wrap_map_err(TaskError)]
+async fn task_alias(fail: bool) -> TaskResult<u32> {
+    if fail {
+        return Err(SourceError("task alias"));
+    }
+    Ok(47)
+}
+
+#[wrap_map_err(TaskError)]
+fn wrapper_alias() -> WrapResult<()> {
+    Err(SourceError("wrapper alias"))
+}
+
+#[test]
+fn renamed_result_aliases_used_by_celery_tasks_still_convert_errors() {
+    assert_eq!(ready(task_alias(false)), Ok(47));
+    assert_eq!(ready(task_alias(true)), Err(TaskError("task alias")));
+    assert_eq!(wrapper_alias(), Err(TaskError("wrapper alias")));
+}
