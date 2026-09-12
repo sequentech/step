@@ -69,7 +69,8 @@ jest.mock("./PublishExport", () => ({__esModule: true, default: () => null}))
 jest.mock("./usePublishPermissions", () => ({
     usePublishPermissions: () => ({canWritePublish: true, showPublishButtonBack: true}),
 }))
-jest.mock("@sequentech/ui-essentials", () => ({Dialog: () => null}))
+// CI runs tests before the workspace UI package is built.
+jest.mock("@sequentech/ui-essentials", () => ({Dialog: () => null}), {virtual: true})
 jest.mock("./EditPreview", () => ({EditPreview: () => null}))
 jest.mock("@/components/FormDialog", () => ({__esModule: true, default: () => null}))
 
