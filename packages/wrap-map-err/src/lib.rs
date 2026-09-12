@@ -4,6 +4,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as Tokens;
 use quote::quote;
+use syn::visit_mut::{self, VisitMut};
 use syn::{parse_quote, GenericArgument, ItemFn, PathArguments, ReturnType, Type};
 
 #[cfg(test)]
@@ -42,15 +43,19 @@ fn transform(attr: Tokens, item: Tokens) -> syn::Result<Tokens> {
         ));
     }
 
-    let original_return = &function.sig.output;
+    // `impl Trait` is legal in the public return position but not in a local
+    // variable or closure annotation. Infer those concrete success types while
+    // retaining the original error type for '?' and early-return conversions.
+    let mut body_result_type = original_type.clone();
+    InferOpaqueTypes.visit_type_mut(&mut body_result_type);
     let original_body = &function.block;
     let body = if function.sig.asyncness.is_some() {
         // An async block gives early returns their own boundary while keeping
         // awaits lazy. Its result annotation also preserves '?' conversions
         // through the original error type, before the outer conversion.
-        quote! { let result: #original_type = (async #original_body).await; }
+        quote! { let result: #body_result_type = (async move #original_body).await; }
     } else {
-        quote! { let result = (|| #original_return #original_body)(); }
+        quote! { let result = (move || -> #body_result_type #original_body)(); }
     };
 
     function.block = Box::new(parse_quote!({
@@ -59,6 +64,20 @@ fn transform(attr: Tokens, item: Tokens) -> syn::Result<Tokens> {
     }));
     function.sig.output = parse_quote!(-> ::core::result::Result<#success_type, #target_error>);
     Ok(quote! { #function })
+}
+
+/// Rewrite opaque types only inside the private inference annotation. Visiting
+/// nested types also handles returns such as Result<Option<impl Iterator>>.
+struct InferOpaqueTypes;
+
+impl VisitMut for InferOpaqueTypes {
+    fn visit_type_mut(&mut self, value: &mut Type) {
+        if matches!(value, Type::ImplTrait(_)) {
+            *value = parse_quote!(_);
+        } else {
+            visit_mut::visit_type_mut(self, value);
+        }
+    }
 }
 
 /// Inspect syntax only. A proc macro cannot resolve arbitrary type aliases, so

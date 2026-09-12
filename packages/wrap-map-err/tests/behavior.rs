@@ -230,3 +230,73 @@ fn renamed_result_aliases_used_by_celery_tasks_still_convert_errors() {
     assert_eq!(ready(task_alias(true)), Err(TaskError("task alias")));
     assert_eq!(wrapper_alias(), Err(TaskError("wrapper alias")));
 }
+
+#[wrap_map_err(TaskError)]
+async fn owned_non_sync_argument(cell: std::cell::Cell<u32>) -> Result<u32> {
+    let value = cell.get();
+    async {}.await;
+    Ok(value)
+}
+
+#[test]
+fn an_owned_send_argument_does_not_gain_a_sync_requirement() {
+    fn require_send(_: &impl Send) {}
+    let future = owned_non_sync_argument(std::cell::Cell::new(53));
+    require_send(&future);
+    assert_eq!(ready(future), Ok(53));
+}
+
+#[wrap_map_err(TaskError)]
+fn opaque_success(fail: bool) -> Result<impl Iterator<Item = u8>> {
+    if fail {
+        return Err(SourceError("opaque"));
+    }
+    Ok([2, 3, 5].into_iter())
+}
+
+#[wrap_map_err(TaskError)]
+async fn nested_opaque_success() -> Result<Option<impl Iterator<Item = u8>>> {
+    Ok(Some([7, 11].into_iter()))
+}
+
+#[test]
+fn opaque_success_types_stay_in_the_public_return_position() {
+    assert_eq!(
+        opaque_success(false).unwrap().collect::<Vec<_>>(),
+        [2, 3, 5]
+    );
+    assert!(matches!(opaque_success(true), Err(TaskError("opaque"))));
+    assert_eq!(
+        ready(nested_opaque_success())
+            .unwrap()
+            .unwrap()
+            .collect::<Vec<_>>(),
+        [7, 11]
+    );
+}
+
+/// # Safety
+/// `pointer` must reference a live initialized u32 for the duration of the call.
+#[wrap_map_err(TaskError)]
+unsafe fn unsafe_result(pointer: *const u32) -> Result<u32> {
+    Ok(*pointer)
+}
+
+/// # Safety
+/// `pointer` must stay live and initialized until the returned future completes.
+#[wrap_map_err(TaskError)]
+async unsafe fn async_unsafe_result(pointer: *const u32) -> Result<u32> {
+    async {}.await;
+    Ok(*pointer)
+}
+
+#[test]
+fn wrapping_preserves_the_lexical_unsafe_context_of_the_original_function() {
+    let value = 59;
+    // The local value stays alive through both completed calls; no dangling
+    // pointer or concurrent mutation is involved in this compile-time contract.
+    unsafe {
+        assert_eq!(unsafe_result(&value), Ok(59));
+        assert_eq!(ready(async_unsafe_result(&value)), Ok(59));
+    }
+}
