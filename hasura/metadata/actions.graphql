@@ -1,3 +1,7 @@
+type Query {
+    get_ballot_files_urls(election_event_id: String!): jsonb!
+}
+
 type Mutation {
     ApplicationChangeStatus(
         body: ApplicationChangeStatusBody!
@@ -141,6 +145,10 @@ type Mutation {
 
 type Mutation {
     delete_election_event(election_event_id: String!): DeleteElectionEvent
+}
+
+type Mutation {
+    delete_tenant(tenant_id: String!): DeleteTenant
 }
 
 type Mutation {
@@ -1690,6 +1698,12 @@ type SetCustomUrlsOutput {
 }
 
 type DeleteElectionEvent {
+    id: String
+    task_execution: tasks_execution_type
+    error_msg: String
+}
+
+type DeleteTenant {
     id: String
     task_execution: tasks_execution_type
     error_msg: String

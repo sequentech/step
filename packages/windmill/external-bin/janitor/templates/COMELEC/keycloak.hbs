@@ -2370,6 +2370,46 @@
                     "name": "x-hasura-user-id",
                     "protocol": "openid-connect",
                     "protocolMapper": "oidc-usermodel-property-mapper"
+                },
+                {
+                    "id": "6352d8bf-73e4-5413-943f-a20a0de2632f",
+                    "name": "authorized-election-ids",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "aggregate.attrs": "false",
+                        "introspection.token.claim": "true",
+                        "multivalued": "true",
+                        "userinfo.token.claim": "true",
+                        "user.attribute": "authorized-election-ids",
+                        "use.array.attrs": "true",
+                        "id.token.claim": "true",
+                        "lightweight.claim": "false",
+                        "access.token.claim": "true",
+                        "claim.name": "https://hasura\\.io/jwt/claims.authorized-election-ids",
+                        "jsonType.label": "String"
+                    }
+                },
+                {
+                    "id": "58b712d0-2eff-5b3e-9349-d657c01deacc",
+                    "name": "x-hasura-authorized-election-ids",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "authorized-elections-oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "aggregate.attrs": "false",
+                        "introspection.token.claim": "true",
+                        "multivalued": "true",
+                        "userinfo.token.claim": "true",
+                        "user.attribute": "authorized-election-ids",
+                        "use.array.attrs": "false",
+                        "id.token.claim": "true",
+                        "lightweight.claim": "false",
+                        "access.token.claim": "true",
+                        "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-authorized-election-ids",
+                        "jsonType.label": "String"
+                    }
                 }
             ],
             "publicClient": true,
