@@ -40,7 +40,6 @@ import {canVoteElection} from "../store/castVotes/castVotesSlice"
 import {useVoterContext} from "../hooks/useVoterContext"
 import {isElectionOpenForVoting} from "../services/VotingAvailability"
 import {selectElectionEventById} from "../store/electionEvents/electionEventsSlice"
-import {IElectionExtended} from "../store/elections/electionsSlice"
 import {TenantEventType} from ".."
 import {clearBallot} from "../store/ballotSelections/ballotSelectionsSlice"
 import {

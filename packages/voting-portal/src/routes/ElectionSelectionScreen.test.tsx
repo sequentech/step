@@ -14,6 +14,9 @@ import {addCastVotes, CastVoteStatus} from "../store/castVotes/castVotesSlice"
 import {setElection} from "../store/elections/electionsSlice"
 import {GET_VOTER_STATUS} from "../queries/GetVoterStatus"
 import ElectionSelectionScreen from "./ElectionSelectionScreen"
+import {SettingsContext} from "../providers/SettingsContextProvider"
+import {updateBallotStyleAndSelection as loadPreview} from "./PreviewPublicationEvent"
+import {ELECTION_WITH_INVALID} from "../fixtures/election"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
@@ -244,5 +247,70 @@ test.each(cases)("refreshes cast status: $name", async ({initialStatus, replies}
         view.unmount()
         router.dispose()
         client.stop()
+    }
+})
+
+test("preview publications still populate the chooser without authenticated requests", async () => {
+    const eml = {
+        ...ELECTION_WITH_INVALID,
+        election_id: "election",
+        election_event_id: "event",
+        area_id: "area",
+    }
+    loadPreview(
+        {
+            election_event: event,
+            elections: [election],
+            ballot_styles: [eml],
+            documents: [],
+            support_materials: [],
+        } as any,
+        "tenant",
+        "area",
+        store.dispatch
+    )
+    const style = store.getState().ballotStyles.election
+    const requests = jest.fn()
+    const client = new ApolloClient({
+        cache: new InMemoryCache(),
+        link: new ApolloLink(
+            () =>
+                new Observable((observer) => {
+                    requests()
+                    observer.error(new Error("Preview must not request voter data"))
+                })
+        ),
+    })
+    const router = createMemoryRouter(
+        [
+            {
+                path: "/tenant/:tenantId/event/:eventId/election-chooser",
+                element: <ElectionSelectionScreen />,
+            },
+        ],
+        {initialEntries: ["/tenant/tenant/event/event/election-chooser"]}
+    )
+    sessionStorage.setItem("isDemo", "true")
+    const view = render(
+        <Provider store={store} stabilityCheck="never">
+            <ThemeProvider theme={theme}>
+                <SettingsContext.Provider value={{globalSettings: {DISABLE_AUTH: true}} as any}>
+                    <ApolloProvider client={client}>
+                        <RouterProvider router={router} />
+                    </ApolloProvider>
+                </SettingsContext.Provider>
+            </ThemeProvider>
+        </Provider>
+    )
+    try {
+        expect(await screen.findByRole("button", {name: "Vote"})).toBeEnabled()
+        expect(store.getState().ballotStyles.election).toBe(style)
+        expect(requests).not.toHaveBeenCalled()
+        expect(global.fetch).not.toHaveBeenCalled()
+    } finally {
+        view.unmount()
+        router.dispose()
+        client.stop()
+        sessionStorage.removeItem("isDemo")
     }
 })

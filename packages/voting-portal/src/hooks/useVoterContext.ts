@@ -6,10 +6,9 @@ import {useApolloClient, useQuery} from "@apollo/client/react"
 import {useParams} from "react-router-dom"
 import {SettingsContext} from "../providers/SettingsContextProvider"
 import {GET_VOTER_STATUS} from "../queries/GetVoterStatus"
-import {GET_ELECTIONS} from "../queries/GetElections"
-import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GetBallotStylesQuery, GetCastVotesQuery} from "../gql/graphql"
 import {
+    cachePublicationMetadata,
     loadPublicationList,
     loadSelectedBallot,
     PublicationDownloadError,
@@ -19,13 +18,15 @@ type Loaded = Awaited<ReturnType<typeof loadPublicationList>> &
     GetBallotStylesQuery &
     GetCastVotesQuery
 
-export function useVoterContext(selectedElectionId?: string, skip = false) {
+export function useVoterContext(selectedElectionId?: string) {
     const {tenantId, eventId} = useParams<{tenantId: string; eventId: string}>()
     const {globalSettings} = useContext(SettingsContext)
     const client = useApolloClient()
+    // Apollo owns live references/status; the download cache owns immutable JSON.
+    // Local state only tracks completion of the selected publication load.
     const result = useQuery(GET_VOTER_STATUS, {
         variables: {electionEventId: eventId || ""},
-        skip: skip || globalSettings.DISABLE_AUTH || !tenantId || !eventId,
+        skip: globalSettings.DISABLE_AUTH || !tenantId || !eventId,
     })
     const [loaded, setLoaded] = useState<{
         source: typeof result.data
@@ -57,7 +58,15 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
         }
     }, [result.refetch, result.error, result.data])
     useEffect(() => {
-        if (!result.data || result.error || retrying || skip || globalSettings.DISABLE_AUTH) return
+        if (
+            !result.data ||
+            result.error ||
+            retrying ||
+            globalSettings.DISABLE_AUTH ||
+            !tenantId ||
+            !eventId
+        )
+            return
         let active = true
         setDownloadError(undefined)
         const load = async () => {
@@ -72,23 +81,7 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
                         ? [await loadSelectedBallot(client, refs, selectedElectionId)]
                         : []
                     if (!active) return
-                    client.writeQuery({
-                        query: GET_ELECTION_EVENT,
-                        variables: {tenantId, electionEventId: eventId},
-                        data: list,
-                    })
-                    for (const election of list.sequent_backend_election) {
-                        client.writeQuery({
-                            query: GET_ELECTIONS,
-                            variables: {electionIds: [election.id]},
-                            data: {sequent_backend_election: [election]},
-                        })
-                    }
-                    client.writeQuery({
-                        query: GET_ELECTIONS,
-                        variables: {electionIds: list.sequent_backend_election.map((e) => e.id)},
-                        data: list,
-                    })
+                    cachePublicationMetadata(client, list, tenantId, eventId)
                     setLoaded({
                         source: response,
                         selection: selectedElectionId,
@@ -130,7 +123,6 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
         selectedElectionId,
         tenantId,
         eventId,
-        skip,
         globalSettings.DISABLE_AUTH,
     ])
     const data =
@@ -139,11 +131,9 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
             : undefined
     return {
         data,
-        elections: data,
         summaries: data?.summaries,
         error: result.error ?? downloadError,
         loading:
-            !skip &&
             !globalSettings.DISABLE_AUTH &&
             (retrying ||
                 (!result.error && !downloadError && (result.loading || (!!result.data && !data)))),

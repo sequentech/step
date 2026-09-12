@@ -4,6 +4,8 @@
 import {ApolloClient} from "@apollo/client"
 import {GetBallotStylesQuery, GetElectionEventQuery, GetElectionsQuery} from "../gql/graphql"
 import {IBallotStyle as BallotDefinition} from "@sequentech/ui-core"
+import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
+import {GET_ELECTIONS} from "../queries/GetElections"
 
 type Election = GetElectionsQuery["sequent_backend_election"][number]
 export type BallotRecord = GetBallotStylesQuery["sequent_backend_ballot_style"][number]
@@ -156,4 +158,31 @@ export async function loadSelectedBallot(
         throw new Error("Published ballot scope mismatch")
     }
     return style
+}
+
+// Existing screens still read these GraphQL queries. Populate them from the
+// publication snapshot so they do not fetch live presentation or full EML.
+export function cachePublicationMetadata(
+    client: ApolloClient,
+    data: Awaited<ReturnType<typeof loadPublicationList>>,
+    tenantId: string,
+    eventId: string
+) {
+    client.writeQuery({
+        query: GET_ELECTION_EVENT,
+        variables: {tenantId, electionEventId: eventId},
+        data,
+    })
+    for (const election of data.sequent_backend_election) {
+        client.writeQuery({
+            query: GET_ELECTIONS,
+            variables: {electionIds: [election.id]},
+            data: {sequent_backend_election: [election]},
+        })
+    }
+    client.writeQuery({
+        query: GET_ELECTIONS,
+        variables: {electionIds: data.sequent_backend_election.map((election) => election.id)},
+        data,
+    })
 }
