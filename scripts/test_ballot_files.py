@@ -3,6 +3,7 @@
 
 """Test real publication uploads against disposable PostgreSQL and local private S3."""
 import os
+import getpass
 import subprocess
 from voting_flow.database import local_database, ROOT
 
@@ -12,6 +13,8 @@ if __name__ == "__main__":
             [
                 "cargo",
                 "test",
+                "--jobs",
+                "1",
                 "-p",
                 "windmill",
                 "--lib",
@@ -22,9 +25,14 @@ if __name__ == "__main__":
             ],
             cwd=ROOT / "packages",
             env={
-                **os.environ,
+                **{key: value for key, value in os.environ.items() if not key.startswith("HASURA_DB__")},
                 "BALLOT_FILES_TEST_DSN": database.dsn,
-                "CARGO_TARGET_DIR": str(ROOT / "packages/windmill/rust-local-target"),
+                "HASURA_DB__HOST": str(database.directory),
+                "HASURA_DB__PORT": "55432",
+                "HASURA_DB__DBNAME": "postgres",
+                "HASURA_DB__USER": getpass.getuser(),
+                "HASURA_DB__SSL_MODE": "Disable",
+                "CARGO_TARGET_DIR": os.environ.get("CARGO_TARGET_DIR", str(ROOT / "packages/windmill/rust-local-target")),
             },
             check=True,
             stdout=subprocess.PIPE,

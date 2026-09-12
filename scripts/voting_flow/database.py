@@ -16,7 +16,7 @@ RESULTS = ROOT / ".cache/voting-flow"
 MIGRATIONS = ROOT / "hasura/migrations/backend-db"
 AREA_MIGRATION = MIGRATIONS / "1788765000000_serialize_cast_vote_area_checks"
 STORAGE_MIGRATION = MIGRATIONS / "1788765000001_cast_vote_external_storage"
-WINDOW_MIGRATION = MIGRATIONS / "1788765000002_materialize_voting_windows"
+SCHEDULE_MIGRATION = MIGRATIONS / "1788765000002_validate_voting_schedules"
 SCHEDULE_INDEX = "sequent_backend.scheduled_event_active_scope_task_idx"
 INDEX_SCRIPT = ROOT / "scripts/postgres/cast_vote_covering_index.sql"
 CONFIGURATION_QUERY = (
@@ -97,7 +97,7 @@ class LocalDatabase:
 
     def apply(self, migration, direction="up"):
         # Production Hasura migrations are transactional. Keep that contract in
-        # the harness, especially for projection backfill and trigger installation.
+        # the harness, including constraint and index installation.
         """Apply the selected up/down migration atomically, matching Hasura transaction semantics."""
         with self.connection.transaction():
             self.connection.execute((migration / f"{direction}.sql").read_text())
