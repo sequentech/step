@@ -105,6 +105,21 @@ class CoverageReportTests(unittest.TestCase):
                 {"src/codec.rs": "Do not count this uncovered code"},
             )
 
+    def test_zero_line_count_cannot_hide_measured_functions_or_regions(self) -> None:
+        for metric in ("functions", "regions"):
+            record = llvm_file(self.source, 0, 0)
+            record["summary"][metric] = {"count": 1, "covered": 0}
+            with (
+                self.subTest(metric=metric),
+                self.assertRaisesRegex(CoverageError, "cannot exclude measured code"),
+            ):
+                summarize(
+                    export(record),
+                    self.package,
+                    95,
+                    {"src/codec.rs": "No executable lines"},
+                )
+
     def test_dependencies_and_integration_test_files_do_not_pad_package_totals(
         self,
     ) -> None:

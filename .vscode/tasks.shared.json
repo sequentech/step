@@ -7,10 +7,13 @@
         {
             "label": "test.coverage.sequent-core",
             "type": "process",
-            "command": "python3",
+            "command": "devenv",
             "args": [
-                "scripts/coverage/run.py",
-                "sequent-core"
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "python3 scripts/coverage/run.py sequent-core"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

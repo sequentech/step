@@ -102,7 +102,9 @@ def summarize(
             file_metrics[metric] = {"covered": covered, "count": count}
             totals[metric]["covered"] += covered
             totals[metric]["count"] += count
-        if name in exceptions and file_metrics["lines"]["count"] > 0:
+        if name in exceptions and any(
+            value["count"] > 0 for value in file_metrics.values()
+        ):
             raise CoverageError(f"An exception cannot exclude measured code: {name}")
         files[name] = file_metrics
 

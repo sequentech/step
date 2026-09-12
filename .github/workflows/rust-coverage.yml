@@ -45,8 +45,8 @@ jobs:
         run: python3 -m pip install coverage==7.16.0 ruff==0.16.7
       - name: Check Python formatting and imports
         run: |
-          ruff format --check scripts/coverage
-          ruff check scripts/coverage
+          ruff format --check --config scripts/coverage/ruff.toml scripts/coverage
+          ruff check --config scripts/coverage/ruff.toml scripts/coverage
       - name: Test the coverage decisions
         env:
           COVERAGE_FILE: coverage/tooling/.coverage

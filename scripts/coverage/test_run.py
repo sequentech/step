@@ -64,6 +64,7 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.enterContext(contextlib.redirect_stderr(io.StringIO()))
         self.enterContext(patch.dict(os.environ, {}, clear=True))
         self.covered = 95
+        self.command_environments = []
         self.test_log = (
             "test result: ok. 3 passed; 0 failed; 1 ignored; "
             "0 measured; 0 filtered out;"
@@ -74,6 +75,7 @@ issue = "https://github.com/sequentech/meta/issues/13292"
     ) -> str:
         """Produce known counters; never execute a command supplied by a test."""
         log.write_text("Recorded test command\n")
+        self.command_environments.append(environment)
         if command == ["cargo", "llvm-cov", "--version"]:
             return "cargo-llvm-cov 0.9.1\n"
         if command == ["rustc", "--version"]:
@@ -87,6 +89,13 @@ issue = "https://github.com/sequentech/meta/issues/13292"
             destination.write_text(
                 json.dumps(export(llvm_file(self.source, self.covered)))
             )
+        if "--lcov" in command:
+            destination = Path(command[command.index("--output-path") + 1])
+            destination.write_text(f"SF:{self.source}\nDA:1,1\nend_of_record\n")
+        if "--html" in command:
+            destination = Path(command[command.index("--output-dir") + 1]) / "html"
+            destination.mkdir()
+            (destination / "index.html").write_text("<html>Coverage</html>\n")
         return ""
 
     def attempt(self, baseline: bool = False) -> tuple[int, dict]:
@@ -104,6 +113,29 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(summary["tests_passed"], 3)
         self.assertEqual(summary["tests_ignored"], 1)
         self.assertEqual(summary["features"], ["default_features", "keycloak"])
+
+    def test_offline_mode_applies_to_probes_tests_and_report_commands(self) -> None:
+        self.attempt()
+        self.assertGreater(len(self.command_environments), 5)
+        self.assertTrue(
+            all(env["CARGO_NET_OFFLINE"] == "true" for env in self.command_environments)
+        )
+
+    def test_locked_metadata_failure_stops_before_test_execution(self) -> None:
+        commands = []
+
+        def failed_metadata(
+            command: list[str], log: Path, environment: dict[str, str]
+        ) -> str:
+            commands.append(command)
+            if command[:2] == ["cargo", "metadata"]:
+                self.assertIn("--locked", command)
+                raise CoverageError("Lockfile needs an update")
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=failed_metadata):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        self.assertFalse(any("--tests" in command for command in commands))
 
     def test_strict_shortfall_fails(self) -> None:
         self.covered = 94
@@ -142,7 +174,14 @@ issue = "https://github.com/sequentech/meta/issues/13292"
                 ):
                     self.assertEqual(run.measure("sequent-core", False, False), 2)
 
-        with patch.object(run, "execute", side_effect=CoverageError("Tests failed")):
+        def failing_tests(
+            command: list[str], log: Path, environment: dict[str, str]
+        ) -> str:
+            if "--tests" in command:
+                raise CoverageError("Tests failed")
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=failing_tests):
             self.assertEqual(run.measure("sequent-core", True, True), 2)
         for path in self.root.glob("coverage/sequent-core/*/summary.json"):
             summary = json.loads(path.read_text())
@@ -202,7 +241,15 @@ issue = "https://github.com/sequentech/meta/issues/13292"
 
     def test_partial_export_cannot_reuse_an_earlier_success(self) -> None:
         self.attempt()
-        with patch.object(run, "execute", side_effect=CoverageError("Export failed")):
+
+        def failing_export(
+            command: list[str], log: Path, environment: dict[str, str]
+        ) -> str:
+            if "--json" in command:
+                raise CoverageError("Export failed")
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=failing_export):
             self.assertEqual(run.measure("sequent-core", False, False), 2)
         summaries = [
             json.loads(path.read_text())
@@ -212,6 +259,23 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(
             sorted(result["status"] for result in summaries), ["error", "measured"]
         )
+
+    def test_absent_or_truncated_human_reports_prevent_success(self) -> None:
+        for lcov, html in (
+            ("", "<html></html>"),
+            ("SF:x\nDA:1,1\n", "<html></html>"),
+            ("SF:x\nDA:1,1\nend_of_record\n", "<html>"),
+        ):
+            output = self.root / "report-fixture"
+            (output / "html").mkdir(parents=True, exist_ok=True)
+            (output / "lcov.info").write_text(lcov)
+            (output / "html" / "index.html").write_text(html)
+            with self.subTest(lcov=lcov, html=html), self.assertRaises(CoverageError):
+                run.validate_artifacts(output)
+
+        (output / "html" / "index.html").unlink()
+        with self.assertRaises(FileNotFoundError):
+            run.validate_artifacts(output)
 
 
 class CheckoutIdentityTests(unittest.TestCase):

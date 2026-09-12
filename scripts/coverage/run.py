@@ -70,6 +70,20 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
 
 
+def validate_artifacts(output: Path) -> None:
+    """Require readable, nonempty LCOV and HTML exports before publishing success."""
+    lcov = (output / "lcov.info").read_text()
+    if (
+        not lcov.startswith("SF:")
+        or not lcov.rstrip().endswith("end_of_record")
+        or re.search(r"^DA:\d+,\d+", lcov, re.MULTILINE) is None
+    ):
+        raise CoverageError("LCOV export is empty, truncated or invalid")
+    html = (output / "html" / "index.html").read_text().lower()
+    if "<html" not in html or "</html>" not in html:
+        raise CoverageError("HTML export is empty, truncated or invalid")
+
+
 def source_digest(package: Path) -> str:
     """Identify source contents even when a developer measures uncommitted edits."""
     digest = hashlib.sha256()
@@ -144,6 +158,9 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
     started = time.monotonic()
     environment = dict(os.environ, CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
+    if offline:
+        # Report generation also invokes Cargo metadata internally.
+        environment["CARGO_NET_OFFLINE"] = "true"
     # Profiles share dependency compilation, but cargo-llvm-cov clears old counters
     # at the start. Run one coverage process per checkout at a time.
     environment["CARGO_LLVM_COV_TARGET_DIR"] = str(
@@ -191,6 +208,21 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
         )
 
         arguments = ["--package", profile["package"], "--locked"]
+        # cargo-llvm-cov also asks Cargo for workspace metadata when exporting.
+        # Validate the lockfile before those internal, unflagged metadata calls.
+        execute(
+            [
+                "cargo",
+                "metadata",
+                "--format-version=1",
+                "--no-deps",
+                "--locked",
+                "--manifest-path",
+                str(WORKSPACE / "Cargo.toml"),
+            ],
+            output / "metadata.log",
+            environment,
+        )
         if profile["features"]:
             arguments.extend(["--features", ",".join(profile["features"])])
         if offline:
@@ -229,7 +261,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 "report",
                 "--html",
                 "--output-dir",
-                str(output / "html"),
+                str(output),
             ],
             output / "html.log",
             environment,
@@ -241,6 +273,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
         )
 
         payload = json.loads((output / "llvm.json").read_text())
+        validate_artifacts(output)
         result.update(
             summarize(
                 payload, package, config["minimum_lines"], profile["scope_exceptions"]
