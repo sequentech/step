@@ -5,7 +5,7 @@
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
 import {ThemeProvider} from "@mui/material/styles"
-import type {ICandidate, IContest, IDecodedVoteChoice} from "@sequentech/ui-core"
+import type {IContest, IDecodedVoteChoice} from "@sequentech/ui-core"
 import theme from "../../services/theme"
 import {PlaintextVoteContest} from "./PlaintextVoteContest"
 
@@ -40,7 +40,7 @@ jest.mock(
         isCategoryListSelected: () => false,
         shouldShowCategoryCandidateOnReview: () => false,
         isAcclaimedContest: (contest?: IContest | null) => Boolean(contest?.is_acclaimed),
-        isEligibleAcclaimedCandidate: (candidate: ICandidate) =>
+        isEligibleAcclaimedCandidate: (candidate: any) =>
             !candidate.presentation?.is_explicit_blank &&
             !candidate.presentation?.is_explicit_invalid &&
             !candidate.presentation?.is_disabled &&

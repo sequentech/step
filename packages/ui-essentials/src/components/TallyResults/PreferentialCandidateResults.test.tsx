@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import assert from "node:assert/strict"
 import React from "react"
 import {fireEvent, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -72,8 +71,7 @@ it("preserves configured candidate order and carries elimination state into late
         "Bob",
         "Process-only candidate",
     ])
-    const bob = screen.getByRole("rowheader", {name: "Bob"}).closest("tr")
-    assert.ok(bob, "Bob must have a row containing his round results")
+    const bob = screen.getByRole("rowheader", {name: "Bob"}).closest("tr")!
     expect(within(bob).getByText("Eliminated")).toBeVisible()
     expect(within(bob).getByText("6 (60.00%)")).toBeVisible()
     await user.click(screen.getByRole("button", {name: "Next rounds"}))
@@ -91,8 +89,7 @@ it("preserves configured candidate order and carries elimination state into late
 
 it("bounds keyboard navigation and resets the window when the process changes", () => {
     const {container, rerender} = render(content())
-    const table = container.querySelector<HTMLElement>(".seq-tally-results-preferential-results")
-    assert.ok(table, "The results table must exist before testing keyboard navigation")
+    const table = container.querySelector<HTMLElement>(".seq-tally-results-preferential-results")!
     fireEvent.keyDown(table, {key: "ArrowLeft"})
     expect(screen.getByText("Round 1")).toBeVisible()
     fireEvent.keyDown(table, {key: "End"})

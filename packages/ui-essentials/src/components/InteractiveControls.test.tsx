@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import assert from "node:assert/strict"
 import React from "react"
 import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -198,9 +197,7 @@ it("removes the election countdown at its deadline without leaving a stray zero"
         expect(container.querySelector(".election-countdown")).not.toBeNull()
         act(() => jest.advanceTimersByTime(2_000))
         expect(container.querySelector(".election-countdown")).toBeNull()
-        const electionItem = container.querySelector(".election-list-item")
-        assert.ok(electionItem, "Starting an election must preserve its list item")
-        const visibleText = Array.from(electionItem.childNodes)
+        const visibleText = Array.from(container.querySelector(".election-list-item")!.childNodes)
             .filter((node) => node.nodeType === Node.TEXT_NODE)
             .map((node) => node.textContent)
         expect(visibleText).toEqual([])
