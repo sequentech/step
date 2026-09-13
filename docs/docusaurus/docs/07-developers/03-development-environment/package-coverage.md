@@ -22,8 +22,8 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **484 passing tests**, **96.80% line
-coverage**, **95.43% function coverage** and **95.65% LLVM region coverage**. Its
+The `default_features,keycloak` profile has **489 passing tests**, **96.92% line
+coverage**, **95.77% function coverage** and **95.74% LLVM region coverage**. Its
 native aggregate includes inline test code; standalone fixtures and test files
 are excluded. It is not yet a
 production-only or actual branch score.
@@ -40,8 +40,8 @@ presentation data. PostgreSQL tests launch private temporary clusters and requir
 `postgresql libpq-dev` or `PG_BIN` pointing to the server binaries; they never use
 an existing database or a production connection string.
 
-Source commit `11dec93c4484e6f7876c2045521a0b554a0eeb99` measures 11,921/12,315
-lines, 1,398/1,465 functions and 15,194/15,885 regions with Rust 1.96.0 and
+Source commit `7a8304f4102e696e76a06a0960472e7792aaaaf8` measures 11,936/12,315
+lines, 1,403/1,465 functions and 15,208/15,885 regions with Rust 1.96.0 and
 cargo-llvm-cov 0.9.1. The native line improvement target is met. Remaining work
 includes realizable failure cases, integration with a running identity provider
 and separate WASM/service profiles. All 47 files missing from the LLVM report
@@ -50,7 +50,7 @@ the strict overall target from passing.
 
 The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
 contains the uncovered-line breakdown, tested contracts and remaining feature work.
-It also inventories the remaining 67 unexecuted functions, separating useful
+It also inventories the remaining 62 unexecuted functions, separating useful
 follow-up cases from inline test diagnostics, guards after immutable validation
 and specific infeasible serialization/numeric-conversion errors. Do not force
 100% by adding tests without a useful behavioral assertion.

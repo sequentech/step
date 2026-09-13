@@ -70,27 +70,32 @@ Payload errors describe the length without including plaintext contents.
 
 ## Coverage and remaining work
 
-The native `default_features,keycloak` profile runs **484 passing tests, none
-ignored**. Source commit `11dec93c4484e6f7876c2045521a0b554a0eeb99` measures
-**11,921/12,315 lines (96.80%)**, **1,398/1,465 functions (95.43%)** and
-**15,194/15,885 LLVM regions (95.65%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
+The native `default_features,keycloak` profile runs **489 passing tests, none
+ignored**. Source commit `7a8304f4102e696e76a06a0960472e7792aaaaf8` measures
+**11,936/12,315 lines (96.92%)**, **1,403/1,465 functions (95.77%)** and
+**15,208/15,885 LLVM regions (95.74%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
 Production Clippy and workspace formatting pass (existing warnings remain).
-Actual branch coverage is not measured by this stable native profile.
+Actual branch coverage is not measured by this stable native profile. Existing
+randomized inline ballot tests can cause small line/region differences between
+runs; the counts above identify this source revision and its local report. CI
+still measures both revisions afresh and rejects a decrease in any metric.
 
 The suite uses bounded local HTTP peers for Keycloak and Rocket dispatch for
 request guards. It verifies request payloads, authentication failures, token-cache
 isolation and expiry without contacting a production identity provider. These
 checks complement, but do not replace, integration against a running Keycloak.
 
-The report has **394 uncovered measured lines** and **67 uncovered functions**.
+The report has **379 uncovered measured lines** and **62 uncovered functions**.
 The new cases exercise generated stream contracts, PostgreSQL row mapping,
 malformed audit/hash payloads, permission-label deduplication, expired tokens,
 rejected realm/user/permission writes and invalid user locations. Oversized
 mixed-radix payloads and group updates without an id reproduced panics before
 their fixes; zero radices are also rejected.
-Continue with the remaining realizable Keycloak transport/refresh failures,
-preferential ballot validation and service integration. These remain obligations,
-not exceptions justified by the aggregate percentage.
+The suite also covers interrupted token-response bodies, unrepresentable
+raw choices, unknown contest IDs through the direct encoder and encryption-error
+propagation. Backend failures, preferential-validation cases and separately
+supported service/WASM configurations remain review obligations, not exceptions
+justified by the aggregate percentage.
 
 The report inventories **47 files without an LLVM measurement**, classified
 below. Their supported configurations still need separate measurements; the
@@ -201,27 +206,27 @@ function remains wholly uncovered in the measured profile. Generated functions
 stay in counters and all exports; no `coverage(off)` attributes or new exclusions
 were added. Inline test diagnostics and unmeasured feature profiles remain visible.
 
-The remaining **67 unexecuted functions** are located as follows (paths relative
+The remaining **62 unexecuted functions** are located as follows (paths relative
 to `src/`). Counts include closures, not just named public APIs:
 
 | Source | Unexecuted functions | Review direction |
 | --- | ---: | --- |
-| `ballot_codec/multi_ballot.rs` | 24 | 18 inline test diagnostics; five numeric-conversion errors and one lookup guard. Preserve the 64-bit conversion and prior-validation rationale below. |
-| `ballot.rs`, `multi_ballot.rs` | 18 | Signing/serialization error closures plus the manual `EInitializeReportPolicy::default`. Generated Borsh implementations are covered; review the concrete backend/error edge, not the derive name. |
-| `services/keycloak/admin_client.rs` | 7 | Token-conversion/lock errors plus the still-useful interrupted HTTP body-read case in `get_credentials_inner`. |
-| `ballot_codec/raw_ballot.rs` | 4 | Two inline assertion diagnostics, a prior-validated candidate lookup and direct raw-choice conversion overflow. The latter remains a useful rejected-input test. |
-| `encrypt.rs` | 4 | Prior-validated contest lookups, ballot-style serialization and `encrypt_multi_ballot`'s encoding-error propagation. The last edge remains useful to test directly. |
+| `ballot_codec/multi_ballot.rs` | 23 | 18 inline test diagnostics and five numeric-conversion errors. Preserve the 64-bit conversion rationale below. The direct missing-contest rejection is now tested. |
+| `ballot.rs`, `multi_ballot.rs` | 17 | Signing/serialization error closures. Generated Borsh implementations and the manual initialization-policy default are covered; review the concrete backend/error edge, not the derive name. |
+| `services/keycloak/admin_client.rs` | 6 | Token-conversion/lock errors. The interrupted HTTP body-read case in `get_credentials_inner` is now tested. |
+| `ballot_codec/raw_ballot.rs` | 3 | Two inline assertion diagnostics and a candidate lookup already validated by the preceding loop over the same choices. Direct raw-choice overflow is now tested. |
+| `encrypt.rs` | 3 | Prior-validated contest lookups and ballot-style serialization. Encoding-error propagation from `encrypt_multi_ballot` is now tested. |
 | `plaintext.rs` | 3 | Lookups after immutable contest-set validation and a repeated deserialization of identical bytes. |
 | `ballot_codec/contest_context.rs` | 1 | Fallback text for a configuration error without a message; both current checker errors always supply a message. |
 | `services/keycloak/realm_password_policy.rs` | 1 | UTF-8 conversion failure after constructing a password exclusively from ASCII character sets. |
 | `services/keycloak/user.rs` | 1 | Non-hierarchical URL mutation after successful HTTP authentication against the same configured URL. |
-| `services/keycloak/realm.rs` | 1 | Token-supplier failure before realm export; distinguish this from tested HTTP rejection and transport failures. |
+| `services/keycloak/realm.rs` | 1 | `PubKeycloakAdmin` holds the concrete `KeycloakAdminToken`; keycloak 24.0.301's `get` implementation unconditionally returns `Ok(self.access_token.clone())`. It cannot exercise this error closure; HTTP rejection and transport failures are tested separately. |
 | `util/voting_screen.rs` | 1 | `get_decoded_contest_plurality`, a fixture builder not used by this profile; do not call it merely for coverage. |
 | `election_config/report.rs` | 1 | Inline assertion diagnostic. |
 | `main.rs` | 1 | Empty executable entry point. |
 
 This inventory is not an exclusion list or a claim that all remaining behavior is
-infeasible. The named reachable cases and separately measured configurations stay
+infeasible. Backend-failure review and separately measured configurations stay
 open in Meta #13292. Routine generated `Debug`/`Clone` code does not explain the
 current function gap.
 
