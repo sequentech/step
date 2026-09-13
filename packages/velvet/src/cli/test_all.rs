@@ -789,7 +789,12 @@ mod tests {
 
     #[test]
     fn test_pipes_exec() -> Result<()> {
-        sequent_core::util::init_log::init_log(true);
+        let logging = sequent_core::util::init_log::init_log(true);
+        if std::env::var_os("CI").is_some() {
+            // These fixtures are synthetic. Include Chrome's subprocess logs
+            // in failed CI output so a closed connection has a useful cause.
+            logging.modify(|level| *level = tracing::level_filters::LevelFilter::DEBUG)?;
+        }
 
         // Keep multiple elections and contests, the deliberately missing area,
         // and all 20 ballot cases. Larger dimensions only duplicate PDF work;
