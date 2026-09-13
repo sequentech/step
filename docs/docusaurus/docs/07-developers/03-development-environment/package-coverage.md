@@ -335,7 +335,7 @@ not the separate artifact or search metadata.
 
 See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
 for setup, coverage limits and failure diagnosis. The rollout is tracked in
-[Meta #13301](https://github.com/sequentech/meta/issues/13301).
+[Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
 `electoral-log-native` provides the default-feature PR-base comparison. The
 `electoral-log` profile above remains separate ImmuDB integration evidence: its
