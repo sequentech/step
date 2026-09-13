@@ -16,9 +16,9 @@ interface ButtonProps {
 }
 
 const StyledButton = styled(Button)<ButtonProps>(
-    ({isactive}) => `
+    ({isactive, theme}) => `
     gap: 10px;
-    color: ${({theme}) => theme.black};
+    color: ${theme.palette.black};
     border-color: transparent;
     background-color: ${"true" === isactive ? "#eee" : "inherit"};
 `

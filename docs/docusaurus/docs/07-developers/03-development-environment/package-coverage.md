@@ -263,3 +263,30 @@ journeys require the separate local integration environment.
 See the [Voting Portal test guide](https://github.com/sequentech/step/blob/main/packages/voting-portal/tests/README.md)
 for the measured baseline, test boundaries and remaining work. Progress is
 tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
+
+## UI Essentials
+
+UI Essentials tests shared controls independently of deployed elections:
+
+```bash
+cd packages
+yarn --cwd ui-essentials test --runInBand
+yarn --cwd ui-essentials test:coverage:baseline
+yarn --cwd ui-essentials test:browser
+TZ=America/Toronto yarn --cwd ui-essentials jest useSelectElectionCountdown.test.tsx --runInBand
+```
+
+The unit command includes type checking. Local Chromium tests cover keyboard
+file selection, drag-and-drop, failed import/retry, category selection and the
+countdown clock. Node 22.22 or newer and Chrome are required for that browser
+command; `UI_ESSENTIALS_TEST_CHROME_PATH` can select another Chromium executable.
+The Toronto run checks the repeated hour at the end of daylight saving time.
+
+The 95% package target remains open. Use `test:coverage` to enforce it; the
+baseline command only records current progress. Unimported runtime modules
+remain in the report. Complete voter journeys and server authorization are
+separate integration scopes.
+
+See the [UI Essentials test guide](https://github.com/sequentech/step/blob/main/packages/ui-essentials/tests/README.md)
+for setup, import callback behavior and coverage limits. Results and remaining
+work are tracked in [Meta #13303](https://github.com/sequentech/meta/issues/13303).
