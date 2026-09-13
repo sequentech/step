@@ -147,7 +147,7 @@ limitations = [
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13296"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.windmill.test_environment]
 KEYCLOAK_DB__HOST = "127.0.0.1"
