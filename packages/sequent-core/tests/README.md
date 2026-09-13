@@ -48,8 +48,9 @@ ignored**. Its measured source coverage is **80.73% lines** and **58.38% functio
 LLVM regions are measured separately; actual branch coverage is not measured by
 this stable native profile.
 
-There is no inherent 95% ceiling. Reaching 100% requires more tests and a complete
-account of which code is being measured. The current gaps fall into three groups:
+The objective is confidence in the package contracts, with high coverage as a
+check on missing tests. A justified residual gap is acceptable when another test
+would add little confidence. The current gaps fall into three groups:
 
 1. **Compiled code without tests.** The largest gaps are below. Most pure helpers
    can be exercised directly; HTTP clients need controlled local responses and
@@ -68,7 +69,7 @@ account of which code is being measured. The current gaps fall into three groups
 | Keycloak services | 1,127 | Realm/user/role/permission operations; client credentials, token refresh, failed HTTP responses and retry behavior. |
 | Ballot model (`ballot.rs`) | 531 | Voting-state transitions, channel-specific dates/status, contest presentation, tie resolutions and serialization boundaries. |
 | Ballot codecs | 330 | Remaining malformed-input, capacity and alternate encoding paths against independent vectors. |
-| Encryption fixture helpers | 214 | Separate fixture coverage from production evidence and verify the helpers' required contracts. |
+| Test-only encryption fixture helpers | 214 | Keep test scaffolding separate from production coverage; these helpers have no active callers in Step. |
 | Scheduled events | 111 | Tenant/event/election filtering, task names, absent/malformed payloads and scheduled-date selection. |
 | Plaintext interpretation | 82 | Counting-algorithm layouts, point displays and explicit-invalid versus blank selections. |
 | Request guards (`connection.rs`) | 62 | Local Rocket requests with missing/malformed credentials and valid controls; trusted versus untrusted identity inputs. |
@@ -94,10 +95,29 @@ Measure from the repository root:
 python3 scripts/coverage/run.py sequent-core --baseline
 ```
 
-The improvement target is 95%, with 100% where meaningful tests can achieve it.
+The improvement target is at least 95%, approaching complete coverage where tests
+add confidence. Document low-value residual gaps instead of forcing 100%.
 The CI policy is **no decrease against the PR base**, separately for each measured
 metric. A passing comparison does not mean the improvement target is complete.
 Track the remaining work in [Meta #13292](https://github.com/sequentech/meta/issues/13292).
+
+## Where additional coverage adds little value
+
+These are specific reasons to accept a residual gap, not exemptions for whole
+subsystems. Keep the explanation beside the coverage evidence. No percentage
+should be raised merely by exercising unrelated implementation details.
+
+| Code | Why a dedicated coverage test adds little | Treatment |
+| --- | --- | --- |
+| [`fixtures/encrypt.rs`](../src/fixtures/encrypt.rs): `get_encrypt_decoded_test_fixture` and `default_voting_portal_fixture` | Compiled only under `cfg(test)` in `fixtures/mod.rs`; their only call sites in Step are inside a commented-out test. The 214 uncovered lines are test scaffolding, not deployed election behavior. | Separate test-only helpers from production coverage. Retain useful fixtures with contract checks, or remove unused ones as cleanup; do not call them just to increase a score. |
+| Generated `Debug` and `Clone` implementations on ballot data types in [`ballot.rs`](../src/ballot.rs) | Testing every generated field copy or debug rendering mostly retests Rust derives. | Exercise them through real scenarios. Test explicit privacy/redaction and copy-isolation requirements if present. Serialization, permission strings and signed bytes remain important contracts. |
+| [`ballot_codec/mod.rs`](../src/ballot_codec/mod.rs), [`serialization/mod.rs`](../src/serialization/mod.rs), and import-only [`ballot_verifier.rs`](../src/ballot_verifier.rs) | These files contain declarations, re-exports, a marker trait or imports without executable bodies. There is no runtime outcome for a unit test to exercise. | Account for them as non-executable source; compilation and consumer tests check the interfaces. |
+| The serialization-error edge in [`generate_voting_period_dates`](../src/types/scheduled_event.rs) | `serde_json::to_value` receives `ManageElectionDatePayload`, a derived struct containing only `Option<String>`. This value has no recoverable serialization-error case. | Do not alter production design or fabricate a failing serializer solely to hit this edge. Test `Some`/`None`, filtering and resulting dates; revisit the rationale if the payload gains fallible fields. |
+
+HTTP failures, token expiry, permission rejection, malformed ballots and arithmetic
+boundaries remain valuable tests even when difficult to set up. Disabled native
+features and WASM are separate coverage obligations, not diminishing-return
+exceptions. Most of the current 3,019-line gap still needs meaningful tests.
 
 ## Production lint policy
 
