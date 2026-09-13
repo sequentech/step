@@ -11,16 +11,17 @@ export const translate = <T, K extends keyof T>(
     key: K,
     lang: string
 ): string | undefined => {
-    const i18n_key = `${String(key)}_i18n`
-    if ((input as any)?.[i18n_key]) {
-        let dict = (input as any)[i18n_key] as TranslationDict
-
-        if (lang in dict) {
-            return dict[lang]
+    const translationKey = `${String(key)}_i18n`
+    const dictionary = isRecord(input) ? input[translationKey] : undefined
+    if (isRecord(dictionary) && Object.hasOwn(dictionary, lang)) {
+        const translated = dictionary[lang]
+        if (typeof translated === "string") {
+            return translated
         }
     }
 
-    return input[key] as string
+    const fallback = isRecord(input) ? input[String(key)] : undefined
+    return typeof fallback === "string" ? fallback : undefined
 }
 
 type TranslationValue = string | null | undefined
