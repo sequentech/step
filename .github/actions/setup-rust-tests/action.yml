@@ -23,7 +23,7 @@ runs:
       uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: 1.96.0
-        components: rustfmt
+        components: rustfmt, clippy
         targets: x86_64-unknown-linux-musl
 
     - name: Cache Cargo registry
@@ -49,3 +49,13 @@ runs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+
+    # The first rollout enforces the full assurance policy in Core's new test
+    # modules. Existing crate-wide lint debt remains tracked in meta #11566.
+    - name: Check Sequent Core assurance lints
+      if: inputs.cargo-build-name == 'sequent-core'
+      shell: bash
+      working-directory: packages
+      env:
+        CARGO_BUILD_JOBS: '2'
+      run: cargo clippy --locked --no-deps --tests -p sequent-core --features default_features,keycloak

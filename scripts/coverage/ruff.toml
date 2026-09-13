@@ -5,4 +5,4 @@ target-version = "py311"
 line-length = 88
 
 [lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "B", "BLE", "UP", "RUF", "SIM"]
