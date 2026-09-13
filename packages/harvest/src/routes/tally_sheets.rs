@@ -916,3 +916,7 @@ fn verify_source_sha256(
         actual_sha256
     ))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_import_boundaries.rs"]
+mod boundary_tests;
