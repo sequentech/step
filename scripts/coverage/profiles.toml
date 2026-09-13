@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# This is an explicit rollout list, not a claim that every profile is measured.
+# Add service-backed profiles only with their local, synthetic service recipe.
+cargo_llvm_cov_version = "0.9.1"
+minimum_lines = 95
+
+[profiles.sequent-core]
+package = "sequent-core"
+features = ["default_features", "keycloak"]
+limitations = [
+    "Native library and integration tests; matches the existing Rust CI feature selection.",
+    "WASM, reports/S3, SQLite, signatures and plugin runtime configurations require separate runs.",
+    "Stable LLVM includes inline unit-test code; move tests to separate *_tests.rs files before claiming production-only coverage.",
+    "Native stable coverage does not measure branch coverage or doctests.",
+]
+issue = "https://github.com/sequentech/meta/issues/13292"
+
+[profiles.sequent-core.scope_exceptions]
+
+[profiles.strand]
+package = "strand"
+features = []
+limitations = [
+    "Native default backend only; optional backends, rayon and WASM require separate runs.",
+    "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
+]
+issue = "https://github.com/sequentech/meta/issues/13293"
+
+[profiles.strand.scope_exceptions]
