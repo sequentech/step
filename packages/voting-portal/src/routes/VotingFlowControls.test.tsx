@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import assert from "node:assert/strict"
 import React from "react"
 import {render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -318,8 +317,7 @@ describe("Ballot ID copy visibility", () => {
         }
         const user = userEvent.setup()
         const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
-        const row = container.querySelector(".ballot-id-container")
-        assert.ok(row, "Confirmation must render a receipt ID row")
+        const row = container.querySelector(".ballot-id-container")!
         expect(row).toContainElement(
             screen.getByRole("button", {name: "reviewScreen.copyBallotId"})
         )
@@ -335,8 +333,7 @@ describe("Ballot ID copy visibility", () => {
         try {
             expect(row).not.toBeVisible()
             expect(screen.queryByRole("button", {name: "reviewScreen.copyBallotId"})).toBeNull()
-            const qr = container.querySelector(".qr-code-svg")
-            assert.ok(qr, "Hiding the receipt ID must preserve its verification QR code")
+            const qr = container.querySelector(".qr-code-svg")!
             expect(qr).toBeVisible()
             expect(qr).toHaveAccessibleName("confirmationScreen.verifyCastDescription")
             expect(
@@ -363,8 +360,7 @@ describe("Ballot ID copy visibility", () => {
         "preserves copy visibility for %s across gold reauthentication",
         async (auditButtonCfg, visible) => {
             setUpState({auditButtonCfg})
-            const election = mockState.elections["election-1"]
-            assert.ok(election, "The voting fixture must include the selected election")
+            const election = mockState.elections["election-1"]!
             const presentation = {
                 ...election.presentation,
                 consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
@@ -380,9 +376,7 @@ describe("Ballot ID copy visibility", () => {
             await user.click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
             await waitFor(() => expect(mockReauthWithGold).toHaveBeenCalledTimes(1))
             expect(mockInsertCastVote).not.toHaveBeenCalled()
-            const storedBallot = sessionStorage.getItem(BALLOT_DATA_KEY)
-            assert.ok(storedBallot, "Gold reauthentication must retain the pending ballot")
-            expect(JSON.parse(storedBallot)).toMatchObject({
+            expect(JSON.parse(sessionStorage.getItem(BALLOT_DATA_KEY)!)).toMatchObject({
                 ballotId: BALLOT_ID,
                 isDemo: false,
                 auditButtonCfg: auditButtonCfg ?? EVotingPortalAuditButtonCfg.SHOW,
@@ -461,9 +455,7 @@ describe("Ballot ID copy visibility", () => {
             visible
         )
         expect(screen.getByText(BALLOT_ID)).toBeInTheDocument()
-        const receiptRow = screen.getByText(BALLOT_ID).parentElement
-        assert.ok(receiptRow, "The receipt ID must have a container for its help button")
-        const help = within(receiptRow).getByRole("button", {
+        const help = within(screen.getByText(BALLOT_ID).parentElement!).getByRole("button", {
             name: "a11y.helpAbout",
         })
         expect(getComputedStyle(help).marginLeft).toBe(visible ? "0px" : "16px")
