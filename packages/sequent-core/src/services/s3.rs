@@ -27,7 +27,11 @@ use std::{env, error::Error};
 use strum_macros::{Display, EnumString};
 use tempfile::{NamedTempFile, TempPath};
 use tokio::io::{self, AsyncReadExt};
+use tokio::sync::OnceCell;
 use tracing::{info, instrument, warn};
+
+static SERVER_S3_CLIENT: OnceCell<s3::Client> = OnceCell::const_new();
+static CLIENT_S3_CLIENT: OnceCell<s3::Client> = OnceCell::const_new();
 
 const MAX_CHUNK_SIZE: u64 = 16 * 1024 * 1024;
 const AWS_HOSTED_S3_HOST_DELIMITER: &str = ".s3.";
@@ -368,6 +372,23 @@ async fn create_bucket_if_not_exists(
 pub async fn get_s3_client(config: s3::Config) -> Result<s3::Client> {
     let client = s3::Client::from_conf(config);
     Ok(client)
+}
+
+/// Reuse clients and the SDK credential cache for the two configured endpoints.
+pub async fn get_shared_s3_client(endpoint: S3Endpoint) -> Result<s3::Client> {
+    let client = match endpoint {
+        S3Endpoint::Server => &SERVER_S3_CLIENT,
+        S3Endpoint::Client => &CLIENT_S3_CLIENT,
+    };
+    client
+        .get_or_try_init(|| async {
+            get_s3_client(
+                get_s3_aws_config(endpoint == S3Endpoint::Server).await?,
+            )
+            .await
+        })
+        .await
+        .cloned()
 }
 
 /// Builds the private document key layout so uploads and downloads use a
@@ -905,76 +926,68 @@ pub async fn get_files_from_s3(
     let resolved_target = get_s3_list_target(&s3_bucket, S3Endpoint::Server)
         .await
         .with_context(|| "Error getting s3 list target")?;
-    let list_prefix = resolved_target.qualify_prefix(&prefix);
+    let list_prefix = format!(
+        "{}/",
+        resolved_target
+            .qualify_prefix(&prefix)
+            .trim_end_matches('/')
+    );
     let client = resolved_target.client;
     let bucket_name = resolved_target.bucket;
-
     let mut file_paths = Vec::new();
+    let mut continuation_token = None;
 
-    let result = client
-        .list_objects_v2()
-        .bucket(&bucket_name)
-        .prefix(&list_prefix)
-        .send()
-        .await?;
+    loop {
+        let result = client
+            .list_objects_v2()
+            .bucket(&bucket_name)
+            .prefix(&list_prefix)
+            .set_continuation_token(continuation_token)
+            .send()
+            .await?;
 
-    for object in result.contents().iter() {
-        let key = object.key().ok_or(anyhow!("s3 object key is missing"))?;
-
-        if !key.contains("export") {
-            // Extract file name and document ID
-            let parts: Vec<&str> = key.split('/').collect();
-            let s3_file_name = parts
-                .last()
-                .ok_or(anyhow!("Can't find file name in path"))?;
-            let document_id = parts.iter().find_map(|part| {
-                if part.starts_with("document-") {
-                    Some(part.trim_start_matches("document-").to_string())
-                } else {
-                    None
-                }
-            });
-
-            if !is_exportable_document(
-                document_id.as_deref(),
+        for object in result.contents() {
+            let key =
+                object.key().ok_or(anyhow!("s3 object key is missing"))?;
+            let Some((document_id, file_name)) = exportable_document_key(
+                key,
+                &list_prefix,
                 exportable_document_ids,
-            ) {
+            ) else {
                 continue;
-            }
-
-            // Get object from S3
+            };
             let s3_object = client
                 .get_object()
                 .bucket(&bucket_name)
                 .key(key)
                 .send()
                 .await?;
-
-            let s3_body_stream = s3_object.body;
-
-            let file_name = document_id
-                .clone()
-                .map(|id| format!("document_{}_{}", id, s3_file_name))
-                .unwrap_or_else(|| s3_file_name.to_string());
-
-            let temp_file = generate_temp_file("", &file_name)
+            let name = format!("document_{document_id}_{file_name}");
+            let temp_file = generate_temp_file("", &name)
                 .context("generating temp file")?;
-
             let std_file = temp_file
                 .reopen()
                 .context("reopening temp file for async I/O")?;
             let mut async_file = tokio::fs::File::from_std(std_file);
-
-            // Stream from S3 → disk without buffering into memory
-            let mut reader = s3_body_stream.into_async_read();
+            let mut reader = s3_object.body.into_async_read();
             io::copy(&mut reader, &mut async_file)
                 .await
                 .context("stream-copy from S3 to temp file")?;
-
             file_paths.push(temp_file.into_temp_path());
         }
-    }
 
+        if !result.is_truncated().unwrap_or(false) {
+            break;
+        }
+        continuation_token = Some(
+            result
+                .next_continuation_token()
+                .context(
+                    "Truncated S3 document listing has no continuation token",
+                )?
+                .to_owned(),
+        );
+    }
     Ok(file_paths)
 }
 
@@ -982,7 +995,18 @@ fn is_exportable_document(
     document_id: Option<&str>,
     allowed_ids: &std::collections::HashSet<String>,
 ) -> bool {
-    document_id.is_none_or(|id| allowed_ids.contains(id))
+    document_id.is_some_and(|id| allowed_ids.contains(id))
+}
+
+fn exportable_document_key<'a>(
+    key: &'a str,
+    prefix: &str,
+    allowed_ids: &std::collections::HashSet<String>,
+) -> Option<(&'a str, &'a str)> {
+    let (directory, name) = key.strip_prefix(prefix)?.split_once('/')?;
+    let id = directory.strip_prefix("document-")?;
+    let file_name = name.rsplit('/').next().filter(|name| !name.is_empty())?;
+    is_exportable_document(Some(id), allowed_ids).then_some((id, file_name))
 }
 
 #[instrument(err)]
@@ -1059,7 +1083,31 @@ mod tests {
             Some("uncommitted"),
             &allowed
         ));
-        assert!(super::is_exportable_document(None, &allowed));
+        assert!(!super::is_exportable_document(None, &allowed));
+    }
+
+    #[test]
+    fn event_archive_accepts_only_document_keys_in_its_scope() {
+        let allowed = std::collections::HashSet::from(["ordinary".to_owned()]);
+        let prefix = "tenant-t/event-e/";
+        assert_eq!(
+            super::exportable_document_key(
+                "tenant-t/event-e/document-ordinary/export.json",
+                prefix,
+                &allowed,
+            ),
+            Some(("ordinary", "export.json"))
+        );
+        for key in [
+            "tenant-t/event-other/document-ordinary/data.json",
+            "tenant-t/event-e/publication-p/attempt/style-s.json",
+            "tenant-t/event-e/publication-p/attempt/document-ordinary/data.json",
+            "tenant-t/event-e/event.json",
+            "tenant-t/event-e/document-secret/data.json",
+            "tenant-t/event-e/document-ordinary/",
+        ] {
+            assert_eq!(super::exportable_document_key(key, prefix, &allowed), None, "{key}");
+        }
     }
 
     use super::{

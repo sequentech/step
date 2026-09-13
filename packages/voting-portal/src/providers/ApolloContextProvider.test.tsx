@@ -22,7 +22,13 @@ function token(area: string, exp: number) {
 
 function Participation() {
     const count = useSelector((state: RootState) => state.castVotes.election?.length || 0)
-    return <div data-testid="participation">{count}</div>
+    const [page, setPage] = React.useState(1)
+    return (
+        <>
+            <div data-testid="participation">{count}</div>
+            <button onClick={() => setPage(2)}>Page {page}</button>
+        </>
+    )
 }
 
 function tree(accessToken?: string) {
@@ -57,10 +63,13 @@ test("refresh retains ballot state, while scope changes and logout clear it", as
         )
     })
     expect(screen.getByTestId("participation")).toHaveTextContent("1")
+    act(() => screen.getByRole("button", {name: "Page 1"}).click())
     mounted.rerender(tree(token("first-area", 200)))
     expect(screen.getByTestId("participation")).toHaveTextContent("1")
+    expect(screen.getByRole("button", {name: "Page 2"})).toBeVisible()
     mounted.rerender(tree(token("second-area", 300)))
     await waitFor(() => expect(screen.getByTestId("participation")).toHaveTextContent("0"))
+    expect(screen.getByRole("button", {name: "Page 1"})).toBeVisible()
     act(() => {
         store.dispatch(
             addCastVotes([

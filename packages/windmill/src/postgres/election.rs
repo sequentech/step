@@ -860,9 +860,8 @@ pub struct CastVoteConfiguration {
     pub dates: sequent_core::ballot::VotingPeriodDates,
 }
 
-/// Read current policy and its transactionally maintained schedule projection.
-/// Schedule scans and JSON date extraction happen when administrators write
-/// configuration, never for each ballot. Missing schedules mean absent dates.
+/// Read current policy and the two indexed voting endpoints from the writer.
+/// Missing schedules mean absent dates; scalar subqueries reject duplicates.
 #[instrument(skip_all, err)]
 pub async fn get_cast_vote_configuration(
     transaction: &Transaction<'_>,

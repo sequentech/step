@@ -164,6 +164,6 @@ def clear_workload(connection):
     """Remove prior scenarios so table cardinalities match the report exactly."""
     connection.execute(
         "TRUNCATE sequent_backend.scheduled_event, sequent_backend.election, "
-        "sequent_backend.election_voting_window, sequent_backend.cast_vote, "
+        "sequent_backend.cast_vote, "
         "sequent_backend.area, sequent_backend.election_event, sequent_backend.secret"
     )
