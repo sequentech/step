@@ -33,7 +33,7 @@ export interface CandidateProps extends PropsWithChildren {
 //     </Box>
 // )
 
-const meta: any = {
+const meta = {
     title: "Candidate",
     component: Candidate,
 }

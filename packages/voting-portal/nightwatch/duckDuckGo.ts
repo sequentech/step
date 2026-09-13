@@ -12,22 +12,25 @@ interface CustomThis {
 
 // callback passed to `describe` should be a regular function (not an arrow function).
 describe("duckduckgo example", function (this: ExtendDescribeThis<CustomThis>) {
-    this.duckDuckGoUrl = "https://duckduckgo.com"
-    this.searchBox = "input[name=q]"
-    this.submitButton = "*[type=submit]"
+    const duckDuckGoUrl = "https://duckduckgo.com"
+    this.duckDuckGoUrl = duckDuckGoUrl
+    const searchBox = "input[name=q]"
+    this.searchBox = searchBox
+    const submitButton = "*[type=submit]"
+    this.submitButton = submitButton
 
     // callback can be a regular function as well as an arrow function.
     beforeEach(function (this: ExtendDescribeThis<CustomThis>, browser) {
-        browser.navigateTo(this.duckDuckGoUrl!)
+        browser.navigateTo(duckDuckGoUrl)
     })
 
     // no need to specify `this` parameter when passing an arrow function
     // as callback to `it`.
     it("Search Nightwatch.js and check results", (browser) => {
         browser
-            .waitForElementVisible(this.searchBox!)
-            .sendKeys(this.searchBox!, ["Nightwatch.js"])
-            .click(this.submitButton!)
+            .waitForElementVisible(searchBox)
+            .sendKeys(searchBox, ["Nightwatch.js"])
+            .click(submitButton)
             .assert.visible("#react-layout")
             .assert.textContains("#react-layout", "Nightwatch.js")
     })

@@ -104,9 +104,9 @@ beforeEach(async () => {
 after(async () => {
     await browser?.close()
     if (server?.listening)
-        await new Promise<void>((resolve, reject) =>
+        await new Promise<void>((resolve, reject) => {
             server.close((error) => (error ? reject(error) : resolve()))
-        )
+        })
 })
 
 async function expectAllExpanded(expanded: boolean) {

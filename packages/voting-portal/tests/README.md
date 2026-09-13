@@ -62,3 +62,15 @@ If the browser fixture cannot render, the runner includes its browser errors
 alongside the locator failure. First check that the local WASM archive is
 installed and that the Chromium executable is available. Keep the fixture local;
 do not substitute a deployed election to make a package test pass.
+
+## Assurance lint policy
+
+Run `yarn lint` from this package. The existing frontend lint workflow runs this
+command too. Explicit `any`, non-null assertions (`!`), TypeScript suppression
+comments, unsafe `finally` blocks and returned Promise executor values are
+errors in test files. Required fixture elements use checked lookups:
+a missing element must fail the test with context, rather than bypass the type
+checker or skip the interaction.
+
+Application and generated-code lint debt remains a separate rollout. These rules
+are not yet enforced on all runtime files in this package.

@@ -15,22 +15,25 @@ exports.command = function ({
     username = admin_portal_username,
     password = admin_portal_password,
 }): NightWatchLogin {
-    this.username = "input[name=username]"
-    this.password = "input[name=password]"
-    this.submitButton = "*[type=submit]"
+    const usernameSelector = "input[name=username]"
+    this.username = usernameSelector
+    const passwordSelector = "input[name=password]"
+    this.password = passwordSelector
+    const submitButtonSelector = "*[type=submit]"
+    this.submitButton = submitButtonSelector
 
     this.window
         .maximize()
         .navigateTo(loginUrl)
         .waitForElementVisible("body")
-        .waitForElementVisible(this.username!)
-        .waitForElementVisible(this.password!)
+        .waitForElementVisible(usernameSelector)
+        .waitForElementVisible(passwordSelector)
         .assert.visible("input[name=username]")
-        .sendKeys(this.username!, username)
+        .sendKeys(usernameSelector, username)
         .assert.visible("input[name=password]")
-        .sendKeys(this.password!, password)
-        .assert.visible(this.submitButton!)
-        .click(this.submitButton!)
+        .sendKeys(passwordSelector, password)
+        .assert.visible(submitButtonSelector)
+        .click(submitButtonSelector)
         .pause(pause.medium)
         .agreeDemo()
 

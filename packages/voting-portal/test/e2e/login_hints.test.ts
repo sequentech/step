@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import assert from "node:assert/strict"
 import {NightwatchAPI} from "nightwatch"
 
 const username = "prefilled-voter@example.com"
@@ -120,8 +121,11 @@ describe("login hint browser matrix", function () {
         const test = votingPortalUrl ? it : it.skip
 
         test(name, function (browser: NightwatchAPI) {
+            // Missing deployment configuration skips this scenario above. If a
+            // runner invokes it anyway, fail before attempting any navigation.
+            assert.ok(votingPortalUrl, "The login-hints scenario needs its configured portal URL")
             browser
-                .navigateTo(votingPortalUrl!)
+                .navigateTo(votingPortalUrl)
                 .waitForElementVisible("body", authenticationPageTimeoutMs)
                 .waitForElementVisible(scenario.fieldSelector, authenticationPageTimeoutMs)
                 .assert.valueEquals(scenario.fieldSelector, scenario.expectedValue)
