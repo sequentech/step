@@ -248,3 +248,53 @@ async fn helper_binary_uses_explicit_and_environment_configuration() -> Result<(
     .await
     .context("local ImmuDB integration exceeded two minutes")?
 }
+
+#[tokio::test]
+async fn tied_timestamps_have_stable_offset_pages_and_respect_explicit_id_order() -> Result<()> {
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
+        let server = DatabaseServer::start().await?;
+        let mut client = server.client().await?;
+        client.upsert_electoral_log_db(DATABASE).await?;
+        let inputs = vec![message(2), message(1), message(2), message(1)];
+        client
+            .insert_electoral_log_messages(DATABASE, &inputs)
+            .await?;
+        // IDs follow insertion order, not timestamp order. Each two-row page
+        // has a tie, so the independent expected IDs distinguish both keys.
+        for (offset, expected) in [(0, vec![2, 4]), (2, vec![1, 3])] {
+            let rows = client
+                .get_electoral_log_messages_filtered::<String, String>(
+                    DATABASE,
+                    None,
+                    None,
+                    None,
+                    Some(2),
+                    Some(offset),
+                    Some(HashMap::from([("created".into(), "ASC".into())])),
+                )
+                .await?;
+            assert_eq!(rows.iter().map(|row| row.id).collect::<Vec<_>>(), expected);
+        }
+        let rows = client
+            .get_electoral_log_messages_filtered::<String, String>(
+                DATABASE,
+                None,
+                None,
+                None,
+                Some(4),
+                Some(0),
+                Some(HashMap::from([
+                    ("created".into(), "ASC".into()),
+                    ("id".into(), "DESC".into()),
+                ])),
+            )
+            .await?;
+        assert_eq!(
+            rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![4, 2, 3, 1]
+        );
+        Ok(())
+    })
+    .await
+    .context("local ImmuDB integration exceeded two minutes")?
+}

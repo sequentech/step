@@ -89,3 +89,16 @@ fn ordering_is_deterministic_and_rejects_sql_fragments() {
         assert!(order_clause(Some(HashMap::from([(field, direction)]))).is_err());
     }
 }
+
+#[test]
+fn nonunique_sort_columns_have_an_explicit_unique_pagination_tiebreaker() {
+    assert_eq!(
+        order_clause(Some(HashMap::from([("created", "desc")]))).unwrap(),
+        "ORDER BY created DESC, id ASC"
+    );
+    // An explicit ID direction is a valid control and must not be duplicated.
+    assert_eq!(
+        order_clause(Some(HashMap::from([("created", "desc"), ("id", "desc")]))).unwrap(),
+        "ORDER BY created DESC, id DESC"
+    );
+}

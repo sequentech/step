@@ -99,8 +99,12 @@ const getTranslatedValue = (
         return undefined
     }
 
-    const translations = presentation?.i18n?.[language]
-    if (!translations) {
+    const dictionary = presentation?.i18n
+    if (!isRecord(dictionary) || !Object.hasOwn(dictionary, language)) {
+        return undefined
+    }
+    const translations = dictionary[language]
+    if (!isRecord(translations)) {
         return undefined
     }
 
@@ -114,6 +118,7 @@ const getTranslatedValue = (
     ]
 
     for (const candidateKey of candidateKeys) {
+        if (!Object.hasOwn(translations, candidateKey)) continue
         const value = translations[candidateKey]
         if (typeof value === "string" && value.length > 0) {
             return value
