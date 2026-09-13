@@ -108,6 +108,9 @@ class CoverageRatchetTests(unittest.TestCase):
             with self.assertRaisesRegex(CoverageError, field):
                 compare_rust(report, changed)
 
+        with self.assertRaisesRegex(CoverageError, "consumer_packages"):
+            compare_rust(report, {**report, "consumer_packages": ["windmill"]})
+
         # Dropping a compiled source file cannot manufacture an improvement.
         head = copy.deepcopy(report)
         head["unaccounted_files"].append("src/authorization.rs")
