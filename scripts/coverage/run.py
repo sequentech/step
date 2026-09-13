@@ -233,16 +233,11 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
             arguments.extend(["--features", ",".join(profile["features"])])
         if offline:
             arguments.append("--offline")
-        # Runtime counters can be cleared without recompiling the workspace.
-        # Proc-macro coverage also executes during compilation, so those
-        # profiles explicitly rebuild to avoid losing their entry-point counts.
-        cleanup = (
-            "--workspace"
-            if profile.get("compiler_coverage", False)
-            else "--profraw-only"
-        )
+        # Clear workspace binaries as well as counters: LLVM can otherwise
+        # collect regions from an earlier package/feature profile. This also
+        # reruns compiler-time macro coverage. External dependencies stay cached.
         execute(
-            ["cargo", "llvm-cov", "clean", cleanup],
+            ["cargo", "llvm-cov", "clean", "--workspace"],
             output / "clean.log",
             environment,
         )
