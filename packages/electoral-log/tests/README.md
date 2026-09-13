@@ -60,3 +60,11 @@ empty ballot ID, so accidental field swaps or normalization are observable. A
 valid explicit null must not hide a duplicate column from a joined table. The
 71-test suite passes with the owned ImmuDB 1.9.6 fixture; the one legacy fixed-port
 test remains ignored. No production or coverage-exclusion changes were needed.
+
+At `29e334a`, the complete database profile measures 1,343/1,378 lines (97.46%),
+182/192 functions (94.79%) and 1,327/1,390 LLVM regions (95.47%). The actual PR
+base has no `immudb-tests` feature, so that full profile has no comparable base.
+The separate `electoral-log-native` profile measures default features on both
+revisions for the strict per-metric CI comparison. It does not claim database
+integration coverage. Neither missing feature support nor an empty report is
+converted into a zero baseline.

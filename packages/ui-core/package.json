@@ -18,7 +18,7 @@
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "yarn test:types && jest --coverage",
+    "test": "yarn test:types && jest",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%",
     "test:coverage": "jest --coverage --runInBand",
