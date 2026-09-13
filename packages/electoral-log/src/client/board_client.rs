@@ -274,12 +274,15 @@ fn order_clause<K: Display, V: Display>(order_by: Option<HashMap<K, V>>) -> Resu
     if columns.is_empty() {
         return Ok("ORDER BY id DESC".into());
     }
-    let fields = columns
+    let mut fields = columns
         .iter()
         .map(|(field, direction)| format!("{field} {direction}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    Ok(format!("ORDER BY {fields}"))
+        .collect::<Vec<_>>();
+    // Nonunique timestamps/metadata need a stable final key across offset pages.
+    if !columns.contains_key("id") {
+        fields.push("id ASC".into());
+    }
+    Ok(format!("ORDER BY {}", fields.join(", ")))
 }
 
 /// Return either the complete requested page or an error. A truncated stream

@@ -58,7 +58,7 @@ its denominator differs from this profile and is retained as historical evidence
 Follow-up row contracts give every optional field a distinct value, including an
 empty ballot ID, so accidental field swaps or normalization are observable. A
 valid explicit null must not hide a duplicate column from a joined table. The
-71-test suite passes with the owned ImmuDB 1.9.6 fixture; the one legacy fixed-port
+73-test suite passes with the owned ImmuDB 1.9.6 fixture; the one legacy fixed-port
 test remains ignored. No production or coverage-exclusion changes were needed.
 
 At `29e334a`, the complete database profile measures 1,343/1,378 lines (97.46%),
@@ -68,3 +68,9 @@ The separate `electoral-log-native` profile measures default features on both
 revisions for the strict per-metric CI comparison. It does not claim database
 integration coverage. Neither missing feature support nor an empty report is
 converted into a zero baseline.
+
+Sorting on nonunique timestamps or metadata appends `id ASC` unless callers
+already specify the ID direction. A literal SQL regression and real tied-row
+pagination controls check both default and explicit tie-breaking. The default
+suite now has 68 passing tests; the full profile has 73, including five owned
+ImmuDB scenarios. No database ordering is inferred from insertion luck.
