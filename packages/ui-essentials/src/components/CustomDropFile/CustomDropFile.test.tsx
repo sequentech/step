@@ -136,3 +136,30 @@ it("does not start a second import while the first is pending", async () => {
     })
     expect(ref.current).not.toBeDisabled()
 })
+
+it("blocks imports re-entered before React commits the busy state", async () => {
+    let input: HTMLInputElement
+    let finish: () => void = () => {
+        throw new Error("import did not start")
+    }
+    const pending = new Promise<void>((resolve) => {
+        finish = resolve
+    })
+    const files = fileList(new File(["data"], "election.json"))
+    const handleFiles = jest.fn(() => {
+        // A consumer may dispatch another selection synchronously. The state
+        // update has not committed yet, but the first import already owns it.
+        if (handleFiles.mock.calls.length === 1) fireEvent.change(input, {target: {files}})
+        return pending
+    })
+    const {ref} = renderDrop({handleFiles})
+    input = ref.current!
+    fireEvent.change(input, {target: {files}})
+    expect(handleFiles).toHaveBeenCalledTimes(1)
+    await act(async () => {
+        finish()
+        await pending
+    })
+    fireEvent.change(input, {target: {files}})
+    await waitFor(() => expect(handleFiles).toHaveBeenCalledTimes(2))
+})

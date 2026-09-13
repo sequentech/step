@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler} from "react"
+import React, {
+    PropsWithChildren,
+    useState,
+    useRef,
+    DragEventHandler,
+    ChangeEventHandler,
+} from "react"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
 import {useForwardedRef} from "@sequentech/ui-core"
@@ -73,11 +79,13 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         const [dragActive, setDragActive] = useState(false)
         const [fileName, setFileName] = useState<string>("")
         const [busy, setBusy] = useState(false)
+        const inFlight = useRef(false)
         const [failed, setFailed] = useState(false)
 
         /** Keep picker and drop imports on the same failure and retry path. */
         const importFiles = async (files: FileList | null) => {
-            if (busy || !files?.[0]) return
+            if (inFlight.current || !files?.[0]) return
+            inFlight.current = true
             setBusy(true)
             setFailed(false)
             setFileName(files[0].name)
@@ -88,6 +96,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 // errors that could include private file contents.
                 setFailed(true)
             } finally {
+                inFlight.current = false
                 setBusy(false)
             }
         }
@@ -118,7 +127,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
         }
         // triggers the input when the button is clicked
         const onButtonClick = () => {
-            if (busy) return
+            if (inFlight.current) return
             setFileName("")
             if (innerRef.current?.value) {
                 innerRef.current.value = ""

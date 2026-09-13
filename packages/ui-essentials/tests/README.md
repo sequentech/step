@@ -72,4 +72,9 @@ failing run against the previous implementation when fixing a regression.
 
 ## Follow-up contracts
 
-The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 121 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. Source coverage is 701/987 lines, 235/348 functions and 495/836 branches. Remaining profile/session, chart/grid and wrapper localization paths stay in scope; no test-only derives or printing are added to increase counters.
+The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 122 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. Source coverage is 704/990 lines, 235/348 functions and 495/836 branches. Remaining profile/session, chart/grid and wrapper localization paths stay in scope; no test-only derives or printing are added to increase counters.
+
+A synchronous re-entry regression dispatches a second file event before React
+commits its busy state. An immediate ref guard now owns the pending import and
+releases it after success or failure; the UI state reflects that guard. Existing
+keyboard/drop behavior and retry controls pass without a structural UI rewrite.
