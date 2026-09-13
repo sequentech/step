@@ -97,10 +97,12 @@ DOC_RENDERER_BACKEND = "inplace"
 
 [profiles.wrap-map-err]
 package = "wrap-map-err"
+consumer_packages = ["windmill"]
 compiler_coverage = true
 features = []
 limitations = [
-    "Native parser/expansion tests and compiled public macro consumers; no ignored cases or source exclusions.",
+    "Macro parser/expansion tests plus existing Windmill tests and compiled Celery consumers; no source exclusions.",
+    "Windmill supplies a real baseline for the original zero-test macro package; its two existing ignored service cases remain visible.",
     "LLVM combines runtime unit-test counters with compiler-time macro expansion counters from the compiled consumer fixtures.",
     "Branch coverage, arbitrary aliases without the Result suffix and the full Windmill/Celery task integration are separate scopes.",
 ]
@@ -132,6 +134,21 @@ issue = "https://github.com/sequentech/meta/issues/13295"
 [profiles.harvest.test_environment]
 KEYCLOAK_DB__HOST = "127.0.0.1"
 HASURA_DB__HOST = "127.0.0.1"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"
+
+[profiles.wrap-map-err.test_environment]
+KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
+HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
