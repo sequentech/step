@@ -626,6 +626,33 @@ async fn malformed_successful_token_responses_fail_without_returning_secret_mate
 }
 
 #[rocket::async_test]
+async fn interrupted_token_response_body_is_a_transport_error_not_a_token() {
+    let endpoint = "/realms/tenant-north/protocol/openid-connect/token";
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", endpoint, 200, http::token_json()),
+        Exchange::json("POST", endpoint, 200, http::token_json())
+            .truncate_at(12),
+    ]);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_CLIENT_ID", Some("party")),
+        ("KEYCLOAK_CLIENT_SECRET", Some("synthetic-secret")),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ]);
+    assert_eq!(
+        get_client_credentials().await.unwrap().value,
+        "Bearer synthetic-access-token"
+    );
+    let error = get_client_credentials().await.err().unwrap();
+    let transport = error
+        .downcast_ref::<reqwest::Error>()
+        .expect("retain the response-body error");
+    assert!(transport.is_body() || transport.is_decode());
+    assert!(!format!("{error:?}").contains("synthetic-secret"));
+    assert_eq!(peer.finish().len(), 2);
+}
+
+#[rocket::async_test]
 async fn group_update_and_creation_use_the_server_assigned_user_id() {
     let token_endpoint = "/realms/master/protocol/openid-connect/token";
     let peer = HttpServer::start(vec![

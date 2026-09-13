@@ -55,6 +55,21 @@ fn choices(ids: &[&str]) -> BallotChoices {
 }
 
 #[test]
+fn direct_multi_ballot_encoders_reject_unknown_contest_identity() {
+    let config = style(&[contest()]);
+    let mut ballot = choices(&["a"]);
+    assert_eq!(
+        ballot.encode_to_bigint(&config).unwrap(),
+        BigUint::from(2_u8)
+    );
+    ballot.encode_to_30_bytes(&config).unwrap();
+    ballot.choices[0].contest_id = "foreign-contest".into();
+    let expected = "Can't find contest with id foreign-contest on ballot style";
+    assert_eq!(ballot.encode_to_bigint(&config).unwrap_err(), expected);
+    assert_eq!(ballot.encode_to_30_bytes(&config).unwrap_err(), expected);
+}
+
+#[test]
 fn single_contest_base_and_integer_decoding_reject_duplicate_markers() {
     use sequent_core::ballot_codec::{BasesCodec, BigUIntCodec};
     let mut config = contest();
@@ -79,6 +94,49 @@ fn single_contest_base_and_integer_decoding_reject_duplicate_markers() {
             .bigint_to_raw_ballot(&BigUint::from(0_u8))
             .unwrap_err(),
         expected
+    );
+}
+
+#[test]
+fn direct_raw_decoder_rejects_choices_that_cannot_fit_a_signed_rank() {
+    let config = contest();
+    let valid = RawBallotContest::new(vec![2, 2, 2, 2], vec![0, 1, 0, 0]);
+    let decoded = config.decode_from_raw_ballot(&valid).unwrap();
+    assert_eq!(decoded.choices[0].selected, 0);
+    for oversized in [(i64::MAX as u64) + 1, u64::MAX] {
+        let raw =
+            RawBallotContest::new(vec![2, 2, 2, 2], vec![0, oversized, 0, 0]);
+        assert_eq!(
+            config.decode_from_raw_ballot(&raw).unwrap_err(),
+            "choice out of range"
+        );
+    }
+}
+
+#[test]
+fn encryption_propagates_invalid_candidate_encoding_after_validating_contest_ids(
+) {
+    use sequent_core::encrypt::{
+        encrypt_multi_ballot, DEFAULT_PUBLIC_KEY_RISTRETTO_STR,
+    };
+    use sequent_core::error::BallotError;
+    use strand::backend::ristretto::RistrettoCtx;
+    let mut config = style(&[contest()]);
+    config.public_key = Some(PublicKeyConfig {
+        public_key: DEFAULT_PUBLIC_KEY_RISTRETTO_STR.into(),
+        is_demo: true,
+    });
+    encrypt_multi_ballot(&RistrettoCtx, &choices(&["a"]), &config).unwrap();
+    // Contest identity and public key are valid, so the rejection must come
+    // from encoding the unknown candidate, not from either earlier guard.
+    let error = encrypt_multi_ballot(
+        &RistrettoCtx,
+        &choices(&["unknown-candidate"]),
+        &config,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(error, BallotError::Serialization(ref message) if message.starts_with("Error encrypting plaintext:"))
     );
 }
 

@@ -27,6 +27,7 @@ pub struct Exchange {
     status: u16,
     body: String,
     headers: Vec<(String, String)>,
+    truncate_at: Option<usize>,
 }
 
 impl Exchange {
@@ -42,6 +43,7 @@ impl Exchange {
             status,
             body: body.to_string(),
             headers: vec![],
+            truncate_at: None,
         }
     }
 
@@ -52,6 +54,12 @@ impl Exchange {
 
     pub fn body(mut self, body: &str) -> Self {
         self.body = body.into();
+        self
+    }
+
+    pub fn truncate_at(mut self, byte: usize) -> Self {
+        assert!(byte < self.body.len());
+        self.truncate_at = Some(byte);
         self
     }
 }
@@ -124,7 +132,14 @@ impl HttpServer {
                         for (name, value) in response.headers {
                             write!(stream, "{name}: {value}\r\n").unwrap();
                         }
-                        write!(stream, "\r\n{}", response.body).unwrap();
+                        stream.write_all(b"\r\n").unwrap();
+                        // Keep the original Content-Length but close after a
+                        // prefix, modeling a transport failure during the body.
+                        let sent =
+                            response.truncate_at.unwrap_or(response.body.len());
+                        stream
+                            .write_all(&response.body.as_bytes()[..sent])
+                            .unwrap();
                     }
                     Err(error)
                         if error.kind() == std::io::ErrorKind::WouldBlock =>

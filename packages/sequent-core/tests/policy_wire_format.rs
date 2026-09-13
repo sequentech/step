@@ -133,6 +133,15 @@ policy_contract!(initialization_report, EInitializeReportPolicy,
     REQUIRED => ("required", 0),
     NOT_REQUIRED => ("not-required", 1),
 );
+
+#[test]
+fn initialization_requirement_defaults_to_the_legacy_optional_report_policy() {
+    assert_eq!(
+        EInitializeReportPolicy::default(),
+        EInitializeReportPolicy::NOT_REQUIRED
+    );
+    assert_policy_wire(EInitializeReportPolicy::default(), "not-required", 1);
+}
 policy_contract!(countdown, ECountdownPolicy,
     NO_COUNTDOWN => ("NO_COUNTDOWN", 0),
     COUNTDOWN => ("COUNTDOWN", 1),
