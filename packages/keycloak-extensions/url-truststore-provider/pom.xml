@@ -19,6 +19,7 @@
         <maven.compiler.version>3.14.0</maven.compiler.version>
         <maven.shade.version>3.6.1</maven.shade.version>
         <junit.version>5.13.4</junit.version>
+        <pmd.version>7.27.0</pmd.version>
     </properties>
 
     <dependencyManagement>
@@ -75,6 +76,47 @@
         <testSourceDirectory>src/test/java</testSourceDirectory>
         <finalName>${project.groupId}.${project.artifactId}</finalName>
         <plugins>
+            <!-- The existing Java Test workflow runs verify. Apply assurance
+                 error-handling rules to production code, not test assertions. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.28.0</version>
+                <configuration>
+                    <rulesets>
+                        <ruleset>${project.basedir}/../../../scripts/assurance/java.xml</ruleset>
+                    </rulesets>
+                    <targetJdk>17</targetJdk>
+                    <includeTests>false</includeTests>
+                    <linkXRef>false</linkXRef>
+                    <failurePriority>5</failurePriority>
+                    <failOnViolation>true</failOnViolation>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>assurance-lints</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-core</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-java</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>net.sourceforge.pmd</groupId>
+                        <artifactId>pmd-javascript</artifactId>
+                        <version>${pmd.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
