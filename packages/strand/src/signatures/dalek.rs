@@ -294,7 +294,9 @@ impl<'de> Deserialize<'de> for StrandSignaturePk {
                 E: de::Error,
             {
                 let bytes_vec = hex::decode(v).map_err(de::Error::custom)?;
-                if bytes_vec.len() != 64 {
+                // A public key has 32 bytes, represented by 64 hex characters.
+                // Check the decoded length so our own JSON export can be read.
+                if bytes_vec.len() != 32 {
                     return Err(de::Error::invalid_length(
                         bytes_vec.len(),
                         &self,

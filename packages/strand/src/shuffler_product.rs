@@ -527,17 +527,9 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let N = es.rows().len();
         let width = es.width();
 
-        let h_generators = &self.generators[1..];
-        let h_initial = &self.generators[0];
-
         if N != e_primes.rows().len() {
             return Err(StrandError::Generic(
                 "N != e_primes.rows().len()".to_string(),
-            ));
-        }
-        if N != h_generators.len() {
-            return Err(StrandError::Generic(
-                "N != h_generators.len()".to_string(),
             ));
         }
         if N <= 0 {
@@ -549,6 +541,52 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             return Err(StrandError::Generic(
                 "Cannot check proof on 0-width ciphertexts".to_string(),
             ));
+        }
+
+        // Serialization validates individual values, not relationships between
+        // the proof, generators and ciphertext matrix. Reject inconsistent
+        // dimensions before the indexed verification loops below.
+        if width != e_primes.width() {
+            return Err(StrandError::Generic(
+                "Shuffled ciphertext width does not match the original"
+                    .to_string(),
+            ));
+        }
+        if es
+            .rows()
+            .iter()
+            .chain(e_primes.rows())
+            .any(|row| row.len() != width)
+        {
+            return Err(StrandError::Generic(
+                "Ciphertext matrix rows must all have the same width"
+                    .to_string(),
+            ));
+        }
+        let (h_initial, h_generators) =
+            self.generators.split_first().ok_or_else(|| {
+                StrandError::Generic("Missing shuffle generators".to_string())
+            })?;
+        if N != h_generators.len() {
+            return Err(StrandError::Generic(
+                "N != h_generators.len()".to_string(),
+            ));
+        }
+        for (field, length, expected) in [
+            ("permutation commitments", proof.cs.0.len(), N),
+            ("commitment chain", proof.c_hats.0.len(), N),
+            ("response chain", proof.s.s_hats.0.len(), N),
+            ("permutation responses", proof.s.s_primes.0.len(), N),
+            ("verification commitments", proof.t.t_hats.0.len(), N),
+            ("first column commitments", proof.t.t4_1s.len(), width),
+            ("second column commitments", proof.t.t4_2s.len(), width),
+            ("column responses", proof.s.s4s.len(), width),
+        ] {
+            if length != expected {
+                return Err(StrandError::Generic(format!(
+                    "Invalid product shuffle proof: {field} length {length}, expected {expected}"
+                )));
+            }
         }
 
         let us: Vec<C::X> =
