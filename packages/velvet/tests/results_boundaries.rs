@@ -230,3 +230,47 @@ fn a_missing_or_corrupt_breakdown_result_does_not_publish_winners() {
         .join(OUTPUT_WINNERS)
         .exists());
 }
+
+#[test]
+fn breakdown_publication_reports_blocked_output_files_and_directories() {
+    let input = tempdir().unwrap();
+    let output = tempdir().unwrap();
+    let source = input.path().join(OUTPUT_BREAKDOWNS_FOLDER).join("north");
+    fs::create_dir_all(&source).unwrap();
+    fs::write(
+        source.join(OUTPUT_CONTEST_RESULT_FILE),
+        serde_json::to_vec(&election_result(&[("ada", 8), ("bea", 2)])).unwrap(),
+    )
+    .unwrap();
+    let publish = || {
+        MarkWinners::create_breakdown_winners(
+            &input.path().to_path_buf(),
+            &output.path().to_path_buf(),
+        )
+    };
+    publish().unwrap();
+    let destination = output.path().join(OUTPUT_BREAKDOWNS_FOLDER).join("north");
+    let winners = destination.join(OUTPUT_WINNERS);
+    let control: serde_json::Value = serde_json::from_slice(&fs::read(&winners).unwrap()).unwrap();
+    assert_eq!(control[0]["candidate"]["id"], "ada");
+
+    // A directory at the file path fails even when tests run as root, unlike
+    // permission-bit fixtures. No input or candidate count has changed.
+    fs::remove_file(&winners).unwrap();
+    fs::create_dir(&winners).unwrap();
+    let error = publish().unwrap_err();
+    assert!(
+        matches!(error, velvet::pipes::error::Error::IO(_)),
+        "{error}"
+    );
+    assert!(winners.is_dir());
+
+    fs::remove_dir_all(&destination).unwrap();
+    fs::write(&destination, b"keep this operator file").unwrap();
+    let error = publish().unwrap_err();
+    assert!(
+        matches!(error, velvet::pipes::error::Error::IO(_)),
+        "{error}"
+    );
+    assert_eq!(fs::read(&destination).unwrap(), b"keep this operator file");
+}

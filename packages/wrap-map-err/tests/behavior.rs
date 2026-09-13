@@ -300,3 +300,52 @@ fn wrapping_preserves_the_lexical_unsafe_context_of_the_original_function() {
         assert_eq!(ready(async_unsafe_result(&value)), Ok(59));
     }
 }
+
+struct DropCounter(Arc<std::sync::atomic::AtomicUsize>);
+
+impl Drop for DropCounter {
+    fn drop(&mut self) {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+#[wrap_map_err(TaskError)]
+async fn owns_resource(resource: DropCounter, wait: bool, fail: bool) -> Result<u32> {
+    if wait {
+        std::future::pending::<()>().await;
+    }
+    drop(resource);
+    if fail {
+        return Err(SourceError("resource failed"));
+    }
+    Ok(61)
+}
+
+#[test]
+fn cancelling_an_unpolled_or_suspended_task_releases_its_owned_argument_once() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    for poll_once in [false, true] {
+        let drops = Arc::new(AtomicUsize::new(0));
+        let mut future = Box::pin(owns_resource(DropCounter(drops.clone()), true, false));
+        if poll_once {
+            let mut context = Context::from_waker(Waker::noop());
+            assert!(future.as_mut().poll(&mut context).is_pending());
+        }
+        assert_eq!(drops.load(Ordering::SeqCst), 0);
+        drop(future);
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[test]
+fn successful_and_failed_tasks_release_the_same_resource_once() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    for (fail, expected) in [(false, Ok(61)), (true, Err(TaskError("resource failed")))] {
+        let drops = Arc::new(AtomicUsize::new(0));
+        assert_eq!(
+            ready(owns_resource(DropCounter(drops.clone()), false, fail)),
+            expected
+        );
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
+    }
+}

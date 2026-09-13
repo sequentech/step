@@ -17,6 +17,28 @@ type Point = <RistrettoCtx as Ctx>::E;
 const CONTEXT: &[u8] = b"fixture-election/contest";
 
 #[test]
+fn exported_public_key_proof_identifies_its_secret_and_election_context() {
+    let ctx = RistrettoCtx;
+    let secret = PrivateKey::from(&ctx.exp_from_u64(7), &ctx);
+    let (public, proof) = secret.get_pk_and_proof(CONTEXT).unwrap();
+    let zkp = Zkp::new(&ctx);
+    assert_eq!(public.element(), &ctx.gmod_pow(&ctx.exp_from_u64(7)));
+    assert!(zkp.schnorr_verify(public.element(), None, &proof, CONTEXT));
+    assert!(!zkp.schnorr_verify(
+        public.element(),
+        None,
+        &proof,
+        b"another election"
+    ));
+    assert!(!zkp.schnorr_verify(
+        &ctx.gmod_pow(&ctx.exp_from_u64(8)),
+        None,
+        &proof,
+        CONTEXT
+    ));
+}
+
+#[test]
 fn multiplying_exponential_ciphertexts_adds_the_encoded_votes() {
     let ctx = RistrettoCtx;
     let secret = PrivateKey::from(&ctx.exp_from_u64(7), &ctx);
