@@ -22,7 +22,7 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **302 passing tests**, **77.24% line
+The `default_features,keycloak` profile has **302 passing tests**, **77.23% line
 coverage** and **58.00% function coverage**. Its native aggregate includes inline
 test code; standalone fixtures and test files are excluded. It is not yet a
 production-only or actual branch score.

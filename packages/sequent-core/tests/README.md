@@ -44,7 +44,7 @@ Payload errors describe the length without including plaintext contents.
 ## Coverage and remaining work
 
 The native `default_features,keycloak` profile runs **302 passing tests, none
-ignored**. Its measured source coverage is **77.24% lines** and **58.00% functions**.
+ignored**. Its measured source coverage is **77.23% lines** and **58.00% functions**.
 LLVM regions are measured separately; actual branch coverage is not measured by
 this stable native profile.
 
@@ -68,7 +68,7 @@ would add little confidence. The current gaps fall into three groups:
 | --- | ---: | --- |
 | Keycloak services | 1,127 | Realm/user/role/permission operations; client credentials, token refresh, failed HTTP responses and retry behavior. |
 | Ballot model (`ballot.rs`) | 531 | Voting-state transitions, channel-specific dates/status, contest presentation, tie resolutions and serialization boundaries. |
-| Ballot codecs | 328 | Remaining malformed-input, capacity and alternate encoding paths against independent vectors. |
+| Ballot codecs | 330 | Remaining malformed-input, capacity and alternate encoding paths against independent vectors. |
 | Scheduled events | 111 | Tenant/event/election filtering, task names, absent/malformed payloads and scheduled-date selection. |
 | Plaintext interpretation | 82 | Counting-algorithm layouts, point displays and explicit-invalid versus blank selections. |
 | Request guards (`connection.rs`) | 62 | Local Rocket requests with missing/malformed credentials and valid controls; trusted versus untrusted identity inputs. |
@@ -114,8 +114,8 @@ The source files also have a comment pointing to that policy.
 
 These files are omitted from `llvm.json`, HTML, LCOV, missing-line output and the
 coverage percentage. The tests still execute. Excluded code contributes to neither
-the covered count nor the total count, for lines, functions or regions. `summary.json` lists excluded
-paths and reasons without retaining their counters. Both CI revisions use the same
+the covered count nor the total count, for lines, functions or regions.
+`summary.json` lists excluded paths and reasons without retaining their counters. Both CI revisions use the same
 list. No unfiltered coverage report is generated.
 
 To exclude another reviewed support file, add its exact package-relative path
@@ -144,7 +144,7 @@ should be raised merely by exercising unrelated implementation details.
 HTTP failures, token expiry, permission rejection, malformed ballots and arithmetic
 boundaries remain valuable tests even when difficult to set up. Disabled native
 features and WASM are separate coverage obligations, not diminishing-return
-exceptions. Most of the current 2,803-line gap still needs meaningful tests.
+exceptions. Most of the current 2,805-line gap still needs meaningful tests.
 
 ## Production lint policy
 
