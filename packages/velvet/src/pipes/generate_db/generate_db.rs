@@ -171,13 +171,15 @@ pub fn populate_results_tables(
                 &config.election_event_id,
                 &sqlite_transaction,
             )
-            .await;
+            .await?;
 
+            // Commit only a complete result. Returning an earlier error drops
+            // the open transaction and rolls back its rows and schema changes.
             sqlite_transaction
                 .commit()
                 .map_err(|error| anyhow!("Error commiting sqlite database transaction: {error}"))?;
 
-            result
+            Ok::<_, Error>(result)
         })?;
 
         Ok(process_result)

@@ -61,6 +61,10 @@ pub const OUTPUT_ALL_AREAS_JSON: &str = "all_areas_results.json";
 pub const OUTPUT_ALL_AREAS_HTML: &str = "all_areas_results.html";
 pub const PARALLEL_CHUNK_SIZE: usize = 8;
 
+#[cfg(test)]
+#[path = "../../../tests/support/report_boundaries.rs"]
+mod boundary_tests;
+
 #[derive(Debug)]
 pub struct GenerateReports {
     pub pipe_inputs: PipeInputs,

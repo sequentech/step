@@ -33,6 +33,10 @@ use strand::hash::{hash_b64, hash_sha256};
 use tokio::runtime::Runtime;
 use tracing::{info, instrument};
 
+#[cfg(test)]
+#[path = "../../../tests/support/ballot_image_boundaries.rs"]
+mod boundary_tests;
+
 pub const BALLOT_IMAGES_OUTPUT_FILE: &str = "ballots";
 
 pub struct MCBallotImages {
@@ -489,6 +493,11 @@ impl Pipe for MCBallotImages {
 
                     let max_items_per_report =
                         report_options.max_items_per_report.unwrap_or_else(|| 100);
+                    if max_items_per_report == 0 {
+                        return Err(Error::UnexpectedError(
+                            "Receipt max_items_per_report must be greater than zero".into(),
+                        ));
+                    }
 
                     let path = PipeInputs::mcballots_path(
                         &self
@@ -642,9 +651,9 @@ impl Pipe for MCBallotImages {
                         Ok(())
                     });
 
-                    if let Err(e) = result {
-                        eprintln!("Error processing: {}", e);
-                    }
+                    // A missing PDF or manifest is an incomplete output. Let
+                    // the caller stop the pipeline rather than announce success.
+                    result?;
                 } else {
                     println!(
                         "[{}] File not found: {} -- Not processed",
