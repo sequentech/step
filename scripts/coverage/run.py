@@ -190,6 +190,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     result: dict[str, Any] = {
         "status": "running",
         "profile": profile_name,
+        "package": profile["package"],
         "passes": False,
     }
     write_json(output / "summary.json", result)

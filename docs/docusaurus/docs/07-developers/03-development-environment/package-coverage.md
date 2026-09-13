@@ -336,3 +336,9 @@ not the separate artifact or search metadata.
 See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
 for setup, coverage limits and failure diagnosis. The rollout is tracked in
 [Meta #13301](https://github.com/sequentech/meta/issues/13301).
+
+`electoral-log-native` provides the default-feature PR-base comparison. The
+`electoral-log` profile above remains separate ImmuDB integration evidence: its
+opt-in test feature does not exist at this PR's actual base. Named profiles retain
+the underlying package identity so CI cannot mistake an existing package for new
+source and silently initialize its baseline.

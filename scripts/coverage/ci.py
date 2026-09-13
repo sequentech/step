@@ -155,10 +155,13 @@ def paired_run(base: Path, head: Path, kind: str, package: str, parent: Path) ->
     }
     try:
         result.update(base_revision=identity(base), head_revision=identity(head))
-        base_scope = base / (
-            "scripts/coverage" if kind == "python" else f"packages/{package}/src"
-        )
         head_report = measure(head, kind, package, output / "head")
+        # A named feature profile may measure an existing package. Looking for
+        # the profile name as a directory could falsely initialize its baseline.
+        source_package = head_report["package"] if kind == "rust" else package
+        base_scope = base / (
+            "scripts/coverage" if kind == "python" else f"packages/{source_package}/src"
+        )
         if not base_scope.exists():
             # This exception is only for newly introduced source, never a
             # missing report, missing tests, or a failed baseline measurement.

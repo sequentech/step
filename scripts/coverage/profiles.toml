@@ -250,3 +250,19 @@ issue = "https://github.com/sequentech/meta/issues/13301"
 "src/client/mod.rs" = "Module declaration only."
 "src/messages/mod.rs" = "Module declarations only."
 "src/messages/artifact.rs" = "Empty source file with license header only."
+
+# Compare like-for-like defaults; keep opt-in database counters separate.
+[profiles.electoral-log-native]
+package = "electoral-log"
+features = []
+limitations = [
+    "Comparable default-feature profile; actual PR base lacks the opt-in database-test feature.",
+    "Database integration is measured separately by electoral-log; inline tests on the historical base remain counted.",
+    "The legacy fixed-port integration test remains ignored; native branches and optional features require separate evidence.",
+]
+issue = "https://github.com/sequentech/meta/issues/13301"
+
+[profiles.electoral-log-native.scope_exceptions]
+"src/client/mod.rs" = "Module declaration only."
+"src/messages/mod.rs" = "Module declarations only."
+"src/messages/artifact.rs" = "Empty source file with license header only."
