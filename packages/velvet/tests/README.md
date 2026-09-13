@@ -11,6 +11,7 @@ ballots. They require no election credentials or external services.
 | File | Contract exercised |
 | --- | --- |
 | `plurality_boundaries.rs` | Area weights apply to candidate marks; participation remains a count of ballots. Blank, invalid and declined ballots stay distinct. Candidate suppression preserves participation, and unknown candidate IDs fail. |
+| `runoff_boundaries.rs` | Signed vote transfers, most-recent decisive lookback, and external tie resolutions that must contain every tied candidate exactly once and choose a winner from that tie. |
 | `results_boundaries.rs` | Area aggregation preserves totals and percentages. Winner selection uses counts, tie ordering and eligible candidates. File input and output preserve area separation and report failures. |
 | `database_boundaries.rs` | Real SQLite writes preserve identities and percentage denominators. A failed result generation rolls back the new event and schema changes. Decoded ballot files retain their exact bytes and area keys. |
 | `pipeline_boundaries.rs` | Configuration requires defined stages and unique transformations. Empty stages and malformed folder names cannot panic. CLI locations are explicit. |
@@ -29,26 +30,34 @@ large-election benchmarks are separate from this correctness suite.
 For a fast edit/check cycle, from `packages` run:
 
 ```sh
-cargo test -p velvet --locked --offline \
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline \
   --test plurality_boundaries --test results_boundaries \
   --test database_boundaries --test pipeline_boundaries
-cargo test -p velvet --locked --offline --test paper_pipeline
-cargo test -p velvet --locked --offline --lib -- boundary_tests
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --test paper_pipeline
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --lib -- boundary_tests
 ```
 
-For the full native coverage report, install Chrome and the pinned coverage
+For the full native coverage report, configure Chrome and the pinned coverage
 tools, fetch locked dependencies, then run from the repository root:
 
 ```sh
-google-chrome --version
+"$CHROME" --version
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 DOC_RENDERER_BACKEND=inplace \
   python3 scripts/coverage/run.py velvet --baseline --offline
 ```
 
+Set `CHROME` to a compatible local executable. CI uses the official Chrome for
+Testing **headless shell 153.0.8010.36**, with the download and checksum pinned in
+[the browser setup action](../../../../.github/actions/setup-test-browser/action.yml).
+Both `--single-process` and `--no-zygote` remain enabled. The full Chrome binary
+of the same version crashed with these flags in the isolated worker; the headless
+shell passed the startup control and PDF suite. The startup control uses the
+same executable resolver as the production renderer.
+
 The full suite uses a real local browser; an absent browser is an environment
-failure, not a reason to skip PDF tests. The baseline command reports progress
-toward 95% without claiming that threshold is met. Omit `--baseline` to enforce
-the target. Current results and remaining work are tracked in Meta #13294.
+failure, not a reason to skip PDF tests. The baseline command measures progress; omitting `--baseline` enforces the local
+95% line improvement target. CI instead rejects any decrease against the actual
+PR base in each of lines, functions and LLVM regions. Current results and remaining work are tracked in Meta #13294.
 
 The report retains all measured source lines and explains files without LLVM
 line regions. Existing inline tests and public fixture builders contribute to
@@ -59,5 +68,7 @@ need their own local fixture recipes before their coverage can be claimed.
 When running from `packages/velvet`, Cargo defaults both the Rust test harness
 and Rayon to two threads. PDF cases launch real Chrome processes; multiplying
 both pools by the host CPU count can exhaust CI resources. Explicit environment
-values override these defaults. Workspace-root invocations should set
-`RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2` themselves.
+values override these defaults. Direct workspace-root Cargo invocations should set
+`RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2` themselves. The coverage profile and
+ordinary hosted test setup now supply these settings automatically, including
+`DOC_RENDERER_BACKEND=inplace` for local PDF rendering.

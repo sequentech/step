@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Test vectors and fixture builders.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 use crate::ballot::BallotStyle;
 use crate::ballot::*;
 use crate::ballot_codec::{vec_to_30_array, RawBallotContest};
