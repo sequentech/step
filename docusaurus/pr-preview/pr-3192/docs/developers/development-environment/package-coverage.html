@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Package Test Coverage | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Package Test Coverage | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3192/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Package Test Coverage","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3192/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3192/assets/js/runtime~main.aafa242e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3192/assets/js/runtime~main.b94d85a6.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3192/assets/js/main.0b0b6bce.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -21,17 +21,23 @@ must stay the same or increase relative to the PR&#x27;s base commit. Equal 70% 
 Lines cannot compensate for lost branch coverage, and one package cannot compensate
 for another. The 95% target remains the objective for the coverage work.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="sequent-core">Sequent Core<a href="#sequent-core" class="hash-link" aria-label="Direct link to Sequent Core" title="Direct link to Sequent Core" translate="no">​</a></h2>
-<p>The <code>default_features,keycloak</code> profile has <strong>418 passing tests</strong>, <strong>95.03% line
-coverage</strong>, <strong>81.71% function coverage</strong> and <strong>94.12% LLVM region coverage</strong>. Its native aggregate includes inline
-test code; standalone fixtures and test files are excluded. It is not yet a
+<p>The <code>default_features,keycloak</code> profile has <strong>484 passing tests</strong>, <strong>96.80% line
+coverage</strong>, <strong>95.43% function coverage</strong> and <strong>95.65% LLVM region coverage</strong>. Its
+native aggregate includes inline test code; standalone fixtures and test files
+are excluded. It is not yet a
 production-only or actual branch score.</p>
+<p>Macro-generated Borsh contract tests pin explicit policy names and bytes, reject
+truncated records and propagate failures through nested ballot serializers. All
+generated functions remain counted; the measured profile has no wholly uncovered
+Borsh implementation. JSON exports also filter excluded fixture function records
+without changing any counters.</p>
 <p>The tests cover local Keycloak HTTP operations and token caches, real PostgreSQL
 User row mapping, malformed ballot/audit boundaries, voting state, scheduling and
 presentation data. PostgreSQL tests launch private temporary clusters and require
 <code>postgresql libpq-dev</code> or <code>PG_BIN</code> pointing to the server binaries; they never use
 an existing database or a production connection string.</p>
-<p>Source commit <code>34514e1734dffb6b62488f753918e4dd195360c2</code> measures 11,703/12,315
-lines, 1,197/1,465 functions and 14,951/15,885 regions with Rust 1.96.0 and
+<p>Source commit <code>11dec93c4484e6f7876c2045521a0b554a0eeb99</code> measures 11,921/12,315
+lines, 1,398/1,465 functions and 15,194/15,885 regions with Rust 1.96.0 and
 cargo-llvm-cov 0.9.1. The native line improvement target is met. Remaining work
 includes realizable failure cases, integration with a running identity provider
 and separate WASM/service profiles. All 47 files missing from the LLVM report
@@ -39,11 +45,10 @@ are classified in the test guide; their outstanding measurements still prevent
 the strict overall target from passing.</p>
 <p>The <a href="https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md" target="_blank" rel="noopener noreferrer" class="">Sequent Core Tests guide</a>
 contains the uncovered-line breakdown, tested contracts and remaining feature work.
-It also identifies justified residual gaps: unused test-only fixtures, routine
-generated <code>Debug</code>/<code>Clone</code> code, inline test diagnostics, redundant guards after
-immutable validation, declarations without executable bodies and specific
-infeasible serialization/numeric-conversion error edges. Do not force 100% by adding tests without
-a useful behavioral assertion.</p>
+It also inventories the remaining 67 unexecuted functions, separating useful
+follow-up cases from inline test diagnostics, guards after immutable validation
+and specific infeasible serialization/numeric-conversion errors. Do not force
+100% by adding tests without a useful behavioral assertion.</p>
 <p>Use the repository&#x27;s development environment, Python 3.11 or newer, and the Rust
 version in <code>rust-toolchain.toml</code>. Install the two coverage components once:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">rustup component </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> llvm-tools-preview</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">install</span><span class="token plain"> cargo-llvm-cov </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--version</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">0.9</span><span class="token plain">.1 </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--locked</span><br></span></code></pre></div></div>
