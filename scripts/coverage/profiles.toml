@@ -69,3 +69,15 @@ issue = "https://github.com/sequentech/meta/issues/13294"
 "src/pipes/mod.rs" = "Module declarations and re-exports only."
 "src/config/config.rs" = "Struct declarations and derives without handwritten executable methods. LLVM attributes no line regions to this file; configuration deserialization is exercised through CLI tests."
 "src/config/generate_reports.rs" = "Struct/enum declarations, derives and a constant without handwritten executable methods. This native compiler export attributes no line regions to this file."
+
+[profiles.wrap-map-err]
+package = "wrap-map-err"
+features = []
+limitations = [
+    "Native parser/expansion tests and compiled public macro consumers; no ignored cases or source exclusions.",
+    "LLVM combines runtime unit-test counters with compiler-time macro expansion counters from the compiled consumer fixtures.",
+    "Branch coverage, arbitrary aliases not named Result and the full Windmill/Celery task integration are separate scopes.",
+]
+issue = "https://github.com/sequentech/meta/issues/13299"
+
+[profiles.wrap-map-err.scope_exceptions]
