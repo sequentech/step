@@ -5,6 +5,23 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "test.coverage.sequent-core",
+            "type": "process",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "python3 scripts/coverage/run.py sequent-core"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
             "label": "report.locs",
             "command": "devenv",
             "args": [
