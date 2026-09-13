@@ -309,6 +309,121 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         with self.assertRaises(FileNotFoundError):
             run.validate_artifacts(output)
 
+    def test_every_visible_export_uses_the_same_fixture_exclusion(self):
+        fixture = self.source.parent / "fixture.rs"
+        fixture.write_text("pub fn fixture() {}\n")
+        self.config.write_text(
+            self.config.read_text()
+            + (
+                "[profiles.sequent-core.excluded_files]\n"
+                '"src/fixture.rs" = "Test data only."\n'
+            )
+        )
+        commands = []
+
+        def tool(command, log, environment):
+            commands.append(command)
+            result = self.tool_output(command, log, environment)
+            if "--json" in command:
+                destination = Path(command[-1])
+                payload = json.loads(destination.read_text())
+                payload["data"][0]["functions"] = [
+                    {"name": "decode", "filenames": [str(self.source)], "count": 3},
+                    {"name": "fixture", "filenames": [str(fixture)], "count": 99},
+                ]
+                destination.write_text(json.dumps(payload))
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", False, True), 0)
+        reports = [command for command in commands if "report" in command]
+        self.assertEqual(len(reports), 4)
+        self.assertTrue(
+            all("--ignore-filename-regex" in command for command in reports)
+        )
+        self.assertFalse(any("llvm.raw.json" in command for command in reports))
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(summary["metrics"]["lines"]["count"], 100)
+        self.assertEqual(
+            summary["excluded_files"], {"src/fixture.rs": "Test data only."}
+        )
+        self.assertIn("src/fixture.rs", run.markdown_summary("sequent-core", summary))
+        payload = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/llvm.json")).read_text()
+        )
+        self.assertEqual(
+            payload["data"][0]["functions"],
+            [{"name": "decode", "filenames": [str(self.source)], "count": 3}],
+        )
+
+    def test_invalid_exclusion_fails_before_starting_cargo(self):
+        self.config.write_text(
+            self.config.read_text()
+            + ('[profiles.sequent-core.excluded_files]\n"src/*.rs" = "Too broad."\n')
+        )
+        with patch.object(run, "execute") as command:
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+            command.assert_not_called()
+
+    def test_excluded_files_cannot_remain_in_the_published_llvm_export(self):
+        fixture = self.source.parent / "fixture.rs"
+        fixture.write_text("pub fn fixture() {}\n")
+        self.config.write_text(
+            self.config.read_text()
+            + (
+                "[profiles.sequent-core.excluded_files]\n"
+                '"src/fixture.rs" = "Test data only."\n'
+            )
+        )
+
+        def tool(command, log, environment):
+            result = self.tool_output(command, log, environment)
+            if "--json" in command and command[-1].endswith("/llvm.json"):
+                Path(command[-1]).write_text(
+                    json.dumps(export(llvm_file(self.source), llvm_file(fixture)))
+                )
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        self.assertEqual(list(self.root.glob("coverage/sequent-core/*/llvm.json")), [])
+
+    def test_later_export_failure_cannot_publish_unfiltered_function_records(self):
+        def tool(command, log, environment):
+            result = self.tool_output(command, log, environment)
+            if "--json" in command:
+                path = Path(command[-1])
+                payload = json.loads(path.read_text())
+                payload["data"][0]["functions"] = [
+                    {"name": "test", "filenames": [str(self.root / "tests/test.rs")]},
+                ]
+                path.write_text(json.dumps(payload))
+            if "--lcov" in command:
+                raise CoverageError("interrupted LCOV export")
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        output = next(self.root.glob("coverage/sequent-core/*/summary.json")).parent
+        self.assertEqual(
+            json.loads((output / "llvm.json").read_text())["data"][0]["functions"], []
+        )
+        self.assertFalse((output / "lcov.info").exists())
+
+    def test_interrupted_json_export_removes_partial_artifact(self):
+        def tool(command, log, environment):
+            result = self.tool_output(command, log, environment)
+            if "--json" in command:
+                Path(command[-1]).write_text("{partial")
+                raise CoverageError("interrupted JSON export")
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        self.assertEqual(list(self.root.glob("coverage/sequent-core/*/llvm.json")), [])
+
 
 class CheckoutIdentityTests(unittest.TestCase):
     """A package-local hash is insufficient when workspace inputs can change."""

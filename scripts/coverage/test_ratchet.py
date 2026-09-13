@@ -100,6 +100,13 @@ class CoverageRatchetTests(unittest.TestCase):
         }
         self.assertTrue(compare_rust(report, report)["passes"])
 
+        # Identical percentages cannot validate a pair measured with different
+        # exclusion lists, even if another metadata field was copied wrongly.
+        for field in ("excluded_files", "scope_exceptions"):
+            changed = {**report, field: {"src/fixture.rs": "Test data only."}}
+            with self.assertRaisesRegex(CoverageError, field):
+                compare_rust(report, changed)
+
         # Dropping a compiled source file cannot manufacture an improvement.
         head = copy.deepcopy(report)
         head["unaccounted_files"].append("src/authorization.rs")

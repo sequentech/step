@@ -92,6 +92,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+      - name: Install Core database fixture dependencies
+        if: env.COVERAGE_PROFILE == 'sequent-core'
+        run: sudo apt-get install -y postgresql libpq-dev
       - name: Install the repository Rust toolchain
         working-directory: head
         run: |

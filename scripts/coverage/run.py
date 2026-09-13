@@ -24,7 +24,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from report import CoverageError, summarize
+from report import (
+    CoverageError,
+    exclusion_arguments,
+    filter_excluded_functions,
+    summarize,
+    validate_exclusions,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE = ROOT / "packages"
@@ -147,6 +153,11 @@ def markdown_summary(profile: str, result: dict[str, Any]) -> str:
     lines.extend(f"- {failure}" for failure in result["failures"])
     lines.extend(["", "## Measurement limits", ""])
     lines.extend(f"- {limitation}" for limitation in result["limitations"])
+    if result.get("excluded_files"):
+        lines.extend(["", "## Excluded from coverage", ""])
+        lines.extend(
+            f"- `{name}`: {reason}" for name, reason in result["excluded_files"].items()
+        )
     if result["unaccounted_files"]:
         lines.extend(["", "## Files requiring scope review", ""])
         lines.extend(f"- `{name}`" for name in result["unaccounted_files"])
@@ -180,6 +191,9 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     write_json(output / "summary.json", result)
 
     try:
+        excluded_files = profile.get("excluded_files", {})
+        validate_exclusions(package, excluded_files, profile["scope_exceptions"])
+        export_arguments = exclusion_arguments(package, excluded_files)
         tool = execute(
             ["cargo", "llvm-cov", "--version"], output / "tool.log", environment
         ).strip()
@@ -250,26 +264,49 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 "No passing tests were recorded; coverage is not a valid baseline"
             )
 
-        # All formats come from the same execution. Raw LLVM exports may include
-        # workspace dependencies; summarize() selects this package's src tree.
+        # Every exported format omits excluded files from its counters as well
+        # as its file list. Exclusion reasons remain in the summary for review.
         for format_name, filename in (("json", "llvm.json"), ("lcov", "lcov.info")):
-            execute(
-                [
-                    "cargo",
-                    "llvm-cov",
-                    "report",
-                    f"--{format_name}",
-                    "--output-path",
-                    str(output / filename),
-                ],
-                output / f"{format_name}.log",
-                environment,
-            )
+            completed_export = False
+            try:
+                execute(
+                    [
+                        "cargo",
+                        "llvm-cov",
+                        "report",
+                        *export_arguments,
+                        f"--{format_name}",
+                        "--output-path",
+                        str(output / filename),
+                    ],
+                    output / f"{format_name}.log",
+                    environment,
+                )
+                if format_name == "json":
+                    payload = json.loads((output / filename).read_text())
+                    result.update(
+                        summarize(
+                            payload,
+                            package,
+                            config["minimum_lines"],
+                            profile["scope_exceptions"],
+                            excluded_files,
+                        )
+                    )
+                    filter_excluded_functions(payload, package, excluded_files)
+                    write_json(output / filename, payload)
+                completed_export = True
+            finally:
+                # CI uploads failed runs too. Never leave an unfiltered JSON
+                # or a partial export behind if generation/validation fails.
+                if not completed_export:
+                    (output / filename).unlink(missing_ok=True)
         execute(
             [
                 "cargo",
                 "llvm-cov",
                 "report",
+                *export_arguments,
                 "--html",
                 "--output-dir",
                 str(output),
@@ -278,18 +315,12 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
             environment,
         )
         execute(
-            ["cargo", "llvm-cov", "report", "--show-missing-lines"],
+            ["cargo", "llvm-cov", "report", *export_arguments, "--show-missing-lines"],
             output / "uncovered-lines.log",
             environment,
         )
 
-        payload = json.loads((output / "llvm.json").read_text())
         validate_artifacts(output)
-        result.update(
-            summarize(
-                payload, package, config["minimum_lines"], profile["scope_exceptions"]
-            )
-        )
         if result["checkout_sha256"] != checkout_digest() or result[
             "revision"
         ] != git_output("rev-parse", "HEAD"):

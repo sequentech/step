@@ -2,6 +2,39 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+//! Validate contest totals and cross-contest blank-ballot bounds.
+
+#![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(
+    not(test),
+    warn(private_interfaces, private_bounds, unnameable_types)
+)]
+#![cfg_attr(
+    not(test),
+    deny(
+        missing_docs,
+        rustdoc::missing_crate_level_docs,
+        rustdoc::broken_intra_doc_links,
+        clippy::missing_docs_in_private_items,
+        clippy::missing_errors_doc,
+        clippy::missing_panics_doc,
+        clippy::doc_markdown,
+        clippy::unwrap_used,
+        clippy::panic,
+        clippy::shadow_unrelated,
+        clippy::print_stdout,
+        clippy::print_stderr,
+        clippy::indexing_slicing,
+        clippy::future_not_send,
+        clippy::arithmetic_side_effects,
+        clippy::suspicious,
+        clippy::complexity,
+        clippy::style,
+        clippy::perf,
+        clippy::pedantic
+    )
+)]
+
 use crate::types::ceremonies::CountingAlgType;
 use crate::types::tally_sheets::AreaContestResults;
 use serde::{Deserialize, Serialize};
@@ -13,9 +46,13 @@ use std::collections::HashMap;
 /// holds every number referenced by `message`, stringified.
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct TallySheetValidationError {
+    /// Stable translation key identifying the rejected relationship.
     pub code: String,
+    /// English explanation for logs and command-line consumers.
     pub message: String,
+    /// Input field associated with the validation error.
     pub field: String,
+    /// String-valued interpolation arguments for the translated explanation.
     pub params: HashMap<String, String>,
 }
 
@@ -26,6 +63,7 @@ pub struct TallySheetValidationError {
 /// behavior for ordinary contests. For `cumulative` contests, a voter may
 /// give multiple points to the same candidate, so the bound is further
 /// multiplied by the number of point checkboxes offered per candidate.
+#[must_use]
 pub fn effective_max_marks_per_ballot_typed(
     max_votes: Option<i64>,
     counting_algorithm: CountingAlgType,
@@ -51,6 +89,9 @@ pub const UNKNOWN_COUNTING_ALGORITHM: &str = "unknown_counting_algorithm";
 /// multiplier, tightening the upper bound and rejecting tally sheets that
 /// are in fact valid. It is reported so the misconfiguration surfaces
 /// instead of the bound being guessed.
+///
+/// # Errors
+/// Returns a validation error when a supplied counting algorithm is unknown.
 pub fn resolve_max_marks_per_ballot(
     max_votes: Option<i64>,
     counting_algorithm: Option<&str>,
@@ -79,14 +120,15 @@ pub fn resolve_max_marks_per_ballot(
     ))
 }
 
+/// Applies positive defaults and the cumulative checkbox multiplier.
 fn max_marks_per_ballot(
     max_votes: Option<i64>,
     is_cumulative: bool,
     cumulative_number_of_checkboxes: Option<u64>,
 ) -> u64 {
     let base = max_votes
+        .and_then(|value| u64::try_from(value).ok())
         .filter(|value| *value > 0)
-        .map(|value| value as u64)
         .unwrap_or(1);
     if is_cumulative {
         let checkboxes = cumulative_number_of_checkboxes
@@ -98,6 +140,9 @@ fn max_marks_per_ballot(
     }
 }
 
+/// Checks vote buckets, candidate-mark bounds and the optional census.
+/// Returns every failed relationship so callers can display all corrections.
+#[must_use]
 pub fn validate_area_contest_results(
     content: &AreaContestResults,
     max_marks_per_ballot: Option<u64>,
@@ -110,13 +155,21 @@ pub fn validate_area_contest_results(
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
     let total_votes = content.total_votes.unwrap_or(0);
-    let candidate_votes_sum: u64 = content
+    // Individual counters fit u64; a sum of candidate marks need not, since
+    // one ballot may mark several candidates. Widen before doing arithmetic
+    // so validation neither panics nor accepts a wrapped total.
+    let candidate_votes_sum: u128 = content
         .candidate_results
         .values()
-        .map(|candidate_result| candidate_result.total_votes.unwrap_or(0))
+        .map(|candidate_result| {
+            u128::from(candidate_result.total_votes.unwrap_or(0))
+        })
         .sum();
 
-    if total_invalid != implicit_invalid + explicit_invalid {
+    // Both counters originate from u64, so this u128 sum cannot saturate.
+    let expected_invalid = u128::from(implicit_invalid)
+        .saturating_add(u128::from(explicit_invalid));
+    if u128::from(total_invalid) != expected_invalid {
         errors.push(error(
             "invalid_total_invalid",
             format!(
@@ -139,8 +192,9 @@ pub fn validate_area_contest_results(
     let non_blank_valid_votes =
         total_valid_votes.saturating_sub(total_blank_votes);
     let max_marks = max_marks_per_ballot.unwrap_or(1).max(1);
-    let lower_bound = non_blank_valid_votes;
-    let upper_bound = non_blank_valid_votes.saturating_mul(max_marks);
+    let lower_bound = u128::from(non_blank_valid_votes);
+    // A product of two u64 values also fits in u128 without saturation.
+    let upper_bound = lower_bound.saturating_mul(u128::from(max_marks));
 
     if candidate_votes_sum < lower_bound || candidate_votes_sum > upper_bound {
         errors.push(error(
@@ -159,7 +213,9 @@ pub fn validate_area_contest_results(
         ));
     }
 
-    if total_votes != total_valid_votes + total_invalid {
+    let expected_total =
+        u128::from(total_valid_votes).saturating_add(u128::from(total_invalid));
+    if u128::from(total_votes) != expected_total {
         errors.push(error(
             "invalid_total_votes",
             format!(
@@ -195,6 +251,7 @@ pub fn validate_area_contest_results(
     errors
 }
 
+/// Builds the machine-readable and human-readable views of the same failure.
 fn error(
     code: &str,
     message: String,
@@ -209,8 +266,10 @@ fn error(
     }
 }
 
+/// Validation failures and any uniquely determined blank-ballot total.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BallotBoxBlankBallotsCheck {
+    /// Failed agreement or inclusion-exclusion checks across contest sheets.
     pub errors: Vec<TallySheetValidationError>,
     /// The value implied by the bounds when they pinch to exactly one
     /// integer -- covers the common "some contest reports zero blanks, so
@@ -247,6 +306,7 @@ pub struct BallotBoxBlankBallotsCheck {
 /// (most conservative) estimate of the box's true ballot count -- a
 /// smaller value would tighten the lower bound incorrectly and risk
 /// rejecting a genuinely valid entry.
+#[must_use]
 pub fn validate_ballot_box_blank_ballots(
     contest_sheets: &[&AreaContestResults],
 ) -> BallotBoxBlankBallotsCheck {
@@ -277,12 +337,17 @@ pub fn validate_ballot_box_blank_ballots(
         .then(|| distinct_values.into_iter().next())
         .flatten();
 
-    let contest_count = contest_sheets.len() as u64;
+    let contest_count = contest_sheets.len() as u128;
     let blank_votes_per_contest: Vec<u64> = contest_sheets
         .iter()
         .map(|sheet| sheet.total_blank_votes.unwrap_or(0))
         .collect();
-    let sum_blank_votes: u64 = blank_votes_per_contest.iter().sum();
+    // Inclusion-exclusion uses sums and products across contests. Those can
+    // exceed u64 even when the final intersection is a valid ballot count.
+    let sum_blank_votes: u128 = blank_votes_per_contest
+        .iter()
+        .map(|&value| u128::from(value))
+        .sum();
     let min_blank_votes =
         blank_votes_per_contest.iter().copied().min().unwrap_or(0);
     let total_ballots = contest_sheets
@@ -291,12 +356,15 @@ pub fn validate_ballot_box_blank_ballots(
         .max()
         .unwrap_or(0);
 
-    let lower_bound = sum_blank_votes
-        .saturating_sub(contest_count.saturating_sub(1) * total_ballots);
-    let upper_bound = min_blank_votes;
+    let lower_bound = sum_blank_votes.saturating_sub(
+        contest_count
+            .saturating_sub(1)
+            .saturating_mul(u128::from(total_ballots)),
+    );
+    let upper_bound = u128::from(min_blank_votes);
 
     if let Some(value) = box_blank_ballots {
-        if value < lower_bound || value > upper_bound {
+        if u128::from(value) < lower_bound || u128::from(value) > upper_bound {
             errors.push(error(
                 "blank_ballots_out_of_bounds",
                 format!(
@@ -312,7 +380,9 @@ pub fn validate_ballot_box_blank_ballots(
         }
     }
 
-    let pre_filled_value = (lower_bound == upper_bound).then_some(lower_bound);
+    // Equality with the upper bound proves the result fits its public u64 type.
+    let pre_filled_value =
+        (lower_bound == upper_bound).then_some(min_blank_votes);
 
     BallotBoxBlankBallotsCheck {
         errors,

@@ -673,12 +673,8 @@ fn print_to_pdf(
     pdf_options: PrintToPdfOptions,
     wait: Option<Duration>,
 ) -> Result<Vec<u8>> {
-    // When multiple Rayon threads generate PDF batches concurrently (workers
-    // 29, 30, 31), each spawns its own headless Chrome process. Chrome can
-    // crash mid-print (due to --single-process flag instability or memory
-    // pressure from concurrent instances), closing the WebSocket connection and
-    // causing tab.print_to_pdf() to fail with ConnectionClosed: Unable to make
-    // method calls because underlying connection is closed
+    // Concurrent PDF batches launch separate browsers. Retry transient browser
+    // exits, including a lost DevTools connection under memory pressure.
     const MAX_RETRIES: u32 = 5;
     let mut delay = Duration::from_secs(1);
     // PrintToPdfOptions doesn't derive Clone, so serialize once and deserialize

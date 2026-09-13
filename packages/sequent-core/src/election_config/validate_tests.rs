@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Unit-test code.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 //! Tests for [`super::validate`].
 //!
 //! Each starts from a bundle that passes and breaks exactly one thing, so a
@@ -480,6 +483,55 @@ fn the_warning_names_the_labels_in_use() {
 }
 
 #[test]
+fn permission_warnings_deduplicate_each_collection_and_ignore_blank_labels() {
+    let mut bundle = sound();
+    assert!(!validate(&bundle)
+        .warnings()
+        .any(|problem| problem.code == Code::PermissionLabel));
+    for (index, label) in ["officers", "officers", "observers", " "]
+        .into_iter()
+        .enumerate()
+    {
+        let mut election = bundle.elections[0].clone();
+        election.id = format!("f0000000-0000-5000-8000-{index:012}");
+        election.permission_label = Some(label.into());
+        bundle.elections.push(election);
+    }
+    bundle.reports.push(serde_json::from_value(serde_json::json!({
+        "id": "a3000000-0000-5000-8000-000000000000",
+        "tenant_id": TENANT, "election_event_id": bundle.election_event.id,
+        "report_type": "PARTICIPATION_REPORT", "encryption_policy": "unencrypted",
+        "created_at": "2026-09-13T12:00:00Z",
+        "permission_label": ["observers", " ", "auditors", "observers"]
+    })).unwrap());
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    let labels: Vec<_> = report
+        .warnings()
+        .filter(|problem| problem.code == Code::PermissionLabel)
+        .map(|problem| {
+            (
+                problem.path.as_str(),
+                problem.message.split('.').next().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        labels,
+        [
+            (
+                "elections[].permission_label",
+                "permission labels in use: officers, observers"
+            ),
+            (
+                "reports[].permission_label",
+                "permission labels in use: observers, auditors"
+            ),
+        ]
+    );
+}
+
+#[test]
 fn no_labels_means_no_warning() {
     assert_eq!(
         validate(&sound())
@@ -625,4 +677,38 @@ fn an_inconsistent_bundle_is_still_refused() {
     bundle.candidates[0].contest_id =
         Some("f0000000-0000-5000-8000-000000000000".into());
     assert!(validate(&bundle).has_errors());
+}
+
+#[test]
+fn event_identity_and_encryption_protocol_cannot_be_blank() {
+    for field in ["id", "encryption_protocol"] {
+        let mut bundle = sound();
+        match field {
+            "id" => bundle.election_event.id = " ".into(),
+            _ => bundle.election_event.encryption_protocol = " ".into(),
+        }
+        let report = validate(&bundle);
+        assert!(report
+            .problems
+            .iter()
+            .any(|problem| problem.code == Code::MissingField
+                && problem.path == format!("election_event.{field}")));
+    }
+}
+
+#[test]
+fn ballot_area_links_must_reference_both_an_existing_area_and_contest() {
+    let mut bundle = sound();
+    // The link itself exists, but neither endpoint does. Both diagnostics are
+    // needed so an operator can repair the imported bundle in one pass.
+    bundle.area_contests[0].area_id = "absent-area".into();
+    bundle.area_contests[0].contest_id = "absent-contest".into();
+    let report = validate(&bundle);
+    for field in ["area_id", "contest_id"] {
+        assert!(report
+            .problems
+            .iter()
+            .any(|problem| problem.code == Code::DanglingReference
+                && problem.path == format!("area_contests[0].{field}")));
+    }
 }
