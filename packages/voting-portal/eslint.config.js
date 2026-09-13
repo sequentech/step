@@ -23,7 +23,7 @@ export default [
         ],
     },
     {
-        files: ["**/*.{js,jsx,ts,tsx}"],
+        files: ["**/*.{js,jsx,ts,tsx,mts}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
