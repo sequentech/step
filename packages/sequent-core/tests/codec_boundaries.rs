@@ -56,6 +56,7 @@ fn choices(ids: &[&str]) -> BallotChoices {
 
 #[test]
 fn direct_multi_ballot_encoders_reject_unknown_contest_identity() {
+    const UNKNOWN_CONTEST_ID: &str = "foreign-contest";
     let config = style(&[contest()]);
     let mut ballot = choices(&["a"]);
     assert_eq!(
@@ -63,8 +64,10 @@ fn direct_multi_ballot_encoders_reject_unknown_contest_identity() {
         BigUint::from(2_u8)
     );
     ballot.encode_to_30_bytes(&config).unwrap();
-    ballot.choices[0].contest_id = "foreign-contest".into();
-    let expected = "Can't find contest with id foreign-contest on ballot style";
+    ballot.choices[0].contest_id = UNKNOWN_CONTEST_ID.into();
+    let expected = format!(
+        "Can't find contest with id {UNKNOWN_CONTEST_ID} on ballot style"
+    );
     assert_eq!(ballot.encode_to_bigint(&config).unwrap_err(), expected);
     assert_eq!(ballot.encode_to_30_bytes(&config).unwrap_err(), expected);
 }

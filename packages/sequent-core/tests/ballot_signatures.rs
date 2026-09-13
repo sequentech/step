@@ -101,7 +101,24 @@ fn multi_ballot_signatures_reject_replay_and_every_changed_signed_field() {
 #[test]
 fn malformed_signature_material_is_an_error_not_an_unsigned_result() {
     let signed = signed_multi_ballot();
+    assert!(verify_multi_ballot_signature(BALLOT, ELECTION, &signed)
+        .unwrap()
+        .is_some());
     for field in ["voter_signing_pk", "voter_ballot_signature"] {
+        // Removing either half of a valid signature must not downgrade it to
+        // the unsigned result. Only the absence of both fields means unsigned.
+        let mut partial = signed.clone();
+        if field == "voter_signing_pk" {
+            partial.voter_signing_pk = None;
+        } else {
+            partial.voter_ballot_signature = None;
+        }
+        assert_eq!(
+            verify_multi_ballot_signature(BALLOT, ELECTION, &partial)
+                .err()
+                .expect("reject incomplete signature material"),
+            "Incomplete ballot signature: public key and signature must both be present"
+        );
         for malformed in ["", "!invalid-base64", "AAAA"] {
             let mut altered = serde_json::to_value(&signed).unwrap();
             altered[field] = json!(malformed);
@@ -150,6 +167,27 @@ fn single_contest_signatures_bind_identity_and_content_too() {
     assert!(verify_ballot_signature(BALLOT, ELECTION, &signed)
         .unwrap()
         .is_some());
+    for missing_key in [true, false] {
+        let mut partial = signed.clone();
+        if missing_key {
+            partial.voter_signing_pk = None;
+        } else {
+            partial.voter_ballot_signature = None;
+        }
+        assert_eq!(
+            verify_ballot_signature(BALLOT, ELECTION, &partial)
+                .err()
+                .expect("reject incomplete signature material"),
+            "Incomplete ballot signature: public key and signature must both be present"
+        );
+    }
+    // Preserve the genuinely unsigned control alongside both rejected pairs.
+    let mut unsigned = signed.clone();
+    unsigned.voter_signing_pk = None;
+    unsigned.voter_ballot_signature = None;
+    assert!(verify_ballot_signature(BALLOT, ELECTION, &unsigned)
+        .unwrap()
+        .is_none());
     assert!(
         verify_ballot_signature("another-ballot", ELECTION, &signed).is_err()
     );

@@ -338,22 +338,28 @@ pub fn sign_hashable_ballot_with_ephemeral_voter_signing_key(
     })
 }
 
-// Returns Some(StrandSignature) if the signature was verified or None if there
-// was no signature to verify.
+// Returns Some(StrandSignature) if the signature was verified or None if both
+// signature fields were absent. A partial pair is malformed, not unsigned.
 pub fn verify_ballot_signature(
     ballot_id: &str,
     election_id: &str,
     signed_hashable_ballot: &SignedHashableBallot,
 ) -> Result<Option<(StrandSignaturePk, StrandSignature)>, String> {
-    let (voter_ballot_signature, voter_signing_pk) =
-        if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
-            signed_hashable_ballot.voter_ballot_signature.clone(),
-            signed_hashable_ballot.voter_signing_pk.clone(),
-        ) {
-            (voter_ballot_signature, voter_signing_pk)
-        } else {
-            return Ok(None);
-        };
+    let (voter_ballot_signature, voter_signing_pk) = if let (
+        Some(voter_ballot_signature),
+        Some(voter_signing_pk),
+    ) = (
+        signed_hashable_ballot.voter_ballot_signature.clone(),
+        signed_hashable_ballot.voter_signing_pk.clone(),
+    ) {
+        (voter_ballot_signature, voter_signing_pk)
+    } else if signed_hashable_ballot.voter_ballot_signature.is_none()
+        && signed_hashable_ballot.voter_signing_pk.is_none()
+    {
+        return Ok(None);
+    } else {
+        return Err("Incomplete ballot signature: public key and signature must both be present".into());
+    };
 
     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(
         &voter_signing_pk,

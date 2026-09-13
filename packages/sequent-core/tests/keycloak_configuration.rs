@@ -627,6 +627,7 @@ async fn malformed_successful_token_responses_fail_without_returning_secret_mate
 
 #[rocket::async_test]
 async fn interrupted_token_response_body_is_a_transport_error_not_a_token() {
+    const TEST_CLIENT_SECRET: &str = "synthetic-secret";
     let endpoint = "/realms/tenant-north/protocol/openid-connect/token";
     let peer = HttpServer::start(vec![
         Exchange::json("POST", endpoint, 200, http::token_json()),
@@ -636,7 +637,7 @@ async fn interrupted_token_response_body_is_a_transport_error_not_a_token() {
     let _environment = Environment::set(&[
         ("KEYCLOAK_URL", Some(&peer.url)),
         ("KEYCLOAK_CLIENT_ID", Some("party")),
-        ("KEYCLOAK_CLIENT_SECRET", Some("synthetic-secret")),
+        ("KEYCLOAK_CLIENT_SECRET", Some(TEST_CLIENT_SECRET)),
         ("SUPER_ADMIN_TENANT_ID", Some("north")),
     ]);
     assert_eq!(
@@ -648,7 +649,7 @@ async fn interrupted_token_response_body_is_a_transport_error_not_a_token() {
         .downcast_ref::<reqwest::Error>()
         .expect("retain the response-body error");
     assert!(transport.is_body() || transport.is_decode());
-    assert!(!format!("{error:?}").contains("synthetic-secret"));
+    assert!(!format!("{error:?}").contains(TEST_CLIENT_SECRET));
     assert_eq!(peer.finish().len(), 2);
 }
 
