@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Tests should return Result for fallible setup, just like application code.
+allow-unwrap-in-tests = false
+allow-expect-in-tests = false
