@@ -96,8 +96,9 @@ fn invalid_combinations_cannot_contribute_votes_to_selected_candidates() {
     let mut declined_with_content = ballot(&["ada"]);
     declined_with_content.is_decline_to_vote = true;
     let result = PluralityAtLarge::new(tally(vec![
-        (ballot(&["ada", "blank"]), Weight::default()),
-        (declined_with_content, Weight::default()),
+        // Positive weights make accidentally counted invalid marks visible.
+        (ballot(&["ada", "blank"]), weight(3)),
+        (declined_with_content, weight(5)),
     ]))
     .tally()
     .unwrap();

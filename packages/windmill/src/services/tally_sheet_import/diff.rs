@@ -50,7 +50,12 @@ pub fn render_ballot_box_csv(
         ("census", content.census),
     ] {
         writer
-            .write_record([field, "", "", &value.unwrap_or(0).to_string()])
+            .write_record([
+                field,
+                "",
+                "",
+                &value.map(|count| count.to_string()).unwrap_or_default(),
+            ])
             .expect("write a fixed-width review CSV row to memory");
     }
 
@@ -59,7 +64,8 @@ pub fn render_ballot_box_csv(
     for candidate_id in candidate_ids {
         let votes = content.candidate_results[candidate_id]
             .total_votes
-            .unwrap_or(0);
+            .map(|count| count.to_string())
+            .unwrap_or_default();
         let external_id = candidate_external_ids
             .get(candidate_id)
             .map(String::as_str)
@@ -69,7 +75,7 @@ pub fn render_ballot_box_csv(
             .map(String::as_str)
             .unwrap_or("");
         writer
-            .write_record(["candidate_votes", external_id, name, &votes.to_string()])
+            .write_record(["candidate_votes", external_id, name, &votes])
             .expect("write a fixed-width candidate CSV row to memory");
     }
 

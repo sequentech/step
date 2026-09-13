@@ -42,6 +42,13 @@ impl TryFrom<&Row> for Aggregate {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        // COUNT returns one cell, including when the result is zero. A malformed
+        // row must not become zero or silently keep only the final value.
+        if row.columns.len() != 1 || row.values.len() != 1 {
+            return Err(anyhow!(
+                "count row must contain exactly one column and value"
+            ));
+        }
         let mut count = 0;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {

@@ -83,8 +83,7 @@ fn negative_offsets_are_clamped_without_changing_the_requested_page_size() {
     assert_eq!(params[1].value.as_ref().unwrap().value, Some(Value::N(0)));
 }
 
-#[test]
-fn audit_rows_preserve_each_typed_field_and_reject_unknown_columns() {
+fn complete_row() -> Row {
     let entries = [
         ("id", Value::N(42)),
         ("audit_type", Value::S("SESSION".into())),
@@ -96,7 +95,7 @@ fn audit_rows_preserve_each_typed_field_and_reject_unknown_columns() {
         ("statement", Value::S("SELECT @value".into())),
         ("user", Value::S("fixture-user".into())),
     ];
-    let mut row = Row {
+    Row {
         columns: entries
             .iter()
             .map(|(name, _)| format!("(fixture.{name})"))
@@ -107,7 +106,12 @@ fn audit_rows_preserve_each_typed_field_and_reject_unknown_columns() {
                 value: Some(value.clone()),
             })
             .collect(),
-    };
+    }
+}
+
+#[test]
+fn audit_rows_preserve_each_typed_field_and_reject_unknown_columns() {
+    let mut row = complete_row();
     let converted = PgAuditRow::try_from(&row).unwrap();
     assert_eq!(
         serde_json::to_value(converted).unwrap(),
@@ -132,4 +136,129 @@ fn audit_rows_preserve_each_typed_field_and_reject_unknown_columns() {
     // the value as another audit field.
     row.columns[0] = "(fixture.unexpected)".into();
     assert!(PgAuditRow::try_from(&row).is_err());
+}
+
+#[test]
+fn audit_mapping_uses_column_names_for_both_tables_in_any_order() {
+    let expected =
+        serde_json::to_value(PgAuditRow::try_from(&complete_row()).unwrap())
+            .unwrap();
+    for table in ["pgaudit_hasura", "pgaudit_keycloak"] {
+        let mut row = complete_row();
+        row.columns = row
+            .columns
+            .iter()
+            .map(|name| name.replace("fixture", table))
+            .collect();
+        row.columns.reverse();
+        row.values.reverse();
+        assert_eq!(
+            serde_json::to_value(PgAuditRow::try_from(&row).unwrap()).unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn each_missing_audit_field_is_rejected_instead_of_becoming_a_default() {
+    PgAuditRow::try_from(&complete_row()).unwrap();
+    for missing in 0..9 {
+        let mut row = complete_row();
+        let name = row.columns.remove(missing);
+        row.values.remove(missing);
+        let error = PgAuditRow::try_from(&row).expect_err(&name);
+        assert!(error.to_string().contains("missing"), "{name}: {error}");
+    }
+    assert!(PgAuditRow::try_from(&Row {
+        columns: vec![],
+        values: vec![]
+    })
+    .is_err());
+}
+
+#[test]
+fn duplicate_audit_fields_cannot_replace_a_missing_field() {
+    PgAuditRow::try_from(&complete_row()).unwrap();
+    for duplicate in 0..9 {
+        let mut row = complete_row();
+        let replaced = (duplicate + 1) % 9;
+        row.columns[replaced] =
+            row.columns[duplicate].replace("fixture", "other");
+        row.values[replaced] = row.values[duplicate].clone();
+        let error = PgAuditRow::try_from(&row).unwrap_err();
+        assert!(error.to_string().contains("duplicate"), "{error}");
+    }
+}
+
+#[test]
+fn audit_fields_reject_null_and_wrong_types_without_returning_a_partial_row() {
+    PgAuditRow::try_from(&complete_row()).unwrap();
+    for field in 0..9 {
+        for value in [None, Some(Value::B(true))] {
+            let mut row = complete_row();
+            row.values[field].value = value;
+            assert!(
+                PgAuditRow::try_from(&row).is_err(),
+                "{}",
+                row.columns[field]
+            );
+        }
+    }
+}
+
+#[test]
+fn empty_ordering_omits_order_by_and_retains_pagination() {
+    let (ordered, _) = request(json!({"order_by": {"id": "desc"}, "limit": 7}))
+        .as_sql(false)
+        .unwrap();
+    assert_eq!(ordered, "ORDER BY id desc LIMIT @limit");
+    let (empty, params) = request(json!({"order_by": {}, "limit": 7}))
+        .as_sql(false)
+        .unwrap();
+    assert_eq!(empty, "LIMIT @limit");
+    assert_eq!(params[0].value.as_ref().unwrap().value, Some(Value::N(7)));
+}
+
+#[test]
+fn count_rows_preserve_zero_and_nonzero_counts_and_reject_wrong_types() {
+    for count in [0, 42, i64::MAX] {
+        let row = Row {
+            columns: vec!["count".into()],
+            values: vec![SqlValue {
+                value: Some(Value::N(count)),
+            }],
+        };
+        assert_eq!(Aggregate::try_from(&row).unwrap().count, count);
+    }
+    for value in [None, Some(Value::S("42".into()))] {
+        let row = Row {
+            columns: vec!["count".into()],
+            values: vec![SqlValue { value }],
+        };
+        assert!(Aggregate::try_from(&row).is_err());
+    }
+}
+
+#[test]
+fn malformed_count_rows_cannot_silently_become_zero_or_the_last_value() {
+    let valid = Row {
+        columns: vec!["count".into()],
+        values: vec![SqlValue {
+            value: Some(Value::N(42)),
+        }],
+    };
+    assert_eq!(Aggregate::try_from(&valid).unwrap().count, 42);
+    for (columns, values) in [(0, 0), (0, 1), (1, 0), (1, 2), (2, 1), (2, 2)] {
+        let row = Row {
+            columns: vec!["count".into(); columns],
+            values: vec![
+                SqlValue {
+                    value: Some(Value::N(42))
+                };
+                values
+            ],
+        };
+        let error = Aggregate::try_from(&row).unwrap_err();
+        assert!(error.to_string().contains("exactly one"), "{error}");
+    }
 }
