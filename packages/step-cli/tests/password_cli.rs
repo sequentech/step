@@ -84,3 +84,39 @@ fn successful_conversion_exits_zero_and_writes_only_derived_credentials() {
         );
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn existing_and_dangling_output_symlinks_are_preserved_and_rejected() {
+    use std::os::unix::fs::symlink;
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("voters.csv");
+    fs::write(&input, "username,password\nfirst,synthetic\n").unwrap();
+    for existing in [true, false] {
+        let target = directory.path().join(format!("target-{existing}.csv"));
+        if existing {
+            fs::write(&target, "previous export").unwrap();
+        }
+        let output = directory.path().join(format!("link-{existing}.csv"));
+        symlink(&target, &output).unwrap();
+        let result = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+            .args(["step", "hash-password", "--input-file"])
+            .arg(&input)
+            .arg("--output-file")
+            .arg(&output)
+            .args(["--iterations", "2"])
+            .output()
+            .unwrap();
+        assert!(
+            !result.status.success(),
+            "an output link must not be replaced"
+        );
+        assert!(String::from_utf8_lossy(&result.stderr).contains("symlink"));
+        assert_eq!(fs::read_link(&output).unwrap(), target);
+        if existing {
+            assert_eq!(fs::read_to_string(&target).unwrap(), "previous export");
+        } else {
+            assert!(!target.exists());
+        }
+    }
+}
