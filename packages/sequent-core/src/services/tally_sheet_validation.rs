@@ -110,13 +110,20 @@ pub fn validate_area_contest_results(
     let total_valid_votes = content.total_valid_votes.unwrap_or(0);
     let total_blank_votes = content.total_blank_votes.unwrap_or(0);
     let total_votes = content.total_votes.unwrap_or(0);
-    let candidate_votes_sum: u64 = content
+    // Individual counters fit u64; a sum of candidate marks need not, since
+    // one ballot may mark several candidates. Widen before doing arithmetic
+    // so validation neither panics nor accepts a wrapped total.
+    let candidate_votes_sum: u128 = content
         .candidate_results
         .values()
-        .map(|candidate_result| candidate_result.total_votes.unwrap_or(0))
+        .map(|candidate_result| {
+            u128::from(candidate_result.total_votes.unwrap_or(0))
+        })
         .sum();
 
-    if total_invalid != implicit_invalid + explicit_invalid {
+    if u128::from(total_invalid)
+        != u128::from(implicit_invalid) + u128::from(explicit_invalid)
+    {
         errors.push(error(
             "invalid_total_invalid",
             format!(
@@ -139,8 +146,8 @@ pub fn validate_area_contest_results(
     let non_blank_valid_votes =
         total_valid_votes.saturating_sub(total_blank_votes);
     let max_marks = max_marks_per_ballot.unwrap_or(1).max(1);
-    let lower_bound = non_blank_valid_votes;
-    let upper_bound = non_blank_valid_votes.saturating_mul(max_marks);
+    let lower_bound = u128::from(non_blank_valid_votes);
+    let upper_bound = lower_bound * u128::from(max_marks);
 
     if candidate_votes_sum < lower_bound || candidate_votes_sum > upper_bound {
         errors.push(error(
@@ -159,7 +166,9 @@ pub fn validate_area_contest_results(
         ));
     }
 
-    if total_votes != total_valid_votes + total_invalid {
+    if u128::from(total_votes)
+        != u128::from(total_valid_votes) + u128::from(total_invalid)
+    {
         errors.push(error(
             "invalid_total_votes",
             format!(
@@ -277,12 +286,17 @@ pub fn validate_ballot_box_blank_ballots(
         .then(|| distinct_values.into_iter().next())
         .flatten();
 
-    let contest_count = contest_sheets.len() as u64;
+    let contest_count = contest_sheets.len() as u128;
     let blank_votes_per_contest: Vec<u64> = contest_sheets
         .iter()
         .map(|sheet| sheet.total_blank_votes.unwrap_or(0))
         .collect();
-    let sum_blank_votes: u64 = blank_votes_per_contest.iter().sum();
+    // Inclusion-exclusion uses sums and products across contests. Those can
+    // exceed u64 even when the final intersection is a valid ballot count.
+    let sum_blank_votes: u128 = blank_votes_per_contest
+        .iter()
+        .map(|&value| u128::from(value))
+        .sum();
     let min_blank_votes =
         blank_votes_per_contest.iter().copied().min().unwrap_or(0);
     let total_ballots = contest_sheets
@@ -291,12 +305,13 @@ pub fn validate_ballot_box_blank_ballots(
         .max()
         .unwrap_or(0);
 
-    let lower_bound = sum_blank_votes
-        .saturating_sub(contest_count.saturating_sub(1) * total_ballots);
-    let upper_bound = min_blank_votes;
+    let lower_bound = sum_blank_votes.saturating_sub(
+        contest_count.saturating_sub(1) * u128::from(total_ballots),
+    );
+    let upper_bound = u128::from(min_blank_votes);
 
     if let Some(value) = box_blank_ballots {
-        if value < lower_bound || value > upper_bound {
+        if u128::from(value) < lower_bound || u128::from(value) > upper_bound {
             errors.push(error(
                 "blank_ballots_out_of_bounds",
                 format!(
@@ -312,7 +327,9 @@ pub fn validate_ballot_box_blank_ballots(
         }
     }
 
-    let pre_filled_value = (lower_bound == upper_bound).then_some(lower_bound);
+    // Equality with the upper bound proves the result fits its public u64 type.
+    let pre_filled_value =
+        (lower_bound == upper_bound).then_some(min_blank_votes);
 
     BallotBoxBlankBallotsCheck {
         errors,
