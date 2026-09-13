@@ -15,7 +15,7 @@ limitations = [
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13292"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
@@ -46,7 +46,7 @@ limitations = [
     "Native default backend only; optional backends, rayon and WASM require separate runs.",
     "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13293"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.strand.scope_exceptions]
 "src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
@@ -71,7 +71,7 @@ limitations = [
     "Local in-place PDF rendering is included and requires Chrome; cloud PDF transports and object storage require separate runs.",
     "Existing inline tests and public fixture builders contribute to LLVM's source aggregate; not production-only or branch coverage.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13294"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.velvet.test_environment]
 RUST_TEST_THREADS = "2"
@@ -106,7 +106,7 @@ limitations = [
     "LLVM combines runtime unit-test counters with compiler-time macro expansion counters from the compiled consumer fixtures.",
     "Branch coverage, arbitrary aliases without the Result suffix and the full Windmill/Celery task integration are separate scopes.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13299"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.wrap-map-err.scope_exceptions]
 
@@ -119,7 +119,7 @@ limitations = [
     "Database, Keycloak, broker, storage and complete successful service workflows require local integration fixtures before claiming their coverage.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13295"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.harvest.scope_exceptions]
 "src/routes/mod.rs" = "Module declarations only; registered route implementations are inventoried separately."
@@ -147,7 +147,7 @@ limitations = [
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13296"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.windmill.test_environment]
 KEYCLOAK_DB__HOST = "127.0.0.1"
@@ -200,7 +200,7 @@ limitations = [
     "Live authenticated commands, full election workflows and branch coverage require separate evidence.",
     "Existing inline unit tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13297"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.step-cli.scope_exceptions]
 "src/commands/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
@@ -246,7 +246,7 @@ limitations = [
     "Unit tests live outside src so test bodies do not count as production coverage. Native branch coverage and doctests are not measured.",
     "The legacy ignored fixed-port test remains preserved; its behavior is covered by the owned-process integration suite.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13301"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.electoral-log.scope_exceptions]
 "src/client/mod.rs" = "Module declaration only."
@@ -262,7 +262,7 @@ limitations = [
     "Database integration is measured separately by electoral-log; inline tests on the historical base remain counted.",
     "The legacy fixed-port integration test remains ignored; native branches and optional features require separate evidence.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13301"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.electoral-log-native.scope_exceptions]
 "src/client/mod.rs" = "Module declaration only."
