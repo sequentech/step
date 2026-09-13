@@ -16,6 +16,8 @@ use serde_json::{json, Value};
 const TENANT_ID: &str = "tenant-a";
 const OTHER_TENANT_ID: &str = "tenant-b";
 const USER_ID: &str = "test-user";
+// Update only with a reviewed change to the checked-in route inventory.
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 115;
 
 fn authorization(permissions: &[Permissions]) -> Header<'static> {
     let payload = json!({
@@ -48,6 +50,8 @@ fn accepted_claims(claims: JwtClaims) -> Json<Value> {
 
 #[get("/_status/<code>")]
 fn status_failure(code: u16) -> Status {
+    // Rocket's Status responder returns Err(status) for 4xx/5xx codes, which
+    // invokes the registered catcher. The tests assert its JSON body as well.
     Status::new(code)
 }
 
@@ -103,9 +107,18 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
         .lines()
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
         .collect();
-    assert!(
-        paths.len() >= 90,
+    assert_eq!(
+        paths.len(),
+        EXPECTED_GUARDED_POST_ROUTE_COUNT,
         "a truncated inventory must not weaken this check"
+    );
+    assert_eq!(
+        paths
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len(),
+        paths.len(),
+        "duplicate paths must not hide a missing authorization case"
     );
     for path in paths {
         for authorization in [None, Some("Bearer fixture.e30.fixture")] {

@@ -52,6 +52,7 @@
 /generate-preview-url
 /generate-report
 /generate-template
+/generate-voter-information-letter
 /get-ballot-publication-changes
 /get-custom-url
 /get-document-password
@@ -60,6 +61,7 @@
 /get-realm-attributes
 /get-realm-password-policy
 /get-roles
+/get-support-materials-acknowledgment
 /get-upload-url
 /get-user
 /get-user-profile-attributes
@@ -88,6 +90,7 @@
 /miru/send-transmission-package
 /miru/upload-signature
 /plugin
+/prepare-ballot-publication-preview
 /preview-tally-sheet-import
 /publish-ballot
 /publish-results-website

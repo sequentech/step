@@ -117,6 +117,17 @@ fn audit_rows_preserve_each_typed_field_and_reject_unknown_columns() {
             "statement":"SELECT @value", "user":"fixture-user"
         })
     );
+    // zip() would silently discard either surplus. Require a one-to-one row
+    // shape so corrupted input cannot look like a successfully decoded audit.
+    let mut extra_column = row.clone();
+    extra_column.columns.push("(fixture.unmatched)".into());
+    assert!(PgAuditRow::try_from(&extra_column).is_err());
+    let mut extra_value = row.clone();
+    extra_value.values.push(SqlValue {
+        value: Some(Value::N(99)),
+    });
+    assert!(PgAuditRow::try_from(&extra_value).is_err());
+
     // An unexpected schema must fail explicitly, rather than quietly relabeling
     // the value as another audit field.
     row.columns[0] = "(fixture.unexpected)".into();

@@ -178,6 +178,11 @@ impl TryFrom<&Row> for PgAuditRow {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        // zip() stops at the shorter input. Reject a malformed row before it
+        // can silently drop an audit column or value.
+        if row.columns.len() != row.values.len() {
+            return Err(anyhow!("audit row column and value counts differ"));
+        }
         let mut id = 0;
         let _audit_type = String::from("");
         let mut class = String::from("");
