@@ -767,6 +767,9 @@ fn resolve_import_document(
                 sha256: Some(actual_sha256),
             })
         }
+        (None, Some(existing_document_id)) if existing_document_id.trim().is_empty() => {
+            Err(Box::from("document id must not be empty"))
+        }
         (None, Some(existing_document_id)) => Ok(ImportDocument {
             document_id: existing_document_id.to_string(),
             sha256: normalize_sha256(sha256)?,
