@@ -22,15 +22,16 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **302 passing tests**, **77.23% line
-coverage** and **58.00% function coverage**. Its native aggregate includes inline
+The `default_features,keycloak` profile has **391 passing tests**, **94.01% line
+coverage** and **79.86% function coverage**. Its native aggregate includes inline
 test code; standalone fixtures and test files are excluded. It is not yet a
 production-only or actual branch score.
 
-Improving coverage requires tests for the unexercised Keycloak operations, ballot
-configuration and state transitions, codec failure paths, scheduling and plaintext
-interpretation. It also requires separate profiles for WASM and optional services,
-and a complete classification of source files missing from the LLVM report.
+The tests cover local Keycloak HTTP operations and token caches, voting-state
+transitions, malformed ballot boundaries, scheduling and plaintext interpretation.
+Remaining work includes further failure cases, database mapping, integration with
+a running identity provider, separate WASM/service profiles and classification of
+source files missing from the LLVM report.
 
 The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
 contains the uncovered-line breakdown, tested contracts and remaining feature work.

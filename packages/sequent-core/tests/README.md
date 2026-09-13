@@ -29,6 +29,20 @@ identity-provider integration and browser/WASM verification are separate scopes.
 | `identity_inputs.rs` | Reject malformed claims and unrepresentable timestamps; check authentication freshness, calendar boundaries and consistent identifier replacement. |
 | `tally_arithmetic_boundaries.rs` | Reject wrapped vote totals, accept valid multi-mark totals above u64, and preserve exact blank-ballot intersection bounds. |
 
+| `codec_boundaries.rs` | Decode independent vectors; reject duplicate selections, exhausted serial numbers, invalid ranks and malformed write-in bytes. |
+| `contest_policy_contracts.rs` | Check candidate-type limits, warning channels, counting algorithms, tally operations and weighted batches. |
+| `keycloak_http.rs` | Inspect real HTTP paths, query parameters, payloads and rejected writes against a bounded local peer. |
+| `keycloak_configuration.rs` | Check realm configuration, credential encoding, cache isolation/expiry and confidentiality of token and request diagnostics. |
+| `keycloak_value_contracts.rs` | Validate password-generation limits and preserve user attributes and profile constraints. |
+| `model_contracts.rs` | Validate persisted nested configuration and ceremony, tally, result and event-policy defaults. |
+| `plaintext_display.rs` | Check voting layouts, displayed points and invalid-versus-blank selections. |
+| `policy_wire_format.rs` | Pin JSON policy names and Borsh discriminants used in published ballot styles. |
+| `presentation_contracts.rs` | Check translated-name fallbacks, languages and presentation policies. |
+| `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; claims parsing does not verify signatures. |
+| `scheduled_dates.rs` | Filter by tenant, event, election and task; preserve missing dates and reject malformed payloads. |
+| `utility_contracts.rs` | Check time, authentication URLs, numeric ordering, external configuration and file-integrity errors. |
+| `voting_state.rs` | Check channel transitions, first-transition dates and early-voting closure. |
+
 The mixed-radix unit test uses independently specified vectors for legacy and
 expanded-capacity encoding, with decline disabled and enabled. Unordered IDs,
 unset interior slots, invalid empty contests and trailing padding cannot shift
@@ -43,50 +57,31 @@ Payload errors describe the length without including plaintext contents.
 
 ## Coverage and remaining work
 
-The native `default_features,keycloak` profile runs **302 passing tests, none
-ignored**. Its measured source coverage is **77.23% lines** and **58.00% functions**.
+The native `default_features,keycloak` profile runs **391 passing tests, none
+ignored**. Its measured source coverage is **94.01% lines** and **79.86% functions**.
 LLVM regions are measured separately; actual branch coverage is not measured by
 this stable native profile.
 
-The objective is confidence in the package contracts, with high coverage as a
-check on missing tests. A justified residual gap is acceptable when another test
-would add little confidence. The current gaps fall into three groups:
+The suite uses bounded local HTTP peers for Keycloak and Rocket dispatch for
+request guards. It verifies request payloads, authentication failures, token-cache
+isolation and expiry without contacting a production identity provider. These
+checks complement, but do not replace, integration against a running Keycloak.
 
-1. **Compiled code without tests.** The largest gaps are below. Most pure helpers
-   can be exercised directly; HTTP clients need controlled local responses and
-   real Keycloak integration for protocol and permission behavior.
-2. **Disabled or unreferenced modules.** The report inventories 47 files with no
-   LLVM measurement. These include runtime code outside the selected features and other source
-   requiring classification;
-   absent measurements are not evidence of coverage.
-3. **Measurement boundaries.** Standalone fixture and test files are excluded.
-   Inline unit tests in mixed source files remain in the aggregate, so the result
-   is not yet a production-only percentage. Use target-specific instrumentation to assess
-   actual branches and WASM execution.
+The report has **737 uncovered measured lines**. Continue with realizable
+failure paths in the remaining Keycloak operations, malformed ballot and audit
+inputs, and any election rules without an independent assertion. Database row
+mapping needs a local PostgreSQL fixture. Generated serialization errors and
+inline test diagnostics require individual review before proposing more tests.
 
-| Area | Uncovered measured lines | Tests needed |
-| --- | ---: | --- |
-| Keycloak services | 1,127 | Realm/user/role/permission operations; client credentials, token refresh, failed HTTP responses and retry behavior. |
-| Ballot model (`ballot.rs`) | 531 | Voting-state transitions, channel-specific dates/status, contest presentation, tie resolutions and serialization boundaries. |
-| Ballot codecs | 330 | Remaining malformed-input, capacity and alternate encoding paths against independent vectors. |
-| Scheduled events | 111 | Tenant/event/election filtering, task names, absent/malformed payloads and scheduled-date selection. |
-| Plaintext interpretation | 82 | Counting-algorithm layouts, point displays and explicit-invalid versus blank selections. |
-| Request guards (`connection.rs`) | 62 | Local Rocket requests with missing/malformed credentials and valid controls; trusted versus untrusted identity inputs. |
+The report inventories **47 files without an LLVM measurement**. Supported WASM,
+area-tree, reports/PDF, S3, SQLite, signature-helper, plugin, logging and probe
+profiles need separate tests and source classification. Feature dependencies
+vary; a single native `--all-features` run cannot establish browser coverage.
 
-The table covers the largest gaps, not the entire uncovered inventory. Reports
-under `coverage/sequent-core/` include every measured file and the full list of
-unaccounted files. Counted lines include code generated by derives where LLVM
-attributes it to source; calling formatting/debug implementations solely to raise
-a score does not verify an election rule.
-
-Feature work needs separate profiles for browser/WASM exports, area trees,
-reports/PDF, S3, SQLite, signature helpers, plugin execution, logging and probes.
-Feature dependencies differ, so a single `--all-features` run cannot establish
-coverage across native and browser targets.
-
-Prioritize missing ballot and scheduling contracts, then local request/Keycloak
-fixtures, then the remaining supported feature profiles. Keep a regression test
-for every discovered defect and verify the relevant package consumers.
+Standalone fixtures and test files are excluded. Inline tests in mixed source
+files remain counted, so this is **not a production-only percentage**. Do not
+exercise test-only tree printing, assertion-failure formatting or routine derives
+solely to raise the score. Keep runtime validation and cryptography measured.
 
 Measure from the repository root:
 
@@ -144,7 +139,8 @@ should be raised merely by exercising unrelated implementation details.
 HTTP failures, token expiry, permission rejection, malformed ballots and arithmetic
 boundaries remain valuable tests even when difficult to set up. Disabled native
 features and WASM are separate coverage obligations, not diminishing-return
-exceptions. Most of the current 2,805-line gap still needs meaningful tests.
+exceptions. Review the remaining measured gaps against concrete behavior before
+closing the package coverage task.
 
 ## Production lint policy
 
