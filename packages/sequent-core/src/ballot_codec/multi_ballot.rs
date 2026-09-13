@@ -992,7 +992,9 @@ impl BallotChoices {
         if unique.len() != num_selected_candidates {
             // The encoder forbids duplicates. Accepting them here could make
             // repeated marks satisfy a minimum that requires distinct choices.
-            return Err("Plaintext vector contained duplicate values".to_string());
+            return Err(
+                "Plaintext vector contained duplicate values".to_string()
+            );
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();

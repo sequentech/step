@@ -147,30 +147,26 @@ impl Alias for Election {
 
 impl Name for Contest {
     fn get_name(&self, language: &str) -> String {
-        let alias = self
-            .alias_i18n
-            .clone()
-            .map(|alias_i18n| {
-                alias_i18n
-                    .get(language)
-                    .cloned()
-                    .flatten()
-                    .or_else(|| alias_i18n.get(DEFAULT_LANG).cloned().flatten())
-            })
-            .flatten()
-            .or_else(|| self.alias.clone());
-        let name = self
-            .name_i18n
-            .clone()
-            .map(|name_i18n| {
-                name_i18n
-                    .get(language)
-                    .cloned()
-                    .flatten()
-                    .or_else(|| name_i18n.get(DEFAULT_LANG).cloned().flatten())
-            })
-            .flatten()
-            .or_else(|| self.name.clone());
+        let alias =
+            self.alias_i18n
+                .clone()
+                .map(|alias_i18n| {
+                    alias_i18n.get(language).cloned().flatten().or_else(|| {
+                        alias_i18n.get(DEFAULT_LANG).cloned().flatten()
+                    })
+                })
+                .flatten()
+                .or_else(|| self.alias.clone());
+        let name =
+            self.name_i18n
+                .clone()
+                .map(|name_i18n| {
+                    name_i18n.get(language).cloned().flatten().or_else(|| {
+                        name_i18n.get(DEFAULT_LANG).cloned().flatten()
+                    })
+                })
+                .flatten()
+                .or_else(|| self.name.clone());
 
         alias.or(name).unwrap_or("-".into())
     }

@@ -152,9 +152,8 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
     // Token responses contain secrets, including malformed responses.
-    let credentials: KeycloakAdminToken =
-        deserialize_str(&text)
-            .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
+    let credentials: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(connection::AuthHeaders {
@@ -171,9 +170,8 @@ pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
     // Token responses contain secrets, including malformed responses.
-    let credentials: KeycloakAdminToken =
-        deserialize_str(&text)
-            .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
+    let credentials: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(credentials)
 }
@@ -191,9 +189,8 @@ pub async fn get_third_party_client_access_token(
 
     let text = get_credentials_inner(login_config).await?;
     // Token responses contain secrets, including malformed responses.
-    let keycloak_adm_tkn: KeycloakAdminToken =
-        deserialize_str(&text)
-            .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
+    let keycloak_adm_tkn: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(keycloak_adm_tkn)

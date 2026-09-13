@@ -109,9 +109,8 @@ impl KeycloakAdminClient {
 
         // Resolve every requested permission before writing. Returning success
         // after a failed lookup would silently install only part of the policy.
-        let successful_results = results
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()?;
+        let successful_results =
+            results.into_iter().collect::<Result<Vec<_>, _>>()?;
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
