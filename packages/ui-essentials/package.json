@@ -18,12 +18,16 @@
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "jest",
+    "test": "yarn test:types && jest",
     "storybook": "storybook dev -p 6006 --no-open",
     "build-storybook": "NODE_OPTIONS=--openssl-legacy-provider storybook build",
     "test-storybook": "storybook test",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
-    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
+    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%",
+    "test:coverage": "jest --coverage --runInBand",
+    "test:coverage:baseline": "jest --coverage --runInBand --coverageThreshold \"{}\"",
+    "test:browser": "node --experimental-strip-types --test tests/browser/controls.test.mts",
+    "test:types": "tsc --project tsconfig.tests.json"
   },
   "main": "dist/index.js",
   "type": "module",
@@ -110,7 +114,12 @@
     "ts-loader": "9.5.4",
     "typescript": "^5.9.2",
     "webpack": "5.104.1",
-    "webpack-cli": "6.0.1"
+    "webpack-cli": "6.0.1",
+    "babel-jest": "30.2.0",
+    "jest-environment-jsdom": "30",
+    "@testing-library/user-event": "^14.6.1",
+    "esbuild": "0.25.12",
+    "playwright-core": "1.58.2"
   },
   "eslintConfig": {
     "extends": [
