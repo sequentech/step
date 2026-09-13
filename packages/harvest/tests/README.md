@@ -64,3 +64,26 @@ and an empty ordering map. Publication mappings retain public 4xx explanations
 while replacing internal details with a generic 500 message. Six regressions failed on the original production implementation and pass after
 the small guard/mapping fixes. Follow-up coverage should use existing interfaces;
 service architecture changes solely for testability are outside this slice.
+
+## Measured checkpoint and accepted limits
+
+Source `20cb15c63a6f43edc13336074d5e01c0bdc9944d`, isolated native profile,
+Rust 1.96.0 and cargo-llvm-cov 0.9.1: **43 tests pass, none ignored**;
+**676/3,924 lines (17.23%)**, **64/879 functions (7.28%)** and
+**788/3,455 LLVM regions (22.81%)**. The preceding 34-test suite measured
+651/3,906 lines (16.67%), 63/879 functions (7.17%) and 758/3,437 regions
+(22.05%). Production Clippy and workspace formatting pass with existing
+warnings; 76 coverage-tool tests and Ruff pass.
+
+Low coverage is an accepted limit of this increment. The remaining 3,248 lines
+and 815 functions stay counted. Most route bodies require configured database
+transactions, Keycloak, brokers, storage or worker state; the current denial
+checks exercise their entry guards, not complete service workflows. Functions
+also include generated routing and error closures. The successful role-creation
+protocol control adds assurance even though its containing function was already
+entered by denial tests. No generated functions or uncovered service modules
+were excluded, and no production architecture was rewritten for testability.
+
+Further service-backed coverage needs explicit bounded local fixtures. Actual
+branches, deployed JWT validation and optional feature/target configurations
+remain separate obligations; this native LLVM result does not close them.
