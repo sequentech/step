@@ -66,3 +66,10 @@ do not substitute a deployed election to make a package test pass.
 ## Follow-up contracts
 
 The browser fixture compiles Question with the production TypeScript target before bundling. This reproduced a category toggle that appeared expanded locally while its parent still considered every category collapsed: ES5 computed-key assignment lost __proto__. The handler now writes into a null-prototype object. Four additional component cases exercise individual categories and the aggregate control. 168 unit tests and two browser tests pass; the same 20 pre-existing TypeScript diagnostics remain. Source coverage is 849/2440 lines, 172/555 functions and 479/1714 branches. Full identity/submission workflows remain separate service-fixture obligations.
+
+CI compares actual PR revisions with the same Babel inventory and rejects any
+decrease in lines, statements, functions or branches. At `a657eef`, source
+coverage is 849/2,440 lines, 870/2,503 statements, 172/555 functions and 479/1,714
+branches, with 168 passing unit tests and two browser tests. The production
+ES5 browser fixture reproduces the prototype-like category ID regression before
+the fix. Twenty existing TypeScript diagnostics match the parent; none were added.
