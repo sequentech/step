@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import assert from "node:assert/strict"
 import React, {createRef} from "react"
 import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -29,7 +30,9 @@ function renderDrop(props: DropFileProps) {
             </CustomDropFile>
         </ThemeProvider>
     )
-    return {...view, ref}
+    const input = ref.current
+    assert.ok(input, "CustomDropFile must mount its file input before interaction")
+    return {...view, input}
 }
 
 function fileList(file: File): FileList {
@@ -43,8 +46,7 @@ function fileList(file: File): FileList {
 
 it("opens the native picker from the keyboard and keeps accept on the input", async () => {
     const user = userEvent.setup()
-    const {ref} = renderDrop({handleFiles: jest.fn(), accept: ".json"})
-    const input = ref.current!
+    const {input} = renderDrop({handleFiles: jest.fn(), accept: ".json"})
     const picker = jest.spyOn(input, "click").mockImplementation(() => {})
     const button = screen.getByRole("button", {name: "Choose election file"})
     button.focus()
@@ -56,24 +58,26 @@ it("opens the native picker from the keyboard and keeps accept on the input", as
 
 it("forwards actual selected files and permits selecting the same file again", async () => {
     const handleFiles = jest.fn()
-    const {ref} = renderDrop({handleFiles})
+    const {input} = renderDrop({handleFiles})
     const file = new File(['{"election":"synthetic"}'], "election.json", {type: "application/json"})
-    fireEvent.change(ref.current!, {target: {files: fileList(file)}})
+    fireEvent.change(input, {target: {files: fileList(file)}})
     await waitFor(() => expect(handleFiles).toHaveBeenCalledTimes(1))
     expect(handleFiles.mock.calls[0][0].item(0)).toBe(file)
     expect(screen.getByText("election.json")).toBeVisible()
-    await waitFor(() => expect(ref.current).not.toBeDisabled())
+    await waitFor(() => expect(input).not.toBeDisabled())
     fireEvent.click(screen.getByTestId("drop-label-file"))
-    fireEvent.change(ref.current!, {target: {files: fileList(file)}})
+    fireEvent.change(input, {target: {files: fileList(file)}})
     await waitFor(() => expect(handleFiles).toHaveBeenCalledTimes(2))
 })
 
 it("shows drag feedback, handles a drop, and dismisses the overlay when the pointer leaves", async () => {
     const handleFiles = jest.fn()
     const {container} = renderDrop({handleFiles})
-    const form = container.querySelector("form")!
+    const form = container.querySelector("form")
+    assert.ok(form, "The drop target must contain its form")
     fireEvent.dragEnter(form)
-    const overlay = container.querySelector(".drag-file-element")!
+    const overlay = container.querySelector(".drag-file-element")
+    assert.ok(overlay, "Dragging a file must display the drop overlay")
     expect(overlay).toBeInTheDocument()
     fireEvent.dragOver(overlay)
     fireEvent.drop(overlay, {dataTransfer: {files: fileList(new File(["data"], "dropped.json"))}})
@@ -81,18 +85,24 @@ it("shows drag feedback, handles a drop, and dismisses the overlay when the poin
     expect(screen.getByText("dropped.json")).toBeVisible()
     expect(container.querySelector(".drag-file-element")).toBeNull()
     fireEvent.dragEnter(form)
-    fireEvent.dragLeave(container.querySelector(".drag-file-element")!)
+    const nextOverlay = container.querySelector(".drag-file-element")
+    assert.ok(nextOverlay, "A new drag must recreate the drop overlay")
+    fireEvent.dragLeave(nextOverlay)
     expect(container.querySelector(".drag-file-element")).toBeNull()
 })
 
 it("ignores cancellation and empty drops without invoking the importer", () => {
     const handleFiles = jest.fn()
-    const {ref, container} = renderDrop({handleFiles})
-    fireEvent.change(ref.current!, {target: {files: null}})
-    fireEvent.dragEnter(container.querySelector("form")!)
-    fireEvent.drop(container.querySelector(".drag-file-element")!, {dataTransfer: {files: []}})
+    const {input, container} = renderDrop({handleFiles})
+    fireEvent.change(input, {target: {files: null}})
+    const form = container.querySelector("form")
+    assert.ok(form, "The drop target must contain its form")
+    fireEvent.dragEnter(form)
+    const overlay = container.querySelector(".drag-file-element")
+    assert.ok(overlay, "Dragging a file must display the drop overlay")
+    fireEvent.drop(overlay, {dataTransfer: {files: []}})
     expect(handleFiles).not.toHaveBeenCalled()
-    expect(fireEvent.submit(container.querySelector("form")!)).toBe(false)
+    expect(fireEvent.submit(form)).toBe(false)
 })
 
 it("reports a failed importer and allows a subsequent retry", async () => {
@@ -105,13 +115,13 @@ it("reports a failed importer and allows a subsequent retry", async () => {
         })
         .mockRejectedValueOnce(new Error("import failed"))
         .mockResolvedValue(undefined)
-    const {ref} = renderDrop({handleFiles, errorMessage: "Could not import this file"})
+    const {input} = renderDrop({handleFiles, errorMessage: "Could not import this file"})
     const files = fileList(new File(["data"], "election.json"))
-    fireEvent.change(ref.current!, {target: {files}})
+    fireEvent.change(input, {target: {files}})
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not import this file")
-    fireEvent.change(ref.current!, {target: {files}})
+    fireEvent.change(input, {target: {files}})
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not import this file")
-    fireEvent.change(ref.current!, {target: {files}})
+    fireEvent.change(input, {target: {files}})
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull())
     expect(handleFiles).toHaveBeenCalledTimes(3)
 })
@@ -124,15 +134,15 @@ it("does not start a second import while the first is pending", async () => {
         finish = resolve
     })
     const handleFiles = jest.fn(() => pending)
-    const {ref} = renderDrop({handleFiles})
+    const {input} = renderDrop({handleFiles})
     const files = fileList(new File(["data"], "election.json"))
-    fireEvent.change(ref.current!, {target: {files}})
-    fireEvent.change(ref.current!, {target: {files}})
+    fireEvent.change(input, {target: {files}})
+    fireEvent.change(input, {target: {files}})
     expect(handleFiles).toHaveBeenCalledTimes(1)
-    expect(ref.current).toBeDisabled()
+    expect(input).toBeDisabled()
     await act(async () => {
         finish()
         await pending
     })
-    expect(ref.current).not.toBeDisabled()
+    expect(input).not.toBeDisabled()
 })

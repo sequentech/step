@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import assert from "node:assert/strict"
 import React from "react"
 import {fireEvent, render, screen} from "@testing-library/react"
 import "@testing-library/jest-dom"
@@ -36,7 +37,8 @@ it("keeps feature and inner hooks on the portalled dialog and its real controls"
         </ThemeProvider>
     )
     const dialog = screen.getByRole("dialog", {name: "Receipt help"})
-    const portal = dialog.closest(".receipt-help-dialog")!
+    const portal = dialog.closest(".receipt-help-dialog")
+    assert.ok(portal, "The dialog must carry its feature hook on the portal")
     expect(container.querySelector(".receipt-help-dialog")).toBeNull()
     expect(portal).toHaveClass("dialog")
     expect(dialog).toHaveClass("dialog-paper")

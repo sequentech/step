@@ -92,9 +92,9 @@ beforeEach(async () => {
 after(async () => {
     await browser?.close()
     if (server?.listening)
-        await new Promise<void>((resolve, reject) =>
+        await new Promise<void>((resolve, reject) => {
             server.close((error) => (error ? reject(error) : resolve()))
-        )
+        })
 })
 
 // The browser supplies real File/FileList, keyboard events and DataTransfer;

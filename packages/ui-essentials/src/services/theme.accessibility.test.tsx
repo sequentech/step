@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import assert from "node:assert/strict"
 import React from "react"
 import {act, fireEvent, render, screen} from "@testing-library/react"
 import "@testing-library/jest-dom"
@@ -25,7 +26,8 @@ describe("shared control contrast", () => {
                 <Checkbox checked={checked} slotProps={{input: {"aria-label": "Declaration"}}} />
             </ThemeProvider>
         )
-        const control = screen.getByRole("checkbox").closest(".MuiCheckbox-root")!
+        const control = screen.getByRole("checkbox").closest(".MuiCheckbox-root")
+        assert.ok(control, "The checkbox must have its styled control wrapper")
         const color = getComputedStyle(control).color
 
         for (const background of ["#ffffff", theme.palette.lightBackground]) {
@@ -40,7 +42,8 @@ describe("shared control contrast", () => {
             </ThemeProvider>
         )
         const checkbox = screen.getByRole("checkbox")
-        const control = checkbox.closest(".MuiCheckbox-root")!
+        const control = checkbox.closest(".MuiCheckbox-root")
+        assert.ok(control, "The checkbox must have its styled control wrapper")
         await focusWithKeyboard(checkbox)
 
         expect(control).toHaveClass("Mui-focusVisible")

@@ -68,3 +68,15 @@ paths rather than exclude them. Progress and measured results are recorded in
 For a fast development loop, run the affected Jest file first. Rerun Voting
 Portal's browser tests when changing shared selection behavior. Preserve a
 failing run against the previous implementation when fixing a regression.
+
+## Assurance lint policy
+
+Run `yarn lint` from this package. The existing frontend lint workflow runs this
+command too. Explicit `any`, non-null assertions (`!`), TypeScript suppression
+comments, unsafe `finally` blocks and returned Promise executor values are
+errors in test files. Required fixture elements use checked lookups:
+a missing element must fail the test with context, rather than bypass the type
+checker or skip the interaction.
+
+Application and generated-code lint debt remains a separate rollout. These rules
+are not yet enforced on all runtime files in this package.

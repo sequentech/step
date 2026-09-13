@@ -75,6 +75,16 @@ export default [
     },
     {
         files: ["**/*.test.*", "**/test/**/*", "**/nightwatch/**/*"],
+        // Start with the tests being added in this coverage PR. Application
+        // and generated GraphQL code still need their own lint-debt cleanup.
+        rules: {
+            // Keep type uncertainty visible and preserve errors at boundaries.
+            "@typescript-eslint/no-explicit-any": "error",
+            "@typescript-eslint/no-non-null-assertion": "error",
+            "@typescript-eslint/ban-ts-comment": "error",
+            "no-unsafe-finally": "error",
+            "no-promise-executor-return": "error",
+        },
         languageOptions: {
             globals: {
                 ...globals.jest,
