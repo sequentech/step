@@ -167,7 +167,7 @@ HASURA_DB__HOST = "127.0.0.1"
         ) -> str:
             commands.append(command)
             if command[:3] == ["cargo", "llvm-cov", "clean"]:
-                self.assertIn("--profraw-only", command)
+                self.assertIn("--workspace", command)
                 raise CoverageError("Stale profile cleanup failed")
             return self.tool_output(command, log, environment)
 
@@ -177,6 +177,8 @@ HASURA_DB__HOST = "127.0.0.1"
         self.assertFalse(any("--tests" in command for command in commands))
 
     def test_successful_run_cleans_before_collecting_new_counters(self) -> None:
+        # Clearing counters alone retains binaries from old feature profiles.
+        # Their source regions must not contaminate the new denominator.
         commands = []
 
         def record(command: list[str], log: Path, environment: dict[str, str]) -> str:
@@ -185,7 +187,7 @@ HASURA_DB__HOST = "127.0.0.1"
 
         with patch.object(run, "execute", side_effect=record):
             self.assertEqual(run.measure("sequent-core", False, True), 0)
-        cleanup = commands.index(["cargo", "llvm-cov", "clean", "--profraw-only"])
+        cleanup = commands.index(["cargo", "llvm-cov", "clean", "--workspace"])
         collect = next(
             index for index, command in enumerate(commands) if "--tests" in command
         )
