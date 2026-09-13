@@ -214,7 +214,6 @@ pub fn prepare_scheduled_dates(
             };
             if !date_event_processors.contains(&event_processor)
                 || (se_election_id.is_some()
-                    && election_id.is_some()
                     && se_election_id.as_deref() != election_id)
             {
                 return None;

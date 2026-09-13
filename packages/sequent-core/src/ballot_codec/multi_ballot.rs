@@ -29,7 +29,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
-use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
 
 fn is_candidate_selected(
@@ -315,7 +314,9 @@ impl<'a> MultiBallotCodecContext<'a> {
         let serial_number = match serial_number_counter {
             Some(serial_number) => {
                 let sn = Some(format!("{:09}", *serial_number));
-                *serial_number += 1;
+                *serial_number = serial_number
+                    .checked_add(1)
+                    .ok_or("Ballot serial number counter exhausted")?;
                 sn
             }
             None => None,
@@ -790,7 +791,7 @@ impl BallotChoices {
     /// Structural codec errors still short-circuit decoding:
     ///
     /// * The number of overall choices does not match the expected layout.
-    /// * A contest choice is out of range for the contest's candidate set.
+    /// * A contest choice is out of range or repeats another selected candidate.
     /// * There is an integer conversion error in a layout-defining value.
     ///
     /// Ballot policy checks, including min/max/under/blank/invalid vote
@@ -961,7 +962,7 @@ impl BallotChoices {
             next_choices.push(choice);
         }
 
-        // Duplicate values will be ignored
+        // Track distinct selections for the duplicate check below.
         let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
         decoded_contest.choices = unique.clone().into_iter().collect();
@@ -988,9 +989,11 @@ impl BallotChoices {
             + usize::from(is_explicit_blank);
 
         if unique.len() != num_selected_candidates {
-            // FIXME decide if we do something here
-            // currently duplicates will be silently ignored, unless
-            // they lead to fewer than min_votes values
+            // The encoder forbids duplicates. Accepting them here could make
+            // repeated marks satisfy a minimum that requires distinct choices.
+            return Err(
+                "Plaintext vector contained duplicate values".to_string()
+            );
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();
@@ -1162,17 +1165,21 @@ impl BallotChoices {
         bases: &Vec<u64>,
         encoded_value: &BigUint,
     ) -> Result<Vec<u64>, String> {
+        if bases.contains(&0) {
+            return Err("Mixed-radix bases must be positive".to_string());
+        }
         let mut values: Vec<u64> = vec![];
         let mut accumulator: BigUint = encoded_value.clone();
         let mut index = 0usize;
 
         while accumulator > Zero::zero() {
-            let base: BigUint = bases[index].to_biguint().ok_or_else(|| {
-                format!(
-                    "Error converting to biguint: bases[index={index:?}]={val}",
-                    val = bases[index]
-                )
+            // A valid envelope can still contain a value larger than this
+            // ballot's layout. Reject it before indexing beyond the last slot.
+            let base = bases.get(index).ok_or_else(|| {
+                "Encoded value exceeds the mixed-radix ballot capacity"
+                    .to_string()
             })?;
+            let base = BigUint::from(*base);
 
             let remainder = &accumulator % &base;
             values.push(remainder.to_u64().ok_or_else(|| {

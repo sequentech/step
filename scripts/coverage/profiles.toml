@@ -12,12 +12,32 @@ features = ["default_features", "keycloak"]
 limitations = [
     "Native library and integration tests; matches the existing Rust CI feature selection.",
     "WASM, reports/S3, SQLite, signatures and plugin runtime configurations require separate runs.",
-    "Stable LLVM includes inline unit-test code; move tests to separate *_tests.rs files before claiming production-only coverage.",
+    "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13292"
 
+# Exact filenames prevent a future production file from disappearing behind
+# a fixtures/** wildcard. Each exclusion is visible in every run's summary.
+[profiles.sequent-core.excluded_files]
+"src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
+"src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
+"src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
+
+# These files have no measured executable bodies. If one gains executable code,
+# the reporter rejects the exception instead of hiding its new implementation.
 [profiles.sequent-core.scope_exceptions]
+"src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
+"src/ballot_verifier.rs" = "Imports only; no executable implementation."
+"src/election_config/mod.rs" = "Module declarations and re-exports."
+"src/fixtures/mod.rs" = "Fixture module declarations only."
+"src/lib.rs" = "Crate and module declarations only."
+"src/serialization/mod.rs" = "Serialization module declarations only."
+"src/services/mod.rs" = "Service module declarations only."
+"src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
+"src/types/mod.rs" = "Type module declarations only."
+"src/types/hasura/mod.rs" = "Hasura module declarations only."
+"src/util/mod.rs" = "Utility module declarations only."
 
 [profiles.strand]
 package = "strand"
