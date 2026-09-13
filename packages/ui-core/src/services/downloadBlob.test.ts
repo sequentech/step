@@ -59,3 +59,34 @@ it.each([false, true])(
         expect(document.querySelector("a")).toBeNull()
     }
 )
+
+it("propagates object-URL allocation failure without creating a download", async () => {
+    const failure = new Error("object URL allocation failed")
+    const create = jest.fn<typeof URL.createObjectURL>().mockImplementation(() => {
+        throw failure
+    })
+    const revoke = jest.fn<typeof URL.revokeObjectURL>()
+    Object.defineProperty(URL, "createObjectURL", {configurable: true, value: create})
+    Object.defineProperty(URL, "revokeObjectURL", {configurable: true, value: revoke})
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click")
+    await expect(downloadBlob(new Blob(["synthetic"]), "export.csv")).rejects.toBe(failure)
+    expect(click).not.toHaveBeenCalled()
+    expect(revoke).not.toHaveBeenCalled()
+    expect(document.querySelector("a")).toBeNull()
+})
+
+it("releases the allocated URL when the document rejects the link", async () => {
+    const failure = new Error("document insertion failed")
+    const create = jest.fn<typeof URL.createObjectURL>().mockReturnValue("blob:pending-export")
+    const revoke = jest.fn<typeof URL.revokeObjectURL>()
+    Object.defineProperty(URL, "createObjectURL", {configurable: true, value: create})
+    Object.defineProperty(URL, "revokeObjectURL", {configurable: true, value: revoke})
+    jest.spyOn(document.body, "appendChild").mockImplementation(() => {
+        throw failure
+    })
+    const click = jest.spyOn(HTMLAnchorElement.prototype, "click")
+    await expect(downloadBlob(new Blob(["synthetic"]), "export.csv")).rejects.toBe(failure)
+    expect(click).not.toHaveBeenCalled()
+    expect(revoke).toHaveBeenCalledTimes(1)
+    expect(revoke).toHaveBeenCalledWith("blob:pending-export")
+})

@@ -416,7 +416,15 @@ impl RunoffStatus {
                     .tied_candidate_ids
                     .iter()
                     .all(|id| candidates_to_eliminate.contains(id))
-                && data.resolved_by_candidate_id.is_some()
+                // Equal lengths plus one-way membership still accepts a
+                // duplicate in place of a tied candidate. Require both ways.
+                && candidates_to_eliminate
+                    .iter()
+                    .all(|id| data.tied_candidate_ids.contains(id))
+                && data
+                    .resolved_by_candidate_id
+                    .as_ref()
+                    .is_some_and(|winner| candidates_to_eliminate.contains(winner))
         });
 
         // If there is an existing resolution

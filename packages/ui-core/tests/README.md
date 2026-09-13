@@ -59,3 +59,7 @@ Production source rejects explicit `any`, non-null assertions (`!`), TypeScript
 suppression comments, unsafe `finally` blocks and returned Promise executor
 values. Unit and browser tests retain their existing assertion and fixture style;
 these additional production restrictions do not apply to tests or stories.
+
+## Follow-up contracts
+
+Two additional resource-failure controls exercise object-URL allocation and DOM insertion failures, asserting the original error and exact cleanup. The 217-test suite, type/lint checks and four real Chromium/WASM tests pass. Source metrics remain 736/741 lines, 176/177 functions and 329/343 branches. These paths add failure evidence even where line counters were already covered.

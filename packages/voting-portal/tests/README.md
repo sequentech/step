@@ -62,3 +62,7 @@ If the browser fixture cannot render, the runner includes its browser errors
 alongside the locator failure. First check that the local WASM archive is
 installed and that the Chromium executable is available. Keep the fixture local;
 do not substitute a deployed election to make a package test pass.
+
+## Follow-up contracts
+
+The browser fixture compiles Question with the production TypeScript target before bundling. This reproduced a category toggle that appeared expanded locally while its parent still considered every category collapsed: ES5 computed-key assignment lost __proto__. The handler now writes into a null-prototype object. Four additional component cases exercise individual categories and the aggregate control. 168 unit tests and two browser tests pass; the same 20 pre-existing TypeScript diagnostics remain. Source coverage is 849/2440 lines, 172/555 functions and 479/1714 branches. Full identity/submission workflows remain separate service-fixture obligations.

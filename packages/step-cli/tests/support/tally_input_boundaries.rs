@@ -121,3 +121,52 @@ fn partial_graphql_data_with_errors_is_not_reported_as_success() {
         response_data(response).expect_err("partial data cannot prove the operation completed");
     assert!(error.to_string().contains("approval failed"));
 }
+
+#[test]
+fn empty_document_references_are_rejected_before_network_access() {
+    for document in ["", " ", "\t\n"] {
+        let error = resolve_import_document("event-a", None, Some(document), None, false)
+            .err()
+            .expect("an empty reference cannot identify an uploaded document");
+        assert_eq!(error.to_string(), "document id must not be empty");
+    }
+    let document =
+        resolve_import_document("event-a", None, Some("document-7"), None, false).unwrap();
+    assert_eq!(document.document_id, "document-7");
+    assert_eq!(document.sha256, None);
+}
+
+#[test]
+fn json_import_rejects_trailing_documents_and_invalid_utf8_without_losing_valid_nulls() {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("content.json");
+    fs::write(&file, b"{\"blank_ballots\":null,\"total_votes\":0} \n").unwrap();
+    assert_eq!(
+        read_json_file(&file).unwrap(),
+        json!({"blank_ballots":null,"total_votes":0})
+    );
+    for bytes in [
+        b"{\"total_votes\":0} {\"total_votes\":9}".as_slice(),
+        b"{\"name\":\"\xff\"}".as_slice(),
+    ] {
+        fs::write(&file, bytes).unwrap();
+        let error = read_json_file(&file).unwrap_err();
+        assert!(
+            error.downcast_ref::<serde_json::Error>().is_some(),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn empty_files_have_the_standard_sha256_and_directories_preserve_read_errors() {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("empty.csv");
+    fs::write(&file, []).unwrap();
+    assert_eq!(
+        sha256_file(&file).unwrap(),
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    );
+    let error = sha256_file(directory.path()).unwrap_err();
+    assert!(error.downcast_ref::<std::io::Error>().is_some(), "{error}");
+}

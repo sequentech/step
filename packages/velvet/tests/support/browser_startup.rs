@@ -14,12 +14,16 @@ fn chrome_can_render_a_blank_page_with_the_pdf_runtime_flags() {
     let directory = tempfile::tempdir().unwrap();
     let stdout = directory.path().join("page.html");
     let stderr = directory.path().join("chrome.log");
-    let mut child = Command::new("google-chrome-stable")
+    let browser = headless_chrome::browser::default_executable()
+        .expect("install Chrome/Chromium or configure CHROME before running PDF tests");
+    let mut child = Command::new(browser)
         .args([
             "--headless",
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
+            "--single-process",
+            "--no-zygote",
             "--enable-logging=stderr",
             "--dump-dom",
             "about:blank",

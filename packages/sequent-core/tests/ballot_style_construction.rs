@@ -33,6 +33,7 @@ fn fixture() -> Value {
             {"id": "contest-a", "tenant_id": TENANT, "election_event_id": EVENT, "election_id": ELECTION,
                 "counting_algorithm": "plurality-at-large", "min_votes": 1, "max_votes": 2,
                 "is_encrypted": true, "winning_candidates_num": 2,
+                "created_at": "2026-09-13T14:30:00+02:00",
                 "presentation": {"i18n": {"fr": {"name": "Conseil", "alias": "Équipe"}}},
                 "tally_configuration": {"tie_breaking_policy": "external-procedure"}},
             {"id": "foreign", "tenant_id": TENANT, "election_event_id": EVENT, "election_id": "other-election",
@@ -117,6 +118,10 @@ fn a_style_keeps_only_its_election_and_orders_candidates_by_identity() {
         Some(TieBreakingPolicy::EXTERNAL_PROCEDURE)
     );
     assert!(council.is_encrypted);
+    assert_eq!(
+        council.created_at.as_deref(),
+        Some("2026-09-13T12:30:00+00:00")
+    );
     assert!(style.contests[1].candidates.is_empty());
     assert_eq!(style.contests[1].winning_candidates_num, 1);
     let key = style.public_key.unwrap();

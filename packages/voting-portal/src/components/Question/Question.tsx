@@ -493,10 +493,14 @@ export const Question: React.FC<IQuestionProps> = ({
                                             setIsTouched={setIsTouched}
                                             externalExpanded={getExpanded(categoryName)}
                                             onExpandedChange={(expanded) =>
-                                                setExpandedStates((prev) => ({
-                                                    ...prev,
-                                                    [categoryName]: expanded,
-                                                }))
+                                                setExpandedStates((prev) => {
+                                                    // Keep authored keys safe after TypeScript's
+                                                    // ES5 object-spread transformation as well.
+                                                    const next: Record<string, boolean> =
+                                                        Object.assign(Object.create(null), prev)
+                                                    next[categoryName] = expanded
+                                                    return next
+                                                })
                                             }
                                         />
                                     )

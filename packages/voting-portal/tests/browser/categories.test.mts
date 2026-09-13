@@ -4,6 +4,8 @@
 import assert from "node:assert/strict"
 import {readFile} from "node:fs/promises"
 import {createServer, type Server} from "node:http"
+import {dirname} from "node:path"
+import ts from "typescript"
 import {createRequire} from "node:module"
 import {fileURLToPath} from "node:url"
 import {after, before, beforeEach, test} from "node:test"
@@ -21,7 +23,36 @@ const browserErrors: string[] = []
 
 before(
     async () => {
+        const config = ts.readConfigFile(localFile("../../tsconfig.json"), ts.sys.readFile)
+        assert.equal(config.error, undefined)
+        const options = ts.convertCompilerOptionsFromJson(
+            config.config.compilerOptions,
+            localFile("../../")
+        )
+        assert.deepEqual(options.errors, [])
         const bundle = await build({
+            plugins: [
+                {
+                    name: "production-question-transform",
+                    setup(builder) {
+                        // esbuild preserves object spread here, but production's
+                        // ES5 TypeScript output assigns computed keys onto objects.
+                        builder.onLoad({filter: /[\\/]Question\.tsx$/}, async ({path}) => ({
+                            contents: ts.transpileModule(await readFile(path, "utf8"), {
+                                fileName: path,
+                                compilerOptions: {
+                                    ...options.options,
+                                    module: ts.ModuleKind.ESNext,
+                                    noEmit: false,
+                                    declaration: false,
+                                },
+                            }).outputText,
+                            loader: "js",
+                            resolveDir: dirname(path),
+                        }))
+                    },
+                },
+            ],
             entryPoints: [localFile("./fixture.tsx")],
             bundle: true,
             write: false,
@@ -145,6 +176,7 @@ test(
         const toggle = page.getByRole("button", {name: "Toggle __proto__", exact: true})
         await toggle.focus()
         await page.keyboard.press("Enter")
+        assert.equal(await toggle.getAttribute("aria-expanded"), "true")
         const choice = page.getByRole("checkbox", {name: /Candidate 0/})
         await choice.check()
         await page.waitForFunction(() =>

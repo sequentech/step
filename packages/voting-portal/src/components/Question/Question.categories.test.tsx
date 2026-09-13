@@ -161,3 +161,21 @@ describe("category expansion through the UI Core consumer", () => {
             expect(Object.getOwnPropertyDescriptor(target, "name")).toEqual(descriptor)
     })
 })
+
+it.each(CATEGORY_NAMES.map((name, index) => [name, index] as const))(
+    "toggles %s independently and keeps the aggregate expansion control current",
+    async (_name, index) => {
+        const user = userEvent.setup()
+        renderCategories(ECollapsibleLists.ENABLED_COLLAPSED)
+        const categories = categoryButtons()
+        expect(categories).toHaveLength(4)
+        await user.click(categories[index])
+        categories.forEach((button, position) =>
+            expect(button).toHaveAttribute("aria-expanded", String(position === index))
+        )
+        const collapseAll = screen.getByRole("button", {name: "candidatesList.collapseAll"})
+        await user.click(collapseAll)
+        categories.forEach((button) => expect(button).toHaveAttribute("aria-expanded", "false"))
+        expect(screen.getByRole("button", {name: "candidatesList.expandAll"})).toBeDefined()
+    }
+)

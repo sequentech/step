@@ -30,13 +30,19 @@ fn publication_errors_keep_their_http_status_and_service_message() {
             ResultsPublicationServiceError::Conflict(MESSAGE.into()),
             Status::Conflict,
         ),
-        (
-            ResultsPublicationServiceError::Internal(anyhow::anyhow!(MESSAGE)),
-            Status::InternalServerError,
-        ),
     ] {
         let (status, message) = map_service_error(error);
         assert_eq!(status, expected);
         assert_eq!(message, MESSAGE);
     }
+}
+
+#[test]
+fn internal_publication_errors_hide_service_details_from_the_response() {
+    let internal = anyhow::anyhow!("synthetic-token=do-not-expose")
+        .context("storage request for private/internal/path failed");
+    let (status, message) =
+        map_service_error(ResultsPublicationServiceError::Internal(internal));
+    assert_eq!(status, Status::InternalServerError);
+    assert_eq!(message, "Internal server error");
 }
