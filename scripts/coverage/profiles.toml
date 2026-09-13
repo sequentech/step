@@ -183,3 +183,49 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/types/hasura_types.rs" = "Type aliases only; no executable function bodies."
 "src/types/miru_plugin.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
 "src/types/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+
+[profiles.step-cli]
+package = "step-cli"
+features = []
+limitations = [
+    "Native binary and subprocess tests with declared default dependencies; synthetic credential files only.",
+    "The existing ignored election end-to-end test needs a complete local service fixture and remains visible.",
+    "Live authenticated commands, full election workflows and branch coverage require separate evidence.",
+    "Existing inline unit tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
+]
+issue = "https://github.com/sequentech/meta/issues/13297"
+
+[profiles.step-cli.scope_exceptions]
+"src/commands/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/tests/e2e.rs" = "Existing ignored test harness, compiled only under cfg(test); needs the election environment and Loadero integration. It is not production command code and was not executed."
+"src/tests/init_loadero.rs" = "Helper for the existing ignored external Loadero test; test-only module with no execution in this native run. No paid external test service was invoked."
+"src/tests/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/types/config.rs" = "Type declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/types/environments.rs" = "Type declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/types/hasura_types.rs" = "Type aliases only; no executable function bodies."
+"src/types/keycloak.rs" = "Type declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/types/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/types/tally.rs" = "Type declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/utils/areas/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/utils/elections/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/utils/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/utils/publication/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/utils/tally/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/utils/trustees/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+
+# These public settings prevent accidental inheritance of deployment endpoints.
+# The current file/input tests do not require a running database.
+[profiles.step-cli.test_environment]
+KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
+HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"

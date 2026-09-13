@@ -214,6 +214,7 @@ profiles state their dependencies explicitly:
 | `wrap-map-err` | Compiler expansion and runtime parser tests. |
 | `harvest` | Local Rocket client and public SQL configuration supplied by the profile; service workers are not started. |
 | `windmill` | PostgreSQL 16 with synthetic fixture credentials, plus native default FIPS dependencies. |
+| `step-cli` | File conversion, import validation and subprocess tests; full election services remain a separate fixture. |
 
 For example, run `python3 scripts/coverage/run.py harvest --baseline --offline`.
 A `test_environment` table contains only public fixture settings and overrides

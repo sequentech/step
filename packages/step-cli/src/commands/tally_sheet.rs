@@ -841,14 +841,15 @@ where
 }
 
 fn response_data<T>(response_body: Response<T>) -> Result<T, Box<dyn Error>> {
-    if let Some(data) = response_body.data {
-        Ok(data)
-    } else if let Some(errors) = response_body.errors {
+    // GraphQL may return data and errors together. A partial mutation result
+    // must not tell an operator that the requested import or approval succeeded.
+    if let Some(errors) = response_body.errors.filter(|errors| !errors.is_empty()) {
         let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-        Err(Box::from(error_messages.join(", ")))
-    } else {
-        Err(Box::from("Unknown error occurred"))
+        return Err(Box::from(error_messages.join(", ")));
     }
+    response_body
+        .data
+        .ok_or_else(|| Box::from("Unknown error occurred"))
 }
 
 fn print_json(message: &str, value: &Value) {
@@ -858,3 +859,7 @@ fn print_json(message: &str, value: &Value) {
         Err(err) => eprintln!("Error! Failed to render JSON: {}", err),
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_input_boundaries.rs"]
+mod boundary_tests;
