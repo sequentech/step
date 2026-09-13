@@ -28,6 +28,9 @@ use sequent_core::plaintext::{
 use serde_json::json;
 use strand::backend::ristretto::RistrettoCtx;
 
+#[path = "support/borsh.rs"]
+mod wire;
+
 const BALLOT: &str = "fixture-ballot";
 const ELECTION: &str = "fixture-election";
 
@@ -208,6 +211,38 @@ fn ballot_input() -> (BallotStyle, Vec<DecodedVoteContest>) {
         "public_key": {"public_key": DEFAULT_PUBLIC_KEY_RISTRETTO_STR, "is_demo": true}
     })).unwrap();
     (style, vec![vote])
+}
+
+#[test]
+fn cryptographic_ballot_records_reject_truncation_and_propagate_sink_errors() {
+    let (style, votes) = ballot_input();
+    let single =
+        encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let audit = single.deserialize_contests::<RistrettoCtx>().unwrap();
+    let signed = SignedHashableBallot::try_from(&single).unwrap();
+    let public = HashableBallot::try_from(&signed).unwrap();
+    let raw =
+        sequent_core::ballot::RawHashableBallot::<RistrettoCtx>::try_from(
+            &public,
+        )
+        .unwrap();
+
+    // Start with real, valid synthetic ciphertext/proof/scalar records. Cutting
+    // every byte exercises failures in each nested cryptographic component, not
+    // just the outer Base64 parser. Explicit wire vectors live in the codec tests.
+    wire::assert_stream_contract(&audit[0], &borsh::to_vec(&audit[0]).unwrap());
+    wire::assert_stream_contract(&raw, &borsh::to_vec(&raw).unwrap());
+    wire::assert_writer_contract(&public, &borsh::to_vec(&public).unwrap());
+
+    let multi =
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let audit = multi.deserialize_contests::<RistrettoCtx>().unwrap();
+    let public = HashableMultiBallot::try_from(&multi).unwrap();
+    let raw =
+        RawHashableMultiBallot::<RistrettoCtx>::try_from(&public).unwrap();
+    wire::assert_stream_contract(&audit, &borsh::to_vec(&audit).unwrap());
+    wire::assert_stream_contract(&raw, &borsh::to_vec(&raw).unwrap());
+    wire::assert_writer_contract(&public, &borsh::to_vec(&public).unwrap());
 }
 
 #[test]

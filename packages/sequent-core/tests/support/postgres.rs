@@ -9,6 +9,8 @@ use std::process::{Command, Output};
 use tempfile::TempDir;
 use tokio_postgres::{Client, Config, NoTls};
 
+const DATABASE_USER: &str = "core_test";
+
 pub struct Postgres {
     directory: TempDir,
     bin: PathBuf,
@@ -40,12 +42,8 @@ impl Postgres {
         let directory = tempfile::tempdir().unwrap();
         checked(
             Command::new(bin.join("initdb"))
-                .args([
-                    "--no-locale",
-                    "--encoding=UTF8",
-                    "--auth=trust",
-                    "--username=core_test",
-                ])
+                .args(["--no-locale", "--encoding=UTF8", "--auth=trust"])
+                .arg(format!("--username={DATABASE_USER}"))
                 .arg("-D")
                 .arg(directory.path().join("data"))
                 .output(),
@@ -78,7 +76,7 @@ impl Postgres {
     ) {
         let (client, connection) = Config::new()
             .host_path(self.directory.path())
-            .user("core_test")
+            .user(DATABASE_USER)
             .dbname("postgres")
             .connect_timeout(std::time::Duration::from_secs(5))
             .connect(NoTls)
