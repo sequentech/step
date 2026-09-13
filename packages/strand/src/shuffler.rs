@@ -447,11 +447,39 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         #[allow(non_snake_case)]
         let N = es.len();
 
-        let h_generators = &generators[1..];
-        let h_initial = &generators[0].clone();
+        // A deserialized proof can contain well-formed vectors with incorrect
+        // lengths. Validate every dimension before indexing or doing group work.
+        if N == 0 || N != e_primes.len() {
+            return Err(StrandError::Generic(
+                "Shuffle inputs must have the same nonzero ciphertext count"
+                    .to_string(),
+            ));
+        }
+        let (h_initial, h_generators) =
+            generators.split_first().ok_or_else(|| {
+                StrandError::Generic("Missing shuffle generators".to_string())
+            })?;
+        if N != h_generators.len() {
+            return Err(StrandError::Generic(
+                "Shuffle generator count does not match ciphertext count"
+                    .to_string(),
+            ));
+        }
+        for (field, length) in [
+            ("permutation commitments", proof.cs.0.len()),
+            ("commitment chain", proof.c_hats.0.len()),
+            ("response chain", proof.s.s_hats.0.len()),
+            ("permutation responses", proof.s.s_primes.0.len()),
+            ("verification commitments", proof.t.t_hats.0.len()),
+        ] {
+            if length != N {
+                return Err(StrandError::Generic(format!(
+                    "Invalid shuffle proof: {field} length {length}, expected {N}"
+                )));
+            }
+        }
 
-        assert!(N == e_primes.len());
-        assert!(N == h_generators.len());
+        let h_initial = h_initial.clone();
 
         let es_bytes = serialize_flatten(&es)?;
         let e_primes_bytes = serialize_flatten(&e_primes)?;
@@ -515,7 +543,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         let c_bar = c_bar_num.divp(&c_bar_den, ctx).modp(ctx);
 
         let c_hat = proof.c_hats.0[N - 1]
-            .divp(&ctx.emod_pow(h_initial, &u), ctx)
+            .divp(&ctx.emod_pow(&h_initial, &u), ctx)
             .modp(ctx);
 
         let y = YChallengeInput {
@@ -555,7 +583,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
             .par()
             .map(|i| {
                 let c_term = if i == 0 {
-                    h_initial
+                    &h_initial
                 } else {
                     &proof.c_hats.0[i - 1]
                 };
