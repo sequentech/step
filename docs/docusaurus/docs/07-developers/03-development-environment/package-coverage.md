@@ -22,9 +22,10 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **302 passing tests**, **80.73% line
-coverage** and **58.38% function coverage**. Its native aggregate includes inline
-test code and fixture helpers; it is not a production-only or actual branch score.
+The `default_features,keycloak` profile has **302 passing tests**, **77.24% line
+coverage** and **58.00% function coverage**. Its native aggregate includes inline
+test code; standalone fixtures and test files are excluded. It is not yet a
+production-only or actual branch score.
 
 Improving coverage requires tests for the unexercised Keycloak operations, ballot
 configuration and state transitions, codec failure paths, scheduling and plaintext
@@ -56,7 +57,8 @@ The command prints its report directory under `coverage/sequent-core/`. Read
 `summary.md` first, then inspect the HTML report or `uncovered-lines.log` to choose
 the next behavior to test. `summary.json` records exact counters, source revision
 and hashes, enabled features, tool versions, test counts and measurement limits.
-The raw LLVM JSON and LCOV files come from the same test execution.
+All exports come from the same test execution. `llvm.json`, HTML and LCOV apply
+the reviewed exclusions; `llvm.raw.json` retains the unfiltered counters.
 
 Run the strict target check with the same command, without `--baseline`:
 
@@ -108,7 +110,12 @@ logic. Strand's initial profile measures its default native backend.
   An exact file may have a reviewed explanation in `scope_exceptions`, for example
   module declarations without executable code or a disabled feature. Exceptions
   stay visible and cannot remove measured code from the denominator.
-- Native stable LLVM coverage includes inline unit-test code and fixture helpers.
+- `excluded_files` lists exact support/test filenames and a reason for each.
+  Core excludes `src/fixtures/ballot_codec.rs`, `src/fixtures/encrypt.rs` and
+  `src/election_config/validate_tests.rs` from JSON, HTML, LCOV and the score.
+  Tests still run. Excluded counters remain visible in `summary.json` and the
+  unfiltered `llvm.raw.json`; base and head use identical exclusions.
+- Native stable LLVM coverage still includes inline unit-test code.
   This can inflate the number. Prefer new tests in `tests/` or separate
   `*_tests.rs` files; account for those files explicitly in the scope review.
   Do not call the existing aggregate “production-only coverage.”
