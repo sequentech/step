@@ -74,3 +74,11 @@ and malformed records exercise real wire contracts, with successful decryption
 and proof verification controls. Tests do not call formatting or cloning merely
 for a score. Optional backends, Rayon, WASM, and actual branches remain separate
 measurement obligations.
+
+The stack also makes Core's existing inline round-trip fixture always exercise
+both its marked-empty ballot and mixed valid/explicit-invalid contests. The
+previous random choice of those cases changed two line and nine region counters
+between identical revisions, causing a real CI ratchet failure. Candidate sizes
+and choices still vary; protocol implementations and the strict comparison rule
+are unchanged. The shared hosted setup supplies the compatible pinned browser
+for Velvet consumer tests on this earlier stacked PR as well.
