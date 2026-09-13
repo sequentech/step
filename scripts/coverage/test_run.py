@@ -309,6 +309,73 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         with self.assertRaises(FileNotFoundError):
             run.validate_artifacts(output)
 
+    def test_every_visible_export_uses_the_same_fixture_exclusion(self):
+        fixture = self.source.parent / "fixture.rs"
+        fixture.write_text("pub fn fixture() {}\n")
+        self.config.write_text(
+            self.config.read_text()
+            + (
+                "[profiles.sequent-core.excluded_files]\n"
+                '"src/fixture.rs" = "Test data only."\n'
+            )
+        )
+        commands = []
+
+        def tool(command, log, environment):
+            commands.append(command)
+            result = self.tool_output(command, log, environment)
+            if "--json" in command and "llvm.raw.json" in command[-1]:
+                Path(command[-1]).write_text(
+                    json.dumps(
+                        export(
+                            llvm_file(self.source),
+                            llvm_file(fixture, 0),
+                        )
+                    )
+                )
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", False, True), 0)
+        reports = [command for command in commands if "report" in command]
+        raw = [command for command in reports if "llvm.raw.json" in command[-1]]
+        visible = [command for command in reports if command not in raw]
+        self.assertEqual(len(raw), 1)
+        self.assertNotIn("--ignore-filename-regex", raw[0])
+        self.assertEqual(len(visible), 4)
+        self.assertTrue(
+            all("--ignore-filename-regex" in command for command in visible)
+        )
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(summary["metrics"]["lines"]["count"], 100)
+        self.assertEqual(
+            summary["excluded_files"], {"src/fixture.rs": "Test data only."}
+        )
+        self.assertIn("src/fixture.rs", run.markdown_summary("sequent-core", summary))
+
+    def test_invalid_exclusion_fails_before_starting_cargo(self):
+        self.config.write_text(
+            self.config.read_text()
+            + ('[profiles.sequent-core.excluded_files]\n"src/*.rs" = "Too broad."\n')
+        )
+        with patch.object(run, "execute") as command:
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+            command.assert_not_called()
+
+    def test_filtered_and_raw_reports_must_describe_the_same_runtime_files(self):
+        def tool(command, log, environment):
+            result = self.tool_output(command, log, environment)
+            if "--json" in command and command[-1].endswith("/llvm.json"):
+                Path(command[-1]).write_text(
+                    json.dumps(export(llvm_file(self.source, 99)))
+                )
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+
 
 class CheckoutIdentityTests(unittest.TestCase):
     """A package-local hash is insufficient when workspace inputs can change."""

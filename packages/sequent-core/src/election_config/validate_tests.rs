@@ -2,6 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Unit-test code.
+// Coverage exclusion: scripts/coverage/profiles.toml.
+
 //! Tests for [`super::validate`].
 //!
 //! Each starts from a bundle that passes and breaks exactly one thing, so a

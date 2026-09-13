@@ -5,9 +5,11 @@
 
 LLVM measures compiled code. A disabled module can be absent altogether, so a
 percentage alone is insufficient: every source file must also be accounted for.
-Exceptions describe files without measurements; they never subtract measured code.
+Scope exceptions explain unmeasured files. Explicit exclusions remove reviewed
+test/support files and retain their counters separately for inspection.
 """
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,11 +36,49 @@ def read_counts(summary: dict[str, Any], metric: str) -> tuple[int, int]:
     return covered, count
 
 
+def validate_exclusions(
+    package: Path, excluded_files: dict[str, str], exceptions: dict[str, str]
+) -> None:
+    """Require exact source files and a reason; patterns cannot hide new code.
+
+    Exclusions and inventory exceptions have different meanings. A file cannot
+    simultaneously be omitted from the report and claimed to have no executable
+    code. Renaming or deleting a file requires updating this reviewed policy.
+    """
+    if not isinstance(excluded_files, dict):
+        raise CoverageError("Coverage exclusions must map exact files to reasons")
+    inventory = {
+        path.relative_to(package).as_posix() for path in (package / "src").rglob("*.rs")
+    }
+    for name, reason in excluded_files.items():
+        if name not in inventory or not isinstance(reason, str) or not reason.strip():
+            raise CoverageError(
+                f"Coverage exclusion needs an existing source file and a reason: {name}"
+            )
+        if name in exceptions:
+            raise CoverageError(
+                f"File cannot be both excluded and a scope exception: {name}"
+            )
+
+
+def exclusion_arguments(package: Path, excluded_files: dict[str, str]) -> list[str]:
+    """Apply the same exact filenames to LLVM JSON, HTML, LCOV and missing lines."""
+    if not excluded_files:
+        return []
+    paths = [
+        re.escape(str((package / name).resolve())) for name in sorted(excluded_files)
+    ]
+    # Anchor both ends: excluding fixtures.rs must not hide fixtures.rs.bak or
+    # another package's file. LLVM accepts a POSIX extended regular expression.
+    return ["--ignore-filename-regex", "^(" + "|".join(paths) + ")$"]
+
+
 def summarize(
     payload: dict[str, Any],
     package: Path,
     minimum: int,
     exceptions: dict[str, str],
+    excluded_files: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Return per-file counters, scope gaps and an exact threshold decision.
 
@@ -67,6 +107,8 @@ def summarize(
         raise CoverageError("Missing LLVM file measurements")
 
     package = package.resolve()
+    excluded_files = {} if excluded_files is None else excluded_files
+    validate_exclusions(package, excluded_files, exceptions)
     source = package / "src"
     inventory = {path.relative_to(package).as_posix() for path in source.rglob("*.rs")}
     for name, reason in exceptions.items():
@@ -77,6 +119,7 @@ def summarize(
 
     totals = {metric: {"covered": 0, "count": 0} for metric in METRICS}
     files: dict[str, Any] = {}
+    excluded_measurements: dict[str, Any] = {}
     for entry in entries:
         if not isinstance(entry, dict) or not isinstance(entry.get("filename"), str):
             raise CoverageError("Invalid LLVM file record")
@@ -90,7 +133,7 @@ def summarize(
             continue
 
         name = path.relative_to(package).as_posix()
-        if name not in inventory or name in files:
+        if name not in inventory or name in files or name in excluded_measurements:
             raise CoverageError(f"Unknown or duplicate source file: {name}")
         summary = entry.get("summary")
         if not isinstance(summary, dict):
@@ -100,8 +143,12 @@ def summarize(
         for metric in METRICS:
             covered, count = read_counts(summary, metric)
             file_metrics[metric] = {"covered": covered, "count": count}
-            totals[metric]["covered"] += covered
-            totals[metric]["count"] += count
+        if name in excluded_files:
+            excluded_measurements[name] = file_metrics
+            continue
+        for metric, counts in file_metrics.items():
+            totals[metric]["covered"] += counts["covered"]
+            totals[metric]["count"] += counts["count"]
         if name in exceptions and any(
             value["count"] > 0 for value in file_metrics.values()
         ):
@@ -120,7 +167,9 @@ def summarize(
         }
         for metric, counts in totals.items()
     }
-    unaccounted = sorted(inventory - files.keys() - exceptions.keys())
+    unaccounted = sorted(
+        inventory - files.keys() - exceptions.keys() - excluded_files.keys()
+    )
     failures = []
     if totals["lines"]["covered"] * 100 < minimum * totals["lines"]["count"]:
         failures.append(f"Measured line coverage is below {minimum}%")
@@ -135,6 +184,8 @@ def summarize(
         "source_files": sorted(inventory),
         "unaccounted_files": unaccounted,
         "scope_exceptions": exceptions,
+        "excluded_files": dict(sorted(excluded_files.items())),
+        "excluded_measurements": dict(sorted(excluded_measurements.items())),
         "minimum_lines": minimum,
         "passes": not failures,
         "failures": failures,
