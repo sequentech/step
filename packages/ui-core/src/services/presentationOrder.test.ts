@@ -77,4 +77,19 @@ describe("sortByPresentationOrder", () => {
             sortByPresentationOrder(source, ElectionsOrder.RANDOM, accessors).map((item) => item.id)
         ).toEqual(["z", "a"])
     })
+
+    it("sorts ascending labels stably and accepts a missing display name", () => {
+        const source = [
+            {id: "first", name: "Alpha"},
+            {id: "second", name: "alpha"},
+            {id: "last", name: "Zulu"},
+            {id: "unnamed", name: null},
+        ]
+        expect(
+            sortByPresentationOrder(source, null, {
+                getLabel: (item) => item.name,
+                getPresentation: () => undefined,
+            }).map((item) => item.id)
+        ).toEqual(["unnamed", "first", "second", "last"])
+    })
 })

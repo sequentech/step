@@ -14,6 +14,37 @@ Step's package coverage target is **95% of measured source lines**, aiming for
 packages. Each package remains open until its coverage target and source-scope
 review pass; a successful baseline run does not satisfy that requirement.
 
+## Test UI Core
+
+From `packages/`, install the workspace dependencies and run:
+
+```bash
+yarn --frozen-lockfile
+yarn --cwd ui-core test:types
+yarn --cwd ui-core test:coverage
+yarn --cwd ui-core test:browser
+```
+
+UI Core requires 95% lines, statements, functions and branches. Its HTML report
+is in `packages/ui-core/coverage/`. Source instrumentation includes unimported
+modules and omits only tests and declarations. It runs before Babel generates
+module-export helpers; those helpers are not application branches.
+The existing frontend CI job runs this strict coverage gate and type checking
+through UI Core's `test` script.
+
+The browser suite uses Node 22.22 or newer and installed Google Chrome. Set
+`UI_CORE_CHROME_PATH` to use a different Chromium executable. It serves a temporary
+local fixture, blocks external requests and loads the real pinned Sequent Core
+WASM binary. It checks ballot generation, receipt hashing, decoding, malformed
+ballots, cookie round trips and HTML sanitization. No election server, account,
+secret or paid test service is needed.
+
+The adapter unit tests deliberately stub the WASM boundary to check arguments and
+error handling. Their percentage does not certify the cryptographic implementation;
+the real browser suite and Sequent Core tests provide separate evidence. See the
+[UI Core test guide](https://github.com/sequentech/step/tree/main/packages/ui-core/tests)
+for fixture details. Full voter journeys remain tracked in Meta #13298.
+
 ## Run a package
 
 Use the repository's development environment, Python 3.11 or newer, and the Rust

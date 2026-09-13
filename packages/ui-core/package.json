@@ -18,9 +18,13 @@
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "jest",
+    "test": "yarn test:types && jest --coverage",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
-    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%"
+    "chromatic": "NODE_OPTIONS=--openssl-legacy-provider npx chromatic --project-token=%CHROMATIC_PROJECT_TOKEN%",
+    "test:coverage": "jest --coverage --runInBand",
+    "test:coverage:baseline": "jest --coverage --runInBand --coverageThreshold \"{}\"",
+    "test:browser": "node --experimental-strip-types --test tests/browser/integration.test.ts",
+    "test:types": "tsc --project tsconfig.tests.json"
   },
   "main": "dist/index.js",
   "type": "module",
@@ -42,13 +46,15 @@
     "sequent-core": "file:./rust/sequent-core-0.1.0.tgz"
   },
   "resolutions": {
+    "**/test-exclude/minimatch/brace-expansion": "^5.0.8",
     "braces": "^3.0.3",
     "webpack-dev-server": "^5.2.6",
     "micromatch": "^4.0.8",
     "ws": "^8.21.0",
     "follow-redirects": "^1.16.0",
     "semver": "^7.6.4",
-    "path-to-regexp": "^0.1.13"
+    "path-to-regexp": "^0.1.13",
+    "test-exclude": "^7.0.2"
   },
   "devDependencies": {
     "@babel/cli": "7.12.8",
@@ -87,11 +93,16 @@
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "react-i18next": "15.7.3",
-    "ts-jest": "26.4.4",
     "ts-loader": "9.5.4",
     "typescript": "^5.9.2",
     "webpack": "5.104.1",
-    "webpack-cli": "6.0.1"
+    "webpack-cli": "6.0.1",
+    "babel-jest": "30.2.0",
+    "jest-environment-jsdom": "30",
+    "sequent-core": "file:./rust/sequent-core-0.1.0.tgz",
+    "@testing-library/dom": "^10.4.1",
+    "esbuild": "0.25.12",
+    "playwright-core": "1.58.2"
   },
   "eslintConfig": {
     "extends": [
