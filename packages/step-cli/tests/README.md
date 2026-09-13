@@ -19,6 +19,10 @@ Credential conversion validates the complete CSV before publishing it. Duplicate
 password headers and reserved credential headers are rejected. A successful
 export atomically replaces the destination with a private file; a failed one
 leaves the prior export intact. The CLI reports failures with a nonzero exit code.
+Hashing processes at most 256 rows per batch, preserving source order without
+retaining the entire plaintext census in memory. A failed-writer control counts
+how many records were read; separate 600-row cases check batch order and cleanup
+after a malformed final row.
 
 Import tests compare file hashes with independent vectors, reject contradictory
 sources before upload and refuse partial GraphQL results containing errors.

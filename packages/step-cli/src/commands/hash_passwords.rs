@@ -19,6 +19,7 @@ use tempfile::NamedTempFile;
 
 const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
 const PASSWORD_COLUMN: &str = "password";
+const PASSWORD_BATCH_SIZE: usize = 256;
 const CREDENTIAL_COLUMNS: [&str; 3] = ["password_salt", "hashed_password", "num_of_iterations"];
 pub type Credential = [u8; CREDENTIAL_LEN];
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
@@ -85,38 +86,6 @@ impl HashPasswords {
             new_headers.push_field(name);
         }
 
-        // Parse every row first: a malformed final row must not replace a
-        // previous export or publish a prefix that looks like the whole census.
-        let records: Vec<StringRecord> = rdr.records().collect::<Result<Vec<_>, _>>()?;
-
-        let processed_records: Vec<anyhow::Result<StringRecord>> = records
-            .par_iter()
-            .map(|record| {
-                let password = record.get(password_index).unwrap_or("");
-                let mut salt_bytes: Credential = Default::default();
-                thread_rng().fill(&mut salt_bytes);
-                let password_salt = BASE64_STANDARD.encode(&salt_bytes);
-                let hashed_password =
-                    hash_password(&password.to_string(), &salt_bytes, &self.iterations)?;
-                let new_fields: Vec<&str> = record
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, field)| {
-                        if i != password_index {
-                            Some(field)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                let mut new_record = StringRecord::from(new_fields);
-                new_record.push_field(&password_salt);
-                new_record.push_field(&hashed_password);
-                new_record.push_field(&self.iterations.to_string());
-                Ok(new_record)
-            })
-            .collect();
-
         // A sibling temporary file keeps the final rename on one filesystem.
         // NamedTempFile uses private permissions and removes unfinished output
         // on error; persisting it replaces the destination only after success.
@@ -128,9 +97,7 @@ impl HashPasswords {
         {
             let mut wtr = WriterBuilder::new().from_writer(BufWriter::new(temporary.as_file_mut()));
             wtr.write_record(&new_headers)?;
-            for record in processed_records {
-                wtr.write_record(&record?)?;
-            }
+            write_hashed_records(rdr.records(), &mut wtr, password_index, self.iterations)?;
             wtr.flush()?;
         }
         temporary.as_file().sync_all()?;
@@ -141,18 +108,65 @@ impl HashPasswords {
     }
 }
 
-fn hash_password(password: &String, salt: &[u8], iterations: &NonZeroU32) -> Result<String> {
+/// Bound plaintext retention and parallel hashing to one batch. The caller owns
+/// the temporary file and publishes it only after this entire iterator succeeds.
+fn write_hashed_records<W: std::io::Write>(
+    mut records: impl Iterator<Item = csv::Result<StringRecord>>,
+    writer: &mut csv::Writer<W>,
+    password_index: usize,
+    iterations: NonZeroU32,
+) -> Result<()> {
+    loop {
+        let batch = records
+            .by_ref()
+            .take(PASSWORD_BATCH_SIZE)
+            .collect::<Result<Vec<_>, _>>()?;
+        if batch.is_empty() {
+            return Ok(());
+        }
+        // Indexed parallel iteration preserves source order. Consuming each
+        // record also drops its plaintext when that record has been converted.
+        let processed: Vec<StringRecord> = batch
+            .into_par_iter()
+            .map(|record| hash_record(&record, password_index, iterations))
+            .collect();
+        for record in processed {
+            writer.write_record(&record)?;
+        }
+    }
+}
+
+fn hash_record(
+    record: &StringRecord,
+    password_index: usize,
+    iterations: NonZeroU32,
+) -> StringRecord {
+    let password = record.get(password_index).unwrap_or("");
+    let mut salt: Credential = Default::default();
+    thread_rng().fill(&mut salt);
+    let derived = hash_password(password, &salt, iterations);
+    let mut output = StringRecord::new();
+    for (index, field) in record.iter().enumerate() {
+        if index != password_index {
+            output.push_field(field);
+        }
+    }
+    output.push_field(&BASE64_STANDARD.encode(salt));
+    output.push_field(&derived);
+    output.push_field(&iterations.to_string());
+    output
+}
+
+fn hash_password(password: &str, salt: &[u8], iterations: NonZeroU32) -> String {
     let mut output: Credential = [0u8; CREDENTIAL_LEN];
     pbkdf2::derive(
         PBKDF2_ALGORITHM,
-        *iterations,
+        iterations,
         salt,
         password.as_bytes(),
         &mut output,
     );
-
-    let generated_hash = BASE64_STANDARD.encode(&output);
-    Ok(generated_hash)
+    BASE64_STANDARD.encode(output)
 }
 
 #[cfg(test)]

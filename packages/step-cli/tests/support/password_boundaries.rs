@@ -40,12 +40,7 @@ fn password_derivation_matches_independent_sha256_pbkdf2_vectors() {
         (4096, "xeR41ZKIyEGqUw22hFxMjZYok6ABzk4RpJY4c6qYE0o="),
     ] {
         assert_eq!(
-            hash_password(
-                &"password".into(),
-                b"salt",
-                &NonZeroU32::new(iterations).unwrap()
-            )
-            .unwrap(),
+            hash_password("password", b"salt", NonZeroU32::new(iterations).unwrap()),
             expected
         );
     }
@@ -189,4 +184,89 @@ async fn a_destination_that_is_a_directory_is_preserved_without_temporary_files(
     assert!(fixture.command.run_hash_password().await.is_err());
     assert_eq!(fs::read_to_string(marker).unwrap(), "keep this directory");
     assert_eq!(fs::read_dir(fixture.directory.path()).unwrap().count(), 2);
+}
+
+#[test]
+fn a_failed_writer_stops_reading_before_the_whole_census_is_retained() {
+    use std::cell::Cell;
+    use std::io::{self, Write};
+
+    struct FullDisk;
+    impl Write for FullDisk {
+        fn write(&mut self, _bytes: &[u8]) -> io::Result<usize> {
+            Err(io::Error::new(
+                io::ErrorKind::StorageFull,
+                "synthetic full disk",
+            ))
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    // Count records actually requested, rather than measuring process RSS or
+    // allocator details. A failed first output write must not consume the census.
+    let rows_read = Cell::new(0);
+    let records = (0..2_048).map(|_| {
+        rows_read.set(rows_read.get() + 1);
+        Ok(StringRecord::from(vec!["voter", "synthetic-password"]))
+    });
+    let mut writer = WriterBuilder::new()
+        .buffer_capacity(1)
+        .from_writer(FullDisk);
+    let error =
+        write_hashed_records(records, &mut writer, 1, NonZeroU32::new(1).unwrap()).unwrap_err();
+    assert!(error.to_string().contains("synthetic full disk"));
+    assert!(
+        rows_read.get() <= 256,
+        "read {} rows before noticing the failed writer",
+        rows_read.get()
+    );
+}
+
+#[tokio::test]
+async fn a_late_bad_row_discards_already_processed_batches_and_preserves_the_old_export() {
+    const PREVIOUS: &str = "previous successful export";
+    let mut csv = String::from("username,password\n");
+    for index in 0..600 {
+        csv.push_str(&format!("voter-{index},synthetic-password\n"));
+    }
+    csv.push_str("last,synthetic-password,unexpected-column\n");
+    let fixture = Files::new(&csv);
+    fs::write(&fixture.command.output_file, PREVIOUS).unwrap();
+    assert!(fixture.command.run_hash_password().await.is_err());
+    assert_eq!(
+        fs::read_to_string(&fixture.command.output_file).unwrap(),
+        PREVIOUS
+    );
+    assert_eq!(fs::read_dir(fixture.directory.path()).unwrap().count(), 2);
+}
+
+#[tokio::test]
+async fn multiple_password_batches_preserve_every_row_and_its_order() {
+    let mut csv = String::from("username,password\n");
+    for index in 0..600 {
+        csv.push_str(&format!("voter-{index},synthetic-password\n"));
+    }
+    let fixture = Files::new(&csv);
+    fixture.command.run_hash_password().await.unwrap();
+    let rows = csv::Reader::from_path(&fixture.command.output_file)
+        .unwrap()
+        .records()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(rows.len(), 600);
+    for (index, row) in rows.iter().enumerate() {
+        assert_eq!(&row[0], format!("voter-{index}"));
+        let salt = BASE64_STANDARD.decode(&row[1]).unwrap();
+        let derived = BASE64_STANDARD.decode(&row[2]).unwrap();
+        assert!(pbkdf2::verify(
+            PBKDF2_ALGORITHM,
+            fixture.command.iterations,
+            &salt,
+            b"synthetic-password",
+            &derived
+        )
+        .is_ok());
+    }
 }
