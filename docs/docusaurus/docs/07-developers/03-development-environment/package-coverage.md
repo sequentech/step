@@ -22,22 +22,31 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **391 passing tests**, **94.01% line
-coverage** and **79.86% function coverage**. Its native aggregate includes inline
+The `default_features,keycloak` profile has **418 passing tests**, **95.03% line
+coverage**, **81.71% function coverage** and **94.12% LLVM region coverage**. Its native aggregate includes inline
 test code; standalone fixtures and test files are excluded. It is not yet a
 production-only or actual branch score.
 
-The tests cover local Keycloak HTTP operations and token caches, voting-state
-transitions, malformed ballot boundaries, scheduling and plaintext interpretation.
-Remaining work includes further failure cases, database mapping, integration with
-a running identity provider, separate WASM/service profiles and classification of
-source files missing from the LLVM report.
+The tests cover local Keycloak HTTP operations and token caches, real PostgreSQL
+User row mapping, malformed ballot/audit boundaries, voting state, scheduling and
+presentation data. PostgreSQL tests launch private temporary clusters and require
+`postgresql libpq-dev` or `PG_BIN` pointing to the server binaries; they never use
+an existing database or a production connection string.
+
+Source commit `34514e1734dffb6b62488f753918e4dd195360c2` measures 11,703/12,315
+lines, 1,197/1,465 functions and 14,951/15,885 regions with Rust 1.96.0 and
+cargo-llvm-cov 0.9.1. The native line improvement target is met. Remaining work
+includes realizable failure cases, integration with a running identity provider
+and separate WASM/service profiles. All 47 files missing from the LLVM report
+are classified in the test guide; their outstanding measurements still prevent
+the strict overall target from passing.
 
 The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
 contains the uncovered-line breakdown, tested contracts and remaining feature work.
 It also identifies justified residual gaps: unused test-only fixtures, routine
-generated `Debug`/`Clone` code, declarations without executable bodies and an
-infeasible serialization-error edge. Do not force 100% by adding tests without
+generated `Debug`/`Clone` code, inline test diagnostics, redundant guards after
+immutable validation, declarations without executable bodies and specific
+infeasible serialization/numeric-conversion error edges. Do not force 100% by adding tests without
 a useful behavioral assertion.
 
 Use the repository's development environment, Python 3.11 or newer, and the Rust

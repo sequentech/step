@@ -69,26 +69,33 @@ Payload errors describe the length without including plaintext contents.
 
 ## Coverage and remaining work
 
-The native `default_features,keycloak` profile runs **391 passing tests, none
-ignored**. Its measured source coverage is **94.01% lines** and **79.86% functions**.
-LLVM regions are measured separately; actual branch coverage is not measured by
-this stable native profile.
+The native `default_features,keycloak` profile runs **418 passing tests, none
+ignored**. Source commit `34514e1734dffb6b62488f753918e4dd195360c2` measures
+**11,703/12,315 lines (95.03%)**, **1,197/1,465 functions (81.71%)** and
+**14,951/15,885 LLVM regions (94.12%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
+Production Clippy and workspace formatting pass (existing warnings remain).
+Actual branch coverage is not measured by this stable native profile.
 
 The suite uses bounded local HTTP peers for Keycloak and Rocket dispatch for
 request guards. It verifies request payloads, authentication failures, token-cache
 isolation and expiry without contacting a production identity provider. These
 checks complement, but do not replace, integration against a running Keycloak.
 
-The report has **737 uncovered measured lines**. Continue with realizable
-failure paths in the remaining Keycloak operations, malformed ballot and audit
-inputs, and any election rules without an independent assertion. Database row
-mapping needs a local PostgreSQL fixture. Generated serialization errors and
-inline test diagnostics require individual review before proposing more tests.
+The report has **612 uncovered measured lines** and **268 uncovered functions**.
+The new cases exercise PostgreSQL row mapping, malformed audit payloads and
+presentation data, expired administrative tokens, rejected realm/user writes and
+invalid user locations. Oversized mixed-radix payloads and group updates without
+an id reproduced panics before their fixes; zero radices are also rejected.
+Continue with the remaining realizable Keycloak transport/refresh failures,
+preferential ballot validation and service integration. These remain obligations,
+not exceptions justified by the aggregate percentage.
 
-The report inventories **47 files without an LLVM measurement**. Supported WASM,
-area-tree, reports/PDF, S3, SQLite, signature-helper, plugin, logging and probe
-profiles need separate tests and source classification. Feature dependencies
-vary; a single native `--all-features` run cannot establish browser coverage.
+The report inventories **47 files without an LLVM measurement**, classified
+below. Their supported configurations still need separate measurements; the
+runner continues to list these files as unaccounted rather than treating a prose
+classification as coverage. The native line improvement target is met, but the
+strict overall target remains open. A single native `--all-features` run cannot
+establish browser coverage.
 
 Standalone fixtures and test files are excluded. Inline tests in mixed source
 files remain counted, so this is **not a production-only percentage**. Do not
@@ -106,6 +113,29 @@ add confidence. Document low-value residual gaps instead of forcing 100%.
 The CI policy is **no decrease against the PR base**, separately for each measured
 metric. A passing comparison does not mean the improvement target is complete.
 Track the remaining work in [Meta #13292](https://github.com/sequentech/meta/issues/13292).
+
+## Unmeasured source inventory
+
+Paths below are relative to `src/`. This classification covers all 47 files in
+the measured revision and does not add exclusions or alter report counters.
+Module-only files in disabled directories are included with their owning feature.
+
+| Files | Native profile status and next evidence needed |
+| --- | --- |
+| `error.rs`, `types/error.rs` | Native error declarations expanded by `quick_error!`; no separate LLVM source entry. Keep caller error assertions; do not manufacture errors solely to exercise generated formatting. |
+| `types/permissions.rs`, `types/tally_sheet_import.rs` | Native enums/structs and derives without handwritten method bodies. Permission names and import wire formats remain consumer contracts; absence of an LLVM entry is not proof that every contract is tested. |
+| `util/console_log.rs` | Macro definitions expanded at call sites; WASM console behavior needs the browser profile. |
+| `services/area_tree.rs` | Disabled `areas` feature; exercise hierarchy, missing parents and cycles separately. |
+| `services/pdf.rs`, `services/reports.rs`, `temp_path.rs`, `types/templates.rs`, `util/path.rs` | Disabled `reports` feature; test rendering, browser failure/cleanup, templates and temporary paths with synthetic inputs. Both Chromium `--single-process` and `--no-zygote` flags are retained. |
+| `services/s3.rs` | Disabled `s3` feature; test uploads/downloads and rejected operations with a local service. |
+| `util/aws.rs`, `util/temp_path.rs` | Enabled by `reports` or `s3`; require separate credential-free service and filesystem tests. |
+| `services/probe.rs`, `util/retry.rs` | Probe is disabled; retry is enabled by `probe` or `reports`. Test health responses, retries and exhaustion separately. |
+| `util/init_log.rs` | Disabled `log` feature; test subscriber initialization and diagnostics in isolated processes. |
+| `signatures/ecies_encrypt.rs`, `signatures/shell.rs`, `signatures/mod.rs` | Disabled `signatures` feature; these helpers require separate encryption/signing and subprocess failure checks. Core ballot-signature tests do not certify this feature. |
+| `plugins_wit/lib.rs`, `plugins_wit/mod.rs` | Disabled `plugins_wit` feature; validate component loading, host boundaries and trapped execution separately. |
+| `sqlite/area.rs`, `sqlite/area_contest.rs`, `sqlite/candidate.rs`, `sqlite/contests.rs`, `sqlite/election.rs`, `sqlite/election_event.rs`, `sqlite/results_area_contest.rs`, `sqlite/results_area_contest_candidate.rs`, `sqlite/results_contest.rs`, `sqlite/results_contest_candidate.rs`, `sqlite/results_election.rs`, `sqlite/results_election_area.rs`, `sqlite/results_event.rs`, `sqlite/tally_session_resolution.rs`, `sqlite/utils.rs`, `sqlite/mod.rs` | Disabled `sqlite` feature (16 files). Use temporary databases for mapping, constraints, malformed JSON and persistence tests; the PostgreSQL User mapper tests do not cover these modules. |
+| `wasm/templates.rs`, `wasm/wasm_hasura_types.rs`, `wasm/wasm_interpret_plaintext.rs`, `wasm/wasm_keycloak.rs`, `wasm/wasm_permissions.rs`, `wasm/wasm_plaintext.rs`, `wasm/mod.rs` | Disabled `wasm` feature; exercise exported APIs in a browser and account for them independently of native counters. |
+| `wasm/areas.rs`, `wasm/wasm.rs` | Additionally gated by `wasmtest`; browser test sources need separate accounting. |
 
 ## Coverage exclusions
 
@@ -147,6 +177,12 @@ should be raised merely by exercising unrelated implementation details.
 | Generated `Debug` and `Clone` implementations on ballot data types in [`ballot.rs`](../src/ballot.rs) | Testing every generated field copy or debug rendering mostly retests Rust derives. | Exercise them through real scenarios. Test explicit privacy/redaction and copy-isolation requirements if present. Serialization, permission strings and signed bytes remain important contracts. |
 | [`ballot_codec/mod.rs`](../src/ballot_codec/mod.rs), [`serialization/mod.rs`](../src/serialization/mod.rs), and import-only [`ballot_verifier.rs`](../src/ballot_verifier.rs) | These files contain declarations, re-exports, a marker trait or imports without executable bodies. There is no runtime outcome for a unit test to exercise. | Listed as non-executable source in `scope_exceptions`; compilation and consumer tests check the interfaces. An exception fails if LLVM measures executable code in that file. |
 | The serialization-error edge in [`generate_voting_period_dates`](../src/types/scheduled_event.rs) | `serde_json::to_value` receives `ManageElectionDatePayload`, a derived struct containing only `Option<String>`. This value has no recoverable serialization-error case. | Do not alter production design or fabricate a failing serializer solely to hit this edge. Test `Some`/`None`, filtering and resulting dates; revisit the rationale if the payload gains fallible fields. |
+| `ballot_codec/multi_ballot.rs`: inline `TreeItem`/`Display` implementations and assertion-failure branches | These render test-only trees or explain a failed assertion. Executing them does not verify an election rule. | Keep their mixed source file measured; accept the residual diagnostic lines. |
+| `encrypt.rs`: contest-not-found closures in `encrypt_decoded_contest`; `plaintext.rs`: matching closures and the second multi-contest deserialization | Earlier immutable contest-set validation guarantees the lookup, and the same immutable payload was already deserialized successfully. | Exercise missing/duplicate/unknown contest rejection at the reachable boundary; do not bypass validation to hit redundant guards. |
+| `ballot_codec/multi_ballot.rs`: candidate-position `usize` to `u64` and remainder `BigUint` to `u64` error closures | On the measured 64-bit target, positions fit `u64`; a remainder below a positive `u64` radix also fits `u64`. | Retain validation of oversized ballot values and zero radices, with no fabricated numeric-conversion failures. |
+| `services/keycloak/admin_client.rs`: JSON serialization failures in the two token conversions; poisoned cache locks | Token fields are strings, integers and options with derived serialization. Lock poisoning would require an unrelated panic inside a private critical section. | Preserve real denied/malformed-token and expiry tests. Revisit if fallible fields or critical-section behavior changes. |
+| `util/integrity_check.rs`: SHA-256 computation error arm | The selected `strand::hashing::rustcrypto::hash_sha256` implementation returns `Ok` for every byte slice; it has no recoverable backend failure. | Keep file-open/read and mismatched-hash checks; do not inject a failing cryptographic backend just for coverage. |
+
 
 HTTP failures, token expiry, permission rejection, malformed ballots and arithmetic
 boundaries remain valuable tests even when difficult to set up. Disabled native
