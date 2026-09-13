@@ -20,7 +20,7 @@ import sys
 import tempfile
 import time
 import tomllib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -154,7 +154,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     package = WORKSPACE / profile["package"]
     parent = ROOT / "coverage" / profile_name
     parent.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ-")
     output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
     started = time.monotonic()
     environment = dict(os.environ)
