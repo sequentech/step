@@ -14,6 +14,12 @@ Step's package coverage target is **95% of measured source lines**, aiming for
 packages. Each package remains open until its coverage target and source-scope
 review pass; a successful baseline run does not satisfy that requirement.
 
+**The CI gate is no coverage decrease, not a 95% threshold.** Each measured metric
+must stay the same or increase relative to the PR's base commit. Equal 70% passes;
+99% falling to 98% fails. Compare exact fractions, not rounded display percentages.
+Lines cannot compensate for lost branch coverage, and one package cannot compensate
+for another. The 95% target remains the objective for the coverage work.
+
 ## Sequent Core
 
 The `default_features,keycloak` profile has **302 passing tests**, **80.73% line
@@ -27,7 +33,6 @@ and a complete classification of source files missing from the LLVM report.
 
 The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
 contains the uncovered-line breakdown, tested contracts and remaining feature work.
-
 
 Use the repository's development environment, Python 3.11 or newer, and the Rust
 version in `rust-toolchain.toml`. Install the two coverage components once:
@@ -117,23 +122,51 @@ verification must start with a clean worker and fresh writable caches.
 
 ## Use GitHub Actions
 
-The **Rust package coverage** workflow tests the coverage tooling automatically on
-relevant pull requests. Its own tests must reach 95% combined line/branch coverage.
+The **Package coverage** workflow compares fresh measurements of the exact PR
+base and head commits. On a push to `main`, it compares the previous commit with
+the new commit. It runs each revision's own tests with matching instrumentation;
+there is no editable baseline percentage or coverage-service dependency.
 
-Package coverage is initially **on demand**, since existing PR checks already run
-the Rust suites. This avoids duplicating every Rust build while the package
-baselines are being established:
+- Python tooling: compare lines and branches separately on relevant PRs.
+- Sequent Core: compare native lines, functions and LLVM regions automatically
+  on relevant PRs and pushes to main. Regions are not branch coverage.
+- Strand: the same native comparison is available on demand.
 
-1. Open **Actions → Rust package coverage → Run workflow**.
-2. Choose the branch and package profile.
-3. Open the **Core package coverage baseline** job summary.
-4. Download its `coverage-<profile>` artifact for HTML, LCOV and detailed logs.
+For a native comparison:
 
-No coverage-service account or secret is needed. GitHub's normal Actions usage
-still applies. Artifacts expire after seven days. A green baseline job means the
-measurement completed; its summary explicitly says **TARGET NOT MET** when the
-95% requirement or scope check fails. Promote a package to an automatic strict
-check after its package issue's acceptance criteria are satisfied.
+1. Open **Actions → Package coverage → Run workflow**.
+2. Choose the candidate branch and the native profile.
+3. Enter the base branch or commit to compare with, normally the PR's target branch.
+4. Read **Rust package coverage — no decrease** and download its artifact.
+
+The hosted native worker currently supports `sequent-core` and `strand`. Other
+profiles can use the same comparison command in a worker with the service fixtures
+described by their package guides. The automatic native gate currently covers Sequent Core. Enabling the other
+packages as required checks remains part of their individual coverage work.
+
+```bash
+python3 scripts/coverage/ci.py rust sequent-core \
+  --base ../step-base --head . --output ../coverage-comparison
+```
+
+Prepare both clean checkouts and their locked dependencies first. The command
+runs tests and does not provide isolation itself. Exit `0` means no decrease,
+`1` means a regression, and `2` means invalid or incomplete evidence. Failed tests,
+empty reports, changing source, incompatible instruments and new Rust inventory
+gaps cannot pass. Existing Rust scope gaps remain visible rather than being
+mistaken for a complete production measurement.
+
+A component whose source did not exist at the base commit gets an explicitly
+labelled **INITIALIZED** measurement. Existing source without coverage reports
+must be measured; a missing or broken baseline is never treated as zero. Changes
+to instrumentation or exclusions need review as measurement-policy changes, not
+as test-coverage improvements. Keep the workflow and delegated policy scripts
+under maintainer review; a PR must not approve its own coverage-policy relaxation.
+
+Artifacts include both measurements, exact commit identities and a paired verdict.
+They expire after seven days. 95% remains an improvement target even when a
+comparison passes. The local native runner's optional strict target check is
+separate from this CI decision.
 
 ## Add tests and profiles
 
@@ -165,8 +198,9 @@ mkdir -p coverage/tooling
 COVERAGE_FILE=coverage/tooling/.coverage python3 -m coverage run \
   --branch --source=scripts/coverage --omit='*/test_*.py' \
   -m unittest discover -s scripts/coverage
-COVERAGE_FILE=coverage/tooling/.coverage python3 -m coverage report --fail-under=95
+COVERAGE_FILE=coverage/tooling/.coverage python3 -m coverage report
 ```
 
-The tests cover threshold boundaries, missing files, invalid counters, source
-changes, failed commands, interrupted processes and concurrent-run rejection.
+The tests cover exact comparison boundaries, a real regression caused by removing
+a test, invalid reports, missing files, source changes, failed commands, interrupted
+processes and concurrent-run rejection. Native local target tests remain separate.
