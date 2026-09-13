@@ -60,13 +60,10 @@ mod tests {
     use crate::ballot_codec::*;
 
     #[test]
-    #[deny(clippy::unwrap_used, clippy::panic)]
-    fn test_encode_vec_to_array_and_back(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn test_encode_vec_to_array_and_back() {
         let data: Vec<u8> = vec![33, 13, 155];
-        let encoded = encode_vec_to_array(&data)?;
-        let decoded = decode_array_to_vec(&encoded)?;
+        let encoded = encode_vec_to_array(&data).unwrap();
+        let decoded = decode_array_to_vec(&encoded).unwrap();
         assert_eq!(data, decoded);
-        Ok(())
     }
 }

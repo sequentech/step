@@ -5,33 +5,6 @@
 //! selection they must change. These cases keep those two decisions separate.
 
 #![cfg(feature = "default_features")]
-#![forbid(unsafe_code)]
-#![deny(missing_docs)]
-#![warn(private_interfaces, private_bounds, unnameable_types)]
-#![deny(rustdoc::missing_crate_level_docs, rustdoc::broken_intra_doc_links)]
-#![deny(
-    clippy::missing_docs_in_private_items,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::doc_markdown,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::shadow_unrelated,
-    clippy::print_stdout,
-    clippy::print_stderr,
-    clippy::indexing_slicing,
-    clippy::future_not_send,
-    clippy::arithmetic_side_effects,
-    clippy::suspicious,
-    clippy::complexity,
-    clippy::style,
-    clippy::perf,
-    clippy::pedantic
-)]
-
-use support::TestResult;
-
-mod support;
 
 use sequent_core::ballot::*;
 use sequent_core::plaintext::*;
@@ -129,7 +102,7 @@ fn a_missing_decoded_contest_blocks_but_an_acclaimed_contest_does_not() {
 }
 
 #[test]
-fn blank_policies_do_not_turn_a_warning_into_a_block() -> TestResult {
+fn blank_policies_do_not_turn_a_warning_into_a_block() {
     for (policy, expected) in [
         (EBlankVotePolicy::ALLOWED, Decision::Continue),
         (EBlankVotePolicy::WARN, Decision::Warn),
@@ -137,11 +110,7 @@ fn blank_policies_do_not_turn_a_warning_into_a_block() -> TestResult {
         (EBlankVotePolicy::NOT_ALLOWED, Decision::Block),
     ] {
         let mut contest = contest();
-        contest
-            .presentation
-            .as_mut()
-            .ok_or("fixture is missing its presentation")?
-            .blank_vote_policy = Some(policy);
+        contest.presentation.as_mut().unwrap().blank_vote_policy = Some(policy);
         assert_eq!(
             decision(&contest, &decoded(&contest, &[-1, -1])),
             expected,
@@ -152,11 +121,10 @@ fn blank_policies_do_not_turn_a_warning_into_a_block() -> TestResult {
             Decision::Continue
         );
     }
-    Ok(())
 }
 
 #[test]
-fn overvote_dialog_policies_apply_only_above_the_limit() -> TestResult {
+fn overvote_dialog_policies_apply_only_above_the_limit() {
     for (policy, expected) in [
         (EOverVotePolicy::ALLOWED, Decision::Continue),
         (EOverVotePolicy::ALLOWED_WITH_MSG, Decision::Continue),
@@ -168,11 +136,7 @@ fn overvote_dialog_policies_apply_only_above_the_limit() -> TestResult {
     ] {
         let mut contest = contest();
         contest.max_votes = 2;
-        contest
-            .presentation
-            .as_mut()
-            .ok_or("fixture is missing its presentation")?
-            .over_vote_policy = Some(policy);
+        contest.presentation.as_mut().unwrap().over_vote_policy = Some(policy);
         assert_eq!(
             decision(&contest, &decoded(&contest, &[0, 0])),
             Decision::Continue
@@ -183,19 +147,15 @@ fn overvote_dialog_policies_apply_only_above_the_limit() -> TestResult {
             "{policy:?}"
         );
     }
-    Ok(())
 }
 
 #[test]
-fn an_undervote_warning_has_both_a_lower_and_an_upper_boundary() -> TestResult {
+fn an_undervote_warning_has_both_a_lower_and_an_upper_boundary() {
     let mut contest = contest();
     contest.min_votes = 2;
     contest.max_votes = 4;
-    contest
-        .presentation
-        .as_mut()
-        .ok_or("fixture is missing its presentation")?
-        .under_vote_policy = Some(EUnderVotePolicy::WARN_AND_ALERT);
+    contest.presentation.as_mut().unwrap().under_vote_policy =
+        Some(EUnderVotePolicy::WARN_AND_ALERT);
 
     for (selections, expected) in [
         (0, Decision::Continue),
@@ -212,12 +172,10 @@ fn an_undervote_warning_has_both_a_lower_and_an_upper_boundary() -> TestResult {
             "{selections} selections"
         );
     }
-    Ok(())
 }
 
 #[test]
-fn invalid_vote_policy_controls_implicit_errors_but_never_encoding_errors(
-) -> TestResult {
+fn invalid_vote_policy_controls_implicit_errors_but_never_encoding_errors() {
     for (policy, expected) in [
         (InvalidVotePolicy::ALLOWED, Decision::Continue),
         (
@@ -232,11 +190,8 @@ fn invalid_vote_policy_controls_implicit_errors_but_never_encoding_errors(
         (InvalidVotePolicy::NOT_ALLOWED, Decision::Block),
     ] {
         let mut contest = contest();
-        contest
-            .presentation
-            .as_mut()
-            .ok_or("fixture is missing its presentation")?
-            .invalid_vote_policy = Some(policy.clone());
+        contest.presentation.as_mut().unwrap().invalid_vote_policy =
+            Some(policy.clone());
         let mut vote = decoded(&contest, &[0]);
         vote.invalid_errors
             .push(error(InvalidPlaintextErrorType::Implicit, "invalid-choice"));
@@ -250,28 +205,20 @@ fn invalid_vote_policy_controls_implicit_errors_but_never_encoding_errors(
             assert_eq!(decision(&contest, &vote), Decision::Block);
         }
     }
-    Ok(())
 }
 
 #[test]
-fn explicit_invalid_markers_are_neither_blank_nor_counted_twice() -> TestResult
-{
+fn explicit_invalid_markers_are_neither_blank_nor_counted_twice() {
     let mut contest = contest();
     contest.max_votes = 1;
-    let presentation = contest
-        .presentation
-        .as_mut()
-        .ok_or("fixture is missing its presentation")?;
+    let presentation = contest.presentation.as_mut().unwrap();
     presentation.blank_vote_policy = Some(EBlankVotePolicy::NOT_ALLOWED);
     presentation.over_vote_policy =
         Some(EOverVotePolicy::NOT_ALLOWED_WITH_MSG_AND_ALERT);
-    contest
-        .candidates
-        .first_mut()
-        .ok_or("fixture candidate is missing")?
+    contest.candidates[0]
         .presentation
         .as_mut()
-        .ok_or("fixture is missing its presentation")?
+        .unwrap()
         .is_explicit_invalid = Some(true);
 
     // Multi-contest decoding includes the marker among the choices, whereas
@@ -281,24 +228,16 @@ fn explicit_invalid_markers_are_neither_blank_nor_counted_twice() -> TestResult
         vote.is_explicit_invalid = true;
         assert_eq!(decision(&contest, &vote), Decision::Continue);
 
-        contest
-            .presentation
-            .as_mut()
-            .ok_or("fixture is missing its presentation")?
-            .invalid_vote_policy =
+        contest.presentation.as_mut().unwrap().invalid_vote_policy =
             Some(InvalidVotePolicy::WARN_INVALID_IMPLICIT_AND_EXPLICIT);
         assert_eq!(decision(&contest, &vote), Decision::Warn);
-        contest
-            .presentation
-            .as_mut()
-            .ok_or("fixture is missing its presentation")?
-            .invalid_vote_policy = Some(InvalidVotePolicy::ALLOWED);
+        contest.presentation.as_mut().unwrap().invalid_vote_policy =
+            Some(InvalidVotePolicy::ALLOWED);
     }
-    Ok(())
 }
 
 #[test]
-fn rank_errors_follow_their_own_warning_or_blocking_policy() -> TestResult {
+fn rank_errors_follow_their_own_warning_or_blocking_policy() {
     for message in [
         "errors.implicit.duplicatedPosition",
         "errors.implicit.preferenceOrderWithGaps",
@@ -309,10 +248,7 @@ fn rank_errors_follow_their_own_warning_or_blocking_policy() -> TestResult {
             .push(error(InvalidPlaintextErrorType::Implicit, message));
         assert_eq!(decision(&contest, &vote), Decision::Warn);
 
-        let presentation = contest
-            .presentation
-            .as_mut()
-            .ok_or("fixture is missing its presentation")?;
+        let presentation = contest.presentation.as_mut().unwrap();
         presentation.duplicated_rank_policy =
             Some(EDuplicatedRankPolicy::NOT_ALLOWED_WARN_AND_DIALOG);
         presentation.preference_gaps_policy =
@@ -320,13 +256,9 @@ fn rank_errors_follow_their_own_warning_or_blocking_policy() -> TestResult {
         assert_eq!(decision(&contest, &vote), Decision::Block);
 
         // An unrelated error must not accidentally match either rank rule.
-        vote.invalid_errors
-            .first_mut()
-            .ok_or("fixture error is missing")?
-            .message = None;
+        vote.invalid_errors[0].message = None;
         assert_eq!(decision(&contest, &vote), Decision::Continue);
     }
-    Ok(())
 }
 
 #[test]

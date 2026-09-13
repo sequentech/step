@@ -3024,8 +3024,7 @@ mod tests {
     }
 
     #[test]
-    #[deny(clippy::unwrap_used, clippy::panic)]
-    fn test_mixed_radix_encode() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_mixed_radix_encode() {
         // Fix the complete slot layout rather than searching past zero slots.
         // A zero inside contest a, an invalid empty contest b, and padding at
         // the end of contest c must not shift the next contest's flag.
@@ -3075,7 +3074,7 @@ mod tests {
         for (mode, expected_bases, expected_choices) in cases {
             let mut style = test_ballot_style(contests.clone());
             style.multi_contest_encoding_mode = Some(mode);
-            let encoded = ballot.encode_to_raw_ballot(&style)?;
+            let encoded = ballot.encode_to_raw_ballot(&style).unwrap();
             assert_eq!(encoded.bases, expected_bases);
             assert_eq!(encoded.choices, expected_choices);
 
@@ -3085,11 +3084,10 @@ mod tests {
                 decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
                 ..Default::default()
             });
-            let encoded = ballot.encode_to_raw_ballot(&style)?;
+            let encoded = ballot.encode_to_raw_ballot(&style).unwrap();
             assert_eq!(encoded.bases, [vec![2], expected_bases].concat());
             assert_eq!(encoded.choices, [vec![0], expected_choices].concat());
         }
-        Ok(())
     }
 
     fn random_ballot(contests: usize) -> (BallotChoices, BallotStyle) {

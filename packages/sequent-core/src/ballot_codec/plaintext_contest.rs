@@ -84,21 +84,23 @@ mod tests {
     use std::cmp;
 
     #[test]
-    #[deny(clippy::unwrap_used, clippy::panic)]
-    fn test_encoding_plaintext() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_encoding_plaintext() {
         let decoded_contest = get_test_decoded_vote_contest();
         let contest = get_test_contest();
         let invalid_candidate_ids = contest.get_invalid_candidate_ids();
-        let encoded_bigint =
-            contest.encode_plaintext_contest_bigint(&decoded_contest)?; // test
+        let encoded_bigint = contest
+            .encode_plaintext_contest_bigint(&decoded_contest)
+            .unwrap(); // test
         let encoded_plaintext =
-            contest.encode_plaintext_contest(&decoded_contest)?;
+            contest.encode_plaintext_contest(&decoded_contest).unwrap();
 
-        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext)?;
-        let decoded_bigint = decode_bigint_from_bytes(&plaintext_bytes)?; // test
+        let plaintext_bytes = decode_array_to_vec(&encoded_plaintext).unwrap();
+        let decoded_bigint =
+            decode_bigint_from_bytes(&plaintext_bytes).unwrap(); // test
 
-        let decoded_plaintext =
-            contest.decode_plaintext_contest(&encoded_plaintext)?;
+        let decoded_plaintext = contest
+            .decode_plaintext_contest(&encoded_plaintext)
+            .unwrap();
 
         println!(
             "encoded_plaintext {:?} encoded_bigint {}",
@@ -123,7 +125,6 @@ mod tests {
                 &invalid_candidate_ids
             )
         );
-        Ok(())
     }
 
     #[test]

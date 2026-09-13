@@ -5,33 +5,6 @@
 //! voter. Identity, ordering and election-wide encoding are part of that contract.
 
 #![cfg(feature = "default_features")]
-#![forbid(unsafe_code)]
-#![deny(missing_docs)]
-#![warn(private_interfaces, private_bounds, unnameable_types)]
-#![deny(rustdoc::missing_crate_level_docs, rustdoc::broken_intra_doc_links)]
-#![deny(
-    clippy::missing_docs_in_private_items,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::doc_markdown,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::shadow_unrelated,
-    clippy::print_stdout,
-    clippy::print_stderr,
-    clippy::indexing_slicing,
-    clippy::future_not_send,
-    clippy::arithmetic_side_effects,
-    clippy::suspicious,
-    clippy::complexity,
-    clippy::style,
-    clippy::perf,
-    clippy::pedantic
-)]
-
-use support::TestResult;
-
-mod support;
 
 use sequent_core::ballot::{
     BallotStyle, MultiContestEncodingMode, StringifiedPeriodDates,
@@ -93,18 +66,8 @@ fn build(
     create_ballot_style(
         "style-north".into(),
         serde_json::from_value(input["area"].clone())?,
-        serde_json::from_value(
-            input
-                .get("event")
-                .ok_or_else(|| anyhow::anyhow!("fixture event is missing"))?
-                .clone(),
-        )?,
-        serde_json::from_value(
-            input
-                .get("election")
-                .ok_or_else(|| anyhow::anyhow!("fixture election is missing"))?
-                .clone(),
-        )?,
+        serde_json::from_value(input["event"].clone())?,
+        serde_json::from_value(input["election"].clone())?,
         contests,
         &all_contests,
         serde_json::from_value(input["candidates"].clone())?,
@@ -114,10 +77,9 @@ fn build(
 }
 
 #[test]
-fn a_style_keeps_only_its_election_and_orders_candidates_by_identity(
-) -> TestResult {
-    let style =
-        build(&fixture(), Some("synthetic-election-public-key".into()))?;
+fn a_style_keeps_only_its_election_and_orders_candidates_by_identity() {
+    let style = build(&fixture(), Some("synthetic-election-public-key".into()))
+        .unwrap();
     assert_eq!(style.tenant_id, TENANT);
     assert_eq!(style.election_id, ELECTION);
     assert_eq!(style.area_id, "north");
@@ -129,7 +91,7 @@ fn a_style_keeps_only_its_election_and_orders_candidates_by_identity(
             .collect::<Vec<_>>(),
         vec!["contest-a", "contest-b"]
     );
-    let council = style.contests.first().ok_or("council contest is missing")?;
+    let council = &style.contests[0];
     assert_eq!(
         council
             .candidates
@@ -140,24 +102,8 @@ fn a_style_keeps_only_its_election_and_orders_candidates_by_identity(
     );
     assert_eq!(council.name.as_deref(), Some("Conseil"));
     assert_eq!(council.alias.as_deref(), Some("Équipe"));
-    assert_eq!(
-        council
-            .candidates
-            .first()
-            .ok_or("council candidate is missing")?
-            .name
-            .as_deref(),
-        Some("Camille")
-    );
-    assert_eq!(
-        council
-            .candidates
-            .first()
-            .ok_or("council candidate is missing")?
-            .alias
-            .as_deref(),
-        Some("C.")
-    );
+    assert_eq!(council.candidates[0].name.as_deref(), Some("Camille"));
+    assert_eq!(council.candidates[0].alias.as_deref(), Some("C."));
     assert_eq!(
         (
             council.min_votes,
@@ -171,41 +117,22 @@ fn a_style_keeps_only_its_election_and_orders_candidates_by_identity(
         Some(TieBreakingPolicy::EXTERNAL_PROCEDURE)
     );
     assert!(council.is_encrypted);
-    assert!(style
-        .contests
-        .get(1)
-        .ok_or("second contest is missing")?
-        .candidates
-        .is_empty());
-    assert_eq!(
-        style
-            .contests
-            .get(1)
-            .ok_or("second contest is missing")?
-            .winning_candidates_num,
-        1
-    );
-    let key = style
-        .public_key
-        .ok_or("ballot style is missing its public key")?;
+    assert!(style.contests[1].candidates.is_empty());
+    assert_eq!(style.contests[1].winning_candidates_num, 1);
+    let key = style.public_key.unwrap();
     assert!(!key.is_demo);
     assert_eq!(key.public_key, "synthetic-election-public-key");
-    Ok(())
 }
 
 #[test]
-fn fallback_key_is_clearly_marked_as_demo() -> TestResult {
-    let key = build(&fixture(), None)?
-        .public_key
-        .ok_or("ballot style is missing its public key")?;
+fn fallback_key_is_clearly_marked_as_demo() {
+    let key = build(&fixture(), None).unwrap().public_key.unwrap();
     assert!(key.is_demo);
     assert_eq!(key.public_key, DEMO_KEY);
-    Ok(())
 }
 
 #[test]
-fn encoding_capacity_is_resolved_for_the_whole_election_not_just_this_area(
-) -> TestResult {
+fn encoding_capacity_is_resolved_for_the_whole_election_not_just_this_area() {
     for (policy, expected) in [
         ("allowed", MultiContestEncodingMode::EXPANDED_CAPACITY),
         (
@@ -226,39 +153,27 @@ fn encoding_capacity_is_resolved_for_the_whole_election_not_just_this_area(
         ),
     ] {
         let mut input = fixture();
-        let mut elsewhere = input
-            .pointer("/contests/0")
-            .and_then(Value::as_object)
-            .ok_or("fixture contest must be an object")?
-            .clone();
-        elsewhere.insert("id".into(), json!("contest-in-another-area"));
-        elsewhere
-            .insert("presentation".into(), json!({"over_vote_policy": policy}));
-        input
-            .as_object_mut()
-            .ok_or("fixture must be an object")?
-            .insert("all_contests".into(), json!([elsewhere]));
+        let mut elsewhere = input["contests"][0].clone();
+        elsewhere["id"] = json!("contest-in-another-area");
+        elsewhere["presentation"] = json!({"over_vote_policy": policy});
+        input["all_contests"] = json!([elsewhere]);
         assert_eq!(
-            build(&input, None)?.multi_contest_encoding_mode,
+            build(&input, None).unwrap().multi_contest_encoding_mode,
             Some(expected),
             "{policy}"
         );
 
         // An overvote rule in a different election must not change this one's bytes.
-        *input
-            .pointer_mut("/all_contests/0/election_id")
-            .ok_or("fixture election is missing")? = json!("other-election");
+        input["all_contests"][0]["election_id"] = json!("other-election");
         assert_eq!(
-            build(&input, None)?.multi_contest_encoding_mode,
+            build(&input, None).unwrap().multi_contest_encoding_mode,
             Some(MultiContestEncodingMode::LEGACY)
         );
     }
-    Ok(())
 }
 
 #[test]
-fn malformed_presentations_and_annotations_do_not_create_partial_styles(
-) -> TestResult {
+fn malformed_presentations_and_annotations_do_not_create_partial_styles() {
     let cases = [
         ("/event/presentation", json!({"language_conf": 42})),
         ("/event/annotations", json!({"name": []})),
@@ -277,49 +192,29 @@ fn malformed_presentations_and_annotations_do_not_create_partial_styles(
     ];
     for (path, invalid) in cases {
         let mut input = fixture();
-        let (parent, field) = path
-            .rsplit_once('/')
-            .ok_or("fixture path must contain a parent")?;
-        input
-            .pointer_mut(parent)
-            .ok_or("fixture parent is missing")?[field] = invalid;
+        let (parent, field) = path.rsplit_once('/').unwrap();
+        input.pointer_mut(parent).unwrap()[field] = invalid;
         assert!(
             build(&input, None).is_err(),
             "accepted invalid field at {path}"
         );
     }
-    Ok(())
 }
 
 #[test]
-fn invalid_election_wide_presentation_is_rejected_even_outside_the_area(
-) -> TestResult {
+fn invalid_election_wide_presentation_is_rejected_even_outside_the_area() {
     let mut input = fixture();
-    let mut malformed_contest = input
-        .pointer("/contests/0")
-        .and_then(Value::as_object)
-        .ok_or("fixture contest must be an object")?
-        .clone();
-    malformed_contest
-        .insert("presentation".into(), json!({"over_vote_policy": "typo"}));
-    input
-        .as_object_mut()
-        .ok_or("fixture must be an object")?
-        .insert("all_contests".into(), json!([malformed_contest]));
+    input["all_contests"] = json!([input["contests"][0].clone()]);
+    input["all_contests"][0]["presentation"] =
+        json!({"over_vote_policy": "typo"});
     assert!(build(&input, None).is_err());
-    Ok(())
 }
 
 #[test]
-fn translations_fall_back_to_english_and_aliases_fall_back_to_names(
-) -> TestResult {
+fn translations_fall_back_to_english_and_aliases_fall_back_to_names() {
     let input = fixture();
-    let mut election: Election = serde_json::from_value(
-        input
-            .get("election")
-            .ok_or("fixture election is missing")?
-            .clone(),
-    )?;
+    let mut election: Election =
+        serde_json::from_value(input["election"].clone()).unwrap();
     election.presentation = Some(json!({"i18n": {
         "fr": {"name": "Conseil", "alias": "Équipe"},
         "en": {"name": "Council", "alias": "Team"}
@@ -331,12 +226,8 @@ fn translations_fall_back_to_english_and_aliases_fall_back_to_names(
     election.presentation = Some(json!({"i18n": {"en": {"name": "Council"}}}));
     assert_eq!(election.get_alias("fr").as_deref(), Some("Council"));
 
-    let mut event: ElectionEvent = serde_json::from_value(
-        input
-            .get("event")
-            .ok_or("fixture event is missing")?
-            .clone(),
-    )?;
+    let mut event: ElectionEvent =
+        serde_json::from_value(input["event"].clone()).unwrap();
     event.presentation = election.presentation.clone();
     assert_eq!(event.get_name("fr"), "Council");
     assert_eq!(event.get_default_language(), "en");
@@ -346,20 +237,18 @@ fn translations_fall_back_to_english_and_aliases_fall_back_to_names(
     election.presentation = None;
     assert_eq!(election.get_name("fr"), "-");
     assert_eq!(election.get_default_language(), "en");
-    Ok(())
 }
 
 #[test]
-fn extracting_a_translation_preserves_explicit_nulls_and_omits_missing_fields(
-) -> TestResult {
+fn extracting_a_translation_preserves_explicit_nulls_and_omits_missing_fields()
+{
     let translations = serde_json::from_value(json!({
         "en": {"name": "Council"}, "fr": {"name": null}, "de": {"alias": "Team"}
-    }))?;
-    let names = parse_i18n_field(&Some(translations), "name")
-        .ok_or("translation fixture should produce a language map")?;
-    assert_eq!(names.get("en").and_then(Option::as_deref), Some("Council"));
-    assert_eq!(names.get("fr"), Some(&None));
+    }))
+    .unwrap();
+    let names = parse_i18n_field(&Some(translations), "name").unwrap();
+    assert_eq!(names["en"].as_deref(), Some("Council"));
+    assert_eq!(names["fr"], None);
     assert!(!names.contains_key("de"));
     assert!(parse_i18n_field(&None, "name").is_none());
-    Ok(())
 }

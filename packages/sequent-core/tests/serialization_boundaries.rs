@@ -5,33 +5,6 @@
 //! mistake cannot make a round-trip test pass unnoticed.
 
 #![cfg(feature = "default_features")]
-#![forbid(unsafe_code)]
-#![deny(missing_docs)]
-#![warn(private_interfaces, private_bounds, unnameable_types)]
-#![deny(rustdoc::missing_crate_level_docs, rustdoc::broken_intra_doc_links)]
-#![deny(
-    clippy::missing_docs_in_private_items,
-    clippy::missing_errors_doc,
-    clippy::missing_panics_doc,
-    clippy::doc_markdown,
-    clippy::unwrap_used,
-    clippy::panic,
-    clippy::shadow_unrelated,
-    clippy::print_stdout,
-    clippy::print_stderr,
-    clippy::indexing_slicing,
-    clippy::future_not_send,
-    clippy::arithmetic_side_effects,
-    clippy::suspicious,
-    clippy::complexity,
-    clippy::style,
-    clippy::perf,
-    clippy::pedantic
-)]
-
-use support::TestResult;
-
-mod support;
 
 use sequent_core::serialization::base64::{Base64Deserialize, Base64Serialize};
 use sequent_core::serialization::deserialize_with_path::{
@@ -50,14 +23,15 @@ use strand::util::StrandError;
 use tempfile::NamedTempFile;
 
 #[test]
-fn base64_uses_unpadded_standard_encoding_of_little_endian_borsh() -> TestResult
-{
-    assert_eq!(Base64Serialize::serialize(&0x0102_0304_u32)?, "BAMCAQ");
+fn base64_uses_unpadded_standard_encoding_of_little_endian_borsh() {
     assert_eq!(
-        <u32 as Base64Deserialize>::deserialize("BAMCAQ".into())?,
-        0x0102_0304
+        Base64Serialize::serialize(&0x01020304_u32).unwrap(),
+        "BAMCAQ"
     );
-    Ok(())
+    assert_eq!(
+        <u32 as Base64Deserialize>::deserialize("BAMCAQ".into()).unwrap(),
+        0x01020304
+    );
 }
 
 #[test]
@@ -81,12 +55,9 @@ impl StrandSerialize for Unserializable {
 }
 
 #[test]
-fn serialization_errors_reach_the_caller() -> TestResult {
-    let error = Base64Serialize::serialize(&Unserializable)
-        .err()
-        .ok_or("expected the invalid input to be rejected")?;
+fn serialization_errors_reach_the_caller() {
+    let error = Base64Serialize::serialize(&Unserializable).unwrap_err();
     assert!(error.to_string().contains("fixture serialization failure"));
-    Ok(())
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -100,29 +71,24 @@ struct SelectionLimit {
 }
 
 #[test]
-fn configuration_errors_identify_the_nested_field_and_array_index() -> TestResult
-{
+fn configuration_errors_identify_the_nested_field_and_array_index() {
     let invalid =
         json!({"contests": [{"max_votes": 1}, {"max_votes": "many"}]});
-    let from_value = deserialize_value::<Configuration>(invalid.clone())
-        .err()
-        .ok_or("expected the invalid input to be rejected")?;
+    let from_value =
+        deserialize_value::<Configuration>(invalid.clone()).unwrap_err();
     let text = invalid.to_string();
-    let from_text = deserialize_str::<Configuration>(&text)
-        .err()
-        .ok_or("expected the invalid input to be rejected")?;
+    let from_text = deserialize_str::<Configuration>(&text).unwrap_err();
     assert_eq!(from_value.path().to_string(), "contests[1].max_votes");
     assert_eq!(from_text.path().to_string(), "contests[1].max_votes");
 
     let valid = r#"{"contests":[{"max_votes":2}]}"#;
     assert_eq!(
-        deserialize_str::<Configuration>(valid)?,
+        deserialize_str::<Configuration>(valid).unwrap(),
         Configuration {
             contests: vec![SelectionLimit { max_votes: 2 }],
         }
     );
     assert!(deserialize_str::<Configuration>("{").is_err());
-    Ok(())
 }
 
 #[test]
@@ -137,13 +103,7 @@ fn user_attribute_conversion_keeps_strings_without_coercing_other_json() {
         assert_eq!(value.clone().into_vec(), expected);
         let converted =
             convert_map(HashMap::from([("attribute".into(), value)]));
-        assert_eq!(
-            converted.get("attribute").map(|values| values
-                .iter()
-                .map(String::as_str)
-                .collect::<Vec<_>>()),
-            Some(expected)
-        );
+        assert_eq!(converted["attribute"], expected);
     }
     assert_eq!("one".to_string().into_vec(), vec!["one"]);
     assert_eq!(
@@ -153,27 +113,25 @@ fn user_attribute_conversion_keeps_strings_without_coercing_other_json() {
 }
 
 #[test]
-fn file_integrity_checks_an_external_digest_and_detects_changed_bytes(
-) -> TestResult {
+fn file_integrity_checks_an_external_digest_and_detects_changed_bytes() {
     // SHA-256("abc") is a published standard vector. Computing the expected
     // digest with the production hash function would weaken this assertion.
     const ABC_SHA256: &str =
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
-    let mut file = NamedTempFile::new()?;
-    file.write_all(b"abc")?;
-    integrity_check(&file, ABC_SHA256.into())?;
-    integrity_check(&file, ABC_SHA256.to_uppercase())?;
+    let mut file = NamedTempFile::new().unwrap();
+    file.write_all(b"abc").unwrap();
+    integrity_check(&file, ABC_SHA256.into()).unwrap();
+    integrity_check(&file, ABC_SHA256.to_uppercase()).unwrap();
 
-    file.write_all(b"changed")?;
+    file.write_all(b"changed").unwrap();
     assert!(matches!(
         integrity_check(&file, ABC_SHA256.into()),
         Err(HashFileVerifyError::HashMismatch(_, _))
     ));
 
-    std::fs::remove_file(file.path())?;
+    std::fs::remove_file(file.path()).unwrap();
     assert!(matches!(
         integrity_check(&file, ABC_SHA256.into()),
         Err(HashFileVerifyError::IoError(_, _))
     ));
-    Ok(())
 }

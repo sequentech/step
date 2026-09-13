@@ -16,23 +16,6 @@ empty. These tests use synthetic local data and require no running identity
 provider or production credentials. They do not replace JWT verification tests,
 real service integration tests or the browser/WASM test suite.
 
-## Strict assurance lints
-
-The eight boundary-test modules enforce the lint policy from *Lightweight
-Assurance Methods*, including documentation, checked indexing/arithmetic, no
-`unwrap`, no explicit `panic!`, and no unsafe code. Fallible fixtures and tests
-return `Result`; a missing field or failed operation fails the test with its
-error rather than skipping an assertion. Do not replace these checks with blanket
-lint allowances or unchecked `expect` calls.
-
-```bash
-cargo clippy --locked --no-deps --tests -p sequent-core --features default_features,keycloak
-```
-
-The shared Rust test setup runs this command in CI. This first phase enforces
-the full policy in the new test modules; existing crate-wide lint debt remains
-tracked in [meta #11566](https://github.com/sequentech/meta/issues/11566).
-
 - `ballot_envelope.rs` checks the 30-byte ballot envelope against a manually
   specified byte layout, tests all 256 length bytes, and checks error propagation
   through the single-contest and multi-contest decoders. Before the fix, a length
@@ -93,3 +76,20 @@ service integration tests.
   intersection bounds near the numeric limit. Five cases panicked before the
   shared validator widened its intermediate arithmetic; the public count types
   and validation codes remain unchanged.
+
+## Production lint policy
+
+Unit and integration tests may use `unwrap`, `expect`, indexing and ordinary
+assertions. The additional assurance policy applies to production code.
+
+From `packages/`, run:
+
+```sh
+cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
+```
+
+The first production module to enforce the full Lightweight Assurance policy is
+`services::tally_sheet_validation`. Its non-test build rejects unchecked panic
+shortcuts, undocumented contracts and the other agreed lints. Existing lint debt
+in other Core modules remains tracked under Meta #11566. The two ballot encoder
+helpers keep their existing implementation.
