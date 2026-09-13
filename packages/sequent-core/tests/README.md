@@ -164,8 +164,9 @@ Declaration-only files belong in `scope_exceptions`; those entries cannot hide
 measured executable code.
 
 LLVM's JSON filename filter removes file records and counters but leaves function
-records behind. The runner also removes functions wholly owned by excluded files
-before publishing `llvm.json`, without changing counters. An expansion mixing
+records behind. The runner makes the function list follow the exported file
+inventory, including Cargo's automatic test/dependency exclusions, before
+publishing `llvm.json`, without changing counters. An expansion mixing
 excluded and included files fails validation rather than hiding production code.
 Regression tests check both the exact retained records and unchanged counters.
 

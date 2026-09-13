@@ -54,12 +54,31 @@ class FunctionExportTests(unittest.TestCase):
         # Similar names and inline tests in an included file remain measured.
         similar = {"name": "test", "filenames": [self.fixture + ".bak"], "count": 0}
         data = self.payload["data"][0]
+        data["files"].append(llvm_file(Path(self.fixture + ".bak")))
         data.update(functions=[included, excluded, similar], totals={"sentinel": 123})
         before = copy.deepcopy(data)
         self.filter()
         self.assertEqual(data["functions"], [included, similar])
         self.assertEqual(data["files"], before["files"])
         self.assertEqual(data["totals"], before["totals"])
+
+    def test_automatic_test_and_dependency_exclusions_follow_file_inventory(self):
+        self.excluded = {}
+        data = self.payload["data"][0]
+        included = {"name": "inline_test", "filenames": [self.source], "count": 1}
+        data["functions"] = [
+            included,
+            {
+                "name": "integration_test",
+                "filenames": [str(self.package / "tests/test.rs")],
+            },
+            {
+                "name": "dependency_macro",
+                "filenames": ["/cargo/registry/dependency.rs"],
+            },
+        ]
+        self.filter()
+        self.assertEqual(data["functions"], [included])
 
     def test_file_counter_leak_and_mixed_expansion_fail_instead_of_hiding_code(self):
         data = self.payload["data"][0]
