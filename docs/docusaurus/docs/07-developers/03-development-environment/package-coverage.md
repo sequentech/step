@@ -22,10 +22,17 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **418 passing tests**, **95.03% line
-coverage**, **81.71% function coverage** and **94.12% LLVM region coverage**. Its native aggregate includes inline
-test code; standalone fixtures and test files are excluded. It is not yet a
+The `default_features,keycloak` profile has **484 passing tests**, **96.80% line
+coverage**, **95.43% function coverage** and **95.65% LLVM region coverage**. Its
+native aggregate includes inline test code; standalone fixtures and test files
+are excluded. It is not yet a
 production-only or actual branch score.
+
+Macro-generated Borsh contract tests pin explicit policy names and bytes, reject
+truncated records and propagate failures through nested ballot serializers. All
+generated functions remain counted; the measured profile has no wholly uncovered
+Borsh implementation. JSON exports also filter excluded fixture function records
+without changing any counters.
 
 The tests cover local Keycloak HTTP operations and token caches, real PostgreSQL
 User row mapping, malformed ballot/audit boundaries, voting state, scheduling and
@@ -33,8 +40,8 @@ presentation data. PostgreSQL tests launch private temporary clusters and requir
 `postgresql libpq-dev` or `PG_BIN` pointing to the server binaries; they never use
 an existing database or a production connection string.
 
-Source commit `34514e1734dffb6b62488f753918e4dd195360c2` measures 11,703/12,315
-lines, 1,197/1,465 functions and 14,951/15,885 regions with Rust 1.96.0 and
+Source commit `11dec93c4484e6f7876c2045521a0b554a0eeb99` measures 11,921/12,315
+lines, 1,398/1,465 functions and 15,194/15,885 regions with Rust 1.96.0 and
 cargo-llvm-cov 0.9.1. The native line improvement target is met. Remaining work
 includes realizable failure cases, integration with a running identity provider
 and separate WASM/service profiles. All 47 files missing from the LLVM report
@@ -43,11 +50,10 @@ the strict overall target from passing.
 
 The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
 contains the uncovered-line breakdown, tested contracts and remaining feature work.
-It also identifies justified residual gaps: unused test-only fixtures, routine
-generated `Debug`/`Clone` code, inline test diagnostics, redundant guards after
-immutable validation, declarations without executable bodies and specific
-infeasible serialization/numeric-conversion error edges. Do not force 100% by adding tests without
-a useful behavioral assertion.
+It also inventories the remaining 67 unexecuted functions, separating useful
+follow-up cases from inline test diagnostics, guards after immutable validation
+and specific infeasible serialization/numeric-conversion errors. Do not force
+100% by adding tests without a useful behavioral assertion.
 
 Use the repository's development environment, Python 3.11 or newer, and the Rust
 version in `rust-toolchain.toml`. Install the two coverage components once:

@@ -48,7 +48,8 @@ dependencies explicitly.
 | `keycloak_database.rs` | Map real PostgreSQL rows into users, preserving SQL nulls and flags; reject invalid JSON objects, missing columns and incompatible SQL types. |
 | `model_contracts.rs` | Validate persisted nested configuration and ceremony, tally, result and event-policy defaults. |
 | `plaintext_display.rs` | Check voting layouts, displayed points and invalid-versus-blank selections. |
-| `policy_wire_format.rs` | Pin JSON policy names and Borsh discriminants used in published ballot styles. |
+| `policy_wire_format.rs` | Macro-generated contract tests pin explicit JSON policy names and Borsh discriminants, reject incomplete/unknown inputs and propagate stream failures. |
+| `ballot_wire_streams.rs` | Pin independent byte layouts for small records; reject every truncated prefix and propagate sink failures through nested ballot, presentation and tally-resolution records. |
 | `presentation_contracts.rs` | Check translated-name fallbacks, languages and presentation policies. |
 | `request_guards.rs` | Dispatch local Rocket requests with valid, absent and malformed headers; claims parsing does not verify signatures. |
 | `scheduled_dates.rs` | Filter by tenant, event, election and task; preserve missing dates and reject malformed payloads. |
@@ -69,10 +70,10 @@ Payload errors describe the length without including plaintext contents.
 
 ## Coverage and remaining work
 
-The native `default_features,keycloak` profile runs **418 passing tests, none
-ignored**. Source commit `34514e1734dffb6b62488f753918e4dd195360c2` measures
-**11,703/12,315 lines (95.03%)**, **1,197/1,465 functions (81.71%)** and
-**14,951/15,885 LLVM regions (94.12%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
+The native `default_features,keycloak` profile runs **484 passing tests, none
+ignored**. Source commit `11dec93c4484e6f7876c2045521a0b554a0eeb99` measures
+**11,921/12,315 lines (96.80%)**, **1,398/1,465 functions (95.43%)** and
+**15,194/15,885 LLVM regions (95.65%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
 Production Clippy and workspace formatting pass (existing warnings remain).
 Actual branch coverage is not measured by this stable native profile.
 
@@ -81,11 +82,12 @@ request guards. It verifies request payloads, authentication failures, token-cac
 isolation and expiry without contacting a production identity provider. These
 checks complement, but do not replace, integration against a running Keycloak.
 
-The report has **612 uncovered measured lines** and **268 uncovered functions**.
-The new cases exercise PostgreSQL row mapping, malformed audit payloads and
-presentation data, expired administrative tokens, rejected realm/user writes and
-invalid user locations. Oversized mixed-radix payloads and group updates without
-an id reproduced panics before their fixes; zero radices are also rejected.
+The report has **394 uncovered measured lines** and **67 uncovered functions**.
+The new cases exercise generated stream contracts, PostgreSQL row mapping,
+malformed audit/hash payloads, permission-label deduplication, expired tokens,
+rejected realm/user/permission writes and invalid user locations. Oversized
+mixed-radix payloads and group updates without an id reproduced panics before
+their fixes; zero radices are also rejected.
 Continue with the remaining realizable Keycloak transport/refresh failures,
 preferential ballot validation and service integration. These remain obligations,
 not exceptions justified by the aggregate percentage.
@@ -161,9 +163,63 @@ files, empty reasons and overlaps with `scope_exceptions` fail validation.
 Declaration-only files belong in `scope_exceptions`; those entries cannot hide
 measured executable code.
 
-The generated-code and infallible-error rationales below do not exclude their
+LLVM's JSON filename filter removes file records and counters but leaves function
+records behind. The runner also removes functions wholly owned by excluded files
+before publishing `llvm.json`, without changing counters. An expansion mixing
+excluded and included files fails validation rather than hiding production code.
+Regression tests check both the exact retained records and unchanged counters.
+
+The infallible-error rationales below do not exclude their
 containing production files. The stable runner filters whole files, so mixed
 runtime/test modules remain measured until their boundaries can be separated.
+
+## Generated serialization functions
+
+Generated serialization is a wire contract, not a diminishing-return exception.
+With Rust 1.96.0, cargo-llvm-cov 0.9.1 and Borsh 1.5.7, a minimal struct's successful
+encode/decode assertions left both derived function counters at zero. Adding
+truncated-input and failing-writer controls registered both functions. Each
+function had a single mapped region at the derive invocation; its reported count
+therefore must not be read as a count of all successful calls.
+
+`policy_contract!` and `record_contract!` generate assertions from explicit test
+cases, not from production enum iteration or serializers. Small records pin
+literal expected bytes. The shared stream helper rejects every proper prefix,
+preserves an independently injected `PermissionDenied` error at every byte, checks
+a successful full-capacity writer and rejects trailing data. Larger synthetic
+ballots use the same stream-failure properties with valid ciphertexts and proofs.
+These are error-propagation tests; a large-record round trip alone is not treated
+as independent evidence of its byte layout.
+
+This work raised covered functions from 1,197 to 1,375 without changing the 1,465
+denominator. Subsequent tests address handwritten behavior separately. No Borsh
+function remains wholly uncovered in the measured profile. Generated functions
+stay in counters and all exports; no `coverage(off)` attributes or new exclusions
+were added. Inline test diagnostics and unmeasured feature profiles remain visible.
+
+The remaining **67 unexecuted functions** are located as follows (paths relative
+to `src/`). Counts include closures, not just named public APIs:
+
+| Source | Unexecuted functions | Review direction |
+| --- | ---: | --- |
+| `ballot_codec/multi_ballot.rs` | 24 | 18 inline test diagnostics; five numeric-conversion errors and one lookup guard. Preserve the 64-bit conversion and prior-validation rationale below. |
+| `ballot.rs`, `multi_ballot.rs` | 18 | Signing/serialization error closures plus the manual `EInitializeReportPolicy::default`. Generated Borsh implementations are covered; review the concrete backend/error edge, not the derive name. |
+| `services/keycloak/admin_client.rs` | 7 | Token-conversion/lock errors plus the still-useful interrupted HTTP body-read case in `get_credentials_inner`. |
+| `ballot_codec/raw_ballot.rs` | 4 | Two inline assertion diagnostics, a prior-validated candidate lookup and direct raw-choice conversion overflow. The latter remains a useful rejected-input test. |
+| `encrypt.rs` | 4 | Prior-validated contest lookups, ballot-style serialization and `encrypt_multi_ballot`'s encoding-error propagation. The last edge remains useful to test directly. |
+| `plaintext.rs` | 3 | Lookups after immutable contest-set validation and a repeated deserialization of identical bytes. |
+| `ballot_codec/contest_context.rs` | 1 | Fallback text for a configuration error without a message; both current checker errors always supply a message. |
+| `services/keycloak/realm_password_policy.rs` | 1 | UTF-8 conversion failure after constructing a password exclusively from ASCII character sets. |
+| `services/keycloak/user.rs` | 1 | Non-hierarchical URL mutation after successful HTTP authentication against the same configured URL. |
+| `services/keycloak/realm.rs` | 1 | Token-supplier failure before realm export; distinguish this from tested HTTP rejection and transport failures. |
+| `util/voting_screen.rs` | 1 | `get_decoded_contest_plurality`, a fixture builder not used by this profile; do not call it merely for coverage. |
+| `election_config/report.rs` | 1 | Inline assertion diagnostic. |
+| `main.rs` | 1 | Empty executable entry point. |
+
+This inventory is not an exclusion list or a claim that all remaining behavior is
+infeasible. The named reachable cases and separately measured configurations stay
+open in Meta #13292. Routine generated `Debug`/`Clone` code does not explain the
+current function gap.
 
 ## Where additional coverage adds little value
 
@@ -174,7 +230,6 @@ should be raised merely by exercising unrelated implementation details.
 | Code | Why a dedicated coverage test adds little | Treatment |
 | --- | --- | --- |
 | [`fixtures/encrypt.rs`](../src/fixtures/encrypt.rs): `get_encrypt_decoded_test_fixture` and `default_voting_portal_fixture` | Compiled only under `cfg(test)` in `fixtures/mod.rs`; their only call sites in Step are inside a commented-out test. The code supplies sample data rather than deployed election behavior. | Excluded through `excluded_files` in the native profile. Retain useful fixtures with contract checks, or remove unused ones as cleanup; do not call them just to increase a score. |
-| Generated `Debug` and `Clone` implementations on ballot data types in [`ballot.rs`](../src/ballot.rs) | Testing every generated field copy or debug rendering mostly retests Rust derives. | Exercise them through real scenarios. Test explicit privacy/redaction and copy-isolation requirements if present. Serialization, permission strings and signed bytes remain important contracts. |
 | [`ballot_codec/mod.rs`](../src/ballot_codec/mod.rs), [`serialization/mod.rs`](../src/serialization/mod.rs), and import-only [`ballot_verifier.rs`](../src/ballot_verifier.rs) | These files contain declarations, re-exports, a marker trait or imports without executable bodies. There is no runtime outcome for a unit test to exercise. | Listed as non-executable source in `scope_exceptions`; compilation and consumer tests check the interfaces. An exception fails if LLVM measures executable code in that file. |
 | The serialization-error edge in [`generate_voting_period_dates`](../src/types/scheduled_event.rs) | `serde_json::to_value` receives `ManageElectionDatePayload`, a derived struct containing only `Option<String>`. This value has no recoverable serialization-error case. | Do not alter production design or fabricate a failing serializer solely to hit this edge. Test `Some`/`None`, filtering and resulting dates; revisit the rationale if the payload gains fallible fields. |
 | `ballot_codec/multi_ballot.rs`: inline `TreeItem`/`Display` implementations and assertion-failure branches | These render test-only trees or explain a failed assertion. Executing them does not verify an election rule. | Keep their mixed source file measured; accept the residual diagnostic lines. |
