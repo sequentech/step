@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use rand::{thread_rng, Rng};
-use tracing::{info, instrument};
+use tracing::instrument;
 
 #[instrument]
 pub fn generate_random_string_with_charset(bytes_length: usize, charset: &str) -> String {
@@ -20,7 +20,6 @@ pub fn generate_random_string_with_charset(bytes_length: usize, charset: &str) -
         })
         .collect();
 
-    info!("password: {}", password);
-
+    // This value protects transmission packages; it must never enter logs.
     password
 }
