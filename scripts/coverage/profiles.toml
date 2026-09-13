@@ -62,3 +62,30 @@ issue = "https://github.com/sequentech/meta/issues/13293"
 "src/wasm/test/bench.rs" = "Browser benchmark harness under the disabled wasm feature."
 "src/wasm/test/demo.rs" = "Browser demonstration under the disabled wasm feature."
 "src/wasm/test/test.rs" = "Browser test harness under the disabled wasm feature."
+
+[profiles.velvet]
+package = "velvet"
+features = []
+limitations = [
+    "Native library and integration tests with the package's declared dependencies; synthetic ballots and local temporary files only.",
+    "Local in-place PDF rendering is included and requires Chrome; cloud PDF transports and object storage require separate runs.",
+    "Existing inline tests and public fixture builders contribute to LLVM's source aggregate; not production-only or branch coverage.",
+]
+issue = "https://github.com/sequentech/meta/issues/13294"
+
+[profiles.velvet.scope_exceptions]
+"src/cli/mod.rs" = "Module declarations and re-exports only."
+"src/config/mod.rs" = "Module declarations and re-exports only."
+"src/fixtures/mod.rs" = "Module declarations and re-exports only; the fixture implementations remain in the measured source inventory."
+"src/lib.rs" = "Module declarations only; their implementations are inventoried separately."
+"src/pipes/ballot_images/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/decode_ballots/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/do_tally/counting_algorithm/counting_algorithm.rs" = "Re-exports and trait declaration without executable default methods."
+"src/pipes/do_tally/counting_algorithm/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/do_tally/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/generate_db/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/generate_reports/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/mark_winners/mod.rs" = "Module declarations and re-exports only."
+"src/pipes/mod.rs" = "Module declarations and re-exports only."
+"src/config/config.rs" = "Struct declarations and derives without handwritten executable methods. LLVM attributes no line regions to this file; configuration deserialization is exercised through CLI tests."
+"src/config/generate_reports.rs" = "Struct/enum declarations, derives and a constant without handwritten executable methods. This native compiler export attributes no line regions to this file."

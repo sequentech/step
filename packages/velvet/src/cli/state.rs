@@ -155,7 +155,7 @@ impl Stage {
             }
             None
         } else {
-            Some(self.pipeline[self.pipeline.len() - 1].pipe)
+            self.pipeline.last().map(|config| config.pipe)
         }
     }
 

@@ -45,6 +45,10 @@ use std::{
 use tracing::{debug, event, info, instrument, Level, Value as TracingValue};
 use uuid::Uuid;
 
+#[cfg(test)]
+#[path = "../../../tests/support/participation_boundaries.rs"]
+mod boundary_tests;
+
 pub const OUTPUT_CONTEST_RESULT_FILE: &str = "contest_result.json";
 pub const OUTPUT_CONTEST_RESULT_AREA_CHILDREN_AGGREGATE_FOLDER: &str = "aggregate";
 pub const INPUT_TALLY_SHEET_FILE: &str = "tally-sheet.json";
