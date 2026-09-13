@@ -87,3 +87,10 @@ were excluded, and no production architecture was rewritten for testability.
 Further service-backed coverage needs explicit bounded local fixtures. Actual
 branches, deployed JWT validation and optional feature/target configurations
 remain separate obligations; this native LLVM result does not close them.
+
+The role fixture also rejects a stale child marker: a private temporary nonce
+selects the child path, and the parent owns its cleanup. An ambient marker with
+unrelated synthetic credentials fails the old fixture and passes after this
+test-only correction. All 43 tests pass with that hostile ambient control. The
+existing token-realm and Rocket catcher assertions pass unchanged; no production
+rewrite or new coverage exclusion is involved.
