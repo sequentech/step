@@ -14,7 +14,20 @@ Step's package coverage target is **95% of measured source lines**, aiming for
 packages. Each package remains open until its coverage target and source-scope
 review pass; a successful baseline run does not satisfy that requirement.
 
-## Run a package
+## Sequent Core
+
+The `default_features,keycloak` profile has **302 passing tests**, **80.73% line
+coverage** and **58.38% function coverage**. Its native aggregate includes inline
+test code and fixture helpers; it is not a production-only or actual branch score.
+
+Reaching 100% requires tests for the unexercised Keycloak operations, ballot
+configuration and state transitions, codec failure paths, scheduling and plaintext
+interpretation. It also requires separate profiles for WASM and optional services,
+and a complete classification of source files missing from the LLVM report.
+
+The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
+contains the uncovered-line breakdown, tested contracts and remaining feature work.
+
 
 Use the repository's development environment, Python 3.11 or newer, and the Rust
 version in `rust-toolchain.toml`. Install the two coverage components once:

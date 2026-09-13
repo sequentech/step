@@ -3,93 +3,106 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-# Core boundary tests
+# Sequent Core Tests
 
 From the repository's `packages` directory:
 
 ```bash
 cargo test --locked -p sequent-core --features default_features,keycloak
+cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
 ```
 
 The native profile needs both features: the package's default feature list is
-empty. These tests use synthetic local data and require no running identity
-provider or production credentials. They do not replace JWT verification tests,
-real service integration tests or the browser/WASM test suite.
+empty. Tests use synthetic local data and need no production credentials. Real
+identity-provider integration and browser/WASM verification are separate scopes.
 
-- `ballot_envelope.rs` checks the 30-byte ballot envelope against a manually
-  specified byte layout, tests all 256 length bytes, and checks error propagation
-  through the single-contest and multi-contest decoders. Before the fix, a length
-  byte of 30 panicked instead of returning an error.
-- `authorization_policy.rs` checks tenant isolation, every required permission,
-  the explicit super-admin opt-in, voter area/election constraints and the allowed
-  client-to-channel mapping. Removing the permission checks makes three of these
-  tests fail. Claims are constructed directly; their signatures are outside this
-  test boundary.
-- The restored `test_mixed_radix_encode` unit test uses written-out vectors for
-  legacy and expanded-capacity encoding, with decline disabled and enabled. Its
-  fixtures include unordered IDs, an unset interior slot, an explicitly invalid
-  empty contest and trailing padding. It no longer depends on random draws or
-  searching past zero slots to guess the next contest's offset.
+## Behaviors covered
 
-New integration assertions live outside `src`, so they do not inflate package
-source coverage. Existing inline tests and fixture helpers still contribute to
-the native aggregate and must be considered when interpreting it.
+| Test file | Contract |
+| --- | --- |
+| `ballot_envelope.rs` | Check the 30-byte envelope against an independent byte layout, reject invalid lengths for all 256 length bytes, and propagate errors through both contest decoders. |
+| `authorization_policy.rs` | Enforce tenant isolation, required permissions, explicit super-admin opt-in, voter area/election constraints and allowed client channels. Constructed claims do not test signature verification. |
+| `voting_policies.rs` | Distinguish warnings from blocked navigation for blank votes, overvotes, undervotes, ranked choices, acclaimed contests and invalid markers. |
+| `ballot_style_construction.rs` | Preserve candidate/election identity, ordering, translations and encoding capacity; reject malformed presentation and annotations. |
+| `ballot_signatures.rs` | Reject altered signed fields and replay into another ballot/election; reproduce ciphertext from disclosed audit randomness and preserve serialized selections. |
+| `serialization_boundaries.rs` | Check independent Borsh/Base64 vectors, nested configuration errors, attribute conversion and file integrity. |
+| `identity_inputs.rs` | Reject malformed claims and unrepresentable timestamps; check authentication freshness, calendar boundaries and consistent identifier replacement. |
+| `tally_arithmetic_boundaries.rs` | Reject wrapped vote totals, accept valid multi-mark totals above u64, and preserve exact blank-ballot intersection bounds. |
 
-## Decoder API change
+The mixed-radix unit test uses independently specified vectors for legacy and
+expanded-capacity encoding, with decline disabled and enabled. Unordered IDs,
+unset interior slots, invalid empty contests and trailing padding cannot shift
+the expected slot layout.
 
-`ballot_codec::decode_array_to_vec` now returns `Result<Vec<u8>, String>`. Propagate
-the error with `?` in fallible callers, or assert success explicitly in tests.
-The single-contest and multi-contest entry points already return `Result` and now
-propagate invalid envelope lengths. Valid ballot bytes are unchanged. Oversized
-payload errors describe the length without including plaintext contents.
+## Decoder API
 
-The package-wide 95% coverage target remains tracked in
-[Meta #13292](https://github.com/sequentech/meta/issues/13292). Passing these boundary
-tests alone does not close that target or establish deployment-level security.
+`ballot_codec::decode_array_to_vec` returns `Result<Vec<u8>, String>`. Propagate
+errors with `?` in fallible callers, or assert success explicitly in tests.
+Single-contest and multi-contest decoders propagate invalid envelope lengths.
+Payload errors describe the length without including plaintext contents.
 
-## Extended boundary checks
+## Coverage and remaining work
 
-The additional integration test files exercise production entry points with
-synthetic data and explicit expected outcomes:
+The native `default_features,keycloak` profile runs **302 passing tests, none
+ignored**. Its measured source coverage is **80.73% lines** and **58.38% functions**.
+LLVM regions are measured separately; actual branch coverage is not measured by
+this stable native profile.
 
-- `voting_policies.rs`: distinguish warnings from blocked navigation; check blank,
-  overvote, undervote and ranked-choice rules, missing decoded state, acclaimed
-  contests, and explicit-invalid markers.
-- `ballot_style_construction.rs`: preserve election and candidate identity,
-  deterministic ordering, translations, demo-key markings, and election-wide
-  encoding capacity; reject malformed presentation and annotation fields.
-- `ballot_signatures.rs`: reject replay into another ballot or election and changes
-  to signed fields; reproduce ciphertext from disclosed audit randomness and
-  preserve decoded selections through the public serialization boundaries.
-- `serialization_boundaries.rs`: independently specified Borsh/Base64 bytes,
-  nested configuration error paths, attribute conversion and file integrity.
-- `identity_inputs.rs`: malformed claims, authentication freshness, extreme
-  timestamps, calendar boundaries and identifier replacement consistency.
+There is no inherent 95% ceiling. Reaching 100% requires more tests and a complete
+account of which code is being measured. The current gaps fall into three groups:
 
-The timestamp regression failed with an integer-overflow panic before the fix.
-Timestamp parsing now rejects unrepresentable dates without multiplying seconds
-into milliseconds. Claims tests do not replace identity-provider signature or
-service integration tests.
+1. **Compiled code without tests.** The largest gaps are below. Most pure helpers
+   can be exercised directly; HTTP clients need controlled local responses and
+   real Keycloak integration for protocol and permission behavior.
+2. **Disabled or unreferenced modules.** The report inventories 59 files with no
+   LLVM measurement. These include module declarations and test support, as well
+   as runtime code outside the selected features. Each needs a scope classification;
+   absent measurements are not evidence of coverage.
+3. **Measurement boundaries.** Inline unit tests and public fixture helpers are
+   included in the native source aggregate. Separate them before claiming
+   production-only percentages. Use target-specific instrumentation to assess
+   actual branches and WASM execution.
 
-- `tally_arithmetic_boundaries.rs`: rejects wrapped vote totals, accepts valid
-  multi-mark sums above a single u64 counter and verifies blank-ballot
-  intersection bounds near the numeric limit. Five cases panicked before the
-  shared validator widened its intermediate arithmetic; the public count types
-  and validation codes remain unchanged.
+| Area | Uncovered measured lines | Tests needed |
+| --- | ---: | --- |
+| Keycloak services | 1,127 | Realm/user/role/permission operations; client credentials, token refresh, failed HTTP responses and retry behavior. |
+| Ballot model (`ballot.rs`) | 531 | Voting-state transitions, channel-specific dates/status, contest presentation, tie resolutions and serialization boundaries. |
+| Ballot codecs | 330 | Remaining malformed-input, capacity and alternate encoding paths against independent vectors. |
+| Encryption fixture helpers | 214 | Separate fixture coverage from production evidence and verify the helpers' required contracts. |
+| Scheduled events | 111 | Tenant/event/election filtering, task names, absent/malformed payloads and scheduled-date selection. |
+| Plaintext interpretation | 82 | Counting-algorithm layouts, point displays and explicit-invalid versus blank selections. |
+| Request guards (`connection.rs`) | 62 | Local Rocket requests with missing/malformed credentials and valid controls; trusted versus untrusted identity inputs. |
+
+The table covers the largest gaps, not the entire uncovered inventory. Reports
+under `coverage/sequent-core/` include every measured file and the full list of
+unaccounted files. Counted lines include code generated by derives where LLVM
+attributes it to source; calling formatting/debug implementations solely to raise
+a score does not verify an election rule.
+
+Feature work needs separate profiles for browser/WASM exports, area trees,
+reports/PDF, S3, SQLite, signature helpers, plugin execution, logging and probes.
+Feature dependencies differ, so a single `--all-features` run cannot establish
+coverage across native and browser targets.
+
+Prioritize missing ballot and scheduling contracts, then local request/Keycloak
+fixtures, then the remaining supported feature profiles. Keep a regression test
+for every discovered defect and verify the relevant package consumers.
+
+Measure from the repository root:
+
+```bash
+python3 scripts/coverage/run.py sequent-core --baseline
+```
+
+The improvement target is 95%, with 100% where meaningful tests can achieve it.
+The CI policy is **no decrease against the PR base**, separately for each measured
+metric. A passing comparison does not mean the improvement target is complete.
+Track the remaining work in [Meta #13292](https://github.com/sequentech/meta/issues/13292).
 
 ## Production lint policy
 
 Unit and integration tests may use `unwrap`, `expect`, indexing and ordinary
-assertions. The additional assurance policy applies to production code.
-
-From `packages/`, run:
-
-```sh
-cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
-```
-
-The first production module to enforce the full Lightweight Assurance policy is
-`services::tally_sheet_validation`. Its non-test build rejects unchecked panic
-shortcuts, undocumented contracts and the other agreed lints. Existing lint debt
-in other Core modules remains tracked under Meta #11566. The two ballot encoder
-helpers keep their existing implementation.
+assertions. The additional assurance restrictions apply to production code.
+`services::tally_sheet_validation` enforces the full Lightweight Assurance lint
+policy in non-test builds, including checked conversions, documented contracts
+and explicit failure handling.
