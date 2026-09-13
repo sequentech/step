@@ -158,7 +158,8 @@ there is no editable baseline percentage or coverage-service dependency.
 - Python tooling: compare lines and branches separately on relevant PRs.
 - Sequent Core: compare native lines, functions and LLVM regions automatically
   on relevant PRs and pushes to main. Regions are not branch coverage.
-- Strand: the same native comparison runs automatically and is available on demand.
+- Strand and Velvet: the same native comparison runs automatically and is available on demand.
+  Velvet uses a pinned local headless browser and bounded test concurrency.
 
 For a native comparison:
 
@@ -167,9 +168,9 @@ For a native comparison:
 3. Enter the base branch or commit to compare with, normally the PR's target branch.
 4. Read the selected package’s **coverage — no decrease** check and download its artifact.
 
-The hosted native worker currently supports `sequent-core` and `strand`. Other
+The hosted native worker currently supports `sequent-core`, `strand` and `velvet`. Other
 profiles can use the same comparison command in a worker with the service fixtures
-described by their package guides. The automatic native gate currently covers Sequent Core and Strand. Enabling the other
+described by their package guides. The automatic native gate currently covers Sequent Core, Strand and Velvet. Enabling the other
 packages as required checks remains part of their individual coverage work.
 
 ```bash

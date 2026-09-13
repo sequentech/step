@@ -174,7 +174,9 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ-")
     output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
     started = time.monotonic()
-    environment = dict(os.environ, CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
+    environment = dict(os.environ)
+    environment.update(profile.get("test_environment", {}))
+    environment.update(CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
     if offline:
         # Report generation also invokes Cargo metadata internally.
         environment["CARGO_NET_OFFLINE"] = "true"
@@ -220,6 +222,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 ).hexdigest(),
                 "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
                 "features": profile["features"],
+                "test_environment": profile.get("test_environment", {}),
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
                 "issue": profile["issue"],

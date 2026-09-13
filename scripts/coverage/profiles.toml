@@ -73,6 +73,11 @@ limitations = [
 ]
 issue = "https://github.com/sequentech/meta/issues/13294"
 
+[profiles.velvet.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+DOC_RENDERER_BACKEND = "inplace"
+
 [profiles.velvet.scope_exceptions]
 "src/cli/mod.rs" = "Module declarations and re-exports only."
 "src/config/mod.rs" = "Module declarations and re-exports only."
