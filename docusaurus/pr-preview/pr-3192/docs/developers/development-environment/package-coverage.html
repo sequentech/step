@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Package Test Coverage | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Package Test Coverage | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3192/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Package Test Coverage","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3192/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3192/assets/js/runtime~main.a7b78fa2.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3192/assets/js/runtime~main.64082dc4.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3192/assets/js/main.0b0b6bce.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -24,12 +24,16 @@ for another. The 95% target remains the objective for the coverage work.</p>
 <p>The <code>default_features,keycloak</code> profile has <strong>302 passing tests</strong>, <strong>80.73% line
 coverage</strong> and <strong>58.38% function coverage</strong>. Its native aggregate includes inline
 test code and fixture helpers; it is not a production-only or actual branch score.</p>
-<p>Reaching 100% requires tests for the unexercised Keycloak operations, ballot
+<p>Improving coverage requires tests for the unexercised Keycloak operations, ballot
 configuration and state transitions, codec failure paths, scheduling and plaintext
 interpretation. It also requires separate profiles for WASM and optional services,
 and a complete classification of source files missing from the LLVM report.</p>
 <p>The <a href="https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md" target="_blank" rel="noopener noreferrer" class="">Sequent Core Tests guide</a>
-contains the uncovered-line breakdown, tested contracts and remaining feature work.</p>
+contains the uncovered-line breakdown, tested contracts and remaining feature work.
+It also identifies justified residual gaps: unused test-only fixtures, routine
+generated <code>Debug</code>/<code>Clone</code> code, declarations without executable bodies and an
+infeasible serialization-error edge. Do not force 100% by adding tests without
+a useful behavioral assertion.</p>
 <p>Use the repository&#x27;s development environment, Python 3.11 or newer, and the Rust
 version in <code>rust-toolchain.toml</code>. Install the two coverage components once:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">rustup component </span><span class="token function" style="color:rgb(130, 170, 255)">add</span><span class="token plain"> llvm-tools-preview</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">install</span><span class="token plain"> cargo-llvm-cov </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--version</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">0.9</span><span class="token plain">.1 </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--locked</span><br></span></code></pre></div></div>
