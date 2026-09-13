@@ -255,6 +255,7 @@ const tagalogTranslation: TranslationType = {
                 logs: "Mga Log",
             },
             tasksExecution: {
+                DELETE_TENANT: "Tanggalin ang tenant",
                 PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
@@ -1311,6 +1312,7 @@ const tagalogTranslation: TranslationType = {
                 "tenant-create": "Lumikha ng Tenant",
                 "tenant-read": "Basahin ang Tenant",
                 "tenant-write": "I-edit ang Tenant",
+                "tenant-delete": "Tanggalin ang Tenant",
                 "election-event-create": "Lumikha ng Kaganapan ng Halalan",
                 "election-event-read": "Basahin ang Kaganapan ng Halalan",
                 "election-event-write": "I-edit ang Kaganapan ng Halalan",

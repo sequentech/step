@@ -255,6 +255,7 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                DELETE_TENANT: "Ezabatu erakundea",
                 PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
@@ -1305,6 +1306,7 @@ const basqueTranslation: TranslationType = {
                 "tenant-create": "Sortu Maizterra",
                 "tenant-read": "Irakurri Maizterra",
                 "tenant-write": "Editatu Maizterra",
+                "tenant-delete": "Ezabatu Maizterra",
                 "election-event-create": "Sortu Hauteskunde Gertaera",
                 "election-event-read": "Irakurri Hauteskunde Gertaera",
                 "election-event-write": "Editatu Hauteskunde Gertaera",

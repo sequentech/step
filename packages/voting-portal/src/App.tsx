@@ -174,6 +174,9 @@ const App = () => {
 
         return electionId ? selectBallotStyleByElectionId(String(electionId))(state) : undefined
     })
+    const electionEvent = useAppSelector(selectElectionEventById(eventId))
+    const presentation =
+        ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation
 
     useElectionClassName()
 
@@ -289,10 +292,7 @@ const App = () => {
     }, [isAuthenticated, globalSettings.DISABLE_AUTH, navigate, tenantId, setupTenantEvent])
 
     return (
-        <StyledAppWrapper
-            className="voting-portal-wrapper"
-            customCss={ballotStyle?.ballot_eml.election_event_presentation?.css ?? ""}
-        >
+        <StyledAppWrapper className="voting-portal-wrapper" customCss={presentation?.css ?? ""}>
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
                 <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>

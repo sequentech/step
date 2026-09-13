@@ -192,3 +192,60 @@ async fn insert_preserves_response_and_maps_trigger_error_without_retrying() {
     ));
     transaction.rollback().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "requires the disposable devenv database fixture"]
+async fn channel_enablement_and_pause_are_rechecked_from_the_writer() {
+    let mut client = test_client().await;
+    let transaction = client.transaction().await.unwrap();
+    let fixture = ElectionFixture::create(&transaction).await;
+    let event = super::election_event(None);
+    let auth_time = Some(ISO8601::now().timestamp());
+    for (channel, key, status_key) in [
+        (VotingStatusChannel::ONLINE, "online", "voting_status"),
+        (VotingStatusChannel::KIOSK, "kiosk", "kiosk_voting_status"),
+        (
+            VotingStatusChannel::TELEPHONE,
+            "telephone",
+            "telephone_voting_status",
+        ),
+    ] {
+        for (enabled, paused) in [(true, false), (false, false), (true, true), (true, false)] {
+            let mut channels = json!({"online": true, "kiosk": true, "telephone": true});
+            channels[key] = json!(enabled);
+            let mut status = json!({"voting_status": "OPEN", "kiosk_voting_status": "OPEN", "telephone_voting_status": "OPEN"});
+            if paused {
+                status[status_key] = json!("PAUSED");
+            }
+            transaction
+                .execute(
+                    "UPDATE sequent_backend.election SET voting_channels=$1, status=$2 WHERE id=$3",
+                    &[&channels, &status, &fixture.election],
+                )
+                .await
+                .unwrap();
+            let result = check_status(
+                &fixture.tenant.to_string(),
+                &fixture.event.to_string(),
+                &fixture.election.to_string(),
+                &transaction,
+                &event,
+                &auth_time,
+                channel,
+                false,
+            )
+            .await;
+            if !enabled {
+                assert!(matches!(
+                    result,
+                    Err(CastVoteError::VotingChannelNotEnabled(_))
+                ));
+            } else if paused {
+                assert!(matches!(result, Err(CastVoteError::CheckStatusFailed(_))));
+            } else {
+                assert_eq!(result.unwrap(), channel);
+            }
+        }
+    }
+    transaction.rollback().await.unwrap();
+}

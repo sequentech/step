@@ -279,6 +279,9 @@ const galegoTranslation: TranslationType = {
             ballotId: "ID da Papeleta",
             printButton: "Imprimir",
             finishButton: "Rematar",
+            remainingElectionsError:
+                "Non puidemos comprobar se tes máis eleccións nas que votar. Téntao de novo.",
+            retryButton: "Tentar de novo",
             verifyCastTitle: "Verifica que o teu voto foi emitido",
             verifyCastDescription:
                 "Podes verificar en calquera momento que o teu voto foi emitido correctamente usando o seguinte código QR:",
@@ -391,6 +394,9 @@ const galegoTranslation: TranslationType = {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Erro inesperado",
                 somethingWrong: "Algo saiu mal.",
+                invalidLoginHintParametersTitle: "Ligazón de votación non válida",
+                invalidLoginHintParametersMessage:
+                    "Esta ligazón de votación contén información de acceso non válida. Solicite unha nova ligazón e ténteo de novo.",
                 certAuthFailedTitle: "Erro de Autenticación con Certificado",
                 certAuthFailedMessage:
                     "Non foi posible verificar o seu certificado. Comprobe que está a usar un certificado de votante válido e ténteo de novo.",

@@ -278,6 +278,9 @@ const frenchTranslation: TranslationType = {
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",
+            remainingElectionsError:
+                "Nous n’avons pas pu vérifier s’il vous reste des élections auxquelles voter. Veuillez réessayer.",
+            retryButton: "Réessayer",
             verifyCastTitle: "Vérifiez que votre vote a été émis",
             verifyCastDescription:
                 "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous:",
@@ -390,6 +393,9 @@ const frenchTranslation: TranslationType = {
                 oopsWithStatus: "Oups ! {{status}}",
                 oopsWithoutStatus: "Oups ! Une erreur inattendue est survenue.",
                 somethingWrong: "Une erreur est survenue.",
+                invalidLoginHintParametersTitle: "Lien de vote non valide",
+                invalidLoginHintParametersMessage:
+                    "Ce lien de vote contient des informations de connexion non valides. Demandez un nouveau lien et réessayez.",
                 certAuthFailedTitle: "Échec de l'authentification par certificat",
                 certAuthFailedMessage:
                     "Votre certificat n'a pas pu être vérifié. Veuillez vous assurer que vous utilisez un certificat d'électeur valide, puis réessayez.",
