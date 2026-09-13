@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Package Test Coverage | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Package Test Coverage | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3192/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Package Test Coverage","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3192/docs/developers/development-environment/package-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3192/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3192/assets/js/runtime~main.64082dc4.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3192/assets/js/runtime~main.2694bbd8.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3192/assets/js/main.0b0b6bce.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -21,9 +21,10 @@ must stay the same or increase relative to the PR&#x27;s base commit. Equal 70% 
 Lines cannot compensate for lost branch coverage, and one package cannot compensate
 for another. The 95% target remains the objective for the coverage work.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="sequent-core">Sequent Core<a href="#sequent-core" class="hash-link" aria-label="Direct link to Sequent Core" title="Direct link to Sequent Core" translate="no">​</a></h2>
-<p>The <code>default_features,keycloak</code> profile has <strong>302 passing tests</strong>, <strong>80.73% line
-coverage</strong> and <strong>58.38% function coverage</strong>. Its native aggregate includes inline
-test code and fixture helpers; it is not a production-only or actual branch score.</p>
+<p>The <code>default_features,keycloak</code> profile has <strong>302 passing tests</strong>, <strong>77.24% line
+coverage</strong> and <strong>58.00% function coverage</strong>. Its native aggregate includes inline
+test code; standalone fixtures and test files are excluded. It is not yet a
+production-only or actual branch score.</p>
 <p>Improving coverage requires tests for the unexercised Keycloak operations, ballot
 configuration and state transitions, codec failure paths, scheduling and plaintext
 interpretation. It also requires separate profiles for WASM and optional services,
@@ -43,7 +44,9 @@ version in <code>rust-toolchain.toml</code>. Install the two coverage components
 <code>summary.md</code> first, then inspect the HTML report or <code>uncovered-lines.log</code> to choose
 the next behavior to test. <code>summary.json</code> records exact counters, source revision
 and hashes, enabled features, tool versions, test counts and measurement limits.
-The raw LLVM JSON and LCOV files come from the same test execution.</p>
+All exports come from the same test execution. <code>llvm.json</code>, HTML and LCOV omit
+excluded code from both the covered and total counters. No unfiltered report is
+generated.</p>
 <p>Run the strict target check with the same command, without <code>--baseline</code>:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">python3 scripts/coverage/run.py sequent-core</span><br></span></code></pre></div></div>
 <p>The exit codes have different meanings:</p>
@@ -78,7 +81,12 @@ also show workspace dependencies; their combined total is not the package gate.<
 An exact file may have a reviewed explanation in <code>scope_exceptions</code>, for example
 module declarations without executable code or a disabled feature. Exceptions
 stay visible and cannot remove measured code from the denominator.</li>
-<li class="">Native stable LLVM coverage includes inline unit-test code and fixture helpers.
+<li class=""><code>excluded_files</code> lists exact support/test filenames and a reason for each.
+Core excludes <code>src/fixtures/ballot_codec.rs</code>, <code>src/fixtures/encrypt.rs</code> and
+<code>src/election_config/validate_tests.rs</code> from JSON, HTML, LCOV and the score.
+Tests still run. Excluded paths and reasons appear in <code>summary.json</code>, but their
+counters are absent from every report. Base and head use identical exclusions.</li>
+<li class="">Native stable LLVM coverage still includes inline unit-test code.
 This can inflate the number. Prefer new tests in <code>tests/</code> or separate
 <code>*_tests.rs</code> files; account for those files explicitly in the scope review.
 Do not call the existing aggregate “production-only coverage.”</li>
