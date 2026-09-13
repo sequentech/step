@@ -70,3 +70,9 @@ The timestamp regression failed with an integer-overflow panic before the fix.
 Timestamp parsing now rejects unrepresentable dates without multiplying seconds
 into milliseconds. Claims tests do not replace identity-provider signature or
 service integration tests.
+
+- `tally_arithmetic_boundaries.rs`: rejects wrapped vote totals, accepts valid
+  multi-mark sums above a single u64 counter and verifies blank-ballot
+  intersection bounds near the numeric limit. Five cases panicked before the
+  shared validator widened its intermediate arithmetic; the public count types
+  and validation codes remain unchanged.
