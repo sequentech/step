@@ -286,3 +286,64 @@ fn single_contest_audits_reproduce_ciphertext_from_disclosed_randomness() {
     invalid.contests[0] = "!invalid".into();
     assert!(recreate_encrypt_cyphertext(&RistrettoCtx, &invalid).is_err());
 }
+
+#[test]
+fn multi_encryption_rejects_conflicting_ballot_flags_and_wrong_contest_sets() {
+    use sequent_core::ballot::{BlankBallotsPolicy, DeclineToVotePolicy};
+    use sequent_core::ballot_codec::multi_ballot::{
+        BallotChoices, ContestChoices,
+    };
+    use sequent_core::encrypt::{
+        encode_to_plaintext_decoded_multi_contest, encrypt_multi_ballot,
+    };
+    use sequent_core::types::ceremonies::CountingAlgType;
+
+    let (mut style, mut votes) = ballot_input();
+    style.election_presentation =
+        Some(sequent_core::ballot::ElectionPresentation {
+            blank_ballots_policy: Some(BlankBallotsPolicy::ENABLED),
+            decline_to_vote_policy: Some(DeclineToVotePolicy::ENABLED),
+            ..Default::default()
+        });
+    let mut second = style.contests[0].clone();
+    second.id = "second-contest".into();
+    style.contests.push(second);
+    let mut second_vote = votes[0].clone();
+    second_vote.contest_id = "second-contest".into();
+    votes.push(second_vote);
+
+    // Only one declined contest cannot represent a declined whole ballot.
+    votes[0].is_decline_to_vote = true;
+    assert!(encode_to_plaintext_decoded_multi_contest(&votes, &style).is_err());
+    assert!(
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).is_err()
+    );
+    votes[0].is_decline_to_vote = false;
+    votes[0].is_blank_ballot = true;
+    assert!(
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).is_err()
+    );
+    for vote in &mut votes {
+        vote.is_blank_ballot = true;
+        vote.is_decline_to_vote = true;
+    }
+    assert!(
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).is_err()
+    );
+
+    let original =
+        ContestChoices::new(style.contests[0].id.clone(), vec![], false);
+    for contests in [
+        vec![],
+        vec![original.clone(), original],
+        vec![ContestChoices::new("unknown".into(), vec![], false)],
+    ] {
+        let choices = BallotChoices::new(
+            false,
+            false,
+            contests,
+            CountingAlgType::PluralityAtLarge,
+        );
+        assert!(encrypt_multi_ballot(&RistrettoCtx, &choices, &style).is_err());
+    }
+}

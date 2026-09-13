@@ -447,9 +447,11 @@ impl ParsedRealmPasswordPolicy {
         if required_characters == 0 {
             return Err(PasswordPolicyGenerationError::CharacterClassMissing);
         }
-        if self.maximum_length.is_some_and(|maximum_length| {
-            minimum_length.max(required_characters as i32) > maximum_length
-        }) {
+        // Keep the sum wide: narrowing a large requirement to i32 can wrap.
+        // The supported limit also bounds generation when maxLength is absent.
+        let maximum_length =
+            self.maximum_length.unwrap_or(MAX_PASSWORD_LENGTH) as usize;
+        if required_characters > maximum_length {
             return Err(PasswordPolicyGenerationError::MaximumTooSmallForRequiredCharacters);
         }
 

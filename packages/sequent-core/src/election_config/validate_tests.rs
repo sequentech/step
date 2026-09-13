@@ -629,3 +629,37 @@ fn an_inconsistent_bundle_is_still_refused() {
         Some("f0000000-0000-5000-8000-000000000000".into());
     assert!(validate(&bundle).has_errors());
 }
+
+#[test]
+fn event_identity_and_encryption_protocol_cannot_be_blank() {
+    for field in ["id", "encryption_protocol"] {
+        let mut bundle = sound();
+        match field {
+            "id" => bundle.election_event.id = " ".into(),
+            _ => bundle.election_event.encryption_protocol = " ".into(),
+        }
+        let report = validate(&bundle);
+        assert!(report
+            .problems
+            .iter()
+            .any(|problem| problem.code == Code::MissingField
+                && problem.path == format!("election_event.{field}")));
+    }
+}
+
+#[test]
+fn ballot_area_links_must_reference_both_an_existing_area_and_contest() {
+    let mut bundle = sound();
+    // The link itself exists, but neither endpoint does. Both diagnostics are
+    // needed so an operator can repair the imported bundle in one pass.
+    bundle.area_contests[0].area_id = "absent-area".into();
+    bundle.area_contests[0].contest_id = "absent-contest".into();
+    let report = validate(&bundle);
+    for field in ["area_id", "contest_id"] {
+        assert!(report
+            .problems
+            .iter()
+            .any(|problem| problem.code == Code::DanglingReference
+                && problem.path == format!("area_contests[0].{field}")));
+    }
+}

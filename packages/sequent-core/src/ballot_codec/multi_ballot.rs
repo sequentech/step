@@ -315,7 +315,9 @@ impl<'a> MultiBallotCodecContext<'a> {
         let serial_number = match serial_number_counter {
             Some(serial_number) => {
                 let sn = Some(format!("{:09}", *serial_number));
-                *serial_number += 1;
+                *serial_number = serial_number
+                    .checked_add(1)
+                    .ok_or("Ballot serial number counter exhausted")?;
                 sn
             }
             None => None,
@@ -790,7 +792,7 @@ impl BallotChoices {
     /// Structural codec errors still short-circuit decoding:
     ///
     /// * The number of overall choices does not match the expected layout.
-    /// * A contest choice is out of range for the contest's candidate set.
+    /// * A contest choice is out of range or repeats another selected candidate.
     /// * There is an integer conversion error in a layout-defining value.
     ///
     /// Ballot policy checks, including min/max/under/blank/invalid vote
@@ -961,7 +963,7 @@ impl BallotChoices {
             next_choices.push(choice);
         }
 
-        // Duplicate values will be ignored
+        // Track distinct selections for the duplicate check below.
         let unique: HashSet<DecodedContestChoice> =
             HashSet::from_iter(next_choices.iter().cloned());
         decoded_contest.choices = unique.clone().into_iter().collect();
@@ -988,9 +990,9 @@ impl BallotChoices {
             + usize::from(is_explicit_blank);
 
         if unique.len() != num_selected_candidates {
-            // FIXME decide if we do something here
-            // currently duplicates will be silently ignored, unless
-            // they lead to fewer than min_votes values
+            // The encoder forbids duplicates. Accepting them here could make
+            // repeated marks satisfy a minimum that requires distinct choices.
+            return Err("Plaintext vector contained duplicate values".to_string());
         }
 
         let presentation = contest.presentation.clone().unwrap_or_default();

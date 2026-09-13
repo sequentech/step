@@ -2641,7 +2641,7 @@ impl ElectionStatus {
         new_status: VotingStatus,
     ) {
         let should_close_early_voting = channel == VotingStatusChannel::ONLINE
-            && (new_status.is_open() || new_status.is_closed());
+            && matches!(new_status, VotingStatus::OPEN | VotingStatus::CLOSED);
 
         if should_close_early_voting
             && self

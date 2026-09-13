@@ -154,11 +154,11 @@ impl Name for Contest {
                 alias_i18n
                     .get(language)
                     .cloned()
-                    .or(alias_i18n.get(DEFAULT_LANG).cloned())
-                    .or(Some(self.alias.clone()))
                     .flatten()
+                    .or_else(|| alias_i18n.get(DEFAULT_LANG).cloned().flatten())
             })
-            .flatten();
+            .flatten()
+            .or_else(|| self.alias.clone());
         let name = self
             .name_i18n
             .clone()
@@ -166,11 +166,11 @@ impl Name for Contest {
                 name_i18n
                     .get(language)
                     .cloned()
-                    .or(name_i18n.get(DEFAULT_LANG).cloned())
-                    .or(Some(self.name.clone()))
                     .flatten()
+                    .or_else(|| name_i18n.get(DEFAULT_LANG).cloned().flatten())
             })
-            .flatten();
+            .flatten()
+            .or_else(|| self.name.clone());
 
         alias.or(name).unwrap_or("-".into())
     }

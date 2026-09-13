@@ -459,6 +459,7 @@ impl KeycloakAdminClient {
             .send()
             .await?;
 
+        let response = error_check(response).await?;
         if let Some(location_header) =
             response.headers().get(reqwest::header::LOCATION)
         {
@@ -555,7 +556,8 @@ impl KeycloakAdminClient {
             .await
             .context("Failed to get groups roles")?;
 
-        let roles: Vec<RoleRepresentation> = resp.json().await?;
+        let roles: Vec<RoleRepresentation> =
+            error_check(resp).await?.json().await?;
         Ok(roles)
     }
 
@@ -616,6 +618,7 @@ impl KeycloakAdminClient {
                 .send()
                 .await
                 .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+                error_check(response).await?;
             }
         }
 
@@ -802,11 +805,12 @@ impl KeycloakAdminClient {
                 .realm_put(&board_name, realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
-            Err(_) => self
+            Err(KeycloakError::HttpFailure { status: 404, .. }) => self
                 .client
                 .post(realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+            Err(error) => Err(error.into()),
         }
     }
 }

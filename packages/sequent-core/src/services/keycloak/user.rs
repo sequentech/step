@@ -330,7 +330,7 @@ impl KeycloakAdminClient {
         let count: i32 = self
             .client
             .realm_users_count_get(
-                realm, email, None, None, None, None, search, None, None,
+                realm, email, None, None, None, None, None, search, None,
             )
             .await
             .map_err(|err| anyhow!("{:?}", err))?;

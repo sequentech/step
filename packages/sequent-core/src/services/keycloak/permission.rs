@@ -52,9 +52,10 @@ impl KeycloakAdminClient {
             .await
             .map_err(|err| anyhow!("{:?}", err))?;
         let count = role_representations.len();
-        let start = offset.unwrap_or(0);
+        // A page beyond the current result set is empty, even after deletions.
+        let start = offset.unwrap_or(0).min(count);
         let end = match limit {
-            Some(num) => usize::min(count, start + num),
+            Some(num) => usize::min(count, start.saturating_add(num)),
             None => count,
         };
         let slized_role_representations = &role_representations[start..end];
@@ -106,17 +107,11 @@ impl KeycloakAdminClient {
         // Await all futures to complete
         let results = join_all(permission_roles).await;
 
-        // Collect results into a Vec, handling any errors
-        let successful_results: Vec<_> = results
+        // Resolve every requested permission before writing. Returning success
+        // after a failed lookup would silently install only part of the policy.
+        let successful_results = results
             .into_iter()
-            .filter_map(|result| match result {
-                Ok(value) => Some(value),
-                Err(e) => {
-                    eprintln!("Error processing item: {:?}", e);
-                    None
-                }
-            })
-            .collect();
+            .collect::<Result<Vec<_>, _>>()?;
         self.client
             .realm_groups_with_group_id_role_mappings_realm_post(
                 realm,
