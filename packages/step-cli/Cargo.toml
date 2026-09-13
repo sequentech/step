@@ -39,6 +39,7 @@ sha2 = "0.10"
 base64 = "0.22"
 
 colored = "3.0"
+tempfile = "3.15"
 
 url = "2"
 
