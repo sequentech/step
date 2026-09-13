@@ -235,11 +235,26 @@ pub fn parse_canonical_csv(
     let mut imports = Vec::new();
     for (key, accumulator) in groups {
         validate_required_scalar_fields(&mut validation_errors, &key, &accumulator);
+        let total_invalid = accumulator
+            .implicit_invalid
+            .unwrap_or(0)
+            .checked_add(accumulator.explicit_invalid.unwrap_or(0));
+        let Some(total_invalid) = total_invalid else {
+            // Both cells can parse as u64 while their sum cannot. Do not offer
+            // this sheet for approval with either a wrapped or truncated total.
+            validation_errors.push(error_for_row(
+                "invalid_votes_overflow",
+                "Combined invalid votes exceed the supported count range".into(),
+                Some(key.channel.clone()),
+                Some(key.area_name.clone()),
+                Some(key.contest_external_id.clone()),
+                None,
+                Some("total_invalid".into()),
+            ));
+            continue;
+        };
         let invalid_votes = InvalidVotes {
-            total_invalid: Some(
-                accumulator.implicit_invalid.unwrap_or(0)
-                    + accumulator.explicit_invalid.unwrap_or(0),
-            ),
+            total_invalid: Some(total_invalid),
             implicit_invalid: accumulator.implicit_invalid,
             explicit_invalid: accumulator.explicit_invalid,
         };

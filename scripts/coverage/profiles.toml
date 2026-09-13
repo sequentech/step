@@ -110,3 +110,56 @@ HASURA_DB__HOST = "127.0.0.1"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+
+[profiles.windmill]
+package = "windmill"
+features = []
+limitations = [
+    "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, matching the Rust CI service fixture.",
+    "The ignored voter-channel PostgreSQL regression is run separately; ignored full-service activity-log coverage remains open.",
+    "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
+    "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
+]
+issue = "https://github.com/sequentech/meta/issues/13296"
+
+[profiles.windmill.test_environment]
+KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "3322"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
+HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "3322"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"
+
+[profiles.windmill.scope_exceptions]
+"src/lib.rs" = "Module declarations and a test allocator static; no handwritten executable function bodies."
+"src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/ceremonies/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/consolidation/eml_types.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/services/consolidation/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/encrypt_report.rs" = "Empty source file; not declared in services/mod.rs."
+"src/services/export/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/external/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/external/reconciliation/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/import/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/plugins_manager/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/providers/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/reports/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/tally_sheet_import/errors.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/services/tally_sheet_import/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/tally_sheets/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/services/temp_path.rs" = "Imports and constant declarations only; no executable function bodies."
+"src/services/vault/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/tasks/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
+"src/types/application.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/types/hasura_types.rs" = "Type aliases only; no executable function bodies."
+"src/types/miru_plugin.rs" = "Struct/enum declarations and derives without handwritten executable methods; this native LLVM export attributes no line regions to the file."
+"src/types/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."

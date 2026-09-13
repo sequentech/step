@@ -34,63 +34,45 @@ pub fn render_ballot_box_csv(
     candidate_external_ids: &HashMap<String, String>,
 ) -> String {
     let invalid_votes = content.invalid_votes.clone().unwrap_or_default();
-    let mut lines = vec!["field,candidate_external_id,candidate_name,value".to_string()];
-    lines.push(format!(
-        "total_votes,,,{value}",
-        value = content.total_votes.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "total_valid_votes,,,{value}",
-        value = content.total_valid_votes.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "implicit_invalid,,,{value}",
-        value = invalid_votes.implicit_invalid.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "explicit_invalid,,,{value}",
-        value = invalid_votes.explicit_invalid.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "total_blank_votes,,,{value}",
-        value = content.total_blank_votes.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "blank_ballots,,,{value}",
-        value = content.blank_ballots.unwrap_or(0)
-    ));
-    lines.push(format!(
-        "census,,,{value}",
-        value = content.census.unwrap_or(0)
-    ));
-
-    let mut candidate_ids = content
-        .candidate_results
-        .keys()
-        .cloned()
-        .collect::<Vec<String>>();
-    candidate_ids.sort();
-
-    for candidate_id in candidate_ids {
-        let votes = content
-            .candidate_results
-            .get(&candidate_id)
-            .and_then(|candidate| candidate.total_votes)
-            .unwrap_or(0);
-        let candidate_external_id = candidate_external_ids
-            .get(&candidate_id)
-            .cloned()
-            .unwrap_or_default()
-            .replace(',', " ");
-        let candidate_name = candidate_names
-            .get(&candidate_id)
-            .cloned()
-            .unwrap_or_default()
-            .replace(',', " ");
-        lines.push(format!(
-            "candidate_votes,{candidate_external_id},{candidate_name},{votes}"
-        ));
+    let mut writer = csv::Writer::from_writer(Vec::new());
+    // Every row has four fields and the sink is an in-memory Vec. These writes
+    // cannot fail through file I/O; the CSV writer preserves quotes/newlines.
+    writer
+        .write_record(["field", "candidate_external_id", "candidate_name", "value"])
+        .expect("write the fixed review CSV header to memory");
+    for (field, value) in [
+        ("total_votes", content.total_votes),
+        ("total_valid_votes", content.total_valid_votes),
+        ("implicit_invalid", invalid_votes.implicit_invalid),
+        ("explicit_invalid", invalid_votes.explicit_invalid),
+        ("total_blank_votes", content.total_blank_votes),
+        ("blank_ballots", content.blank_ballots),
+        ("census", content.census),
+    ] {
+        writer
+            .write_record([field, "", "", &value.unwrap_or(0).to_string()])
+            .expect("write a fixed-width review CSV row to memory");
     }
 
-    format!("{}\n", lines.join("\n"))
+    let mut candidate_ids: Vec<_> = content.candidate_results.keys().collect();
+    candidate_ids.sort();
+    for candidate_id in candidate_ids {
+        let votes = content.candidate_results[candidate_id]
+            .total_votes
+            .unwrap_or(0);
+        let external_id = candidate_external_ids
+            .get(candidate_id)
+            .map(String::as_str)
+            .unwrap_or("");
+        let name = candidate_names
+            .get(candidate_id)
+            .map(String::as_str)
+            .unwrap_or("");
+        writer
+            .write_record(["candidate_votes", external_id, name, &votes.to_string()])
+            .expect("write a fixed-width candidate CSV row to memory");
+    }
+
+    let bytes = writer.into_inner().expect("flush review CSV into memory");
+    String::from_utf8(bytes).expect("CSV written from Rust strings is UTF-8")
 }

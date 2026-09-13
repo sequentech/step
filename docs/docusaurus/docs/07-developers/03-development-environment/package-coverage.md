@@ -123,6 +123,7 @@ profiles state their dependencies explicitly:
 | `velvet` | Chrome for in-place PDF tests; `DOC_RENDERER_BACKEND=inplace`. |
 | `wrap-map-err` | Compiler expansion and runtime parser tests. |
 | `harvest` | Local Rocket client and public SQL configuration supplied by the profile; service workers are not started. |
+| `windmill` | PostgreSQL 16 with synthetic fixture credentials, plus native default FIPS dependencies. |
 
 For example, run `python3 scripts/coverage/run.py harvest --baseline --offline`.
 A `test_environment` table contains only public fixture settings and overrides
@@ -130,6 +131,20 @@ matching inherited environment variables. Never put deployment secrets in it.
 Runtime profiles clear raw counters while preserving compiled dependencies;
 `compiler_coverage = true` also rebuilds the workspace for compiler-time macro
 counters. Both modes keep fresh-counter and source-identity checks.
+
+Windmill also has a native profile backed by the same PostgreSQL 16 fixture used
+in Rust CI: loopback port `3322`, with database, user and password all `test`.
+These are synthetic development credentials. Its SQL tests use real transactions
+and PostgreSQL's parser; they must never point at a production database.
+
+```bash
+python3 scripts/coverage/run.py windmill --baseline --offline
+```
+
+The native run keeps existing ignored tests visible. The voter-channel database
+regression can be run separately with the fixture environment and `--ignored
+--exact`; the activity-log case needs additional local services. See
+`packages/windmill/tests/README.md` for the tested boundaries and remaining scope.
 
 The package READMEs describe their test boundaries. Successful database, identity,
 broker and storage workflows still need their corresponding local fixtures.
