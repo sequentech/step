@@ -280,6 +280,9 @@ const spanishTranslation: TranslationType = {
             ballotId: "Localizador del Voto",
             printButton: "Imprimir",
             finishButton: "Finalizar",
+            remainingElectionsError:
+                "No pudimos comprobar si tienes más elecciones en las que votar. Vuelve a intentarlo.",
+            retryButton: "Reintentar",
             verifyCastTitle: "Compruebe que su voto fue emitido",
             verifyCastDescription:
                 "Puede verificar en cualquier momento que su papeleta fue emitida correctamente usando el código QR a continuación",
@@ -420,6 +423,9 @@ const spanishTranslation: TranslationType = {
                 oopsWithStatus: "¡Vaya! {{status}}",
                 oopsWithoutStatus: "¡Vaya! Error Inesperado",
                 somethingWrong: "Algo salió mal.",
+                invalidLoginHintParametersTitle: "Enlace de votación no válido",
+                invalidLoginHintParametersMessage:
+                    "Este enlace de votación contiene información de acceso no válida. Solicite un nuevo enlace e inténtelo de nuevo.",
                 certAuthFailedTitle: "Error de Autenticación con Certificado",
                 certAuthFailedMessage:
                     "No se ha podido verificar su certificado. Compruebe que está usando un certificado de votante válido e inténtelo de nuevo.",
