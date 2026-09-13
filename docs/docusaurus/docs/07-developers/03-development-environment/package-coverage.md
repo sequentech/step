@@ -246,7 +246,7 @@ profiles state their dependencies explicitly:
 | `sequent-core` | Native application features; synthetic fixtures. |
 | `strand` | Default native cryptographic backend. |
 | `velvet` | Chrome for in-place PDF tests; `DOC_RENDERER_BACKEND=inplace`. |
-| `wrap-map-err` | Compiler expansion and runtime parser tests. |
+| `wrap-map-err` | Synthetic PostgreSQL 16 on loopback port 3322 (database/user/password `test`), existing Windmill consumers and macro contracts. Only macro source contributes to its counters. |
 | `harvest` | Local Rocket client and public SQL configuration supplied by the profile; service workers are not started. |
 | `windmill` | PostgreSQL 16 with synthetic fixture credentials, plus native default FIPS dependencies. |
 | `step-cli` | File conversion, import validation and subprocess tests; full election services remain a separate fixture. |
@@ -401,44 +401,49 @@ work are tracked in [Meta #13302](https://github.com/sequentech/meta/issues/1330
 
 ## Remaining-package increment (2026-09-13)
 
-Twenty-five additional package tests pin cancellation cleanup, absent-versus-zero
+Thirty-nine additional package tests pin cancellation cleanup, absent-versus-zero
 CSV counts, rejected file/import inputs, distinct and duplicate audit fields,
-production ES5 category identifiers, autocomplete callbacks and countdown render
-commits. Regression failures were recorded before surgical fixes. No production
+production ES5 category identifiers, inherited/malformed translation dictionaries,
+autocomplete callbacks, re-entrant imports, partial GraphQL responses, symlink
+exports, deterministic audit pagination and countdown render commits. Regression failures were recorded before surgical fixes. No production
 rewrites, new exclusions or score-only derive tests were introduced. Harvest's
-accepted low-coverage scope is unchanged.
+accepted low-coverage scope is unchanged; its role fixture now uses a private
+nonce so stale environment flags cannot bypass the clean child process.
 
 Native measurements use Rust 1.96.0 and cargo-llvm-cov 0.9.1. Regions are LLVM
 regions, not branch coverage; existing inline tests remain counted.
 
 | Profile / measured source | Passing tests | Lines | Functions | Regions |
 | --- | ---: | ---: | ---: | ---: |
-| wrap-map-err / `643d3d8` | 17 | 52/52 (100%) | 5/5 (100%) | 88/89 (98.88%) |
+| wrap-map-err / `c9a1d29` | 17 + 353 existing consumer tests | 52/52 (100%) | 5/5 (100%) | 88/89 (98.88%) |
 | Windmill / `2ea0bef` | 369 | 9307/31300 (29.73%) | 864/5754 (15.02%) | 11921/36156 (32.97%) |
-| Step CLI / `46bd965` | 27 | 233/3832 (6.08%) | 24/243 (9.88%) | 362/6112 (5.92%) |
-| Electoral Log defaults / `9c8d060` | 67 | 1074/1378 (77.94%) | 140/192 (72.92%) | 1098/1390 (78.99%) |
-| Electoral Log + ImmuDB / `29e334a` | 71 | 1343/1378 (97.46%) | 182/192 (94.79%) | 1327/1390 (95.47%) |
+| Step CLI / `a7dad7a` | 31 | 354/3843 (9.21%) | 33/245 (13.47%) | 574/6135 (9.36%) |
+| Electoral Log defaults / `63dacd4` | 68 | 1076/1380 (77.97%) | 140/192 (72.92%) | 1104/1396 (79.08%) |
+| Electoral Log + ImmuDB / `63dacd4` | 73 | 1345/1380 (97.46%) | 182/192 (94.79%) | 1333/1396 (95.49%) |
 
 Windmill, Step CLI and default-feature Electoral Log increase every metric against
 their actual PR bases. The full Electoral Log feature lacks a comparable base and
-stays separate. wrap-map-err's initial base has no passing tests: its new CI gate
-correctly reports invalid baseline evidence. This remains an explicit blocker,
-not a measured zero or a waived comparison. Subsequent stacked PRs have the
-consumer tests needed for that profile's base measurement.
+stays separate. The macro comparison now uses each revision's existing Windmill
+consumers: the original 353 tests pass and compile the real Celery consumers,
+providing 25/30 macro lines, 2/2 functions and 52/57 regions at the actual base.
+All macro fractions maintain or improve that baseline. This resolves the first
+zero-own-test comparison failure without inventing tests or treating missing
+coverage as zero. The same measurement policy runs on both revisions; consumer
+source never increases the macro counters, and incompatible consumer sets fail.
 
 | Frontend / measured source | Unit tests | Lines | Statements | Functions | Branches |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| UI Core / `fa58b03` | 217 | 736/741 | 766/771 | 176/177 | 329/343 |
+| UI Core / `67d7106` | 224 | 740/745 | 771/776 | 176/177 | 335/349 |
 | Voting Portal / `a657eef` | 168 | 849/2440 | 870/2503 | 172/555 | 479/1714 |
-| UI Essentials / `fb606ce` | 121 | 701/987 | 745/1048 | 235/348 | 495/836 |
+| UI Essentials / `d15ed22` | 122 | 704/990 | 748/1051 | 235/348 | 495/836 |
 
 All four frontend fractions increase against the actual PR bases. The separate
 frontend workflow enforces each metric with Node 22.22.0 and the locked workspace
 instrumenter. A real Jest control proves that equal coverage passes, removing a
 test rejects the change, and failed, empty or skipped-required suites cannot pass.
-The 81 Python tooling tests pass; tooling lines and branches also maintain or
-increase coverage. Browser checks pass separately (4 UI Core, 2 Voting Portal,
-4 UI Essentials), as do 17 countdown cases in UTC and America/Toronto. These
+The 82 Python tooling tests pass; tooling lines and branches also maintain or
+increase coverage. The frontend CI job now requires the browser checks (4 UI Core, 2 Voting Portal,
+4 UI Essentials); they pass locally, as do 17 countdown cases in UTC and America/Toronto. These
 browser checks are not included in Istanbul counters.
 
 Remaining gaps include Windmill cloud transports and full authenticated election
