@@ -9,7 +9,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from report import CoverageError, exclusion_arguments, summarize, validate_exclusions
+from report import (
+    CoverageError,
+    exclusion_arguments,
+    filter_excluded_functions,
+    summarize,
+    validate_exclusions,
+)
 
 
 def llvm_file(path: Path, covered: int = 95, count: int = 100) -> dict:
@@ -29,6 +35,57 @@ def export(*files: dict) -> dict:
         "version": "3.1.0",
         "data": [{"files": list(files)}],
     }
+
+
+class FunctionExportTests(unittest.TestCase):
+    def setUp(self):
+        self.package = Path("/synthetic/sequent-core")
+        self.source = str(self.package / "src/codec.rs")
+        self.fixture = str(self.package / "src/fixtures.rs")
+        self.excluded = {"src/fixtures.rs": "Synthetic fixture builder."}
+        self.payload = export(llvm_file(Path(self.source)))
+
+    def filter(self):
+        filter_excluded_functions(self.payload, self.package, self.excluded)
+
+    def test_filter_retains_exact_production_records_and_all_counters(self):
+        included = {"name": "decode", "filenames": [self.source], "count": 7}
+        excluded = {"name": "fixture", "filenames": [self.fixture], "count": 99}
+        # Similar names and inline tests in an included file remain measured.
+        similar = {"name": "test", "filenames": [self.fixture + ".bak"], "count": 0}
+        data = self.payload["data"][0]
+        data.update(functions=[included, excluded, similar], totals={"sentinel": 123})
+        before = copy.deepcopy(data)
+        self.filter()
+        self.assertEqual(data["functions"], [included, similar])
+        self.assertEqual(data["files"], before["files"])
+        self.assertEqual(data["totals"], before["totals"])
+
+    def test_file_counter_leak_and_mixed_expansion_fail_instead_of_hiding_code(self):
+        data = self.payload["data"][0]
+        data["files"].append(llvm_file(Path(self.fixture)))
+        with self.assertRaisesRegex(CoverageError, "Excluded source remains"):
+            self.filter()
+        data["files"].pop()
+        data["functions"] = [{"filenames": [self.fixture, self.source]}]
+        with self.assertRaisesRegex(CoverageError, "mixes excluded and included"):
+            self.filter()
+
+    def test_malformed_function_records_fail_closed(self):
+        for functions in (
+            None,
+            {},
+            [None],
+            [{}],
+            [{"filenames": []}],
+            [{"filenames": "file.rs"}],
+            [{"filenames": [None]}],
+            [{"filenames": ["relative.rs"]}],
+        ):
+            with self.subTest(functions=functions):
+                self.payload["data"][0]["functions"] = functions
+                with self.assertRaisesRegex(CoverageError, "Invalid LLVM function"):
+                    self.filter()
 
 
 class CoverageReportTests(unittest.TestCase):

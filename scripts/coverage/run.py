@@ -27,6 +27,7 @@ from typing import Any
 from report import (
     CoverageError,
     exclusion_arguments,
+    filter_excluded_functions,
     summarize,
     validate_exclusions,
 )
@@ -309,12 +310,8 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 excluded_files,
             )
         )
-        excluded_paths = {(package / name).resolve() for name in excluded_files}
-        if any(
-            Path(entry["filename"]).resolve() in excluded_paths
-            for entry in payload["data"][0]["files"]
-        ):
-            raise CoverageError("Excluded source remains in the LLVM export")
+        filter_excluded_functions(payload, package, excluded_files)
+        write_json(output / "llvm.json", payload)
         if result["checkout_sha256"] != checkout_digest() or result[
             "revision"
         ] != git_output("rev-parse", "HEAD"):

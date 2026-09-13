@@ -324,6 +324,14 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         def tool(command, log, environment):
             commands.append(command)
             result = self.tool_output(command, log, environment)
+            if "--json" in command:
+                destination = Path(command[-1])
+                payload = json.loads(destination.read_text())
+                payload["data"][0]["functions"] = [
+                    {"name": "decode", "filenames": [str(self.source)], "count": 3},
+                    {"name": "fixture", "filenames": [str(fixture)], "count": 99},
+                ]
+                destination.write_text(json.dumps(payload))
             return result
 
         with patch.object(run, "execute", side_effect=tool):
@@ -342,6 +350,13 @@ issue = "https://github.com/sequentech/meta/issues/13292"
             summary["excluded_files"], {"src/fixture.rs": "Test data only."}
         )
         self.assertIn("src/fixture.rs", run.markdown_summary("sequent-core", summary))
+        payload = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/llvm.json")).read_text()
+        )
+        self.assertEqual(
+            payload["data"][0]["functions"],
+            [{"name": "decode", "filenames": [str(self.source)], "count": 3}],
+        )
 
     def test_invalid_exclusion_fails_before_starting_cargo(self):
         self.config.write_text(

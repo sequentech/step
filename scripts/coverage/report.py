@@ -73,6 +73,45 @@ def exclusion_arguments(package: Path, excluded_files: dict[str, str]) -> list[s
     return ["--ignore-filename-regex", "^(" + "|".join(paths) + ")$"]
 
 
+def filter_excluded_functions(
+    payload: dict[str, Any], package: Path, excluded_files: dict[str, str]
+) -> None:
+    """Finish LLVM's filename filtering without changing any coverage counters.
+
+    LLVM filters file records and totals, but its JSON function list still
+    contains excluded files. Remove only functions wholly owned by those files.
+    A mixed expansion needs explicit handling; dropping it could hide measured
+    production code, so fail instead. Call after validating the file summaries.
+    """
+    excluded = {(package / name).resolve() for name in excluded_files}
+    data = payload["data"][0]
+    if any(Path(entry["filename"]).resolve() in excluded for entry in data["files"]):
+        raise CoverageError("Excluded source remains in the LLVM export")
+    functions = data.get("functions", [])
+    if not isinstance(functions, list):
+        raise CoverageError("Invalid LLVM function list")
+    retained = []
+    for function in functions:
+        filenames = function.get("filenames") if isinstance(function, dict) else None
+        if (
+            not isinstance(filenames, list)
+            or not filenames
+            or any(
+                not isinstance(name, str) or not Path(name).is_absolute()
+                for name in filenames
+            )
+        ):
+            raise CoverageError("Invalid LLVM function filenames")
+        paths = {Path(name).resolve() for name in filenames}
+        if paths & excluded:
+            if not paths <= excluded:
+                raise CoverageError("LLVM function mixes excluded and included source")
+        else:
+            retained.append(function)
+    if "functions" in data:
+        data["functions"] = retained
+
+
 def summarize(
     payload: dict[str, Any],
     package: Path,
