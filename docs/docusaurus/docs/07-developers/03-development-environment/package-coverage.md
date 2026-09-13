@@ -22,8 +22,8 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **489 passing tests**, **96.92% line
-coverage**, **95.77% function coverage** and **95.74% LLVM region coverage**. Its
+The `default_features,keycloak` profile has **489 passing tests**, **96.93% line
+coverage**, **95.77% function coverage** and **95.75% LLVM region coverage**. Its
 native aggregate includes inline test code; standalone fixtures and test files
 are excluded. It is not yet a
 production-only or actual branch score.
@@ -40,8 +40,8 @@ presentation data. PostgreSQL tests launch private temporary clusters and requir
 `postgresql libpq-dev` or `PG_BIN` pointing to the server binaries; they never use
 an existing database or a production connection string.
 
-Source commit `7a8304f4102e696e76a06a0960472e7792aaaaf8` measures 11,936/12,315
-lines, 1,403/1,465 functions and 15,208/15,885 regions with Rust 1.96.0 and
+Source commit `f835df0ba799e9338a8fe70f3a03b09b6ea6290c` measures 11,947/12,325
+lines, 1,403/1,465 functions and 15,219/15,895 regions with Rust 1.96.0 and
 cargo-llvm-cov 0.9.1. The native line improvement target is met. Remaining work
 includes realizable failure cases, integration with a running identity provider
 and separate WASM/service profiles. All 47 files missing from the LLVM report

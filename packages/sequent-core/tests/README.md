@@ -71,9 +71,9 @@ Payload errors describe the length without including plaintext contents.
 ## Coverage and remaining work
 
 The native `default_features,keycloak` profile runs **489 passing tests, none
-ignored**. Source commit `7a8304f4102e696e76a06a0960472e7792aaaaf8` measures
-**11,936/12,315 lines (96.92%)**, **1,403/1,465 functions (95.77%)** and
-**15,208/15,885 LLVM regions (95.74%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
+ignored**. Source commit `f835df0ba799e9338a8fe70f3a03b09b6ea6290c` measures
+**11,947/12,325 lines (96.93%)**, **1,403/1,465 functions (95.77%)** and
+**15,219/15,895 LLVM regions (95.75%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
 Production Clippy and workspace formatting pass (existing warnings remain).
 Actual branch coverage is not measured by this stable native profile. Existing
 randomized inline ballot tests can cause small line/region differences between
@@ -85,12 +85,15 @@ request guards. It verifies request payloads, authentication failures, token-cac
 isolation and expiry without contacting a production identity provider. These
 checks complement, but do not replace, integration against a running Keycloak.
 
-The report has **379 uncovered measured lines** and **62 uncovered functions**.
+The report has **378 uncovered measured lines** and **62 uncovered functions**.
 The new cases exercise generated stream contracts, PostgreSQL row mapping,
 malformed audit/hash payloads, permission-label deduplication, expired tokens,
 rejected realm/user/permission writes and invalid user locations. Oversized
 mixed-radix payloads and group updates without an id reproduced panics before
-their fixes; zero radices are also rejected.
+their fixes; zero radices are also rejected. Signature regressions also showed
+that either incomplete public-key/signature pair was reported as unsigned. Both
+verifiers now reject partial pairs while preserving valid signed and fully
+unsigned controls.
 The suite also covers interrupted token-response bodies, unrepresentable
 raw choices, unknown contest IDs through the direct encoder and encryption-error
 propagation. Backend failures, preferential-validation cases and separately
