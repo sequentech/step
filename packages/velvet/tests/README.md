@@ -48,7 +48,7 @@ RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 DOC_RENDERER_BACKEND=inplace \
 
 Set `CHROME` to a compatible local executable. CI uses the official Chrome for
 Testing **headless shell 153.0.8010.36**, with the download and checksum pinned in
-[the browser setup action](../../../../.github/actions/setup-test-browser/action.yml).
+[the browser setup action](../../../.github/actions/setup-test-browser/action.yml).
 Both `--single-process` and `--no-zygote` remain enabled. The full Chrome binary
 of the same version crashed with these flags in the isolated worker; the headless
 shell passed the startup control and PDF suite. The startup control uses the
