@@ -13,7 +13,7 @@ The pre-existing election end-to-end test uses a complete election environment
 and external Loadero automation. It remains ignored; this work invokes no paid
 test service. A local browser replacement is tracked in Meta #13298. These file and subprocess tests do not certify live election workflows
 or establish 95% package coverage. The measured scope and remaining gap belong
-in Meta #13297; do not exclude untested commands to make the percentage pass.
+in Meta #13302; do not exclude untested commands to make the percentage pass.
 
 Credential conversion validates the complete CSV before publishing it. Duplicate
 password headers and reserved credential headers are rejected. A successful
@@ -35,3 +35,9 @@ python3 scripts/coverage/run.py step-cli --baseline --offline
 
 This emits HTML, JSON and LCOV reports. Remove `--baseline` to enforce 95% and
 require every source file to have a measurement or reviewed scope explanation.
+
+Empty document references now fail before network access; their regression fails
+on the previous code and a valid reference remains accepted. Additional cases
+pin the standard empty-file SHA-256, preserve I/O error types and reject trailing
+JSON documents and invalid UTF-8 while retaining valid null and zero counts.
+The suite has 27 passing tests and one pre-existing ignored service journey.
