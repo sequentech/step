@@ -222,6 +222,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 ).hexdigest(),
                 "config_sha256": hashlib.sha256(CONFIG.read_bytes()).hexdigest(),
                 "features": profile["features"],
+                "consumer_packages": profile.get("consumer_packages", []),
                 "test_environment": profile.get("test_environment", {}),
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
@@ -231,6 +232,8 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
         )
 
         arguments = ["--package", profile["package"], "--locked"]
+        for consumer in profile.get("consumer_packages", []):
+            arguments.extend(["--package", consumer])
         # cargo-llvm-cov also asks Cargo for workspace metadata when exporting.
         # Validate the lockfile before those internal, unflagged metadata calls.
         execute(
