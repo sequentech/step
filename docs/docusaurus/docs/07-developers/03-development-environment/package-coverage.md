@@ -209,3 +209,30 @@ COVERAGE_FILE=coverage/tooling/.coverage python3 -m coverage report --fail-under
 
 The tests cover threshold boundaries, missing files, invalid counters, source
 changes, failed commands, interrupted processes and concurrent-run rejection.
+
+## Electoral Log
+
+Electoral Log combines message and row tests with real ImmuDB integration. Install
+[ImmuDB 1.9.6](https://github.com/codenotary/immudb/releases/tag/v1.9.6) and set
+`ELECTORAL_LOG_TEST_IMMUDB_BINARY` if the executable is not on PATH. The integration
+fixture starts its own local database process and temporary directory; no shared
+server, deployment credentials or paid service is needed.
+
+```bash
+cd packages
+cargo test -p electoral-log --features immudb-tests --locked
+cd ..
+python3 scripts/coverage/run.py electoral-log
+```
+
+The strict profile requires 95% package lines. It covers real signatures and
+serialization failures, malformed database responses, the helper CLI, filtering,
+transaction failure and pagination over 903 records. A database stream error must
+fail the read instead of producing a successful partial export. Tests themselves
+live outside the production source tree; generated serialization methods remain
+in the reported totals. The existing signature protocol authenticates statements,
+not the separate artifact or search metadata.
+
+See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
+for setup, coverage limits and failure diagnosis. The rollout is tracked in
+[Meta #13301](https://github.com/sequentech/meta/issues/13301).
