@@ -53,3 +53,9 @@ source counters never inflate the macro totals, and both revisions retain their
 own source and tests. No tests are injected into the base, and an empty or failed
 consumer run still cannot pass. Full distributed Celery execution remains a
 separate integration obligation.
+
+The paired follow-up passes: 17 macro tests plus the same 353 existing Windmill
+tests, with two existing Windmill service cases ignored on both revisions. Macro
+source measures 52/52 lines, 5/5 functions and 88/89 LLVM regions. All three
+fractions maintain or improve the real compiler-consumer baseline above. The
+consumer configuration is recorded and incompatible consumer sets fail comparison.
