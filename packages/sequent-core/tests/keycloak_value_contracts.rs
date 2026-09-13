@@ -155,6 +155,33 @@ fn managed_policy_changes_preserve_escaped_regex_and_existing_character_requirem
 }
 
 #[test]
+fn lowercase_requirements_and_bare_unmanaged_rules_survive_policy_edits() {
+    for (count, expected) in [(0, 1), (3, 3)] {
+        let original =
+            format!("notUsername and lowerCase({count}) and length(12)");
+        let parsed =
+            ParsedRealmPasswordPolicy::from_keycloak_policy(Some(&original));
+        assert_eq!(
+            parsed.to_admin_configuration().include_lowercase,
+            count > 0
+        );
+        let merged = RealmPasswordPolicy::default()
+            .merge_into_keycloak_policy(Some(&original))
+            .unwrap();
+        let rules: Vec<_> = merged.split(" and ").collect();
+        assert!(rules.contains(&"notUsername"));
+        assert!(rules.contains(&format!("lowerCase({expected})").as_str()));
+        assert_eq!(
+            rules
+                .iter()
+                .filter(|rule| rule.starts_with("lowerCase("))
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
 fn formatted_user_profiles_preserve_required_roles_and_scope_selectors() {
     let raw = serde_json::from_value(json!({"attributes": [
         {"name": "${phone}", "displayName": "Phone", "permissions": {"edit": ["admin"]}, "required": {"roles": ["user"], "scopes": ["vote"]},

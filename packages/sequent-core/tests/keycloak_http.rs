@@ -23,6 +23,40 @@ const MAPPINGS: &str =
     "/admin/realms/tenant-north/groups/group-1/role-mappings/realm";
 
 #[rocket::async_test]
+async fn resolved_permissions_do_not_turn_a_rejected_assignment_into_success() {
+    for status in [204, 403] {
+        let peer = HttpServer::start(vec![
+            Exchange::json(
+                "GET",
+                &format!("{ROLES}/read"),
+                200,
+                json!({"id": "permission-1", "name": "read"}),
+            ),
+            Exchange::json(
+                "POST",
+                MAPPINGS,
+                status,
+                json!({"error": "write denied"}),
+            ),
+        ]);
+        let result = peer
+            .client()
+            .set_role_permissions(REALM, "group-1", &vec!["read".into()])
+            .await;
+        if status == 204 {
+            result.unwrap();
+        } else {
+            assert!(result.unwrap_err().to_string().contains("403"));
+        }
+        let requests = peer.finish();
+        assert_eq!(
+            requests[1].json(),
+            json!([{"id": "permission-1", "name": "read"}])
+        );
+    }
+}
+
+#[rocket::async_test]
 async fn realm_export_distinguishes_rejections_from_malformed_success_bodies() {
     use keycloak::KeycloakError;
 
@@ -377,6 +411,12 @@ async fn role_lookup_and_user_membership_preserve_the_server_representation() {
             200,
             json!([{"id": "group-1", "name": "Clerks"}]),
         ),
+        Exchange::json(
+            "GET",
+            &format!("{USER}/groups"),
+            403,
+            json!({"error": "read denied"}),
+        ),
     ]);
     let found = peer
         .client()
@@ -400,6 +440,13 @@ async fn role_lookup_and_user_membership_preserve_the_server_representation() {
         .unwrap();
     assert_eq!(roles.len(), 1);
     assert_eq!(roles[0].name.as_deref(), Some("Clerks"));
+    assert!(peer
+        .client()
+        .list_user_roles(REALM, "voter-1")
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("403"));
     peer.finish();
 }
 

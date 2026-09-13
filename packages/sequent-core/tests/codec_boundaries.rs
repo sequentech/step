@@ -55,6 +55,80 @@ fn choices(ids: &[&str]) -> BallotChoices {
 }
 
 #[test]
+fn single_contest_base_and_integer_decoding_reject_duplicate_markers() {
+    use sequent_core::ballot_codec::{BasesCodec, BigUIntCodec};
+    let mut config = contest();
+    assert_eq!(config.get_bases().unwrap(), vec![2, 2, 2, 2]);
+    assert_eq!(
+        config
+            .bigint_to_raw_ballot(&BigUint::from(0_u8))
+            .unwrap()
+            .choices,
+        vec![0, 0, 0, 0]
+    );
+    for candidate in &mut config.candidates[..2] {
+        candidate.presentation = Some(CandidatePresentation {
+            is_explicit_invalid: Some(true),
+            ..Default::default()
+        });
+    }
+    let expected = "errors.configuration.multipleExplicitInvalidCandidates";
+    assert_eq!(config.get_bases().unwrap_err().to_string(), expected);
+    assert_eq!(
+        config
+            .bigint_to_raw_ballot(&BigUint::from(0_u8))
+            .unwrap_err(),
+        expected
+    );
+}
+
+#[test]
+fn expanding_decoded_choices_requires_an_entry_for_each_votable_contest() {
+    use sequent_core::plaintext::map_decoded_ballot_choices_to_decoded_contests;
+    let mut contests = vec![contest()];
+    let mut decoded = DecodedBallotChoices {
+        is_explicit_invalid: false,
+        is_blank_ballot: false,
+        serial_number: None,
+        choices: vec![DecodedContestChoices::new(
+            "council".into(),
+            vec![],
+            false,
+            vec![],
+            vec![],
+        )],
+    };
+    let valid = map_decoded_ballot_choices_to_decoded_contests(
+        decoded.clone(),
+        &contests,
+    )
+    .unwrap();
+    assert_eq!(
+        valid[0]
+            .choices
+            .iter()
+            .map(|choice| (choice.id.as_str(), choice.selected))
+            .collect::<Vec<_>>(),
+        [("a", -1), ("b", -1), ("c", -1)]
+    );
+    decoded.choices.clear();
+    assert_eq!(
+        map_decoded_ballot_choices_to_decoded_contests(
+            decoded.clone(),
+            &contests
+        )
+        .unwrap_err(),
+        "Can't find contest with id council on ballot style"
+    );
+    contests[0].is_acclaimed = Some(true);
+    assert!(
+        map_decoded_ballot_choices_to_decoded_contests(decoded, &contests)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn independent_mixed_radix_vector_preserves_selected_candidates_and_serial_numbers(
 ) {
     let contests = vec![contest()];

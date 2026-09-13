@@ -246,6 +246,24 @@ fn cryptographic_ballot_records_reject_truncation_and_propagate_sink_errors() {
 }
 
 #[test]
+fn multi_ballot_hashing_rejects_malformed_contests_instead_of_hashing_the_text()
+{
+    use sequent_core::encrypt::{hash_multi_ballot, hash_multi_ballot_sha512};
+    let (style, votes) = ballot_input();
+    let audit =
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let mut public = HashableMultiBallot::try_from(&audit).unwrap();
+    assert_eq!(hash_multi_ballot(&public).unwrap(), audit.ballot_hash);
+    hash_multi_ballot_sha512(&public).unwrap();
+    for malformed in ["!invalid-base64", "AAAA"] {
+        public.contests = malformed.into();
+        assert!(public.deserialize_contests::<RistrettoCtx>().is_err());
+        assert!(hash_multi_ballot(&public).is_err());
+        assert!(hash_multi_ballot_sha512(&public).is_err());
+    }
+}
+
+#[test]
 fn auditable_multi_ballots_preserve_selection_but_strip_private_replication_data(
 ) {
     let (style, votes) = ballot_input();

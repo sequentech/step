@@ -483,6 +483,55 @@ fn the_warning_names_the_labels_in_use() {
 }
 
 #[test]
+fn permission_warnings_deduplicate_each_collection_and_ignore_blank_labels() {
+    let mut bundle = sound();
+    assert!(!validate(&bundle)
+        .warnings()
+        .any(|problem| problem.code == Code::PermissionLabel));
+    for (index, label) in ["officers", "officers", "observers", " "]
+        .into_iter()
+        .enumerate()
+    {
+        let mut election = bundle.elections[0].clone();
+        election.id = format!("f0000000-0000-5000-8000-{index:012}");
+        election.permission_label = Some(label.into());
+        bundle.elections.push(election);
+    }
+    bundle.reports.push(serde_json::from_value(serde_json::json!({
+        "id": "a3000000-0000-5000-8000-000000000000",
+        "tenant_id": TENANT, "election_event_id": bundle.election_event.id,
+        "report_type": "PARTICIPATION_REPORT", "encryption_policy": "unencrypted",
+        "created_at": "2026-09-13T12:00:00Z",
+        "permission_label": ["observers", " ", "auditors", "observers"]
+    })).unwrap());
+    let report = validate(&bundle);
+    assert!(!report.has_errors());
+    let labels: Vec<_> = report
+        .warnings()
+        .filter(|problem| problem.code == Code::PermissionLabel)
+        .map(|problem| {
+            (
+                problem.path.as_str(),
+                problem.message.split('.').next().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        labels,
+        [
+            (
+                "elections[].permission_label",
+                "permission labels in use: officers, observers"
+            ),
+            (
+                "reports[].permission_label",
+                "permission labels in use: observers, auditors"
+            ),
+        ]
+    );
+}
+
+#[test]
 fn no_labels_means_no_warning() {
     assert_eq!(
         validate(&sound())

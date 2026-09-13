@@ -18,6 +18,45 @@ fn row() -> Value {
 }
 
 #[test]
+fn unknown_participation_channels_keep_distinct_ordered_names_in_reports() {
+    use sequent_core::types::participation::ParticipationChannel;
+    let mut channels: Vec<ParticipationChannel> =
+        ["future-z", "POSTAL", "future-a", "ONLINE", "future-z"]
+            .into_iter()
+            .map(ParticipationChannel::from)
+            .collect();
+    channels.sort();
+    assert_eq!(
+        channels.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        ["ONLINE", "POSTAL", "future-a", "future-z", "future-z"]
+    );
+    channels.dedup();
+    assert_eq!(
+        channels.len(),
+        4,
+        "unknown channels must not collapse into one value"
+    );
+}
+
+#[test]
+fn import_report_text_preserves_severity_path_and_problem_order() {
+    use sequent_core::election_config::problem::{Code, Problem, Report};
+    let mut report = Report::default();
+    assert_eq!(report.to_string(), "");
+    report.push(Problem::warning(
+        Code::MissingSchedule,
+        "elections[0]",
+        "no voting window",
+    ));
+    report.push(Problem::error(
+        Code::MissingField,
+        "contests[1].id",
+        "missing identity",
+    ));
+    assert_eq!(report.to_string(), "  warning: elections[0]: no voting window\n  error: contests[1].id: missing identity\n");
+}
+
+#[test]
 fn event_and_election_validation_checks_every_nested_configuration() {
     let event_fields = [
         (

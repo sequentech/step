@@ -281,6 +281,18 @@ async fn realm_attribute_updates_preserve_unmentioned_values_and_secret_placehol
         Exchange::json("GET", REALM_PATH, 200, saved.clone()),
         Exchange::json("GET", REALM_PATH, 200, saved),
         Exchange::json("PUT", REALM_PATH, 204, Value::Null),
+        Exchange::json(
+            "GET",
+            REALM_PATH,
+            200,
+            json!({"attributes": {"keep": "preserved"}}),
+        ),
+        Exchange::json(
+            "PUT",
+            REALM_PATH,
+            403,
+            json!({"error": "write denied"}),
+        ),
     ]);
     let attributes = peer
         .client()
@@ -298,7 +310,18 @@ async fn realm_attribute_updates_preserve_unmentioned_values_and_secret_placehol
         .update_realm_attributes("tenant-north-event-mayor", updates)
         .await
         .unwrap();
-    let body = peer.finish()[2].json();
+    let rejected = peer
+        .client()
+        .update_realm_attributes(
+            "tenant-north-event-mayor",
+            [("label".into(), "new".into())].into(),
+        )
+        .await
+        .unwrap_err();
+    assert!(rejected.to_string().contains("403"));
+    let requests = peer.finish();
+    assert_eq!(requests[4].json()["attributes"]["keep"], "preserved");
+    let body = requests[2].json();
     assert_eq!(body["attributes"]["keep"], "preserved");
     assert_eq!(body["attributes"]["label"], "new");
     assert_eq!(body["attributes"]["custom-secret"], "synthetic-secret");
@@ -313,6 +336,18 @@ async fn password_policy_updates_preserve_unmanaged_rules_and_validate_before_ht
         Exchange::json("GET", REALM_PATH, 200, saved.clone()),
         Exchange::json("GET", REALM_PATH, 200, saved),
         Exchange::json("PUT", REALM_PATH, 204, Value::Null),
+        Exchange::json(
+            "GET",
+            REALM_PATH,
+            200,
+            json!({"passwordPolicy": "length(12)"}),
+        ),
+        Exchange::json(
+            "PUT",
+            REALM_PATH,
+            403,
+            json!({"error": "write denied"}),
+        ),
     ]);
     let parsed = peer
         .client()
@@ -337,9 +372,18 @@ async fn password_policy_updates_preserve_unmanaged_rules_and_validate_before_ht
         .await
         .is_err());
     peer.client()
-        .update_realm_password_policy("tenant-north-event-mayor", policy)
+        .update_realm_password_policy(
+            "tenant-north-event-mayor",
+            policy.clone(),
+        )
         .await
         .unwrap();
+    let rejected = peer
+        .client()
+        .update_realm_password_policy("tenant-north-event-mayor", policy)
+        .await
+        .unwrap_err();
+    assert!(rejected.to_string().contains("403"));
     let body = peer.finish()[2].json();
     let policies: Vec<_> = body["passwordPolicy"]
         .as_str()
@@ -359,6 +403,30 @@ async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and
     let mut expiring_token = http::token_json();
     expiring_token["expires_in"] = json!(5);
     let peer = HttpServer::start(vec![
+        Exchange::json(
+            "POST",
+            token_endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
+        Exchange::json(
+            "POST",
+            token_endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
+        Exchange::json(
+            "POST",
+            token_endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
+        Exchange::json(
+            "POST",
+            token_endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
         Exchange::json(
             "POST",
             token_endpoint,
@@ -397,6 +465,29 @@ async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and
         ("SUPER_ADMIN_TENANT_ID", Some("north")),
     ]);
     assert!(KeycloakAdminClient::new().await.is_err());
+    // Failed authentication must reach every convenience API, before any realm
+    // request. The successful calls below control the same APIs after login.
+    let errors = [
+        get_realm_attributes("north", "mayor").await.unwrap_err(),
+        update_realm_attributes("north", "mayor", Default::default())
+            .await
+            .unwrap_err(),
+        get_realm_password_policy("north", "mayor")
+            .await
+            .unwrap_err(),
+        update_realm_password_policy(
+            "north",
+            "mayor",
+            RealmPasswordPolicy::default(),
+        )
+        .await
+        .unwrap_err(),
+    ];
+    for error in errors {
+        assert!(error
+            .to_string()
+            .starts_with("Error creating Keycloak admin client:"));
+    }
     KeycloakAdminClient::new().await.unwrap();
     // The five-second renewal margin makes this token immediately due for
     // renewal. No wall-clock sleeps or artificial cache mutation are needed.
@@ -452,7 +543,7 @@ async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and
         .collect();
     assert_eq!(
         token_requests.len(),
-        5,
+        9,
         "cached operations make no extra token requests"
     );
     for request in token_requests {
