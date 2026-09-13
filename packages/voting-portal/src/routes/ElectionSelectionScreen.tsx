@@ -550,15 +550,24 @@ const ElectionSelectionScreen: React.FC = () => {
             skipPolicy &&
             1 === electionIds.length &&
             !errorCastVote &&
-            !isUndefined(castVotes) &&
+            (globalSettings.DISABLE_AUTH || !isUndefined(castVotes)) &&
             !!electionEvent &&
-            !!data
+            (globalSettings.DISABLE_AUTH || !!data)
 
         if (newBypassChooser && !bypassChooser) {
             console.log("new baypass chooser", newBypassChooser)
             dispatch(setBypassChooser(newBypassChooser))
         }
-    }, [castVotes, electionIds, errorCastVote, electionEvent, data, bypassChooser, dispatch])
+    }, [
+        castVotes,
+        electionIds,
+        errorCastVote,
+        electionEvent,
+        data,
+        bypassChooser,
+        dispatch,
+        globalSettings.DISABLE_AUTH,
+    ])
 
     let warningMsg: string | undefined
     if (!globalSettings.DISABLE_AUTH) {
