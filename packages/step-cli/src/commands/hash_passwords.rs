@@ -53,6 +53,14 @@ impl HashPasswords {
         if output_path.canonicalize().ok().as_ref() == Some(&input_path) {
             bail!("Input and output must be different files");
         }
+        match output_path.symlink_metadata() {
+            Ok(metadata) if metadata.file_type().is_symlink() => {
+                bail!("Output must not be a symlink");
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
         let input = File::open(&self.input_file)?;
         let mut rdr = ReaderBuilder::new().from_reader(BufReader::new(input));
 
