@@ -63,8 +63,12 @@ reports are written under `coverage/`.
 The initial baseline has 56 tests and 37.21% line coverage. Follow-up work must
 cover the remaining autocomplete, profile/session, chart/grid and presentation
 paths rather than exclude them. Progress and measured results are recorded in
-[Meta #13303](https://github.com/sequentech/meta/issues/13303).
+[Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
 For a fast development loop, run the affected Jest file first. Rerun Voting
 Portal's browser tests when changing shared selection behavior. Preserve a
 failing run against the previous implementation when fixing a regression.
+
+## Follow-up contracts
+
+The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 119 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. Source coverage is 700/986 lines, 235/348 functions and 495/836 branches. Remaining profile/session, chart/grid and wrapper localization paths stay in scope; no test-only derives or printing are added to increase counters.

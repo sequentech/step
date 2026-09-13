@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {useLayoutEffect} from "react"
 import {act, renderHook} from "@testing-library/react"
 import {useSelectElectionCountdown} from "./useSelectElectionCountdown"
 
@@ -100,4 +101,28 @@ it("counts from the actual instant during the repeated hour at the end of daylig
     const date = new Date(repeatedHour.getTime() + 60_000).toISOString()
     const {result} = renderHook(() => useSelectElectionCountdown({date}))
     expect(result.current).toMatchObject({hours: 0, minutes: 1, seconds: 0, totalSeconds: 60})
+})
+
+it.each([
+    ["2026-01-15T12:01:30", 90],
+    ["2026-01-15T11:59:00", 0],
+    ["invalid", null],
+])("never commits the previous election countdown when the date becomes %s", (date, expected) => {
+    const committed: Array<number | null> = []
+    const {rerender} = renderHook(
+        ({date}) => {
+            const value = useSelectElectionCountdown({date})
+            // Layout effects observe the committed display before passive effects
+            // can correct it; checking only result.current would miss a stale frame.
+            useLayoutEffect(() => {
+                committed.push(value?.totalSeconds ?? null)
+            })
+            return value
+        },
+        {initialProps: {date: new Date(NOW.getTime() + 5_000).toISOString()}}
+    )
+    committed.length = 0
+    rerender({date: String(date)})
+    expect(committed.length).toBeGreaterThan(0)
+    expect(committed.every((value) => value === expected)).toBe(true)
 })

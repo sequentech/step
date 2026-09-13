@@ -72,18 +72,21 @@ function remainingTime(target: Date, now: Date): TimeLeft {
 
 /** Keep the displayed deadline current without restarting the clock on parent renders. */
 export const useSelectElectionCountdown = ({date = ""}: CountdownProps): TimeLeft | null => {
-    const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null)
+    const [timeLeft, setTimeLeft] = useState<{date: string; value: TimeLeft | null}>({
+        date: "",
+        value: null,
+    })
 
     useEffect(() => {
         const target = new Date(date)
         if (!Number.isFinite(target.getTime())) {
-            setTimeLeft(null)
+            setTimeLeft({date, value: null})
             return
         }
 
         const update = () => {
             const remaining = remainingTime(target, new Date())
-            setTimeLeft(remaining)
+            setTimeLeft({date, value: remaining})
             return remaining.totalSeconds > 0
         }
 
@@ -96,5 +99,9 @@ export const useSelectElectionCountdown = ({date = ""}: CountdownProps): TimeLef
         return () => clearInterval(interval)
     }, [date])
 
-    return timeLeft
+    // A changed date renders before its effect runs. Never publish a previous
+    // election's countdown during that commit.
+    if (timeLeft.date === date) return timeLeft.value
+    const target = new Date(date)
+    return Number.isFinite(target.getTime()) ? remainingTime(target, new Date()) : null
 }

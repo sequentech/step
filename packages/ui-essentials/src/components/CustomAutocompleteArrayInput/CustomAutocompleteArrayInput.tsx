@@ -66,19 +66,17 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
     const handleCreateOption = () => {
         if (inputValue.trim()) {
             // Ensure inputValue is not blank
-            const newLabels = inputValue.trim().split(/\s+/)
+            const newLabels = Array.from(new Set(inputValue.trim().split(/\s+/)))
 
             const updatedValues = [...selectedValues]
             const newChoices = [...(updatedChoices || [])]
 
             newLabels.forEach((newLabel) => {
-                if (
-                    newLabel &&
-                    !updatedValues.includes(newLabel) &&
-                    !newChoices.some((choice) => choice.name === newLabel)
-                ) {
+                if (newLabel && !updatedValues.includes(newLabel)) {
                     updatedValues.push(newLabel)
-                    newChoices.push({id: newLabel, name: newLabel})
+                    if (!newChoices.some((choice) => choice.name === newLabel)) {
+                        newChoices.push({id: newLabel, name: newLabel})
+                    }
                 }
             })
 
@@ -88,7 +86,12 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
             inputRef?.current?.focus()
 
             newLabels.forEach((newLabel) => {
-                if (onCreate && newLabel && !selectedValues.includes(newLabel)) {
+                if (
+                    onCreate &&
+                    newLabel &&
+                    !selectedValues.includes(newLabel) &&
+                    !updatedChoices?.some((choice) => choice.name === newLabel)
+                ) {
                     onCreate(newLabel)
                 }
             })
