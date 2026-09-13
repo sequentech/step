@@ -14,6 +14,7 @@ export default [
         ignores: [
             "dist/**",
             "build/**",
+            "coverage/**",
             "node_modules/**",
             "public/**",
             "*.config.js",
