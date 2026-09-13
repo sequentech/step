@@ -236,3 +236,30 @@ not the separate artifact or search metadata.
 See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
 for setup, coverage limits and failure diagnosis. The rollout is tracked in
 [Meta #13301](https://github.com/sequentech/meta/issues/13301).
+
+## Voting Portal
+
+Voting Portal has a source coverage report and local Chromium integration tests.
+Run these commands from `packages/` after installing workspace dependencies:
+
+```bash
+yarn --cwd voting-portal test --runInBand
+yarn --cwd voting-portal test:coverage:baseline
+yarn --cwd voting-portal test:browser
+```
+
+The browser runner requires Node 22.22 or newer and Chrome, or a Chromium path
+in `VOTING_PORTAL_TEST_CHROME_PATH`. It uses a synthetic local ballot with real
+React components, Redux and the pinned WASM engine. It checks keyboard category
+expansion and confirms that hiding a category preserves the voter's selection.
+External requests are blocked; no deployed election or login is required.
+
+The 95% package target remains open. `test:coverage` is the strict command;
+`test:coverage:baseline` records an unfinished measurement. The report includes
+unimported runtime modules. `test:types` also exposes existing source/dependency
+type errors, so it is not yet a passing gate. Complete authenticated voter
+journeys require the separate local integration environment.
+
+See the [Voting Portal test guide](https://github.com/sequentech/step/blob/main/packages/voting-portal/tests/README.md)
+for the measured baseline, test boundaries and remaining work. Progress is
+tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).

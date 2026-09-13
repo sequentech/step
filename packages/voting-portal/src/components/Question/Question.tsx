@@ -182,7 +182,9 @@ export const Question: React.FC<IQuestionProps> = ({
     const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({})
 
     const getExpanded = (key: string): boolean =>
-        key in expandedStates ? expandedStates[key] : defaultAllExpanded
+        Object.prototype.hasOwnProperty.call(expandedStates, key)
+            ? expandedStates[key]
+            : defaultAllExpanded
 
     const allCollapsed =
         !!categoriesMapOrder &&
@@ -192,7 +194,8 @@ export const Question: React.FC<IQuestionProps> = ({
     const handleToggleAll = () => {
         if (!categoriesMapOrder) return
         const targetExpanded = allCollapsed
-        const newState: Record<string, boolean> = {}
+        // Authored category names may match inherited properties such as __proto__.
+        const newState: Record<string, boolean> = Object.create(null)
         Object.keys(categoriesMapOrder).forEach((k) => {
             newState[k] = targetExpanded
         })

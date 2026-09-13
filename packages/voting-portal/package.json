@@ -41,6 +41,8 @@
   },
   "scripts": {
     "test": "jest --config jest.config.cjs",
+    "test:coverage": "jest --coverage --runInBand",
+    "test:coverage:baseline": "jest --coverage --runInBand --coverageThreshold \"{}\"",
     "test:login-hints:e2e": "nightwatch test/e2e/login_hints.test.ts --env firefox",
     "start": "PORT=3000 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
     "build": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
@@ -53,7 +55,9 @@
     "test-storybook": "NODE_OPTIONS=--openssl-legacy-provider test-storybook",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
-    "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve"
+    "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve",
+    "test:browser": "node --experimental-strip-types --test tests/browser/categories.test.mts",
+    "test:types": "tsc --project tsconfig.tests.json"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {
@@ -128,6 +132,13 @@
     "vite-plugin-nightwatch": "^0.4.6",
     "webpack": "5.104.1",
     "webpack-cli": "6.0.1",
-    "webpack-dev-server": "5.2.6"
+    "webpack-dev-server": "5.2.6",
+    "babel-jest": "30.2.0",
+    "@babel/core": "7.12.9",
+    "@babel/preset-env": "7.22.4",
+    "@babel/preset-react": "7.22.3",
+    "@babel/preset-typescript": "7.21.5",
+    "esbuild": "0.25.12",
+    "playwright-core": "1.58.2"
   }
 }
