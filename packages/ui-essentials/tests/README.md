@@ -53,7 +53,8 @@ file-picker hint; callers must still validate file contents and enforce limits.
 `test:coverage` requires 95% lines, statements, functions and branches.
 `test:coverage:baseline` reports an unfinished measurement without enforcing
 those thresholds. The package target remains open; a passing unit or baseline
-job does not mean the target is met.
+job does not mean the target is met. CI measures both actual PR revisions and
+rejects a decrease in any of the four source metrics independently.
 
 Coverage includes every runtime source module, including unimported modules
 and translations. Only declarations, tests and Storybook examples are excluded.
@@ -71,4 +72,4 @@ failing run against the previous implementation when fixing a regression.
 
 ## Follow-up contracts
 
-The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 119 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. Source coverage is 700/986 lines, 235/348 functions and 495/836 branches. Remaining profile/session, chart/grid and wrapper localization paths stay in scope; no test-only derives or printing are added to increase counters.
+The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 121 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. Source coverage is 701/987 lines, 235/348 functions and 495/836 branches. Remaining profile/session, chart/grid and wrapper localization paths stay in scope; no test-only derives or printing are added to increase counters.

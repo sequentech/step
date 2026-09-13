@@ -276,7 +276,9 @@ regression can be run separately with the fixture environment and `--ignored
 
 The package READMEs describe their test boundaries. Successful database, identity,
 broker and storage workflows still need their corresponding local fixtures.
-Package progress remains tracked separately:
+Package coverage is consolidated in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
+The package tickets below are closed historical records; integration/benchmarks
+remain a separate scope.
 
 | Work | Meta issue |
 | --- | --- |
@@ -335,7 +337,7 @@ not the separate artifact or search metadata.
 
 See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
 for setup, coverage limits and failure diagnosis. The rollout is tracked in
-[Meta #13301](https://github.com/sequentech/meta/issues/13301).
+[Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
 `electoral-log-native` provides the default-feature PR-base comparison. The
 `electoral-log` profile above remains separate ImmuDB integration evidence: its
@@ -395,4 +397,54 @@ separate integration scopes.
 
 See the [UI Essentials test guide](https://github.com/sequentech/step/blob/main/packages/ui-essentials/tests/README.md)
 for setup, import callback behavior and coverage limits. Results and remaining
-work are tracked in [Meta #13303](https://github.com/sequentech/meta/issues/13303).
+work are tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
+
+## Remaining-package increment (2026-09-13)
+
+Twenty-five additional package tests pin cancellation cleanup, absent-versus-zero
+CSV counts, rejected file/import inputs, distinct and duplicate audit fields,
+production ES5 category identifiers, autocomplete callbacks and countdown render
+commits. Regression failures were recorded before surgical fixes. No production
+rewrites, new exclusions or score-only derive tests were introduced. Harvest's
+accepted low-coverage scope is unchanged.
+
+Native measurements use Rust 1.96.0 and cargo-llvm-cov 0.9.1. Regions are LLVM
+regions, not branch coverage; existing inline tests remain counted.
+
+| Profile / measured source | Passing tests | Lines | Functions | Regions |
+| --- | ---: | ---: | ---: | ---: |
+| wrap-map-err / `643d3d8` | 17 | 52/52 (100%) | 5/5 (100%) | 88/89 (98.88%) |
+| Windmill / `2ea0bef` | 369 | 9307/31300 (29.73%) | 864/5754 (15.02%) | 11921/36156 (32.97%) |
+| Step CLI / `46bd965` | 27 | 233/3832 (6.08%) | 24/243 (9.88%) | 362/6112 (5.92%) |
+| Electoral Log defaults / `9c8d060` | 67 | 1074/1378 (77.94%) | 140/192 (72.92%) | 1098/1390 (78.99%) |
+| Electoral Log + ImmuDB / `29e334a` | 71 | 1343/1378 (97.46%) | 182/192 (94.79%) | 1327/1390 (95.47%) |
+
+Windmill, Step CLI and default-feature Electoral Log increase every metric against
+their actual PR bases. The full Electoral Log feature lacks a comparable base and
+stays separate. wrap-map-err's initial base has no passing tests: its new CI gate
+correctly reports invalid baseline evidence. This remains an explicit blocker,
+not a measured zero or a waived comparison. Subsequent stacked PRs have the
+consumer tests needed for that profile's base measurement.
+
+| Frontend / measured source | Unit tests | Lines | Statements | Functions | Branches |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| UI Core / `fa58b03` | 217 | 736/741 | 766/771 | 176/177 | 329/343 |
+| Voting Portal / `a657eef` | 168 | 849/2440 | 870/2503 | 172/555 | 479/1714 |
+| UI Essentials / `fb606ce` | 121 | 701/987 | 745/1048 | 235/348 | 495/836 |
+
+All four frontend fractions increase against the actual PR bases. The separate
+frontend workflow enforces each metric with Node 22.22.0 and the locked workspace
+instrumenter. A real Jest control proves that equal coverage passes, removing a
+test rejects the change, and failed, empty or skipped-required suites cannot pass.
+The 81 Python tooling tests pass; tooling lines and branches also maintain or
+increase coverage. Browser checks pass separately (4 UI Core, 2 Voting Portal,
+4 UI Essentials), as do 17 countdown cases in UTC and America/Toronto. These
+browser checks are not included in Istanbul counters.
+
+Remaining gaps include Windmill cloud transports and full authenticated election
+workflows, Step CLI authenticated commands, Voting Portal identity/session flows,
+and UI Essentials profile/session, chart/grid and wrapper localization behavior.
+These require focused service or UI fixtures; the current change makes no broader
+coverage claim. Voting Portal still has 20 pre-existing TypeScript diagnostics,
+identical to its parent, while affected production Clippy and frontend lint checks
+pass with existing warnings. Hosted results must be checked at the pushed head.
