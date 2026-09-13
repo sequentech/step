@@ -388,6 +388,41 @@ issue = "https://github.com/sequentech/meta/issues/13292"
 
         with patch.object(run, "execute", side_effect=tool):
             self.assertEqual(run.measure("sequent-core", True, True), 2)
+        self.assertEqual(list(self.root.glob("coverage/sequent-core/*/llvm.json")), [])
+
+    def test_later_export_failure_cannot_publish_unfiltered_function_records(self):
+        def tool(command, log, environment):
+            result = self.tool_output(command, log, environment)
+            if "--json" in command:
+                path = Path(command[-1])
+                payload = json.loads(path.read_text())
+                payload["data"][0]["functions"] = [
+                    {"name": "test", "filenames": [str(self.root / "tests/test.rs")]},
+                ]
+                path.write_text(json.dumps(payload))
+            if "--lcov" in command:
+                raise CoverageError("interrupted LCOV export")
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        output = next(self.root.glob("coverage/sequent-core/*/summary.json")).parent
+        self.assertEqual(
+            json.loads((output / "llvm.json").read_text())["data"][0]["functions"], []
+        )
+        self.assertFalse((output / "lcov.info").exists())
+
+    def test_interrupted_json_export_removes_partial_artifact(self):
+        def tool(command, log, environment):
+            result = self.tool_output(command, log, environment)
+            if "--json" in command:
+                Path(command[-1]).write_text("{partial")
+                raise CoverageError("interrupted JSON export")
+            return result
+
+        with patch.object(run, "execute", side_effect=tool):
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+        self.assertEqual(list(self.root.glob("coverage/sequent-core/*/llvm.json")), [])
 
 
 class CheckoutIdentityTests(unittest.TestCase):

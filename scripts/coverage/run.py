@@ -267,19 +267,40 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
         # Every exported format omits excluded files from its counters as well
         # as its file list. Exclusion reasons remain in the summary for review.
         for format_name, filename in (("json", "llvm.json"), ("lcov", "lcov.info")):
-            execute(
-                [
-                    "cargo",
-                    "llvm-cov",
-                    "report",
-                    *export_arguments,
-                    f"--{format_name}",
-                    "--output-path",
-                    str(output / filename),
-                ],
-                output / f"{format_name}.log",
-                environment,
-            )
+            completed_export = False
+            try:
+                execute(
+                    [
+                        "cargo",
+                        "llvm-cov",
+                        "report",
+                        *export_arguments,
+                        f"--{format_name}",
+                        "--output-path",
+                        str(output / filename),
+                    ],
+                    output / f"{format_name}.log",
+                    environment,
+                )
+                if format_name == "json":
+                    payload = json.loads((output / filename).read_text())
+                    result.update(
+                        summarize(
+                            payload,
+                            package,
+                            config["minimum_lines"],
+                            profile["scope_exceptions"],
+                            excluded_files,
+                        )
+                    )
+                    filter_excluded_functions(payload, package, excluded_files)
+                    write_json(output / filename, payload)
+                completed_export = True
+            finally:
+                # CI uploads failed runs too. Never leave an unfiltered JSON
+                # or a partial export behind if generation/validation fails.
+                if not completed_export:
+                    (output / filename).unlink(missing_ok=True)
         execute(
             [
                 "cargo",
@@ -299,19 +320,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
             environment,
         )
 
-        payload = json.loads((output / "llvm.json").read_text())
         validate_artifacts(output)
-        result.update(
-            summarize(
-                payload,
-                package,
-                config["minimum_lines"],
-                profile["scope_exceptions"],
-                excluded_files,
-            )
-        )
-        filter_excluded_functions(payload, package, excluded_files)
-        write_json(output / "llvm.json", payload)
         if result["checkout_sha256"] != checkout_digest() or result[
             "revision"
         ] != git_output("rev-parse", "HEAD"):
