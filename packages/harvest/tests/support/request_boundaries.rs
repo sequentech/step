@@ -13,11 +13,127 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 
+// Reuse Core's bounded HTTP protocol fixture, not its client implementation.
+#[path = "../../../sequent-core/tests/support/http.rs"]
+#[allow(dead_code)]
+mod http;
+
 const TENANT_ID: &str = "tenant-a";
 const OTHER_TENANT_ID: &str = "tenant-b";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
 const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 115;
+
+#[rocket::async_test]
+async fn role_creation_requires_create_permission_and_preserves_the_role() {
+    const CHILD: &str = "HARVEST_ROLE_TEST_CHILD";
+    if std::env::var_os(CHILD).is_none() {
+        use std::process::{Command, Stdio};
+        use std::time::{Duration, Instant};
+        let peer = http::HttpServer::start(vec![
+            http::Exchange::json(
+                "POST",
+                "/realms/master/protocol/openid-connect/token",
+                200,
+                http::token_json(),
+            ),
+            http::Exchange::json(
+                "POST",
+                "/admin/realms/tenant-tenant-a/groups",
+                201,
+                json!({}),
+            ),
+            http::Exchange::json(
+                "GET",
+                "/admin/realms/tenant-tenant-a/groups",
+                200,
+                json!([{"id":"new-role", "name":"Election observer"}]),
+            ),
+        ]);
+        let log = tempfile::NamedTempFile::new().unwrap();
+        // Keycloak's token cache and environment are process-global. A fresh
+        // child isolates them from all other tests and from developer settings.
+        let output = log.reopen().unwrap();
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command.args(["--exact", "request_boundaries::role_creation_requires_create_permission_and_preserves_the_role", "--nocapture"])
+            .env_clear()
+            .env(CHILD, "1")
+            .env("KEYCLOAK_URL", &peer.url)
+            .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
+            .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
+            .env("SUPER_ADMIN_TENANT_ID", "fixture-super-admin")
+            .stdin(Stdio::null())
+            .stdout(output.try_clone().unwrap())
+            .stderr(output);
+        // Preserve instrumentation and native library lookup, never credentials.
+        for name in ["LLVM_PROFILE_FILE", "LD_LIBRARY_PATH"] {
+            if let Some(value) = std::env::var_os(name) {
+                command.env(name, value);
+            }
+        }
+        let mut child = command.spawn().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(30);
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!(
+                    "role fixture timed out: {}",
+                    std::fs::read_to_string(log.path()).unwrap()
+                );
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        };
+        assert!(
+            status.success(),
+            "{}",
+            std::fs::read_to_string(log.path()).unwrap()
+        );
+        let requests = peer.finish();
+        let created = requests
+            .iter()
+            .find(|r| r.method == "POST" && r.url.path().ends_with("/groups"))
+            .unwrap();
+        assert_eq!(created.json()["name"], "Election observer");
+        assert_eq!(
+            created.headers["authorization"],
+            "Bearer synthetic-access-token"
+        );
+        return;
+    }
+    let client = client().await;
+    let body =
+        json!({"tenant_id": TENANT_ID, "role": {"name": "Election observer"}});
+    let response = client
+        .post("/create-role")
+        .header(ContentType::JSON)
+        .header(authorization(&[Permissions::ROLE_CREATE]))
+        .body(body.to_string())
+        .dispatch()
+        .await;
+    assert_eq!(response.status(), Status::Ok);
+    assert_eq!(
+        response.into_json::<Value>().await.unwrap()["name"],
+        "Election observer"
+    );
+    for permissions in [
+        vec![],
+        vec![Permissions::ROLE_READ],
+        vec![Permissions::ROLE_WRITE],
+    ] {
+        let response = client
+            .post("/create-role")
+            .header(ContentType::JSON)
+            .header(authorization(&permissions))
+            .body(body.to_string())
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Unauthorized, "{permissions:?}");
+    }
+}
 
 fn authorization(permissions: &[Permissions]) -> Header<'static> {
     let payload = json!({

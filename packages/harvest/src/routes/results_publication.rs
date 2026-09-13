@@ -34,7 +34,10 @@ fn map_service_error(
         ResultsPublicationServiceError::NotFound(_) => Status::NotFound,
         ResultsPublicationServiceError::Conflict(_) => Status::Conflict,
         ResultsPublicationServiceError::Internal(_) => {
-            Status::InternalServerError
+            return (
+                Status::InternalServerError,
+                "Internal server error".into(),
+            );
         }
     };
     (status, error.to_string())

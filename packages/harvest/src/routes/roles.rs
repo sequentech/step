@@ -33,7 +33,7 @@ pub async fn create_role(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![Permissions::ROLE_WRITE],
+        vec![Permissions::ROLE_CREATE],
     )?;
     let realm = get_tenant_realm(&input.tenant_id);
     let client = KeycloakAdminClient::new()
