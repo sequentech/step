@@ -63,4 +63,10 @@ these additional production restrictions do not apply to tests or stories.
 
 ## Follow-up contracts
 
-Two additional resource-failure controls exercise object-URL allocation and DOM insertion failures, asserting the original error and exact cleanup. The 217-test suite, type/lint checks and four real Chromium/WASM tests pass. Source metrics remain 736/741 lines, 176/177 functions and 329/343 branches. These paths add failure evidence even where line counters were already covered.
+Two additional resource-failure controls exercise object-URL allocation and DOM insertion failures, asserting the original error and exact cleanup. The 224-test suite, type/lint checks and four real Chromium/WASM tests pass. Source metrics remain 740/745 lines, 176/177 functions and 335/349 branches. These paths add failure evidence even where line counters were already covered.
+
+Presentation translations require own language and candidate-key properties.
+Inherited scoped overrides and malformed language records fall back to a valid
+own default; null-prototype dictionaries remain supported. The browser suite is
+now required by the frontend workflow and uses the same pinned headless shell
+as the native fixture. Its counters remain separate from Jest source coverage.
