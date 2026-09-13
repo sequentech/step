@@ -51,3 +51,11 @@ full voter journeys remain separate work in Meta #13298.
 
 When changing the WASM dependency, rerun both suites. The test runner must fail
 on an incompatible or missing binary rather than silently substitute a mock.
+
+## Assurance lint policy
+
+Run `yarn lint` from this package. The existing frontend workflow runs it too.
+Production source rejects explicit `any`, non-null assertions (`!`), TypeScript
+suppression comments, unsafe `finally` blocks and returned Promise executor
+values. Unit and browser tests retain their existing assertion and fixture style;
+these additional production restrictions do not apply to tests or stories.
