@@ -186,4 +186,31 @@ describe("overwriteTranslations", () => {
             }
         }
     })
+
+    it("treats prototype-like legacy keys as data instead of inherited objects", () => {
+        // These paths must never reach Object.prototype, even when several
+        // translation keys share the same intermediate object.
+        try {
+            overwriteTranslations(
+                {
+                    i18n: {
+                        en: {
+                            "__proto__.translationPollutionProbe": "unexpected",
+                            "constructor.prototype.translationPollutionProbe": "unexpected",
+                            "legacyGroup.title": "Title",
+                            "legacyGroup.description": "Description",
+                        },
+                    },
+                },
+                false
+            )
+
+            expect(Object.hasOwn(Object.prototype, "translationPollutionProbe")).toBe(false)
+            expect(i18n.t("legacyGroup.title")).toBe("Title")
+            expect(i18n.t("legacyGroup.description")).toBe("Description")
+        } finally {
+            // Keep a failed regression from contaminating unrelated tests.
+            Reflect.deleteProperty(Object.prototype, "translationPollutionProbe")
+        }
+    })
 })

@@ -2,34 +2,39 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-const ENVELOPE_BYTES: usize = 30;
-const MAX_PAYLOAD_BYTES: usize = ENVELOPE_BYTES - 1;
-
-/// Pad an unprefixed payload with zeros; all 30 bytes are available to callers.
-pub fn vec_to_30_array(data: &[u8]) -> Result<[u8; 30], String> {
-    if data.len() > ENVELOPE_BYTES {
+// similar to ballot_codec::encode_vec_to_array but it doesn't add the size.
+pub fn vec_to_30_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
+    if data.len() > 30 {
         return Err(format!(
-            "Data too long, length {} is greater than 30",
+            "Data too long, lenght {} is greater than 29",
             data.len()
         ));
     }
-    let mut plaintext_array = [0; ENVELOPE_BYTES];
-    plaintext_array[..data.len()].copy_from_slice(data);
+    let mut plaintext_array = [0u8; 30];
+    for i in 0..data.len() {
+        plaintext_array[i] = data[i];
+    }
     Ok(plaintext_array)
 }
 
-/// Prefix up to 29 payload bytes with their length, then pad the envelope.
-pub fn encode_vec_to_array(data: &[u8]) -> Result<[u8; 30], String> {
+/**
+ *  Encode an input vector of bytes into an array of 30 bytes.
+ *  The first byte will indicate the size of the input bytes.
+ * . Then follows the input bytes, and the remaining are zeroed bytes.
+ */
+pub fn encode_vec_to_array(data: &Vec<u8>) -> Result<[u8; 30], String> {
     let plaintext_length = data.len();
-    if plaintext_length > MAX_PAYLOAD_BYTES {
+    if plaintext_length > 29 {
         return Err(format!(
-            "Plaintext too long, length {} is greater than 29",
-            plaintext_length
+            "Plaintext too long, length {} is greater than 29. Data: {:?}",
+            plaintext_length, data
         ));
     }
-    let mut plaintext_array = [0; ENVELOPE_BYTES];
+    let mut plaintext_array = [0u8; 30];
     plaintext_array[0] = plaintext_length as u8;
-    plaintext_array[1..1 + plaintext_length].copy_from_slice(data);
+    for i in 0..plaintext_length {
+        plaintext_array[i + 1] = data[i];
+    }
     Ok(plaintext_array)
 }
 

@@ -86,6 +86,22 @@ external network access, and add `--offline` to the command. Never copy producti
 credentials into a test worker. The coverage command runs tests; it does not create
 a sandbox or enforce network isolation itself.
 
+## Keep production failure handling explicit
+
+The additional assurance lints apply to production code. Unit and end-to-end
+tests may use `unwrap`, `expect`, non-null assertions and similar shortcuts when
+setting up fixtures or checking outcomes.
+
+The first rollout enforces the Lightweight Assurance policy in Sequent Core's
+tally-sheet validation module for non-test builds. UI Core applies stricter
+TypeScript rules to production source. The URL truststore provider checks
+production Java with PMD during Maven `verify`, and the Python coverage tooling
+runs stricter Ruff rules on its production source. These are initial scopes,
+not whole-repository compliance.
+
+Read `scripts/assurance/README.md` for the exact commands, enforced rules and
+remaining adoption work.
+
 ## Read the result honestly
 
 The profiles in `scripts/coverage/profiles.toml` declare the package and features
