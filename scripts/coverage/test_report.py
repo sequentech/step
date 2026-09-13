@@ -237,7 +237,7 @@ class CoverageExclusionTests(unittest.TestCase):
         self.fixture.write_text("pub fn fixture() {}\n")
         self.excluded = {"src/fixtures.rs": "Synthetic test data builder."}
 
-    def test_excluded_counters_are_disclosed_but_do_not_pad_the_score(self):
+    def test_excluded_code_contributes_to_neither_covered_nor_total_counters(self):
         # Removing a fully covered fixture should LOWER this example's score.
         # This guards against keeping its covered lines in the numerator.
         result = summarize(
@@ -249,12 +249,12 @@ class CoverageExclusionTests(unittest.TestCase):
         )
         self.assertEqual(result["metrics"]["lines"]["percent"], 50)
         self.assertEqual(result["excluded_files"], self.excluded)
-        self.assertEqual(
-            result["excluded_measurements"]["src/fixtures.rs"]["lines"],
-            {"covered": 100, "count": 100},
-        )
+        for metric in ("lines", "functions", "regions"):
+            self.assertEqual(result["metrics"][metric]["covered"], 50)
+            self.assertEqual(result["metrics"][metric]["count"], 100)
+        self.assertNotIn("excluded_measurements", result)
         self.assertNotIn("src/fixtures.rs", result["files"])
-        self.assertIn("src/fixtures.rs", result["source_files"])
+        self.assertNotIn("src/fixtures.rs", result["source_files"])
         self.assertEqual(result["unaccounted_files"], [])
 
     def test_absent_excluded_measurement_does_not_hide_another_unmeasured_file(self):

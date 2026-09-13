@@ -113,9 +113,10 @@ The source files also have a comment pointing to that policy.
 | `src/election_config/validate_tests.rs` | Standalone unit tests; the validator they exercise stays in the report. |
 
 These files are omitted from `llvm.json`, HTML, LCOV, missing-line output and the
-coverage percentage. The tests still execute. `summary.json` records the exclusions
-and their counters separately; `llvm.raw.json` keeps the unfiltered measurements.
-Both revisions in the CI comparison use this same list.
+coverage percentage. The tests still execute. Excluded code contributes to neither
+the covered count nor the total count, for lines, functions or regions. `summary.json` lists excluded
+paths and reasons without retaining their counters. Both CI revisions use the same
+list. No unfiltered coverage report is generated.
 
 To exclude another reviewed support file, add its exact package-relative path
 and reason under `[profiles.sequent-core.excluded_files]`. Wildcards, missing

@@ -57,8 +57,9 @@ The command prints its report directory under `coverage/sequent-core/`. Read
 `summary.md` first, then inspect the HTML report or `uncovered-lines.log` to choose
 the next behavior to test. `summary.json` records exact counters, source revision
 and hashes, enabled features, tool versions, test counts and measurement limits.
-All exports come from the same test execution. `llvm.json`, HTML and LCOV apply
-the reviewed exclusions; `llvm.raw.json` retains the unfiltered counters.
+All exports come from the same test execution. `llvm.json`, HTML and LCOV omit
+excluded code from both the covered and total counters. No unfiltered report is
+generated.
 
 Run the strict target check with the same command, without `--baseline`:
 
@@ -113,8 +114,8 @@ logic. Strand's initial profile measures its default native backend.
 - `excluded_files` lists exact support/test filenames and a reason for each.
   Core excludes `src/fixtures/ballot_codec.rs`, `src/fixtures/encrypt.rs` and
   `src/election_config/validate_tests.rs` from JSON, HTML, LCOV and the score.
-  Tests still run. Excluded counters remain visible in `summary.json` and the
-  unfiltered `llvm.raw.json`; base and head use identical exclusions.
+  Tests still run. Excluded paths and reasons appear in `summary.json`, but their
+  counters are absent from every report. Base and head use identical exclusions.
 - Native stable LLVM coverage still includes inline unit-test code.
   This can inflate the number. Prefer new tests in `tests/` or separate
   `*_tests.rs` files; account for those files explicitly in the scope review.

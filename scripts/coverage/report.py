@@ -6,7 +6,7 @@
 LLVM measures compiled code. A disabled module can be absent altogether, so a
 percentage alone is insufficient: every source file must also be accounted for.
 Scope exceptions explain unmeasured files. Explicit exclusions remove reviewed
-test/support files and retain their counters separately for inspection.
+test/support files from both covered and total counters.
 """
 
 import re
@@ -119,7 +119,7 @@ def summarize(
 
     totals = {metric: {"covered": 0, "count": 0} for metric in METRICS}
     files: dict[str, Any] = {}
-    excluded_measurements: dict[str, Any] = {}
+    seen: set[str] = set()
     for entry in entries:
         if not isinstance(entry, dict) or not isinstance(entry.get("filename"), str):
             raise CoverageError("Invalid LLVM file record")
@@ -133,8 +133,9 @@ def summarize(
             continue
 
         name = path.relative_to(package).as_posix()
-        if name not in inventory or name in files or name in excluded_measurements:
+        if name not in inventory or name in seen:
             raise CoverageError(f"Unknown or duplicate source file: {name}")
+        seen.add(name)
         summary = entry.get("summary")
         if not isinstance(summary, dict):
             raise CoverageError(f"Missing file summary: {name}")
@@ -144,7 +145,6 @@ def summarize(
             covered, count = read_counts(summary, metric)
             file_metrics[metric] = {"covered": covered, "count": count}
         if name in excluded_files:
-            excluded_measurements[name] = file_metrics
             continue
         for metric, counts in file_metrics.items():
             totals[metric]["covered"] += counts["covered"]
@@ -181,11 +181,10 @@ def summarize(
     return {
         "metrics": metrics,
         "files": dict(sorted(files.items())),
-        "source_files": sorted(inventory),
+        "source_files": sorted(inventory - excluded_files.keys()),
         "unaccounted_files": unaccounted,
         "scope_exceptions": exceptions,
         "excluded_files": dict(sorted(excluded_files.items())),
-        "excluded_measurements": dict(sorted(excluded_measurements.items())),
         "minimum_lines": minimum,
         "passes": not failures,
         "failures": failures,

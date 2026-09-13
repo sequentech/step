@@ -157,12 +157,6 @@ def markdown_summary(profile: str, result: dict[str, Any]) -> str:
         lines.extend(
             f"- `{name}`: {reason}" for name, reason in result["excluded_files"].items()
         )
-        lines.extend(
-            [
-                "",
-                "Excluded counters remain in `summary.json` and `llvm.raw.json`.",
-            ]
-        )
     if result["unaccounted_files"]:
         lines.extend(["", "## Files requiring scope review", ""])
         lines.extend(f"- `{name}`" for name in result["unaccounted_files"])
@@ -269,20 +263,8 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 "No passing tests were recorded; coverage is not a valid baseline"
             )
 
-        # Keep one unfiltered export so exclusions stay auditable. The reports
-        # a reader opens all use the same reviewed file filter.
-        execute(
-            [
-                "cargo",
-                "llvm-cov",
-                "report",
-                "--json",
-                "--output-path",
-                str(output / "llvm.raw.json"),
-            ],
-            output / "raw-json.log",
-            environment,
-        )
+        # Every exported format omits excluded files from its counters as well
+        # as its file list. Exclusion reasons remain in the summary for review.
         for format_name, filename in (("json", "llvm.json"), ("lcov", "lcov.info")):
             execute(
                 [
@@ -316,7 +298,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
             environment,
         )
 
-        payload = json.loads((output / "llvm.raw.json").read_text())
+        payload = json.loads((output / "llvm.json").read_text())
         validate_artifacts(output)
         result.update(
             summarize(
@@ -327,15 +309,12 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
                 excluded_files,
             )
         )
-        visible = summarize(
-            json.loads((output / "llvm.json").read_text()),
-            package,
-            config["minimum_lines"],
-            profile["scope_exceptions"],
-            excluded_files,
-        )
-        if visible["excluded_measurements"] or visible["files"] != result["files"]:
-            raise CoverageError("Filtered export disagrees with the coverage scope")
+        excluded_paths = {(package / name).resolve() for name in excluded_files}
+        if any(
+            Path(entry["filename"]).resolve() in excluded_paths
+            for entry in payload["data"][0]["files"]
+        ):
+            raise CoverageError("Excluded source remains in the LLVM export")
         if result["checkout_sha256"] != checkout_digest() or result[
             "revision"
         ] != git_output("rev-parse", "HEAD"):
