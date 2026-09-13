@@ -40,10 +40,17 @@ Empty document references now fail before network access; their regression fails
 on the previous code and a valid reference remains accepted. Additional cases
 pin the standard empty-file SHA-256, preserve I/O error types and reject trailing
 JSON documents and invalid UTF-8 while retaining valid null and zero counts.
-The suite has 27 passing tests and one pre-existing ignored service journey.
+The suite has 31 passing tests and one pre-existing ignored service journey.
 
 Native coverage at `46bd965` is 233/3,832 lines (6.08%), 24/243 functions
 (9.88%) and 362/6,112 LLVM regions (5.92%). The actual Windmill PR base has
 two passing tests and measures 45/3,787 lines, 4/237 functions and 58/6,061
 regions. Every fraction increases; CI now compares all three independently.
 Authenticated uploads and complete election commands remain visible gaps.
+
+Review regressions run the shipped import command against an owned loopback
+HTTP peer with a private executable/config directory. Partial GraphQL data is
+rejected before upload and after import, errors reach shell callers through a
+nonzero exit, and empty error lists remain valid. Existing and dangling output
+symlinks are rejected without changing either the link or its target. These
+regressions fail before the small fixes and pass with the valid controls.

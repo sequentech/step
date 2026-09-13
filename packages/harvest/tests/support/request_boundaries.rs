@@ -27,7 +27,18 @@ const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 115;
 #[rocket::async_test]
 async fn role_creation_requires_create_permission_and_preserves_the_role() {
     const CHILD: &str = "HARVEST_ROLE_TEST_CHILD";
-    if std::env::var_os(CHILD).is_none() {
+    // A leftover environment flag must not bypass the clean child environment.
+    // Only this parent's private, short-lived nonce can select the child branch.
+    let is_child = std::env::var(CHILD)
+        .ok()
+        .and_then(|value| {
+            serde_json::from_str::<(std::path::PathBuf, String)>(&value).ok()
+        })
+        .is_some_and(|(path, nonce)| {
+            std::fs::read_to_string(&path).ok().as_deref()
+                == Some(nonce.as_str())
+        });
+    if !is_child {
         use std::process::{Command, Stdio};
         use std::time::{Duration, Instant};
         let peer = http::HttpServer::start(vec![
@@ -50,6 +61,9 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
                 json!([{"id":"new-role", "name":"Election observer"}]),
             ),
         ]);
+        let marker = tempfile::NamedTempFile::new().unwrap();
+        let nonce = uuid::Uuid::new_v4().to_string();
+        std::fs::write(marker.path(), &nonce).unwrap();
         let log = tempfile::NamedTempFile::new().unwrap();
         // Keycloak's token cache and environment are process-global. A fresh
         // child isolates them from all other tests and from developer settings.
@@ -57,7 +71,7 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
         let mut command = Command::new(std::env::current_exe().unwrap());
         command.args(["--exact", "request_boundaries::role_creation_requires_create_permission_and_preserves_the_role", "--nocapture"])
             .env_clear()
-            .env(CHILD, "1")
+            .env(CHILD, json!([marker.path(), nonce]).to_string())
             .env("KEYCLOAK_URL", &peer.url)
             .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
             .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
