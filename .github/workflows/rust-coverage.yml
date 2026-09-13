@@ -69,14 +69,16 @@ jobs:
           retention-days: 7
 
   package-comparison:
-    # Automate the first Core profile. Additional native profiles remain
-    # explicit manual runs while their package-by-package rollout is reviewed.
-    name: Rust package coverage — no decrease
+    name: ${{ matrix.profile }} coverage — no decrease
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: reporter-tests
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand"]') }}
     env:
-      COVERAGE_PROFILE: ${{ inputs.profile || 'sequent-core' }}
+      COVERAGE_PROFILE: ${{ matrix.profile }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
