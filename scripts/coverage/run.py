@@ -31,13 +31,19 @@ WORKSPACE = ROOT / "packages"
 CONFIG = Path(__file__).with_name("profiles.toml")
 
 
-def execute(command: list[str], log: Path, environment: dict[str, str]) -> str:
+def execute(
+    command: list[str],
+    log: Path,
+    environment: dict[str, str],
+    *,
+    cwd: Path | None = None,
+) -> str:
     """Capture one command and stop its process group if the run times out."""
     print(f"Running {' '.join(command)}\n  Log: {log}", flush=True)
     with log.open("w") as output:
         process = subprocess.Popen(
             command,
-            cwd=WORKSPACE,
+            cwd=WORKSPACE if cwd is None else cwd,
             env=environment,
             stdin=subprocess.DEVNULL,
             stdout=output,
@@ -309,6 +315,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
 
 
 def main() -> int:
+    global ROOT, WORKSPACE
     config = tomllib.loads(CONFIG.read_text())
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("profile", choices=sorted(config["profiles"]))
@@ -320,7 +327,15 @@ def main() -> int:
     parser.add_argument(
         "--offline", action="store_true", help="Use only already fetched dependencies"
     )
+    parser.add_argument(
+        "--checkout",
+        type=Path,
+        help="Measure another checkout with this runner and its identical profile",
+    )
     arguments = parser.parse_args()
+    if arguments.checkout is not None:
+        ROOT = arguments.checkout.resolve()
+        WORKSPACE = ROOT / "packages"
     lock = ROOT / "coverage" / ".lock"
     lock.parent.mkdir(parents=True, exist_ok=True)
     with lock.open("a") as handle:
