@@ -209,3 +209,19 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+
+[profiles.electoral-log]
+package = "electoral-log"
+features = ["immudb-tests"]
+limitations = [
+    "Native library, CLI subprocesses and ImmuDB 1.9.6 integration; each test owns its local database process and files.",
+    "Set ELECTORAL_LOG_TEST_IMMUDB_BINARY or install immudb on PATH; no production endpoint or credentials are accepted by the integration fixture.",
+    "Unit tests live outside src so test bodies do not count as production coverage. Native branch coverage and doctests are not measured.",
+    "The legacy ignored fixed-port test remains preserved; its behavior is covered by the owned-process integration suite.",
+]
+issue = "https://github.com/sequentech/meta/issues/13301"
+
+[profiles.electoral-log.scope_exceptions]
+"src/client/mod.rs" = "Module declaration only."
+"src/messages/mod.rs" = "Module declarations only."
+"src/messages/artifact.rs" = "Empty source file with license header only."
