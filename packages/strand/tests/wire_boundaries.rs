@@ -60,6 +60,36 @@ fn public_keys_round_trip_through_their_documented_hex_json_format() {
 }
 
 #[test]
+fn signature_json_preserves_the_independent_signature_vector() {
+    let wire = format!("\"{SIGNATURE_HEX}\"");
+    let signature: StrandSignature = serde_json::from_str(&wire).unwrap();
+    reference_key().verify(&signature, b"").unwrap();
+    assert_eq!(serde_json::to_string(&signature).unwrap(), wire);
+    assert!(reference_key().verify(&signature, b"changed").is_err());
+}
+
+#[test]
+fn signature_json_rejects_bad_types_nonhex_and_wrong_lengths() {
+    // A valid hex string is the control for the same JSON visitor.
+    let _: StrandSignature =
+        serde_json::from_value(serde_json::json!(SIGNATURE_HEX)).unwrap();
+    for malformed in [
+        serde_json::json!(null),
+        serde_json::json!(42),
+        serde_json::json!([]),
+        serde_json::json!("zz"),
+    ] {
+        assert!(serde_json::from_value::<StrandSignature>(malformed).is_err());
+    }
+    for length in [0, 1, 63, 65] {
+        assert!(serde_json::from_value::<StrandSignature>(serde_json::json!(
+            "00".repeat(length)
+        ))
+        .is_err());
+    }
+}
+
+#[test]
 fn public_key_json_rejects_bad_types_nonhex_and_wrong_byte_lengths() {
     for malformed in [
         serde_json::json!(null),
