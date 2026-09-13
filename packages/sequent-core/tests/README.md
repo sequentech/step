@@ -76,3 +76,20 @@ service integration tests.
   intersection bounds near the numeric limit. Five cases panicked before the
   shared validator widened its intermediate arithmetic; the public count types
   and validation codes remain unchanged.
+
+## Production lint policy
+
+Unit and integration tests may use `unwrap`, `expect`, indexing and ordinary
+assertions. The additional assurance policy applies to production code.
+
+From `packages/`, run:
+
+```sh
+cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
+```
+
+The first production module to enforce the full Lightweight Assurance policy is
+`services::tally_sheet_validation`. Its non-test build rejects unchecked panic
+shortcuts, undocumented contracts and the other agreed lints. Existing lint debt
+in other Core modules remains tracked under Meta #11566. The two ballot encoder
+helpers keep their existing implementation.
