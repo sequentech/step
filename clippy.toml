@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Tests should return Result for fallible setup, just like application code.
-allow-unwrap-in-tests = false
-allow-expect-in-tests = false
+# Assertions and panic shortcuts are appropriate for unit and integration tests.
+# Production code is checked separately with cargo clippy --lib.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

@@ -27,7 +27,7 @@ members = [
 
 # Lightweight Assurance Methods is the shared target for retained Rust crates.
 # A crate opts in with [lints] workspace = true after its existing debt is fixed.
-# During that rollout, new test modules enforce this same policy directly.
+# During that rollout, selected production modules enforce this policy directly.
 [workspace.lints.rustdoc]
 missing_crate_level_docs = "deny"
 broken_intra_doc_links = "deny"

@@ -200,13 +200,11 @@ issue = "https://github.com/sequentech/meta/issues/13292"
 
     def test_wrong_toolchain_or_failed_tests_leave_an_error_artifact(self) -> None:
         for response in ("cargo-llvm-cov 0.0.1", "cargo-llvm-cov 0.9.1"):
-            with (
-                self.subTest(response=response),
-                patch.object(
+            with self.subTest(response=response):
+                with patch.object(
                     run, "execute", side_effect=[response, "rustc 1.95.0 (wrong)"]
-                ),
-            ):
-                self.assertEqual(run.measure("sequent-core", False, False), 2)
+                ):
+                    self.assertEqual(run.measure("sequent-core", False, False), 2)
 
         def failing_tests(
             command: list[str], log: Path, environment: dict[str, str]
@@ -345,9 +343,9 @@ class CheckoutIdentityTests(unittest.TestCase):
         with (
             patch.object(sys, "argv", ["run.py", "--help"]),
             contextlib.redirect_stdout(io.StringIO()),
-            self.assertRaises(SystemExit) as exit_result,
         ):
-            runpy.run_path(run.__file__, run_name="__main__")
+            with self.assertRaises(SystemExit) as exit_result:
+                runpy.run_path(run.__file__, run_name="__main__")
         self.assertEqual(exit_result.exception.code, 0)
 
     def test_nul_delimited_filenames_preserve_whitespace(self) -> None:
