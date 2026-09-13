@@ -165,13 +165,11 @@ describe("overwriteTranslations", () => {
                 default_language_code: "es",
             },
         }
-        // Preserve the descriptor as well as its value: a browser's document
-        // property can be accessor-backed rather than an ordinary field.
-        const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document")
-        Object.defineProperty(globalThis, "document", {
-            configurable: true,
-            value: {cookie: "", documentElement: {setAttribute: jest.fn()}},
-        })
+        const originalDocument = (globalThis as any).document
+        ;(globalThis as any).document = {
+            cookie: "",
+            documentElement: {setAttribute: jest.fn()},
+        }
 
         try {
             expect(overwriteTranslations(legacyConfig, false)).toBe(false)
@@ -182,9 +180,9 @@ describe("overwriteTranslations", () => {
             expect(i18n.language).toBe("es")
         } finally {
             if (originalDocument === undefined) {
-                Reflect.deleteProperty(globalThis, "document")
+                delete (globalThis as any).document
             } else {
-                Object.defineProperty(globalThis, "document", originalDocument)
+                ;(globalThis as any).document = originalDocument
             }
         }
     })

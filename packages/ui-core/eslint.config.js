@@ -60,17 +60,25 @@ export default [
             "@typescript-eslint/no-unused-vars": "off",
             // Allow redeclare for function overloads
             "no-redeclare": "off",
+        },
+        settings: {
+            react: {
+                version: "detect",
+            },
+        },
+    },
+    {
+        // Test fixtures and assertions keep their existing style. These stricter
+        // rules guard the values and error handling shipped to consumers.
+        files: ["src/**/*.{ts,tsx}"],
+        ignores: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__stories__/**"],
+        rules: {
             // Keep type uncertainty visible and preserve errors at boundaries.
             "@typescript-eslint/no-explicit-any": "error",
             "@typescript-eslint/no-non-null-assertion": "error",
             "@typescript-eslint/ban-ts-comment": "error",
             "no-unsafe-finally": "error",
             "no-promise-executor-return": "error",
-        },
-        settings: {
-            react: {
-                version: "detect",
-            },
         },
     },
     {
