@@ -3,7 +3,7 @@
 
 # Harvest request boundary tests
 
-The first coverage slice exercises actual Rocket routes, request guards and
+This coverage slice exercises actual Rocket routes, request guards and
 error catchers with the local HTTP client. It uses the same route builder as production while avoiding startup of
 service workers, probes and plugins. A static inventory covers the registered
 POST routes that require forwarded JWT claims, so removing a guard cannot
@@ -36,8 +36,10 @@ For a complete native report, from the repository root:
 python3 scripts/coverage/run.py harvest --baseline --offline
 ```
 
-Omit `--baseline` to enforce 95%. The boundary slice does not establish that
-package-wide target. Database transactions, successful identity-service calls,
+Omit `--baseline` to enforce the local 95% line improvement target. CI compares
+lines, functions and LLVM regions separately against the actual PR base and
+rejects any decrease; 95% is not its gate. The boundary slice does not establish that
+package-wide target. Database transactions, complete identity-service workflows,
 brokers, storage and end-to-end service workflows need explicit local fixtures.
 Keep Meta #13295 open until the measured profile and its remaining gaps satisfy
 the acceptance criteria. Every measured source file remains in the denominator.
@@ -48,7 +50,17 @@ clears runtime counters while retaining compiled dependencies for fast repeats.
 Proc-macro profiles request a rebuild because their counters also run during
 compilation. Never store deployment secrets in `test_environment`.
 
-A red/green request regression caught role creation accepting `ROLE_READ`.
-The route now requires `ROLE_WRITE`; read-only claims are rejected before the
-Keycloak client is constructed. This proves the local permission boundary,
-not a successful identity-provider integration.
+Role creation has a local HTTP integration control: the real route and Keycloak
+client create the synthetic role with `ROLE_CREATE`, while read-only and
+write-only claims cannot create it. The HTTP fixture is shared with Core. A fresh
+child process clears ambient settings and isolates the global token cache;
+its wait and socket operations are bounded, and LLVM instrumentation is retained.
+This verifies the client protocol and authorization adapter, not a deployed
+identity provider or JWT signatures.
+
+Audit row tests include complete and reordered controls for both table names,
+every missing/duplicated field, null/wrong types, malformed count row shapes,
+and an empty ordering map. Publication mappings retain public 4xx explanations
+while replacing internal details with a generic 500 message. Six regressions failed on the original production implementation and pass after
+the small guard/mapping fixes. Follow-up coverage should use existing interfaces;
+service architecture changes solely for testability are outside this slice.
