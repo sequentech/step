@@ -14,7 +14,7 @@ on:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand, velvet, harvest]
+        options: [sequent-core, strand, velvet, wrap-map-err, harvest, windmill, step-cli, electoral-log-native]
         default: sequent-core
         required: true
       base_ref:
@@ -76,7 +76,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "harvest"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native"]') }}
+    # Synthetic local fixture, shared with the ordinary Windmill test job.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 3322:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
     steps:

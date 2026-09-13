@@ -19,7 +19,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from ratchet import compare, compare_rust, markdown, python_metrics
+from ratchet import compare, compare_rust, frontend_metrics, markdown, python_metrics
 from report import CoverageError
 from run import execute, write_json
 
@@ -122,10 +122,23 @@ def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
     return report
 
 
+def measure_frontend(root: Path, package: str, output: Path) -> dict[str, Any]:
+    """Run real Jest suites with one instrumenter and matching exported counts."""
+    command(
+        ["node", str(HERE / "frontend.cjs"), str(root), package, str(output)],
+        root,
+        output,
+        "tests",
+    )
+    return frontend_metrics(read_json(output / "coverage-summary.json"))
+
+
 def measure(root: Path, kind: str, package: str, output: Path) -> dict[str, Any]:
     output.mkdir()
     if kind == "python":
         return measure_python(root, output)
+    if kind == "frontend":
+        return measure_frontend(root, package, output)
     return measure_rust(root, package, output)
 
 
@@ -142,10 +155,13 @@ def paired_run(base: Path, head: Path, kind: str, package: str, parent: Path) ->
     }
     try:
         result.update(base_revision=identity(base), head_revision=identity(head))
-        base_scope = base / (
-            "scripts/coverage" if kind == "python" else f"packages/{package}/src"
-        )
         head_report = measure(head, kind, package, output / "head")
+        # A named feature profile may measure an existing package. Looking for
+        # the profile name as a directory could falsely initialize its baseline.
+        source_package = head_report["package"] if kind == "rust" else package
+        base_scope = base / (
+            "scripts/coverage" if kind == "python" else f"packages/{source_package}/src"
+        )
         if not base_scope.exists():
             # This exception is only for newly introduced source, never a
             # missing report, missing tests, or a failed baseline measurement.
@@ -197,7 +213,7 @@ def paired_run(base: Path, head: Path, kind: str, package: str, parent: Path) ->
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("kind", choices=("python", "rust"))
+    parser.add_argument("kind", choices=("python", "rust", "frontend"))
     parser.add_argument("package")
     parser.add_argument("--base", type=Path, required=True)
     parser.add_argument("--head", type=Path, required=True)

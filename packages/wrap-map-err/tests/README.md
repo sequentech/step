@@ -39,3 +39,8 @@ execution remain separate evidence requirements in Meta #13302.
 Cancellation controls drop an owned resource exactly once both before first polling
 and while a task is suspended. Successful and error completions provide matching
 controls; these tests execute the public generated future without a task broker.
+
+The native CI gate now includes this profile. Its actual PR base has no tests,
+so the initial comparison must report invalid baseline evidence, not a fabricated
+zero or a passing initialization. This is a known gate blocker on this first PR;
+later stacked revisions can compare the existing consumer suite normally.

@@ -41,3 +41,9 @@ on the previous code and a valid reference remains accepted. Additional cases
 pin the standard empty-file SHA-256, preserve I/O error types and reject trailing
 JSON documents and invalid UTF-8 while retaining valid null and zero counts.
 The suite has 27 passing tests and one pre-existing ignored service journey.
+
+Native coverage at `46bd965` is 233/3,832 lines (6.08%), 24/243 functions
+(9.88%) and 362/6,112 LLVM regions (5.92%). The actual Windmill PR base has
+two passing tests and measures 45/3,787 lines, 4/237 functions and 58/6,061
+regions. Every fraction increases; CI now compares all three independently.
+Authenticated uploads and complete election commands remain visible gaps.

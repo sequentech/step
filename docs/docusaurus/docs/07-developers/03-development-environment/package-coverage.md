@@ -66,12 +66,13 @@ yarn --cwd ui-core test:coverage
 yarn --cwd ui-core test:browser
 ```
 
-UI Core requires 95% lines, statements, functions and branches. Its HTML report
+UI Core’s local target command requires 95% lines, statements, functions and branches. Its HTML report
 is in `packages/ui-core/coverage/`. Source instrumentation includes unimported
 modules and omits only tests and declarations. It runs before Babel generates
 module-export helpers; those helpers are not application branches.
-The existing frontend CI job runs this strict coverage gate and type checking
-through UI Core's `test` script.
+The frontend coverage job compares lines, statements, functions and branches
+against the actual PR base with one locked instrumenter. Every metric must stay
+the same or increase; the ordinary unit job keeps type checking mandatory.
 
 The browser suite uses Node 22.22 or newer and installed Google Chrome. Set
 `UI_CORE_CHROME_PATH` to use a different Chromium executable. It serves a temporary
@@ -304,6 +305,11 @@ The tests cover exact comparison boundaries, a real regression caused by removin
 a test, invalid reports, missing files, source changes, failed commands, interrupted
 processes and concurrent-run rejection. Native local target tests remain separate.
 
+The paired frontend runner retains each revision’s own source and tests, uses the
+candidate’s source inventory and Babel instrumenter for both, and verifies raw
+Istanbul totals against the summary. Both revisions’ JSON, HTML and LCOV reports
+are exported. Failed, empty or skipped-required suites cannot pass.
+
 ## Electoral Log
 
 Electoral Log combines message and row tests with real ImmuDB integration. Install
@@ -330,6 +336,12 @@ not the separate artifact or search metadata.
 See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
 for setup, coverage limits and failure diagnosis. The rollout is tracked in
 [Meta #13301](https://github.com/sequentech/meta/issues/13301).
+
+`electoral-log-native` provides the default-feature PR-base comparison. The
+`electoral-log` profile above remains separate ImmuDB integration evidence: its
+opt-in test feature does not exist at this PR's actual base. Named profiles retain
+the underlying package identity so CI cannot mistake an existing package for new
+source and silently initialize its baseline.
 
 ## Voting Portal
 
