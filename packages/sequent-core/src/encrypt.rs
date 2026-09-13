@@ -588,31 +588,28 @@ mod tests {
     }
 
     #[test]
-    fn test_encrypt_writein_candidate() {
+    #[deny(clippy::unwrap_used, clippy::panic)]
+    fn test_encrypt_writein_candidate() -> Result<(), Box<dyn std::error::Error>>
+    {
         let ctx = RistrettoCtx;
         let ballot_style = get_writein_ballot_style();
         let contest = ballot_style.contests[0].clone();
         let invalid_candidate_ids = contest.get_invalid_candidate_ids();
         let decoded_contest = get_writein_plaintext();
-        let plaintext_bytes_vec = contest
-            .encode_plaintext_contest_to_bytes(&decoded_contest)
-            .unwrap(); // compare
-        let auditable_ballot =
-            encrypt::encrypt_decoded_contest::<RistrettoCtx>(
-                &ctx,
-                &vec![decoded_contest.clone()],
-                &ballot_style,
-            )
-            .unwrap();
-        let contests = auditable_ballot
-            .deserialize_contests::<RistrettoCtx>()
-            .unwrap();
+        let plaintext_bytes_vec =
+            contest.encode_plaintext_contest_to_bytes(&decoded_contest)?; // compare
+        let auditable_ballot = encrypt::encrypt_decoded_contest::<RistrettoCtx>(
+            &ctx,
+            &vec![decoded_contest.clone()],
+            &ballot_style,
+        )?;
+        let contests =
+            auditable_ballot.deserialize_contests::<RistrettoCtx>()?;
         let plaintext = contests[0].choice.plaintext.clone();
-        let plaintext_vec = vec::decode_array_to_vec(&plaintext).unwrap();
+        let plaintext_vec = vec::decode_array_to_vec(&plaintext)?;
         assert_eq!(plaintext_vec, plaintext_bytes_vec);
         assert_eq!(plaintext_vec, vec![198, 20, 150, 48]);
-        let decoded_plaintext =
-            contest.decode_plaintext_contest(&plaintext).unwrap();
+        let decoded_plaintext = contest.decode_plaintext_contest(&plaintext)?;
         assert_eq!(
             normalize_vote_contest(
                 &decoded_plaintext,
@@ -627,6 +624,7 @@ mod tests {
                 &invalid_candidate_ids,
             )
         );
+        Ok(())
     }
 
     #[test]

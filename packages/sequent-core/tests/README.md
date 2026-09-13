@@ -16,6 +16,23 @@ empty. These tests use synthetic local data and require no running identity
 provider or production credentials. They do not replace JWT verification tests,
 real service integration tests or the browser/WASM test suite.
 
+## Strict assurance lints
+
+The eight boundary-test modules enforce the lint policy from *Lightweight
+Assurance Methods*, including documentation, checked indexing/arithmetic, no
+`unwrap`, no explicit `panic!`, and no unsafe code. Fallible fixtures and tests
+return `Result`; a missing field or failed operation fails the test with its
+error rather than skipping an assertion. Do not replace these checks with blanket
+lint allowances or unchecked `expect` calls.
+
+```bash
+cargo clippy --locked --no-deps --tests -p sequent-core --features default_features,keycloak
+```
+
+The shared Rust test setup runs this command in CI. This first phase enforces
+the full policy in the new test modules; existing crate-wide lint debt remains
+tracked in [meta #11566](https://github.com/sequentech/meta/issues/11566).
+
 - `ballot_envelope.rs` checks the 30-byte ballot envelope against a manually
   specified byte layout, tests all 256 length bytes, and checks error propagation
   through the single-contest and multi-contest decoders. Before the fix, a length
