@@ -29,7 +29,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::encrypt::encode_to_plaintext_decoded_multi_contest;
 use crate::util::normalize_vote::normalize_election;
-use num_bigint::ToBigUint;
 use num_traits::{ToPrimitive, Zero};
 
 fn is_candidate_selected(
@@ -1166,17 +1165,21 @@ impl BallotChoices {
         bases: &Vec<u64>,
         encoded_value: &BigUint,
     ) -> Result<Vec<u64>, String> {
+        if bases.contains(&0) {
+            return Err("Mixed-radix bases must be positive".to_string());
+        }
         let mut values: Vec<u64> = vec![];
         let mut accumulator: BigUint = encoded_value.clone();
         let mut index = 0usize;
 
         while accumulator > Zero::zero() {
-            let base: BigUint = bases[index].to_biguint().ok_or_else(|| {
-                format!(
-                    "Error converting to biguint: bases[index={index:?}]={val}",
-                    val = bases[index]
-                )
+            // A valid envelope can still contain a value larger than this
+            // ballot's layout. Reject it before indexing beyond the last slot.
+            let base = bases.get(index).ok_or_else(|| {
+                "Encoded value exceeds the mixed-radix ballot capacity"
+                    .to_string()
             })?;
+            let base = BigUint::from(*base);
 
             let remainder = &accumulator % &base;
             values.push(remainder.to_u64().ok_or_else(|| {

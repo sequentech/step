@@ -573,7 +573,7 @@ impl KeycloakAdminClient {
             "{}/admin/realms/{}/groups/{}",
             client.url,
             realm,
-            group.id.as_ref().unwrap()
+            group.id.as_ref().context("Missing group id")?
         );
         let response = client
             .client

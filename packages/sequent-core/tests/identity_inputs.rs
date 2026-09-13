@@ -20,6 +20,41 @@ use sequent_core::util::date_time::{
 };
 use serde_json::json;
 
+#[test]
+fn millisecond_timestamps_preserve_subseconds_and_reject_unrepresentable_dates()
+{
+    assert_eq!(
+        ISO8601::timestamp_ms_utc_to_date_opt(-1)
+            .unwrap()
+            .timestamp_millis(),
+        -1
+    );
+    assert_eq!(
+        ISO8601::timestamp_ms_utc_to_date_opt(1_234)
+            .unwrap()
+            .timestamp_millis(),
+        1_234
+    );
+    for timestamp in [i64::MIN, i64::MAX] {
+        assert_eq!(
+            ISO8601::timestamp_ms_utc_to_date_opt(timestamp)
+                .unwrap_err()
+                .to_string(),
+            "error parsing timestamp"
+        );
+    }
+}
+
+#[test]
+fn current_time_helper_returns_epoch_milliseconds_at_its_declared_second_precision(
+) {
+    let before = Utc::now().timestamp() * 1_000;
+    let actual = sequent_core::services::date::get_now_utc_unix_ms();
+    let after = Utc::now().timestamp() * 1_000;
+    assert!((before..=after).contains(&actual));
+    assert_eq!(actual % 1_000, 0);
+}
+
 fn claims() -> JwtClaims {
     serde_json::from_value(json!({
         "exp": 2_000_000_000, "iat": 0, "jti": "fixture-token",

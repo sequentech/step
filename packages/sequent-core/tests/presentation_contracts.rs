@@ -13,6 +13,59 @@ use sequent_core::util::voting_screen::get_contest_plurality;
 use serde_json::json;
 
 #[test]
+fn persisted_event_presentation_distinguishes_absence_from_invalid_configuration(
+) {
+    let mut event: core::ElectionEvent = serde_json::from_value(json!({
+        "id": "event", "tenant_id": "north", "is_archived": false,
+        "encryption_protocol": "STRAND"
+    }))
+    .unwrap();
+    assert_eq!(event.get_presentation().unwrap(), None);
+    event.presentation =
+        Some(json!({"language_conf": {"default_language_code": "fr"}}));
+    let presentation = event.get_presentation().unwrap().unwrap();
+    assert_eq!(
+        presentation
+            .language_conf
+            .unwrap()
+            .default_language_code
+            .as_deref(),
+        Some("fr")
+    );
+    event.presentation =
+        Some(json!({"language_conf": {"default_language_code": []}}));
+    let error = event.get_presentation().unwrap_err();
+    assert_eq!(
+        error.path().to_string(),
+        "language_conf.default_language_code"
+    );
+}
+
+#[test]
+fn results_website_configuration_accepts_legacy_strings_and_structured_json() {
+    // Persisted imports may use either representation. The compatibility
+    // deserializer must preserve string contents and encode objects as JSON,
+    // while keeping absent/null values distinct from the literal string "null".
+    for (input, expected) in [
+        (json!({}), None),
+        (json!({"results_website": null}), None),
+        (json!({"results_website": "null"}), Some("null")),
+        (
+            json!({"results_website": "{legacy text}"}),
+            Some("{legacy text}"),
+        ),
+        (
+            json!({"results_website": {"status": "enabled"}}),
+            Some(r#"{"status":"enabled"}"#),
+        ),
+    ] {
+        let presentation: ElectionEventPresentation =
+            serde_json::from_value(input).unwrap();
+        assert_eq!(presentation.results_website.as_deref(), expected);
+    }
+}
+
+#[test]
 fn contest_names_fall_back_from_requested_language_to_english_to_base_text() {
     let mut contest = get_contest_plurality(
         EOverVotePolicy::ALLOWED,

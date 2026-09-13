@@ -353,10 +353,19 @@ async fn password_policy_updates_preserve_unmanaged_rules_and_validate_before_ht
 }
 
 #[rocket::async_test]
-async fn admin_credentials_cache_reuses_a_valid_token_and_explicit_refresh_requests_a_new_one(
+async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and_reuses_valid_tokens(
 ) {
     let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let mut expiring_token = http::token_json();
+    expiring_token["expires_in"] = json!(5);
     let peer = HttpServer::start(vec![
+        Exchange::json(
+            "POST",
+            token_endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
+        Exchange::json("POST", token_endpoint, 200, expiring_token),
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
@@ -387,6 +396,10 @@ async fn admin_credentials_cache_reuses_a_valid_token_and_explicit_refresh_reque
         ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
         ("SUPER_ADMIN_TENANT_ID", Some("north")),
     ]);
+    assert!(KeycloakAdminClient::new().await.is_err());
+    KeycloakAdminClient::new().await.unwrap();
+    // The five-second renewal margin makes this token immediately due for
+    // renewal. No wall-clock sleeps or artificial cache mutation are needed.
     KeycloakAdminClient::new().await.unwrap();
     KeycloakAdminClient::new().await.unwrap();
     KeycloakAdminClient::new_requested().await.unwrap();
@@ -439,7 +452,7 @@ async fn admin_credentials_cache_reuses_a_valid_token_and_explicit_refresh_reque
         .collect();
     assert_eq!(
         token_requests.len(),
-        3,
+        5,
         "cached operations make no extra token requests"
     );
     for request in token_requests {
@@ -451,6 +464,74 @@ async fn admin_credentials_cache_reuses_a_valid_token_and_explicit_refresh_reque
         assert_eq!(form["password"], "synthetic-secret");
         assert_eq!(form["grant_type"], "password");
     }
+}
+
+#[rocket::async_test]
+async fn fresh_admin_clients_propagate_denied_authentication() {
+    let endpoint = "/realms/master/protocol/openid-connect/token";
+    let peer = HttpServer::start(vec![
+        Exchange::json(
+            "POST",
+            endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
+        Exchange::json(
+            "POST",
+            endpoint,
+            401,
+            json!({"error": "invalid_grant"}),
+        ),
+        Exchange::json("POST", endpoint, 200, http::token_json()),
+        Exchange::json("POST", endpoint, 200, http::token_json()),
+    ]);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ]);
+    assert!(KeycloakAdminClient::new_requested().await.is_err());
+    assert!(KeycloakAdminClient::pub_new().await.is_err());
+    KeycloakAdminClient::new_requested().await.unwrap();
+    let public = KeycloakAdminClient::pub_new().await.unwrap();
+    assert_eq!(public.url, peer.url);
+    assert_eq!(peer.finish().len(), 4);
+}
+
+#[rocket::async_test]
+async fn malformed_successful_token_responses_fail_without_returning_secret_material(
+) {
+    let endpoint = "/realms/tenant-north/protocol/openid-connect/token";
+    let malformed = json!({"access_token": "synthetic-private-token", "expires_in": "invalid"});
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", endpoint, 200, malformed.clone()),
+        Exchange::json("POST", endpoint, 200, malformed),
+        Exchange::json("POST", endpoint, 200, http::token_json()),
+    ]);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_CLIENT_ID", Some("party")),
+        ("KEYCLOAK_CLIENT_SECRET", Some("synthetic-secret")),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ]);
+    let headers_error = get_client_credentials().await.err().unwrap();
+    let party_error = get_third_party_client_access_token(
+        "party".into(),
+        "synthetic-secret".into(),
+        "north".into(),
+    )
+    .await
+    .unwrap_err();
+    for error in [headers_error, party_error] {
+        assert_eq!(error.to_string(), "Invalid Keycloak token response");
+        assert!(!format!("{error:?}").contains("synthetic-private-token"));
+    }
+    assert_eq!(
+        get_client_credentials().await.unwrap().value,
+        "Bearer synthetic-access-token"
+    );
+    assert_eq!(peer.finish().len(), 3);
 }
 
 #[rocket::async_test]
@@ -493,6 +574,238 @@ async fn group_update_and_creation_use_the_server_assigned_user_id() {
     assert_eq!(requests[1].json()["name"], "Clerks");
     assert!(requests[3].json()["id"].is_null());
     assert_eq!(requests[3].json()["groups"], json!(["Clerks"]));
+}
+
+#[rocket::async_test]
+async fn rejected_user_creation_preserves_validation_errors_and_stops_before_lookup(
+) {
+    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let users = "/admin/realms/tenant-north/users";
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", token_endpoint, 200, http::token_json()),
+        Exchange::json(
+            "POST",
+            users,
+            400,
+            json!({
+                "field": "email", "errorMessage": "invalid-email", "params": ["email"]
+            }),
+        ),
+        Exchange::json("POST", token_endpoint, 200, http::token_json()),
+        Exchange::json("POST", users, 503, Value::Null)
+            .body("identity provider unavailable"),
+    ]);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ]);
+    let user = serde_json::from_value(
+        json!({"username": "new-voter", "email": "bad-email"}),
+    )
+    .unwrap();
+    let error = peer
+        .client()
+        .create_user("tenant-north", &user, None, None)
+        .await
+        .unwrap_err();
+    assert!(is_keycloak_bad_request(&error));
+    let validation = get_user_profile_validation_errors(&error);
+    assert_eq!(validation.len(), 1);
+    assert_eq!(validation[0].field.as_deref(), Some("email"));
+    assert_eq!(
+        validation[0].error_message.as_deref(),
+        Some("invalid-email")
+    );
+    assert_eq!(validation[0].params, Some(vec![json!("email")]));
+    let error = peer
+        .client()
+        .create_user("tenant-north", &user, None, None)
+        .await
+        .unwrap_err();
+    assert!(!is_keycloak_bad_request(&error));
+    assert!(get_user_profile_validation_errors(&error).is_empty());
+    assert!(matches!(error.downcast_ref::<keycloak::KeycloakError>(),
+        Some(keycloak::KeycloakError::HttpFailure { status: 503, text, .. }) if text == "identity provider unavailable"));
+    let requests = peer.finish();
+    assert_eq!(requests.len(), 4);
+    assert!(requests.iter().all(|request| request.method == "POST"));
+}
+
+#[rocket::async_test]
+async fn user_creation_requires_a_valid_location_before_reading_back_the_user()
+{
+    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let users = "/admin/realms/tenant-north/users";
+    let locations = [
+        None,
+        Some("not-a-url"),
+        Some("https://identity.invalid/admin/realms/tenant-north/users/"),
+        Some("https://identity.invalid/admin/realms/tenant-north/groups/group-1"),
+        Some("https://identity.invalid/admin/realms/tenant-north/users/voter-1?lookup=other"),
+        Some("https://identity.invalid/admin/realms/tenant-north/users/voter-1#other"),
+    ];
+    let mut exchanges = vec![];
+    for location in locations {
+        exchanges.push(Exchange::json(
+            "POST",
+            token_endpoint,
+            200,
+            http::token_json(),
+        ));
+        let mut response = Exchange::json("POST", users, 201, Value::Null);
+        if let Some(location) = location {
+            response = response.header("Location", location);
+        }
+        exchanges.push(response);
+    }
+    let peer = HttpServer::start(exchanges);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ]);
+    let user =
+        serde_json::from_value(json!({"username": "new-voter"})).unwrap();
+    for location in locations {
+        assert!(
+            peer.client()
+                .create_user("tenant-north", &user, None, None)
+                .await
+                .is_err(),
+            "accepted unusable user location {location:?}"
+        );
+    }
+    let requests = peer.finish();
+    assert_eq!(requests.len(), locations.len() * 2);
+    assert!(requests.iter().all(|request| request.method == "POST"),
+        "without a usable id, creation must not search for or return a different user");
+}
+
+#[rocket::async_test]
+async fn group_updates_report_rejection_and_require_an_identifier() {
+    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let group_path = "/admin/realms/tenant-north/groups/group-1";
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", token_endpoint, 200, http::token_json()),
+        Exchange::json("PUT", group_path, 403, json!({"error": "forbidden"})),
+        Exchange::json("POST", token_endpoint, 200, http::token_json()),
+        Exchange::json("PUT", group_path, 204, Value::Null),
+        // The current implementation authenticates before validating the id.
+        Exchange::json("POST", token_endpoint, 200, http::token_json()),
+    ]);
+    let _environment = Environment::set(&[
+        ("KEYCLOAK_URL", Some(&peer.url)),
+        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ]);
+    let mut group: GroupRepresentation =
+        serde_json::from_value(json!({"id": "group-1", "name": "Clerks"}))
+            .unwrap();
+    let error = peer
+        .client()
+        .update_group("north", &group)
+        .await
+        .unwrap_err();
+    assert_eq!(error.to_string(), "Failed to update group");
+    peer.client().update_group("north", &group).await.unwrap();
+    group.id = None;
+    assert!(peer.client().update_group("north", &group).await.is_err());
+    let requests = peer.finish();
+    assert_eq!(requests.len(), 5);
+    assert_eq!(requests[1].json(), requests[3].json());
+}
+
+#[rocket::async_test]
+async fn realm_upsert_propagates_rejected_creation_and_updates() {
+    for exists in [true, false] {
+        let peer = HttpServer::start(vec![
+            Exchange::json(
+                "GET",
+                REALM_PATH,
+                if exists { 200 } else { 404 },
+                json!({}),
+            ),
+            Exchange::json(
+                if exists { "PUT" } else { "POST" },
+                if exists { REALM_PATH } else { "/admin/realms" },
+                403,
+                json!({"error": "forbidden"}),
+            ),
+        ]);
+        let _environment = Environment::set(&[
+            ("VOTING_PORTAL_URL", Some("https://voting.example.invalid")),
+            (
+                "BALLOT_VERIFIER_URL",
+                Some("https://verifier.example.invalid"),
+            ),
+            ("RESULTS_PORTAL_URL", None),
+        ]);
+        let error = peer
+            .client()
+            .upsert_realm(
+                "tenant-north-event-mayor",
+                "{}",
+                "north",
+                false,
+                None,
+                None,
+            )
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("403"));
+        let requests = peer.finish();
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[1].json()["realm"], "tenant-north-event-mayor");
+    }
+}
+
+#[rocket::async_test]
+async fn realm_import_without_a_client_template_cannot_create_a_results_client()
+{
+    let peer = HttpServer::start(vec![Exchange::json(
+        "GET",
+        REALM_PATH,
+        404,
+        json!({}),
+    )]);
+    let _environment = Environment::set(&[
+        ("VOTING_PORTAL_URL", Some("https://voting.example.invalid")),
+        (
+            "BALLOT_VERIFIER_URL",
+            Some("https://verifier.example.invalid"),
+        ),
+        (
+            "RESULTS_PORTAL_URL",
+            Some("https://results.example.invalid"),
+        ),
+    ]);
+    let error = peer
+        .client()
+        .upsert_realm(
+            "tenant-north-event-mayor",
+            r#"{"clients":[{"clientId":"unrelated"}]}"#,
+            "north",
+            false,
+            None,
+            None,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Event realm does not contain a voting portal client template"
+    );
+    let requests = peer.finish();
+    assert_eq!(
+        requests.len(),
+        1,
+        "invalid provisioning input must not be written"
+    );
+    assert_eq!(requests[0].method, "GET");
 }
 
 /// Capture logs in memory so confidentiality assertions inspect the same spans

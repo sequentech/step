@@ -16,6 +16,17 @@ The native profile needs both features: the package's default feature list is
 empty. Tests use synthetic local data and need no production credentials. Real
 identity-provider integration and browser/WASM verification are separate scopes.
 
+The database mapping tests also require PostgreSQL server binaries. On Debian or
+Ubuntu, install `postgresql libpq-dev`; elsewhere set `PG_BIN` to the directory
+containing `initdb`, `pg_ctl` and `postgres` (otherwise `pg_config --bindir` is
+used). Run as an ordinary user: PostgreSQL refuses to initialize as root.
+Each database test initializes its own synthetic cluster in an owner-only
+temporary directory, disables TCP listening, connects through a private Unix
+socket and stops the server on exit. No database URL, existing database or
+production credentials are used. Missing fixture tools fail the tests rather
+than silently skipping them. The Core test and coverage CI jobs install these
+dependencies explicitly.
+
 ## Behaviors covered
 
 | Test file | Contract |
@@ -34,6 +45,7 @@ identity-provider integration and browser/WASM verification are separate scopes.
 | `keycloak_http.rs` | Inspect real HTTP paths, query parameters, payloads and rejected writes against a bounded local peer. |
 | `keycloak_configuration.rs` | Check realm configuration, credential encoding, cache isolation/expiry and confidentiality of token and request diagnostics. |
 | `keycloak_value_contracts.rs` | Validate password-generation limits and preserve user attributes and profile constraints. |
+| `keycloak_database.rs` | Map real PostgreSQL rows into users, preserving SQL nulls and flags; reject invalid JSON objects, missing columns and incompatible SQL types. |
 | `model_contracts.rs` | Validate persisted nested configuration and ceremony, tally, result and event-policy defaults. |
 | `plaintext_display.rs` | Check voting layouts, displayed points and invalid-versus-blank selections. |
 | `policy_wire_format.rs` | Pin JSON policy names and Borsh discriminants used in published ballot styles. |

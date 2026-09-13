@@ -49,6 +49,11 @@ impl Exchange {
         self.headers.push((name.into(), value.into()));
         self
     }
+
+    pub fn body(mut self, body: &str) -> Self {
+        self.body = body.into();
+        self
+    }
 }
 
 #[derive(Debug)]

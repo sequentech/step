@@ -722,6 +722,8 @@ fn print_to_pdf_once(
         .args(vec![
             std::ffi::OsStr::new("--disable-setuid-sandbox"),
             std::ffi::OsStr::new("--disable-dev-shm-usage"),
+            std::ffi::OsStr::new("--single-process"),
+            std::ffi::OsStr::new("--no-zygote"),
         ])
         .build()
         .expect("Default should not panic");

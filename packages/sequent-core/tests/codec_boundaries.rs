@@ -152,6 +152,81 @@ fn exhausted_serial_numbers_fail_without_wrapping_back_to_zero() {
 }
 
 #[test]
+fn mixed_radix_values_cannot_overrun_the_declared_ballot_slots() {
+    let bases = vec![2, 4, 4];
+    // Three slots admit exactly 2*4*4 = 32 values. Check the boundary
+    // directly, without using the encoder to manufacture the input.
+    assert_eq!(
+        BallotChoices::decode_mixed_radix(&bases, &BigUint::from(31u32))
+            .unwrap(),
+        vec![1, 3, 3]
+    );
+    for value in [32u32, 33, 255] {
+        assert!(BallotChoices::decode_mixed_radix(
+            &bases,
+            &BigUint::from(value)
+        )
+        .is_err());
+    }
+    assert_eq!(
+        BallotChoices::decode_mixed_radix(&vec![], &BigUint::from(0u32))
+            .unwrap(),
+        Vec::<u64>::new()
+    );
+    assert!(
+        BallotChoices::decode_mixed_radix(&vec![], &BigUint::from(1u32))
+            .is_err()
+    );
+}
+
+#[test]
+fn oversized_ballot_payloads_fail_without_consuming_a_serial_number() {
+    let contests = vec![contest()];
+    let config = style(&contests);
+    // This has a valid one-byte envelope but exceeds the [2,4,4] layout.
+    // The envelope parser alone cannot distinguish it from a valid ballot.
+    let mut envelope = [0u8; 30];
+    envelope[0] = 1;
+    envelope[1] = 26;
+    let valid =
+        BallotChoices::decode_from_30_bytes(&envelope, &config).unwrap();
+    assert_eq!(valid.choices[0].choices.len(), 2);
+    envelope[1] = 32;
+    assert!(BallotChoices::decode_from_30_bytes(&envelope, &config).is_err());
+    let mut serial = 42;
+    assert!(BallotChoices::decode_from_bigint(
+        &BigUint::from(32u32),
+        &contests,
+        false,
+        false,
+        MultiContestEncodingMode::LEGACY,
+        Some(&mut serial),
+    )
+    .is_err());
+    assert_eq!(serial, 42, "rejected input must not consume a ballot id");
+}
+
+#[test]
+fn zero_radices_are_rejected_even_when_the_value_needs_only_padding() {
+    for bases in [vec![0], vec![2, 0]] {
+        for value in [0u32, 1, 2] {
+            assert!(BallotChoices::decode_mixed_radix(
+                &bases,
+                &BigUint::from(value)
+            )
+            .is_err());
+        }
+    }
+    // A unit radix is legitimate: its only digit is zero, so a later
+    // non-unit slot must still receive the remaining value.
+    assert_eq!(
+        BallotChoices::decode_mixed_radix(&vec![1, 2], &BigUint::from(1u32))
+            .unwrap(),
+        vec![0, 1]
+    );
+}
+
+#[test]
 fn unsupported_or_mixed_counting_algorithms_are_not_encoded_as_plurality() {
     let mut ranked = contest();
     ranked.id = "ranked".into();

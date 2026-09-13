@@ -288,6 +288,146 @@ fn single_contest_audits_reproduce_ciphertext_from_disclosed_randomness() {
 }
 
 #[test]
+fn public_single_ballot_payloads_preserve_proofs_and_reject_malformed_contests()
+{
+    use sequent_core::encrypt::hash_ballot;
+
+    let (style, votes) = ballot_input();
+    let audit = encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let original = audit.deserialize_contests::<RistrettoCtx>().unwrap();
+    let signed = SignedHashableBallot::try_from(&audit).unwrap();
+    let hashable = HashableBallot::try_from(&signed).unwrap();
+    let public = signed.deserialize_contests::<RistrettoCtx>().unwrap();
+    assert_eq!(public[0].contest_id, votes[0].contest_id);
+    assert_eq!(public[0].ciphertext, original[0].choice.ciphertext);
+    assert_eq!(public[0].proof, original[0].proof);
+    assert_eq!(
+        SignedHashableBallot::serialize_contests(&public).unwrap(),
+        hashable.contests
+    );
+    assert_eq!(hash_ballot(&hashable).unwrap(), audit.ballot_hash);
+
+    // Both invalid Base64 and syntactically valid but truncated Borsh must
+    // fail. Otherwise a caller could hash or publish a partial public ballot.
+    for malformed in ["!invalid", "AAAA"] {
+        let mut invalid = hashable.clone();
+        invalid.contests[0] = malformed.into();
+        assert!(invalid.deserialize_contests::<RistrettoCtx>().is_err());
+        assert!(hash_ballot(&invalid).is_err());
+    }
+}
+
+#[test]
+fn unsupported_versions_cannot_be_converted_from_single_or_multi_audits() {
+    let (style, votes) = ballot_input();
+    let mut single =
+        encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let mut public = SignedHashableBallot::try_from(&single).unwrap();
+    assert!(HashableBallot::try_from(&public).is_ok());
+    single.version = TYPES_VERSION + 1;
+    assert!(SignedHashableBallot::try_from(&single)
+        .unwrap_err()
+        .to_string()
+        .contains("Unexpected version"));
+    public.version = TYPES_VERSION + 1;
+    assert!(public.deserialize_contests::<RistrettoCtx>().is_err());
+
+    let multi =
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let mut public = SignedHashableMultiBallot::try_from(&multi).unwrap();
+    assert!(public.deserialize_contests::<RistrettoCtx>().is_ok());
+    public.version = TYPES_VERSION + 1;
+    assert!(public.deserialize_contests::<RistrettoCtx>().is_err());
+}
+
+#[test]
+fn malformed_audit_payloads_are_errors_at_both_publication_and_display_boundaries(
+) {
+    let (style, votes) = ballot_input();
+    let single =
+        encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let multi =
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
+    assert!(map_to_decoded_contest::<RistrettoCtx>(&single).is_ok());
+    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&multi).is_ok());
+    for malformed in ["!invalid", "AAAA"] {
+        let mut invalid = single.clone();
+        invalid.contests[0] = malformed.into();
+        assert!(SignedHashableBallot::try_from(&invalid).is_err());
+        assert!(map_to_decoded_contest::<RistrettoCtx>(&invalid)
+            .unwrap_err()
+            .contains("Error deserializing auditable ballot contest"));
+        let mut invalid = multi.clone();
+        invalid.contests = malformed.into();
+        assert!(SignedHashableMultiBallot::try_from(&invalid).is_err());
+        assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&invalid)
+            .unwrap_err()
+            .contains("Error deserializing auditable multi ballot contest"));
+    }
+}
+
+#[test]
+fn audit_plaintext_with_an_invalid_envelope_cannot_be_displayed_as_a_vote() {
+    let (style, votes) = ballot_input();
+    let mut single =
+        encrypt_decoded_contest(&RistrettoCtx, &votes, &style).unwrap();
+    let mut multi =
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).unwrap();
+    assert!(map_to_decoded_contest::<RistrettoCtx>(&single).is_ok());
+    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&multi).is_ok());
+    // Keep valid Borsh, contest identities, ciphertext and proofs. Only the
+    // disclosed plaintext length is impossible for the 30-byte envelope.
+    let mut contests = single.deserialize_contests::<RistrettoCtx>().unwrap();
+    contests[0].choice.plaintext[0] = 30;
+    single.contests = AuditableBallot::serialize_contests(&contests).unwrap();
+    assert!(map_to_decoded_contest::<RistrettoCtx>(&single).is_err());
+    let mut contests = multi.deserialize_contests::<RistrettoCtx>().unwrap();
+    contests.choice.plaintext[0] = 30;
+    multi.contests =
+        AuditableMultiBallot::serialize_contests(&contests).unwrap();
+    assert!(map_to_decoded_multi_contest::<RistrettoCtx>(&multi)
+        .unwrap_err()
+        .contains("Error decoding multi ballot plaintext"));
+}
+
+#[test]
+fn encryption_rejects_ballot_flags_disabled_by_the_election() {
+    use sequent_core::ballot::{
+        BlankBallotsPolicy, DeclineToVotePolicy, ElectionPresentation,
+    };
+    use sequent_core::encrypt::encode_to_plaintext_decoded_multi_contest;
+
+    let (mut style, votes) = ballot_input();
+    style.election_presentation = Some(ElectionPresentation {
+        blank_ballots_policy: Some(BlankBallotsPolicy::DISABLED),
+        decline_to_vote_policy: Some(DeclineToVotePolicy::DISABLED),
+        ..Default::default()
+    });
+    assert!(
+        encrypt_decoded_multi_contest(&RistrettoCtx, &votes, &style).is_ok()
+    );
+    for flag in ["decline", "blank"] {
+        let mut invalid = votes.clone();
+        invalid[0].is_decline_to_vote = flag == "decline";
+        invalid[0].is_blank_ballot = flag == "blank";
+        for choice in &mut invalid[0].choices {
+            choice.selected = -1;
+        }
+        let encode =
+            encode_to_plaintext_decoded_multi_contest(&invalid, &style)
+                .unwrap_err();
+        let encrypt =
+            encrypt_decoded_multi_contest(&RistrettoCtx, &invalid, &style)
+                .unwrap_err();
+        for error in [encode, encrypt] {
+            assert!(error
+                .to_string()
+                .contains("not enabled for this election"));
+        }
+    }
+}
+
+#[test]
 fn multi_encryption_rejects_conflicting_ballot_flags_and_wrong_contest_sets() {
     use sequent_core::ballot::{BlankBallotsPolicy, DeclineToVotePolicy};
     use sequent_core::ballot_codec::multi_ballot::{

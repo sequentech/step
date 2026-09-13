@@ -22,6 +22,146 @@ const USER: &str = "/admin/realms/tenant-north/users/voter-1";
 const MAPPINGS: &str =
     "/admin/realms/tenant-north/groups/group-1/role-mappings/realm";
 
+#[rocket::async_test]
+async fn realm_export_distinguishes_rejections_from_malformed_success_bodies() {
+    use keycloak::KeycloakError;
+
+    let path = "/admin/realms/tenant-north/partial-export";
+    let peer = HttpServer::start(vec![
+        Exchange::json("POST", path, 200, json!({"realm": REALM})),
+        Exchange::json("POST", path, 403, json!({"error": "export denied"})),
+        Exchange::json("POST", path, 502, Value::Null)
+            .body("upstream unavailable"),
+        Exchange::json("POST", path, 200, Value::Null).body("{truncated"),
+    ]);
+    let public = peer.public_client();
+    assert_eq!(
+        peer.client()
+            .get_realm(&public, REALM)
+            .await
+            .unwrap()
+            .realm
+            .as_deref(),
+        Some(REALM)
+    );
+    for (expected_status, expected_text) in [
+        (403, r#"{"error":"export denied"}"#),
+        (502, "upstream unavailable"),
+    ] {
+        match peer.client().get_realm(&public, REALM).await.unwrap_err() {
+            KeycloakError::HttpFailure { status, text, .. } => {
+                assert_eq!(status, expected_status);
+                assert_eq!(text, expected_text);
+            }
+            error => panic!("expected HTTP rejection, got {error:?}"),
+        }
+    }
+    let malformed = peer.client().get_realm(&public, REALM).await.unwrap_err();
+    assert!(
+        matches!(malformed, KeycloakError::ReqwestFailure(ref error) if error.is_decode())
+    );
+    assert_eq!(peer.finish().len(), 4);
+}
+
+#[rocket::async_test]
+async fn invalid_flow_configuration_is_rejected_before_any_http_request() {
+    let path =
+        "/admin/realms/tenant-north/authentication/flows/browser/executions";
+    let peer =
+        HttpServer::start(vec![Exchange::json("PUT", path, 204, Value::Null)]);
+    let public = peer.public_client();
+    for malformed in ["{", r#"{"id":42}"#, r#"{"requirement":[]}"#] {
+        let error = peer
+            .client()
+            .upsert_flow_execution(&public, REALM, "browser", malformed)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Failed to deserialize execution configuration"
+        );
+    }
+    peer.client()
+        .upsert_flow_execution(
+            &public,
+            REALM,
+            "browser",
+            r#"{"id":"execution-1","requirement":"REQUIRED"}"#,
+        )
+        .await
+        .unwrap();
+    let requests = peer.finish();
+    assert_eq!(
+        requests.len(),
+        1,
+        "invalid configurations must not reach Keycloak"
+    );
+    assert_eq!(requests[0].json()["requirement"], "REQUIRED");
+}
+
+#[rocket::async_test]
+async fn realm_export_and_flow_updates_report_connection_failures() {
+    // Retain ownership of the port but stop listening. This guarantees a local
+    // connection failure without racing another test to reuse a freed port.
+    let socket = rocket::tokio::net::TcpSocket::new_v4().unwrap();
+    socket.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+    let peer = HttpServer::start(vec![]);
+    let mut public = peer.public_client();
+    public.url = format!("http://{}", socket.local_addr().unwrap());
+    let export = peer.client().get_realm(&public, REALM).await.unwrap_err();
+    assert!(
+        matches!(export, keycloak::KeycloakError::ReqwestFailure(ref error) if error.is_connect())
+    );
+    let update = peer
+        .client()
+        .upsert_flow_execution(
+            &public,
+            REALM,
+            "browser",
+            r#"{"id":"execution-1"}"#,
+        )
+        .await
+        .unwrap_err();
+    assert!(update
+        .to_string()
+        .starts_with("Error sending update request to"));
+    assert!(update.chain().any(|cause| cause
+        .downcast_ref::<reqwest::Error>()
+        .is_some_and(|error| error.is_connect())));
+    assert!(peer.finish().is_empty());
+}
+
+#[rocket::async_test]
+async fn group_creation_without_location_does_not_invent_an_identifier() {
+    let peer =
+        HttpServer::start(vec![Exchange::json("POST", GROUPS, 201, json!({}))]);
+    assert_eq!(
+        peer.client()
+            .create_new_group("north", "Clerks", &peer.public_client())
+            .await
+            .unwrap(),
+        None
+    );
+    assert_eq!(peer.finish()[0].json(), json!({"name": "Clerks"}));
+}
+
+#[rocket::async_test]
+async fn group_creation_rejects_a_non_ascii_location_header() {
+    let peer =
+        HttpServer::start(vec![Exchange::json("POST", GROUPS, 201, json!({}))
+            .header("Location", "https://identity.invalid/groups/é")]);
+    let error = peer
+        .client()
+        .create_new_group("north", "Clerks", &peer.public_client())
+        .await
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        keycloak::KeycloakError::HttpFailure { status: 201, .. }
+    ));
+    assert_eq!(peer.finish().len(), 1);
+}
+
 fn role() -> Role {
     serde_json::from_value(
         json!({"id": "group-1", "name": "Clerks", "permissions": ["read"]}),
