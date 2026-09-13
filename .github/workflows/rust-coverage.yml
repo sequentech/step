@@ -14,7 +14,7 @@ on:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand, velvet, harvest]
+        options: [sequent-core, strand, velvet, wrap-map-err, harvest]
         default: sequent-core
         required: true
       base_ref:
@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "harvest"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest"]') }}
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
     steps:
