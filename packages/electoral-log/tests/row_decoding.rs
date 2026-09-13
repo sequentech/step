@@ -227,3 +227,49 @@ fn aggregate_requires_exactly_one_nonnegative_integer() {
         );
     }
 }
+
+#[test]
+fn optional_null_columns_cannot_hide_duplicate_metadata() {
+    for name in OPTIONAL_COLUMNS {
+        let mut input = complete_row();
+        input.columns.push(format!("(board.{name})"));
+        input.values.push(SqlValue {
+            value: Some(Value::Null(0)),
+        });
+        // A single explicit null is a valid unavailable value.
+        ElectoralLogMessage::try_from(&input).unwrap();
+        input.columns.push(format!("(joined.{name})"));
+        input.values.push(SqlValue {
+            value: Some(Value::S("replacement".into())),
+        });
+        assert_eq!(
+            ElectoralLogMessage::try_from(&input)
+                .unwrap_err()
+                .to_string(),
+            format!("duplicate audit column '{name}'")
+        );
+    }
+}
+
+#[test]
+fn independently_named_optional_metadata_is_not_swapped_or_normalized() {
+    let mut input = complete_row();
+    for (name, value) in [
+        ("username", "Reader é"),
+        ("election_id", "election-7"),
+        ("ballot_id", ""),
+        ("area_id", "district-9"),
+        ("user_id", "actor-3"),
+    ] {
+        input.columns.push(format!("(board.{name})"));
+        input.values.push(SqlValue {
+            value: Some(Value::S(value.into())),
+        });
+    }
+    let decoded = ElectoralLogMessage::try_from(&input).unwrap();
+    assert_eq!(decoded.username.as_deref(), Some("Reader é"));
+    assert_eq!(decoded.election_id.as_deref(), Some("election-7"));
+    assert_eq!(decoded.ballot_id.as_deref(), Some(""));
+    assert_eq!(decoded.area_id.as_deref(), Some("district-9"));
+    assert_eq!(decoded.user_id.as_deref(), Some("actor-3"));
+}

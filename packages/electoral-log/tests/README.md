@@ -54,3 +54,9 @@ All unit tests live outside `src`, including the preserved existing tests, so
 their bodies do not inflate source coverage. Derive-generated methods remain in
 LLVM's measured totals. The initial 28.40% baseline included inline test bodies;
 its denominator differs from this profile and is retained as historical evidence.
+
+Follow-up row contracts give every optional field a distinct value, including an
+empty ballot ID, so accidental field swaps or normalization are observable. A
+valid explicit null must not hide a duplicate column from a joined table. The
+71-test suite passes with the owned ImmuDB 1.9.6 fixture; the one legacy fixed-port
+test remains ignored. No production or coverage-exclusion changes were needed.
