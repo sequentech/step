@@ -154,13 +154,18 @@ fn candidate_order_uses_aliases_case_insensitively_and_custom_positions_when_req
             .collect::<Vec<_>>(),
         ["ada", "bea"]
     );
+    // Start with a non-canonical snapshot: sorting again by name or custom
+    // order must fail this preservation check.
+    choices[0].candidate.as_mut().unwrap().name = Some("Alpha".into());
+    choices[1].candidate.as_mut().unwrap().name = Some("Zulu".into());
+    choices.reverse();
     sort_candidates(&mut choices, CandidatesOrder::Random);
     assert_eq!(
         choices
             .iter()
             .map(|c| c.choice.id.as_str())
             .collect::<Vec<_>>(),
-        ["ada", "bea"],
+        ["bea", "ada"],
         "receipts must preserve their snapshot rather than randomizing again"
     );
 }

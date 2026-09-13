@@ -130,6 +130,8 @@ wasmtime = {version = "44.0.3", optional = true}
 wasmtime-wasi = {version = "44.0.3", optional = true}
 
 [dev-dependencies]
+# Capture application logs in credential-confidentiality regressions.
+tracing-subscriber = "0.3"
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
 
