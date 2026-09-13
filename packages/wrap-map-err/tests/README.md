@@ -34,4 +34,8 @@ also compiles Windmill's real Celery consumers. This caught renamed `TaskResult`
 and `WrapResult` aliases, which now have dedicated compiled regressions here.
 The macro recognizes the conventional `Result` suffix; it cannot resolve
 arbitrarily named Rust aliases. Branch coverage and successful distributed task
-execution remain separate evidence requirements in Meta #13299.
+execution remain separate evidence requirements in Meta #13302.
+
+Cancellation controls drop an owned resource exactly once both before first polling
+and while a task is suspended. Successful and error completions provide matching
+controls; these tests execute the public generated future without a task broker.
