@@ -136,3 +136,106 @@ fn change_classification_distinguishes_new_unchanged_and_each_material_edit() {
         );
     }
 }
+
+#[test]
+fn review_csv_distinguishes_unavailable_counts_from_reported_zeroes() {
+    let mut content = sheet();
+    content.total_votes = Some(0);
+    content.total_valid_votes = Some(0);
+    content.total_blank_votes = Some(0);
+    content.blank_ballots = None;
+    content.census = None;
+    content.invalid_votes = None;
+    content
+        .candidate_results
+        .get_mut(CANDIDATE_ID)
+        .unwrap()
+        .total_votes = None;
+
+    let csv = render_ballot_box_csv(&content, &HashMap::new(), &HashMap::new());
+    // An absent count is unknown, not a certified count of zero. Pin the
+    // complete public layout so a renderer/parser round trip cannot hide it.
+    assert_eq!(
+        csv,
+        concat!(
+            "field,candidate_external_id,candidate_name,value\n",
+            "total_votes,,,0\n",
+            "total_valid_votes,,,0\n",
+            "implicit_invalid,,,\n",
+            "explicit_invalid,,,\n",
+            "total_blank_votes,,,0\n",
+            "blank_ballots,,,\n",
+            "census,,,\n",
+            "candidate_votes,,,\n",
+        )
+    );
+
+    content.blank_ballots = Some(0);
+    content.census = Some(0);
+    content.invalid_votes = Some(InvalidVotes {
+        total_invalid: Some(0),
+        implicit_invalid: Some(0),
+        explicit_invalid: Some(0),
+    });
+    content
+        .candidate_results
+        .get_mut(CANDIDATE_ID)
+        .unwrap()
+        .total_votes = Some(0);
+    let csv = render_ballot_box_csv(&content, &HashMap::new(), &HashMap::new());
+    let rows = csv::Reader::from_reader(csv.as_bytes())
+        .records()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(rows.len(), 8);
+    assert!(rows.iter().all(|row| &row[3] == "0"));
+}
+
+#[test]
+fn review_requires_approval_when_a_known_zero_becomes_unavailable() {
+    let mut known = sheet();
+    known.blank_ballots = Some(0);
+    let mut unknown = known.clone();
+    unknown.blank_ballots = None;
+    assert_eq!(
+        classify_change(Some(&known), &unknown).unwrap(),
+        TallySheetImportChangeType::CHANGED
+    );
+    assert_eq!(
+        classify_change(Some(&unknown), &unknown).unwrap(),
+        TallySheetImportChangeType::UNCHANGED
+    );
+}
+
+#[test]
+fn review_candidate_rows_have_stable_identifier_order_independent_of_labels() {
+    let mut content = sheet();
+    content.candidate_results.insert(
+        "candidate-z".into(),
+        CandidateResults {
+            candidate_id: "candidate-z".into(),
+            total_votes: Some(9),
+        },
+    );
+    let names = HashMap::from([
+        (CANDIDATE_ID.into(), "Zulu".into()),
+        ("candidate-z".into(), "Alpha".into()),
+    ]);
+    let external_ids = HashMap::from([
+        (CANDIDATE_ID.into(), "first".into()),
+        ("candidate-z".into(), "last".into()),
+    ]);
+    let csv = render_ballot_box_csv(&content, &names, &external_ids);
+    let rows = csv::Reader::from_reader(csv.as_bytes())
+        .records()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(
+        rows[7].iter().collect::<Vec<_>>(),
+        ["candidate_votes", "first", "Zulu", "3"]
+    );
+    assert_eq!(
+        rows[8].iter().collect::<Vec<_>>(),
+        ["candidate_votes", "last", "Alpha", "9"]
+    );
+}
