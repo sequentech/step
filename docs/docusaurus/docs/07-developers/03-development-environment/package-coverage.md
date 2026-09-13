@@ -129,9 +129,11 @@ profiles state their dependencies explicitly:
 For example, run `python3 scripts/coverage/run.py harvest --baseline --offline`.
 A `test_environment` table contains only public fixture settings and overrides
 matching inherited environment variables. Never put deployment secrets in it.
-Runtime profiles clear raw counters while preserving compiled dependencies;
-`compiler_coverage = true` also rebuilds the workspace for compiler-time macro
-counters. Both modes keep fresh-counter and source-identity checks.
+Every measurement clears workspace binaries and raw counters. Keeping binaries
+from an earlier feature profile can contaminate the next report even when its
+counters are fresh. External dependencies stay cached. For quick development
+feedback, run focused Cargo tests; reserve a complete coverage measurement for
+a finished change. Compiler-time macro coverage is rebuilt as part of that run.
 
 Windmill also has a native profile backed by the same PostgreSQL 16 fixture used
 in Rust CI: loopback port `3322`, with database, user and password all `test`.
