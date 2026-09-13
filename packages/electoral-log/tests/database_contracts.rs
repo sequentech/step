@@ -10,7 +10,9 @@ use electoral_log::{
 };
 use immudb::{DatabaseServer, DATABASE};
 use immudb_rs::TxMode;
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
+
+const DATABASE_TEST_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn message(index: i64) -> ElectoralLogMessage {
     ElectoralLogMessage {
@@ -31,7 +33,7 @@ fn message(index: i64) -> ElectoralLogMessage {
 
 #[tokio::test]
 async fn database_lifecycle_and_both_pagination_strategies_preserve_all_metadata() -> Result<()> {
-    tokio::time::timeout(std::time::Duration::from_secs(120), async {
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
         let server = DatabaseServer::start().await?;
         let mut client = server.client().await?;
         assert!(!client.has_database(DATABASE).await?);
@@ -113,64 +115,68 @@ async fn database_lifecycle_and_both_pagination_strategies_preserve_all_metadata
 #[tokio::test]
 async fn filters_bind_literal_values_and_accept_epoch_zero_and_multiple_sort_columns() -> Result<()>
 {
-    let server = DatabaseServer::start().await?;
-    let mut client = server.client().await?;
-    client.upsert_electoral_log_db(DATABASE).await?;
-    client
-        .insert_electoral_log_messages(DATABASE, &vec![message(0), message(1), message(2)])
-        .await?;
-
-    let filter = WhereClauseBTreeMap::from([
-        (
-            ElectoralLogVarCharColumn::StatementKind,
-            (SqlCompOperators::Equal, "CastVote".into()),
-        ),
-        (
-            ElectoralLogVarCharColumn::Username,
-            (SqlCompOperators::Equal, "O'Brien; SELECT 'literal'".into()),
-        ),
-    ]);
-    assert_eq!(
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
+        let server = DatabaseServer::start().await?;
+        let mut client = server.client().await?;
+        client.upsert_electoral_log_db(DATABASE).await?;
         client
-            .count_electoral_log_messages(DATABASE, Some(filter.clone()))
-            .await?,
-        3
-    );
-    let rows = client
-        .get_electoral_log_messages_filtered::<String, String>(
-            DATABASE,
-            Some(filter),
-            Some(0),
-            Some(1_700_000_000_000_001),
-            Some(10),
-            Some(0),
-            Some(HashMap::from([
-                ("created".into(), "ASC".into()),
-                ("id".into(), "ASC".into()),
-            ])),
-        )
-        .await?;
-    assert_eq!(
-        rows.iter().map(|row| row.id).collect::<Vec<_>>(),
-        vec![1, 2]
-    );
+            .insert_electoral_log_messages(DATABASE, &vec![message(0), message(1), message(2)])
+            .await?;
 
-    let empty_filter = WhereClauseBTreeMap::from([(
-        ElectoralLogVarCharColumn::UserId,
-        (SqlCompOperators::Equal, "' OR 1=1 --".into()),
-    )]);
-    assert_eq!(
-        client
-            .count_electoral_log_messages(DATABASE, Some(empty_filter))
-            .await?,
-        0
-    );
-    Ok(())
+        let filter = WhereClauseBTreeMap::from([
+            (
+                ElectoralLogVarCharColumn::StatementKind,
+                (SqlCompOperators::Equal, "CastVote".into()),
+            ),
+            (
+                ElectoralLogVarCharColumn::Username,
+                (SqlCompOperators::Equal, "O'Brien; SELECT 'literal'".into()),
+            ),
+        ]);
+        assert_eq!(
+            client
+                .count_electoral_log_messages(DATABASE, Some(filter.clone()))
+                .await?,
+            3
+        );
+        let rows = client
+            .get_electoral_log_messages_filtered::<String, String>(
+                DATABASE,
+                Some(filter),
+                Some(0),
+                Some(1_700_000_000_000_001),
+                Some(10),
+                Some(0),
+                Some(HashMap::from([
+                    ("created".into(), "ASC".into()),
+                    ("id".into(), "ASC".into()),
+                ])),
+            )
+            .await?;
+        assert_eq!(
+            rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+
+        let empty_filter = WhereClauseBTreeMap::from([(
+            ElectoralLogVarCharColumn::UserId,
+            (SqlCompOperators::Equal, "' OR 1=1 --".into()),
+        )]);
+        assert_eq!(
+            client
+                .count_electoral_log_messages(DATABASE, Some(empty_filter))
+                .await?,
+            0
+        );
+        Ok(())
+    })
+    .await
+    .context("local ImmuDB integration exceeded two minutes")?
 }
 
 #[tokio::test]
 async fn a_failed_write_never_commits_an_earlier_row_from_the_same_batch() -> Result<()> {
-    tokio::time::timeout(std::time::Duration::from_secs(120), async {
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
         let server = DatabaseServer::start().await?;
         let mut client = server.client().await?;
         client.upsert_electoral_log_db(DATABASE).await?;
@@ -203,7 +209,7 @@ async fn a_failed_write_never_commits_an_earlier_row_from_the_same_batch() -> Re
 
 #[tokio::test]
 async fn helper_binary_uses_explicit_and_environment_configuration() -> Result<()> {
-    tokio::time::timeout(std::time::Duration::from_secs(120), async {
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
         for use_environment in [false, true] {
             // Deleted ImmuDB database names cannot be reused in this server
             // version. Each configuration mode gets its own server lifecycle.
