@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Frontend coverage
+on:
+  pull_request:
+    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml']
+  push:
+    branches: [main]
+    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml']
+permissions:
+  contents: read
+concurrency:
+  group: frontend-coverage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  comparison:
+    name: ${{ matrix.package }} coverage — no decrease
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [ui-core]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+          path: base
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - name: Install the shared locked instrumenter and dependencies
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd head/packages install --frozen-lockfile --non-interactive
+          ln -s "$GITHUB_WORKSPACE/head/packages/node_modules" base/packages/node_modules
+      - name: Compare all four source metrics
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: >-
+          python3 head/scripts/coverage/ci.py frontend "$PACKAGE"
+          --base base --head head --output "$RUNNER_TEMP/coverage/frontend"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: frontend-coverage-${{ matrix.package }}
+          path: ${{ runner.temp }}/coverage/frontend/
+          if-no-files-found: error
+          retention-days: 7

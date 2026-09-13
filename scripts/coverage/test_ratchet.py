@@ -9,6 +9,7 @@ import unittest
 from ratchet import (
     compare,
     compare_rust,
+    frontend_metrics,
     markdown,
     python_metrics,
     rust_metrics,
@@ -146,3 +147,35 @@ class CoverageRatchetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FrontendMetricTests(unittest.TestCase):
+    def test_each_source_metric_uses_exact_counts_not_reported_percentages(self):
+        report = {
+            "total": {
+                name: {"covered": 2, "total": 3, "pct": 100}
+                for name in ("lines", "statements", "functions", "branches")
+            }
+        }
+        base = frontend_metrics(report)
+        self.assertTrue(compare(base, base)["passes"])
+        for name in base:
+            changed = copy.deepcopy(report)
+            changed["total"][name]["covered"] = 1
+            result = compare(base, frontend_metrics(changed))
+            self.assertFalse(result["passes"])
+            self.assertEqual(
+                [key for key, value in result["metrics"].items() if value["decreased"]],
+                [name],
+            )
+
+    def test_empty_and_invalid_source_counters_cannot_pass(self):
+        for covered, total in [(0, 0), (True, 2), (3, 2), (-1, 2)]:
+            report = {
+                "total": {
+                    name: {"covered": covered, "total": total}
+                    for name in ("lines", "statements", "functions", "branches")
+                }
+            }
+            with self.assertRaises(CoverageError):
+                frontend_metrics(report)

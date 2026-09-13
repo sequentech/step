@@ -66,12 +66,13 @@ yarn --cwd ui-core test:coverage
 yarn --cwd ui-core test:browser
 ```
 
-UI Core requires 95% lines, statements, functions and branches. Its HTML report
+UI Core’s local target command requires 95% lines, statements, functions and branches. Its HTML report
 is in `packages/ui-core/coverage/`. Source instrumentation includes unimported
 modules and omits only tests and declarations. It runs before Babel generates
 module-export helpers; those helpers are not application branches.
-The existing frontend CI job runs this strict coverage gate and type checking
-through UI Core's `test` script.
+The frontend coverage job compares lines, statements, functions and branches
+against the actual PR base with one locked instrumenter. Every metric must stay
+the same or increase; the ordinary unit job keeps type checking mandatory.
 
 The browser suite uses Node 22.22 or newer and installed Google Chrome. Set
 `UI_CORE_CHROME_PATH` to use a different Chromium executable. It serves a temporary
@@ -303,3 +304,8 @@ COVERAGE_FILE=coverage/tooling/.coverage python3 -m coverage report
 The tests cover exact comparison boundaries, a real regression caused by removing
 a test, invalid reports, missing files, source changes, failed commands, interrupted
 processes and concurrent-run rejection. Native local target tests remain separate.
+
+The paired frontend runner retains each revision’s own source and tests, uses the
+candidate’s source inventory and Babel instrumenter for both, and verifies raw
+Istanbul totals against the summary. Both revisions’ JSON, HTML and LCOV reports
+are exported. Failed, empty or skipped-required suites cannot pass.

@@ -180,5 +180,49 @@ class RealPythonComparisonTests(unittest.TestCase):
                 ci.read_json(root / "bad.json")
 
 
+class FrontendRunnerTests(unittest.TestCase):
+    def test_real_runner_boundary_returns_all_four_metrics(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "measurement"
+
+            def run(arguments, checkout, destination, name):
+                self.assertEqual(arguments[0], "node")
+                self.assertEqual(arguments[-2], "ui-core")
+                (destination / "coverage-summary.json").write_text(
+                    json.dumps(
+                        {
+                            "total": {
+                                metric: {"covered": 7, "total": 10}
+                                for metric in (
+                                    "lines",
+                                    "statements",
+                                    "functions",
+                                    "branches",
+                                )
+                            }
+                        }
+                    )
+                )
+
+            with patch.object(ci, "command", side_effect=run):
+                actual = ci.measure(root, "frontend", "ui-core", output)
+            self.assertEqual(
+                actual,
+                {
+                    name: {"covered": 7, "count": 10}
+                    for name in ("lines", "statements", "functions", "branches")
+                },
+            )
+
+    def test_failed_frontend_command_cannot_reuse_an_old_summary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "coverage-summary.json").write_text('{"total": {}}')
+            with patch.object(ci, "command", side_effect=CoverageError("Jest failed")):
+                with self.assertRaisesRegex(CoverageError, "Jest failed"):
+                    ci.measure_frontend(root, "ui-core", root)
+
+
 if __name__ == "__main__":
     unittest.main()

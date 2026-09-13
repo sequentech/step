@@ -22,8 +22,9 @@ HTML, JSON and LCOV to `coverage/`. Only test files and declaration files are
 excluded. `test:coverage:baseline` reports an unfinished result without enforcing
 the target; use the strict command for review evidence.
 
-The existing frontend CI job calls `yarn test`, which now runs the type check and
-strict coverage gate. For a focused development loop, run `yarn jest <test-file>
+The ordinary frontend job runs unit tests and type checking. The separate
+coverage job measures both actual PR revisions and rejects any decrease in
+lines, statements, functions or branches; 95% remains the local improvement target. For a focused development loop, run `yarn jest <test-file>
 --runInBand`; the real browser suite is a separate command.
 
 Source instrumentation runs before Babel creates re-export getters. The shared
