@@ -17,6 +17,7 @@ export default [
             "target/**",
             "pkg/**",
             "build/**",
+            "coverage/**",
             "*.config.js",
             "*.config.ts",
             "**/*.mdx",
@@ -59,6 +60,12 @@ export default [
             "@typescript-eslint/no-unused-vars": "off",
             // Allow redeclare for function overloads
             "no-redeclare": "off",
+            // Keep type uncertainty visible and preserve errors at boundaries.
+            "@typescript-eslint/no-explicit-any": "error",
+            "@typescript-eslint/no-non-null-assertion": "error",
+            "@typescript-eslint/ban-ts-comment": "error",
+            "no-unsafe-finally": "error",
+            "no-promise-executor-return": "error",
         },
         settings: {
             react: {

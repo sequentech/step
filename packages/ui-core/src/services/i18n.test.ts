@@ -165,11 +165,13 @@ describe("overwriteTranslations", () => {
                 default_language_code: "es",
             },
         }
-        const originalDocument = (globalThis as any).document
-        ;(globalThis as any).document = {
-            cookie: "",
-            documentElement: {setAttribute: jest.fn()},
-        }
+        // Preserve the descriptor as well as its value: a browser's document
+        // property can be accessor-backed rather than an ordinary field.
+        const originalDocument = Object.getOwnPropertyDescriptor(globalThis, "document")
+        Object.defineProperty(globalThis, "document", {
+            configurable: true,
+            value: {cookie: "", documentElement: {setAttribute: jest.fn()}},
+        })
 
         try {
             expect(overwriteTranslations(legacyConfig, false)).toBe(false)
@@ -180,10 +182,37 @@ describe("overwriteTranslations", () => {
             expect(i18n.language).toBe("es")
         } finally {
             if (originalDocument === undefined) {
-                delete (globalThis as any).document
+                Reflect.deleteProperty(globalThis, "document")
             } else {
-                ;(globalThis as any).document = originalDocument
+                Object.defineProperty(globalThis, "document", originalDocument)
             }
+        }
+    })
+
+    it("treats prototype-like legacy keys as data instead of inherited objects", () => {
+        // These paths must never reach Object.prototype, even when several
+        // translation keys share the same intermediate object.
+        try {
+            overwriteTranslations(
+                {
+                    i18n: {
+                        en: {
+                            "__proto__.translationPollutionProbe": "unexpected",
+                            "constructor.prototype.translationPollutionProbe": "unexpected",
+                            "legacyGroup.title": "Title",
+                            "legacyGroup.description": "Description",
+                        },
+                    },
+                },
+                false
+            )
+
+            expect(Object.hasOwn(Object.prototype, "translationPollutionProbe")).toBe(false)
+            expect(i18n.t("legacyGroup.title")).toBe("Title")
+            expect(i18n.t("legacyGroup.description")).toBe("Description")
+        } finally {
+            // Keep a failed regression from contaminating unrelated tests.
+            Reflect.deleteProperty(Object.prototype, "translationPollutionProbe")
         }
     })
 })

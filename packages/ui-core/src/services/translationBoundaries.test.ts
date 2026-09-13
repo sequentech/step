@@ -33,6 +33,15 @@ it("validates translation containers without accepting arrays or nontext leaf va
     }
 })
 
+it("falls back when a legacy translation is inherited or is not text", () => {
+    // A property on the prototype is not a translation supplied by this record.
+    const dictionary: Record<string, string> = {en: "Council"}
+    Object.setPrototypeOf(dictionary, {fr: "Inherited text"})
+    expect(translate({name: "Council", name_i18n: dictionary}, "name", "fr")).toBe("Council")
+    expect(translate({name: "Council", name_i18n: {fr: 42}}, "name", "fr")).toBe("Council")
+    expect(translate({name: 42}, "name", "fr")).toBeUndefined()
+})
+
 it("handles absent data and an empty language without losing a legacy field", () => {
     expect(translateFromPresentation(null, "name", "en")).toBeUndefined()
     expect(translateFromPresentation(undefined, "name", "en")).toBeUndefined()
