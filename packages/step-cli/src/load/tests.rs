@@ -17,6 +17,7 @@ fn input() -> input::Input {
         input::Event {
             election_event_id: "00000000-0000-0000-0000-000000000002".into(),
             election_id: "00000000-0000-0000-0000-000000000003".into(),
+            election_external_id: None,
             realm: "test-realm".into(),
             area_name: "District, North".into(),
             login_url: "http://localhost:3000/login".into(),
@@ -89,6 +90,7 @@ fn census_uses_one_valid_hash_and_quoted_csv_with_unique_names() {
         for record in reader.records() {
             let record = record.unwrap();
             assert_eq!(&record[1], "District, North");
+            assert_eq!(&record[4], input.event.election_id);
             let credential = (&record[5], &record[6], &record[7]);
             if let Some(previous) = &hash {
                 assert_eq!(
@@ -386,4 +388,87 @@ fn million_sample_report() {
         "Aggregated 1,000,000 synthetic samples in {:.2}s",
         start.elapsed().as_secs_f64()
     );
+}
+
+#[test]
+fn census_uses_external_election_id_for_keycloak() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut input = input();
+    input.event.election_external_id = Some("external-election".into());
+    input.settings.workload.count = 1;
+    let key = format!("LOAD_TEST_{}", uuid::Uuid::new_v4().simple());
+    input.settings.workload.password_env = key.clone();
+    std::env::set_var(&key, "synthetic");
+    census::generate(&input, &directory.path().join("census")).unwrap();
+    std::env::remove_var(&key);
+    let mut csv = csv::Reader::from_path(directory.path().join("census/000000.csv")).unwrap();
+    assert_eq!(
+        &csv.records().next().unwrap().unwrap()[4],
+        "external-election"
+    );
+}
+
+#[test]
+fn census_rejects_external_id_with_multivalue_separator_before_writing() {
+    let directory = tempfile::tempdir().unwrap();
+    let mut input = input();
+    input.event.election_external_id = Some("north|south".into());
+    let output = directory.path().join("census");
+    let error = census::generate(&input, &output).unwrap_err();
+    assert!(error.to_string().contains("multivalue separator"));
+    assert!(!output.exists());
+}
+
+#[test]
+fn wire_canonicalizes_origins_used_by_the_k6_url_parser() {
+    for (address, expected) in [
+        ("https://[0:0:0:0:0:0:0:1]:443/realms/test", "https://[::1]"),
+        (
+            "https://bücher.example/realms/test",
+            "https://xn--bcher-kva.example",
+        ),
+        ("http://127.000.000.001/realms/test", "http://127.0.0.1"),
+    ] {
+        let mut input = input();
+        input.settings.target.keycloak_url = address.into();
+        let wire = input.wire().unwrap();
+        assert!(wire["allowed_origins"]
+            .as_array()
+            .unwrap()
+            .contains(&json!(expected)));
+    }
+}
+
+#[test]
+fn interrupted_k6_logs_preserve_results_even_with_partial_sample_extraction() {
+    for partial_samples in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let input = input();
+        let rows = successful_rows();
+        samples(directory.path(), &input, &rows);
+        let shard = directory.path().join("results/000000");
+        fs::remove_file(shard.join("exit.json")).unwrap();
+        fs::write(shard.join("attempted"), "").unwrap();
+        if partial_samples {
+            fs::write(shard.join("samples.jsonl"), format!("{}\n", rows[0])).unwrap();
+        } else {
+            fs::remove_file(shard.join("samples.jsonl")).unwrap();
+        }
+        fs::write(
+            shard.join("worker.log"),
+            format!(
+                "ordinary k6 diagnostic\nRESULT {}\nRESULT {}\nRESULT {{\"index\":",
+                rows[0], rows[1]
+            ),
+        )
+        .unwrap();
+
+        // Cancellation still fails the run, but completed receipts and timings survive.
+        assert!(report::generate(directory.path(), None).is_err());
+        let summary: Value = files::read(&directory.path().join("results.json")).unwrap();
+        assert_eq!(summary["completed"], 3);
+        assert_eq!(summary["accepted_casts"], 3);
+        assert_eq!(summary["latency"]["cast_ms"]["p50"], 10.0);
+        assert!(shard.join("attempted").exists());
+    }
 }

@@ -4,7 +4,7 @@ import http from "k6/http";
 import exec from "k6/execution";
 import { SharedArray } from "k6/data";
 import { Counter, Rate, Trend } from "k6/metrics";
-import { replayJourney } from "./replay.k6.js";
+import { approvedUrl, replayJourney } from "./replay.k6.js";
 
 const config = JSON.parse(open(__ENV.LOAD_CONFIG));
 const shard = Number(__ENV.LOAD_SHARD);
@@ -92,7 +92,7 @@ export default function () {
       (authorization) => {
         const before = Date.now();
         const response = http.post(
-          config.graphql_url,
+          approvedUrl(config.graphql_url, config.allowed_origins),
           JSON.stringify(ballot.payload),
           {
             headers: {

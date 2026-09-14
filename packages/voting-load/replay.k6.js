@@ -4,10 +4,28 @@ import http from "k6/http";
 import crypto from "k6/crypto";
 import encoding from "k6/encoding";
 import { sleep } from "k6";
+import { URL } from "./url-1.0.0.js";
 
-function origin(url) {
-  return /^https?:\/\/[^/]+/.exec(url)?.[0];
+export function origin(url) {
+  try {
+    const parsed = new URL(url);
+    if (
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password
+    )
+      return undefined;
+    return parsed.origin;
+  } catch {
+    return undefined;
+  }
 }
+export function approvedUrl(url, allowedOrigins) {
+  if (!allowedOrigins.includes(origin(url)))
+    throw new Error("Unapproved profile origin");
+  return new URL(url).href;
+}
+
 function fields(query) {
   return Object.fromEntries(
     query
@@ -42,13 +60,8 @@ export function replayJourney(profile, ballot, index, config, cast) {
   const state = encoding.b64encode(crypto.randomBytes(24), "rawurl");
   const verifier = encoding.b64encode(crypto.randomBytes(32), "rawurl");
   const nonce = encoding.b64encode(crypto.randomBytes(24), "rawurl");
-  const checkUrl = (url) => {
-    if (!config.allowed_origins.includes(origin(url)))
-      throw new Error("Unapproved profile origin");
-    return url;
-  };
   const send = (method, url, body, kind, headers = {}, binary = false) => {
-    checkUrl(url);
+    url = approvedUrl(url, config.allowed_origins);
     const at = Date.now();
     const response = http.request(method, url, body, {
       jar,

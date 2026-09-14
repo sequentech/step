@@ -13,6 +13,8 @@ use std::{collections::BTreeSet, path::Path};
 pub struct Event {
     pub election_event_id: String,
     pub election_id: String,
+    #[serde(default)]
+    pub election_external_id: Option<String>,
     pub realm: String,
     pub area_name: String,
     pub login_url: String,

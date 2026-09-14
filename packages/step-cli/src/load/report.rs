@@ -212,7 +212,15 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         if !exit.is_ok_and(|value| value["code"] == 0) {
             failures.add(format!("Shard {shard} did not finish successfully"));
         }
-        let samples = result.join("samples.jsonl");
+        // k6 logs each completed journey before the worker extracts samples.jsonl.
+        // Prefer that source even if termination left a partially extracted file.
+        let log = result.join("worker.log");
+        let from_log = matches!(input.settings.workload.engine, super::Engine::K6) && log.exists();
+        let samples = if from_log {
+            log
+        } else {
+            result.join("samples.jsonl")
+        };
         if !samples.exists() {
             continue;
         }
@@ -221,7 +229,16 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         {
             let mut insert = transaction.prepare("INSERT INTO samples VALUES(?,?,?,?,?,?,?,?)")?;
             for line in BufReader::new(File::open(samples)?).lines() {
-                let sample: Sample = match serde_json::from_str(&line?) {
+                let line = line?;
+                let json = if from_log {
+                    let Some(sample) = line.strip_prefix("RESULT ") else {
+                        continue;
+                    };
+                    sample
+                } else {
+                    &line
+                };
+                let sample: Sample = match serde_json::from_str(json) {
                     Ok(sample) => sample,
                     Err(_) => {
                         failures.add(format!("Malformed result in shard {shard}"));

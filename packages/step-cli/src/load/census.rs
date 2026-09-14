@@ -3,12 +3,13 @@
 
 //! Streaming census generation: one shared PBKDF2 hash, unique exact usernames.
 use super::{files, input::Input};
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use ring::{
     pbkdf2,
     rand::{SecureRandom, SystemRandom},
 };
+use sequent_core::services::keycloak::MULTIVALUE_USER_ATTRIBUTE_SEPARATOR;
 use serde_json::json;
 use std::{num::NonZeroU32, path::Path, time::Instant};
 
@@ -17,6 +18,16 @@ use std::{num::NonZeroU32, path::Path, time::Instant};
 /// A plaintext password column must never accompany the supplied hash.
 pub fn generate(input: &Input, output: &Path) -> Result<()> {
     input.validate()?;
+    let election_id = input
+        .event
+        .election_external_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .unwrap_or(&input.event.election_id);
+    ensure!(
+        !election_id.contains(MULTIVALUE_USER_ATTRIBUTE_SEPARATOR),
+        "Election authorization ID cannot contain the census multivalue separator '|'"
+    );
     files::claim_directory(output)?;
     let start = Instant::now();
     let mut salt = [0; 16];
@@ -57,7 +68,7 @@ pub fn generate(input: &Input, output: &Path) -> Result<()> {
                 &input.event.area_name,
                 &format!("{username}@example.invalid"),
                 "true",
-                &input.event.election_id,
+                election_id,
                 &hash,
                 &salt,
                 &rounds,

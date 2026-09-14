@@ -28,6 +28,7 @@ import random
 import re
 import string
 import time
+import zipfile
 from pathlib import Path
 
 import load_test_common as common
@@ -182,7 +183,19 @@ def provision_tenant(
     # a voter with no dateOfBirth attribute can never authenticate over a
     # call. generate-voters writes it in the realm's expected YYYY-MM-DD form
     # already.
-    trimmed_election_event, resolved_voter_area = area_restricted_election_event(election_event_json, voter_area_name)
+    export_dir = tenant_out_dir / "export"
+    export_dir.mkdir(exist_ok=True)
+    common.run_step(step_cli_bin, "export-election-event", "--election-event-id", election_event_id, "--output-dir", str(export_dir))
+    with zipfile.ZipFile(export_dir / "election_event_export.zip") as archive:
+        names = [name for name in archive.namelist() if name.endswith(".json")]
+        if len(names) != 1:
+            common.die("Expected exactly one exported election configuration")
+        imported = json.loads(archive.read(names[0]))
+    if imported["election_event"]["id"] != election_event_id or imported["election_event"]["tenant_id"] != tenant_id:
+        common.die("Exported election scope does not match the imported event")
+    imported_path = export_dir / "election-event.json"
+    common.write_json(imported_path, imported)
+    trimmed_election_event, resolved_voter_area = area_restricted_election_event(imported_path, voter_area_name)
     common.write_json(tenant_out_dir / "election-event.json", trimmed_election_event)
     common.log(f"    voter_area={resolved_voter_area}")
     external_config = {
@@ -468,7 +481,7 @@ def main() -> None:
             # an otherwise-valid token — and this can persist across more
             # than just the first call, so retry every authenticated call in
             # this block rather than just the first one.
-            out = common.retry_step(step_cli_bin, 10, 3, "upload-document", "--file-path", str(export_zip_path))
+            out = common.retry_step(step_cli_bin, 10, 3, "upload-document", "--file-path", str(export_zip_path), "--is-local")
             tenant_scoped_document_id = common.extract_id(out)
             common.retry_step(
                 step_cli_bin, 10, 3, "import-tenant-config",

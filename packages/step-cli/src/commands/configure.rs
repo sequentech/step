@@ -28,7 +28,7 @@ pub struct Config {
     keycloak_user: String,
 
     /// Keycloak password
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     keycloak_password: String,
 
     /// Keycloak Client ID
@@ -36,7 +36,7 @@ pub struct Config {
     keycloak_client_id: String,
 
     /// Keycloak Client secret
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     keycloak_client_secret: String,
 }
 
@@ -98,4 +98,39 @@ pub fn create_config(
         .green(),
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[test]
+    fn credentials_can_start_with_hyphens() {
+        #[derive(Parser)]
+        struct Arguments {
+            #[command(flatten)]
+            config: Config,
+        }
+        let args = Arguments::try_parse_from([
+            "config",
+            "--tenant-id",
+            "tenant",
+            "--endpoint-url",
+            "http://graphql",
+            "--keycloak-url",
+            "http://keycloak",
+            "--keycloak-user",
+            "admin",
+            "--keycloak-password",
+            "--synthetic-password",
+            "--keycloak-client-id",
+            "client",
+            "--keycloak-client-secret",
+            "-synthetic-secret",
+        ])
+        .unwrap();
+        assert_eq!(args.config.keycloak_password, "--synthetic-password");
+        assert_eq!(args.config.keycloak_client_secret, "-synthetic-secret");
+    }
 }

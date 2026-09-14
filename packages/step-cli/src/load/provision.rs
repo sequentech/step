@@ -152,48 +152,12 @@ fn import_census(input: &Input, directory: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Provision an event or import a fresh range into an explicitly selected existing event.
-pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) -> Result<()> {
-    let settings = Settings::read(settings_path)?;
-    let session = api(refresh_and_save_token())?;
-    ensure!(
-        session.tenant_id == settings.target.tenant_id
-            && session.endpoint_url == settings.target.graphql_url
-            && session.keycloak_url == settings.target.keycloak_url,
-        "CLI administrator session does not match the workload target"
-    );
-    let existing = resolve(&settings.preparation.existing_event, base);
-    if let Some(existing) = existing {
-        let prior: Value = files::read(&existing)?;
-        ensure!(
-            prior["tenant_id"] == settings.target.tenant_id,
-            "Existing event belongs to another tenant"
-        );
-        let event: Event = serde_json::from_value(prior)?;
-        let input = input::protocol(&settings, event);
-        input.validate()?;
-        import_census(&input, &output.join("census"))?;
-        return input.save(&output.join("config.json"));
-    }
-    let template = resolve(&settings.preparation.template, base)
-        .unwrap_or_else(|| assets.join("packages/voting-load/fixtures/election.json"));
-    let fixture = fixture(files::read(&template)?, &settings)?;
-    let fixture_path = output.join("fixture.json");
-    files::save(&fixture_path, &fixture)?;
-    let event_id = api(commands::import_election_event::import(
-        fixture_path
-            .to_str()
-            .context("Fixture path must be UTF-8")?,
-        matches!(settings.target.upload_mode, UploadMode::Local),
-    ))?;
-    files::save(
-        &output.join("setup-state.json"),
-        &json!({"election_event_id":event_id}),
-    )?;
+/// Read current server identities, including external IDs used by Keycloak eligibility.
+fn export_event(settings: &Settings, event_id: &str, output: &Path) -> Result<Value> {
     let export = output.join("export");
     files::directory(&export)?;
     api(commands::export_election_event::export_election_event(
-        &event_id,
+        event_id,
         export.to_str().context("Export path must be UTF-8")?,
         false,
         false,
@@ -222,12 +186,66 @@ pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) ->
             && imported["election_event"]["tenant_id"] == settings.target.tenant_id,
         "Export scope mismatch"
     );
+    Ok(imported)
+}
+
+/// Provision an event or import a fresh range into an explicitly selected existing event.
+pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) -> Result<()> {
+    let settings = Settings::read(settings_path)?;
+    let session = api(refresh_and_save_token())?;
+    ensure!(
+        session.tenant_id == settings.target.tenant_id
+            && session.endpoint_url == settings.target.graphql_url
+            && session.keycloak_url == settings.target.keycloak_url,
+        "CLI administrator session does not match the workload target"
+    );
+    let existing = resolve(&settings.preparation.existing_event, base);
+    if let Some(existing) = existing {
+        let prior: Value = files::read(&existing)?;
+        ensure!(
+            prior["tenant_id"] == settings.target.tenant_id,
+            "Existing event belongs to another tenant"
+        );
+        let mut event: Event = serde_json::from_value(prior)?;
+        let imported = export_event(&settings, &event.election_event_id, output)?;
+        event.election_external_id = imported["elections"]
+            .as_array()
+            .context("Export has no elections")?
+            .iter()
+            .find(|election| election["id"] == event.election_id)
+            .context("Existing election is absent from the event")?["external_id"]
+            .as_str()
+            .map(str::to_owned);
+        let input = input::protocol(&settings, event);
+        input.validate()?;
+        import_census(&input, &output.join("census"))?;
+        return input.save(&output.join("config.json"));
+    }
+    let template = resolve(&settings.preparation.template, base)
+        .unwrap_or_else(|| assets.join("packages/voting-load/fixtures/election.json"));
+    let fixture = fixture(files::read(&template)?, &settings)?;
+    let fixture_path = output.join("fixture.json");
+    files::save(&fixture_path, &fixture)?;
+    let event_id = api(commands::import_election_event::import(
+        fixture_path
+            .to_str()
+            .context("Fixture path must be UTF-8")?,
+        matches!(settings.target.upload_mode, UploadMode::Local),
+    ))?;
+    files::save(
+        &output.join("setup-state.json"),
+        &json!({"election_event_id":event_id}),
+    )?;
+    let imported = export_event(&settings, &event_id, output)?;
     let event = Event {
         election_event_id: event_id.clone(),
         election_id: imported["elections"][0]["id"]
             .as_str()
             .context("Export has no election ID")?
             .into(),
+        election_external_id: imported["elections"][0]["external_id"]
+            .as_str()
+            .map(str::to_owned),
         area_name: imported["areas"][0]["name"]
             .as_str()
             .context("Export has no area name")?

@@ -42,3 +42,9 @@ python3 -m unittest discover \
 Native tests cover unique voter allocation, shared password hashing, immutable
 claims, duplicate receipts, exact quantiles and partial reports. Full validation
 also needs fresh k6 and Chromium journeys; unit tests do not establish capacity.
+
+The k6 adapters use the locally bundled url-1.0.0.js from
+[Grafana's URL library](https://jslib.k6.io/url/1.0.0/index.js) to compare canonical
+HTTP(S) origins, including IPv6 and internationalized hostnames. The vendored
+file records its upstream checksum and licenses; keep it unformatted when updating.
+It is included in the CLI runtime and worker images, with no runtime download.

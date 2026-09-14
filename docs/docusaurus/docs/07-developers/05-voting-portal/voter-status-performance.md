@@ -203,7 +203,7 @@ The images contain a standalone Rust worker and the selected engine; the coordin
 
 ## Kubernetes
 
-Use your current kubectl context, with permission to create Jobs, Pods, Secrets and PVCs in the configured namespace. Your cluster needs a ReadWriteMany storage class. Configure the image, namespace, storage class and volume size before preparation:
+Use your current kubectl context, with permission to create Jobs, Pods, Secrets and PVCs, and to delete Jobs and Pods, in the configured namespace. Your cluster needs a ReadWriteMany storage class. Configure the image, namespace, storage class and volume size before preparation:
 
 ```yaml group="engine" tab="k6"
 execution:
@@ -261,7 +261,7 @@ step-cli load run runs/remote \
   --workers 20
 ```
 
-The CLI creates a Secret and PVC, transfers prepared inputs, starts the indexed Job, and collects worker results. It prints resource names and retains the Job, PVC and Secret for reconciliation. After collecting and reviewing results, use the resource name printed by the CLI:
+The CLI creates a Secret and PVC, transfers prepared inputs, starts the indexed Job, and collects worker results. It prints resource names and retains the Job, PVC and Secret for reconciliation. If waiting for completion fails or times out, it deletes the Job and waits for its worker pods to stop before collecting partial results; the PVC, Secret and local `job.json` remain available. After collecting and reviewing results, use the resource name printed by the CLI:
 
 ```bash
 read -r -p 'Run resource name printed by the CLI: ' LOAD_RESOURCE

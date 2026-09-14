@@ -12,12 +12,15 @@ pub struct UploadDocument {
     /// Path of the local file to upload
     #[arg(long)]
     file_path: String,
+    /// Use the server-internal storage endpoint from the deployment network.
+    #[arg(long, default_value_t = false)]
+    is_local: bool,
 }
 
 impl UploadDocument {
     /// Execute the command, preserving failures for shell automation.
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
-        match GetUploadUrl::upload(self.file_path.clone(), true) {
+        match GetUploadUrl::upload(self.file_path.clone(), self.is_local) {
             Ok(document_id) => {
                 println!(
                     "{} {}",
