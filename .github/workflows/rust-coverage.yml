@@ -5,10 +5,10 @@ name: Package coverage
 
 on:
   pull_request:
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   push:
     branches: [main]
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   workflow_dispatch:
     inputs:
       profile:

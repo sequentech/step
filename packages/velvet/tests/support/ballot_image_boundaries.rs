@@ -429,5 +429,34 @@ fn zero_batch_size_is_a_configuration_error_instead_of_a_panic() {
     let config = pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap();
     config["report_options"]["max_items_per_report"] = json!(0);
     config["enable_pdfs"] = json!(false);
-    assert!(pipe.exec().is_err());
+    assert!(matches!(pipe.exec(), Err(Error::UnexpectedError(message))
+        if message == "Receipt max_items_per_report must be greater than zero"));
+}
+
+#[test]
+fn receipt_batch_configuration_is_validated_even_without_input_files() {
+    for empty_election in [false, true] {
+        let directory = tempdir().unwrap();
+        let mut pipe = file_image_pipe(directory.path(), &[]);
+        fs::remove_dir_all(
+            directory
+                .path()
+                .join(PipeNameOutputDir::DecodeMCBallots.as_ref()),
+        )
+        .unwrap();
+        if empty_election {
+            pipe.pipe_inputs.election_list.clear();
+        }
+        let config = pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap();
+        config["enable_pdfs"] = json!(false);
+        config["report_options"]["max_items_per_report"] = json!(1);
+        assert!(
+            pipe.exec().is_ok(),
+            "missing input is allowed with valid configuration"
+        );
+        pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap()["report_options"]
+            ["max_items_per_report"] = json!(0);
+        assert!(matches!(pipe.exec(), Err(Error::UnexpectedError(message))
+            if message == "Receipt max_items_per_report must be greater than zero"));
+    }
 }
