@@ -34,6 +34,9 @@ working-tree changes.
 - Use disposable isolated environments, synthetic data, no production credentials
   and existing/free tooling. Bound waits, clean up resources, and isolate or
   restore global state, caches and environment variables.
+- Keep fixtures deterministic: retain ownership of allocated ports, synchronize
+  on readiness rather than sleeps, and avoid assertions that require wall-clock
+  time to advance. Gate feature-specific test files with their source modules.
 - Mock external boundaries, not the behavior under test. When real protocol or
   database mapping matters, use bounded local service fixtures and label those
   checks as integration tests. Include success controls for injected failures.
@@ -62,6 +65,22 @@ working-tree changes.
 - Keep developer guides durable: setup, commands, contracts, fixture design and
   interpretation. Put issue links, targets, counters, commit checkpoints and
   progress/history in the tracker or PR, not in development documentation.
+  Preserve runnable commands, working directories and fixture prerequisites when
+  removing progress prose. Follow the repository's issue/documentation format.
 - Update relevant documentation. Commit, push or update trackers only within the
   user's authorization; preserve existing issue/PR/documentation links. Separate
   unrelated CI failures from failures caused by this change.
+
+## Review follow-through
+
+- Review all requested reviewers' inline threads and review summaries, including
+  collapsed findings. Verify claims against the owning PR's current source and
+  pinned dependencies; a fix only in a later stacked PR does not settle the earlier
+  one. A bot's “addressed” marker is not evidence that the behavior is correct.
+- When authorized to respond on GitHub, reply in each finding's actual thread with
+  the fix and commit, or a concrete reason no change is needed, plus relevant
+  validation. Reply to summary-only findings on the PR. A local audit is not a
+  posted response; resolve only settled threads after replying.
+- Read back replies and resolution state. After an uncertain write, check for an
+  existing reply before retrying to avoid duplicates. Refresh reviews and hosted
+  checks at the final head; report pending findings/checks honestly.
