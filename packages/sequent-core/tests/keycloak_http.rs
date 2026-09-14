@@ -948,3 +948,42 @@ async fn absent_permissions_and_rejected_assignments_are_not_reported_as_success
         .is_err());
     peer.finish();
 }
+
+#[rocket::async_test]
+async fn group_creation_rejects_a_location_without_a_group_id() {
+    for location in ["", "/admin/realms/tenant-north/groups/"] {
+        let peer = HttpServer::start(vec![Exchange::json(
+            "POST",
+            GROUPS,
+            201,
+            json!({}),
+        )
+        .header("Location", location)]);
+        let result = peer
+            .client()
+            .create_new_group("north", "Clerks", &peer.public_client())
+            .await;
+        peer.finish();
+        assert!(
+            result.is_err(),
+            "an empty group ID cannot be used for role mappings: {location:?}"
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn group_creation_extracts_the_path_id_from_relative_locations() {
+    let peer =
+        HttpServer::start(vec![Exchange::json("POST", GROUPS, 201, json!({}))
+            .header(
+                "Location",
+                "/admin/realms/tenant-north/groups/group-2?view=full#details",
+            )]);
+    let id = peer
+        .client()
+        .create_new_group("north", "Clerks", &peer.public_client())
+        .await
+        .unwrap();
+    peer.finish();
+    assert_eq!(id.as_deref(), Some("group-2"));
+}

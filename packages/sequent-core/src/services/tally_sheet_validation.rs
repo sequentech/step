@@ -184,6 +184,15 @@ pub fn validate_area_contest_results(
         ));
     }
 
+    if total_blank_votes > total_valid_votes {
+        errors.push(error(
+            "invalid_total_blank_votes",
+            "total_blank_votes must not exceed total_valid_votes".to_string(),
+            "total_blank_votes",
+            HashMap::new(),
+        ));
+    }
+
     // A voter may be allowed to mark more than one candidate per ballot
     // (e.g. plurality-at-large "vote for N", or cumulative voting), so
     // candidate_votes_sum isn't required to equal the ballot count — it
@@ -318,6 +327,22 @@ pub fn validate_ballot_box_blank_ballots(
     }
 
     let mut errors = Vec::new();
+
+    // A larger turnout in another contest cannot legitimize this sheet's
+    // impossible blank count, nor provide a safe value to pre-fill.
+    if contest_sheets.iter().any(|sheet| {
+        sheet.total_blank_votes.unwrap_or(0) > sheet.total_votes.unwrap_or(0)
+    }) {
+        return BallotBoxBlankBallotsCheck {
+            errors: vec![error(
+                "invalid_total_blank_votes",
+                "Each contest's total_blank_votes must not exceed its total_votes".to_string(),
+                "total_blank_votes",
+                HashMap::new(),
+            )],
+            pre_filled_value: None,
+        };
+    }
 
     let distinct_values: std::collections::BTreeSet<u64> = contest_sheets
         .iter()

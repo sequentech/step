@@ -148,3 +148,42 @@ fn large_blank_contest_intersections_keep_their_real_bounds() {
         "18446744073709551614"
     );
 }
+
+#[test]
+fn blank_votes_cannot_exceed_the_valid_vote_bucket() {
+    let mut sheet = AreaContestResults {
+        total_votes: Some(3),
+        total_valid_votes: Some(3),
+        total_blank_votes: Some(3),
+        ..Default::default()
+    };
+    assert!(validate_area_contest_results(&sheet, None).is_empty());
+    // Change only the blank bucket: saturating subtraction must not turn
+    // an impossible tally into an apparently valid zero candidate sum.
+    sheet.total_blank_votes = Some(4);
+    let errors = validate_area_contest_results(&sheet, None);
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].code, "invalid_total_blank_votes");
+}
+
+#[test]
+fn box_local_blank_counts_cannot_borrow_another_contests_turnout() {
+    let mut first = AreaContestResults {
+        total_votes: Some(2),
+        total_blank_votes: Some(2),
+        ..Default::default()
+    };
+    let second = AreaContestResults {
+        total_votes: Some(4),
+        total_blank_votes: Some(4),
+        ..Default::default()
+    };
+    let valid = validate_ballot_box_blank_ballots(&[&first, &second]);
+    assert!(valid.errors.is_empty());
+    assert_eq!(valid.pre_filled_value, Some(2));
+    first.total_blank_votes = Some(3);
+    let invalid = validate_ballot_box_blank_ballots(&[&first, &second]);
+    assert_eq!(invalid.errors.len(), 1);
+    assert_eq!(invalid.errors[0].code, "invalid_total_blank_votes");
+    assert_eq!(invalid.pre_filled_value, None);
+}

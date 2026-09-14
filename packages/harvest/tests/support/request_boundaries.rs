@@ -150,13 +150,20 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
 }
 
 fn authorization(permissions: &[Permissions]) -> Header<'static> {
+    authorization_for(TENANT_ID, permissions)
+}
+
+fn authorization_for(
+    tenant: &str,
+    permissions: &[Permissions],
+) -> Header<'static> {
     let payload = json!({
         "exp": 2_000_000_000, "iat": 1_900_000_000,
         "jti": "synthetic", "iss": "https://identity.invalid", "sub": USER_ID,
         "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [],
         "scope": "openid", "email_verified": false,
         "https://hasura.io/jwt/claims": {
-            "x-hasura-default-role": "user", "x-hasura-tenant-id": TENANT_ID,
+            "x-hasura-default-role": "user", "x-hasura-tenant-id": tenant,
             "x-hasura-user-id": USER_ID, "x-hasura-allowed-roles": permissions.iter().map(ToString::to_string).collect::<Vec<_>>()
         }
     });
@@ -250,6 +257,32 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
         paths.len(),
         "duplicate paths must not hide a missing authorization case"
     );
+    let registered: std::collections::BTreeSet<_> = client
+        .rocket()
+        .routes()
+        .filter(|route| route.method == rocket::http::Method::Post)
+        .map(|route| route.uri.path().to_string())
+        .collect();
+    let mut expected: std::collections::BTreeSet<_> =
+        paths.iter().map(|path| path.to_string()).collect();
+    // Datafix uses its own authentication and catcher contract, rather than
+    // the Hasura JWT guard exercised by this inventory.
+    expected.extend(
+        [
+            "/api/datafix/add-voter",
+            "/api/datafix/delete-voter",
+            "/api/datafix/mark-voted",
+            "/api/datafix/replace-pin",
+            "/api/datafix/unmark-voted",
+            "/api/datafix/update-voter",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    );
+    assert_eq!(
+        registered, expected,
+        "update authorization cases when production POST routes change"
+    );
     for path in paths {
         for authorization in [None, Some("Bearer fixture.e30.fixture")] {
             let mut request = client
@@ -295,18 +328,26 @@ async fn document_password_requires_both_download_and_password_permissions() {
 
 #[rocket::async_test]
 async fn role_assignment_requires_every_permission_and_the_matching_tenant() {
+    // Choose an ordinary tenant even when the caller's environment names our
+    // usual fixture tenant as super-admin. Never mutate process-global settings.
+    let tenant_id =
+        if std::env::var("SUPER_ADMIN_TENANT_ID").as_deref() == Ok(TENANT_ID) {
+            OTHER_TENANT_ID
+        } else {
+            TENANT_ID
+        };
     let client = client().await;
     for path in ["/set-user-role", "/delete-user-role"] {
         for (tenant, permissions) in [
-            (TENANT_ID, vec![]),
-            (TENANT_ID, vec![Permissions::USER_WRITE]),
-            (TENANT_ID, vec![Permissions::ROLE_WRITE]),
+            (tenant_id, vec![]),
+            (tenant_id, vec![Permissions::USER_WRITE]),
+            (tenant_id, vec![Permissions::ROLE_WRITE]),
             (
-                OTHER_TENANT_ID,
+                "fixture-other-request-tenant",
                 vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
             ),
         ] {
-            let response = client.post(path).header(ContentType::JSON).header(authorization(&permissions))
+            let response = client.post(path).header(ContentType::JSON).header(authorization_for(tenant_id, &permissions))
                 .body(json!({"tenant_id":tenant,"user_id":USER_ID,"role_id":"test-role"}).to_string())
                 .dispatch().await;
             assert_eq!(
