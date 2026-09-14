@@ -64,7 +64,7 @@ and Rayon to two threads. PDF cases launch real Chrome processes; multiplying
 both pools by the host CPU count can exhaust CI resources. Explicit environment
 values override these defaults. Direct workspace-root Cargo invocations should set
 `RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2` themselves. The coverage profile and
-ordinary hosted test setup now supply these settings automatically, including
+ordinary hosted test setup supply these settings automatically, including
 `DOC_RENDERER_BACKEND=inplace` for local PDF rendering.
 
 Unused fixture constructors, `HasId` adapters and diagnostic formatting are not
