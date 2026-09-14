@@ -20,11 +20,6 @@ cd ..
 python3 scripts/coverage/run.py electoral-log
 ```
 
-The strict coverage command requires 95% package lines and writes HTML, LCOV,
-JSON, compiler/profile details and test logs under `coverage/electoral-log/`.
-Use `--baseline` when measuring unfinished work; it does not certify the target.
-Run a focused test file while editing, then use the complete command for review.
-
 Each database test starts its own ImmuDB process on a local ephemeral port with
 synthetic credentials and a temporary data directory. It does not accept a
 server URL or deployment credentials. The child is stopped and reaped even if a
@@ -52,30 +47,16 @@ branch coverage require separate evidence.
 
 All unit tests live outside `src`, including the preserved existing tests, so
 their bodies do not inflate source coverage. Derive-generated methods remain in
-LLVM's measured totals. The initial 28.40% baseline included inline test bodies;
-its denominator differs from this profile and is retained as historical evidence.
+LLVM's measured totals.
 
 Follow-up row contracts give every optional field a distinct value, including an
 empty ballot ID, so accidental field swaps or normalization are observable. A
-valid explicit null must not hide a duplicate column from a joined table. The
-73-test suite passes with the owned ImmuDB 1.9.6 fixture; the one legacy fixed-port
-test remains ignored. No production or coverage-exclusion changes were needed.
-
-At `63dacd4`, the complete database profile measures 1,345/1,380 lines (97.46%),
-182/192 functions (94.79%) and 1,333/1,396 LLVM regions (95.49%). The actual PR
-base has no `immudb-tests` feature, so that full profile has no comparable base.
-The separate `electoral-log-native` profile measures default features on both
-revisions for the strict per-metric CI comparison. It does not claim database
+valid explicit null must not hide a duplicate column from a joined table. The separate `electoral-log-native` profile measures default features on both
+revisions for the strict per-metric CI comparison. Use it when the actual base
+does not provide the `immudb-tests` feature; retain full-profile evidence separately. It does not claim database
 integration coverage. Neither missing feature support nor an empty report is
 converted into a zero baseline.
 
 Sorting on nonunique timestamps or metadata appends `id ASC` unless callers
 already specify the ID direction. A literal SQL regression and real tied-row
-pagination controls check both default and explicit tie-breaking. The default
-suite now has 68 passing tests; the full profile has 73, including five owned
-ImmuDB scenarios. No database ordering is inferred from insertion luck.
-
-The comparable default-feature run at `63dacd4` measures 1,076/1,380 lines
-(77.97%), 140/192 functions (72.92%) and 1,104/1,396 regions (79.08%). Its
-actual base has 10 tests and 461/1,623 lines, 28/201 functions and 473/1,675
-regions. Every measured fraction increases; source inventories remain complete.
+pagination controls check both default and explicit tie-breaking. No database ordering is inferred from insertion luck.
