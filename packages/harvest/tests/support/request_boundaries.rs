@@ -41,6 +41,9 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
     if !is_child {
         use std::process::{Command, Stdio};
         use std::time::{Duration, Instant};
+        // KeycloakAdminClient uses KeycloakAdminToken::acquire: the pinned
+        // client's admin-password flow authenticates in master. The separate
+        // get_credentials_inner tenant-client flow is not used by this route.
         let peer = http::HttpServer::start(vec![
             http::Exchange::json(
                 "POST",
