@@ -147,6 +147,8 @@ impl Alias for Election {
 
 impl Name for Contest {
     fn get_name(&self, language: &str) -> String {
+        // A present JSON null is still a missing translation. Flatten each
+        // locale before falling back, then use the base field even without a map.
         let alias =
             self.alias_i18n
                 .clone()
