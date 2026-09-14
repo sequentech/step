@@ -50,3 +50,9 @@ unit tests. Consumer source counters never inflate macro totals. Use each
 revision's own source and tests; an empty or failed consumer run cannot pass.
 Incompatible consumer sets fail comparison. Full distributed Celery execution
 requires a separate integration fixture.
+
+The original body finishes, including cleanup of captured arguments, before
+`Into::into` converts its returned error. Error converters must not depend on
+those captured arguments remaining alive. Cancellation tests cover cleanup of
+unpolled and suspended futures; they do not promise a resource lifetime across
+the later conversion.
