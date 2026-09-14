@@ -23,7 +23,7 @@ The existing ignored voter-channel PostgreSQL regression is run explicitly as
 separate evidence. The other ignored activity-log test requires a fuller
 service fixture and must remain visible in the report. Native default FIPS
 coverage does not certify cloud transports, full election services, optional
-features or branches. Do not exclude untested workers to reach 95%.
+features or branches. Keep untested workers in the measured source scope.
 
 With PostgreSQL running, measure from the repository root:
 
@@ -45,15 +45,6 @@ cargo test -p windmill --locked --offline --lib -- \
 
 This separate command does not add its counters to a previous coverage report.
 
-The follow-up suite has 369 passing tests and two existing ignored scenarios.
-Native coverage at `c4f9dc3` is 9,307/31,300 lines (29.73%), 864/5,754 functions
-(15.02%) and 11,921/36,156 LLVM regions (32.97%). The earlier actual-base pair
-increased all three fractions, and this refreshed stack snapshot retains those
-counters. The hosted
-native matrix now runs this comparison with a disposable PostgreSQL service.
-Low coverage remains concentrated in cloud transports and complete authenticated
+Service fixtures are needed for cloud transports and complete authenticated
 election workflows; these need dedicated service fixtures, not production
 rewrites or tests that only exercise derives.
-
-CSV controls retain non-ASCII metadata verbatim. The database operation’s tracing
-span retains realm and user identifiers while skipping the transaction value.

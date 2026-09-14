@@ -36,26 +36,6 @@ Install the pinned tools and fetch locked dependencies first, as described in
 the package coverage guide. For a fast edit/check cycle, run the three integration
 test binaries or the `proof_shape_tests` library filter with Cargo.
 
-The native default profile exceeds the 95% line improvement target. CI compares
-lines, functions and LLVM regions separately against the actual PR base and
-rejects any decrease; 95% is not the CI gate. The report also lists
-function and region coverage and every unmeasured source file. Existing inline
-tests are still included in LLVM's native aggregate, so this is not a claim of
-production-only coverage, branch coverage, WASM coverage, or coverage of optional
-backends. The remaining work is tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
-
-## Measured checkpoint and remaining gaps
-
-Source `c4f9dc3103724ce20d044394df0f8a0f5ceb75cd`, Rust 1.96.0 and
-cargo-llvm-cov 0.9.1, isolated native default profile: **64 tests pass, none
-ignored**; **3,467/3,555 lines (97.52%)**, **349/373 functions (93.57%)**,
-**6,623/6,822 LLVM regions (97.08%)**. The preceding 48-test suite measured
-95.61%, 84.72% and 95.79% respectively under the same profile. Production Clippy
-and workspace formatting pass with existing warnings. Four unsigned zero guards
-use `== 0` to satisfy Clippy without changing their behavior.
-
-The 88 missing lines and 24 functions remain counted. In this concrete backend:
-
 - `signatures/dalek.rs`: fixed-size signature decoding accepts all 64-byte
   arrays; JSON array conversion errors follow an already checked length. DER
   encoding errors require a backend/allocator failure. Revisit if these APIs or
@@ -70,24 +50,43 @@ The 88 missing lines and 24 functions remain counted. In this concrete backend:
   the private `from_sk` constructor are not invoked solely to increase counters.
 - `backend/ristretto.rs`: unused modular/inverse convenience methods and point
   debugging; `signatures/dalek.rs` signature debugging; `shuffler.rs` an internal
-  generated-shape error closure. These remain visible debt rather than excluded
+  generated-shape error closure. These remain visible paths rather than excluded
   or justified as universal impossibilities. New callers or changed proof shape
   construction should trigger another review.
 
 Generated cryptographic serialization remains included: injected write failures
 and malformed records exercise real wire contracts, with successful decryption
 and proof verification controls. Tests do not call formatting or cloning merely
-for a score. Optional backends, Rayon, WASM, and actual branches remain separate
-measurement obligations.
+for a score. Enabled native backends, WASM and actual branches have separate accounting.
 
-The stack also makes Core's existing inline round-trip fixture always exercise
-both its marked-empty ballot and mixed valid/explicit-invalid contests. The
-previous random choice of those cases changed two line and nine region counters
-between identical revisions, causing a real CI ratchet failure. Candidate sizes
-and choices still vary; protocol implementations and the strict comparison rule
-are unchanged. The shared hosted setup supplies the compatible pinned browser
-for Velvet consumer tests on this earlier stacked PR as well.
+## Native backends
 
-The public-key Debug-length assertion was removed because it specified no
-meaningful serialization or identity behavior. Its formatter remains counted;
-key identity, signature verification and PKCS#8 compatibility controls remain.
+The default profile uses Ristretto. To exercise the integer backends and Rayon,
+install a C/C++ toolchain and M4 for GMP, then run from `packages/`:
+
+```bash
+cargo test --locked -p strand --features num_bigint,malachite,rug,rayon
+```
+
+Rug uses GMP with an adapter borrowing Strand's operating-system RNG.
+Malachite enables its random APIs explicitly. Backend tests must check literal
+wire layouts and rejected inputs as well as successful protocol operations.
+Do not treat an unselected feature as evidence about its implementation.
+
+From the repository root, collect the corresponding profiles:
+
+```bash
+python3 scripts/coverage/run.py strand-native --baseline --offline
+python3 scripts/coverage/run.py strand-backends --baseline --offline
+```
+
+The profiles keep their own source inventories and counters. CI compares each
+buildable base/head pair independently. A restored configuration with an
+unbuildable base establishes its first measurement; it cannot claim an increase
+from zero. The default and NumBigInt/Rayon comparisons still run in that case.
+
+`integer_backends.rs` pins each backend's byte order and plaintext representation,
+checks small arithmetic, truncated records and broken writers, and verifies
+proofs before changing their election label or public key. Fixed group contexts
+must preserve all parameters and reject a changed generator, modulus, exponent
+modulus or cofactor. A modulus is a group parameter, not a valid group element.
