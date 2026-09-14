@@ -870,15 +870,15 @@ pub fn valid_inbound_voting_channel(channel: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        active_vote_error, create_user_error, plan_unmark_voter_edit, recorded_voted_channel,
-        reenable_refusal, valid_inbound_voting_channel,
+        active_vote_error, create_user_error, plan_unmark_voter_edit, recorded_birthdate,
+        recorded_voted_channel, reenable_refusal, valid_inbound_voting_channel,
     };
     use crate::postgres::cast_vote::VoterCastVoteState;
     use crate::services::datafix::types::{DatafixError, DatafixErrorCode};
     use keycloak::KeycloakError;
     use sequent_core::types::keycloak::{
-        User, ATTR_RESET_VALUE, DISABLE_COMMENT, DISABLE_REASON_MARKVOTED_CALL, VOTED_CHANNEL,
-        VOTED_CHANNEL_INTERNET_VALUE,
+        User, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT, DISABLE_REASON_MARKVOTED_CALL,
+        VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
     };
     use std::collections::HashMap;
 
