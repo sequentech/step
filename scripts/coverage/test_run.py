@@ -114,6 +114,28 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         self.assertEqual(summary["tests_ignored"], 1)
         self.assertEqual(summary["features"], ["default_features", "keycloak"])
 
+    def test_profile_fixture_environment_overrides_the_callers_service_settings(
+        self,
+    ) -> None:
+        # A local fixture must never inherit a developer's production endpoint.
+        # Keep unrelated caller settings and record the declared fixture values.
+        self.config.write_text(
+            self.config.read_text()
+            + """
+[profiles.sequent-core.test_environment]
+HASURA_DB__HOST = "127.0.0.1"
+"""
+        )
+        with patch.dict(
+            os.environ, {"HASURA_DB__HOST": "remote.invalid", "LANG": "C.UTF-8"}
+        ):
+            code, summary = self.attempt()
+        self.assertEqual(code, 0)
+        for environment in self.command_environments:
+            self.assertEqual(environment["HASURA_DB__HOST"], "127.0.0.1")
+            self.assertEqual(environment["LANG"], "C.UTF-8")
+        self.assertEqual(summary["test_environment"], {"HASURA_DB__HOST": "127.0.0.1"})
+
     def test_offline_mode_applies_to_probes_tests_and_report_commands(self) -> None:
         self.attempt()
         self.assertGreater(len(self.command_environments), 5)
