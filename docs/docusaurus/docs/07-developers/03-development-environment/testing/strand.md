@@ -90,3 +90,11 @@ checks small arithmetic, truncated records and broken writers, and verifies
 proofs before changing their election label or public key. Fixed group contexts
 must preserve all parameters and reject a changed generator, modulus, exponent
 modulus or cofactor. A modulus is a group parameter, not a valid group element.
+
+The ignored `backend/rug.rs::test_gen_coq_data` test is a manual transcript
+exporter for an external Coq verifier. It compiles with Rug; its inline exporter,
+serialization and printing code remain counted. Running it solely to exercise
+that output does not verify Coq interoperability. Pair its output with the actual
+verifier when testing that contract, and keep the result separate from native
+protocol tests. Browser benchmark/demo harnesses likewise need their intended
+browser or performance checks, not tests that only invoke diagnostic printing.
