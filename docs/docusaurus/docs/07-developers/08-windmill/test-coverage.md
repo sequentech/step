@@ -21,7 +21,7 @@ public fixture settings; it must run in the isolated worker, not on production.
 
 The existing ignored voter-channel PostgreSQL regression is run explicitly as
 separate evidence. The other ignored activity-log test requires a fuller
-service fixture and must remain visible in the report. Native default FIPS
+service fixture and must remain visible in the report. Native default-feature
 coverage does not certify cloud transports, full election services, optional
 features or branches. Keep untested workers in the measured source scope.
 
