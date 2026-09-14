@@ -16,6 +16,10 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 fn import_command(error_stage: Option<&str>) -> (Output, Vec<String>) {
+    import_kind(error_stage, None)
+}
+
+fn import_kind(error_stage: Option<&str>, tally_command: Option<&str>) -> (Output, Vec<String>) {
     let binary = std::path::Path::new(env!("CARGO_BIN_EXE_step-cli"));
     let directory = tempfile::tempdir_in(binary.parent().unwrap()).unwrap();
     let executable = directory.path().join("step-cli");
@@ -96,6 +100,14 @@ fn import_command(error_stage: Option<&str>) -> (Output, Vec<String>) {
                             "id":"synthetic-election", "message":null, "error":null}}, "errors":[]}),
                         )
                     }
+                    "PreviewTallySheetImport" => (
+                        "preview",
+                        json!({"data":{"preview_tally_sheet_import":{"preview":{"id":"synthetic-preview"}}},"errors":[]}),
+                    ),
+                    "CreateTallySheetImport" => (
+                        "create",
+                        json!({"data":{"create_tally_sheet_import":{"tally_sheet_import":{"id":"synthetic-import"}}},"errors":[]}),
+                    ),
                     other => panic!("unexpected operation: {other}"),
                 }
             };
@@ -109,9 +121,22 @@ fn import_command(error_stage: Option<&str>) -> (Output, Vec<String>) {
         operations
     });
     let mut command = Command::new(executable);
+    if let Some(tally_command) = tally_command {
+        command.args([
+            "step",
+            "tally-sheet",
+            tally_command,
+            "--election-event-id",
+            "synthetic-event",
+            "--document-id",
+            "synthetic-document",
+        ]);
+    } else {
+        command
+            .args(["step", "import-election", "--file-path"])
+            .arg(input);
+    }
     command
-        .args(["step", "import-election", "--file-path"])
-        .arg(input)
         .env_clear()
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -168,4 +193,51 @@ fn partial_upload_data_never_uploads_or_reports_success() {
 #[test]
 fn partial_import_data_never_reports_success() {
     assert_partial_response_fails("import", 3);
+}
+
+#[test]
+fn tally_import_source_errors_have_a_failing_exit_status() {
+    for command in ["import-preview", "import-create"] {
+        let result = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+            .args([
+                "step",
+                "tally-sheet",
+                command,
+                "--election-event-id",
+                "synthetic-event",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(
+            result.status.code(),
+            Some(1),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert!(String::from_utf8_lossy(&result.stderr)
+            .contains("provide --file-path or --document-id"));
+        assert!(!String::from_utf8_lossy(&result.stdout).contains("Success!"));
+    }
+}
+
+#[test]
+fn tally_import_commands_report_backend_errors_and_preserve_successful_json() {
+    for (command, operation, expected_id) in [
+        ("import-preview", "preview", "synthetic-preview"),
+        ("import-create", "create", "synthetic-import"),
+    ] {
+        let (success, operations) = import_kind(None, Some(command));
+        assert!(
+            success.status.success(),
+            "{}",
+            String::from_utf8_lossy(&success.stderr)
+        );
+        assert_eq!(operations, [operation]);
+        assert!(String::from_utf8_lossy(&success.stdout).contains(expected_id));
+        let (failure, operations) = import_kind(Some(operation), Some(command));
+        assert_eq!(failure.status.code(), Some(1));
+        assert_eq!(operations, [operation]);
+        assert!(String::from_utf8_lossy(&failure.stderr).contains("synthetic denial"));
+        assert!(!String::from_utf8_lossy(&failure.stdout).contains("Success!"));
+    }
 }

@@ -58,6 +58,7 @@ fn successful_conversion_exits_zero_and_writes_only_derived_credentials() {
     let input = directory.path().join("voters.csv");
     let output = directory.path().join("credentials.csv");
     fs::write(&input, "username,password\nfirst,synthetic-voter-secret\n").unwrap();
+    fs::write(&output, "previous export").unwrap();
     let result = Command::new(env!("CARGO_BIN_EXE_step-cli"))
         .args(["step", "hash-password", "--input-file"])
         .arg(&input)
@@ -119,4 +120,32 @@ fn existing_and_dangling_output_symlinks_are_preserved_and_rejected() {
             assert!(!target.exists());
         }
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn input_and_output_hardlinks_are_rejected_without_replacing_either_name() {
+    use std::os::unix::fs::MetadataExt;
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("voters.csv");
+    let output = directory.path().join("alias.csv");
+    let contents = "username,password\nfirst,synthetic\n";
+    fs::write(&input, contents).unwrap();
+    fs::hard_link(&input, &output).unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "hash-password", "--input-file"])
+        .arg(&input)
+        .arg("--output-file")
+        .arg(&output)
+        .args(["--iterations", "2"])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("different files"));
+    assert_eq!(fs::read_to_string(&input).unwrap(), contents);
+    assert_eq!(fs::read_to_string(&output).unwrap(), contents);
+    assert_eq!(
+        fs::metadata(input).unwrap().ino(),
+        fs::metadata(output).unwrap().ino()
+    );
 }

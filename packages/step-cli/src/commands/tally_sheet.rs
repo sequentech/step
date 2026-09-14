@@ -397,7 +397,7 @@ impl PreviewTallySheetImportCommand {
             Ok(document) => document,
             Err(err) => {
                 eprintln!("Error! Failed to prepare import source: {}", err);
-                return;
+                std::process::exit(1);
             }
         };
 
@@ -409,7 +409,10 @@ impl PreviewTallySheetImportCommand {
             self.selected_channel,
         ) {
             Ok(preview) => print_json("Success! Tally sheet import preview:", &preview),
-            Err(err) => eprintln!("Error! Failed to preview tally sheet import: {}", err),
+            Err(err) => {
+                eprintln!("Error! Failed to preview tally sheet import: {}", err);
+                std::process::exit(1);
+            }
         }
     }
 }
@@ -426,7 +429,7 @@ impl CreateTallySheetImportCommand {
             Ok(document) => document,
             Err(err) => {
                 eprintln!("Error! Failed to prepare import source: {}", err);
-                return;
+                std::process::exit(1);
             }
         };
 
@@ -438,7 +441,10 @@ impl CreateTallySheetImportCommand {
             self.selected_channel,
         ) {
             Ok(import) => print_json("Success! Created tally sheet import:", &import),
-            Err(err) => eprintln!("Error! Failed to create tally sheet import: {}", err),
+            Err(err) => {
+                eprintln!("Error! Failed to create tally sheet import: {}", err);
+                std::process::exit(1);
+            }
         }
     }
 }
