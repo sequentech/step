@@ -32,6 +32,21 @@ pub const ATTR_RESET_VALUE: &str = "NONE";
 
 pub const AREA_ID_ATTR_NAME: &str = "area-id";
 
+/// List of Support Material document ids the voter has acknowledged (opened
+/// and confirmed reading), recorded when `SupportMaterialsPolicy` is
+/// `MandatoryForVoting`. Mirrors `VOTED_CHANNEL`: a plain Keycloak user
+/// attribute, scoped per voter per Election Event since each Election Event
+/// has its own realm.
+///
+/// The realm's declarative User Profile (`GET/PUT
+/// /admin/realms/{realm}/users/profile`) must list this attribute, or the
+/// Keycloak Admin REST API silently drops it on write. It is declared in
+/// `packages/step-cli/data/{mock,test-election-template}.json`'s
+/// `keycloak_event_realm.components["org.keycloak.userprofile.UserProfileProvider"]`;
+/// any other event-realm provisioning path needs the same declaration.
+pub const SUPPORT_MATERIALS_ACKNOWLEDGED_ATTR_NAME: &str =
+    "support-materials-acknowledged";
+
 /// Per-voter vote weight, used when the election event weighted voting policy
 /// is `voters-weighted-voting`. A voter without this attribute votes with
 /// `DEFAULT_VOTE_WEIGHT`.
@@ -93,6 +108,8 @@ pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
+pub const FIRST_NAME_ATTRIBUTE: &str = "first_name";
+pub const LAST_NAME_ATTRIBUTE: &str = "last_name";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
@@ -101,6 +118,9 @@ pub const REALM_ATTR_CREDENTIAL_INPUT_PATTERN: &str =
     "credential-input-pattern";
 pub const REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER: &str =
     "credential-input-placeholder";
+pub const REALM_ATTR_CREDENTIAL_FIELD_POSITION: &str =
+    "credential-field-position";
+pub const REALM_ATTR_LOGIN_VALIDATION_POLICY: &str = "login-validation-policy";
 pub const MAX_CREDENTIAL_PATTERN_GROUPS: usize = 8;
 pub const MAX_CREDENTIAL_PATTERN_GROUP_SIZE: usize = 12;
 pub const MAX_CREDENTIAL_PATTERN_TOTAL_SIZE: usize = 64;
@@ -124,9 +144,88 @@ pub enum CredentialInputPolicy {
     #[strum(serialize = "standard")]
     #[serde(rename = "standard")]
     STANDARD,
-    #[strum(serialize = "structured")]
-    #[serde(rename = "structured")]
+    #[strum(
+        serialize = "structured",
+        serialize = "pattern",
+        to_string = "structured"
+    )]
+    #[serde(rename = "structured", alias = "pattern")]
     STRUCTURED,
+}
+
+#[cfg(test)]
+mod credential_input_policy_tests {
+    use super::CredentialInputPolicy;
+
+    #[test]
+    fn pattern_is_an_input_alias_with_unchanged_canonical_serialization() {
+        for value in ["structured", "pattern"] {
+            let policy: CredentialInputPolicy = value.parse().unwrap();
+            assert_eq!(policy, CredentialInputPolicy::STRUCTURED);
+            assert_eq!(policy.to_string(), "structured");
+            assert_eq!(
+                serde_json::to_string(&policy).unwrap(),
+                "\"structured\""
+            );
+            assert_eq!(
+                serde_json::from_value::<CredentialInputPolicy>(
+                    serde_json::json!(value)
+                )
+                .unwrap(),
+                policy
+            );
+        }
+    }
+}
+
+/// Where the password or PIN field is rendered relative to the identity fields
+/// on the attribute-based login page and the registration form.
+#[allow(non_camel_case_types)]
+#[derive(
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum CredentialFieldPosition {
+    #[default]
+    #[strum(serialize = "LAST")]
+    #[serde(rename = "LAST")]
+    LAST,
+    #[strum(serialize = "FIRST")]
+    #[serde(rename = "FIRST")]
+    FIRST,
+}
+
+/// Who judges field formats on the attribute-based login page: the browser's
+/// own constraint validation, or the authenticator alone.
+#[allow(non_camel_case_types)]
+#[derive(
+    Default,
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    EnumString,
+    JsonSchema,
+)]
+pub enum LoginValidationPolicy {
+    #[default]
+    #[strum(serialize = "BROWSER")]
+    #[serde(rename = "BROWSER")]
+    BROWSER,
+    #[strum(serialize = "SERVER_ONLY")]
+    #[serde(rename = "SERVER_ONLY")]
+    SERVER_ONLY,
 }
 
 /// Default client ID used by the IVR for system-level interactions.
@@ -154,12 +253,17 @@ pub const REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS: &str =
     "smart-link-clock-skew-secs";
 /// OIDC client the voter is logged into (default `voting-portal`).
 pub const REALM_ATTR_SMARTLINK_CLIENT_ID: &str = "smart-link-client-id";
+/// Public election identifier used in the Smart Link URL and HMAC message.
+/// When absent, the internal election event id from the realm name is used.
+pub const REALM_ATTR_SMARTLINK_ELECTION_ID: &str = "smart-link-election-id";
 /// Comma-separated request/user attributes that must match after HMAC validation.
 pub const REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES: &str =
     "smart-link-required-attributes";
 
 /// Maximum accepted length of the Smart Link shared secret.
 pub const SMARTLINK_SHARED_SECRET_MAX_LEN: usize = 1000;
+/// Maximum accepted length of the public Smart Link election id.
+pub const SMARTLINK_ELECTION_ID_MAX_LEN: usize = 255;
 /// Maximum accepted length of the comma-separated Smart Link required attributes.
 pub const SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN: usize = 1000;
 
@@ -239,4 +343,18 @@ pub struct UserProfileAttribute {
     pub validations: Option<HashMap<String, HashMap<String, Value>>>,
     pub permissions: Option<UPAttributePermissions>,
     pub selector: Option<UPAttributeSelector>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserProfileAttributeGroup {
+    pub annotations: Option<HashMap<String, Value>>,
+    pub display_description: Option<String>,
+    pub display_header: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Eq, Debug, Clone)]
+pub struct UserProfileConfiguration {
+    pub attributes: Vec<UserProfileAttribute>,
+    pub groups: Vec<UserProfileAttributeGroup>,
 }

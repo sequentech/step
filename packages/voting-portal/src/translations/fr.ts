@@ -10,6 +10,22 @@ const frenchTranslation: TranslationType = {
             showMore: "Afficher plus",
             showLess: "Afficher moins",
         },
+        a11y: {
+            skipToContent: "Aller au contenu principal",
+            helpAbout: "Aide à propos de {{topic}}",
+            copyToClipboard: "Copier {{label}} dans le presse-papiers",
+            previewMaterial: "Aperçu de {{title}}",
+            ballotsTable: "Bulletins",
+            ballotLocatorTabs: "Sections du localisateur de bulletin",
+            ballotIdLabel: "Identifiant de vote",
+            votingProgress: "Progression du vote",
+            stepOf: "Étape {{current}} sur {{total}}",
+            selectUpTo_one: "Sélectionnez jusqu'à {{count}} option",
+            selectUpTo_other: "Sélectionnez jusqu'à {{count}} options",
+            selectExactly_one: "Sélectionnez {{count}} option",
+            selectExactly_other: "Sélectionnez {{count}} options",
+            selectBetween: "Sélectionnez entre {{min}} et {{max}} options",
+        },
         candidatesList: {
             collapseToggle: "Masquer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
@@ -28,6 +44,12 @@ const frenchTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Développé par <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+            },
         },
         votingScreen: {
             backButton: "Retour",
@@ -86,6 +108,18 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin : Enfin, vous pouvez soumettre votre bulletin pour qu'il soit correctement enregistré. Vous pouvez également lancer un audit afin de vérifier que votre bulletin a été correctement saisi et chiffré.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Acquis par acclamation",
+                helpDialog: {
+                    title: "Information : Acclamation",
+                    content:
+                        "Cet écran présente ce qui a été acquis par acclamation. Aucune option ne pouvant être sélectionnée, aucun bulletin n'est déposé et il n'y a rien à vérifier ensuite.",
+                    ok: "OK",
+                },
+                description:
+                    "Vérifiez ce qui a été acquis par acclamation lors de cette élection. Aucun bulletin ne sera déposé.",
+                finishButton: "Terminer",
+            },
             title: "Révisez votre vote",
             description:
                 "Pour apporter des modifications à vos sélections, cliquez sur le bouton “<b>Modifier votre vote</b>”, pour confirmer vos sélections, cliquez sur le bouton “<b>Envoyer votre vote</b>” ci-dessous, et pour auditer votre bulletin, cliquez sur le bouton “<b>Auditer le bulletin</b>” ci-dessous. ",
@@ -224,6 +258,17 @@ const frenchTranslation: TranslationType = {
             blankBallot: "Bulletin blanc",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Acquis par acclamation",
+                description:
+                    "Tous les votes de cette élection ont été acquis par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
+                helpDialog: {
+                    title: "Information : Acclamation",
+                    content:
+                        "Tous les votes de cette élection ont été acquis par acclamation : leurs candidat(e)s sont élu(e)s sans scrutin. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
+                    ok: "OK",
+                },
+            },
             title: "Votre vote a été émis",
             description:
                 "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
@@ -233,6 +278,9 @@ const frenchTranslation: TranslationType = {
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",
+            remainingElectionsError:
+                "Nous n’avons pas pu vérifier s’il vous reste des élections auxquelles voter. Veuillez réessayer.",
+            retryButton: "Réessayer",
             verifyCastTitle: "Vérifiez que votre vote a été émis",
             verifyCastDescription:
                 "Vous pouvez vérifier à tout moment que votre bulletin a été émis correctement en utilisant le code QR ci-dessous:",
@@ -335,12 +383,19 @@ const frenchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
+            materialsGate: {
+                instructions:
+                    "Vous devez lire <MaterialsLink>{{materialsTitle}}</MaterialsLink> avant de pouvoir voter.",
+            },
         },
         errors: {
             page: {
                 oopsWithStatus: "Oups ! {{status}}",
                 oopsWithoutStatus: "Oups ! Une erreur inattendue est survenue.",
                 somethingWrong: "Une erreur est survenue.",
+                invalidLoginHintParametersTitle: "Lien de vote non valide",
+                invalidLoginHintParametersMessage:
+                    "Ce lien de vote contient des informations de connexion non valides. Demandez un nouveau lien et réessayez.",
                 certAuthFailedTitle: "Échec de l'authentification par certificat",
                 certAuthFailedMessage:
                     "Votre certificat n'a pas pu être vérifié. Veuillez vous assurer que vous utilisez un certificat d'électeur valide, puis réessayez.",
@@ -352,6 +407,12 @@ const frenchTranslation: TranslationType = {
                 back: "Retour à la Liste des Élections",
                 close: "Fermer",
                 preview: "Aperçu",
+                download: "Télécharger",
+            },
+            mandatory: {
+                checkboxLabel: "J'ai lu la documentation et le support",
+                continueButton: "Continuer",
+                error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
         ballotLocator: {

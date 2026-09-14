@@ -29,23 +29,18 @@ import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
 import {useQuery} from "@apollo/client/react"
 import {
-    GetBallotStylesQuery,
     GetCastVoteQuery,
     GetElectionsQuery,
     GetElectionEventQuery,
     ListCastVoteMessagesQuery,
 } from "../gql/graphql"
 import {faAngleLeft, faCircleQuestion, faCopy} from "@fortawesome/free-solid-svg-icons"
-import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {LIST_CAST_VOTE_MESSAGES} from "../queries/listCastVoteMessages"
-import {updateBallotStyleAndSelection} from "../services/BallotStyles"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
-import {selectFirstBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
 import {SettingsContext} from "../providers/SettingsContextProvider"
-import useUpdateTranslation from "../hooks/useUpdateTranslation"
 import {GET_ELECTION_EVENT} from "../queries/GetElectionEvent"
 import {GET_ELECTIONS} from "../queries/GetElections"
-import {IElectionEvent} from "../store/electionEvents/electionEventsSlice"
+import {IElectionEvent, setElectionEvent} from "../store/electionEvents/electionEventsSlice"
 import Table from "@mui/material/Table"
 import TableSortLabel from "@mui/material/TableSortLabel"
 import TableBody from "@mui/material/TableBody"
@@ -57,11 +52,7 @@ import TableRow from "@mui/material/TableRow"
 import Paper from "@mui/material/Paper"
 import {ICastVoteEntry} from "../types/castVoteLogEntry"
 
-const StyledLink = styled(Link)`
-    text-decoration: none;
-`
-
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -78,6 +69,10 @@ const StyledError = styled(Typography)<TypographyProps>`
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
 `
+
+// Only one of the two ballot-id errors is shown at a time, so they can share the
+// id that the input's aria-describedby points at.
+const BALLOT_ID_ERROR_ID = "ballot-id-error"
 
 const MessageSuccess = styled(Box)`
     display: flex;
@@ -119,20 +114,22 @@ function isHex(str: string) {
 }
 
 interface TabPanelProps {
+    className?: string
     children?: React.ReactNode
     index: number
     value: number
 }
 
-const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value}) => {
+const CustomTabPanel: React.FC<TabPanelProps> = ({children, index, value, className}) => {
     return (
         <div
+            className={className}
             role="tabpanel"
             hidden={value !== index}
             id={`simple-tabpanel-${index}`}
             aria-labelledby={`simple-tab-${index}`}
         >
-            {value === index && <Box>{children}</Box>}
+            {value === index && <Box className="ballot-locator-panel-content">{children}</Box>}
         </div>
     )
 }
@@ -141,6 +138,7 @@ const BallotLocator: React.FC = () => {
     const {t, i18n} = useTranslation()
     const location = useLocation()
     const {tenantId, eventId, electionId} = useParams()
+    const dispatch = useAppDispatch()
     const allowSendRequest = useRef<boolean>(true)
     const [value, setValue] = React.useState(0)
     const [inputBallotId, setInputBallotId] = useState("")
@@ -150,8 +148,7 @@ const BallotLocator: React.FC = () => {
     const [somethingWentWrongErr, setSomethingWentWrongErr] = useState(false)
     const validatedBallotId = isHex(inputBallotId ?? "")
     const [showCVLogsPolicy, setShowCVLogsPolicy] = useState(false)
-    const {globalSettings, defaultLanguageTouched, setDefaultLanguageTouched} =
-        useContext(SettingsContext)
+    const {globalSettings} = useContext(SettingsContext)
     const [page, setPage] = React.useState(0)
     const [rowsPerPage, setRowsPerPage] = React.useState(5)
     const lastCVRequestTimestamp = useRef<number | undefined>(undefined) // Timestamp of last LIST_CAST_VOTE_MESSAGES request
@@ -163,6 +160,13 @@ const BallotLocator: React.FC = () => {
         skip: globalSettings.DISABLE_AUTH, // Skip query if in demo mode
     })
 
+    useEffect(() => {
+        const electionEvent = dataElectionEvent?.sequent_backend_election_event[0]
+        if (electionEvent) {
+            dispatch(setElectionEvent(electionEvent as IElectionEvent))
+        }
+    }, [dataElectionEvent, dispatch])
+
     const {refetch} = useQuery<ListCastVoteMessagesQuery>(LIST_CAST_VOTE_MESSAGES, {
         variables: {
             tenantId,
@@ -172,14 +176,6 @@ const BallotLocator: React.FC = () => {
         },
         skip: true,
     })
-
-    useUpdateTranslation(
-        {
-            electionEvent: dataElectionEvent?.sequent_backend_election_event[0] as IElectionEvent,
-        },
-        defaultLanguageTouched,
-        setDefaultLanguageTouched
-    ) // Overwrite translations
 
     let fetchTimeout: any = useRef(undefined)
 
@@ -274,30 +270,42 @@ const BallotLocator: React.FC = () => {
             maxWidth="lg"
             sx={{marginTop: "48px", width: "100%"}}
         >
-            <Box sx={{borderBottom: 1, borderColor: "divider"}}>
+            <Box
+                className="ballot-locator-tabs-container"
+                sx={{borderBottom: 1, borderColor: "divider"}}
+            >
                 <Tabs
+                    className="ballot-locator-tabs"
                     variant="scrollable"
                     allowScrollButtonsMobile
                     scrollButtons="auto"
                     indicatorColor="primary"
                     textColor="inherit"
                     sx={{fontFamily: "Roboto"}}
-                    aria-label="ballot locator tabs"
+                    aria-label={t("a11y.ballotLocatorTabs")}
                     value={value}
                     onChange={handleChange}
                 >
-                    <Tab label={t("ballotLocator.tabs.ballotLocator")} {...a11yProps(0)} />
+                    <Tab
+                        className="ballot-lookup-tab"
+                        label={t("ballotLocator.tabs.ballotLocator")}
+                        {...a11yProps(0)}
+                    />
                     {showCVLogsPolicy && (
-                        <Tab label={t("ballotLocator.tabs.logs")} {...a11yProps(1)} />
+                        <Tab
+                            className="cast-vote-logs-tab"
+                            label={t("ballotLocator.tabs.logs")}
+                            {...a11yProps(1)}
+                        />
                     )}
                 </Tabs>
             </Box>
-            <Box sx={{p: 3}}>
-                <CustomTabPanel value={value} index={0}>
+            <Box className="ballot-locator-panels" sx={{p: 3}}>
+                <CustomTabPanel className="ballot-lookup-panel" value={value} index={0}>
                     <BallotLocatorLogic />
                 </CustomTabPanel>
-                <CustomTabPanel value={value} index={1}>
-                    <Box marginTop="48px">
+                <CustomTabPanel className="cast-vote-logs-panel" value={value} index={1}>
+                    <Box className="cast-vote-logs-filter" marginTop="48px">
                         <BallotIdInput
                             inputBallotId={inputBallotId}
                             setInputBallotId={setInputBallotId}
@@ -327,20 +335,22 @@ const BallotLocator: React.FC = () => {
                     />
                 </CustomTabPanel>
                 <Box
+                    className="ballot-locator-actions"
                     sx={{
                         order: {xs: 1, md: 2},
                         marginTop: "20px",
                         width: "fit-content",
                     }}
                 >
-                    <StyledLink
+                    <Button
+                        component={Link}
                         to={`/tenant/${tenantId}/event/${eventId}/election-chooser${location.search}`}
+                        variant="secondary"
+                        className="secondary back-button"
                     >
-                        <Button variant="secondary" className="secondary">
-                            <Icon icon={faAngleLeft} size="sm" />
-                            <Box>{t("votingScreen.backButton")}</Box>
-                        </Button>
-                    </StyledLink>
+                        <Icon className="back-button-icon" icon={faAngleLeft} size="sm" />
+                        <Box className="back-button-label">{t("votingScreen.backButton")}</Box>
+                    </Button>
                 </Box>
             </Box>
         </PageLimit>
@@ -375,17 +385,21 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
     }
 
     if (!message) {
-        return <div>-</div>
+        return <div className="cast-vote-log-empty-message">-</div>
     }
 
     const formattedMessage = formatJson(message)
 
     return (
-        <Box sx={{position: "relative", width: "100%"}}>
+        <Box className="cast-vote-log-message" sx={{position: "relative", width: "100%"}}>
             <IconButton
+                buttonClassName="cast-vote-log-copy-button"
                 icon={faCopy}
                 size="xs"
                 onClick={() => navigator.clipboard.writeText(formattedMessage)}
+                ariaLabel={t("a11y.copyToClipboard", {
+                    label: t("ballotLocator.column.message"),
+                })}
                 sx={{
                     "position": "absolute",
                     "top": "4px",
@@ -401,6 +415,7 @@ const MessageCell: React.FC<MessageCellProps> = ({message, initialLength}) => {
                 }}
             />
             <Box
+                className="cast-vote-log-message-content"
                 sx={{
                     "paddingLeft": "28px",
                     "& > div > div:last-child": {
@@ -456,21 +471,34 @@ const LogsTable: React.FC<LogsTableProps> = ({
 
     return (
         <>
-            <StyledTitle variant="h5">{t("ballotLocator.totalBallots", {total})}</StyledTitle>
-            <TableContainer component={Paper} sx={{overflowX: "auto", width: "100%"}}>
+            <StyledTitle className="cast-vote-logs-title" variant="h5" component="h2">
+                {t("ballotLocator.totalBallots", {total})}
+            </StyledTitle>
+            <TableContainer
+                className="cast-vote-logs-table-container"
+                component={Paper}
+                sx={{overflowX: "auto", width: "100%"}}
+            >
                 <Table
+                    className="cast-vote-logs-table"
                     sx={{
                         "tableLayout": "auto",
                         "& .MuiTableCell-root": {
                             border: "1px solid #e0e0e0",
                         },
                     }}
-                    aria-label="simple table"
+                    aria-label={t("a11y.ballotsTable")}
                 >
-                    <TableHead>
-                        <TableRow>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                    <TableHead className="cast-vote-logs-table-head">
+                        <TableRow className="cast-vote-logs-header-row">
+                            <TableCell
+                                className="cast-vote-logs-username-header"
+                                align="center"
+                                sortDirection={orderBy === "username" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
+                                    className="cast-vote-logs-sort-button"
                                     active={orderBy === "username"}
                                     direction={orderBy === "username" ? order : "asc"}
                                     onClick={() => onClickHeader("username")}
@@ -485,8 +513,14 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.username")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                className="cast-vote-logs-ballot-id-header"
+                                align="center"
+                                sortDirection={orderBy === "ballot_id" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
+                                    className="cast-vote-logs-sort-button"
                                     active={orderBy === "ballot_id"}
                                     direction={orderBy === "ballot_id" ? order : "asc"}
                                     onClick={() => onClickHeader("ballot_id")}
@@ -501,8 +535,14 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.ballot_id")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                className="cast-vote-logs-kind-header"
+                                align="center"
+                                sortDirection={orderBy === "statement_kind" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
+                                    className="cast-vote-logs-sort-button"
                                     active={orderBy === "statement_kind"}
                                     direction={orderBy === "statement_kind" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_kind")}
@@ -517,8 +557,14 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.statement_kind")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                className="cast-vote-logs-timestamp-header"
+                                align="center"
+                                sortDirection={orderBy === "statement_timestamp" ? order : false}
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <TableSortLabel
+                                    className="cast-vote-logs-sort-button"
                                     active={orderBy === "statement_timestamp"}
                                     direction={orderBy === "statement_timestamp" ? order : "asc"}
                                     onClick={() => onClickHeader("statement_timestamp")}
@@ -533,8 +579,13 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {t("ballotLocator.column.statement_timestamp")}
                                 </TableSortLabel>
                             </TableCell>
-                            <TableCell align="center" sx={{fontWeight: "bold", padding: "2px 4px"}}>
+                            <TableCell
+                                className="cast-vote-logs-message-header"
+                                align="center"
+                                sx={{fontWeight: "bold", padding: "2px 4px"}}
+                            >
                                 <Box
+                                    className="cast-vote-logs-message-heading"
                                     sx={{
                                         display: "flex",
                                         flexDirection: "column",
@@ -548,10 +599,11 @@ const LogsTable: React.FC<LogsTableProps> = ({
                             </TableCell>
                         </TableRow>
                     </TableHead>
-                    <TableBody>
+                    <TableBody className="cast-vote-logs-table-body">
                         {rows.map((row, index) => (
-                            <TableRow key={index}>
+                            <TableRow className="cast-vote-logs-row" key={index}>
                                 <TableCell
+                                    className="cast-vote-logs-username-cell"
                                     align="center"
                                     sx={{
                                         wordBreak: "break-all",
@@ -562,6 +614,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {row.username ?? "-"}
                                 </TableCell>
                                 <TableCell
+                                    className="cast-vote-logs-ballot-id-cell"
                                     align="center"
                                     sx={{
                                         wordBreak: "break-all",
@@ -582,6 +635,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     )}
                                 </TableCell>
                                 <TableCell
+                                    className="cast-vote-logs-kind-cell"
                                     align="center"
                                     sx={{
                                         wordBreak: "break-all",
@@ -592,6 +646,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {row.statement_kind}
                                 </TableCell>
                                 <TableCell
+                                    className="cast-vote-logs-timestamp-cell"
                                     align="center"
                                     sx={{
                                         wordBreak: "break-all",
@@ -602,6 +657,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                                     {formatDateTime(row.statement_timestamp * 1000)}
                                 </TableCell>
                                 <TableCell
+                                    className="cast-vote-logs-message-cell"
                                     align="justify"
                                     sx={{
                                         wordBreak: "break-all",
@@ -620,6 +676,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 </Table>
             </TableContainer>
             <TablePagination
+                className="cast-vote-logs-pagination"
                 rowsPerPageOptions={[5, 10, 25, 50]}
                 component="div"
                 count={total}
@@ -629,7 +686,7 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
             {somethingWentWrongErr && (
-                <StyledError component="div">
+                <StyledError className="cast-vote-logs-error" component="div">
                     {stringToHtml(t("errors.page.somethingWrong"))}
                 </StyledError>
             )}
@@ -655,31 +712,42 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
     placeholderLabel,
 }) => {
     const {t} = useTranslation()
+    const hasBallotIdError = !validatedBallotId || ballotIdNotFoundErr
 
     return (
         <>
             <TextField
+                className="ballot-id-field"
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                     setInputBallotId(event.target.value)
                 }}
                 value={inputBallotId}
-                InputLabelProps={{
-                    shrink: true,
-                }}
-                label="Ballot ID"
+                label={t("a11y.ballotIdLabel")}
                 placeholder={stringToText(t(placeholderLabel))}
                 onKeyDown={captureEnter}
+                error={hasBallotIdError}
+                slotProps={{
+                    htmlInput: {
+                        "className": "ballot-id-input",
+                        "aria-describedby": hasBallotIdError ? BALLOT_ID_ERROR_ID : undefined,
+                    },
+                    inputLabel: {shrink: true},
+                }}
             />
-            {!validatedBallotId && (
-                <StyledError component="div">
-                    {stringToHtml(t("ballotLocator.wrongFormatBallotId"))}
-                </StyledError>
-            )}
-            {ballotIdNotFoundErr && validatedBallotId && (
-                <StyledError component="div">
-                    {stringToHtml(t("ballotLocator.ballotIdNotFoundAtFilter"))}
-                </StyledError>
-            )}
+            {/* The live region stays mounted and only its text changes: a region
+                inserted at the same moment as its text is not reliably read. */}
+            <StyledError
+                className="ballot-id-error"
+                id={BALLOT_ID_ERROR_ID}
+                role="alert"
+                component="div"
+            >
+                {!validatedBallotId
+                    ? stringToHtml(t("ballotLocator.wrongFormatBallotId"))
+                    : ballotIdNotFoundErr
+                      ? stringToHtml(t("ballotLocator.ballotIdNotFoundAtFilter"))
+                      : ""}
+            </StyledError>
         </>
     )
 }
@@ -694,7 +762,6 @@ const BallotLocatorLogic = () => {
     const {globalSettings} = useContext(SettingsContext)
 
     const hasBallotId = !!ballotId
-    const {data: dataBallotStyles} = useQuery<GetBallotStylesQuery>(GET_BALLOT_STYLES)
     const {data: dataElections, loading: loadingElections} = useQuery<GetElectionsQuery>(
         GET_ELECTIONS,
         {
@@ -715,7 +782,6 @@ const BallotLocatorLogic = () => {
         : ""
 
     const dispatch = useAppDispatch()
-    const ballotStyle = useAppSelector(selectFirstBallotStyle)
 
     const {data, loading} = useQuery<GetCastVoteQuery>(GET_CAST_VOTE, {
         variables: {
@@ -726,12 +792,6 @@ const BallotLocatorLogic = () => {
         },
         skip: globalSettings.DISABLE_AUTH || !hasBallotId || loadingElections,
     })
-
-    useEffect(() => {
-        if (dataBallotStyles && dataBallotStyles.sequent_backend_ballot_style.length > 0) {
-            updateBallotStyleAndSelection(dataBallotStyles, dispatch)
-        }
-    }, [dataBallotStyles, dispatch])
 
     const validatedBallotId = isHex(inputBallotId ?? "")
 
@@ -757,8 +817,10 @@ const BallotLocatorLogic = () => {
     }
 
     return (
-        <Stack>
-            <Box marginTop="48px">
+        <Stack
+            className={`ballot-locator-content ${hasBallotId ? "ballot-locator-result" : "ballot-locator-search"}`}
+        >
+            <Box className="stepper-box" marginTop="48px">
                 <BreadCrumbSteps
                     labels={["ballotLocator.steps.lookup", "ballotLocator.steps.result"]}
                     selected={hasBallotId ? 1 : 0}
@@ -766,6 +828,7 @@ const BallotLocatorLogic = () => {
             </Box>
 
             <Box
+                className="ballot-locator-header"
                 sx={{
                     display: "flex",
                     flexDirection: {xs: "column", md: "row"},
@@ -774,23 +837,31 @@ const BallotLocatorLogic = () => {
                 }}
             >
                 <Box
+                    className="ballot-locator-heading"
                     sx={{
                         order: {xs: 2, md: 1},
                     }}
                 >
-                    <StyledTitle variant="h1">
+                    <StyledTitle className="screen-title" variant="h1">
                         {!hasBallotId ? (
-                            <Box>{t("ballotLocator.title")}</Box>
+                            <Box className="screen-title-text">{t("ballotLocator.title")}</Box>
                         ) : (
-                            <Box>{t("ballotLocator.titleResult")}</Box>
+                            <Box className="screen-title-text">
+                                {t("ballotLocator.titleResult")}
+                            </Box>
                         )}
                         <IconButton
+                            buttonClassName="screen-help-button"
                             icon={faCircleQuestion}
                             sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
                             fontSize="16px"
                             onClick={() => setOpenTitleHelp(true)}
+                            ariaLabel={t("a11y.helpAbout", {
+                                topic: t("ballotLocator.titleHelpDialog.title"),
+                            })}
                         />
                         <Dialog
+                            className="screen-help-dialog ballot-locator-help-dialog"
                             handleClose={() => setOpenTitleHelp(false)}
                             open={openTitleHelp}
                             title={t("ballotLocator.titleHelpDialog.title")}
@@ -802,6 +873,7 @@ const BallotLocatorLogic = () => {
                     </StyledTitle>
 
                     <Typography
+                        className="screen-description"
                         variant="body1"
                         component="div"
                         sx={{color: theme.palette.customGrey.contrastText}}
@@ -811,23 +883,25 @@ const BallotLocatorLogic = () => {
                 </Box>
             </Box>
 
-            {hasBallotId && !lookupLoading && (
-                <Box>
-                    {ambiguousBallotId ? (
-                        <MessageFailed>
+            {/* The live region is always mounted so that the lookup result is
+                announced when the text appears inside it. */}
+            <Box className="ballot-lookup-status" role="status">
+                {hasBallotId && !lookupLoading ? (
+                    ambiguousBallotId ? (
+                        <MessageFailed className="ballot-locator-failure">
                             {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
                         </MessageFailed>
-                    ) : hasBallotId && !!ballotContent ? (
-                        <MessageSuccess>
+                    ) : ballotContent ? (
+                        <MessageSuccess className="ballot-locator-success">
                             {translateHtml(t, "ballotLocator.found", {ballotId})}
                         </MessageSuccess>
                     ) : (
-                        <MessageFailed>
+                        <MessageFailed className="ballot-locator-failure">
                             {translateHtml(t, "ballotLocator.notFound", {ballotId})}
                         </MessageFailed>
-                    )}
-                </Box>
-            )}
+                    )
+                ) : null}
+            </Box>
             {!hasBallotId && (
                 <BallotIdInput
                     inputBallotId={inputBallotId}
@@ -839,10 +913,10 @@ const BallotLocatorLogic = () => {
             )}
             {hasBallotId && ballotContent && (
                 <>
-                    <Typography component="div">
+                    <Typography className="ballot-content-description" component="div">
                         {stringToHtml(t("ballotLocator.contentDesc"))}
                     </Typography>
-                    <InfoDataBox>{ballotContent}</InfoDataBox>
+                    <InfoDataBox className="ballot-content">{ballotContent}</InfoDataBox>
                 </>
             )}
 
@@ -850,19 +924,21 @@ const BallotLocatorLogic = () => {
                 <Button
                     sx={{marginTop: "10px", width: "fit-content"}}
                     disabled={!validatedBallotId || inputBallotId.trim() === ""}
-                    className="normal"
+                    className="normal locate-ballot-button"
                     onClick={() => locate(true)}
                 >
-                    <span>{t("ballotLocator.locate")}</span>
+                    <span className="locate-ballot-label">{t("ballotLocator.locate")}</span>
                 </Button>
             ) : (
                 <>
                     <Button
                         sx={{marginTop: "10px", width: "fit-content"}}
-                        className="normal"
+                        className="normal locate-again-button"
                         onClick={() => locate()}
                     >
-                        <span>{t("ballotLocator.locateAgain")}</span>
+                        <span className="locate-ballot-again-label">
+                            {t("ballotLocator.locateAgain")}
+                        </span>
                     </Button>
                 </>
             )}

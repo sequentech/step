@@ -10,6 +10,22 @@ const tagalogTranslation: TranslationType = {
             showMore: "Lakihan ang nakikita",
             showLess: "Bawasan ang nakikita",
         },
+        a11y: {
+            skipToContent: "Lumaktaw sa pangunahing nilalaman",
+            helpAbout: "Tulong tungkol sa {{topic}}",
+            copyToClipboard: "Kopyahin ang {{label}} sa clipboard",
+            previewMaterial: "I-preview ang {{title}}",
+            ballotsTable: "Mga balota",
+            ballotLocatorTabs: "Mga seksyon ng ballot locator",
+            ballotIdLabel: "Ballot ID",
+            votingProgress: "Progreso ng pagboto",
+            stepOf: "Hakbang {{current}} ng {{total}}",
+            selectUpTo_one: "Pumili ng hanggang {{count}} opsyon",
+            selectUpTo_other: "Pumili ng hanggang {{count}} na opsyon",
+            selectExactly_one: "Pumili ng {{count}} opsyon",
+            selectExactly_other: "Pumili ng {{count}} na opsyon",
+            selectBetween: "Pumili sa pagitan ng {{min}} at {{max}} na opsyon",
+        },
         candidatesList: {
             collapseToggle: "I-toggle ang listahan {{listTitle}}",
             showCandidates: "Ipakita ang mga kandidato",
@@ -28,6 +44,12 @@ const tagalogTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Ang paligsahang ito ay napagpasyahan sa pamamagitan ng aklamasyon. Ang mga kandidato nito ay nahalal nang walang botohan, kaya walang opsyong mapipili at walang botong naitatala.",
+            },
         },
         votingScreen: {
             backButton: "Bumalik",
@@ -86,6 +108,18 @@ const tagalogTranslation: TranslationType = {
                 "I-submit ang iyong balota: Sa wakas, maaari mo nang i-submit ang iyong balota upang ito ay tamang maitala. Maaari mo ring piliing i-audit at tiyakin na ang iyong balota ay tama ang pagkakalista at pagkaka-encrypt.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                helpDialog: {
+                    title: "Impormasyon: Aklamasyon",
+                    content:
+                        "Ipinapakita sa screen na ito ang napagpasyahan sa pamamagitan ng aklamasyon. Dahil walang opsyong mapipili, walang balotang isusumite at walang maberipika pagkatapos.",
+                    ok: "OK",
+                },
+                description:
+                    "Suriin ang napagpasyahan sa pamamagitan ng aklamasyon sa halalang ito. Walang balotang isusumite.",
+                finishButton: "Tapusin",
+            },
             title: "Suriin ang iyong balota",
             description:
                 "Upang baguhin ng iyong mga napili, i-click ang “<b>I-edit ang balota</b>” na button, upang kumpirmahin ang iyong mga napili, i-click ang “<b>I-submit ang iyong balota</b>” na button sa ibaba, at upang i-audit ang iyong balota i-click ang “<b>I-audit ang balota</b>” na button sa ibaba.",
@@ -223,6 +257,17 @@ const tagalogTranslation: TranslationType = {
             blankBallot: "Blangkong balota",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Napagpasyahan sa pamamagitan ng aklamasyon",
+                description:
+                    "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon, kaya walang balotang isinumite at walang ballot ID na masusubaybayan.",
+                helpDialog: {
+                    title: "Impormasyon: Aklamasyon",
+                    content:
+                        "Lahat ng paligsahan sa halalang ito ay napagpasyahan sa pamamagitan ng aklamasyon: ang mga kandidato nito ay nahalal nang walang botohan. Dahil walang balotang isinumite, walang ballot ID, resibo, o QR code na maaaring i-verify.",
+                    ok: "OK",
+                },
+            },
             title: "Ang iyong boto ay nai-submit na",
             description:
                 "Ang code ng kumpirmasyon sa ibaba ay nagpapatunay na <b>ang iyong balota ay matagumpay na nai-submit</b>. Maaari mong gamitin ang code na ito upang tiyakin na ang iyong balota ay nabilang.",
@@ -233,6 +278,9 @@ const tagalogTranslation: TranslationType = {
             ballotId: "ID ng Balota",
             printButton: "I-print",
             finishButton: "Tapos na",
+            remainingElectionsError:
+                "Hindi namin masuri kung mayroon ka pang ibang eleksiyong maaaring botohan. Pakisubukang muli.",
+            retryButton: "Subukang muli",
             verifyCastTitle: "Tiyakin na ang iyong balota ay nai-submit",
             verifyCastDescription:
                 "Maaari mong tiyakin na ang iyong balota ay nai-submit nang tama anumang oras gamit ang sumusunod na QR code:",
@@ -336,12 +384,19 @@ const tagalogTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Ang kaganapan ng halalan ay hindi pa nailathala. Mangyaring subukan muli mamaya o makipag-ugnayan sa helpdesk para sa tulong.",
             },
+            materialsGate: {
+                instructions:
+                    "Kailangan mong basahin ang <MaterialsLink>{{materialsTitle}}</MaterialsLink> bago ka makaboto.",
+            },
         },
         errors: {
             page: {
                 oopsWithStatus: "Oops! {{status}}",
                 oopsWithoutStatus: "Oops! Hindi inaasahang Error",
                 somethingWrong: "May nangyaring hindi tama.",
+                invalidLoginHintParametersTitle: "Hindi wastong link sa pagboto",
+                invalidLoginHintParametersMessage:
+                    "Naglalaman ang link na ito ng hindi wastong impormasyon sa pag-login. Humiling ng bagong link at subukan muli.",
                 certAuthFailedTitle: "Nabigo ang Pagpapatunay ng Sertipiko",
                 certAuthFailedMessage:
                     "Hindi ma-verify ang iyong sertipiko. Pakitiyak na gumagamit ka ng wastong sertipiko ng botante at subukang muli.",
@@ -353,6 +408,12 @@ const tagalogTranslation: TranslationType = {
                 back: "Bumalik sa Listahan ng mga Balota",
                 close: "Isara",
                 preview: "Silipin",
+                download: "I-download",
+            },
+            mandatory: {
+                checkboxLabel: "Nabasa ko na ang Mga Pangsuportang Materyales",
+                continueButton: "Magpatuloy",
+                error: "Nagkaroon ng problema sa pagre-record ng iyong kumpirmasyon. Pakisubukan muli.",
             },
         },
         ballotLocator: {

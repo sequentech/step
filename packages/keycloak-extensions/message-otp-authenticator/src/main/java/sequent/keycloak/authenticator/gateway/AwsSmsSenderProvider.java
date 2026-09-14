@@ -18,21 +18,39 @@ public class AwsSmsSenderProvider implements SmsSenderProvider {
 
   private static final SnsClient sns = SnsClient.create();
   private final String senderId;
+  private final String originationNumber;
 
-  AwsSmsSenderProvider(String senderId) {
+  AwsSmsSenderProvider(String senderId, String originationNumber) {
     this.senderId = senderId;
+    this.originationNumber = originationNumber;
+  }
+
+  static Map<String, MessageAttributeValue> buildMessageAttributes(
+      String senderId, String originationNumber) {
+    Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
+    if (originationNumber != null && !originationNumber.isBlank()) {
+      messageAttributes.put(
+          "AWS.MM.SMS.OriginationNumber",
+          MessageAttributeValue.builder()
+              .stringValue(originationNumber)
+              .dataType("String")
+              .build());
+    } else if (senderId != null && !senderId.isBlank()) {
+      messageAttributes.put(
+          "AWS.SNS.SMS.SenderID",
+          MessageAttributeValue.builder().stringValue(senderId).dataType("String").build());
+    }
+    messageAttributes.put(
+        "AWS.SNS.SMS.SMSType",
+        MessageAttributeValue.builder().stringValue("Transactional").dataType("String").build());
+    return messageAttributes;
   }
 
   @Override
   public void send(String phoneNumber, String message) throws IOException {
     log.infov("**Sending AWS SMS**:\n\t- phoneNumber={0}\n\t- message={1}", phoneNumber, message);
-    Map<String, MessageAttributeValue> messageAttributes = new HashMap<>();
-    messageAttributes.put(
-        "AWS.SNS.SMS.SenderID",
-        MessageAttributeValue.builder().stringValue(senderId).dataType("String").build());
-    messageAttributes.put(
-        "AWS.SNS.SMS.SMSType",
-        MessageAttributeValue.builder().stringValue("Transactional").dataType("String").build());
+    Map<String, MessageAttributeValue> messageAttributes =
+        buildMessageAttributes(senderId, originationNumber);
 
     try {
       PublishResponse result =

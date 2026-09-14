@@ -17,8 +17,9 @@
     "DEFAULT_SMS_MESSAGE": {
         "en": "Enter in {{vote_url}} to vote"
     },
-    "PUBLIC_BUCKET_URL": "http://127.0.0.1:9002/public/",
+    "PUBLIC_BUCKET_URL": "http://localhost:9002/public/",
     "VOTING_PORTAL_URL": "http://localhost:3000",
+    "KIOSK_VOTING_PORTAL_URL": "",
     "RESULTS_PORTAL_URL": "http://localhost:3004",
     "ACTIVATE_MIRU_EXPORT": true,
     "CUSTOM_URLS_DOMAIN_NAME": "google.com"

@@ -255,6 +255,8 @@ const frenchTranslation: TranslationType = {
                 logs: "Journaux",
             },
             tasksExecution: {
+                DELETE_TENANT: "Supprimer l’organisation",
+                PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
                 CREATE_ELECTION_EVENT: "Créer Événement Électoral",
@@ -496,6 +498,7 @@ const frenchTranslation: TranslationType = {
                 notify: {
                     success: "Localisation mise à jour avec succès",
                     error: "Échec de la mise à jour de la localisation",
+                    duplicateKey: "Un remplacement avec cette clé et cette portée existe déjà.",
                     invalidDateTimeFormat:
                         "Format de date/heure non valide. Utilisez les jetons yyyy, MM, dd, HH, mm, ss (ex. dd/MM/yyyy HH:mm).",
                 },
@@ -505,7 +508,16 @@ const frenchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clé",
+                    scope: "Portée du portail",
                     value: "Valeur",
+                },
+                scopes: {
+                    legacy: "Hérité ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portail de vote",
+                    ballotVerifier: "Vérificateur de bulletins",
+                    resultsPortal: "Portail des résultats",
+                    adminPortal: "Portail d'administration",
                 },
             },
             field: {
@@ -548,12 +560,23 @@ const frenchTranslation: TranslationType = {
                 language: "Langue",
                 votingChannels: "Canaux de Vote",
                 materialActivated: "Matériaux de Support activés",
+                supportMaterialsPolicy: {
+                    label: "Politique des Matériaux de Support",
+                    helperText:
+                        "L'option Obligatoire pour Voter exige que les électeurs ouvrent chaque Matériau de Support et confirment qu'ils l'ont lu avant de pouvoir voter.",
+                    options: {
+                        off: "Désactivé",
+                        optional: "Facultatif",
+                        mandatory_for_voting: "Obligatoire pour Voter",
+                    },
+                },
                 materialTitle: "Titre",
                 materialSubTitle: "Sous-titre",
                 logoUrl: "URL du Logo",
                 userVerification:
                     "Vous pouvez introduire un modèle personnalisé qui sera utilisé pour vérifier manuellement les électeurs",
                 redirectFinishUrl: "URL de redirection à la fin",
+                kioskRedirectFinishUrl: "URL de redirection à la fin du vote en kiosque",
                 css: "CSS personnalisé",
                 skipElectionList: "Passer l'écran pour choisir l'élection",
                 showUserProfile: "Afficher le profil utilisateur",
@@ -906,6 +929,8 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
+                passwordForcedNote:
+                    "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",
@@ -1106,6 +1131,7 @@ const frenchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "A voté",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Poids du vote",
                     "voted-channel": "Canal de vote",
                     "disable-comment": "Commentaire de désactivation",
@@ -1167,6 +1193,18 @@ const frenchTranslation: TranslationType = {
                 },
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                secretAttribute: {
+                    storedPlaceholder: "Valeur chiffrée enregistrée",
+                    reveal: "Afficher",
+                    hide: "Masquer",
+                    revealError: "Le champ chiffré de l'électeur n'a pas pu être affiché",
+                    includeInExport: "Inclure les champs secrets déchiffrés de l'électeur",
+                    exportWarning:
+                        "Exportation sensible : le CSV téléchargé contiendra ces champs en texte clair.",
+                    clear: "Effacer",
+                    add: "Ajouter une valeur",
+                    remove: "Supprimer la valeur",
+                },
                 review: {
                     title: "Vérifier les modifications",
                     subtitle: "Confirmez ces mises à jour avant de les soumettre.",
@@ -1194,9 +1232,32 @@ const frenchTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
+                    editErrorReason: "Erreur lors de l'édition de l'électeur : {{reason}}",
                     editSuccess: "Électeur édité",
                     createError: "Erreur lors de la création de l'électeur",
+                    createErrorReason: "Erreur lors de la création de l'électeur : {{reason}}",
                     createSuccess: "Électeur créé",
+                    attribute: {
+                        invalidNamed: '"{{field}}" a été refusé : {{constraint}}',
+                        fieldsToCorrect:
+                            "Certains champs doivent être corrigés avant d'enregistrer",
+                        hintBetween: "Entre {{min}} et {{max}} caractères",
+                        hintMin: "Au moins {{min}} caractères",
+                        hintMax: "Au maximum {{max}} caractères",
+                        andMore: "et {{count}} de plus",
+                        invalidLength:
+                            '"{{field}}" doit contenir entre {{min}} et {{max}} caractères',
+                        tooShort: '"{{field}}" doit contenir au moins {{min}} caractères',
+                        tooLong: '"{{field}}" doit contenir au maximum {{max}} caractères',
+                        required: '"{{field}}" est obligatoire',
+                        invalidEmail: '"{{field}}" doit être une adresse e-mail valide',
+                        invalidFormat: '"{{field}}" n\'a pas le format attendu',
+                        invalid: '"{{field}}" a une valeur non valide',
+                    },
+                    createPasswordError:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini",
+                    createPasswordErrorReason:
+                        "Électeur créé, mais son mot de passe n'a pas pu être défini : {{reason}}",
                 },
                 delete: {
                     body: "Êtes-vous sûr de vouloir supprimer cet électeur ?",
@@ -1255,6 +1316,7 @@ const frenchTranslation: TranslationType = {
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
+                "tenant-delete": "Supprimer Locataire",
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
@@ -1264,6 +1326,8 @@ const frenchTranslation: TranslationType = {
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
                 "voter-write": "Éditer Électeur",
+                "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
+                "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",
@@ -1464,6 +1528,23 @@ const frenchTranslation: TranslationType = {
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
                 "google-meet-link": "Générer un Lien Google Meet",
+                "service-account": "Compte de service",
+                "datafix-account": "Compte de correction des données",
+                "gold": "Or",
+                "silver": "Argent",
+                "election-event-ivr-tab": "Afficher l’IVR de l’événement électoral",
+                "election-event-cas-tab": "Afficher le CAS de l’événement électoral",
+                "ca-read": "Consulter les autorités de certification",
+                "ca-write": "Modifier les autorités de certification",
+                "generate-preview": "Générer l’aperçu",
+                "preview-read": "Consulter l’aperçu",
+                "tally-resolution-submit": "Soumettre la résolution du dépouillement",
+                "phone-blacklist-read": "Consulter la liste noire téléphonique",
+                "phone-blacklist-create": "Créer des entrées dans la liste noire téléphonique",
+                "phone-blacklist-update": "Modifier des entrées de la liste noire téléphonique",
+                "phone-blacklist-delete": "Supprimer des entrées de la liste noire téléphonique",
+                "election-event-voter-list-reconciliation":
+                    "Rapprocher la liste électorale de l’événement",
             },
         },
         generalSettingsScreen: {
@@ -1891,6 +1972,11 @@ const frenchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Nom de la page",
             },
+            isAcclaimed: {
+                label: "Acquis par acclamation",
+                helperText:
+                    "Les électeurs voient ce vote mais ne peuvent rien sélectionner, rien n'est enregistré et tous les candidats sont déclarés élus avec zéro voix. À définir avant la publication des bulletins : le modifier ensuite invalide les bulletins déjà déposés.",
+            },
             allowWriteins: {
                 label: "Autoriser les candidatures manuscrites",
             },
@@ -2271,6 +2357,8 @@ const frenchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Postal",
                 channel_in_person: "En personne",
+                acclamation_note:
+                    "Élu par acclamation. Ce vote a été acquis sans scrutin : aucune voix n'a été enregistrée.",
             },
             pendingResolutions: {
                 round: "Tour {{round}}",

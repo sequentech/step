@@ -255,6 +255,8 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Tenant verwijderen",
+                PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
                 CREATE_ELECTION_EVENT: "Verkiezingsevenement Aanmaken",
@@ -497,6 +499,8 @@ const dutchTranslation: TranslationType = {
                 notify: {
                     success: "Localisatie succesvol bijgewerkt",
                     error: "Bijwerken lokalisatie mislukt",
+                    duplicateKey:
+                        "Er bestaat al een overschrijving met deze sleutel en dit bereik.",
                     invalidDateTimeFormat:
                         "Ongeldige datum-/tijdnotatie. Gebruik de tokens yyyy, MM, dd, HH, mm, ss (bijv. dd/MM/yyyy HH:mm).",
                 },
@@ -506,7 +510,16 @@ const dutchTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Sleutel",
+                    scope: "Portalbereik",
                     value: "Waarde",
+                },
+                scopes: {
+                    legacy: "Verouderd ({{portal}})",
+                    global: "Globaal",
+                    votingPortal: "Stemportaal",
+                    ballotVerifier: "Stembiljetverificatie",
+                    resultsPortal: "Resultatenportaal",
+                    adminPortal: "Beheerportaal",
                 },
             },
             field: {
@@ -549,12 +562,23 @@ const dutchTranslation: TranslationType = {
                 language: "Taal",
                 votingChannels: "Stemkanalen",
                 materialActivated: "Ondersteunend materiaal geactiveerd",
+                supportMaterialsPolicy: {
+                    label: "Beleid voor Ondersteunend Materiaal",
+                    helperText:
+                        "Verplicht voor Stemmen vereist dat kiezers elk Ondersteunend Materiaal openen en bevestigen dat ze het hebben gelezen voordat ze kunnen stemmen.",
+                    options: {
+                        off: "Uit",
+                        optional: "Optioneel",
+                        mandatory_for_voting: "Verplicht voor Stemmen",
+                    },
+                },
                 materialTitle: "Titel",
                 materialSubTitle: "Ondertitel",
                 logoUrl: "Logo URL",
                 userVerification:
                     "U kunt een aangepast sjabloon invoeren dat zal worden gebruikt om kiezers handmatig te verifiëren",
                 redirectFinishUrl: "Doorschakel-URL na voltooiing",
+                kioskRedirectFinishUrl: "Doorstuur-URL na afronding van kioskstemmen",
                 css: "Aangepaste CSS",
                 skipElectionList: "Scherm verkiezingslijst overslaan",
                 showUserProfile: "Gebruikersprofiel tonen",
@@ -901,6 +925,8 @@ const dutchTranslation: TranslationType = {
                 title: "Verkiezingsevenement Exporteren",
                 subtitle: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
                 encryptWithPassword: "Versleutelen met wachtwoord",
+                passwordForcedNote:
+                    "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",
@@ -1102,6 +1128,7 @@ const dutchTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Gestemd",
+                    "support_materials_viewed": "Support Materials Viewed",
                     "vote-weight": "Stemgewicht",
                     "voted-channel": "Stemkanaal",
                     "disable-comment": "Deactiveringsopmerking",
@@ -1163,6 +1190,18 @@ const dutchTranslation: TranslationType = {
                 },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                secretAttribute: {
+                    storedPlaceholder: "Opgeslagen versleutelde waarde",
+                    reveal: "Tonen",
+                    hide: "Verbergen",
+                    revealError: "Het versleutelde kiezersveld kon niet worden getoond",
+                    includeInExport: "Ontsleutelde geheime kiezersvelden opnemen",
+                    exportWarning:
+                        "Gevoelige export: de gedownloade CSV bevat deze velden als platte tekst.",
+                    clear: "Wissen",
+                    add: "Waarde toevoegen",
+                    remove: "Waarde verwijderen",
+                },
                 review: {
                     title: "Wijzigingen controleren",
                     subtitle: "Bevestig deze updates voordat u ze indient.",
@@ -1190,9 +1229,31 @@ const dutchTranslation: TranslationType = {
                 askCreate: "Wilt u er een aanmaken?",
                 errors: {
                     editError: "Fout bij bewerken kiezer",
+                    editErrorReason: "Fout bij bewerken kiezer: {{reason}}",
                     editSuccess: "Kiezer bewerkt",
                     createError: "Fout bij aanmaken kiezer",
+                    createErrorReason: "Fout bij aanmaken kiezer: {{reason}}",
                     createSuccess: "Kiezer aangemaakt",
+                    attribute: {
+                        invalidNamed: '"{{field}}" is geweigerd: {{constraint}}',
+                        fieldsToCorrect:
+                            "Sommige velden moeten worden gecorrigeerd voordat u opslaat",
+                        hintBetween: "Tussen {{min}} en {{max}} tekens",
+                        hintMin: "Minimaal {{min}} tekens",
+                        hintMax: "Maximaal {{max}} tekens",
+                        andMore: "en nog {{count}}",
+                        invalidLength: '"{{field}}" moet tussen {{min}} en {{max}} tekens bevatten',
+                        tooShort: '"{{field}}" moet minimaal {{min}} tekens bevatten',
+                        tooLong: '"{{field}}" mag maximaal {{max}} tekens bevatten',
+                        required: '"{{field}}" is verplicht',
+                        invalidEmail: '"{{field}}" moet een geldig e-mailadres zijn',
+                        invalidFormat: '"{{field}}" heeft niet de verwachte indeling',
+                        invalid: '"{{field}}" heeft een ongeldige waarde',
+                    },
+                    createPasswordError:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld",
+                    createPasswordErrorReason:
+                        "Kiezer aangemaakt, maar het wachtwoord kon niet worden ingesteld: {{reason}}",
                 },
                 delete: {
                     body: "Weet u zeker dat u deze kiezer wilt verwijderen?",
@@ -1251,6 +1312,7 @@ const dutchTranslation: TranslationType = {
                 "tenant-create": "Tenant Aanmaken",
                 "tenant-read": "Tenant Lezen",
                 "tenant-write": "Tenant Bewerken",
+                "tenant-delete": "Tenant Verwijderen",
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
@@ -1260,6 +1322,8 @@ const dutchTranslation: TranslationType = {
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
                 "voter-write": "Kiezer Bewerken",
+                "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
+                "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",
@@ -1455,6 +1519,23 @@ const dutchTranslation: TranslationType = {
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
                 "google-meet-link": "Google Meet Link Genereren",
+                "service-account": "Serviceaccount",
+                "datafix-account": "Datafix-account",
+                "gold": "Goud",
+                "silver": "Zilver",
+                "election-event-ivr-tab": "IVR van verkiezingsevenement bekijken",
+                "election-event-cas-tab": "CAS van verkiezingsevenement bekijken",
+                "ca-read": "Certificeringsinstanties lezen",
+                "ca-write": "Certificeringsinstanties bewerken",
+                "generate-preview": "Voorbeeld genereren",
+                "preview-read": "Voorbeeld lezen",
+                "tally-resolution-submit": "Tellingbesluit indienen",
+                "phone-blacklist-read": "Telefoonblokkadelijst lezen",
+                "phone-blacklist-create": "Vermeldingen aan de telefoonblokkadelijst toevoegen",
+                "phone-blacklist-update": "Vermeldingen in de telefoonblokkadelijst bewerken",
+                "phone-blacklist-delete": "Vermeldingen uit de telefoonblokkadelijst verwijderen",
+                "election-event-voter-list-reconciliation":
+                    "Kiezerslijst van verkiezingsevenement afstemmen",
             },
         },
         generalSettingsScreen: {
@@ -1877,6 +1958,11 @@ const dutchTranslation: TranslationType = {
             paginationPolicy: {
                 label: "Paginanaam",
             },
+            isAcclaimed: {
+                label: "Bij acclamatie beslist",
+                helperText:
+                    "Kiezers zien deze stemming maar kunnen niets selecteren, er wordt niets geregistreerd en alle kandidaten worden als winnaar met nul stemmen gerapporteerd. Stel dit in voordat stembiljetten worden gepubliceerd: het later wijzigen maakt reeds uitgebrachte stemmen ongeldig.",
+            },
             allowWriteins: {
                 label: "Handgeschreven kandidaten toestaan",
             },
@@ -2253,6 +2339,8 @@ const dutchTranslation: TranslationType = {
                 channel_paper: "Papier",
                 channel_postal: "Post",
                 channel_in_person: "Persoonlijk",
+                acclamation_note:
+                    "Bij acclamatie gekozen. Deze stemming is zonder stemming beslist, dus er zijn geen stemmen geregistreerd.",
             },
             pendingResolutions: {
                 round: "Ronde {{round}}",

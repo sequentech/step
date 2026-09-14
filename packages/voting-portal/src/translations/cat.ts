@@ -10,6 +10,22 @@ const catalanTranslation: TranslationType = {
             showMore: "Mostra'n més",
             showLess: "Mostra'n menys",
         },
+        a11y: {
+            skipToContent: "Vés al contingut principal",
+            helpAbout: "Ajuda sobre {{topic}}",
+            copyToClipboard: "Copia {{label}} al porta-retalls",
+            previewMaterial: "Vista prèvia de {{title}}",
+            ballotsTable: "Paperetes",
+            ballotLocatorTabs: "Seccions del localitzador de paperetes",
+            ballotIdLabel: "ID de vot",
+            votingProgress: "Progrés de la votació",
+            stepOf: "Pas {{current}} de {{total}}",
+            selectUpTo_one: "Seleccioneu fins a {{count}} opció",
+            selectUpTo_other: "Seleccioneu fins a {{count}} opcions",
+            selectExactly_one: "Seleccioneu {{count}} opció",
+            selectExactly_other: "Seleccioneu {{count}} opcions",
+            selectBetween: "Seleccioneu entre {{min}} i {{max}} opcions",
+        },
         candidatesList: {
             collapseToggle: "Alternar llista {{listTitle}}",
             showCandidates: "Mostra els candidats",
@@ -28,6 +44,12 @@ const catalanTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Funciona amb <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
+            },
         },
         votingScreen: {
             backButton: "Enrere",
@@ -86,6 +108,18 @@ const catalanTranslation: TranslationType = {
                 "Envia la teva papereta: Finalment, pots enviar la teva papereta perquè es registri correctament. Alternativament, pots optar per auditar i confirmar que la teva papereta va ser capturada i xifrada correctament.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Resolt per aclamació",
+                helpDialog: {
+                    title: "Informació: Aclamació",
+                    content:
+                        "Aquesta pantalla mostra el que s'ha resolt per aclamació. Com que no s'ha pogut seleccionar cap opció, no s'emet cap papereta i no hi ha res a verificar després.",
+                    ok: "D'acord",
+                },
+                description:
+                    "Revisi el que s'ha resolt per aclamació en aquesta elecció. No s'emetrà cap papereta.",
+                finishButton: "Finalitzar",
+            },
             title: "Revisa el teu vot",
             description:
                 "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar papereta</b>” a sota.",
@@ -226,6 +260,17 @@ const catalanTranslation: TranslationType = {
             blankBallot: "Papereta en blanc",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Resolt per aclamació",
+                description:
+                    "Totes les votacions d'aquesta elecció s'han resolt per aclamació, per la qual cosa no s'ha emès cap papereta i no hi ha identificador de papereta per consultar.",
+                helpDialog: {
+                    title: "Informació: Aclamació",
+                    content:
+                        "Totes les votacions d'aquesta elecció s'han resolt per aclamació: les seves candidatures resulten elegides sense votació. Com que no s'ha emès cap papereta, no hi ha identificador de papereta, comprovant ni codi QR per verificar.",
+                    ok: "D'acord",
+                },
+            },
             title: "El seu vot ha estat emès",
             description:
                 "El codi de confirmació que apareix a continuació verifica que <b>el seu vot s'ha emès correctament</b>. Pot utilitzar aquest codi per verificar que el seu vot ha estat comptabilitzat.",
@@ -236,6 +281,9 @@ const catalanTranslation: TranslationType = {
             ballotId: "Localitzador del Vot",
             printButton: "Imprimir",
             finishButton: "Finalitzar",
+            remainingElectionsError:
+                "No hem pogut comprovar si tens més eleccions en què votar. Torna-ho a provar.",
+            retryButton: "Torna-ho a provar",
             verifyCastTitle: "Comproveu que el seu vot ha estat emès",
             verifyCastDescription:
                 "Pot comprovar en tot moment que la seva papereta s'ha emès correctament utilitzant el següent codi QR:",
@@ -338,12 +386,19 @@ const catalanTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
+            materialsGate: {
+                instructions:
+                    "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
+            },
         },
         errors: {
             page: {
                 oopsWithStatus: "Vaja! {{status}}",
                 oopsWithoutStatus: "Vaja! Error Inesperat",
                 somethingWrong: "Alguna cosa ha anat malament.",
+                invalidLoginHintParametersTitle: "Enllaç de votació no vàlid",
+                invalidLoginHintParametersMessage:
+                    "Aquest enllaç de votació conté informació d’accés no vàlida. Demaneu un enllaç nou i torneu-ho a provar.",
                 certAuthFailedTitle: "Error d'Autenticació amb Certificat",
                 certAuthFailedMessage:
                     "No s'ha pogut verificar el vostre certificat. Comproveu que esteu utilitzant un certificat de votant vàlid i torneu-ho a intentar.",
@@ -355,6 +410,12 @@ const catalanTranslation: TranslationType = {
                 back: "Tornar a la Llista de Votacions",
                 close: "Tancar",
                 preview: "Vista prèvia",
+                download: "Descarregar",
+            },
+            mandatory: {
+                checkboxLabel: "He llegit els Materials de Suport",
+                continueButton: "Continua",
+                error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
             },
         },
         ballotLocator: {

@@ -23,6 +23,7 @@ export {
     escapeTranslationValues,
     translateHtml,
 } from "./services/stringToHtml"
+export {isAcclaimedContest, areAllContestsAcclaimed} from "./services/acclamation"
 export * from "./types/LanguageConf"
 export * from "./types/TenantSettings"
 export * from "./types/TenantTheme"
@@ -45,6 +46,7 @@ export * from "./services/percentFormatter"
 export * from "./services/cssClassNameFormatter"
 export * from "./services/wasm"
 export * from "./services/presentationOrder"
+export * from "./services/translationScopes"
 export * from "./services/sanitizeFilename"
 export * from "./types/AreaPresentation"
 export * from "./services/candidatePresentation"

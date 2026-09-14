@@ -19,6 +19,21 @@ const englishTranslation = {
             ended: "Ended",
             results: "Results",
         },
+        a11y: {
+            closeDialog: "Close dialog",
+            dismissMessage: "Dismiss message",
+            ballotIdHelp: "About your Ballot ID",
+            loading: "Loading",
+            severity: {
+                error: "Error",
+                warning: "Warning",
+                success: "Success",
+                info: "Information",
+            },
+            selectList: "Select the whole list",
+            preferenceLabel: "Preference",
+            writeInFor: "Write-in candidate name",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",

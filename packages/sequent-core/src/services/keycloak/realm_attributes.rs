@@ -4,15 +4,17 @@
 use crate::ballot::VoterCertificatePolicy;
 use crate::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use crate::types::keycloak::{
-    CredentialInputPolicy, MAX_CREDENTIAL_PATTERN_GROUPS,
-    MAX_CREDENTIAL_PATTERN_GROUP_SIZE, MAX_CREDENTIAL_PATTERN_TOTAL_SIZE,
+    CredentialFieldPosition, CredentialInputPolicy, LoginValidationPolicy,
+    MAX_CREDENTIAL_PATTERN_GROUPS, MAX_CREDENTIAL_PATTERN_GROUP_SIZE,
+    MAX_CREDENTIAL_PATTERN_TOTAL_SIZE, REALM_ATTR_CREDENTIAL_FIELD_POSITION,
     REALM_ATTR_CREDENTIAL_INPUT_PATTERN,
     REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER,
-    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS,
+    REALM_ATTR_CREDENTIAL_INPUT_POLICY, REALM_ATTR_LOGIN_VALIDATION_POLICY,
+    REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS, REALM_ATTR_SMARTLINK_ELECTION_ID,
     REALM_ATTR_SMARTLINK_ENABLED, REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES,
     REALM_ATTR_SMARTLINK_SHARED_SECRET, REALM_ATTR_SMARTLINK_TIMEOUT_SECS,
-    REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN,
-    SMARTLINK_SHARED_SECRET_MAX_LEN,
+    REALM_ATTR_VOTER_CERTIFICATE_POLICY, SMARTLINK_ELECTION_ID_MAX_LEN,
+    SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN, SMARTLINK_SHARED_SECRET_MAX_LEN,
 };
 use anyhow::{anyhow, bail, Result};
 use std::collections::HashMap;
@@ -156,6 +158,16 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 );
             }
         }
+        REALM_ATTR_LOGIN_VALIDATION_POLICY => {
+            if LoginValidationPolicy::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
+        REALM_ATTR_CREDENTIAL_FIELD_POSITION => {
+            if CredentialFieldPosition::from_str(value).is_err() {
+                bail!("Invalid value {value:?} for realm attribute {key}");
+            }
+        }
         REALM_ATTR_CREDENTIAL_INPUT_PLACEHOLDER => {
             if !is_valid_credential_input_placeholder(value) {
                 bail!(
@@ -181,6 +193,13 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
                 );
             }
         }
+        REALM_ATTR_SMARTLINK_ELECTION_ID => {
+            if !is_valid_smartlink_election_id(value) {
+                bail!(
+                    "Realm attribute {key} must contain 1 to {SMARTLINK_ELECTION_ID_MAX_LEN} ASCII letters, digits, '.', '_' or '-'"
+                );
+            }
+        }
         REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES => {
             if value.len() > SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN {
                 bail!(
@@ -196,6 +215,14 @@ fn validate_realm_attribute_value(key: &str, value: &str) -> Result<()> {
         _ => {}
     }
     Ok(())
+}
+
+fn is_valid_smartlink_election_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= SMARTLINK_ELECTION_ID_MAX_LEN
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-')
+        })
 }
 
 fn is_valid_credential_input_pattern(value: &str) -> bool {
@@ -282,9 +309,11 @@ mod tests {
             ("credential-input-policy", "structured"),
             ("credential-input-pattern", "dddd-dddd-dddd-dddd"),
             ("credential-input-placeholder", "#"),
+            ("credential-field-position", "FIRST"),
             ("smart-link-enabled", "true"),
             ("smart-link-timeout-secs", "90"),
             ("smart-link-clock-skew-secs", "5"),
+            ("smart-link-election-id", "municipal-2026"),
             ("voter-certificate-policy", "enabled"),
         ]);
 
@@ -296,6 +325,7 @@ mod tests {
         for (policy, pattern) in [
             ("standard", "dddd-dddd-dddd-dddd"),
             ("structured", "ddd-ddd"),
+            ("pattern", "ddd-ddd"),
             ("structured", "dd-dddd-dd"),
             ("structured", "dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd-dddddddd"),
         ] {
@@ -318,6 +348,57 @@ mod tests {
                 )]))
                 .is_ok(),
                 "expected credential-input-placeholder={placeholder:?} to be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_login_validation_policy() {
+        for value in ["BROWSER", "SERVER_ONLY"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_ok(),
+                "expected login-validation-policy={value:?} to be accepted"
+            );
+        }
+
+        for value in ["browser", "server_only", "SERVER-ONLY", "true", "NONE"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "login-validation-policy",
+                    value,
+                )]))
+                .is_err(),
+                "expected login-validation-policy={value:?} to be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_realm_attributes_validates_credential_field_position() {
+        for value in ["LAST", "FIRST"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-field-position",
+                    value,
+                )]))
+                .is_ok(),
+                "expected credential-field-position={value:?} to be accepted"
+            );
+        }
+
+        // A misspelling would otherwise be stored and silently fall back to LAST.
+        for value in ["first", "last", "FRIST", "true", "TOP"] {
+            assert!(
+                validate_realm_attributes(&attributes(&[(
+                    "credential-field-position",
+                    value,
+                )]))
+                .is_err(),
+                "expected credential-field-position={value:?} to be rejected"
             );
         }
     }
@@ -400,6 +481,9 @@ mod tests {
             ("smart-link-timeout-secs", "0"),
             ("smart-link-timeout-secs", "-90"),
             ("smart-link-clock-skew-secs", "1.5"),
+            ("smart-link-election-id", "bad/value"),
+            ("smart-link-election-id", "bad:value"),
+            ("smart-link-election-id", "municipal election"),
             ("voter-certificate-policy", "sometimes"),
         ] {
             assert!(
@@ -413,9 +497,11 @@ mod tests {
     #[test]
     fn validate_realm_attributes_rejects_oversized_values() {
         let oversized = "x".repeat(1001);
-        for key in
-            ["smart-link-shared-secret", "smart-link-required-attributes"]
-        {
+        for key in [
+            "smart-link-shared-secret",
+            "smart-link-election-id",
+            "smart-link-required-attributes",
+        ] {
             assert!(
                 validate_realm_attributes(&attributes(&[(
                     key,

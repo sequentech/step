@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {Box, Button, Collapse, Typography} from "@mui/material"
-import React, {PropsWithChildren, useEffect, useState} from "react"
+import React, {PropsWithChildren, useEffect, useId, useState} from "react"
+import VisuallyHidden from "../VisuallyHidden/VisuallyHidden"
+import {useTranslation} from "react-i18next"
 import {styled} from "@mui/material/styles"
 import theme from "../../services/theme"
 import {Checkbox} from "@mui/material"
@@ -56,7 +58,7 @@ const ListChildrenContainer = styled("ul")`
     }
 `
 
-const ListTitle = styled(Typography)`
+const ListTitle = styled(Typography)<{component?: React.ElementType}>`
     flex: 1 1 auto;
     min-width: 0;
     text-align: left;
@@ -101,6 +103,13 @@ const SelectedCandidatesLabel = styled("span")`
     @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
         width: min-content;
     }
+
+    /* The element stays mounted while empty so that it is already a live region
+       when the count appears in it. It is still a flex item though, so cancel the
+       row gap it would otherwise add next to the checkbox. */
+    &:empty {
+        margin-inline-end: -${({theme}) => theme.spacing(1)};
+    }
 `
 
 export interface CandidatesListProps extends PropsWithChildren {
@@ -118,6 +127,10 @@ export interface CandidatesListProps extends PropsWithChildren {
     selectedCandidatesLabel?: string
     externalExpanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
+    // Heading element for the list title. Left unset the title stays a paragraph,
+    // which is what consumers outside the voting portal still render; the voting
+    // portal passes the level that fits its contest heading hierarchy.
+    titleComponent?: React.ElementType
 }
 
 const CandidatesList: React.FC<CandidatesListProps> = ({
@@ -136,8 +149,16 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
     selectedCandidatesLabel,
     externalExpanded,
     onExpandedChange,
+    titleComponent,
 }) => {
     const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? true)
+    const {t} = useTranslation()
+    // The list title labels the "select the whole list" checkbox, and the
+    // collapse toggle needs to point at the panel it controls.
+    const generatedId = useId()
+    const titleId = `${generatedId}-title`
+    const selectLabelId = `${generatedId}-select-label`
+    const panelId = `${generatedId}-panel`
 
     useEffect(() => {
         if (externalExpanded !== undefined) {
@@ -171,33 +192,42 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             isactive={String(!!(isActive && isCheckable && !shouldDisable))}
             onClick={onClick}
             className="candidates-list"
-            aria-disabled={shouldDisable}
         >
             <ListHeader className="candidates-list-header">
-                <ListTitleSection>
+                <ListTitleSection className="candidates-list-heading">
                     {isCollapsible ? (
                         <CollapseToggleButton
+                            className="candidates-list-toggle"
                             variant="secondary"
                             size="small"
                             startIcon={
-                                <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
+                                <FontAwesomeIcon
+                                    className="candidates-list-toggle-icon"
+                                    icon={isExpanded ? faAngleDown : faAngleRight}
+                                />
                             }
                             onClick={handleToggleCollapse}
                             aria-label={collapseToggleAriaLabel ?? collapseLabel}
                             aria-expanded={isExpanded}
+                            aria-controls={panelId}
                         >
-                            <CollapseToggleText>{collapseLabel}</CollapseToggleText>
+                            <CollapseToggleText className="candidates-list-toggle-label">
+                                {collapseLabel}
+                            </CollapseToggleText>
                         </CollapseToggleButton>
                     ) : null}
                     <ListTitle
                         color={theme.palette.customGrey.contrastText}
                         fontSize="24px"
                         className="candidates-list-title"
+                        component={titleComponent}
+                        id={titleId}
                     >
                         {title}
                     </ListTitle>
                 </ListTitleSection>
                 <Box
+                    className="candidates-list-actions"
                     sx={(muiTheme) => ({
                         display: "flex",
                         justifyContent: "flex-end",
@@ -210,26 +240,56 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                         },
                     })}
                 >
-                    {isCollapsible && !isExpanded && selectedCandidatesLabel ? (
-                        <SelectedCandidatesLabel>{selectedCandidatesLabel}</SelectedCandidatesLabel>
+                    {/* Stays mounted while collapsible so the changing count is
+                        announced; a region added at the same time as its text is
+                        not reliably read out. */}
+                    {isCollapsible ? (
+                        <SelectedCandidatesLabel
+                            className="candidates-selected-count"
+                            role="status"
+                        >
+                            {!isExpanded && selectedCandidatesLabel ? selectedCandidatesLabel : ""}
+                        </SelectedCandidatesLabel>
                     ) : null}
                     {isActive && isCheckable ? (
-                        <Checkbox
-                            checked={checked}
-                            onChange={handleChange}
-                            disabled={shouldDisable}
-                        />
+                        <>
+                            <VisuallyHidden
+                                className="candidates-list-checkbox-label"
+                                id={selectLabelId}
+                            >
+                                {t("a11y.selectList")}
+                            </VisuallyHidden>
+                            <Checkbox
+                                className="candidates-list-checkbox"
+                                checked={checked}
+                                onChange={handleChange}
+                                disabled={shouldDisable}
+                                slotProps={{
+                                    input: {
+                                        "aria-labelledby": `${selectLabelId} ${titleId}`,
+                                    },
+                                }}
+                            />
+                        </>
                     ) : null}
                 </Box>
             </ListHeader>
             {isCollapsible ? (
-                <Collapse in={isExpanded}>
-                    <ListChildrenContainer className="candidates-list-children">
+                <Collapse className="candidates-list-collapse" in={isExpanded}>
+                    <ListChildrenContainer
+                        className="candidates-list-children"
+                        id={panelId}
+                        role="list"
+                    >
                         {children}
                     </ListChildrenContainer>
                 </Collapse>
             ) : (
-                <ListChildrenContainer className="candidates-list-children">
+                <ListChildrenContainer
+                    className="candidates-list-children"
+                    id={panelId}
+                    role="list"
+                >
                     {children}
                 </ListChildrenContainer>
             )}

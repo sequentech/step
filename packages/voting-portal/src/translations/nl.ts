@@ -10,6 +10,22 @@ const dutchTranslation: TranslationType = {
             showMore: "Toon meer",
             showLess: "Toon minder",
         },
+        a11y: {
+            skipToContent: "Ga naar hoofdinhoud",
+            helpAbout: "Hulp over {{topic}}",
+            copyToClipboard: "{{label}} naar klembord kopiëren",
+            previewMaterial: "Voorbeeld van {{title}}",
+            ballotsTable: "Stembiljetten",
+            ballotLocatorTabs: "Onderdelen van de stembiljetzoeker",
+            ballotIdLabel: "Stembiljet-ID",
+            votingProgress: "Voortgang van het stemmen",
+            stepOf: "Stap {{current}} van {{total}}",
+            selectUpTo_one: "Kies maximaal {{count}} optie",
+            selectUpTo_other: "Kies maximaal {{count}} opties",
+            selectExactly_one: "Kies {{count}} optie",
+            selectExactly_other: "Kies {{count}} opties",
+            selectBetween: "Kies tussen {{min}} en {{max}} opties",
+        },
         candidatesList: {
             collapseToggle: "Lijst {{listTitle}} in-/uitvouwen",
             showCandidates: "Kandidaten tonen",
@@ -28,6 +44,12 @@ const dutchTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Aangedreven door <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Deze stemming is bij acclamatie beslist. De kandidaten worden zonder stemming gekozen, dus er kan niets worden geselecteerd en er wordt geen stem geregistreerd.",
+            },
         },
         votingScreen: {
             backButton: "Terug",
@@ -86,6 +108,18 @@ const dutchTranslation: TranslationType = {
                 "Breng uw stem uit: Tot slot kunt u uw stem uitbrengen zodat deze correct wordt geregistreerd. Als alternatief kunt u kiezen voor een audit om te bevestigen dat uw stembiljet correct is vastgelegd en versleuteld.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Bij acclamatie beslist",
+                helpDialog: {
+                    title: "Informatie: Acclamatie",
+                    content:
+                        "Dit scherm toont wat bij acclamatie is beslist. Omdat er niets kon worden geselecteerd, wordt er geen stem uitgebracht en valt er achteraf niets te verifiëren.",
+                    ok: "OK",
+                },
+                description:
+                    "Bekijk wat bij acclamatie is beslist in deze verkiezing. Er wordt geen stem uitgebracht.",
+                finishButton: "Afronden",
+            },
             title: "Controleer uw stembiljet",
             description:
                 "Om wijzigingen aan te brengen in uw selecties, klik op de knop “<b>Stembiljet bewerken</b>”. Om uw selecties te bevestigen, klik op de knop “<b>Breng uw stem uit</b>” hieronder. Om uw stembiljet te auditen, klik op de knop “<b>Audit stembiljet</b>” hieronder.",
@@ -224,6 +258,17 @@ const dutchTranslation: TranslationType = {
             blankBallot: "Blanco stembiljet",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Bij acclamatie beslist",
+                description:
+                    "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist, dus er is geen stem uitgebracht en er is geen stembiljet-ID om te volgen.",
+                helpDialog: {
+                    title: "Informatie: Acclamatie",
+                    content:
+                        "Alle stemmingen in deze verkiezing zijn bij acclamatie beslist: de kandidaten worden zonder stemming gekozen. Omdat er geen stem is uitgebracht, is er geen stembiljet-ID, ontvangstbewijs of QR-code om te verifiëren.",
+                    ok: "OK",
+                },
+            },
             title: "Uw stem is uitgebracht",
             description:
                 "De onderstaande bevestigingscode verifieert dat <b>uw stembiljet succesvol is uitgebracht</b>. U kunt deze code gebruiken om te controleren of uw stembiljet is geteld.",
@@ -234,6 +279,9 @@ const dutchTranslation: TranslationType = {
             ballotId: "Stembiljet ID",
             printButton: "Afdrukken",
             finishButton: "Voltooien",
+            remainingElectionsError:
+                "We konden niet controleren of u nog aan andere verkiezingen kunt deelnemen. Probeer het opnieuw.",
+            retryButton: "Opnieuw proberen",
             verifyCastTitle: "Verifieer dat uw stembiljet is uitgebracht",
             verifyCastDescription:
                 "U kunt op elk moment verifiëren dat uw stembiljet correct is uitgebracht met behulp van de volgende QR-code:",
@@ -336,12 +384,19 @@ const dutchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "De kiesgebeurtenis is nog niet gepubliceerd. Probeer het later opnieuw of neem contact op met ondersteuning voor hulp.",
             },
+            materialsGate: {
+                instructions:
+                    "U moet <MaterialsLink>{{materialsTitle}}</MaterialsLink> lezen voordat u kunt stemmen.",
+            },
         },
         errors: {
             page: {
                 oopsWithStatus: "Oeps! {{status}}",
                 oopsWithoutStatus: "Oeps! Onverwachte Fout",
                 somethingWrong: "Er is iets misgegaan.",
+                invalidLoginHintParametersTitle: "Ongeldige stemlink",
+                invalidLoginHintParametersMessage:
+                    "Deze stemlink bevat ongeldige inloggegevens. Vraag een nieuwe link aan en probeer het opnieuw.",
                 certAuthFailedTitle: "Certificaatauthenticatie Mislukt",
                 certAuthFailedMessage:
                     "Uw certificaat kon niet worden geverifieerd. Controleer of u een geldig kiezercertificaat gebruikt en probeer het opnieuw.",
@@ -353,6 +408,12 @@ const dutchTranslation: TranslationType = {
                 back: "Terug naar Kieslijst",
                 close: "Sluiten",
                 preview: "Voorbeeld",
+                download: "Downloaden",
+            },
+            mandatory: {
+                checkboxLabel: "Ik heb het Ondersteunend Materiaal gelezen",
+                continueButton: "Doorgaan",
+                error: "Er was een probleem bij het registreren van uw bevestiging. Probeer het opnieuw.",
             },
         },
         ballotLocator: {

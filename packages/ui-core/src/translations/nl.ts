@@ -21,6 +21,21 @@ const dutchTranslation: TranslationType = {
             ended: "Ended",
             results: "Results",
         },
+        a11y: {
+            closeDialog: "Dialoogvenster sluiten",
+            dismissMessage: "Bericht sluiten",
+            ballotIdHelp: "Over uw stembiljet-ID",
+            loading: "Laden",
+            severity: {
+                error: "Fout",
+                warning: "Waarschuwing",
+                success: "Gelukt",
+                info: "Informatie",
+            },
+            selectList: "De hele lijst selecteren",
+            preferenceLabel: "Voorkeur",
+            writeInFor: "Naam van de geschreven kandidaat",
+        },
         candidate: {
             moreInformationLink: "More information",
             writeInsPlaceholder: "Type write-in candidate here",
