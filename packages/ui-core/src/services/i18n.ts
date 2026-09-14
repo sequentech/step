@@ -302,9 +302,14 @@ export function overwriteTranslations(
             const nestedTranslations: TranslationTree = {}
 
             Object.entries(translations).forEach(([key, value]) => {
+                // Persist only text leaves; malformed JSON must not become a
+                // null parent when a following key traverses the same path.
+                if (typeof value !== "string") return
                 const keys = key.split(".")
                 keys.reduce<TranslationTree>((branch, part, index) => {
-                    const existing = Object.hasOwn(branch, part) ? branch[part] : undefined
+                    const existing = Object.prototype.hasOwnProperty.call(branch, part)
+                        ? branch[part]
+                        : undefined
                     const child: TranslationTree = typeof existing === "object" ? existing : {}
                     // Define an own property even for names such as __proto__;
                     // translation input must never mutate an inherited object.

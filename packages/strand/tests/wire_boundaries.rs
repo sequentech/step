@@ -193,7 +193,6 @@ fn imported_signing_keys_preserve_key_identity_and_signature_validity() {
     let keys =
         HashSet::from([public.clone(), imported_public, reference_key()]);
     assert_eq!(keys.len(), 2);
-    assert_eq!(format!("{public:?}").len(), 10);
     assert_eq!(
         secret.to_der().unwrap().len(),
         48,

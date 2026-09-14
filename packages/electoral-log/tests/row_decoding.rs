@@ -194,25 +194,45 @@ fn column_order_does_not_change_the_decoded_record() {
 
 #[test]
 fn aggregate_requires_exactly_one_nonnegative_integer() {
+    fn aggregate_row(entries: Vec<(&str, Option<Value>)>) -> Row {
+        Row {
+            columns: entries.iter().map(|(name, _)| name.to_string()).collect(),
+            values: entries
+                .into_iter()
+                .map(|(_, value)| SqlValue { value })
+                .collect(),
+        }
+    }
     assert_eq!(
-        Aggregate::try_from(&row(vec![("count", Some(Value::N(0)))]))
+        Aggregate::try_from(&aggregate_row(vec![("count", Some(Value::N(0)))]))
             .unwrap()
             .count,
         0
     );
     assert_eq!(
-        Aggregate::try_from(&row(vec![("count", Some(Value::N(i64::MAX)))]))
+        Aggregate::try_from(&aggregate_row(vec![("count", Some(Value::N(i64::MAX)))]))
             .unwrap()
             .count,
         i64::MAX
     );
 
+    assert_eq!(
+        Aggregate::try_from(&aggregate_row(vec![(
+            "(electoral_log_messages.col0)",
+            Some(Value::N(3))
+        )]))
+        .unwrap()
+        .count,
+        3
+    );
+
     for invalid in [
-        row(vec![]),
-        row(vec![("count", Some(Value::N(-1)))]),
-        row(vec![("count", None)]),
-        row(vec![("count", Some(Value::S("12".into())))]),
-        row(vec![
+        aggregate_row(vec![("other", Some(Value::N(12)))]),
+        aggregate_row(vec![]),
+        aggregate_row(vec![("count", Some(Value::N(-1)))]),
+        aggregate_row(vec![("count", None)]),
+        aggregate_row(vec![("count", Some(Value::S("12".into())))]),
+        aggregate_row(vec![
             ("count", Some(Value::N(1))),
             ("extra", Some(Value::N(2))),
         ]),

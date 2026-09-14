@@ -125,6 +125,10 @@ fn statement_type_borsh_discriminants_are_append_only() {
         25
     );
     assert_eq!(
+        borsh::to_vec(&StatementType::ExternalReconciliation).unwrap(),
+        vec![28]
+    );
+    assert_eq!(
         borsh::to_vec(&StatementType::ResultsPublicationAction).unwrap()[0],
         26
     );

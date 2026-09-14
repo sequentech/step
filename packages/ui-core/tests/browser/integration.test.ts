@@ -130,8 +130,9 @@ test("the real WebAssembly module generates, hashes and decodes its sample ballo
 })
 
 test("malformed encoded contests fail instead of becoming an empty decoded ballot", async () => {
-    const rejected = await page.evaluate(() => {
+    const rejected = await page.evaluate(async () => {
         const core = window.uiCore
+        await core.initCore()
         const ballot = core.generateSampleAuditableBallot()
         if (!ballot) throw new Error("missing sample ballot")
         try {

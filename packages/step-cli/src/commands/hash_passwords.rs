@@ -57,7 +57,16 @@ impl HashPasswords {
             Ok(metadata) if metadata.file_type().is_symlink() => {
                 bail!("Output must not be a symlink");
             }
-            Ok(_) => {}
+            Ok(metadata) => {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    let source = input_path.metadata()?;
+                    if source.dev() == metadata.dev() && source.ino() == metadata.ino() {
+                        bail!("Input and output must be different files");
+                    }
+                }
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => return Err(error.into()),
         }

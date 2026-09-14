@@ -12,15 +12,16 @@ export const translate = <T, K extends keyof T>(
     lang: string
 ): string | undefined => {
     const translationKey = `${String(key)}_i18n`
-    const dictionary = isRecord(input) ? input[translationKey] : undefined
-    if (isRecord(dictionary) && Object.hasOwn(dictionary, lang)) {
+    const dictionary =
+        isRecord(input) && hasOwn(input, translationKey) ? input[translationKey] : undefined
+    if (isRecord(dictionary) && hasOwn(dictionary, lang)) {
         const translated = dictionary[lang]
         if (typeof translated === "string") {
             return translated
         }
     }
 
-    const fallback = isRecord(input) ? input[String(key)] : undefined
+    const fallback = isRecord(input) && hasOwn(input, String(key)) ? input[String(key)] : undefined
     return typeof fallback === "string" ? fallback : undefined
 }
 
@@ -46,12 +47,21 @@ interface TranslateFromPresentationOptions {
     defaultLanguageCode?: string
 }
 
+const hasOwn = <K extends PropertyKey>(
+    value: object,
+    key: K
+): value is object & Record<K, unknown> => Object.prototype.hasOwnProperty.call(value, key)
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value)
 
 export const isTranslatablePresentation = (value: unknown): value is TranslatablePresentation => {
     if (!isRecord(value)) {
         return false
+    }
+
+    if (!hasOwn(value, "i18n")) {
+        return !("i18n" in value)
     }
 
     if (value.i18n === undefined) {
@@ -79,9 +89,9 @@ const getPresentation = <K extends string>(
     }
 
     const value =
-        "i18n" in object && object.i18n
+        hasOwn(object, "i18n") && object.i18n
             ? object
-            : "presentation" in object
+            : hasOwn(object, "presentation")
               ? object.presentation
               : object
     return isRecord(value) ? (value as TranslatablePresentation) : undefined
@@ -99,8 +109,8 @@ const getTranslatedValue = (
         return undefined
     }
 
-    const dictionary = presentation?.i18n
-    if (!isRecord(dictionary) || !Object.hasOwn(dictionary, language)) {
+    const dictionary = presentation && hasOwn(presentation, "i18n") ? presentation.i18n : undefined
+    if (!isRecord(dictionary) || !hasOwn(dictionary, language)) {
         return undefined
     }
     const translations = dictionary[language]
@@ -118,7 +128,7 @@ const getTranslatedValue = (
     ]
 
     for (const candidateKey of candidateKeys) {
-        if (!Object.hasOwn(translations, candidateKey)) continue
+        if (!hasOwn(translations, candidateKey)) continue
         const value = translations[candidateKey]
         if (typeof value === "string" && value.length > 0) {
             return value
@@ -145,7 +155,7 @@ export const translateFromPresentation = <K extends string>(
         return translatedValue
     }
 
-    if (isRecord(object) && "i18n" in object && Boolean(object.i18n)) {
+    if (isRecord(object) && hasOwn(object, "i18n") && Boolean(object.i18n)) {
         return undefined
     }
 
@@ -153,6 +163,6 @@ export const translateFromPresentation = <K extends string>(
         return undefined
     }
 
-    const legacyValue = object[key]
+    const legacyValue = hasOwn(object, key) ? object[key] : undefined
     return typeof legacyValue === "string" && legacyValue.length ? legacyValue : undefined
 }

@@ -50,3 +50,24 @@ it("handles absent data and an empty language without losing a legacy field", ()
     )
     expect(translateFromPresentation({name: ""}, "name", "en")).toBeUndefined()
 })
+
+it("requires own translation containers and fallback fields at every level", () => {
+    const dictionary = {fr: "Conseil"}
+    expect(translate({name: "Council", name_i18n: dictionary}, "name", "fr")).toBe("Conseil")
+    const legacy = Object.assign(Object.create({name_i18n: dictionary}), {name: "Council"})
+    expect(translate(legacy, "name", "fr")).toBe("Council")
+    expect(translate(Object.create({name: "Inherited"}), "name", "fr")).toBeUndefined()
+
+    const presentation = {i18n: {fr: {name: "Conseil"}}}
+    expect(translateFromPresentation({name: "Council", presentation}, "name", "fr")).toBe("Conseil")
+    for (const inherited of [
+        Object.assign(Object.create({presentation}), {name: "Council"}),
+        {name: "Council", presentation: Object.create(presentation)},
+    ]) {
+        expect(translateFromPresentation(inherited, "name", "fr")).toBe("Council")
+    }
+    expect(
+        translateFromPresentation(Object.create({name: "Inherited"}), "name", "fr")
+    ).toBeUndefined()
+    expect(isTranslatablePresentation(Object.create(presentation))).toBe(false)
+})
