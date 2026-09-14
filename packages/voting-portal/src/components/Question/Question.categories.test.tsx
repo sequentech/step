@@ -6,7 +6,7 @@ import {render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ThemeProvider} from "@mui/material/styles"
 import {ECollapsibleLists} from "@sequentech/ui-core"
-import type {ICandidate} from "@sequentech/ui-core"
+import type {ICandidate, IContest} from "@sequentech/ui-core"
 import theme from "../../../../ui-essentials/src/services/theme"
 import {ELECTION_WITH_INVALID} from "../../fixtures/election"
 import type {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
@@ -68,10 +68,13 @@ jest.mock("../InvalidErrorsList/InvalidErrorsList", () => ({
 
 const CATEGORY_NAMES = ["__proto__", "constructor", "toString", "Regular category"]
 
-function renderCategories(policy: ECollapsibleLists) {
+function renderCategories(
+    policy: ECollapsibleLists,
+    typesPresentation: NonNullable<IContest["presentation"]>["types_presentation"] = {}
+) {
     const ballot = structuredClone(ELECTION_WITH_INVALID)
     const question = ballot.contests[0]
-    question.presentation = {collapsible_lists: policy, types_presentation: {}}
+    question.presentation = {collapsible_lists: policy, types_presentation: typesPresentation}
     question.candidates = CATEGORY_NAMES.map((name, index) => ({
         ...question.candidates[0],
         id: `candidate-${index}`,
@@ -126,6 +129,31 @@ afterEach(() => {
 })
 
 describe("category expansion through the UI Core consumer", () => {
+    it("preserves configured category and subtype presentation while rendering and toggling", async () => {
+        const user = userEvent.setup()
+        const presentation = {
+            "Regular category": {
+                name: "Configured name",
+                subtypes_presentation: {
+                    ordinary: {name: "Configured subtype"},
+                    ordered: {name: "Ordered subtype", sort_order: 7},
+                },
+            },
+        }
+        const original = structuredClone(presentation)
+        renderCategories(ECollapsibleLists.ENABLED_COLLAPSED, presentation)
+        // The real AnswersList fills display names and the missing sort_order
+        // on copies. A future in-place assignment must fail this assertion.
+        expect(presentation).toEqual(original)
+        const toggle = categoryButtons().at(-1)!
+        expect(toggle).toHaveAttribute("aria-expanded", "false")
+        await user.click(toggle)
+        expect(toggle).toHaveAttribute("aria-expanded", "true")
+        await user.click(toggle)
+        expect(toggle).toHaveAttribute("aria-expanded", "false")
+        expect(presentation).toEqual(original)
+    })
+
     it.each([ECollapsibleLists.ENABLED_COLLAPSED, ECollapsibleLists.ENABLED_EXPANDED])(
         "honors initial state and toggle-all with %s",
         async (policy) => {

@@ -22,7 +22,7 @@ ballots. They require no election credentials or external services.
 | `pipeline_boundaries.rs` | Configuration requires defined stages and unique transformations. Empty stages and malformed folder names cannot panic. CLI locations are explicit. |
 | `paper_pipeline.rs` | Paper batch totals, parent/child areas, consolidated reports, real PDF artifacts and command-line success/failure. |
 | `support/report_boundaries.rs` | Custom candidate and winner ordering, preservation of the randomized snapshot, template errors and real browser PDF rejection. |
-| `support/participation_boundaries.rs` | Participation and channel totals reject integer overflow. |
+| `support/participation_boundaries.rs` | Participation helpers and channel totals reject integer overflow. |
 | `support/ballot_image_boundaries.rs` | Receipt conversion, candidate ordering, QR content, HTML escaping, CSV quoting, real PDF batches and manifests. Invalid templates and zero batch sizes fail the pipe. Compiled inside the receipt module to exercise private helpers without expanding the public API. |
 
 The existing unit and integration suites also exercise IRV, ballot decoding,
@@ -74,3 +74,9 @@ ordinary hosted test setup supply these settings automatically, including
 
 Unused fixture constructors, `HasId` adapters and diagnostic formatting are not
 called merely to increase a score.
+
+Area-result aggregation and both counting algorithms check channel additions
+before combining contest results. Exact `u64::MAX` controls and an additional
+ballot verify success and error propagation through these entry points. The
+legacy public infallible accumulators remain available; their other numeric
+fields are not a general checked-arithmetic API.

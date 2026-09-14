@@ -31,8 +31,12 @@ can use its private routes without widening the production API.
 From `packages`, run the focused suites with locked cached dependencies:
 
 ```sh
+# Synthetic configuration for SQL generation; these tests do not contact a database.
+export KEYCLOAK_DB__HOST=127.0.0.1 HASURA_DB__HOST=127.0.0.1
+export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
+cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
 ```
 
 For a complete native report, from the repository root:
