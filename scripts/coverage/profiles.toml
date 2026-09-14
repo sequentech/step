@@ -15,7 +15,7 @@ limitations = [
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13292"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
@@ -46,7 +46,7 @@ limitations = [
     "Native default backend only; optional backends, rayon and WASM require separate runs.",
     "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13293"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.strand.scope_exceptions]
 "src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
@@ -71,7 +71,7 @@ limitations = [
     "Local in-place PDF rendering is included and requires Chrome; cloud PDF transports and object storage require separate runs.",
     "Existing inline tests and public fixture builders contribute to LLVM's source aggregate; not production-only or branch coverage.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13294"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.velvet.test_environment]
 RUST_TEST_THREADS = "2"
