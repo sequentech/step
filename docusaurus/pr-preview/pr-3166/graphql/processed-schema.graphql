@@ -208,6 +208,12 @@ type DeleteElectionEvent {
   task_execution: tasks_execution_type
 }
 
+type DeleteTenant {
+  error_msg: String
+  id: String
+  task_execution: tasks_execution_type
+}
+
 type DeleteUserOutput {
   id: String
 }
@@ -1739,6 +1745,8 @@ type mutation_root {
   delete single row from the table: "sequent_backend.trustee"
   """
   delete_sequent_backend_trustee_by_pk(id: uuid!): trustee
+  """delete_tenant"""
+  delete_tenant(tenant_id: String!): DeleteTenant
   delete_user(election_event_id: String, tenant_id: String!, user_id: String!): DeleteUserOutput
   delete_user_role(role_id: String!, tenant_id: String!, user_id: String!): SetUserRoleOutput
   """delete users"""
