@@ -470,10 +470,26 @@ impl KeycloakAdminClient {
                     text: e.to_string(),
                 }
             })?;
-            // The ID is the trailing part of the URL
-            if let Some(id) = location_str.split('/').last() {
-                return Ok(Some(id.to_string()));
-            }
+            // Resolve relative Location headers too, but never return an empty
+            // ID or a query/fragment as part of the role-mapping identifier.
+            let location = reqwest::Url::parse(&url)
+                .and_then(|base| base.join(location_str))
+                .map_err(|e| KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                })?;
+            let id = location
+                .path_segments()
+                .and_then(|parts| parts.last())
+                .filter(|id| !id.is_empty() && *id != "groups");
+            return id.map(|id| Some(id.to_string())).ok_or_else(|| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: "Group creation Location has no group ID".to_string(),
+                }
+            });
         }
 
         Ok(None)
