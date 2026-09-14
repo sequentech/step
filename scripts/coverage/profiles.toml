@@ -15,7 +15,7 @@ limitations = [
     "Stable LLVM includes inline unit-test code; move tests to separate *_tests.rs files before claiming production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13292"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.sequent-core.scope_exceptions]
 
@@ -26,6 +26,6 @@ limitations = [
     "Native default backend only; optional backends, rayon and WASM require separate runs.",
     "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13293"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.strand.scope_exceptions]
