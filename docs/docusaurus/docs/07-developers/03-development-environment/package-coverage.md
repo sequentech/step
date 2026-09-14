@@ -20,6 +20,20 @@ must stay the same or increase relative to the PR's base commit. Equal 70% passe
 Lines cannot compensate for lost branch coverage, and one package cannot compensate
 for another. The 95% target remains the objective for the coverage work.
 
+## Package test guides
+
+- [Sequent Core Tests](testing/sequent-core.md)
+- [Strand boundary tests](testing/strand.md)
+- [Error conversion macro tests](testing/wrap-map-err.md)
+- [Harvest request boundary tests](testing/harvest.md)
+- [Windmill boundary tests](../08-windmill/test-coverage.md)
+- [Step CLI boundary tests](../02-cli/testing.md)
+- [UI Core tests](testing/ui-core.md)
+- [Electoral Log tests](testing/electoral-log.md)
+- [Voting Portal tests](../05-voting-portal/testing.md)
+- [UI Essentials tests](testing/ui-essentials.md)
+- [Velvet boundary tests](../07-velvet/test-coverage.md)
+
 ## Sequent Core
 
 The `default_features,keycloak` profile has **489 passing tests**, **96.93% line
@@ -48,7 +62,7 @@ and separate WASM/service profiles. All 47 files missing from the LLVM report
 are classified in the test guide; their outstanding measurements still prevent
 the strict overall target from passing.
 
-The [Sequent Core Tests guide](https://github.com/sequentech/step/blob/main/packages/sequent-core/tests/README.md)
+The [Sequent Core Tests guide](testing/sequent-core.md)
 contains the uncovered-line breakdown, tested contracts and remaining feature work.
 It also inventories the remaining 62 unexecuted functions, separating useful
 follow-up cases from inline test diagnostics, guards after immutable validation
@@ -84,7 +98,7 @@ secret or paid test service is needed.
 The adapter unit tests deliberately stub the WASM boundary to check arguments and
 error handling. Their percentage does not certify the cryptographic implementation;
 the real browser suite and Sequent Core tests provide separate evidence. See the
-[UI Core test guide](https://github.com/sequentech/step/tree/main/packages/ui-core/tests)
+[UI Core test guide](testing/ui-core.md)
 for fixture details. Full voter journeys remain tracked in Meta #13298.
 
 ## Run a package
@@ -143,7 +157,7 @@ production Java with PMD during Maven `verify`, and the Python coverage tooling
 runs stricter Ruff rules on its production source. These are initial scopes,
 not whole-repository compliance.
 
-Read `scripts/assurance/README.md` for the exact commands, enforced rules and
+Read [Assurance lint policy](production-assurance.md) for the exact commands, enforced rules and
 remaining adoption work.
 
 ## Read the result honestly
@@ -272,7 +286,7 @@ python3 scripts/coverage/run.py windmill --baseline --offline
 The native run keeps existing ignored tests visible. The voter-channel database
 regression can be run separately with the fixture environment and `--ignored
 --exact`; the activity-log case needs additional local services. See
-`packages/windmill/tests/README.md` for the tested boundaries and remaining scope.
+[Windmill boundary tests](../08-windmill/test-coverage.md) for the tested boundaries and remaining scope.
 
 The package READMEs describe their test boundaries. Successful database, identity,
 broker and storage workflows still need their corresponding local fixtures.
@@ -335,7 +349,7 @@ live outside the production source tree; generated serialization methods remain
 in the reported totals. The existing signature protocol authenticates statements,
 not the separate artifact or search metadata.
 
-See the [Electoral Log test guide](https://github.com/sequentech/step/blob/main/packages/electoral-log/tests/README.md)
+See the [Electoral Log test guide](testing/electoral-log.md)
 for setup, coverage limits and failure diagnosis. The rollout is tracked in
 [Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
@@ -368,7 +382,7 @@ unimported runtime modules. `test:types` also exposes existing source/dependency
 type errors, so it is not yet a passing gate. Complete authenticated voter
 journeys require the separate local integration environment.
 
-See the [Voting Portal test guide](https://github.com/sequentech/step/blob/main/packages/voting-portal/tests/README.md)
+See the [Voting Portal test guide](../05-voting-portal/testing.md)
 for the measured baseline, test boundaries and remaining work. Progress is
 tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
@@ -395,7 +409,7 @@ baseline command only records current progress. Unimported runtime modules
 remain in the report. Complete voter journeys and server authorization are
 separate integration scopes.
 
-See the [UI Essentials test guide](https://github.com/sequentech/step/blob/main/packages/ui-essentials/tests/README.md)
+See the [UI Essentials test guide](testing/ui-essentials.md)
 for setup, import callback behavior and coverage limits. Results and remaining
 work are tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
