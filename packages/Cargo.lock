@@ -11055,7 +11055,6 @@ dependencies = [
  "clap",
  "criterion",
  "csv",
- "headless_chrome",
  "hex",
  "num-bigint",
  "ordered-float 4.6.0",
