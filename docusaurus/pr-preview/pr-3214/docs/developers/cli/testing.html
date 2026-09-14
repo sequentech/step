@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Step CLI boundary tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/cli/testing"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Step CLI boundary tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3214/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/cli/testing"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/cli/testing" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/cli/testing" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Step CLI boundary tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/cli/testing"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3214/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3214/assets/js/runtime~main.4cdc6e76.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3214/assets/js/runtime~main.d3b4354e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3214/assets/js/main.3f2e7b41.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -17,11 +17,6 @@ quoted CSV fields, preservation of previous files on malformed input, duplicate
 password headers, reserved credential headers and actual subprocess exit codes.
 All credentials are synthetic; tests use private temporary directories and low
 iteration counts for fast feedback. Production defaults remain 600,000 iterations.</p>
-<p>The pre-existing election end-to-end test uses a complete election environment
-and external Loadero automation. It remains ignored; this work invokes no paid
-test service. A local browser replacement is tracked in <a href="https://github.com/sequentech/meta/issues/13298" target="_blank" rel="noopener noreferrer" class="">Meta #13298</a>. These file and subprocess tests do not certify live election workflows
-or establish 95% package coverage. The measured scope and remaining gap belong
-in <a href="https://github.com/sequentech/meta/issues/13302" target="_blank" rel="noopener noreferrer" class="">Meta #13302</a>; do not exclude untested commands to make the percentage pass.</p>
 <p>Credential conversion validates the complete CSV before publishing it. Duplicate
 password headers and reserved credential headers are rejected. A successful
 export atomically replaces the destination with a private file; a failed one
@@ -34,28 +29,14 @@ after a malformed final row.</p>
 sources before upload and refuse partial GraphQL results containing errors.</p>
 <p>From the repository root:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">python3 scripts/coverage/run.py step-cli </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--baseline</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--offline</span><br></span></code></pre></div></div>
-<p>This emits HTML, JSON and LCOV reports. Remove <code>--baseline</code> to enforce 95% and
-require every source file to have a measurement or reviewed scope explanation.</p>
-<p>Empty document references now fail before network access; their regression fails
-on the previous code and a valid reference remains accepted. Additional cases
+<p>Empty document references fail before network access; a valid reference remains
+accepted. Input tests
 pin the standard empty-file SHA-256, preserve I/O error types and reject trailing
 JSON documents and invalid UTF-8 while retaining valid null and zero counts.
-The suite has 34 passing tests and one pre-existing ignored service journey.</p>
-<p>Native coverage at <code>c4f9dc3</code> is 482/3,851 lines (12.52%), 42/245 functions
-(17.14%) and 738/6,148 LLVM regions (12.00%). The actual Step CLI PR base has
-two passing tests and measures 45/3,787 lines, 4/237 functions and 58/6,061
-regions. Every fraction increases; CI compares all three independently.
-Authenticated election workflows beyond the owned import peer remain open.</p>
-<p>Review regressions run the shipped import command against an owned loopback
+Command tests run the shipped import command against an owned loopback
 HTTP peer with a private executable/config directory. Partial GraphQL data is
 rejected before upload and after import, errors reach shell callers through a
 nonzero exit, and empty error lists remain valid. Existing and dangling output
-symlinks are rejected without changing either the link or its target. These
-regressions fail before the small fixes and pass with the valid controls.</p>
-<p>Hard-link aliases are rejected by Unix device/inode identity before output is
-created. An independent regular-file replacement remains valid. Both tally import
-commands return failure status for preparation or backend errors; actual HTTP
-success and error subprocesses exercise those paths. Windows file identity and
-authenticated end-to-end election journeys remain separate scopes.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/02-cli/testing.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3214/docs/developers/cli/voting-load-reference"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Voting load reference</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/testing/electoral-log"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Electoral Log tests</div></a></nav></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+symlinks are rejected without changing either the link or its target. Each rejected input has a successful control.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/02-cli/testing.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-3214/docs/developers/cli/voting-load-reference"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Voting load reference</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/testing/electoral-log"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Electoral Log tests</div></a></nav></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
