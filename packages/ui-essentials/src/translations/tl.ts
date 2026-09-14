@@ -118,6 +118,7 @@ const tagalogTranslation: TranslationType = {
             openDialog: "Buksan ang Dialog",
         },
         dragNDrop: {
+            importError: "Hindi ma-import ang file na ito. Pakisubukang muli.",
             firstLine: "I-drag & i-drop ang mga file o",
             browse: "Mag-browse",
             format: "Suportadong format: txt",

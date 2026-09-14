@@ -27,7 +27,7 @@ const StyledInput = styled("input")`
     display: none;
 `
 
-const StyledLabel = styled("label", {
+const StyledLabel = styled("button", {
     shouldForwardProp: (prop) => prop !== "dragActive",
 })<{dragActive: boolean}>`
     height: 100%;
@@ -155,16 +155,10 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                     <StyledLabel
                         dragActive={dragActive}
                         onClick={onButtonClick}
-                        role="button"
-                        tabIndex={0}
+                        type="button"
+                        disabled={busy}
                         aria-disabled={busy}
                         aria-busy={busy}
-                        onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault()
-                                onButtonClick()
-                            }
-                        }}
                         data-testid="drop-label-file"
                         className="drop-label-file"
                     >

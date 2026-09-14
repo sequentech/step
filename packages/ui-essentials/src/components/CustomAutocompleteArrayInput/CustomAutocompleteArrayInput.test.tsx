@@ -97,3 +97,26 @@ it("preserves initial selections while creating several distinct labels", async 
     expect(onChange).toHaveBeenLastCalledWith(["retained", "second", "third"])
     expect((screen.getByRole("combobox", {name: "Labels"}) as HTMLInputElement).value).toBe("")
 })
+
+it("uses asynchronously supplied choices while retaining labels created locally", async () => {
+    const user = userEvent.setup()
+    const onCreate = jest.fn()
+    const onChange = jest.fn()
+    const props = {label: "Labels", onCreate, onChange}
+    const {rerender} = render(<CustomAutocompleteArrayInput {...props} />)
+    const input = screen.getByRole("combobox", {name: "Labels"})
+    await user.type(input, "local{Enter}")
+    expect(onCreate).toHaveBeenCalledWith("local")
+    onCreate.mockClear()
+    rerender(
+        <CustomAutocompleteArrayInput {...props} choices={[{id: "remote-1", name: "known"}]} />
+    )
+    await user.type(input, "known{Enter}")
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenLastCalledWith(["local", "known"])
+    // Removing a selected chip does not erase its locally created option.
+    await user.keyboard("{Backspace}{Backspace}")
+    await user.click(input)
+    expect(screen.getByRole("option", {name: "local"})).toBeTruthy()
+    expect(screen.getByRole("option", {name: "known"})).toBeTruthy()
+})

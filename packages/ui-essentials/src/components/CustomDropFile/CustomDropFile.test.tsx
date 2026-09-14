@@ -9,6 +9,21 @@ import "@testing-library/jest-dom"
 import {ThemeProvider} from "@mui/material/styles"
 import theme from "../../services/theme"
 import CustomDropFile, {type DropFileProps} from "./CustomDropFile"
+import DropFile from "../DropFile/DropFile"
+import DropJsonFile from "../../../../admin-portal/src/components/DropJsonFile"
+import mockSpanish from "../../translations/es"
+
+jest.mock("react-i18next", () => ({
+    useTranslation: () => ({
+        t: (key: string) => {
+            const name = key.replace(
+                "dragNDrop.",
+                ""
+            ) as keyof typeof mockSpanish.translations.dragNDrop
+            return mockSpanish.translations.dragNDrop[name] || key
+        },
+    }),
+}))
 
 jest.mock(
     "@sequentech/ui-core",
@@ -16,6 +31,16 @@ jest.mock(
         useForwardedRef: jest.requireActual<typeof import("../../../../ui-core/src/utils/ref")>(
             "../../../../ui-core/src/utils/ref"
         ).useForwardedRef,
+    }),
+    {virtual: true}
+)
+
+jest.mock(
+    "@sequentech/ui-essentials",
+    () => ({
+        CustomDropFile: jest.requireActual("./CustomDropFile").default,
+        Icon: jest.requireActual("../Icon/Icon").default,
+        theme: jest.requireActual("../../services/theme").default,
     }),
     {virtual: true}
 )
@@ -163,3 +188,30 @@ it("blocks imports re-entered before React commits the busy state", async () => 
     fireEvent.change(input, {target: {files}})
     await waitFor(() => expect(handleFiles).toHaveBeenCalledTimes(2))
 })
+
+it.each([DropFile, DropJsonFile])(
+    "opens the picker once from a wrapper browse label and uses translated failure text",
+    async (Component) => {
+        const user = userEvent.setup()
+        const {container} = render(
+            <ThemeProvider theme={theme}>
+                <Component
+                    handleFiles={() => {
+                        throw new Error("private parser detail")
+                    }}
+                />
+            </ThemeProvider>
+        )
+        const input = container.querySelector<HTMLInputElement>("input[type=file]")!
+        const picker = jest.spyOn(input, "click").mockImplementation(() => {})
+        expect(screen.getAllByRole("button")).toHaveLength(1)
+        await user.click(screen.getByTestId("drop-file-button"))
+        expect(picker).toHaveBeenCalledTimes(1)
+        fireEvent.change(input, {target: {files: fileList(new File(["bad"], "invalid.json"))}})
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "No se pudo importar este archivo. Inténtalo de nuevo."
+        )
+        expect(screen.queryByText("private parser detail")).toBeNull()
+        picker.mockRestore()
+    }
+)
