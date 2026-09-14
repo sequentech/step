@@ -66,6 +66,25 @@ macro_rules! backend {
             }
 
             #[test]
+            fn group_and_ring_operators_obey_small_known_results() {
+                let ctx=C::default();
+                let four=ctx.element_from_bytes(&[4]).unwrap();
+                let nine=ctx.element_from_bytes(&[9]).unwrap();
+                let one=ctx.element_from_bytes(&[1]).unwrap();
+                assert_eq!(four.mul(&nine).modp(&ctx),ctx.element_from_bytes(&[36]).unwrap());
+                assert_eq!(four.divp(&four,&ctx).modp(&ctx),one);
+                assert_eq!(four.invp(&ctx).mul(&four).modp(&ctx),one);
+                assert_eq!(ctx.emod_pow(&four,&ctx.exp_from_u64(0)),one);
+                let three=ctx.exp_from_u64(3);
+                let six=ctx.exp_from_u64(6);
+                assert_eq!(three.add(&six).modq(&ctx),ctx.exp_from_u64(9));
+                assert_eq!(six.sub(&three).modq(&ctx),three);
+                assert_eq!(three.mul(&six).modq(&ctx),ctx.exp_from_u64(18));
+                assert_eq!(six.divq(&three,&ctx).modq(&ctx),ctx.exp_from_u64(2));
+                assert_eq!(three.invq(&ctx).mul(&three).modq(&ctx),ctx.exp_from_u64(1));
+            }
+
+            #[test]
             fn plaintext_wire_is_independent_of_group_encoding() {
                 let ctx = C::default();
                 // 3 encodes as 4, a quadratic residue in every odd prime field.
