@@ -68,6 +68,21 @@ class PairedCoverageTests(unittest.TestCase):
         measure.assert_called_once()
         self.assertEqual(self.verdict()["status"], "initialized")
 
+    def test_named_rust_profile_still_measures_the_existing_package_base(self):
+        (self.base / "packages/existing/src").mkdir(parents=True)
+        report = {"package": "existing", "metrics": metrics()}
+        with (
+            patch.object(ci, "identity", return_value="a" * 40),
+            patch.object(ci, "measure", return_value=report) as measure,
+            patch.object(ci, "compare_rust", return_value={"passes": True}),
+        ):
+            code = ci.paired_run(
+                self.base, self.head, "rust", "existing-native", self.output
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(measure.call_count, 2)
+        self.assertEqual(self.verdict()["status"], "pass")
+
     def test_a_broken_baseline_is_not_treated_as_zero_coverage(self):
         with patch.object(
             ci, "measure", side_effect=[metrics(), CoverageError("Tests failed")]
@@ -178,6 +193,20 @@ class RealPythonComparisonTests(unittest.TestCase):
             (root / "bad.json").write_text("[]")
             with self.assertRaises(CoverageError):
                 ci.read_json(root / "bad.json")
+
+    def test_python_pair_without_ignore_rules_leaves_both_checkouts_clean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = self.fixture(root / "base", all_paths=True)
+            head = self.fixture(root / "head", all_paths=True)
+            # An old PR base need not ignore bytecode from the candidate runner.
+            with patch.dict(os.environ):
+                os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+                code = ci.paired_run(base, head, "python", "fixture", root / "reports")
+            self.assertEqual(code, 0)
+            for checkout in (base, head):
+                self.assertFalse(list(checkout.rglob("__pycache__")))
+                ci.identity(checkout)
 
 
 class FrontendRunnerTests(unittest.TestCase):

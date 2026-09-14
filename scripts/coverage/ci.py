@@ -42,7 +42,7 @@ def identity(root: Path) -> str:
 
 def command(arguments: list[str], root: Path, output: Path, name: str) -> str:
     """Retain command output and bound the entire child process group."""
-    environment = dict(os.environ, CI="true")
+    environment = dict(os.environ, CI="true", PYTHONDONTWRITEBYTECODE="1")
     # Keep per-revision target reports out of the final CI verdict. The paired
     # summary, written below, is the only statement about passing this gate.
     environment.pop("GITHUB_STEP_SUMMARY", None)
@@ -97,7 +97,7 @@ def measure_python(root: Path, output: Path) -> dict[str, Any]:
 
 def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
     """Use the candidate runner/profile for both revisions' native tests."""
-    parent = root / "coverage" / package
+    parent = output / "native" / package
     before = set(parent.glob("*/summary.json"))
     command(
         [
@@ -107,6 +107,8 @@ def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
             "--baseline",
             "--checkout",
             str(root),
+            "--output-dir",
+            str(output / "native"),
         ],
         root,
         output,
@@ -155,10 +157,12 @@ def paired_run(base: Path, head: Path, kind: str, package: str, parent: Path) ->
     }
     try:
         result.update(base_revision=identity(base), head_revision=identity(head))
-        base_scope = base / (
-            "scripts/coverage" if kind == "python" else f"packages/{package}/src"
-        )
         head_report = measure(head, kind, package, output / "head")
+        # A named feature profile still measures its configured package source.
+        source_package = head_report["package"] if kind == "rust" else package
+        base_scope = base / (
+            "scripts/coverage" if kind == "python" else f"packages/{source_package}/src"
+        )
         if not base_scope.exists():
             # This exception is only for newly introduced source, never a
             # missing report, missing tests, or a failed baseline measurement.

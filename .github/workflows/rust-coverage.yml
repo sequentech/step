@@ -5,10 +5,10 @@ name: Package coverage
 
 on:
   pull_request:
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   push:
     branches: [main]
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   workflow_dispatch:
     inputs:
       profile:
@@ -115,11 +115,11 @@ jobs:
       - name: Install the local PDF test browser
         if: env.COVERAGE_PROFILE == 'velvet'
         uses: ./head/.github/actions/setup-test-browser
-      - name: Install the repository Rust toolchain
-        working-directory: head
+      - name: Install both repository Rust toolchains
         run: |
-          rustup show active-toolchain
-          rustup component add llvm-tools-preview
+          for checkout in base head; do
+            (cd "$checkout" && rustup show active-toolchain && rustup component add llvm-tools-preview)
+          done
       - name: Install cargo-llvm-cov 0.9.1
         run: |
           curl --fail --location --silent --show-error --output /tmp/cargo-llvm-cov.tar.gz https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz

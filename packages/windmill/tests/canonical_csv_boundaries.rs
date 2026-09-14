@@ -11,7 +11,7 @@ use windmill::services::tally_sheet_import::csv::parse_canonical_csv;
 use windmill::services::tally_sheet_import::validation::validate_import_content;
 
 const HEADER: &str = "channel,area_name,contest_external_id,field,candidate_external_id,value\n";
-const AREA: &str = "Precinct 1";
+const AREA: &str = "Précinct ñ 🗳";
 const CONTEST: &str = "council";
 
 fn csv_with_invalid_counts(implicit: u64, explicit: u64) -> String {
