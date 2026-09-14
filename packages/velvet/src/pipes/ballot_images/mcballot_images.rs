@@ -457,6 +457,13 @@ impl Pipe for MCBallotImages {
     #[instrument(err, skip_all, name = "MultiBallotReceipts::exec")]
     fn exec(&self) -> Result<()> {
         let pipe_config: PipeConfigBallotImages = self.get_config()?;
+        let report_options = pipe_config.report_options.clone().unwrap_or_default();
+        let max_items_per_report = report_options.max_items_per_report.unwrap_or(100);
+        if max_items_per_report == 0 {
+            return Err(Error::UnexpectedError(
+                "Receipt max_items_per_report must be greater than zero".into(),
+            ));
+        }
         let pipe_data = get_pipe_data();
         for election_input in &self.pipe_inputs.election_list {
             let area_contests_map = election_input.get_area_contest_map();
@@ -482,7 +489,6 @@ impl Pipe for MCBallotImages {
                     let mcballots: Vec<DecodedBallotChoices> = crate::utils::parse_file(f)?;
 
                     let ballots = convert_ballots(election_input, mcballots)?;
-                    let report_options = pipe_config.report_options.clone().unwrap_or_default();
                     let max_threads = report_options.max_threads.unwrap_or_else(|| 3);
                     let pool = ThreadPoolBuilder::new()
                         .num_threads(max_threads)
@@ -490,14 +496,6 @@ impl Pipe for MCBallotImages {
                         .map_err(|e| {
                             Error::UnexpectedError(format!("Error building thread pool: {}", e))
                         })?;
-
-                    let max_items_per_report =
-                        report_options.max_items_per_report.unwrap_or_else(|| 100);
-                    if max_items_per_report == 0 {
-                        return Err(Error::UnexpectedError(
-                            "Receipt max_items_per_report must be greater than zero".into(),
-                        ));
-                    }
 
                     let path = PipeInputs::mcballots_path(
                         &self
