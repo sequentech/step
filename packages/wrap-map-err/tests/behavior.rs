@@ -314,7 +314,7 @@ async fn owns_resource(resource: DropCounter, wait: bool, fail: bool) -> Result<
     if wait {
         std::future::pending::<()>().await;
     }
-    drop(resource);
+    let _resource = resource;
     if fail {
         return Err(SourceError("resource failed"));
     }
@@ -348,4 +348,22 @@ fn successful_and_failed_tasks_release_the_same_resource_once() {
         );
         assert_eq!(drops.load(Ordering::SeqCst), 1);
     }
+}
+
+#[wrap_map_err(TaskError)]
+fn elided_borrow(value: &str) -> Result<&str> {
+    Ok(value)
+}
+
+#[wrap_map_err(TaskError)]
+async fn async_elided_borrow(value: &str) -> Result<&str> {
+    std::future::ready(()).await;
+    Ok(value)
+}
+
+#[test]
+fn elided_borrows_remain_tied_to_the_callers_input() {
+    let input = String::from("borrowed input");
+    assert_eq!(elided_borrow(&input), Ok("borrowed input"));
+    assert_eq!(ready(async_elided_borrow(&input)), Ok("borrowed input"));
 }

@@ -24,12 +24,12 @@ export const splitList = <T>(
     return [negative, positive]
 }
 
-export const keyBy = <T>(list: Array<T>, id: keyof T): Record<string, T> => {
+export const keyBy = <T>(list: Array<T>, id: string): Record<string, T> => {
     // Identifiers come from election data, so names such as __proto__ must
     // behave like ordinary keys rather than invoking Object's inherited setter.
     const record: Record<string, T> = Object.create(null)
     for (const element of list) {
-        record[String(element[id])] = element
+        record[String(element[id as keyof T])] = element
     }
     return record
 }

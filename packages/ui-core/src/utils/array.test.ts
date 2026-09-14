@@ -40,3 +40,9 @@ describe("keyBy", () => {
         }
     )
 })
+
+it("accepts a field name supplied dynamically by a caller", () => {
+    const field: string = "id"
+    const row = {id: "district-1"}
+    expect(keyBy([row], field)).toEqual({"district-1": row})
+})

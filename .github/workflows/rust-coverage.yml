@@ -5,10 +5,10 @@ name: Package coverage
 
 on:
   pull_request:
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   push:
     branches: [main]
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   workflow_dispatch:
     inputs:
       profile:
@@ -115,11 +115,11 @@ jobs:
       - name: Install the local PDF test browser
         if: env.COVERAGE_PROFILE == 'velvet'
         uses: ./head/.github/actions/setup-test-browser
-      - name: Install the repository Rust toolchain
-        working-directory: head
+      - name: Install both repository Rust toolchains
         run: |
-          rustup show active-toolchain
-          rustup component add llvm-tools-preview
+          for checkout in base head; do
+            (cd "$checkout" && rustup show active-toolchain && rustup component add llvm-tools-preview)
+          done
       - name: Install cargo-llvm-cov 0.9.1
         run: |
           curl --fail --location --silent --show-error --output /tmp/cargo-llvm-cov.tar.gz https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz
@@ -137,5 +137,41 @@ jobs:
             ${{ runner.temp }}/coverage/native/
             base/coverage/${{ env.COVERAGE_PROFILE }}/
             head/coverage/${{ env.COVERAGE_PROFILE }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  electoral-log-database:
+    name: Electoral Log owned database tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: reporter-tests
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ env.HEAD_REF }}
+          persist-credentials: false
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+          rustup show active-toolchain
+          rustup component add llvm-tools-preview
+      - name: Install pinned coverage and database tools
+        run: |
+          curl --fail --location --silent --show-error --output /tmp/cargo-llvm-cov.tar.gz https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz
+          echo 'b3f68e625481fed9b16444174f3fa5ebcdbde4a1878803a35eabe2dcefcdc41a  /tmp/cargo-llvm-cov.tar.gz' | sha256sum --check
+          tar -xzf /tmp/cargo-llvm-cov.tar.gz -C "$HOME/.cargo/bin"
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/immudb" https://github.com/codenotary/immudb/releases/download/v1.9.6/immudb-v1.9.6-linux-amd64
+          echo "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  $RUNNER_TEMP/immudb" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/immudb"
+      - name: Measure the separately accounted database feature
+        env:
+          ELECTORAL_LOG_TEST_IMMUDB_BINARY: ${{ runner.temp }}/immudb
+        run: python3 scripts/coverage/run.py electoral-log --output-dir "$RUNNER_TEMP/coverage/electoral-database"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: electoral-log-database-coverage
+          path: ${{ runner.temp }}/coverage/electoral-database/
           if-no-files-found: error
           retention-days: 7
