@@ -4,7 +4,6 @@
 use super::utils::dispatch_db;
 use crate::api_types::{ContentType, MessageBlob};
 use anyhow::{anyhow, bail, Context, Result};
-use sqlx::Database;
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -32,14 +31,14 @@ impl BoardDb {
 
         #[cfg(feature = "sqlite")]
         {
-            if sqlx::Sqlite::URL_SCHEMES.contains(&scheme) {
+            if <sqlx::Sqlite as sqlx::Database>::URL_SCHEMES.contains(&scheme) {
                 let backend = super::sqlite::SqliteBackend::open(url).await?;
                 return Ok(BoardDb::Sqlite(backend));
             }
         }
         #[cfg(feature = "postgres")]
         {
-            if sqlx::Postgres::URL_SCHEMES.contains(&scheme) {
+            if <sqlx::Postgres as sqlx::Database>::URL_SCHEMES.contains(&scheme) {
                 let backend = super::postgres::PostgresBackend::open(url).await?;
                 return Ok(BoardDb::Postgres(backend));
             }
