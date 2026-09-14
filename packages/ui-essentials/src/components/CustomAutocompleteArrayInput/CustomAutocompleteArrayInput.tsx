@@ -78,8 +78,10 @@ const CustomAutocompleteArrayInput: React.FC<CustomAutocompleteArrayInputProps> 
             const newChoices = [...createdChoices]
 
             newLabels.forEach((newLabel) => {
-                if (newLabel && !updatedValues.includes(newLabel)) {
-                    updatedValues.push(newLabel)
+                if (newLabel) {
+                    if (!updatedValues.includes(newLabel)) {
+                        updatedValues.push(newLabel)
+                    }
                     if (!updatedChoices.some((choice) => choice.name === newLabel)) {
                         newChoices.push({id: newLabel, name: newLabel})
                     }

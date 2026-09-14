@@ -120,3 +120,29 @@ it("uses asynchronously supplied choices while retaining labels created locally"
     expect(screen.getByRole("option", {name: "local"})).toBeTruthy()
     expect(screen.getByRole("option", {name: "known"})).toBeTruthy()
 })
+
+it("retains a missing option when an initial selection is entered again", async () => {
+    const user = userEvent.setup()
+    const onCreate = jest.fn()
+    const onChange = jest.fn()
+    render(
+        <CustomAutocompleteArrayInput
+            label="Labels"
+            defaultValue={["retained"]}
+            onCreate={onCreate}
+            onChange={onChange}
+        />
+    )
+    const input = screen.getByRole("combobox", {name: "Labels"})
+    await user.type(input, "retained retained{Enter}")
+    expect(onChange).toHaveBeenLastCalledWith(["retained"])
+    expect(onCreate).not.toHaveBeenCalled()
+    // Removing the chip must leave the entered label available for reselection,
+    // even though it was already selected when its missing option was added.
+    await user.keyboard("{Backspace}")
+    await user.click(input)
+    expect(screen.getAllByRole("option", {name: "retained"})).toHaveLength(1)
+    await user.click(screen.getByRole("option", {name: "retained"}))
+    expect(onChange).toHaveBeenLastCalledWith(["retained"])
+    expect(onCreate).not.toHaveBeenCalled()
+})
