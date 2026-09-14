@@ -695,7 +695,7 @@ impl<'a, C: Ctx> Shuffler<'a, C> {
         (cs, rs)
     }
 
-    fn shuffle_proof_us(
+    pub(crate) fn shuffle_proof_us(
         &self,
         // es: &[Ciphertext<C>],
         // e_primes: &[Ciphertext<C>],
@@ -812,7 +812,7 @@ pub(crate) fn gen_permutation_with_rng<R: RngCore + CryptoRng>(
 }
 
 // Helper to avoid copying data to use StrandVector serialization
-fn serialize_flatten<T: Send + Sync + StrandSerialize>(
+pub(crate) fn serialize_flatten<T: Send + Sync + StrandSerialize>(
     v: &[T],
 ) -> Result<Vec<u8>, StrandError> {
     let bytes: Result<Vec<Vec<u8>>, StrandError> =
