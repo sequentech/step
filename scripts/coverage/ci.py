@@ -42,7 +42,7 @@ def identity(root: Path) -> str:
 
 def command(arguments: list[str], root: Path, output: Path, name: str) -> str:
     """Retain command output and bound the entire child process group."""
-    environment = dict(os.environ, CI="true")
+    environment = dict(os.environ, CI="true", PYTHONDONTWRITEBYTECODE="1")
     # Keep per-revision target reports out of the final CI verdict. The paired
     # summary, written below, is the only statement about passing this gate.
     environment.pop("GITHUB_STEP_SUMMARY", None)
@@ -97,7 +97,7 @@ def measure_python(root: Path, output: Path) -> dict[str, Any]:
 
 def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
     """Use the candidate runner/profile for both revisions' native tests."""
-    parent = root / "coverage" / package
+    parent = output / "native" / package
     before = set(parent.glob("*/summary.json"))
     command(
         [
@@ -107,6 +107,8 @@ def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
             "--baseline",
             "--checkout",
             str(root),
+            "--output-dir",
+            str(output / "native"),
         ],
         root,
         output,

@@ -194,6 +194,20 @@ class RealPythonComparisonTests(unittest.TestCase):
             with self.assertRaises(CoverageError):
                 ci.read_json(root / "bad.json")
 
+    def test_python_pair_without_ignore_rules_leaves_both_checkouts_clean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base = self.fixture(root / "base", all_paths=True)
+            head = self.fixture(root / "head", all_paths=True)
+            # An old PR base need not ignore bytecode from the candidate runner.
+            with patch.dict(os.environ):
+                os.environ.pop("PYTHONDONTWRITEBYTECODE", None)
+                code = ci.paired_run(base, head, "python", "fixture", root / "reports")
+            self.assertEqual(code, 0)
+            for checkout in (base, head):
+                self.assertFalse(list(checkout.rglob("__pycache__")))
+                ci.identity(checkout)
+
 
 class FrontendRunnerTests(unittest.TestCase):
     def test_real_runner_boundary_returns_all_four_metrics(self):
