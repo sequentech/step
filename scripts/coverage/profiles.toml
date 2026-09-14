@@ -15,7 +15,7 @@ limitations = [
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13292"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 # Exact filenames prevent a future production file from disappearing behind
 # a fixtures/** wildcard. Each exclusion is visible in every run's summary.
@@ -43,10 +43,10 @@ issue = "https://github.com/sequentech/meta/issues/13292"
 package = "strand"
 features = []
 limitations = [
-    "Native default backend only; optional backends, rayon and WASM require separate runs.",
+    "Ristretto default backend; strand-native exercises NumBigInt/Rayon and strand-backends also exercises Rug/Malachite. WASM is separate.",
     "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
 ]
-issue = "https://github.com/sequentech/meta/issues/13293"
+issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.strand.scope_exceptions]
 "src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
@@ -54,11 +54,43 @@ issue = "https://github.com/sequentech/meta/issues/13293"
 "src/random/mod.rs" = "Module declaration only; the rand implementation is measured."
 "src/signatures/mod.rs" = "Module declaration only; the Dalek implementation is measured."
 "src/symmetric/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
-"src/backend/malachite.rs" = "Disabled malachite feature; requires its own backend run before claiming coverage of that configuration."
-"src/backend/num_bigint.rs" = "Disabled num_bigint feature; requires its own backend run before claiming coverage of that configuration."
-"src/backend/rug.rs" = "Disabled rug feature; requires its own backend run before claiming coverage of that configuration."
-"src/wasm.rs" = "Disabled wasm feature; browser exports require a separate WASM run."
 "src/wasm/test.rs" = "Browser-only test module under the disabled wasm feature."
 "src/wasm/test/bench.rs" = "Browser benchmark harness under the disabled wasm feature."
 "src/wasm/test/demo.rs" = "Browser demonstration under the disabled wasm feature."
 "src/wasm/test/test.rs" = "Browser test harness under the disabled wasm feature."
+
+[profiles.strand-native]
+package = "strand"
+features = ["num_bigint", "rayon"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
+    "Do not substitute zero for a base revision that cannot build this feature configuration.",
+]
+[profiles.strand-native.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.strand-native.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declarations only."
+"src/random/mod.rs" = "Module declarations only."
+"src/signatures/mod.rs" = "Module declarations only."
+"src/symmetric/mod.rs" = "Module declarations only."
+
+[profiles.strand-backends]
+package = "strand"
+features = ["num_bigint", "rayon", "rug", "malachite"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
+    "Do not substitute zero for a base revision that cannot build this feature configuration.",
+]
+[profiles.strand-backends.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.strand-backends.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declarations only."
+"src/random/mod.rs" = "Module declarations only."
+"src/signatures/mod.rs" = "Module declarations only."
+"src/symmetric/mod.rs" = "Module declarations only."
