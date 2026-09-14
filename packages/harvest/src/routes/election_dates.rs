@@ -8,6 +8,7 @@ use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::scheduled_event::EventProcessors;
@@ -22,6 +23,7 @@ pub struct ManageElectionDatesBody {
     election_id: Option<String>,
     scheduled_date: Option<String>,
     event_processor: EventProcessors,
+    voting_channels: Option<Vec<VotingStatusChannel>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -86,6 +88,7 @@ pub async fn manage_election_dates(
                 &id,
                 input.scheduled_date.as_deref(),
                 input.event_processor.to_string().as_str(),
+                input.voting_channels.clone(),
             )
             .await
             {
@@ -104,6 +107,7 @@ pub async fn manage_election_dates(
                 &input.election_event_id,
                 input.scheduled_date.as_deref(),
                 input.event_processor.to_string().as_str(),
+                input.voting_channels.clone(),
             )
             .await
             .map_err(|e| {

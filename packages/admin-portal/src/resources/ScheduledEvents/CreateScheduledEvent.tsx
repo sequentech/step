@@ -1,20 +1,16 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {FC, useEffect, useMemo, useState} from "react"
-import {
-    Create,
-    DateTimeInput,
-    SimpleForm,
-    useGetList,
-    useGetOne,
-    useNotify,
-    useRefresh,
-    useUpdate,
-} from "react-admin"
+import React, {FC, useEffect, useState} from "react"
+import {Create, DateTimeInput, SimpleForm, useGetOne, useNotify, useRefresh} from "react-admin"
+import {useFormContext} from "react-hook-form"
 import {useTranslation} from "react-i18next"
 import {
     CircularProgress,
+    Checkbox,
+    FormControlLabel,
+    FormGroup,
+    FormLabel,
     FormControl,
     InputLabel,
     MenuItem,
@@ -26,13 +22,13 @@ import {useMutation} from "@apollo/client"
 import {
     ManageElectionDatesMutation,
     ManageElectionDatesMutationVariables,
-    Sequent_Backend_Election,
     Sequent_Backend_Scheduled_Event,
 } from "@/gql/graphql"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {MANAGE_ELECTION_DATES} from "@/queries/ManageElectionDates"
 import {IPermissions} from "@/types/keycloak"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
+import {VotingStatusChannel} from "@sequentech/ui-core"
 import SelectElection from "@/components/election/SelectElection"
 
 interface CreateEventProps {
@@ -55,6 +51,45 @@ export enum EventProcessors {
     ALLOW_TALLY = "ALLOW_TALLY",
 }
 
+const VotingChannelsInput: FC<{
+    value: VotingStatusChannel[]
+    onChange: (channels: VotingStatusChannel[]) => void
+    disabled: boolean
+}> = ({value, onChange, disabled}) => {
+    const {t} = useTranslation()
+    const {setValue} = useFormContext()
+    return (
+        <FormControl component="fieldset" margin="normal">
+            <FormLabel component="legend">{t("electionScreen.field.votingChannels")}</FormLabel>
+            <FormGroup row>
+                {Object.values(VotingStatusChannel).map((channel) => (
+                    <FormControlLabel
+                        key={channel}
+                        label={t(`common.channel.${channel.toLowerCase()}`)}
+                        control={
+                            <Checkbox
+                                checked={value.includes(channel)}
+                                disabled={
+                                    disabled || (value.length === 1 && value.includes(channel))
+                                }
+                                onChange={(_, checked) => {
+                                    const next = checked
+                                        ? [...value, channel]
+                                        : value.filter((selected) => selected !== channel)
+                                    setValue("event_payload.voting_channels", next, {
+                                        shouldDirty: true,
+                                    })
+                                    onChange(next)
+                                }}
+                            />
+                        }
+                    />
+                ))}
+            </FormGroup>
+        </FormControl>
+    )
+}
+
 const CreateEvent: FC<CreateEventProps> = ({
     electionEventId,
     setIsOpenDrawer,
@@ -64,9 +99,13 @@ const CreateEvent: FC<CreateEventProps> = ({
 }) => {
     const {t} = useTranslation()
     const [isLoading, setIsLoading] = useState(false)
+    const [votingChannels, setVotingChannels] = useState<VotingStatusChannel[]>([
+        VotingStatusChannel.Online,
+        VotingStatusChannel.Kiosk,
+    ])
     const refresh = useRefresh()
     const [tenantId] = useTenantStore()
-    const {data: selectedEvent, refetch} = useGetOne<Sequent_Backend_Scheduled_Event>(
+    const {data: selectedEvent} = useGetOne<Sequent_Backend_Scheduled_Event>(
         "sequent_backend_scheduled_event",
         {id: selectedEventId},
         {enabled: !!selectedEventId}
@@ -80,10 +119,10 @@ const CreateEvent: FC<CreateEventProps> = ({
         },
     })
     const [electionId, setElectionId] = useState<string | null>(
-        isEditEvent ? selectedEvent?.event_payload.election_id : null
+        isEditEvent ? selectedEvent?.event_payload?.election_id : null
     )
     const [scheduleDate, setScheduleDate] = useState<string | undefined>(
-        isEditEvent ? selectedEvent?.cron_config.scheduled_date : null
+        isEditEvent ? selectedEvent?.cron_config?.scheduled_date : undefined
     )
     const [eventType, setEventType] = useState<EventProcessors>(
         isEditEvent
@@ -92,24 +131,20 @@ const CreateEvent: FC<CreateEventProps> = ({
             : EventProcessors.START_VOTING_PERIOD
     )
     useEffect(() => {
-        if (isEditEvent) {
-            refetch()
-            setEventType(
-                (selectedEvent?.event_processor as EventProcessors | null) ??
-                    EventProcessors.START_VOTING_PERIOD
-            )
-        }
-    }, [isEditEvent])
-    useEffect(() => {
-        if (
-            selectedEventId &&
-            isEditEvent &&
-            !electionId &&
-            selectedEvent?.event_payload?.election_id
-        ) {
-            setElectionId(selectedEvent?.event_payload?.election_id)
-        }
-    }, [electionId, isEditEvent, selectedEvent?.event_payload?.election_id, selectedEventId])
+        if (!isEditEvent || !selectedEvent) return
+        setEventType(selectedEvent.event_processor as EventProcessors)
+        setScheduleDate((selectedEvent.cron_config as ICronConfig)?.scheduled_date)
+        const payload = selectedEvent.event_payload as IManageElectionDatePayload
+        setElectionId(payload?.election_id ?? null)
+        setVotingChannels(
+            payload?.voting_channels?.length
+                ? payload.voting_channels
+                : [VotingStatusChannel.Online, VotingStatusChannel.Kiosk]
+        )
+    }, [isEditEvent, selectedEvent])
+    const isVotingEvent =
+        eventType === EventProcessors.START_VOTING_PERIOD ||
+        eventType === EventProcessors.END_VOTING_PERIOD
     const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
             case EventProcessors.ALLOW_INIT_REPORT:
@@ -139,6 +174,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         : null,
                 scheduledDate: scheduleDate,
                 eventProcessor: eventType,
+                votingChannels: isVotingEvent ? votingChannels : undefined,
             }
             const {data, errors} = await manageElectionDates({
                 variables,
@@ -241,6 +277,13 @@ const CreateEvent: FC<CreateEventProps> = ({
                         )
                     )}
                 </FormControl>
+                {isVotingEvent && (
+                    <VotingChannelsInput
+                        value={votingChannels}
+                        onChange={setVotingChannels}
+                        disabled={isLoading}
+                    />
+                )}
                 <DateTimeInput
                     required
                     disabled={isLoading}

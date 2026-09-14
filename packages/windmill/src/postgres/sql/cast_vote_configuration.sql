@@ -10,7 +10,10 @@ SELECT election.presentation, election.status, election.voting_channels,
              AND schedule.task_id = 'tenant_' || election.tenant_id::text
                  || '_event_' || election.election_event_id::text
                  || '_election_' || election.id::text || '_START_VOTING_PERIOD'
-             AND schedule.event_payload = jsonb_build_object('election_id', election.id::text)
+             AND schedule.event_payload ->> 'election_id' = election.id::text
+             AND (COALESCE(schedule.event_payload -> 'voting_channels', 'null'::jsonb)
+                  IN ('null'::jsonb, '[]'::jsonb)
+                  OR schedule.event_payload -> 'voting_channels' ? 'ONLINE')
              AND schedule.archived_at IS NULL
        ) AS start_date,
        (
@@ -21,7 +24,10 @@ SELECT election.presentation, election.status, election.voting_channels,
              AND schedule.task_id = 'tenant_' || election.tenant_id::text
                  || '_event_' || election.election_event_id::text
                  || '_election_' || election.id::text || '_END_VOTING_PERIOD'
-             AND schedule.event_payload = jsonb_build_object('election_id', election.id::text)
+             AND schedule.event_payload ->> 'election_id' = election.id::text
+             AND (COALESCE(schedule.event_payload -> 'voting_channels', 'null'::jsonb)
+                  IN ('null'::jsonb, '[]'::jsonb)
+                  OR schedule.event_payload -> 'voting_channels' ? 'ONLINE')
              AND schedule.archived_at IS NULL
        ) AS end_date
 FROM sequent_backend.election AS election

@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #![allow(non_camel_case_types)]
 
-use crate::ballot::format_date;
 use crate::ballot::ScheduledEventDates;
 use crate::ballot::VotingPeriodDates;
+use crate::ballot::{format_date, VotingStatusChannel};
+use crate::types::hasura::core::VotingChannels;
 use anyhow::{anyhow, Result};
 use chrono::DateTime;
 use chrono::Utc;
@@ -57,9 +58,34 @@ pub struct CronConfig {
     pub scheduled_date: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct ManageElectionDatePayload {
     pub election_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voting_channels: Option<Vec<VotingStatusChannel>>,
+}
+
+impl ManageElectionDatePayload {
+    pub fn channels(&self) -> Vec<VotingStatusChannel> {
+        self.voting_channels
+            .clone()
+            .filter(|channels| !channels.is_empty())
+            .unwrap_or_else(|| {
+                vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+            })
+    }
+
+    pub fn enabled_channels(
+        &self,
+        configured: &VotingChannels,
+    ) -> Vec<VotingStatusChannel> {
+        let mut channels = self.channels();
+        channels
+            .retain(|channel| channel.channel_from(configured) == Some(true));
+        let mut seen = std::collections::HashSet::new();
+        channels.retain(|channel| seen.insert(*channel));
+        channels
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -122,10 +148,19 @@ pub fn generate_voting_period_dates(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<VotingPeriodDates> {
-    let payload = ManageElectionDatePayload {
-        election_id: election_id.map(|s| s.to_string()),
+    let matches_payload = |scheduled: &ScheduledEvent| {
+        scheduled
+            .event_payload
+            .clone()
+            .and_then(|value| {
+                serde_json::from_value::<ManageElectionDatePayload>(value).ok()
+            })
+            .map(|payload| {
+                payload.election_id.as_deref() == election_id
+                    && payload.channels().contains(&VotingStatusChannel::ONLINE)
+            })
+            .unwrap_or(false)
     };
-    let payload_val = serde_json::to_value(&payload)?;
 
     let start_date_name = generate_manage_date_task_name(
         tenant_id,
@@ -142,8 +177,7 @@ pub fn generate_voting_period_dates(
                     && scheduled_event.election_event_id
                         == Some(election_event_id.to_string())
                     && scheduled_event.task_id == Some(start_date_name.clone())
-                    && scheduled_event.event_payload
-                        == Some(payload_val.clone())
+                    && matches_payload(scheduled_event)
             });
 
     let end_date_name = generate_manage_date_task_name(
@@ -157,7 +191,7 @@ pub fn generate_voting_period_dates(
             && scheduled_event.election_event_id
                 == Some(election_event_id.to_string())
             && scheduled_event.task_id == Some(end_date_name.clone())
-            && scheduled_event.event_payload == Some(payload_val.clone())
+            && matches_payload(scheduled_event)
     });
 
     Ok(VotingPeriodDates {
@@ -234,4 +268,76 @@ pub fn prepare_scheduled_dates(
             ));
         })
         .collect())
+}
+
+#[cfg(test)]
+mod voting_channel_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn legacy_missing_null_and_empty_channels_use_online_and_kiosk() {
+        for value in [
+            json!({}),
+            json!({"voting_channels": null}),
+            json!({"voting_channels": []}),
+        ] {
+            let payload: ManageElectionDatePayload =
+                serde_json::from_value(value).unwrap();
+            assert_eq!(
+                payload.channels(),
+                vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(ManageElectionDatePayload::default()).unwrap(),
+            json!({"election_id": null})
+        );
+    }
+    #[test]
+    fn explicit_channels_roundtrip_and_filter_disabled_election_channels() {
+        let payload: ManageElectionDatePayload = serde_json::from_value(json!({"election_id": "el1", "voting_channels": ["KIOSK", "TELEPHONE", "EARLY_VOTING", "ONLINE"]})).unwrap();
+        let roundtrip: ManageElectionDatePayload =
+            serde_json::from_value(serde_json::to_value(&payload).unwrap())
+                .unwrap();
+        assert_eq!(roundtrip.channels(), payload.channels());
+        let config = VotingChannels {
+            online: Some(true),
+            kiosk: None,
+            telephone: Some(true),
+            early_voting: Some(false),
+            paper: None,
+        };
+        assert_eq!(
+            payload.enabled_channels(&config),
+            vec![VotingStatusChannel::TELEPHONE, VotingStatusChannel::ONLINE]
+        );
+        assert!(serde_json::from_value::<ManageElectionDatePayload>(
+            json!({"voting_channels": ["INVALID"]})
+        )
+        .is_err());
+    }
+    #[test]
+    fn online_dates_accept_extended_payload_but_ignore_kiosk_only_schedules() {
+        for channels in [
+            json!(null),
+            json!([]),
+            json!(["ONLINE", "KIOSK"]),
+            json!(["KIOSK"]),
+        ] {
+            let schedule: ScheduledEvent = serde_json::from_value(json!({
+                "id": "schedule", "tenant_id": "tenant", "election_event_id": "event",
+                "task_id": generate_manage_date_task_name("tenant", "event", Some("el1"), &EventProcessors::END_VOTING_PERIOD),
+                "event_payload": {"election_id": "el1", "voting_channels": channels},
+                "cron_config": {"scheduled_date": "2027-01-01T12:00:00Z"}
+            })).unwrap();
+            let dates = generate_voting_period_dates(
+                vec![schedule],
+                "tenant",
+                "event",
+                Some("el1"),
+            )
+            .unwrap();
+            assert_eq!(dates.end_date.is_some(), channels != json!(["KIOSK"]));
+        }
+    }
 }

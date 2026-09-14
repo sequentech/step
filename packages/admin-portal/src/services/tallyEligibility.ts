@@ -3,7 +3,10 @@
 
 import {EAllowTally, EVotingStatus, IElectionStatus} from "@sequentech/ui-core"
 
-type TallyElection = {id: string; status?: Partial<IElectionStatus> | null}
+type TallyElection = {
+    id: string
+    status?: (Partial<IElectionStatus> & {allow_tally?: EAllowTally}) | null
+}
 
 export const getTallyDisabledReason = (
     elections: TallyElection[] | undefined,
