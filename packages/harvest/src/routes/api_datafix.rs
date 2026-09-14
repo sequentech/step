@@ -10,7 +10,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
-use tracing::{error, instrument};
+use tracing::{debug, error, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::api_datafix::{
@@ -30,6 +30,7 @@ pub async fn add_voter(
     body: Json<VoterInformationBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
+    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -91,6 +92,7 @@ pub async fn update_voter(
     body: Json<VoterInformationBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
+    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -259,6 +261,7 @@ pub async fn delete_voter(
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
+    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -402,6 +405,7 @@ pub async fn unmark_voted(
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
+    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -545,6 +549,7 @@ pub async fn mark_voted(
     body: Json<MarkVotedBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: MarkVotedBody = body.into_inner();
+    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -709,6 +714,7 @@ pub async fn replace_pin(
     body: Json<VoterIdBody>,
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
+    debug!(body = ?input, "Datafix request body");
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
         &claims.jwt_claims,
