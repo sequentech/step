@@ -121,6 +121,14 @@ where
             root_node.children.push(child_node);
         }
 
+        // Every valid node is reachable from a root. A remaining component
+        // whose parents all exist must contain a cycle; do not silently omit it.
+        if root_node.iter().filter(|node| node.area.is_some()).count()
+            != nodes.len()
+        {
+            return Err(anyhow!("Loop detected in the tree structure"));
+        }
+
         Ok(root_node)
     }
 

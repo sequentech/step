@@ -91,11 +91,53 @@ impl<P: RugCtxParams> RugCtx<P> {
     }
 }
 
+// A context carries fixed group parameters. Preserve all four values in the
+// wire representation and reject a different group on input; group-element
+// deserialization cannot read the modulus itself (p is not an element of Z_p*).
+impl<P: RugCtxParams> RugCtx<P> {
+    fn parameter_bytes(&self) -> [Vec<u8>; 4] {
+        let bytes = |value: &Integer| -> Vec<u8> {
+            value.to_digits::<u8>(Order::MsfLe)
+        };
+        [
+            bytes(&self.params.generator().0),
+            bytes(&self.params.modulus().0),
+            bytes(&self.params.exp_modulus().0),
+            bytes(self.params.co_factor()),
+        ]
+    }
+}
+
+impl<P: RugCtxParams> BorshSerialize for RugCtx<P> {
+    fn serialize<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> std::io::Result<()> {
+        self.parameter_bytes().serialize(writer)
+    }
+}
+
+impl<P: RugCtxParams> BorshDeserialize for RugCtx<P> {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let supplied = <[Vec<u8>; 4]>::deserialize_reader(reader)?;
+        let ctx = Self::default();
+        if supplied != ctx.parameter_bytes() {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Unexpected group parameters",
+            ));
+        }
+        Ok(ctx)
+    }
+}
+
 impl<P: RugCtxParams> Ctx for RugCtx<P> {
     type E = IntegerE<P>;
     type X = IntegerX<P>;
     type P = IntegerP;
-    type R = RandState<'static>;
+    type R = StrandRng;
 
     #[inline(always)]
     fn generator(&self) -> &Self::E {
@@ -126,21 +168,25 @@ impl<P: RugCtxParams> Ctx for RugCtx<P> {
         value.sub(other).modulo(self.params.exp_modulus())
     }
     #[inline(always)]
-    fn get_rng(&self) -> RandState<'static> {
-        let gen = StrandRandgen(StrandRng);
-        let b = Box::new(gen);
-        RandState::new_custom_boxed(b)
+    fn get_rng(&self) -> Self::R {
+        StrandRng
     }
     #[inline(always)]
     fn rnd(&self, rng: &mut Self::R) -> Self::E {
         self.encode(&IntegerP(
-            self.params.exp_modulus().0.clone().random_below(rng),
+            self.params.exp_modulus().0.clone().random_below(
+                &mut RandState::new_custom(&mut StrandRandgen(rng)),
+            ),
         ))
         .expect("0..(q-1) should always be encodable")
     }
     #[inline(always)]
     fn rnd_exp(&self, rng: &mut Self::R) -> Self::X {
-        IntegerX::new(self.params.exp_modulus().0.clone().random_below(rng))
+        IntegerX::new(
+            self.params.exp_modulus().0.clone().random_below(
+                &mut RandState::new_custom(&mut StrandRandgen(rng)),
+            ),
+        )
     }
     fn rnd_plaintext(&self, rng: &mut Self::R) -> Self::P {
         IntegerP(self.rnd_exp(rng).0)
@@ -359,9 +405,10 @@ impl<P: RugCtxParams> Exponent<RugCtx<P>> for IntegerX<P> {
 
 impl Plaintext for IntegerP {}
 
-struct StrandRandgen(StrandRng);
+// Borrow the caller's OS-backed RNG; do not substitute GMP's default PRNG.
+struct StrandRandgen<'a>(&'a mut StrandRng);
 
-impl RandGen for StrandRandgen {
+impl RandGen for StrandRandgen<'_> {
     fn gen(&mut self) -> u32 {
         self.0.next_u32()
     }
@@ -466,8 +513,10 @@ impl<P: RugCtxParams> BorshDeserialize for IntegerE<P> {
     /// Deserializes the given bytes into a group element, checking for
     /// membership.
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
         let ctx = RugCtx::<P>::default();
 
         ctx.element_from_bytes(&bytes)
@@ -490,8 +539,10 @@ impl<P: RugCtxParams> BorshDeserialize for IntegerX<P> {
     #[inline]
     /// Deserializes the given bytes into a ring element, checking for
     /// membership.
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
         let ctx = RugCtx::<P>::default();
 
         ctx.exp_from_bytes(&bytes)
@@ -512,8 +563,10 @@ impl BorshSerialize for IntegerP {
 
 impl BorshDeserialize for IntegerP {
     #[inline]
-    fn deserialize(bytes: &mut &[u8]) -> std::io::Result<Self> {
-        let bytes = <Vec<u8>>::deserialize(bytes)?;
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let bytes = <Vec<u8>>::deserialize_reader(reader)?;
 
         let i = Integer::from_digits(&bytes, Order::MsfLe);
         Ok(IntegerP(i))
@@ -702,25 +755,28 @@ mod tests {
         let seed = vec![];
         let hs = ctx.generators(es.len() + 1, &seed).unwrap();
 
-        let shuffler = Shuffler {
-            pk: &pk,
-            generators: &hs,
-            ctx: ctx.clone(),
-        };
+        let shuffler = Shuffler::new(&pk, &ctx);
 
         let perm: Vec<usize> = gen_permutation(n);
-        let (cs, c_rs) = shuffler.gen_commitments(&perm, &ctx);
+        let (cs, c_rs) = shuffler.gen_commitments(&perm, &hs, &ctx);
         let (e_primes, rs) = shuffler.apply_permutation(&perm, &es);
         let perm_data = PermutationData {
-            permutation: &perm,
-            commitments_c: &cs,
-            commitments_r: &c_rs,
+            permutation: perm,
+            commitments_c: cs.clone(),
+            commitments_r: c_rs,
         };
-        let (proof, us, c) = shuffler
-            .gen_proof_ext(&es, &e_primes, rs, perm_data, &vec![])
+        let (proof, c) = shuffler
+            .gen_proof_ext(
+                es.clone(),
+                &e_primes,
+                rs,
+                hs.clone(),
+                perm_data,
+                &[],
+            )
             .unwrap();
         let ok = shuffler
-            .check_proof(&proof, &es, &e_primes, &vec![])
+            .check_proof(&proof, es.clone(), e_primes.clone(), hs.clone(), &[])
             .unwrap();
 
         assert!(ok);
@@ -805,6 +861,16 @@ mod tests {
         let s_list =
             vec![vec![s3], s_hats, vec![s1], vec![s2], s_primes, vec![s4]];
 
+        // The proof API no longer returns the transcript's intermediate challenges.
+        let us = shuffler
+            .shuffle_proof_us(
+                crate::shuffler::serialize_flatten(&es).unwrap(),
+                crate::shuffler::serialize_flatten(&e_primes).unwrap(),
+                &cs.0,
+                n,
+                &[],
+            )
+            .unwrap();
         let us_list: Vec<String> =
             us.iter().map(|u| u.0.to_string_radix(16)).collect();
         let challenge: Vec<String> = vec![c.0.to_string_radix(16)];
