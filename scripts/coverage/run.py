@@ -177,6 +177,8 @@ def measure(
     output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
     started = time.monotonic()
     environment = dict(os.environ)
+    # Profiles may declare public, synthetic fixture settings. These override
+    # ambient service endpoints so a test cannot inherit a production database.
     environment.update(profile.get("test_environment", {}))
     environment.update(CARGO_TERM_COLOR="never", CARGO_BUILD_JOBS="2")
     if offline:

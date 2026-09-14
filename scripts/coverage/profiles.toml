@@ -11,7 +11,7 @@ package = "sequent-core"
 features = ["default_features", "keycloak"]
 limitations = [
     "Native library and integration tests; matches the existing Rust CI feature selection.",
-    "WASM, reports/S3, SQLite, signatures and plugin runtime configurations require separate runs.",
+    "Native application features are exercised by sequent-core-native; the browser test job executes WASM exports separately.",
     "Standalone test files and fixture builders are excluded; inline unit-test code remains in mixed source files, so this is not yet production-only coverage.",
     "Native stable coverage does not measure branch coverage or doctests.",
 ]
@@ -39,11 +39,50 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/types/hasura/mod.rs" = "Hasura module declarations only."
 "src/util/mod.rs" = "Utility module declarations only."
 
+[profiles.sequent-core-native]
+package = "sequent-core"
+features = ["default_features", "keycloak", "areas", "reports", "reports_sync", "s3", "probe", "log", "signatures", "sqlite", "plugins_wit"]
+limitations = [
+    "Enabled native application features, including SQLite, reports, S3, health probes, logging, signature adapters and generated plugin bindings.",
+    "Synthetic in-memory SQLite and owned HTTP/PostgreSQL fixtures; native inline test code remains counted.",
+    "WASM browser tests are executed separately; native LLVM regions are not branch coverage.",
+]
+
+issue = "https://github.com/sequentech/meta/issues/13302"
+
+# Exact filenames prevent a future production file from disappearing behind
+# a fixtures/** wildcard. Each exclusion is visible in every run's summary.
+[profiles.sequent-core-native.excluded_files]
+"src/fixtures/ballot_codec.rs" = "Synthetic ballots, expected vectors and test builders shared with test consumers; no ballot validation or cryptography implementations."
+"src/fixtures/encrypt.rs" = "Sample election data compiled only under cfg(test); no active test callers."
+"src/election_config/validate_tests.rs" = "Standalone unit-test module under cfg(test); the election configuration validator remains measured."
+
+# These files have no measured executable bodies. If one gains executable code,
+# the reporter rejects the exception instead of hiding its new implementation.
+[profiles.sequent-core-native.scope_exceptions]
+"src/ballot_codec/mod.rs" = "Module declarations, re-exports and a marker trait without methods."
+"src/ballot_verifier.rs" = "Imports only; no executable implementation."
+"src/election_config/mod.rs" = "Module declarations and re-exports."
+"src/fixtures/mod.rs" = "Fixture module declarations only."
+"src/lib.rs" = "Crate and module declarations only."
+"src/serialization/mod.rs" = "Serialization module declarations only."
+"src/services/mod.rs" = "Service module declarations only."
+"src/services/keycloak/mod.rs" = "Keycloak module declarations and re-exports."
+"src/types/mod.rs" = "Type module declarations only."
+"src/types/hasura/mod.rs" = "Hasura module declarations only."
+"src/util/mod.rs" = "Utility module declarations only."
+
+[profiles.sequent-core-native.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+DOC_RENDERER_BACKEND = "inplace"
+LOG_LEVEL = "info"
+
 [profiles.strand]
 package = "strand"
 features = []
 limitations = [
-    "Native default backend only; optional backends, rayon and WASM require separate runs.",
+    "Ristretto default backend; strand-native exercises NumBigInt/Rayon and strand-backends also exercises Rug/Malachite. WASM is separate.",
     "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -54,10 +93,6 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/random/mod.rs" = "Module declaration only; the rand implementation is measured."
 "src/signatures/mod.rs" = "Module declaration only; the Dalek implementation is measured."
 "src/symmetric/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
-"src/backend/malachite.rs" = "Disabled malachite feature; requires its own backend run before claiming coverage of that configuration."
-"src/backend/num_bigint.rs" = "Disabled num_bigint feature; requires its own backend run before claiming coverage of that configuration."
-"src/backend/rug.rs" = "Disabled rug feature; requires its own backend run before claiming coverage of that configuration."
-"src/wasm.rs" = "Disabled wasm feature; browser exports require a separate WASM run."
 "src/wasm/test.rs" = "Browser-only test module under the disabled wasm feature."
 "src/wasm/test/bench.rs" = "Browser benchmark harness under the disabled wasm feature."
 "src/wasm/test/demo.rs" = "Browser demonstration under the disabled wasm feature."
@@ -123,3 +158,38 @@ HASURA_DB__DBNAME = "test"
 LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
+[profiles.strand-native]
+package = "strand"
+features = ["num_bigint", "rayon"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
+    "Do not substitute zero for a base revision that cannot build this feature configuration.",
+]
+[profiles.strand-native.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.strand-native.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declarations only."
+"src/random/mod.rs" = "Module declarations only."
+"src/signatures/mod.rs" = "Module declarations only."
+"src/symmetric/mod.rs" = "Module declarations only."
+
+[profiles.strand-backends]
+package = "strand"
+features = ["num_bigint", "rayon", "rug", "malachite"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
+    "Do not substitute zero for a base revision that cannot build this feature configuration.",
+]
+[profiles.strand-backends.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.strand-backends.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declarations only."
+"src/random/mod.rs" = "Module declarations only."
+"src/signatures/mod.rs" = "Module declarations only."
+"src/symmetric/mod.rs" = "Module declarations only."
