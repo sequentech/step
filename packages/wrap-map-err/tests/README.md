@@ -30,7 +30,7 @@ consumer fixtures. The package percentage combines those two phases.
 
 No source files or positive counters are excluded. The downstream Harvest build
 also compiles Windmill's real Celery consumers. This caught renamed `TaskResult`
-and `WrapResult` aliases, which now have dedicated compiled regressions here.
+and `WrapResult` aliases, which have dedicated compiled regressions here.
 The macro recognizes the conventional `Result` suffix; it cannot resolve
 arbitrarily named Rust aliases. Branch coverage and successful distributed task
 execution need separate evidence.
@@ -39,7 +39,7 @@ Cancellation controls drop an owned resource exactly once both before first poll
 and while a task is suspended. Successful and error completions provide matching
 controls; these tests execute the public generated future without a task broker.
 
-The native CI profile now runs each revision's existing Windmill consumers as
+The native CI profile runs each revision's existing Windmill consumers as
 well as the macro's own tests. Start synthetic PostgreSQL 16 on loopback port
 3322, with database/user/password all `test`; the profile supplies those public
 settings. Standalone `cargo test -p wrap-map-err` still needs no database.

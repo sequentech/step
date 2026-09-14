@@ -53,7 +53,7 @@ these additional production restrictions do not apply to tests or stories.
 Presentation translations require own language and candidate-key properties.
 Inherited scoped overrides and malformed language records fall back to a valid
 own default; null-prototype dictionaries remain supported. The browser suite is
-now required by the frontend workflow and uses the same pinned headless shell
+required by the frontend workflow and uses the same pinned headless shell
 as the native fixture. Its counters remain separate from Jest source coverage.
 
 Resource-failure controls exercise object-URL allocation and DOM insertion,
