@@ -758,13 +758,12 @@ impl CountingAlgorithm for InstantRunoff {
             }
         };
 
-        Ok(self
-            .tally
-            .tally_sheet_results
-            .iter()
-            .fold(contest_result, |result, tally_sheet_result| {
-                result.aggregate(tally_sheet_result, false)
-            }))
+        self.tally.tally_sheet_results.iter().try_fold(
+            contest_result,
+            |result, tally_sheet_result| {
+                result.aggregate_checked_channels(tally_sheet_result, false)
+            },
+        )
     }
 }
 
