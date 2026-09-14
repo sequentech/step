@@ -774,7 +774,7 @@ pub async fn audit_inbound_operation(
         &claims.tenant_id,
         &election_event_id,
         user_id.as_deref(),
-        username,
+        Some(username),
         area_id.as_deref(),
         ExtApiRequestDirection::Inbound,
         inbound_operation_log_entry(username, operation, outcome),

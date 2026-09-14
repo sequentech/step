@@ -321,7 +321,7 @@ async fn audit_datafix_user_operation(
         &ctx.body.tenant_id,
         &ctx.body.election_event_id,
         Some(ctx.body.user_id.as_str()),
-        username,
+        Some(username),
         area_id,
         ExtApiRequestDirection::Outbound,
         operation,

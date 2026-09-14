@@ -20,7 +20,7 @@ use sequent_core::types::keycloak::{
     ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
 use std::collections::HashMap;
-use tracing::{error, info, instrument, warn};
+use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
@@ -86,44 +86,105 @@ pub async fn get_event_id_and_datafix_annotations(
             DatafixError::internal(format!("Error getting election events: {err}"))
         })?;
 
-    let mut itr: std::slice::Iter<'_, ElectionEventDatafix> = election_events.iter();
-    let mut next_event = itr.next(); // Use while let Some(event) = itr.next()... once the compiler gets updated.
+    let mut matching_events = find_events_by_datafix_id(&election_events, requester_datafix_id);
 
-    // Search for the datafix event id in all the annotations
-    while let Some(event) = next_event {
-        let datafix_id_value = event
-            .0
-            .annotations
-            .as_ref()
-            .and_then(|v| v.get(DATAFIX_ID_KEY));
-        info!("datafix_id_value: {datafix_id_value:?}");
-        // If there is a Datafix object, deserialize it:
-        if datafix_id_value.is_some() {
-            match event.get_annotations() {
-                // Return Ok only in case of matching the ID of the requester:
-                Ok(annotations_datafix) if requester_datafix_id.eq(&annotations_datafix.id) => {
-                    return Ok((event.0.id.clone(), annotations_datafix));
-                }
-                Ok(annotations_datafix) => {
-                    info!(
-                        "Not matching id: {} found in event: {}",
-                        annotations_datafix.id, event.0.id
-                    );
-                }
-                Err(err) => {
-                    error!("Error deserializing datafix annotations: {err}");
-                }
-            }
-        }
+    // A Datafix id shared by several events is a configuration mistake that
+    // makes the request impossible to attribute, so it is rejected instead of
+    // silently served by whichever event happens to be found first.
+    if matching_events.len() > 1 {
+        let event_ids: Vec<String> = matching_events
+            .into_iter()
+            .map(|(event_id, _)| event_id)
+            .collect();
+        let error = ambiguous_datafix_id_error(requester_datafix_id, &event_ids);
+        error!("{}", error.detail);
+        log_ambiguous_datafix_id(hasura_transaction, tenant_id, &event_ids, &error.detail).await;
 
-        next_event = itr.next();
+        return Err(error);
     }
 
-    warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
-    Err(DatafixError::new(
-        DatafixErrorCode::EventNotFound,
-        format!("Datafix event not found for datafix id {requester_datafix_id}"),
+    matching_events.pop().ok_or_else(|| {
+        warn!("Datafix annotations not found. Requested datafix ID: {requester_datafix_id}");
+        DatafixError::new(
+            DatafixErrorCode::EventNotFound,
+            format!("Datafix event not found for datafix id {requester_datafix_id}"),
+        )
+    })
+}
+
+/// Every event whose `datafix:id` annotation matches the requester's, so the
+/// caller can tell the single configured event from an ambiguous one. Events
+/// without the Datafix marker, and those whose Datafix configuration does not
+/// deserialize, are skipped.
+#[instrument(skip(election_events))]
+fn find_events_by_datafix_id(
+    election_events: &[ElectionEventDatafix],
+    requester_datafix_id: &str,
+) -> Vec<(String, DatafixAnnotations)> {
+    election_events
+        .iter()
+        .filter(|event| {
+            event
+                .0
+                .annotations
+                .as_ref()
+                .and_then(|annotations| annotations.get(DATAFIX_ID_KEY))
+                .is_some()
+        })
+        .filter_map(|event| match event.get_annotations() {
+            Ok(annotations) => Some((event.0.id.clone(), annotations)),
+            Err(err) => {
+                error!(
+                    "Error deserializing datafix annotations of event {}: {err}",
+                    event.0.id
+                );
+                None
+            }
+        })
+        .filter(|(_, annotations)| requester_datafix_id.eq(&annotations.id))
+        .collect()
+}
+
+/// The failure answered when several events are configured with the same
+/// Datafix id: an internal error naming every event holding it, since the
+/// misconfiguration is on the Sequent side and only an administrator can fix
+/// it.
+#[instrument]
+fn ambiguous_datafix_id_error(requester_datafix_id: &str, event_ids: &[String]) -> DatafixError {
+    DatafixError::internal(format!(
+        "Datafix id {requester_datafix_id} is configured in {} election events ({}), so the target event is ambiguous",
+        event_ids.len(),
+        event_ids.join(", ")
     ))
+}
+
+/// Records the ambiguous Datafix id in the electoral log of every event holding
+/// it — the request belongs to none of them in particular, so each one logs the
+/// misconfiguration. Logging failures are swallowed so auditing never turns
+/// into a second failure.
+#[instrument(skip(hasura_transaction))]
+async fn log_ambiguous_datafix_id(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_ids: &[String],
+    detail: &str,
+) {
+    for event_id in event_ids {
+        if let Err(err) = post_operation_result_to_electoral_log(
+            hasura_transaction,
+            tenant_id,
+            event_id,
+            None,
+            None,
+            None,
+            ExtApiRequestDirection::Inbound,
+            detail.to_string(),
+        )
+        .await
+        {
+            error!("Unable to record the ambiguous Datafix id in the electoral log of event {event_id}: {err}");
+        }
+    }
 }
 
 /// Composes the area name from the voter information, following the naming contract:
@@ -337,7 +398,7 @@ pub async fn post_operation_result_to_electoral_log(
     tenant_id: &str,
     election_event_id: &str,
     user_id: Option<&str>,
-    username: &str,
+    username: Option<&str>,
     area_id: Option<&str>,
     direction: ExtApiRequestDirection,
     operation: String,
@@ -358,7 +419,7 @@ pub async fn post_operation_result_to_electoral_log(
             election_event_id.to_string(),
             None,
             user_id.map(str::to_string),
-            Some(username.to_string()),
+            username.map(str::to_string),
             area_id.map(str::to_string),
             direction,
             ExtApiName::Datafix,
@@ -370,6 +431,109 @@ pub async fn post_operation_result_to_electoral_log(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    fn datafix_event(
+        event_id: &str,
+        annotations: Option<serde_json::Value>,
+    ) -> ElectionEventDatafix {
+        ElectionEventDatafix(ElectionEvent {
+            id: event_id.to_string(),
+            created_at: None,
+            updated_at: None,
+            labels: None,
+            annotations,
+            tenant_id: "tenant".to_string(),
+            description: None,
+            presentation: None,
+            bulletin_board_reference: None,
+            is_archived: false,
+            voting_channels: None,
+            status: None,
+            user_boards: None,
+            encryption_protocol: "protocol".to_string(),
+            is_audit: None,
+            audit_election_event_id: None,
+            public_key: None,
+            statistics: None,
+            external_id: None,
+        })
+    }
+
+    fn datafix_annotations(datafix_id: &str) -> serde_json::Value {
+        json!({
+            DATAFIX_ID_KEY: datafix_id,
+            DATAFIX_PSW_POLICY_KEY: r#"{"base":"password-only","size":6,"characters":"numeric"}"#,
+            DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret","county_mun":"county"}"#,
+        })
+    }
+
+    #[test]
+    fn finds_the_event_configured_with_the_requested_datafix_id() {
+        let events = vec![
+            datafix_event("event-1", Some(datafix_annotations("other-datafix-id"))),
+            datafix_event("event-2", Some(datafix_annotations("requested-datafix-id"))),
+            datafix_event("event-3", None),
+        ];
+
+        let matches = find_events_by_datafix_id(&events, "requested-datafix-id");
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].0, "event-2");
+        assert_eq!(matches[0].1.id, "requested-datafix-id");
+    }
+
+    #[test]
+    fn finds_every_event_sharing_the_same_datafix_id() {
+        let events = vec![
+            datafix_event("event-1", Some(datafix_annotations("requested-datafix-id"))),
+            datafix_event("event-2", Some(datafix_annotations("other-datafix-id"))),
+            datafix_event("event-3", Some(datafix_annotations("requested-datafix-id"))),
+        ];
+
+        let event_ids: Vec<String> = find_events_by_datafix_id(&events, "requested-datafix-id")
+            .into_iter()
+            .map(|(event_id, _)| event_id)
+            .collect();
+        assert_eq!(event_ids, vec!["event-1", "event-3"]);
+    }
+
+    #[test]
+    fn finds_no_event_when_none_carries_the_requested_datafix_id() {
+        let events = vec![
+            datafix_event("event-1", Some(datafix_annotations("other-datafix-id"))),
+            datafix_event("event-2", None),
+        ];
+
+        assert!(find_events_by_datafix_id(&events, "requested-datafix-id").is_empty());
+    }
+
+    #[test]
+    fn skips_events_whose_datafix_configuration_is_invalid() {
+        let events = vec![
+            datafix_event(
+                "event-1",
+                Some(json!({DATAFIX_ID_KEY: "requested-datafix-id"})),
+            ),
+            datafix_event("event-2", Some(datafix_annotations("requested-datafix-id"))),
+        ];
+
+        let matches = find_events_by_datafix_id(&events, "requested-datafix-id");
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].0, "event-2");
+    }
+
+    #[test]
+    fn ambiguous_datafix_id_error_names_every_event_holding_it() {
+        let error = ambiguous_datafix_id_error(
+            "requested-datafix-id",
+            &["event-1".to_string(), "event-3".to_string()],
+        );
+
+        assert_eq!(error.code, DatafixErrorCode::InternalError);
+        assert!(error.detail.contains("requested-datafix-id"), "{error}");
+        assert!(error.detail.contains("event-1"), "{error}");
+        assert!(error.detail.contains("event-3"), "{error}");
+    }
 
     fn voter_info(
         ward: &str,

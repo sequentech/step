@@ -431,7 +431,7 @@ async fn audit_operation(cast_vote: &CastVote, voter_id: &str, username: &str, o
         &cast_vote.tenant_id,
         &cast_vote.election_event_id,
         Some(voter_id),
-        username,
+        Some(username),
         cast_vote.area_id.as_deref(),
         ExtApiRequestDirection::Outbound,
         operation,
