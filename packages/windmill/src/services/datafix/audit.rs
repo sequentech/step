@@ -7,10 +7,12 @@
 //! follows the grammar shared with the outbound `SetVoted`/`SetNotVoted`
 //! entries. `StatementHead::from_body` parses that string to derive the
 //! entry's description (`Inbound request <Operation> <Outcome>.`), so the
-//! grammar is fixed and every free-text value is sanitized:
+//! grammar is fixed and every free-text value is sanitized. Free-text values
+//! are also quoted, so one containing `, ` or `=` cannot pose as another
+//! `<key>=<value>` pair of the details list:
 //!
 //! ```text
-//! voter_id=<id>; <Operation> <Outcome>[: <reason>] (<key>=<value>, ...)
+//! voter_id="<id>"; <Operation> <Outcome>[: <reason>] (<key>=<value>, ...)
 //! ```
 use super::types::DatafixError;
 use sequent_core::types::keycloak::{User, ATTR_RESET_VALUE};
@@ -88,15 +90,15 @@ const VALUE_NONE: &str = "none";
 const VALUE_UNCHANGED: &str = "unchanged";
 
 /// Formats the operation string of an inbound entry, e.g.
-/// `voter_id=123456; UpdateVoter Succeeded (area=WARD-1, area_id=..., birthdate=unchanged, enabled=true)`
-/// or `voter_id=123456; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
+/// `voter_id="123456"; UpdateVoter Succeeded (area="WARD-1", area_id=..., birthdate=unchanged, enabled=true)`
+/// or `voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
 #[instrument(skip_all, fields(operation = %operation))]
 pub fn inbound_operation_log_entry(
     voter_id: &str,
     operation: InboundOperation,
     outcome: Result<&AppliedInboundOperation, &DatafixError>,
 ) -> String {
-    let voter_id = sanitize(voter_id);
+    let voter_id = quoted(voter_id);
     match outcome {
         Ok(applied) => format!(
             "voter_id={voter_id}; {operation} Succeeded ({})",
@@ -117,7 +119,7 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
             birthdate,
         } => format!(
             "area={}, area_id={area_id}, birthdate={}, enabled=true",
-            sanitize(area_name),
+            quoted(area_name),
             optional(birthdate.as_deref(), VALUE_NONE),
         ),
         InboundVoterChanges::VoterUpdated {
@@ -126,7 +128,7 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
             enabled,
         } => format!(
             "area={}, area_id={area_id}, birthdate={}, enabled={}",
-            sanitize(area_name),
+            quoted(area_name),
             optional(birthdate.as_deref(), VALUE_UNCHANGED),
             optional_bool(*enabled, VALUE_UNCHANGED),
         ),
@@ -141,7 +143,7 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
             disable_comment,
         } => format!(
             "channel={}, enabled=false, disable_comment={}",
-            sanitize(channel),
+            quoted(channel),
             sanitize(disable_comment),
         ),
         InboundVoterChanges::VoterUnmarkedVoted {
@@ -150,7 +152,7 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
             disable_comment_reset,
         } => format!(
             "previous_channel={}, channel={ATTR_RESET_VALUE}, enabled={}, disable_comment={}",
-            sanitize(previous_channel),
+            quoted(previous_channel),
             if *reenabled { "true" } else { VALUE_UNCHANGED },
             if *disable_comment_reset {
                 ATTR_RESET_VALUE
@@ -174,6 +176,14 @@ fn optional_bool(value: Option<bool>, absent: &str) -> String {
 /// operation segment and line breaks would split the single-line entry.
 fn sanitize(text: &str) -> String {
     text.replace(['\n', '\r'], " ").replace("; ", ", ")
+}
+
+/// Renders a free-text value (a voter id, an area name, a channel) as a
+/// double-quoted string with `"` and `\` escaped, so that a value containing
+/// `, ` or `=` is still read as a single value and not as another
+/// `key=value` pair.
+fn quoted(text: &str) -> String {
+    format!("{:?}", sanitize(text))
 }
 
 #[cfg(test)]
@@ -224,7 +234,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            "voter_id=123456; AddVoter Succeeded (area=WARD-2-SCHOOL-POLL-5, area_id=area-id, birthdate=1990-01-01, enabled=true)"
+            r#"voter_id="123456"; AddVoter Succeeded (area="WARD-2-SCHOOL-POLL-5", area_id=area-id, birthdate=1990-01-01, enabled=true)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -241,7 +251,7 @@ mod tests {
         );
         assert_eq!(
             without_birthdate,
-            "voter_id=123456; AddVoter Succeeded (area=WARD-2, area_id=area-id, birthdate=none, enabled=true)"
+            r#"voter_id="123456"; AddVoter Succeeded (area="WARD-2", area_id=area-id, birthdate=none, enabled=true)"#
         );
     }
 
@@ -258,7 +268,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            "voter_id=123456; UpdateVoter Succeeded (area=WARD-2-POLL-5, area_id=area-id, birthdate=unchanged, enabled=false)"
+            r#"voter_id="123456"; UpdateVoter Succeeded (area="WARD-2-POLL-5", area_id=area-id, birthdate=unchanged, enabled=false)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -280,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            "voter_id=123456; UpdateVoter Succeeded (area=WARD-2, area_id=none, birthdate=1990-01-01, enabled=unchanged)"
+            r#"voter_id="123456"; UpdateVoter Succeeded (area="WARD-2", area_id=none, birthdate=1990-01-01, enabled=unchanged)"#
         );
     }
 
@@ -295,7 +305,7 @@ mod tests {
         );
         assert_eq!(
             deleted,
-            "voter_id=123456; DeleteVoter Succeeded (enabled=false, disable_comment=Disable reason: datafix call to delete-voter endpoint)"
+            r#"voter_id="123456"; DeleteVoter Succeeded (enabled=false, disable_comment=Disable reason: datafix call to delete-voter endpoint)"#
         );
         assert_eq!(
             description_of(&deleted),
@@ -312,7 +322,7 @@ mod tests {
         );
         assert_eq!(
             marked,
-            "voter_id=123456; MarkVoted Succeeded (channel=PAPER, enabled=false, disable_comment=Disable reason: Voter marked as voted via other channel)"
+            r#"voter_id="123456"; MarkVoted Succeeded (channel="PAPER", enabled=false, disable_comment=Disable reason: Voter marked as voted via other channel)"#
         );
         assert_eq!(
             description_of(&marked),
@@ -333,7 +343,7 @@ mod tests {
         );
         assert_eq!(
             reenabled,
-            "voter_id=123456; UnmarkVoted Succeeded (previous_channel=PAPER, channel=NONE, enabled=true, disable_comment=NONE)"
+            r#"voter_id="123456"; UnmarkVoted Succeeded (previous_channel="PAPER", channel=NONE, enabled=true, disable_comment=NONE)"#
         );
         assert_eq!(
             description_of(&reenabled),
@@ -351,7 +361,7 @@ mod tests {
         );
         assert_eq!(
             preserved,
-            "voter_id=123456; UnmarkVoted Succeeded (previous_channel=NONE, channel=NONE, enabled=unchanged, disable_comment=unchanged)"
+            r#"voter_id="123456"; UnmarkVoted Succeeded (previous_channel="NONE", channel=NONE, enabled=unchanged, disable_comment=unchanged)"#
         );
     }
 
@@ -366,7 +376,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            "voter_id=123456; ReplacePin Succeeded (temporary=false)"
+            r#"voter_id="123456"; ReplacePin Succeeded (temporary=false)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -383,7 +393,7 @@ mod tests {
         let entry = inbound_operation_log_entry("123456", InboundOperation::ReplacePin, Err(&err));
         assert_eq!(
             entry,
-            "voter_id=123456; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)"
+            r#"voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)"#
         );
         assert_eq!(description_of(&entry), "Inbound request ReplacePin Failed.");
 
@@ -393,7 +403,7 @@ mod tests {
         let entry = inbound_operation_log_entry("123456", InboundOperation::UpdateVoter, Err(&err));
         assert_eq!(
             entry,
-            "voter_id=123456; UpdateVoter Failed: Error editing user: Failed to edit user in keycloak: HttpFailure { status: 500 } (error_code=internal-error)"
+            r#"voter_id="123456"; UpdateVoter Failed: Error editing user: Failed to edit user in keycloak: HttpFailure { status: 500 } (error_code=internal-error)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -411,7 +421,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            "voter_id=id, AddVoter Succeeded; DeleteVoter Failed: first, MarkVoted Succeeded second line (error_code=internal-error)"
+            r#"voter_id="id, AddVoter Succeeded"; DeleteVoter Failed: first, MarkVoted Succeeded second line (error_code=internal-error)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -429,6 +439,42 @@ mod tests {
         assert_eq!(
             description_of(&entry),
             "Inbound request MarkVoted Succeeded."
+        );
+    }
+
+    /// `valid_inbound_voting_channel` only rejects empty, `NONE` and
+    /// `INTERNET`, so the channel is caller-supplied free text; the area name
+    /// is composed from the request and matched against admin-defined areas.
+    #[test]
+    fn free_text_cannot_pose_as_another_field() {
+        let entry = inbound_operation_log_entry(
+            "123456",
+            InboundOperation::MarkVoted,
+            Ok(&applied(InboundVoterChanges::VoterMarkedVoted {
+                channel: "PAPER, enabled=true".to_string(),
+                disable_comment: DISABLE_REASON_MARKVOTED_CALL,
+            })),
+        );
+        assert_eq!(
+            entry,
+            r#"voter_id="123456"; MarkVoted Succeeded (channel="PAPER, enabled=true", enabled=false, disable_comment=Disable reason: Voter marked as voted via other channel)"#
+        );
+
+        let entry = inbound_operation_log_entry(
+            "1, area_id=spoofed",
+            InboundOperation::AddVoter,
+            Ok(&applied(InboundVoterChanges::VoterAdded {
+                area_name: r#"WARD9", AREA_ID=\"spoofed"#.to_string(),
+                birthdate: None,
+            })),
+        );
+        assert_eq!(
+            entry,
+            r#"voter_id="1, area_id=spoofed"; AddVoter Succeeded (area="WARD9\", AREA_ID=\\\"spoofed", area_id=area-id, birthdate=none, enabled=true)"#
+        );
+        assert_eq!(
+            description_of(&entry),
+            "Inbound request AddVoter Succeeded."
         );
     }
 

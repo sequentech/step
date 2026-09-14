@@ -21,7 +21,7 @@ use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::{get_event_realm, KeycloakAdminClient};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::keycloak::{
-    User, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
+    User, UserArea, AREA_ID_ATTR_NAME, ATTR_RESET_VALUE, DATE_OF_BIRTH, DISABLE_COMMENT,
     DISABLE_REASON_DELETE_CALL, DISABLE_REASON_MARKVOTED_CALL, TENANT_ID_ATTR_NAME, VOTED_CHANNEL,
     VOTED_CHANNEL_INTERNET_VALUE,
 };
@@ -133,16 +133,15 @@ pub async fn add_datafix_voter(
     let username = &voter_info.voter_id;
     let client = keycloak_admin_client().await?;
 
-    let area = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
+    let ResolvedArea {
+        id: area_id,
+        name: area_name,
+    } = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
         .await?;
-    let area_name = area.name.clone().unwrap_or_default();
 
     // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
     let mut hash_map = HashMap::new();
-    hash_map.insert(
-        AREA_ID_ATTR_NAME.to_string(),
-        vec![area.id.clone().unwrap_or_default()],
-    );
+    hash_map.insert(AREA_ID_ATTR_NAME.to_string(), vec![area_id.clone()]);
     hash_map.insert(TENANT_ID_ATTR_NAME.to_string(), vec![tenant_id.to_string()]);
     let birthdate = validated_birthdate(voter_info)?;
     if let Some(birthdate) = &birthdate {
@@ -153,7 +152,10 @@ pub async fn add_datafix_voter(
         attributes: attributes.clone(),
         enabled: Some(true),
         username: Some(username.to_string()),
-        area: Some(area),
+        area: Some(UserArea {
+            id: Some(area_id),
+            name: Some(area_name.clone()),
+        }),
         ..User::default()
     };
     let voter_group_name = env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|e| {
@@ -206,15 +208,14 @@ pub async fn update_datafix_voter(
     let username = voter_info.voter_id.clone();
     let client = keycloak_admin_client().await?;
 
-    let area = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
+    let ResolvedArea {
+        id: area_id,
+        name: area_name,
+    } = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
         .await?;
-    let area_name = area.name.clone().unwrap_or_default();
     // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
     let mut hash_map = HashMap::new();
-    hash_map.insert(
-        AREA_ID_ATTR_NAME.to_string(),
-        vec![area.id.unwrap_or_default()],
-    );
+    hash_map.insert(AREA_ID_ATTR_NAME.to_string(), vec![area_id]);
     let birthdate = validated_birthdate(voter_info)?;
     if let Some(birthdate) = &birthdate {
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate.clone()]);
@@ -407,10 +408,9 @@ pub async fn replace_voter_pin(
     // If a voter is disabled, do not generate a PIN
     let user = match list_users(hasura_transaction, keycloak_transaction, filter).await {
         Ok((users, 1)) => {
-            let user = users
-                .last()
-                .map(|val_ref| val_ref.to_owned())
-                .unwrap_or_default();
+            let Some(user) = users.into_iter().next() else {
+                return Err(DatafixError::internal("Voter lookup returned no user"));
+            };
             if !user.enabled.unwrap_or(true) {
                 warn!("Cannot replace pin because the user is disabled.");
                 return Err(DatafixError::new(
@@ -440,7 +440,10 @@ pub async fn replace_voter_pin(
             )));
         }
     };
-    let user_id = user.id.clone().unwrap_or_default();
+    let user_id = user
+        .id
+        .clone()
+        .ok_or_else(|| DatafixError::internal("Voter has no Keycloak id"))?;
 
     let pin = datafix_annotations
         .password_policy

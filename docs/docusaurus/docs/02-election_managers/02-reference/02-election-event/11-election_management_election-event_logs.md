@@ -31,8 +31,12 @@ back to it, is recorded as an `ExternalApiRequest` entry.
 - **Message** carries the details in the operation string of the statement body:
 
   ```text
-  voter_id=<datafix voter id>; <Operation> <Outcome>[: <reason>] (<key>=<value>, ...)
+  voter_id="<datafix voter id>"; <Operation> <Outcome>[: <reason>] (<key>=<value>, ...)
   ```
+
+  Values that come from free text (the voter id, the area name, the channel)
+  are written double-quoted, with `"` and `\` escaped, so a value containing
+  `, ` or `=` is still read as a single value and not as another field.
 
   | Operation | Values recorded on success |
   |---|---|
@@ -45,7 +49,7 @@ back to it, is recorded as an `ExternalApiRequest` entry.
 
   A failed operation records the internal reason and the error code returned to
   the external system, for example
-  `voter_id=123456; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
+  `voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
   The reason is only recorded here; the API reply carries the error code alone.
 - **User id** and **username** identify the voter (the Datafix voter id is the
   username) and the message's `area_id` is the voter's area, as in Keycloak

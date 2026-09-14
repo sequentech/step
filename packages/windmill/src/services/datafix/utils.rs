@@ -16,7 +16,6 @@ use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::ElectionEvent;
-use sequent_core::types::keycloak::UserArea;
 use sequent_core::types::keycloak::{
     ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
@@ -154,7 +153,15 @@ pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     parts.join("-").to_uppercase()
 }
 
-/// Returns the UserArea object. If it cannot find the area id by name returns an error.
+/// An event area resolved from the ward, school support code and poll of a
+/// Datafix request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedArea {
+    pub id: String,
+    pub name: String,
+}
+
+/// Returns the area matching the request. If it cannot find the area id by name returns an error.
 /// Area names are a concatenation of Ward-SchoolSupportCode-Poll. The contract: <br>
 /// If any of the values is empty or None, it is omitted. <br>
 /// i.e. Ward-Poll (no SchoolSupportCode), Ward-SchoolSupportCode (no Poll) <br>
@@ -165,7 +172,7 @@ pub async fn find_user_area_by_name(
     tenant_id: &str,
     election_event_id: &str,
     voter_info: &VoterInformationBody,
-) -> Result<UserArea, DatafixError> {
+) -> Result<ResolvedArea, DatafixError> {
     // Compose the full area name from the voter information
     let area_concat = compose_area_name(voter_info);
     let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
@@ -188,9 +195,9 @@ pub async fn find_user_area_by_name(
         .map(|area| area.id.clone());
 
     match area_id {
-        Some(id) => Ok(UserArea {
-            id: Some(id),
-            name: Some(area_concat),
+        Some(id) => Ok(ResolvedArea {
+            id,
+            name: area_concat,
         }),
         None => {
             error!("Error. Area not found for {}", area_concat);
