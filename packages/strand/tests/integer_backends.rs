@@ -28,7 +28,7 @@ impl Write for FailAfter {
 }
 
 macro_rules! backend {
-    ($module:ident, $ctx:ty, $exponent:expr, $element:expr, $plaintext:expr) => {
+    ($module:ident, $ctx:ty, $exponent:expr, $element:expr, $plaintext:expr, $upper:expr) => {
         mod $module {
             use super::*;
             type C = $ctx;
@@ -77,6 +77,21 @@ macro_rules! backend {
                     [1, 0, 0, 0, 4]
                 );
                 assert_eq!(ctx.decode(&encoded), p);
+            }
+
+            #[test]
+            fn upper_half_element_decodes_the_known_nonresidue() {
+                let ctx = C::default();
+                // This fixed prime is 2 modulo 5, making 5 a nonresidue. Thus
+                // plaintext 4 encodes to p-5 in the upper half of the group.
+                // The fixture is that literal integer, not an encoder output.
+                let raw = hex::decode($upper.trim()).unwrap();
+                let element = ctx.element_from_bytes(&raw).unwrap();
+                let mut plaintext = $plaintext;
+                plaintext[4] = 4;
+                let expected = P::strand_deserialize(&plaintext).unwrap();
+                assert_eq!(ctx.decode(&element), expected);
+                assert_eq!(ctx.encode(&expected).unwrap(), element);
             }
 
             #[test]
@@ -190,7 +205,8 @@ backend!(
     strand::backend::num_bigint::BigintCtx<strand::backend::num_bigint::P2048>,
     [2u8, 0, 0, 0, 2, 1],
     [2u8, 0, 0, 0, 0, 1],
-    [1u8, 0, 0, 0, 3]
+    [1u8, 0, 0, 0, 3],
+    include_str!("fixtures/verificatum-minus-five-little.hex")
 );
 #[cfg(feature = "rug")]
 backend!(
@@ -198,7 +214,8 @@ backend!(
     strand::backend::rug::RugCtx<strand::backend::rug::P2048>,
     [2u8, 0, 0, 0, 1, 2],
     [2u8, 0, 0, 0, 1, 0],
-    [1u8, 0, 0, 0, 3]
+    [1u8, 0, 0, 0, 3],
+    include_str!("fixtures/verificatum-minus-five-big.hex")
 );
 #[cfg(feature = "malachite")]
 backend!(
@@ -206,7 +223,8 @@ backend!(
     strand::backend::malachite::MalachiteCtx<strand::backend::malachite::P2048>,
     [2u8, 0, 0, 0, 1, 2],
     [2u8, 0, 0, 0, 1, 0],
-    [1u8, 0, 0, 0, 3, 0]
+    [1u8, 0, 0, 0, 3, 0],
+    include_str!("fixtures/verificatum-minus-five-big.hex")
 );
 
 fn context_contract<C: Ctx>() {
