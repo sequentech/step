@@ -12,7 +12,7 @@ jest.mock("@sequentech/ui-core", () => ({
 }))
 
 describe("ballot style validation", () => {
-    it("accepts ordinary candidates plus one explicit blank and one invalid marker", () => {
+    it("accepts ordinary candidates plus one explicit invalid marker", () => {
         expect(getBallotStyleConfigurationError(ELECTION_WITH_INVALID)).toBeUndefined()
     })
 

@@ -24,6 +24,8 @@ markers, session cleanup, and existing keyboard and accessibility behavior.
 Category regressions exercise the actual Question, AnswersList and shared
 CandidatesList components. They use names such as `__proto__` and `constructor`
 to catch inherited-object lookups and accidental mutation during rendering.
+Configured category/subtype controls also verify that rendering and toggling
+preserve names and an absent subtype sort order in the original configuration.
 Candidate inputs and vote interpretation are stubbed in those unit tests.
 
 The two Chromium tests load the real components, Redux store and pinned local
