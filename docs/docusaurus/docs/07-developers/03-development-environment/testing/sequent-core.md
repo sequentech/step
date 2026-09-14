@@ -74,10 +74,10 @@ Payload errors describe the length without including plaintext contents.
 
 ## Coverage and remaining work
 
-The native `default_features,keycloak` profile runs **489 passing tests, none
-ignored**. Source commit `f835df0ba799e9338a8fe70f3a03b09b6ea6290c` measures
-**11,947/12,325 lines (96.93%)**, **1,403/1,465 functions (95.77%)** and
-**15,219/15,895 LLVM regions (95.75%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
+The native `default_features,keycloak` profile runs **493 passing tests, none
+ignored**. Source commit `c4f9dc3103724ce20d044394df0f8a0f5ceb75cd` measures
+**11,985/12,371 lines (96.88%)**, **1,409/1,471 functions (95.79%)** and
+**15,267/15,944 LLVM regions (95.75%)** using Rust 1.96.0 and cargo-llvm-cov 0.9.1.
 Production Clippy and workspace formatting pass (existing warnings remain).
 Actual branch coverage is not measured by this stable native profile. Existing
 randomized inline ballot tests can cause small line/region differences between
@@ -89,7 +89,7 @@ request guards. It verifies request payloads, authentication failures, token-cac
 isolation and expiry without contacting a production identity provider. These
 checks complement, but do not replace, integration against a running Keycloak.
 
-The report has **378 uncovered measured lines** and **62 uncovered functions**.
+The report has **386 uncovered measured lines** and **62 uncovered functions**.
 The new cases exercise generated stream contracts, PostgreSQL row mapping,
 malformed audit/hash payloads, permission-label deduplication, expired tokens,
 rejected realm/user/permission writes and invalid user locations. Oversized
@@ -218,7 +218,7 @@ to `src/`). Counts include closures, not just named public APIs:
 
 | Source | Unexecuted functions | Review direction |
 | --- | ---: | --- |
-| `ballot_codec/multi_ballot.rs` | 23 | 18 inline test diagnostics and five numeric-conversion errors. Preserve the 64-bit conversion rationale below. The direct missing-contest rejection is now tested. |
+| `ballot_codec/multi_ballot.rs` | 22 | 17 inline test diagnostics and five numeric-conversion errors. Preserve the 64-bit conversion rationale below. The direct missing-contest rejection is now tested. |
 | `ballot.rs`, `multi_ballot.rs` | 17 | Signing/serialization error closures. Generated Borsh implementations and the manual initialization-policy default are covered; review the concrete backend/error edge, not the derive name. |
 | `services/keycloak/admin_client.rs` | 6 | Token-conversion/lock errors. The interrupted HTTP body-read case in `get_credentials_inner` is now tested. |
 | `ballot_codec/raw_ballot.rs` | 3 | Two inline assertion diagnostics and a candidate lookup already validated by the preceding loop over the same choices. Direct raw-choice overflow is now tested. |
@@ -227,7 +227,7 @@ to `src/`). Counts include closures, not just named public APIs:
 | `ballot_codec/contest_context.rs` | 1 | Fallback text for a configuration error without a message; both current checker errors always supply a message. |
 | `services/keycloak/realm_password_policy.rs` | 1 | UTF-8 conversion failure after constructing a password exclusively from ASCII character sets. |
 | `services/keycloak/user.rs` | 1 | Non-hierarchical URL mutation after successful HTTP authentication against the same configured URL. |
-| `services/keycloak/realm.rs` | 1 | `PubKeycloakAdmin` holds the concrete `KeycloakAdminToken`; keycloak 24.0.301's `get` implementation unconditionally returns `Ok(self.access_token.clone())`. It cannot exercise this error closure; HTTP rejection and transport failures are tested separately. |
+| `services/keycloak/realm.rs` | 2 | `PubKeycloakAdmin` holds the concrete `KeycloakAdminToken`; keycloak 24.0.301's `get` implementation unconditionally returns `Ok(self.access_token.clone())`. It cannot exercise this error closure; HTTP rejection and transport failures are tested separately. The new group-Location URL-parse error closure is a feasible follow-up; empty/trailing-slash IDs and relative/query/fragment controls are already covered. |
 | `util/voting_screen.rs` | 1 | `get_decoded_contest_plurality`, a fixture builder not used by this profile; do not call it merely for coverage. |
 | `election_config/report.rs` | 1 | Inline assertion diagnostic. |
 | `main.rs` | 1 | Empty executable entry point. |

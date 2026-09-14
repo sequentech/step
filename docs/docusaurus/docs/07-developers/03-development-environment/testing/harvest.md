@@ -31,8 +31,11 @@ can use its private routes without widening the production API.
 From `packages`, run the focused suites with locked cached dependencies:
 
 ```sh
+export KEYCLOAK_DB__HOST=127.0.0.1 HASURA_DB__HOST=127.0.0.1
+export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
+cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
 ```
 
 For a complete native report, from the repository root:
@@ -72,13 +75,13 @@ service architecture changes solely for testability are outside this slice.
 
 ## Measured checkpoint and accepted limits
 
-Source `20cb15c63a6f43edc13336074d5e01c0bdc9944d`, isolated native profile,
+Source `c4f9dc3103724ce20d044394df0f8a0f5ceb75cd`, isolated native profile,
 Rust 1.96.0 and cargo-llvm-cov 0.9.1: **43 tests pass, none ignored**;
 **676/3,924 lines (17.23%)**, **64/879 functions (7.28%)** and
 **788/3,455 LLVM regions (22.81%)**. The preceding 34-test suite measured
 651/3,906 lines (16.67%), 63/879 functions (7.17%) and 758/3,437 regions
 (22.05%). Production Clippy and workspace formatting pass with existing
-warnings; 76 coverage-tool tests and Ruff pass.
+warnings; 84 coverage-tool tests and Ruff pass.
 
 Low coverage is an accepted limit of this increment. The remaining 3,248 lines
 and 815 functions stay counted. Most route bodies require configured database
@@ -99,3 +102,8 @@ unrelated synthetic credentials fails the old fixture and passes after this
 test-only correction. All 43 tests pass with that hostile ambient control. The
 existing token-realm and Rocket catcher assertions pass unchanged; no production
 rewrite or new coverage exclusion is involved.
+
+The route inventory is checked against mounted POST routes, with the six
+Datafix routes explicitly identified as a separate authentication contract.
+Tenant-denial tests choose an ordinary tenant even when the caller's environment
+names the usual fixture tenant as super-admin; they never mutate global settings.

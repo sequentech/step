@@ -59,8 +59,21 @@ own source and tests. No tests are injected into the base, and an empty or faile
 consumer run still cannot pass. Full distributed Celery execution remains a
 separate integration obligation.
 
-The paired follow-up passes: 17 macro tests plus the same 353 existing Windmill
+The earlier paired follow-up passed: 17 macro tests plus the same 353 existing Windmill
 tests, with two existing Windmill service cases ignored on both revisions. Macro
 source measures 52/52 lines, 5/5 functions and 88/89 LLVM regions. All three
 fractions maintain or improve the real compiler-consumer baseline above. The
 consumer configuration is recorded and incompatible consumer sets fail comparison.
+
+Compiled consumers cover elided borrowed return types and resource cleanup on
+success, error and cancellation without an explicit `drop` in the task body.
+Parser expectations use literal success types rather than the parser under test.
+The generated inner body finishes before error conversion; the macro does not
+promise to keep consumed arguments alive during `Into::into`. Converters that
+need an owned resource must carry it in the error. Distributed Celery/broker
+execution remains separate from these compiled consumer contracts.
+
+The review snapshot at `c4f9dc3` passes 18 macro tests and 369 Windmill
+consumer tests (two existing service cases ignored), with unchanged macro
+counters: 52/52 lines, 5/5 functions and 88/89 regions. This later stack
+snapshot is separate from the historical actual-base pair above.

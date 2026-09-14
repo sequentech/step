@@ -46,10 +46,14 @@ cargo test -p windmill --locked --offline --lib -- \
 This separate command does not add its counters to a previous coverage report.
 
 The follow-up suite has 369 passing tests and two existing ignored scenarios.
-Native coverage at `2ea0bef` is 9,307/31,300 lines (29.73%), 864/5,754 functions
-(15.02%) and 11,921/36,156 LLVM regions (32.97%). All three fractions increase
-against the actual Harvest PR base measured with the same profile. The hosted
+Native coverage at `c4f9dc3` is 9,307/31,300 lines (29.73%), 864/5,754 functions
+(15.02%) and 11,921/36,156 LLVM regions (32.97%). The earlier actual-base pair
+increased all three fractions, and this refreshed stack snapshot retains those
+counters. The hosted
 native matrix now runs this comparison with a disposable PostgreSQL service.
 Low coverage remains concentrated in cloud transports and complete authenticated
 election workflows; these need dedicated service fixtures, not production
 rewrites or tests that only exercise derives.
+
+CSV controls retain non-ASCII metadata verbatim. The database operation’s tracing
+span retains realm and user identifiers while skipping the transaction value.

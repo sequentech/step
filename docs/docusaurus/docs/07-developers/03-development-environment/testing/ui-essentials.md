@@ -77,9 +77,19 @@ failing run against the previous implementation when fixing a regression.
 
 ## Follow-up contracts
 
-The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 122 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. Source coverage is 704/990 lines, 235/348 functions and 495/836 branches. Remaining profile/session, chart/grid and wrapper localization paths stay in scope; no test-only derives or printing are added to increase counters.
+The autocomplete tests use real MUI controls and exposed duplicate creation callbacks and creation requests for existing labels. Deduplicated input now selects known labels without requesting creation. Countdown regressions observe layout commits, so a passive-effect correction cannot hide the previous election deadline. All five regressions fail before their small fixes; valid controls also pass. The full suite has 126 tests, plus four passing browser tests; type/lint checks and all 17 countdown cases in UTC and America/Toronto pass. At `db7c039`, source coverage is 710/990 lines, 755/1052 statements, 237/349 functions and 493/832 branches; all four metrics improve against the actual PR base. Remaining profile/session, chart/grid and broader localization paths stay in scope; no test-only derives or printing are added to increase counters.
 
 A synchronous re-entry regression dispatches a second file event before React
 commits its busy state. An immediate ref guard now owns the pending import and
 releases it after success or failure; the UI state reflects that guard. Existing
 keyboard/drop behavior and retry controls pass without a structural UI rewrite.
+
+Choices loaded after mounting are immediately available without recreating known
+labels or losing local additions. The upload trigger is a native button; both
+wrappers have a single picker activation and use translated import-error copy.
+A Spanish wrapper regression fails against the original duplicate Admin Browse
+handler and passes with the corrected handler. No parser details are rendered.
+
+An initially selected label that is entered again remains available after its
+chip is removed, even when the remote choices omit it. Repeated input neither
+duplicates the option nor requests creation of an already selected label.

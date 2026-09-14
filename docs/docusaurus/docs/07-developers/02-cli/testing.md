@@ -45,10 +45,10 @@ Empty document references now fail before network access; their regression fails
 on the previous code and a valid reference remains accepted. Additional cases
 pin the standard empty-file SHA-256, preserve I/O error types and reject trailing
 JSON documents and invalid UTF-8 while retaining valid null and zero counts.
-The suite has 31 passing tests and one pre-existing ignored service journey.
+The suite has 34 passing tests and one pre-existing ignored service journey.
 
-Native coverage at `a7dad7a` is 354/3,843 lines (9.21%), 33/245 functions
-(13.47%) and 574/6,135 LLVM regions (9.36%). The actual Windmill PR base has
+Native coverage at `c4f9dc3` is 482/3,851 lines (12.52%), 42/245 functions
+(17.14%) and 738/6,148 LLVM regions (12.00%). The actual Step CLI PR base has
 two passing tests and measures 45/3,787 lines, 4/237 functions and 58/6,061
 regions. Every fraction increases; CI compares all three independently.
 Authenticated election workflows beyond the owned import peer remain open.
@@ -59,3 +59,9 @@ rejected before upload and after import, errors reach shell callers through a
 nonzero exit, and empty error lists remain valid. Existing and dangling output
 symlinks are rejected without changing either the link or its target. These
 regressions fail before the small fixes and pass with the valid controls.
+
+Hard-link aliases are rejected by Unix device/inode identity before output is
+created. An independent regular-file replacement remains valid. Both tally import
+commands return failure status for preparation or backend errors; actual HTTP
+success and error subprocesses exercise those paths. Windows file identity and
+authenticated end-to-end election journeys remain separate scopes.

@@ -68,10 +68,30 @@ these additional production restrictions do not apply to tests or stories.
 
 ## Follow-up contracts
 
-Two additional resource-failure controls exercise object-URL allocation and DOM insertion failures, asserting the original error and exact cleanup. The 224-test suite, type/lint checks and four real Chromium/WASM tests pass. Source metrics remain 740/745 lines, 176/177 functions and 335/349 branches. These paths add failure evidence even where line counters were already covered.
+Two additional resource-failure controls exercise object-URL allocation and DOM insertion failures, asserting the original error and exact cleanup. The 227-test suite, type/lint checks and four real Chromium/WASM tests pass. At `496e36a`, source metrics are 744/750 lines, 776/782 statements, 177/178 functions and 350/363 branches. Each metric improves against the actual PR base. These paths add failure evidence even where line counters were already covered.
 
 Presentation translations require own language and candidate-key properties.
 Inherited scoped overrides and malformed language records fall back to a valid
 own default; null-prototype dictionaries remain supported. The browser suite is
 now required by the frontend workflow and uses the same pinned headless shell
 as the native fixture. Its counters remain separate from Jest source coverage.
+
+## Remaining measured paths
+
+The uncovered function is the unused internal `resolvePreset` callback in
+`services/votingPortalDateTime.ts`; no public path calls it. It stays counted,
+rather than exporting or invoking dead code only to raise coverage.
+
+| Source under `src/services/` | Missing branch alternatives | Remaining behavior |
+| --- | ---: | --- |
+| `i18n.ts` | 7 | Absent configuration/resources, language-policy fallbacks and removal of an already empty override layer. |
+| `presentationOrder.ts` | 1 | Null right-hand label in alphabetical ordering. |
+| `translate.ts` | 1 | An own `i18n` property explicitly set to `undefined`. |
+| `translationScopes.ts` | 3 | Retaining an existing key, omitting legacy entries and selecting the global scope directly. |
+| `votingPortalDateTime.ts` | 1 | Defensive token-switch default after the parser has validated its token set. |
+
+The first four rows remain reachable test opportunities. The date parser's
+fallback must be revisited if its accepted token set changes. Native WASM crypto
+internals remain separate from these Istanbul counters. Browser receipt tests
+independently encode the public raw-ballot envelope and verify SHA-512 using
+Node crypto, rather than using another WASM alias as the only hash oracle.

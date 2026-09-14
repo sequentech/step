@@ -36,8 +36,8 @@ for another. The 95% target remains the objective for the coverage work.
 
 ## Sequent Core
 
-The `default_features,keycloak` profile has **489 passing tests**, **96.93% line
-coverage**, **95.77% function coverage** and **95.75% LLVM region coverage**. Its
+The `default_features,keycloak` profile has **493 passing tests**, **96.88% line
+coverage**, **95.79% function coverage** and **95.75% LLVM region coverage**. Its
 native aggregate includes inline test code; standalone fixtures and test files
 are excluded. It is not yet a
 production-only or actual branch score.
@@ -54,8 +54,8 @@ presentation data. PostgreSQL tests launch private temporary clusters and requir
 `postgresql libpq-dev` or `PG_BIN` pointing to the server binaries; they never use
 an existing database or a production connection string.
 
-Source commit `f835df0ba799e9338a8fe70f3a03b09b6ea6290c` measures 11,947/12,325
-lines, 1,403/1,465 functions and 15,219/15,895 regions with Rust 1.96.0 and
+Source commit `c4f9dc3103724ce20d044394df0f8a0f5ceb75cd` measures 11,985/12,371
+lines, 1,409/1,471 functions and 15,267/15,944 regions with Rust 1.96.0 and
 cargo-llvm-cov 0.9.1. The native line improvement target is met. Remaining work
 includes realizable failure cases, integration with a running identity provider
 and separate WASM/service profiles. All 47 files missing from the LLVM report
@@ -206,7 +206,8 @@ there is no editable baseline percentage or coverage-service dependency.
 - Python tooling: compare lines and branches separately on relevant PRs.
 - Sequent Core: compare native lines, functions and LLVM regions automatically
   on relevant PRs and pushes to main. Regions are not branch coverage.
-- Strand, Velvet and Harvest: the same native comparison runs automatically and is available on demand.
+- Strand, Velvet, Wrap Map Err, Harvest, Windmill, Step CLI and Electoral Log native:
+  the same comparison runs automatically and is available on demand.
   Velvet uses a pinned local headless browser and bounded test concurrency.
 
 For a native comparison:
@@ -216,10 +217,11 @@ For a native comparison:
 3. Enter the base branch or commit to compare with, normally the PR's target branch.
 4. Read the selected package’s **coverage — no decrease** check and download its artifact.
 
-The hosted native worker currently supports `sequent-core`, `strand`, `velvet` and `harvest`. Other
-profiles can use the same comparison command in a worker with the service fixtures
-described by their package guides. The automatic native gate currently covers Sequent Core, Strand, Velvet and Harvest. Enabling the other
-packages as required checks remains part of their individual coverage work.
+The hosted native worker supports `sequent-core`, `strand`, `velvet`,
+`wrap-map-err`, `harvest`, `windmill`, `step-cli` and `electoral-log-native`.
+Electoral Log's `immudb-tests` feature also runs as a required, separately
+accounted job with a pinned, disposable ImmuDB process; it is not folded into
+an incompatible native base measurement.
 
 ```bash
 python3 scripts/coverage/ci.py rust sequent-core \
@@ -413,30 +415,29 @@ See the [UI Essentials test guide](testing/ui-essentials.md)
 for setup, import callback behavior and coverage limits. Results and remaining
 work are tracked in [Meta #13302](https://github.com/sequentech/meta/issues/13302).
 
-## Remaining-package increment (2026-09-13)
+## Current review measurements (2026-09-14)
 
-Thirty-nine additional package tests pin cancellation cleanup, absent-versus-zero
-CSV counts, rejected file/import inputs, distinct and duplicate audit fields,
-production ES5 category identifiers, inherited/malformed translation dictionaries,
-autocomplete callbacks, re-entrant imports, partial GraphQL responses, symlink
-exports, deterministic audit pagination and countdown render commits. Regression failures were recorded before surgical fixes. No production
-rewrites, new exclusions or score-only derive tests were introduced. Harvest's
-accepted low-coverage scope is unchanged; its role fixture now uses a private
-nonce so stale environment flags cannot bypass the clean child process.
+Review regressions cover cancellation cleanup, CSV metadata, rejected file/import
+inputs, audit fields and pagination, inherited translation dictionaries, current
+autocomplete options and translated file-import failures. Independent controls
+reproduced defects before surgical fixes. Generated functions remain counted;
+Harvest's accepted low-coverage scope requires no production rewrite.
 
 Native measurements use Rust 1.96.0 and cargo-llvm-cov 0.9.1. Regions are LLVM
 regions, not branch coverage; existing inline tests remain counted.
 
 | Profile / measured source | Passing tests | Lines | Functions | Regions |
 | --- | ---: | ---: | ---: | ---: |
-| wrap-map-err / `c9a1d29` | 17 + 353 existing consumer tests | 52/52 (100%) | 5/5 (100%) | 88/89 (98.88%) |
-| Windmill / `2ea0bef` | 369 | 9307/31300 (29.73%) | 864/5754 (15.02%) | 11921/36156 (32.97%) |
-| Step CLI / `a7dad7a` | 31 | 354/3843 (9.21%) | 33/245 (13.47%) | 574/6135 (9.36%) |
-| Electoral Log defaults / `63dacd4` | 68 | 1076/1380 (77.97%) | 140/192 (72.92%) | 1104/1396 (79.08%) |
-| Electoral Log + ImmuDB / `63dacd4` | 73 | 1345/1380 (97.46%) | 182/192 (94.79%) | 1333/1396 (95.49%) |
+| wrap-map-err / `c4f9dc3` | 18 + 369 consumer tests | 52/52 (100%) | 5/5 (100%) | 88/89 (98.88%) |
+| Windmill / `c4f9dc3` | 369 | 9307/31300 (29.73%) | 864/5754 (15.02%) | 11921/36156 (32.97%) |
+| Step CLI / `c4f9dc3` | 34 | 482/3851 (12.52%) | 42/245 (17.14%) | 738/6148 (12.00%) |
+| Electoral Log defaults / `c4f9dc3` | 68 | 1079/1383 (78.02%) | 140/192 (72.92%) | 1109/1401 (79.16%) |
+| Electoral Log + ImmuDB / `c4f9dc3` | 74 | 1348/1383 (97.47%) | 182/192 (94.79%) | 1338/1401 (95.50%) |
 
-Windmill, Step CLI and default-feature Electoral Log increase every metric against
-their actual PR bases. The full Electoral Log feature lacks a comparable base and
+Earlier comparable Windmill, Step CLI and default-feature Electoral Log runs
+increased every metric against their actual PR bases. The current native stack
+snapshots above refresh package counters; hosted comparisons validate the latest
+individual PR heads against their current parents. The full Electoral Log feature lacks a comparable base and
 stays separate. The macro comparison now uses each revision's existing Windmill
 consumers: the original 353 tests pass and compile the real Celery consumers,
 providing 25/30 macro lines, 2/2 functions and 52/57 regions at the actual base.
@@ -447,22 +448,23 @@ source never increases the macro counters, and incompatible consumer sets fail.
 
 | Frontend / measured source | Unit tests | Lines | Statements | Functions | Branches |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| UI Core / `67d7106` | 224 | 740/745 | 771/776 | 176/177 | 335/349 |
-| Voting Portal / `a657eef` | 168 | 849/2440 | 870/2503 | 172/555 | 479/1714 |
-| UI Essentials / `d15ed22` | 122 | 704/990 | 748/1051 | 235/348 | 495/836 |
+| UI Core / `496e36a` | 227 | 744/750 | 776/782 | 177/178 | 350/363 |
+| Voting Portal / `4eb33fd` | 168 | 849/2440 | 870/2503 | 172/555 | 479/1714 |
+| UI Essentials / `db7c039` | 126 | 710/990 | 755/1052 | 237/349 | 493/832 |
 
 All four frontend fractions increase against the actual PR bases. The separate
 frontend workflow enforces each metric with Node 22.22.0 and the locked workspace
 instrumenter. A real Jest control proves that equal coverage passes, removing a
 test rejects the change, and failed, empty or skipped-required suites cannot pass.
-The 82 Python tooling tests pass; tooling lines and branches also maintain or
-increase coverage. The frontend CI job now requires the browser checks (4 UI Core, 2 Voting Portal,
+The 84 Python tooling tests pass. The foundation comparison is explicitly
+initialized because the actual main base has no coverage-tooling source; it is
+not claimed as a measured improvement. The frontend CI job now requires the browser checks (4 UI Core, 2 Voting Portal,
 4 UI Essentials); they pass locally, as do 17 countdown cases in UTC and America/Toronto. These
 browser checks are not included in Istanbul counters.
 
 Remaining gaps include Windmill cloud transports and full authenticated election
 workflows, Step CLI authenticated commands, Voting Portal identity/session flows,
-and UI Essentials profile/session, chart/grid and wrapper localization behavior.
+and UI Essentials profile/session, chart/grid and broader localization behavior.
 These require focused service or UI fixtures; the current change makes no broader
 coverage claim. Voting Portal still has 20 pre-existing TypeScript diagnostics,
 identical to its parent, while affected production Clippy and frontend lint checks

@@ -46,15 +46,15 @@ backends. The remaining work is tracked in [Meta #13302](https://github.com/sequ
 
 ## Measured checkpoint and remaining gaps
 
-Source `6b04edb4144362bde2761beb053aa9fe79890219`, Rust 1.96.0 and
+Source `c4f9dc3103724ce20d044394df0f8a0f5ceb75cd`, Rust 1.96.0 and
 cargo-llvm-cov 0.9.1, isolated native default profile: **64 tests pass, none
-ignored**; **3,470/3,555 lines (97.61%)**, **350/373 functions (93.83%)**,
-**6,629/6,822 LLVM regions (97.17%)**. The preceding 48-test suite measured
+ignored**; **3,467/3,555 lines (97.52%)**, **349/373 functions (93.57%)**,
+**6,623/6,822 LLVM regions (97.08%)**. The preceding 48-test suite measured
 95.61%, 84.72% and 95.79% respectively under the same profile. Production Clippy
 and workspace formatting pass with existing warnings. Four unsigned zero guards
 use `== 0` to satisfy Clippy without changing their behavior.
 
-The 85 missing lines and 23 functions remain counted. In this concrete backend:
+The 88 missing lines and 24 functions remain counted. In this concrete backend:
 
 - `signatures/dalek.rs`: fixed-size signature decoding accepts all 64-byte
   arrays; JSON array conversion errors follow an already checked length. DER
@@ -87,3 +87,7 @@ between identical revisions, causing a real CI ratchet failure. Candidate sizes
 and choices still vary; protocol implementations and the strict comparison rule
 are unchanged. The shared hosted setup supplies the compatible pinned browser
 for Velvet consumer tests on this earlier stacked PR as well.
+
+The public-key Debug-length assertion was removed because it specified no
+meaningful serialization or identity behavior. Its formatter remains counted;
+key identity, signature verification and PKCS#8 compatibility controls remain.

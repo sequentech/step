@@ -37,9 +37,10 @@ For a fast edit/check cycle, from `packages` run:
 ```sh
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline \
   --test plurality_boundaries --test results_boundaries \
-  --test database_boundaries --test pipeline_boundaries
+  --test database_boundaries --test pipeline_boundaries --test runoff_boundaries
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --test paper_pipeline
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --lib -- boundary_tests
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --lib -- browser_startup
 ```
 
 For the full native coverage report, configure Chrome and the pinned coverage
@@ -80,8 +81,8 @@ ordinary hosted test setup now supply these settings automatically, including
 
 ## Measured checkpoint and follow-up
 
-Source `e9bcedc52b4e3d64d9b1b66ec6676a4b3195cee6`, Rust 1.96.0,
-cargo-llvm-cov 0.9.1 and the pinned headless shell: **164 tests pass, none
+Source `c4f9dc3103724ce20d044394df0f8a0f5ceb75cd`, Rust 1.96.0,
+cargo-llvm-cov 0.9.1 and the pinned headless shell: **165 tests pass, none
 ignored**. The isolated native profile measures **7,201/7,578 lines (95.03%)**,
 **609/694 functions (87.75%)**, **8,938/9,675 LLVM regions (92.38%)**.
 The preceding 157-test suite measured 7,193/7,570 lines, 607/692 functions and
@@ -104,3 +105,15 @@ codec input; `generate_db/generate_db.rs` failed copied-database and ballot writ
 files. These need further valid-control failure fixtures and remain open work.
 Unused fixture constructors, `HasId` adapters and diagnostic formatting are not
 called merely to increase a score. No new coverage exclusions were introduced.
+
+Receipt batch-size validation runs before input-file discovery, including an
+empty election list. Tests isolate the zero-size error from browser/template
+failures and retain valid missing-file controls. The shared browser action is
+included in both workflow trigger path lists.
+
+The participation helper's checked sums do not make every aggregation safe:
+`ExtendedMetricsContest::aggregate` and `ContestResult::aggregate` still expose
+infallible APIs with unchecked counter addition. Inputs whose aggregate exceeds
+`u64` require a coordinated error-propagation change across their callers. This
+review does not replace overflow with saturation or introduce production panics;
+that wider arithmetic contract remains an explicit limitation.
