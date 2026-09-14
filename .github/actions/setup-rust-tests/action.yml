@@ -49,3 +49,15 @@ runs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+
+    - name: Install the local PDF test browser
+      if: inputs.cargo-build-name == 'velvet'
+      uses: ./.github/actions/setup-test-browser
+
+    - name: Bound PDF test concurrency
+      if: inputs.cargo-build-name == 'velvet'
+      shell: bash
+      run: |
+        echo 'RUST_TEST_THREADS=2' >> "$GITHUB_ENV"
+        echo 'RAYON_NUM_THREADS=2' >> "$GITHUB_ENV"
+        echo 'DOC_RENDERER_BACKEND=inplace' >> "$GITHUB_ENV"
