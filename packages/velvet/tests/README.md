@@ -49,17 +49,11 @@ RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 DOC_RENDERER_BACKEND=inplace \
 Set `CHROME` to a compatible local executable. CI uses the official Chrome for
 Testing **headless shell 153.0.8010.36**, with the download and checksum pinned in
 [the browser setup action](../../../.github/actions/setup-test-browser/action.yml).
-Both `--single-process` and `--no-zygote` remain enabled. The full Chrome binary
-of the same version crashed with these flags in the isolated worker; the headless
-shell passed the startup control and PDF suite. The startup control uses the
+Both `--single-process` and `--no-zygote` remain enabled. The startup control uses the
 same executable resolver as the production renderer.
 
 The full suite uses a real local browser; an absent browser is an environment
-failure, not a reason to skip PDF tests. The baseline command measures progress; omitting `--baseline` enforces the local
-95% line improvement target. CI instead rejects any decrease against the actual
-PR base in each of lines, functions and LLVM regions. Current results and remaining work are tracked in Meta #13294.
-
-The report retains all measured source lines and explains files without LLVM
+failure, not a reason to skip PDF tests. The report retains all measured source lines and explains files without LLVM
 line regions. Existing inline tests and public fixture builders contribute to
 the native aggregate. This is not production-only coverage or branch coverage.
 Cloud rendering, remote storage, ACM Java signing and deployment integrations
@@ -73,29 +67,5 @@ values override these defaults. Direct workspace-root Cargo invocations should s
 ordinary hosted test setup now supply these settings automatically, including
 `DOC_RENDERER_BACKEND=inplace` for local PDF rendering.
 
-## Measured checkpoint and follow-up
-
-Source `e9bcedc52b4e3d64d9b1b66ec6676a4b3195cee6`, Rust 1.96.0,
-cargo-llvm-cov 0.9.1 and the pinned headless shell: **164 tests pass, none
-ignored**. The isolated native profile measures **7,201/7,578 lines (95.03%)**,
-**609/694 functions (87.75%)**, **8,938/9,675 LLVM regions (92.38%)**.
-The preceding 157-test suite measured 7,193/7,570 lines, 607/692 functions and
-8,929/9,666 regions with the same browser and toolchain. Every metric increases,
-including the region percentage before rounding. Production Clippy and workspace
-formatting pass with existing warnings; 75 coverage-tool tests and Ruff pass.
-
-Both malformed external-resolution regressions failed before the small matching
-fix. A valid resolution with reversed candidate order still elects its stated
-winner. Other new controls cover signed transfers, chronological tie lookback,
-blocked winner-output paths, nonzero invalid-vote weights, and a random snapshot
-whose order differs from both sorting rules.
-
-The remaining 377 lines/85 functions stay counted. Most are real failure paths,
-not generated derives: `generate_reports/generate_reports.rs` report/result file
-reads and rendering/output failures; `ballot_images/mcballot_images.rs` receipt,
-CSV, manifest and output failures; `decode_ballots/*.rs` malformed numeric and
-codec input; `generate_db/generate_db.rs` failed copied-database and ballot writes;
-`do_tally/do_tally.rs` and `mark_winners/mark_winners.rs` missing intermediate
-files. These need further valid-control failure fixtures and remain open work.
 Unused fixture constructors, `HasId` adapters and diagnostic formatting are not
-called merely to increase a score. No new coverage exclusions were introduced.
+called merely to increase a score.
