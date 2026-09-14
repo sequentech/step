@@ -1,8 +1,8 @@
-use std::str::FromStr;
 // SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::{bail, Context, Result};
+use std::str::FromStr;
 
 use super::common::{row_to_message, validate_board_name, Board};
 use crate::api_types::MessageBlob;
