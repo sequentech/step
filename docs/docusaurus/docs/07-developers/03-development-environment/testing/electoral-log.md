@@ -54,7 +54,7 @@ All unit tests live outside `src`, including the preserved existing tests, so
 their bodies do not inflate source coverage. Derive-generated methods remain in
 LLVM's measured totals.
 
-Follow-up row contracts give every optional field a distinct value, including an
+Row contracts give every optional field a distinct value, including an
 empty ballot ID, so accidental field swaps or normalization are observable. A
 valid explicit null must not hide a duplicate column from a joined table. The separate `electoral-log-native` profile measures default features on both
 revisions for the strict per-metric CI comparison. Use it when the actual base

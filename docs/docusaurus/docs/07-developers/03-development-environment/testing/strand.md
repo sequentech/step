@@ -21,7 +21,7 @@ production key or network connection is needed.
 | `support/proof_shapes.rs` | Deserialized shuffle proofs with missing or extra dimensions must return errors before indexed verification. Each test first verifies the original valid proof. |
 
 The shape tests are compiled as an internal test module because proof fields
-are crate-private. Keeping them outside `src` also keeps the new test bodies
+are crate-private. Keeping them outside `src` also keeps the test bodies
 out of the coverage reporter's source inventory. They are deliberately small:
 three ciphertexts suffice to exercise the same dimension relationships as a
 large shuffle.
