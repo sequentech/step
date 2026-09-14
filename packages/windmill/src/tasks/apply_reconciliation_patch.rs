@@ -368,7 +368,6 @@ async fn run_apply_reconciliation_patch(
                 completed_voter,
                 std::mem::take(&mut current_items),
                 &mut pending_voters_added,
-                &mut audit_writer,
                 &mut applied_voters_count,
                 &mut row_failures,
             )
