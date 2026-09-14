@@ -2242,6 +2242,13 @@ const catalanTranslation: TranslationType = {
             generalInfoTitle: "Informació General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat d'importació del fragment de clau",
+            eligibility: {
+                selectElection: "Selecciona almenys una elecció.",
+                publishElection: "Publica cada elecció seleccionada abans de crear-ne el recompte.",
+                tallyDisallowed: "El recompte està deshabilitat per a una elecció seleccionada.",
+                endVoting:
+                    "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
+            },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
             startTallySuccess: "Recompte iniciat",

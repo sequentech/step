@@ -14,3 +14,4 @@ pub mod tally_progress;
 pub mod tally_resolution;
 pub mod tally_session_error;
 pub mod velvet_tally;
+pub mod tally_validation;

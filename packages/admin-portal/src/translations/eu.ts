@@ -2224,6 +2224,14 @@ const basqueTranslation: TranslationType = {
             generalInfoTitle: "Informazio Orokorra",
             trusteeTallyTitle: "Fideikomisarioak",
             trusteeTallySubTitle: "Giltza zatiaren inportazio egoera",
+            eligibility: {
+                selectElection: "Hautatu gutxienez hauteskunde bat.",
+                publishElection:
+                    "Argitaratu hautatutako hauteskunde bakoitza zenbaketa sortu aurretik.",
+                tallyDisallowed: "Zenbaketa desgaituta dago hautatutako hauteskunde batean.",
+                endVoting:
+                    "Amaitu hautatutako hauteskunde bakoitzeko bozketa eta gelditu kanal aktiboak zenbaketa sortu aurretik.",
+            },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",
             startTallySuccess: "Zenbaketa hasita",

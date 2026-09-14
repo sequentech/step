@@ -2246,6 +2246,14 @@ const frenchTranslation: TranslationType = {
             generalInfoTitle: "Informations Générales",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État d'importation du fragment de clé",
+            eligibility: {
+                selectElection: "Sélectionnez au moins une élection.",
+                publishElection:
+                    "Publiez chaque élection sélectionnée avant de créer son dépouillement.",
+                tallyDisallowed: "Le dépouillement est désactivé pour une élection sélectionnée.",
+                endVoting:
+                    "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
+            },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
             startTallySuccess: "Comptage commencé",
