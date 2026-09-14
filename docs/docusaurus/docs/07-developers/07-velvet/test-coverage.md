@@ -37,9 +37,10 @@ For a fast edit/check cycle, from `packages` run:
 ```sh
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline \
   --test plurality_boundaries --test results_boundaries \
-  --test database_boundaries --test pipeline_boundaries
+  --test database_boundaries --test pipeline_boundaries --test runoff_boundaries
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --test paper_pipeline
 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --lib -- boundary_tests
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test -p velvet --locked --offline --lib -- browser_startup
 ```
 
 For the full native coverage report, configure Chrome and the pinned coverage
