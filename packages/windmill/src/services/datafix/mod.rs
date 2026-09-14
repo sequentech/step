@@ -6,5 +6,6 @@ pub mod api_datafix;
 pub mod audit;
 pub mod reconciliation;
 pub mod types;
+pub mod user_profile;
 pub mod utils;
 pub mod voterview_requests;

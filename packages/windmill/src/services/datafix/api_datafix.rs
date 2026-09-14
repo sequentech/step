@@ -5,6 +5,7 @@ use super::audit::{
     inbound_operation_log_entry, AppliedInboundOperation, InboundOperation, InboundVoterChanges,
 };
 use super::types::*;
+use super::user_profile::ensure_realm_stores_attributes;
 use super::utils::*;
 
 use crate::postgres::cast_vote::{get_voter_cast_vote_state, VoterCastVoteState};
@@ -96,6 +97,7 @@ pub async fn disable_datafix_voter(
         DISABLE_COMMENT.to_string(),
         vec![DISABLE_REASON_DELETE_CALL.to_string()],
     )]);
+    ensure_realm_stores_attributes(&client, realm, &[DISABLE_COMMENT]).await?;
 
     let user = client
         .edit_user(
@@ -147,6 +149,8 @@ pub async fn add_datafix_voter(
     if let Some(birthdate) = &birthdate {
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate.clone()]);
     }
+    let written: Vec<&str> = hash_map.keys().map(String::as_str).collect();
+    ensure_realm_stores_attributes(&client, realm, &written).await?;
     let attributes = Some(hash_map);
     let user = User {
         attributes: attributes.clone(),
@@ -220,9 +224,11 @@ pub async fn update_datafix_voter(
     if let Some(birthdate) = &birthdate {
         hash_map.insert(DATE_OF_BIRTH.to_string(), vec![birthdate.clone()]);
     }
-    let attributes = Some(hash_map);
+    let written: Vec<&str> = hash_map.keys().map(String::as_str).collect();
 
     let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
+    ensure_realm_stores_attributes(&client, realm, &written).await?;
+    let attributes = Some(hash_map);
     let user = client
         .edit_user(
             realm,
@@ -271,6 +277,7 @@ pub async fn mark_as_voted_via_channel(
     ]);
 
     let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
+    ensure_realm_stores_attributes(&client, realm, &[VOTED_CHANNEL, DISABLE_COMMENT]).await?;
     let user = client
         .edit_user(
             realm,
@@ -321,6 +328,8 @@ pub async fn unmark_voter_as_voted(
         recorded_voted_channel(current_user.attributes.as_ref().unwrap_or(&HashMap::new()));
     let (enabled, attributes) = plan_unmark_voter_edit(&current_user);
     let disable_comment_reset = attributes.contains_key(DISABLE_COMMENT);
+    let written: Vec<&str> = attributes.keys().map(String::as_str).collect();
+    ensure_realm_stores_attributes(&client, realm, &written).await?;
     let user = client
         .edit_user(
             realm,

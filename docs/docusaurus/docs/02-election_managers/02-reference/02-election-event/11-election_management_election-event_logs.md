@@ -51,6 +51,13 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   the external system, for example
   `voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
   The reason is only recorded here; the API reply carries the error code alone.
+
+  Before writing to Keycloak, an operation checks that the election event's
+  user profile stores every attribute it is about to write (for example
+  `dateOfBirth`, `voted-channel` or `disable-comment`). If the realm would
+  silently drop one, the operation fails without changing the voter, the
+  external system receives `internal-error`, and the entry names the
+  attributes the realm does not store.
 - **User id** and **username** identify the voter (the Datafix voter id is the
   username) and the message's `area_id` is the voter's area, as in Keycloak
   events. A field the entry has no value for is left out of the message
