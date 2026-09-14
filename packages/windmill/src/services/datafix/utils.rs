@@ -15,7 +15,7 @@ use deadpool_postgres::Transaction;
 use electoral_log::messages::newtypes::{ExtApiName, ExtApiRequestDirection};
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
-use sequent_core::types::hasura::core::ElectionEvent;
+use sequent_core::types::hasura::core::{Area, ElectionEvent};
 use sequent_core::types::keycloak::{
     ATTR_RESET_VALUE, VOTED_CHANNEL, VOTED_CHANNEL_INTERNET_VALUE,
 };
@@ -234,40 +234,80 @@ pub async fn find_user_area_by_name(
     election_event_id: &str,
     voter_info: &VoterInformationBody,
 ) -> Result<ResolvedArea, DatafixError> {
-    // Compose the full area name from the voter information
-    let area_concat = compose_area_name(voter_info);
-    let event_areas = get_event_areas(hasura_transaction, tenant_id, election_event_id)
+    let event_areas = event_areas(hasura_transaction, tenant_id, election_event_id).await?;
+
+    resolve_area_by_name(&event_areas, &compose_area_name(voter_info))
+}
+
+/// Resolves the request's area and, from the same areas fetch, the name of the
+/// area the voter is leaving — Keycloak stores only the area id, so naming the
+/// previous area in the electoral log needs the event's areas anyway. The
+/// previous name is `None` when the voter had no area, or when its area is no
+/// longer one of the event's (the entry still records the raw previous id).
+#[instrument(skip_all)]
+pub async fn find_user_area_and_previous_name(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_info: &VoterInformationBody,
+    previous_area_id: Option<&str>,
+) -> Result<(ResolvedArea, Option<String>), DatafixError> {
+    let event_areas = event_areas(hasura_transaction, tenant_id, election_event_id).await?;
+    let resolved_area = resolve_area_by_name(&event_areas, &compose_area_name(voter_info))?;
+    let previous_area_name =
+        previous_area_id.and_then(|area_id| area_name_by_id(&event_areas, area_id));
+
+    Ok((resolved_area, previous_area_name))
+}
+
+#[instrument(skip(hasura_transaction))]
+async fn event_areas(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<Area>, DatafixError> {
+    get_event_areas(hasura_transaction, tenant_id, election_event_id)
         .await
         .map_err(|e| {
             error!("Error getting event areas: {e:?}");
             DatafixError::internal(format!("Error getting event areas: {e}"))
-        })?;
+        })
+}
 
-    // Find the id that matches the full name.
-    let area_id = event_areas
+/// Finds the area whose name matches the composed `Ward-SchoolSupportCode-Poll`.
+#[instrument(skip(event_areas))]
+fn resolve_area_by_name(
+    event_areas: &[Area],
+    area_concat: &str,
+) -> Result<ResolvedArea, DatafixError> {
+    event_areas
         .iter()
         .find(|area| {
-            if let Some(name) = &area.name {
-                name.eq(&area_concat)
-            } else {
-                false
-            }
+            area.name
+                .as_ref()
+                .is_some_and(|name| name.as_str() == area_concat)
         })
-        .map(|area| area.id.clone());
-
-    match area_id {
-        Some(id) => Ok(ResolvedArea {
-            id,
-            name: area_concat,
-        }),
-        None => {
-            error!("Error. Area not found for {}", area_concat);
-            Err(DatafixError::new(
+        .map(|area| ResolvedArea {
+            id: area.id.clone(),
+            name: area_concat.to_string(),
+        })
+        .ok_or_else(|| {
+            error!("Error. Area not found for {area_concat}");
+            DatafixError::new(
                 DatafixErrorCode::AreaNotFound,
                 format!("Area not found for {area_concat}"),
-            ))
-        }
-    }
+            )
+        })
+}
+
+/// The name of the event area with this id, `None` when the event has no such
+/// area or the area has no name.
+#[instrument(skip(event_areas))]
+fn area_name_by_id(event_areas: &[Area], area_id: &str) -> Option<String> {
+    event_areas
+        .iter()
+        .find(|area| area.id.eq(area_id))
+        .and_then(|area| area.name.clone())
 }
 
 /// Get user id by username
@@ -533,6 +573,56 @@ mod tests {
         assert!(error.detail.contains("requested-datafix-id"), "{error}");
         assert!(error.detail.contains("event-1"), "{error}");
         assert!(error.detail.contains("event-3"), "{error}");
+    }
+
+    fn area(area_id: &str, name: Option<&str>) -> Area {
+        Area {
+            id: area_id.to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            name: name.map(str::to_string),
+            description: None,
+            r#type: None,
+            parent_id: None,
+            presentation: None,
+        }
+    }
+
+    #[test]
+    fn resolves_the_area_whose_name_matches_the_composed_one() {
+        let areas = vec![
+            area("area-1", Some("WARD-1")),
+            area("area-2", None),
+            area("area-3", Some("WARD-2-POLL-5")),
+        ];
+
+        let resolved = resolve_area_by_name(&areas, "WARD-2-POLL-5").expect("area not found");
+        assert_eq!(resolved.id, "area-3");
+        assert_eq!(resolved.name, "WARD-2-POLL-5");
+    }
+
+    #[test]
+    fn rejects_a_composed_name_no_area_carries() {
+        let areas = vec![area("area-1", Some("WARD-1"))];
+
+        let error = resolve_area_by_name(&areas, "WARD-2").expect_err("unknown area accepted");
+        assert_eq!(error.code, DatafixErrorCode::AreaNotFound);
+    }
+
+    #[test]
+    fn names_the_previous_area_by_its_id() {
+        let areas = vec![area("area-1", Some("WARD-1")), area("area-2", None)];
+
+        assert_eq!(
+            area_name_by_id(&areas, "area-1"),
+            Some("WARD-1".to_string())
+        );
+        assert_eq!(area_name_by_id(&areas, "area-2"), None);
+        assert_eq!(area_name_by_id(&areas, "area-unknown"), None);
     }
 
     fn voter_info(

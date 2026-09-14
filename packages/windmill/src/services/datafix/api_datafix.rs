@@ -66,6 +66,18 @@ fn validated_birthdate(voter_info: &VoterInformationBody) -> Result<Option<Strin
     Ok(Some(birthdate))
 }
 
+/// The voter's recorded birthdate, `None` when the attribute was never set.
+/// Keycloak returns the attribute as a list; the last value wins, as in
+/// `recorded_voted_channel`.
+#[instrument(skip_all)]
+fn recorded_birthdate(user: &User) -> Option<String> {
+    user.attributes
+        .as_ref()?
+        .get(DATE_OF_BIRTH)
+        .and_then(|values| values.last())
+        .cloned()
+}
+
 /// The voter's recorded voted channel, `NONE` when the attribute was never
 /// set (Keycloak returns the attribute as a list; the last value wins, as in
 /// `voted_via_internet`).
@@ -212,11 +224,31 @@ pub async fn update_datafix_voter(
     let username = voter_info.voter_id.clone();
     let client = keycloak_admin_client().await?;
 
-    let ResolvedArea {
-        id: area_id,
-        name: area_name,
-    } = find_user_area_by_name(hasura_transaction, tenant_id, election_event_id, voter_info)
-        .await?;
+    let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
+    // Read before writing: the electoral log entry records the values this
+    // update replaces, and Keycloak's reply only carries the new ones.
+    let previous_user = client.get_user(realm, &user_id).await.map_err(|e| {
+        error!("Error loading user before updating it: {e:?}");
+        DatafixError::internal(format!("Error loading user before updating it: {e}"))
+    })?;
+    let previous_area_id = previous_user.get_area_id();
+    let previous_birthdate = recorded_birthdate(&previous_user);
+    let previous_enabled = previous_user.enabled;
+
+    let (
+        ResolvedArea {
+            id: area_id,
+            name: area_name,
+        },
+        previous_area_name,
+    ) = find_user_area_and_previous_name(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        voter_info,
+        previous_area_id.as_deref(),
+    )
+    .await?;
     // Both area and birthdate have to go into the attributes HashMap. They will be taken from there but not from the User struct.
     let mut hash_map = HashMap::new();
     hash_map.insert(AREA_ID_ATTR_NAME.to_string(), vec![area_id]);
@@ -226,7 +258,6 @@ pub async fn update_datafix_voter(
     }
     let written: Vec<&str> = hash_map.keys().map(String::as_str).collect();
 
-    let user_id = get_user_id(keycloak_transaction, realm, &username).await?;
     ensure_realm_stores_attributes(&client, realm, &written).await?;
     let attributes = Some(hash_map);
     let user = client
@@ -247,8 +278,12 @@ pub async fn update_datafix_voter(
     Ok(AppliedInboundOperation::from_user(
         &user,
         InboundVoterChanges::VoterUpdated {
+            previous_area_name,
+            previous_area_id,
             area_name,
+            previous_birthdate,
             birthdate,
+            previous_enabled,
             enabled: voter_info.enabled,
         },
     ))
@@ -994,6 +1029,24 @@ mod tests {
                 vec!["PHONE".to_string(), "PAPER".to_string()]
             )])),
             "PAPER"
+        );
+    }
+
+    #[test]
+    fn recorded_birthdate_is_none_until_the_attribute_is_set() {
+        let user = |attributes: Option<HashMap<String, Vec<String>>>| User {
+            enabled: Some(true),
+            attributes,
+            ..Default::default()
+        };
+        assert_eq!(recorded_birthdate(&user(None)), None);
+        assert_eq!(recorded_birthdate(&user(Some(HashMap::new()))), None);
+        assert_eq!(
+            recorded_birthdate(&user(Some(HashMap::from([(
+                DATE_OF_BIRTH.to_string(),
+                vec!["1944-11-13".to_string(), "1944-11-14".to_string()]
+            )])))),
+            Some("1944-11-14".to_string())
         );
     }
 

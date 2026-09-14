@@ -38,10 +38,17 @@ pub enum InboundVoterChanges {
         area_name: String,
         birthdate: Option<String>,
     },
-    /// A `None` field was absent from the request, so Keycloak kept its value.
+    /// What the voter carried before the write (`previous_*`, `None` when the
+    /// voter had no such value) next to what the request applied — a `None`
+    /// `birthdate` or `enabled` was absent from the request, so Keycloak kept
+    /// its value.
     VoterUpdated {
+        previous_area_name: Option<String>,
+        previous_area_id: Option<String>,
         area_name: String,
+        previous_birthdate: Option<String>,
         birthdate: Option<String>,
+        previous_enabled: Option<bool>,
         enabled: Option<bool>,
     },
     /// A Datafix "delete" only disables the voter.
@@ -90,7 +97,7 @@ const VALUE_NONE: &str = "none";
 const VALUE_UNCHANGED: &str = "unchanged";
 
 /// Formats the operation string of an inbound entry, e.g.
-/// `voter_id="123456"; UpdateVoter Succeeded (area="WARD-1", area_id=..., birthdate=unchanged, enabled=true)`
+/// `voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-1", previous_area_id=..., area="WARD-2", area_id=..., previous_birthdate=1990-01-01, birthdate=unchanged, previous_enabled=true, enabled=true)`
 /// or `voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
 #[instrument(skip_all, fields(operation = %operation))]
 pub fn inbound_operation_log_entry(
@@ -123,13 +130,21 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
             optional(birthdate.as_deref(), VALUE_NONE),
         ),
         InboundVoterChanges::VoterUpdated {
+            previous_area_name,
+            previous_area_id,
             area_name,
+            previous_birthdate,
             birthdate,
+            previous_enabled,
             enabled,
         } => format!(
-            "area={}, area_id={area_id}, birthdate={}, enabled={}",
+            "previous_area={}, previous_area_id={}, area={}, area_id={area_id}, previous_birthdate={}, birthdate={}, previous_enabled={}, enabled={}",
+            optional_quoted(previous_area_name.as_deref(), VALUE_NONE),
+            optional(previous_area_id.as_deref(), VALUE_NONE),
             quoted(area_name),
+            optional(previous_birthdate.as_deref(), VALUE_NONE),
             optional(birthdate.as_deref(), VALUE_UNCHANGED),
+            optional_bool(*previous_enabled, VALUE_NONE),
             optional_bool(*enabled, VALUE_UNCHANGED),
         ),
         InboundVoterChanges::VoterDisabled { disable_comment } => {
@@ -162,6 +177,12 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
         ),
         InboundVoterChanges::PinReplaced { temporary } => format!("temporary={temporary}"),
     }
+}
+
+/// A free-text value rendered quoted when present, so an absent one is still
+/// told apart from a voter whose value is literally `"none"`.
+fn optional_quoted(value: Option<&str>, absent: &str) -> String {
+    value.map(quoted).unwrap_or_else(|| absent.to_string())
 }
 
 fn optional(value: Option<&str>, absent: &str) -> String {
@@ -256,25 +277,53 @@ mod tests {
     }
 
     #[test]
-    fn update_voter_marks_absent_fields_as_unchanged() {
+    fn update_voter_records_the_previous_values_it_replaced() {
         let entry = inbound_operation_log_entry(
             "123456",
             InboundOperation::UpdateVoter,
             Ok(&applied(InboundVoterChanges::VoterUpdated {
+                previous_area_name: Some("WARD-1-POLL-3".to_string()),
+                previous_area_id: Some("previous-area-id".to_string()),
                 area_name: "WARD-2-POLL-5".to_string(),
-                birthdate: None,
+                previous_birthdate: Some("1944-11-13".to_string()),
+                birthdate: Some("1944-11-14".to_string()),
+                previous_enabled: Some(true),
                 enabled: Some(false),
             })),
         );
         assert_eq!(
             entry,
-            r#"voter_id="123456"; UpdateVoter Succeeded (area="WARD-2-POLL-5", area_id=area-id, birthdate=unchanged, enabled=false)"#
+            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-1-POLL-3", previous_area_id=previous-area-id, area="WARD-2-POLL-5", area_id=area-id, previous_birthdate=1944-11-13, birthdate=1944-11-14, previous_enabled=true, enabled=false)"#
         );
         assert_eq!(
             description_of(&entry),
             "Inbound request UpdateVoter Succeeded."
         );
+    }
 
+    #[test]
+    fn update_voter_marks_absent_fields_as_unchanged() {
+        let entry = inbound_operation_log_entry(
+            "123456",
+            InboundOperation::UpdateVoter,
+            Ok(&applied(InboundVoterChanges::VoterUpdated {
+                previous_area_name: Some("WARD-2-POLL-5".to_string()),
+                previous_area_id: Some("area-id".to_string()),
+                area_name: "WARD-2-POLL-5".to_string(),
+                previous_birthdate: Some("1990-01-01".to_string()),
+                birthdate: None,
+                previous_enabled: Some(true),
+                enabled: Some(false),
+            })),
+        );
+        assert_eq!(
+            entry,
+            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-2-POLL-5", previous_area_id=area-id, area="WARD-2-POLL-5", area_id=area-id, previous_birthdate=1990-01-01, birthdate=unchanged, previous_enabled=true, enabled=false)"#
+        );
+    }
+
+    #[test]
+    fn update_voter_marks_values_the_voter_never_had_as_none() {
         let entry = inbound_operation_log_entry(
             "123456",
             InboundOperation::UpdateVoter,
@@ -282,15 +331,19 @@ mod tests {
                 user_id: Some("user-id".to_string()),
                 area_id: None,
                 changes: InboundVoterChanges::VoterUpdated {
+                    previous_area_name: None,
+                    previous_area_id: None,
                     area_name: "WARD-2".to_string(),
+                    previous_birthdate: None,
                     birthdate: Some("1990-01-01".to_string()),
+                    previous_enabled: None,
                     enabled: None,
                 },
             }),
         );
         assert_eq!(
             entry,
-            r#"voter_id="123456"; UpdateVoter Succeeded (area="WARD-2", area_id=none, birthdate=1990-01-01, enabled=unchanged)"#
+            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area=none, previous_area_id=none, area="WARD-2", area_id=none, previous_birthdate=none, birthdate=1990-01-01, previous_enabled=none, enabled=unchanged)"#
         );
     }
 
