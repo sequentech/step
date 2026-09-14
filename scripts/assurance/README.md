@@ -16,8 +16,10 @@ code meets that policy or that a package has reached its coverage target.
 | Java | URL truststore provider production source | PMD: preserve causes, narrow exception catches, close resources, document contracts, and reject empty error handlers or direct console output |
 | Python | Coverage tooling production source | Ruff `E`, `F`, `I`, `B`, `BLE`, `UP`, `RUF`, and `SIM` |
 
-The TypeScript changes arrive in the UI Core PR above this tooling PR in the
-stack. The commands below describe the integrated stack.
+The Rust module policy and its CI check arrive in the Core PR above this tooling
+PR. The TypeScript changes arrive in the UI Core PR. The table and commands
+below describe the integrated stack; this tooling branch alone does not yet
+enforce either package policy.
 
 ## Rust
 
