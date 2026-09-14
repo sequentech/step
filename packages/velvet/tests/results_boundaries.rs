@@ -42,6 +42,112 @@ fn election_result(counts: &[(&str, u64)]) -> ContestResult {
 }
 
 #[test]
+fn area_result_aggregation_rejects_channel_overflow_before_combining_totals() {
+    use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
+    use sequent_core::types::tally_sheets::VotingChannel;
+    use velvet::pipes::do_tally::ExtendedMetricsContest;
+
+    let channel = ParticipationChannel::from(VotingChannel::PAPER);
+    let result = |count| ContestResult {
+        contest: contest(),
+        census: count,
+        total_votes: count,
+        total_valid_votes: count,
+        extended_metrics: Some(ExtendedMetricsContest {
+            total_ballots: count,
+            votes_by_channel: VotesByChannel::from([(channel.clone(), count)]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let mut tally = Tally::new(
+        &contest(),
+        ScopeOperation::Contest(TallyOperation::AggregateResults),
+        vec![],
+        0,
+        0,
+        vec![],
+        vec![result(u64::MAX - 1), result(1)],
+    )
+    .unwrap();
+    // These are already-counted area results, not u64::MAX allocated ballots.
+    // The public aggregation entry point must accept the exact boundary first.
+    let combined = tally.aggregate_results().unwrap();
+    assert_eq!(combined.total_votes, u64::MAX);
+    assert_eq!(
+        combined.extended_metrics.unwrap().votes_by_channel[&channel],
+        u64::MAX
+    );
+
+    tally.tally_results[1] = result(2);
+    let error = tally.aggregate_results().unwrap_err();
+    assert!(matches!(error,
+        velvet::pipes::do_tally::counting_algorithm::Error::UnexpectedError(message)
+        if message.contains("Voting channel count overflow")));
+    assert_eq!(tally.tally_results[0].total_votes, u64::MAX - 1);
+}
+
+#[test]
+fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
+    use sequent_core::types::ceremonies::CountingAlgType;
+    use sequent_core::types::participation::{ParticipationChannel, VotesByChannel};
+    use sequent_core::types::tally_sheets::VotingChannel;
+    use velvet::pipes::do_tally::counting_algorithm::{instant_runoff::InstantRunoff, Error};
+    use velvet::pipes::do_tally::ExtendedMetricsContest;
+
+    let channel = ParticipationChannel::from(VotingChannel::PAPER);
+    for algorithm in [
+        CountingAlgType::PluralityAtLarge,
+        CountingAlgType::InstantRunoff,
+    ] {
+        let mut contest = contest();
+        contest.counting_algorithm = Some(algorithm);
+        contest.winning_candidates_num = 1;
+        for last_count in [1, 2] {
+            let sheets = [u64::MAX - 1, last_count].map(|count| ContestResult {
+                contest: contest.clone(),
+                total_votes: count,
+                total_valid_votes: count,
+                extended_metrics: Some(ExtendedMetricsContest {
+                    total_ballots: count,
+                    votes_by_channel: VotesByChannel::from([(channel.clone(), count)]),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            });
+            let tally = Tally::new(
+                &contest,
+                ScopeOperation::Area(TallyOperation::ProcessBallotsAll),
+                vec![],
+                0,
+                0,
+                sheets.into(),
+                vec![],
+            )
+            .unwrap();
+            let combined = match algorithm {
+                CountingAlgType::PluralityAtLarge => PluralityAtLarge::new(tally).tally(),
+                CountingAlgType::InstantRunoff => InstantRunoff::new(tally).tally(),
+                _ => unreachable!(),
+            };
+            if last_count == 1 {
+                let combined = combined.unwrap();
+                assert_eq!(combined.total_votes, u64::MAX);
+                assert_eq!(
+                    combined.extended_metrics.unwrap().votes_by_channel[&channel],
+                    u64::MAX
+                );
+            } else {
+                assert!(
+                    matches!(combined.unwrap_err(), Error::UnexpectedError(message)
+                    if message.contains("Voting channel count overflow"))
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn winners_use_counts_then_names_and_never_elect_ballot_markers() {
     // Marker totals deliberately exceed every candidate. Bea and Ada tie;
     // their input order must not decide which one gets the first position.
