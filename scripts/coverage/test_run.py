@@ -253,17 +253,31 @@ issue = "https://github.com/sequentech/meta/issues/13292"
         with patch.object(run, "execute", side_effect=tool):
             self.assertEqual(run.measure("sequent-core", False, False), 0)
 
+    def test_external_reports_do_not_create_coverage_files_in_the_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory)
+            with patch.object(run, "execute", side_effect=self.tool_output):
+                self.assertEqual(
+                    run.measure("sequent-core", True, True, destination), 0
+                )
+            self.assertFalse((self.root / "coverage").exists())
+            report = json.loads(
+                next(destination.glob("sequent-core/*/summary.json")).read_text()
+            )
+            self.assertEqual(report["package"], "sequent-core")
+
     def test_main_returns_the_measurement_exit_code(self) -> None:
         with patch.object(sys, "argv", ["run.py", "sequent-core", "--baseline"]):
             with patch.object(run, "measure", return_value=1) as measure:
                 self.assertEqual(run.main(), 1)
-            measure.assert_called_once_with("sequent-core", True, False)
+            measure.assert_called_once_with("sequent-core", True, False, None)
 
     def test_overlapping_runs_cannot_clear_each_others_counters(self) -> None:
-        lock_path = self.root / "coverage" / ".lock"
+        lock_path = self.root / ".git" / "package-coverage.lock"
         lock_path.parent.mkdir()
         with (
             lock_path.open("a") as lock,
+            patch.object(run, "git_output", return_value=str(lock_path)),
             patch.object(sys, "argv", ["run.py", "sequent-core"]),
         ):
             run.fcntl.flock(lock, run.fcntl.LOCK_EX | run.fcntl.LOCK_NB)
