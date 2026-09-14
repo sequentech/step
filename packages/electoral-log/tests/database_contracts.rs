@@ -61,6 +61,20 @@ async fn database_lifecycle_and_both_pagination_strategies_preserve_all_metadata
             assert_eq!(*actual, expected, "full reader changed row {index}");
         }
 
+        let mut offset_rows = Vec::new();
+        for offset in [0, 900, 1800] {
+            offset_rows.extend(
+                client
+                    .get_electoral_log_messages_at_offset(DATABASE, 900, offset)
+                    .await?,
+            );
+        }
+        let expected_ids: Vec<i64> = (1..=903).collect();
+        assert_eq!(
+            offset_rows.iter().map(|row| row.id).collect::<Vec<_>>(),
+            expected_ids
+        );
+
         let first_page = client
             .get_electoral_log_messages_batch(DATABASE, 4, 0)
             .await?;
@@ -119,9 +133,27 @@ async fn filters_bind_literal_values_and_accept_epoch_zero_and_multiple_sort_col
         let server = DatabaseServer::start().await?;
         let mut client = server.client().await?;
         client.upsert_electoral_log_db(DATABASE).await?;
+        let mut epoch = message(0);
+        epoch.created = 0;
         client
-            .insert_electoral_log_messages(DATABASE, &vec![message(0), message(1), message(2)])
+            .insert_electoral_log_messages(DATABASE, &vec![epoch, message(1), message(2)])
             .await?;
+
+        let at_epoch = client
+            .get_electoral_log_messages_filtered::<String, String>(
+                DATABASE,
+                None,
+                None,
+                Some(0),
+                None,
+                None,
+                None,
+            )
+            .await?;
+        assert_eq!(
+            at_epoch.iter().map(|row| row.id).collect::<Vec<_>>(),
+            vec![1]
+        );
 
         let filter = WhereClauseBTreeMap::from([
             (
@@ -223,7 +255,7 @@ async fn helper_binary_uses_explicit_and_environment_configuration() -> Result<(
                     .env("IMMUDB_SERVER_URL", &server.url)
                     .env("IMMUDB_BOARD_DBNAME", DATABASE)
                     .env("IMMUDB_USERNAME", immudb::USERNAME)
-                    .env("IMMUDB_PASSWORD", immudb::PASSWORD);
+                    .env("IMMUDB_PASSWORD", server.password.as_str());
             } else {
                 command.args([
                     "--server-url",
@@ -233,7 +265,7 @@ async fn helper_binary_uses_explicit_and_environment_configuration() -> Result<(
                     "--username",
                     immudb::USERNAME,
                     "--password",
-                    immudb::PASSWORD,
+                    server.password.as_str(),
                 ]);
             }
             let output = command
@@ -297,4 +329,20 @@ async fn tied_timestamps_have_stable_offset_pages_and_respect_explicit_id_order(
     })
     .await
     .context("local ImmuDB integration exceeded two minutes")?
+}
+
+#[tokio::test]
+async fn a_competing_listener_causes_a_bounded_retry_on_a_new_port() -> Result<()> {
+    let occupied = std::net::TcpListener::bind(("127.0.0.1", 0))?;
+    let port = occupied.local_addr()?.port();
+    let server = tokio::time::timeout(
+        DATABASE_TEST_TIMEOUT,
+        DatabaseServer::start_with_first_port(Some(port)),
+    )
+    .await??;
+    assert_ne!(server.url, format!("http://127.0.0.1:{port}"));
+    let mut client = server.client().await?;
+    client.upsert_electoral_log_db(DATABASE).await?;
+    assert!(client.has_database(DATABASE).await?);
+    Ok(())
 }

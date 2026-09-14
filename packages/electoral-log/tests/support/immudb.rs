@@ -13,26 +13,56 @@ use tempfile::TempDir;
 
 pub const DATABASE: &str = "electoralcoveragetest";
 pub const USERNAME: &str = "immudb";
-pub const PASSWORD: &str = "immudb";
 
 pub struct DatabaseServer {
     process: Child,
     directory: TempDir,
     pub url: String,
+    pub password: String,
 }
 
 impl DatabaseServer {
     pub async fn start() -> Result<Self> {
+        Self::start_with_first_port(None).await
+    }
+
+    pub async fn start_with_first_port(first_port: Option<u16>) -> Result<Self> {
+        for attempt in 0..5 {
+            let port = if attempt == 0 && first_port.is_some() {
+                first_port.unwrap()
+            } else {
+                let listener = TcpListener::bind(("127.0.0.1", 0))?;
+                listener.local_addr()?.port()
+            };
+            match Self::start_on_port(port).await {
+                Ok(server) => return Ok(server),
+                Err(error)
+                    if attempt < 4 && error.to_string().contains("address already in use") => {}
+                Err(error) => return Err(error),
+            }
+        }
+        unreachable!("the last startup attempt returns its error")
+    }
+
+    async fn start_on_port(port: u16) -> Result<Self> {
         let directory = tempfile::tempdir()?;
-        let listener = TcpListener::bind(("127.0.0.1", 0))?;
-        let port = listener.local_addr()?.port();
-        drop(listener);
+        let password = format!(
+            "synthetic-{}",
+            directory.path().file_name().unwrap().to_string_lossy()
+        );
 
         let output = std::fs::File::create(directory.path().join("server.log"))?;
         let binary =
             std::env::var_os("ELECTORAL_LOG_TEST_IMMUDB_BINARY").unwrap_or_else(|| "immudb".into());
         let process = Command::new(binary)
-            .args(["--address", "127.0.0.1", "--port", &port.to_string()])
+            .args([
+                "--address",
+                "127.0.0.1",
+                "--port",
+                &port.to_string(),
+                "--admin-password",
+                &password,
+            ])
             .args([
                 "--auth",
                 "--web-server=false",
@@ -51,6 +81,7 @@ impl DatabaseServer {
             process,
             directory,
             url: format!("http://127.0.0.1:{port}"),
+            password,
         };
 
         for _ in 0..100 {
@@ -60,7 +91,12 @@ impl DatabaseServer {
             if let Ok(Ok(_)) =
                 tokio::time::timeout(Duration::from_millis(200), server.client()).await
             {
-                return Ok(server);
+                // The per-process password prevents adopting another fixture
+                // that won the port race. Also check that our child is alive.
+                if server.process.try_wait()?.is_none() {
+                    return Ok(server);
+                }
+                return Err(anyhow!("ImmuDB exited during startup: {}", server.logs()));
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
@@ -68,7 +104,7 @@ impl DatabaseServer {
     }
 
     pub async fn client(&self) -> Result<BoardClient> {
-        BoardClient::new(&self.url, USERNAME, PASSWORD).await
+        BoardClient::new(&self.url, USERNAME, &self.password).await
     }
 
     pub fn logs(&self) -> String {

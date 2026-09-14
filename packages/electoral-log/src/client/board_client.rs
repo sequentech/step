@@ -116,7 +116,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                 .and_then(|label| label.strip_suffix(')'))
                 .and_then(|label| label.rsplit_once('.'))
                 .filter(|(table, name)| !table.is_empty() && !name.is_empty())
-                .ok_or_else(|| anyhow!("invalid audit column label"))?;
+                .ok_or_else(|| anyhow!("invalid audit column label {column:?}"))?;
             if !seen_columns.insert(bare_column) {
                 return Err(anyhow!("duplicate audit column '{bare_column}'"));
             }
@@ -236,6 +236,11 @@ impl TryFrom<&Row> for Aggregate {
             return Err(anyhow!(
                 "count query must return exactly one column and value"
             ));
+        }
+        // ImmuDB 1.9.6 labels the unaliased COUNT(*) projection as col0.
+        // "count" is also accepted for explicitly named aggregate rows.
+        if row.columns[0] != "count" && row.columns[0] != format!("({ELECTORAL_LOG_TABLE}.col0)") {
+            return Err(anyhow!("unexpected count column {:?}", row.columns[0]));
         }
         match row.values[0].value.as_ref() {
             Some(Value::N(count)) if *count >= 0 => Ok(Aggregate { count: *count }),

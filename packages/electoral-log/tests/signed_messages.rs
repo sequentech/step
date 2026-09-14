@@ -99,6 +99,12 @@ fn assert_record(
     // Every truncated prefix must fail on both sides of the persistence
     // boundary. A round-trip alone could miss matching encoder/decoder bugs,
     // and a serializer must propagate a writer failure from any nested field.
+    let mut complete_writer = FailingWriter {
+        limit: stored.message.len(),
+        written: Vec::new(),
+    };
+    borsh::to_writer(&mut complete_writer, message)?;
+    assert_eq!(complete_writer.written, stored.message);
     for limit in 0..stored.message.len() {
         let mut writer = FailingWriter {
             limit,
