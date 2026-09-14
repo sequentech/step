@@ -120,6 +120,14 @@ macro_rules! backend {
                     E::strand_deserialize(&[1, 0, 0, 0, 0]).is_err(),
                     "zero is outside the multiplicative group"
                 );
+                let ctx=C::default();
+                assert_eq!(ctx.exp_from_bytes(&[0]).unwrap(),ctx.exp_from_u64(0));
+                assert!(ctx.exp_from_bytes(&[0xff;257]).is_err());
+                assert!(ctx.element_from_bytes(&[0xff;257]).is_err());
+                // 5 is a nonresidue for the fixed prime; the valid square 4
+                // above distinguishes membership rejection from parse failure.
+                assert!(matches!(ctx.element_from_bytes(&[5]),
+                    Err(strand::util::StrandError::Generic(message)) if message == "Not a quadratic residue"));
                 assert!(E::strand_deserialize(&$element).is_ok());
                 assert!(X::strand_deserialize(&$exponent).is_ok());
             }
