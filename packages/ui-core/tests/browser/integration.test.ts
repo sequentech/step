@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import assert from "node:assert/strict"
+import {createHash} from "node:crypto"
 import {readFile} from "node:fs/promises"
 import {createServer, type Server} from "node:http"
 import {createRequire} from "node:module"
@@ -113,6 +114,7 @@ test("the real WebAssembly module generates, hashes and decodes its sample ballo
             decodedCount: decoded?.length,
             configuredIds: ballot.config.contests.map((contest) => contest.id),
             decodedIds: decoded?.map((contest) => contest.contest_id),
+            publicBallot: core.toHashableBallot(ballot),
             digest: core.hashBallot(ballot),
             aliasDigest: core.hashBallot512(ballot),
             sampleDigest: ballot.ballot_hash,
@@ -122,6 +124,28 @@ test("the real WebAssembly module generates, hashes and decodes its sample ballo
     assert(result.contestCount > 0)
     assert.equal(result.decodedCount, result.contestCount)
     assert.deepEqual(result.decodedIds, result.configuredIds)
+    // Independently encode the public Borsh envelope and hash it with Node's
+    // crypto implementation. Comparing WASM aliases alone cannot detect the
+    // wrong digest algorithm, truncation, or envelope serialization.
+    const u32 = (value: number) => {
+        const bytes = Buffer.alloc(4)
+        bytes.writeUInt32LE(value)
+        return bytes
+    }
+    const text = (value: string) => {
+        const bytes = Buffer.from(value, "utf8")
+        return Buffer.concat([u32(bytes.length), bytes])
+    }
+    const ballot = result.publicBallot
+    // The receipt hashes RawHashableBallot: version, issue date and decoded
+    // contest records. Config metadata and voter signatures are outside it.
+    const envelope = Buffer.concat([
+        u32(ballot.version),
+        text(ballot.issue_date),
+        u32(ballot.contests.length),
+        ...ballot.contests.map((contest) => Buffer.from(contest, "base64")),
+    ])
+    assert.equal(result.digest, createHash("sha512").update(envelope).digest("hex").slice(0, 64))
     assert.equal(result.digest, result.aliasDigest)
     assert.equal(result.digest, result.sampleDigest)
     // The public receipt is the first 256 bits of SHA-512, rendered as hex.
