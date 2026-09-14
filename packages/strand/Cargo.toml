@@ -31,7 +31,7 @@ fips_full = ["openssl_full"]
 
 # Backends
 # See https://docs.rs/curve25519-dalek/latest/curve25519_dalek/#simd-backend to select simd backend
-curve25519-dalek = { version = "=5.0.0-pre.1", features = ["precomputed-tables", "digest"] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
+curve25519-dalek = { version = "=5.0.0-pre.6", features = ["precomputed-tables", "digest"] } # Depends on digest 10.0 which is stuck at getrandom-0.2.15
 num-bigint = { version = "0.4", features = ["rand"], optional = true }
 # num-bigint's RandBigInt trait requires rand 0.8's RngCore/CryptoRng (via rand_core 0.6),
 # incompatible with the rand 0.9 traits StrandRng otherwise implements. StrandRng implements
@@ -44,7 +44,7 @@ malachite = { version = "0.6", default-features = false, features = ["naturals_a
 rug = { version = "~1.23", default-features = false, features = ["integer", "rand"], optional = true }
 
 # Signatures
-ed25519-dalek = { version = "=3.0.0-pre.1", features = ["rand_core", "pkcs8", "alloc"] }
+ed25519-dalek = { version = "=3.0.0-pre.6", features = ["rand_core", "pkcs8", "alloc"] }
 
 # symmetric
 chacha20poly1305 = "=0.11.0-rc.2"
@@ -61,9 +61,9 @@ borsh = { version = "1.5", features = ["derive"] }
 base64 = "0.22.1"
 
 # RNG
-rand = { package="rand", version = "=0.9" } # Fixed: 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
+rand = { package="rand", version = "=0.10.1" } # Fixed: 0.9 will break because uses getrandom v0.3.2 which requires config flag changes for wasm32-unknown-unknown targets
 rand_core = { version = "0.9", optional = true }
-getrandom = { version = "=0.3.4", features = ["wasm_js"] } # Enable wasm_js feature for WASM support
+getrandom = { version = "=0.4.2", features = ["wasm_js"] } # Enable wasm_js feature for WASM support
 rand_chacha = "0.9"
 
 # WASM
