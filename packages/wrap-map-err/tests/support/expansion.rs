@@ -8,30 +8,38 @@ use super::*;
 
 #[test]
 fn result_signatures_preserve_nested_success_types_and_function_metadata() {
-    for signature in [
-        quote!(
-            #[inline]
-            #[doc = "Retain this contract"]
-            pub fn load<'a, T: Clone>(value: &'a T) -> Result<Option<&'a T>>
-            where
-                T: PartialEq,
-            {
-                Ok(Some(value))
-            }
+    for (signature, expected_success) in [
+        (
+            quote!(
+                #[inline]
+                #[doc = "Retain this contract"]
+                pub fn load<'a, T: Clone>(value: &'a T) -> Result<Option<&'a T>>
+                where
+                    T: PartialEq,
+                {
+                    Ok(Some(value))
+                }
+            ),
+            quote!(Option<&'a T>),
         ),
-        quote!(
-            async fn load() -> std::result::Result<Vec<u8>, SourceError> {
-                Ok(vec![])
-            }
+        (
+            quote!(
+                async fn load() -> std::result::Result<Vec<u8>, SourceError> {
+                    Ok(vec![])
+                }
+            ),
+            quote!(Vec<u8>),
         ),
-        quote!(
-            fn load() -> Result<(), SourceError> {
-                Ok(())
-            }
+        (
+            quote!(
+                fn load() -> Result<(), SourceError> {
+                    Ok(())
+                }
+            ),
+            quote!(()),
         ),
     ] {
         let original: ItemFn = syn::parse2(signature.clone()).unwrap();
-        let (_, expected_success) = result_types(&original.sig.output).unwrap();
         let result: ItemFn =
             syn::parse2(expand_attribute(quote!(errors::TaskError), signature)).unwrap();
         let expected_return: ReturnType =
