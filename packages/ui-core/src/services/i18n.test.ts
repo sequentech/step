@@ -221,6 +221,7 @@ it("ignores malformed legacy leaves before traversing a later dotted key", () =>
     const config = JSON.parse(
         '{"i18n":{"en":{"reviewBoundary":null,"reviewBoundary.title":"Readable"}}}'
     )
-    expect(overwriteTranslations(config, false)).toBe(true)
+    // The boolean reports a language change, not whether resources were written.
+    expect(overwriteTranslations(config, false)).toBe(false)
     expect(i18n.getResource("en", "translations", "reviewBoundary.title")).toBe("Readable")
 })
