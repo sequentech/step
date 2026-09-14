@@ -153,12 +153,14 @@ def markdown_summary(profile: str, result: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def measure(profile_name: str, baseline: bool, offline: bool) -> int:
+def measure(
+    profile_name: str, baseline: bool, offline: bool, output_root: Path | None = None
+) -> int:
     """Measure one configured package; return 1 for a failed strict target."""
     config = tomllib.loads(CONFIG.read_text())
     profile = config["profiles"][profile_name]
     package = WORKSPACE / profile["package"]
-    parent = ROOT / "coverage" / profile_name
+    parent = (output_root or ROOT / "coverage") / profile_name
     parent.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ-")
     output = Path(tempfile.mkdtemp(prefix=timestamp, dir=parent))
@@ -197,6 +199,7 @@ def measure(profile_name: str, baseline: bool, offline: bool) -> int:
 
         result.update(
             {
+                "package": profile["package"],
                 "revision": git_output("rev-parse", "HEAD"),
                 "dirty_files": git_output("status", "--porcelain"),
                 "source_sha256": source_digest(package),
@@ -332,11 +335,15 @@ def main() -> int:
         type=Path,
         help="Measure another checkout with this runner and its identical profile",
     )
+    parser.add_argument(
+        "--output-dir", type=Path, help="Store reports outside the measured checkout"
+    )
     arguments = parser.parse_args()
     if arguments.checkout is not None:
         ROOT = arguments.checkout.resolve()
         WORKSPACE = ROOT / "packages"
-    lock = ROOT / "coverage" / ".lock"
+    # Git metadata is not a measured input, even on bases without ignore rules.
+    lock = ROOT / git_output("rev-parse", "--git-path", "package-coverage.lock")
     lock.parent.mkdir(parents=True, exist_ok=True)
     with lock.open("a") as handle:
         try:
@@ -347,7 +354,12 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 2
-        return measure(arguments.profile, arguments.baseline, arguments.offline)
+        return measure(
+            arguments.profile,
+            arguments.baseline,
+            arguments.offline,
+            arguments.output_dir.resolve() if arguments.output_dir else None,
+        )
 
 
 if __name__ == "__main__":
