@@ -46,6 +46,8 @@ working-tree changes.
 - Inspect uncovered source and functions. Investigate suspicious generated-code
   counters with a minimal reproducer. Keep generated serialization counted;
   avoid exercising debug/clone/printing code solely for a score.
+- Enable supported features and run their tests with separate coverage profiles.
+  A disabled feature is not a justification for leaving its code untested.
 - Document concrete residual gaps: location, why the path is unreachable or
   costly to test, and what would invalidate that reasoning. Unmeasured files,
   optional features, platforms and real branches are separate obligations;
@@ -57,6 +59,9 @@ working-tree changes.
 - Run focused tests, the affected suite and required lint/format checks; preserve
   production lint rules. Report revision, tools/profile, counts and gaps. Distinguish
   local/hosted results, explain observed variance and identify pending reviews.
+- Keep developer guides durable: setup, commands, contracts, fixture design and
+  interpretation. Put issue links, targets, counters, commit checkpoints and
+  progress/history in the tracker or PR, not in development documentation.
 - Update relevant documentation. Commit, push or update trackers only within the
   user's authorization; preserve existing issue/PR/documentation links. Separate
   unrelated CI failures from failures caused by this change.

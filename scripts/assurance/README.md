@@ -5,21 +5,15 @@
 
 Production code must expose failures rather than suppress the type checker or
 turn recoverable errors into panics. Unit and end-to-end tests may use `unwrap`,
-`expect`, non-null assertions and similar fixture shortcuts. These checks
-implement the first rollout of Sequent's Lightweight Assurance Methods. Passing this rollout does not mean all existing
-code meets that policy or that a package has reached its coverage target.
+`expect`, non-null assertions and similar fixture shortcuts. The rules are scoped in workspace and package configuration; test fixture
+shortcuts do not exempt production code from those rules.
 
 | Language | Enforced scope | Check |
 | --- | --- | --- |
-| Rust | Sequent Core tally-sheet validation in non-test builds | The full agreed policy |
+| Rust | Sequent Core tally-sheet validation in non-test builds | Module-level production policy |
 | TypeScript | UI Core production source | No explicit `any`, non-null assertions, TypeScript suppression comments, unsafe `finally`, or returned Promise executor values |
 | Java | URL truststore provider production source | PMD: preserve causes, narrow exception catches, close resources, document contracts, and reject empty error handlers or direct console output |
 | Python | Coverage tooling production source | Ruff `E`, `F`, `I`, `B`, `BLE`, `UP`, `RUF`, and `SIM` |
-
-The Rust module policy and its CI check arrive in the Core PR above this tooling
-PR. The TypeScript changes arrive in the UI Core PR. The table and commands
-below describe the integrated stack; this tooling branch alone does not yet
-enforce either package policy.
 
 ## Rust
 
@@ -29,8 +23,8 @@ From `packages/`:
 cargo clippy --locked --no-deps --lib -p sequent-core --features default_features,keycloak
 ```
 
-The shared Rust test setup action runs this command for its Sequent Core entry.
-The tally-sheet validation module carries the policy for non-test builds. Normal
+Clippy applies the selected crate’s configured module and workspace rules.
+Workspace rules take effect only where the crate or module opts into them. Normal
 unit and integration tests keep their assertion style; `clippy.toml` explicitly
 permits `unwrap`, `expect` and panic in tests. Do not mechanically replace a
 production `unwrap` with `expect`: an infallibility claim needs a specific,
@@ -38,9 +32,8 @@ reviewable reason.
 
 `packages/Cargo.toml` contains the canonical workspace policy. A retained crate
 can inherit it with `[lints] workspace = true` after its existing violations are
-fixed. Other crates, the remaining Core modules, and dependency code are not yet
-clean; `--no-deps` limits the check to the selected crate. Existing work is tracked in
-[Meta #11566](https://github.com/sequentech/meta/issues/11566).
+fixed. `--no-deps` limits the check to the selected crate; inspect module attributes
+and crate lint inheritance to determine the rules applied to a specific file.
 
 ## TypeScript
 
@@ -53,7 +46,7 @@ yarn --cwd ui-core lint
 
 Use a runtime check to narrow uncertain production input. Unit tests, browser
 tests and stories keep their existing checks and may use assertion shortcuts.
-UI Essentials and Voting Portal still need their production lint rollout.
+Consult each package’s ESLint configuration for its production and test scopes.
 
 ## Java
 

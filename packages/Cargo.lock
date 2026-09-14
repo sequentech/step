@@ -5476,6 +5476,15 @@ dependencies = [
 
 [[package]]
 name = "keccak"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
+dependencies = [
+ "cpufeatures",
+]
+
+[[package]]
+name = "keccak"
 version = "0.2.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d546793a04a1d3049bd192856f804cfe96356e2cf36b54b4e575155babe9f41"
@@ -5953,7 +5962,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec410515e231332b14cd986a475d1c3323bcfa4c7efc038bfa1d5b410b1c57e4"
 dependencies = [
  "malachite-base",
+ "malachite-float",
  "malachite-nz",
+ "malachite-q",
 ]
 
 [[package]]
@@ -5962,10 +5973,26 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c738d3789301e957a8f7519318fcbb1b92bb95863b28f6938ae5a05be6259f34"
 dependencies = [
+ "getrandom 0.2.16",
  "hashbrown 0.15.5",
  "itertools 0.14.0",
  "libm",
+ "rand 0.8.6",
+ "rand_chacha 0.3.1",
  "ryu",
+ "sha3 0.10.9",
+]
+
+[[package]]
+name = "malachite-float"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9446a966be7f1708c10badd6690d3094b5ad62d3accdcf2154740656d7650cfa"
+dependencies = [
+ "itertools 0.14.0",
+ "malachite-base",
+ "malachite-nz",
+ "malachite-q",
 ]
 
 [[package]]
@@ -5978,6 +6005,17 @@ dependencies = [
  "libm",
  "malachite-base",
  "wide",
+]
+
+[[package]]
+name = "malachite-q"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d764801aa4e96bbb69b389dcd03b50075345131cd63ca2e380bca71cc37a3675"
+dependencies = [
+ "itertools 0.14.0",
+ "malachite-base",
+ "malachite-nz",
 ]
 
 [[package]]
@@ -9340,12 +9378,22 @@ dependencies = [
 
 [[package]]
 name = "sha3"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77fd7028345d415a4034cf8777cd4f8ab1851274233b45f84e3d955502d93874"
+dependencies = [
+ "digest 0.10.7",
+ "keccak 0.1.6",
+]
+
+[[package]]
+name = "sha3"
 version = "0.11.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2103ca0e6f4e9505eae906de5e5883e06fc3b2232fb5d6914890c7bbcb62f478"
 dependencies = [
  "digest 0.11.0-rc.4",
- "keccak",
+ "keccak 0.2.0-rc.0",
 ]
 
 [[package]]
@@ -9691,7 +9739,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "sha2 0.11.0-rc.3",
- "sha3",
+ "sha3 0.11.0-rc.3",
  "thiserror 2.0.17",
  "wasm-bindgen",
  "wasm-bindgen-rayon",
