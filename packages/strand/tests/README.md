@@ -93,3 +93,16 @@ that output does not verify Coq interoperability. Pair its output with the actua
 verifier when testing that contract, and keep the result separate from native
 protocol tests. Browser benchmark/demo harnesses likewise need their intended
 browser or performance checks, not tests that only invoke diagnostic printing.
+
+The OpenSSL backends use AES-GCM; `openssl_full` also uses P-384 signatures.
+With the OpenSSL development headers installed, check their transport and
+rejection contracts from `packages/`:
+
+```bash
+cargo test --locked -p strand --features openssl_core --test wire_boundaries --test stream_contracts
+cargo test --locked -p strand --features openssl_full --test wire_boundaries --test stream_contracts
+```
+
+These checks cover authenticated context, modified ciphertexts, DER records,
+truncation and failing writers. They are separate test runs, not OpenSSL coverage
+measurements or validation of an installed FIPS provider.
