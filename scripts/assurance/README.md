@@ -10,7 +10,7 @@ shortcuts do not exempt production code from those rules.
 
 | Language | Enforced scope | Check |
 | --- | --- | --- |
-| Rust | Sequent Core tally-sheet validation in non-test builds | Module-level production policy |
+| Rust | Crates/modules explicitly opting into production lint rules | Clippy with the configured module/workspace policy |
 | TypeScript | UI Core production source | No explicit `any`, non-null assertions, TypeScript suppression comments, unsafe `finally`, or returned Promise executor values |
 | Java | URL truststore provider production source | PMD: preserve causes, narrow exception catches, close resources, document contracts, and reject empty error handlers or direct console output |
 | Python | Coverage tooling production source | Ruff `E`, `F`, `I`, `B`, `BLE`, `UP`, `RUF`, and `SIM` |
