@@ -94,9 +94,10 @@ pub fn decrypt(
 }
 
 pub fn sk_from_bytes(bytes: &[u8]) -> Result<SymmetricKey, StrandError> {
-    let key = GenericArray::<u8, U32>::from_slice(&bytes).to_owned();
-
-    Ok(key)
+    // Validate the length before constructing GenericArray: from_slice panics
+    // on malformed imported keys in this version of generic-array.
+    let key = crate::util::to_u8_array::<32>(bytes)?;
+    Ok(key.into())
 }
 
 #[cfg(test)]
