@@ -135,3 +135,26 @@ fn unrepresentable_point_counts_return_no_value_instead_of_panicking_or_wrapping
     };
     assert_eq!(get_points(&contest, &first), None);
 }
+
+#[test]
+fn desborda_points_handle_extreme_ranks_after_the_unselected_guard() {
+    let mut contest = contest();
+    contest.presentation.as_mut().unwrap().show_points = Some(true);
+    contest.counting_algorithm = Some(CountingAlgType::Desborda);
+    // Negative ranks mean unselected. Every remaining rank is nonnegative, so
+    // subtracting it from 80 cannot fall below i64::MIN.
+    for (selected, expected) in [
+        (i64::MIN, 0),
+        (-1, 0),
+        (0, 80),
+        (80, 0),
+        (i64::MAX, -9_223_372_036_854_775_727),
+    ] {
+        let choice = DecodedVoteChoice {
+            id: "candidate".into(),
+            selected,
+            write_in_text: None,
+        };
+        assert_eq!(get_points(&contest, &choice), Some(expected));
+    }
+}
