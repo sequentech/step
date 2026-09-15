@@ -17,13 +17,12 @@ const DropJsonFile: React.FC<DropJsonFileProps> = ({handleFiles}) => {
 
     const inputRef = useRef<HTMLInputElement | null>(null)
 
-    // triggers the input when the button is clicked
-    const onButtonClick = () => {
-        inputRef.current?.click()
-    }
-
     return (
-        <CustomDropFile handleFiles={handleFiles} ref={inputRef}>
+        <CustomDropFile
+            errorMessage={t("dragNDrop.importError")}
+            handleFiles={handleFiles}
+            ref={inputRef}
+        >
             <Paper
                 variant="responsive"
                 sx={{width: "100%", gap: "7px", padding: "16px", backgroundColor: "inherit"}}
@@ -47,7 +46,6 @@ const DropJsonFile: React.FC<DropJsonFileProps> = ({handleFiles}) => {
                     <Typography
                         variant="body1"
                         component="span"
-                        onClick={onButtonClick}
                         data-testid="drop-file-button"
                         sx={{fontWeight: "bold", textDecoration: "underline", margin: 0}}
                     >
