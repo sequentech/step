@@ -90,7 +90,7 @@ before(
             ],
         ])
         server = createServer((request, response) => {
-            const resource = resources.get(request.url || "/")
+            const resource = resources.get(new URL(request.url || "/", "http://localhost").pathname)
             response.writeHead(resource ? 200 : 404, {
                 "Content-Type": resource?.type || "text/plain",
             })

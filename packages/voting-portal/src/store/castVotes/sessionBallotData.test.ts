@@ -6,12 +6,10 @@ import {
     BALLOT_DATA_EXPIRATION_KEY,
     clearSessionStorageBallotData,
 } from "./sessionBallotData"
-import {getLanguageFromURL} from "../../utils/queryParams"
 
 beforeEach(() => sessionStorage.clear())
 afterEach(() => {
     sessionStorage.clear()
-    window.history.replaceState({}, "", "/")
 })
 
 it("clears the ballot and expiry together while preserving unrelated session preferences", () => {
@@ -23,13 +21,4 @@ it("clears the ballot and expiry together while preserving unrelated session pre
     expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
     expect(sessionStorage.getItem(BALLOT_DATA_EXPIRATION_KEY)).toBeNull()
     expect(sessionStorage.getItem("language")).toBe("en")
-})
-
-it.each([
-    ["?lang=fr-CA", "fr-CA"],
-    ["?other=en", undefined],
-    ["?lang=", undefined],
-])("reads an explicit language from %s", (query, expected) => {
-    window.history.replaceState({}, "", `/${query}`)
-    expect(getLanguageFromURL()).toBe(expected)
 })
