@@ -952,6 +952,7 @@ impl ElectoralLog {
         election_id: Option<String>,
         voter_id: Option<String>,
         voter_username: Option<String>,
+        area_id: Option<String>,
         direction: ExtApiRequestDirection,
         api_name: ExtApiName,
         operation: String,
@@ -968,6 +969,7 @@ impl ElectoralLog {
             direction,
             api_name,
             operation,
+            area_id,
         )?;
 
         let board_message: ElectoralLogMessage = (&message).try_into().with_context(|| {

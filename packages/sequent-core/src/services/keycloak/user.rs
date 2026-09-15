@@ -539,16 +539,27 @@ impl KeycloakAdminClient {
         Ok(self.get_user_profile_configuration(realm).await?.attributes)
     }
 
+    /// The realm's user profile as Keycloak returns it: every declared
+    /// attribute, whoever may edit it, plus the unmanaged-attribute policy.
+    /// `get_user_profile_configuration` keeps only the attributes shown to
+    /// administrators in the portals.
+    #[instrument(skip(self), err)]
+    pub async fn get_user_profile(
+        self: &KeycloakAdminClient,
+        realm: &str,
+    ) -> Result<UPConfig> {
+        self.client
+            .realm_users_profile_get(realm)
+            .await
+            .map_err(|err| anyhow!("{:?}", err))
+    }
+
     #[instrument(skip(self), err)]
     pub async fn get_user_profile_configuration(
         self: &KeycloakAdminClient,
         realm: &str,
     ) -> Result<UserProfileConfiguration> {
-        let response: UPConfig = self
-            .client
-            .realm_users_profile_get(&realm)
-            .await
-            .map_err(|err| anyhow!("{:?}", err))?;
+        let response = self.get_user_profile(realm).await?;
         Ok(Self::get_formatted_user_profile_configuration(response))
     }
 
