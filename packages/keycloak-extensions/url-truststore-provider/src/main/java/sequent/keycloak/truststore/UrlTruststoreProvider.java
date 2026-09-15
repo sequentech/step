@@ -17,12 +17,29 @@ import org.keycloak.truststore.TruststoreProvider;
 /** TruststoreProvider backed by CA certificates fetched from a URL. */
 public class UrlTruststoreProvider implements TruststoreProvider {
 
+  /** Hostname matching policy used for connections through this truststore. */
   private final HostnameVerificationPolicy policy;
+
+  /** Socket factory derived from these certificates, or the JVM default if unavailable. */
   private final SSLSocketFactory sslSocketFactory;
+
+  /** In-memory CA entries supplied to Keycloak. */
   private final KeyStore truststore;
+
+  /** Self-signed roots indexed by subject principal. */
   private final Map<X500Principal, List<X509Certificate>> rootCertificates;
+
+  /** Intermediate issuers indexed by subject principal. */
   private final Map<X500Principal, List<X509Certificate>> intermediateCertificates;
 
+  /**
+   * Creates a provider from a fully built truststore and its classified certificates.
+   *
+   * @param truststore the CA entries to trust
+   * @param policy hostname matching policy
+   * @param rootCertificates immutable root certificate index
+   * @param intermediateCertificates immutable intermediate certificate index
+   */
   public UrlTruststoreProvider(
       KeyStore truststore,
       HostnameVerificationPolicy policy,
