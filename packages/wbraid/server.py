@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
+import os
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 class CrossOriginIsolation(SimpleHTTPRequestHandler):
@@ -18,7 +19,9 @@ handler.extensions_map.update({
     '.js': 'text/javascript',
 })
 
-print("Launching server on 127.0.0.1:8080..")
+port = int(os.environ.get('PORT', '8080'))
+
+print(f"Launching server on 127.0.0.1:{port}..")
 print("SharedArrayBuffer support enabled (Cross-Origin-Isolation headers)")
-httpd = HTTPServer(('127.0.0.1', 8080), handler)
+httpd = HTTPServer(('127.0.0.1', port), handler)
 httpd.serve_forever()

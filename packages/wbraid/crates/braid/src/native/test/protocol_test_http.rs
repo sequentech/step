@@ -7,7 +7,7 @@
 //! b4 via [`HttpTransport`] (real HTTP + S3).
 //!
 //! This test is `#[ignore]`d (see `tests/test_protocol.rs`): it requires a running
-//! b4 server at [`HTTP_URL`] backed by S3/LocalStack. Persistence is
+//! b4 server at [`http_url`] backed by S3/LocalStack. Persistence is
 //! [`NoOpPersistence`] for now — a clean run does not exercise anti-rewrite /
 //! restart (that is the SQLite persistence follow-up).
 
@@ -40,8 +40,10 @@ use crate::native::http_transport::HttpTransport;
 use crate::session::Session;
 use crate::trustee::Trustee;
 
-/// b4 server endpoint the test drives against (must be running, with S3).
-const HTTP_URL: &str = "http://127.0.0.1:3000";
+/// b4 url the test drives against. `WBRAID_B4_URL` when set, otherwise port `3000`.
+fn http_url() -> String {
+    std::env::var("WBRAID_B4_URL").unwrap_or_else(|_| "http://127.0.0.1:3000".to_string())
+}
 
 /// Wire `date` for every message the harness posts (§3.1).
 const DATE: Timestamp = 0;
@@ -108,14 +110,14 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
 
     // --- create the board on b4 and post the Configuration (manager) ---
     info!("Creating board {} on b4", board);
-    HttpTransport::create_board(HTTP_URL, &board).await?;
-    let manager_tx = HttpTransport::new(HTTP_URL, &board);
+    HttpTransport::create_board(&http_url(), &board).await?;
+    let manager_tx = HttpTransport::new(&http_url(), &board);
     Transport::<C>::publish(&manager_tx, &cfg_message).await?;
 
     // --- one Session (trustee + board client) per configured trustee ---
     let mut sessions: Vec<HttpSession<C>> = Vec::with_capacity(n_trustees);
     for (i, (signing_key, keypair)) in signing_keys.into_iter().zip(share_keypairs).enumerate() {
-        let transport = HttpTransport::new(HTTP_URL, &board);
+        let transport = HttpTransport::new(&http_url(), &board);
         let client = BoardClient::connect(transport, NoOpPersistence).await?;
         let trustee = Trustee::new(
             (i + 1).to_string(),
