@@ -4,11 +4,17 @@
 import {gql} from "@apollo/client"
 
 export const EXPORT_USERS = gql`
-    mutation ExportUsers($tenantId: String!, $electionEventId: String, $electionId: String) {
+    mutation ExportUsers(
+        $tenantId: String!
+        $electionEventId: String
+        $electionId: String
+        $includeSecretAttributes: Boolean
+    ) {
         export_users(
             tenant_id: $tenantId
             election_event_id: $electionEventId
             election_id: $electionId
+            include_secret_attributes: $includeSecretAttributes
         ) {
             error_msg
             document_id

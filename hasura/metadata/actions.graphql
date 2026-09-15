@@ -57,6 +57,19 @@ type Mutation {
 }
 
 type Mutation {
+    acknowledge_support_materials(
+        election_event_id: uuid!
+        document_ids: [String!]!
+    ): AcknowledgeSupportMaterialsOutput
+}
+
+type Query {
+    get_support_materials_acknowledgment(
+        election_event_id: uuid!
+    ): GetSupportMaterialsAcknowledgmentOutput!
+}
+
+type Mutation {
     create_ballot_receipt(
         ballot_id: String!
         ballot_tracker_url: String!
@@ -122,6 +135,7 @@ type Mutation {
         election_event_id: String
         user: KeycloakUser2!
         user_roles_ids: [String!]
+        secret_attributes: jsonb
     ): KeycloakUser!
 }
 
@@ -341,7 +355,17 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
         election_id: String
+        include_secret_attributes: Boolean
     ): ExportUsersOutput
+}
+
+type Query {
+    reveal_voter_secret_attribute(
+        tenant_id: String!
+        election_event_id: String!
+        user_id: String!
+        attribute_name: String!
+    ): RevealVoterSecretAttributeOutput!
 }
 
 type Query {
@@ -469,6 +493,13 @@ type Query {
         tenant_id: String!
         election_event_id: String
     ): [UserProfileAttribute!]!
+}
+
+type Query {
+    get_user_profile_configuration(
+        tenant_id: String!
+        election_event_id: String
+    ): UserProfileConfiguration!
 }
 
 type Mutation {
@@ -1007,6 +1038,7 @@ input EditUsersInput {
     enabled: Boolean
     election_event_id: String
     attributes: jsonb
+    secret_attributes: jsonb
     email: String
     first_name: String
     last_name: String
@@ -1014,6 +1046,11 @@ input EditUsersInput {
     username: String
     password: String
     temporary: Boolean
+}
+
+type RevealVoterSecretAttributeOutput {
+    attribute_name: String!
+    values: [String!]!
 }
 
 input DeleteUserInput {
@@ -1105,6 +1142,7 @@ input GetTopCastVotesByIpInput {
 input ExportOptions {
     password: String
     is_encrypted: Boolean
+    encrypt_with_password: Boolean
     include_voters: Boolean
     activity_logs: Boolean
     bulletin_board: Boolean
@@ -1474,6 +1512,15 @@ type createBallotReceiptOutput {
     status: String
 }
 
+type AcknowledgeSupportMaterialsOutput {
+    election_event_id: uuid!
+    document_ids: [String!]!
+}
+
+type GetSupportMaterialsAcknowledgmentOutput {
+    document_ids: [String!]!
+}
+
 type OptionalImportEvent {
     id: String
     message: String
@@ -1553,6 +1600,18 @@ type UserProfileAttribute {
     validations: jsonb
     permissions: jsonb
     selector: jsonb
+}
+
+type UserProfileAttributeGroup {
+    annotations: jsonb
+    display_description: String
+    display_header: String
+    name: String
+}
+
+type UserProfileConfiguration {
+    attributes: [UserProfileAttribute!]!
+    groups: [UserProfileAttributeGroup!]!
 }
 
 type DeleteUsersOutput {

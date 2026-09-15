@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
     let db = db::open_from_env().await?;
     let s3_client = s3::init_s3_client().await;
     let state = AppState::from_env(db, s3_client);
-    tracing::info!("S3 bucket {:?}", state.bucket_name,);
+    tracing::info!("S3 bucket {:?}", state.bucket_name);
 
     let app = app::router(state);
 

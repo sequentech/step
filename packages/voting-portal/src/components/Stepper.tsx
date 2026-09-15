@@ -4,10 +4,12 @@
 
 import React, {useEffect} from "react"
 import {BreadCrumbSteps} from "@sequentech/ui-essentials"
+import {useTranslation} from "react-i18next"
 import {selectBypassChooser} from "../store/extra/extraSlice"
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 
 export default function Stepper({selected, warning}: {selected: number; warning?: boolean}) {
+    const {t} = useTranslation()
     const dispatch = useAppDispatch()
     const bypassElectionChooser = useAppSelector(selectBypassChooser())
 
@@ -22,5 +24,12 @@ export default function Stepper({selected, warning}: {selected: number; warning?
         list.unshift("breadcrumbSteps.electionList")
     }
 
-    return <BreadCrumbSteps labels={list} selected={computedSelected} warning={warning} />
+    return (
+        <BreadCrumbSteps
+            labels={list}
+            selected={computedSelected}
+            warning={warning}
+            ariaLabel={t("a11y.votingProgress")}
+        />
+    )
 }

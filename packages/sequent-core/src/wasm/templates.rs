@@ -121,6 +121,7 @@ interface ISendTemplateBody {
     alias?: string;
     document?: string;
     extra_config?: IExtraConfig;
+    secret_attribute_names?: Array<string>;
 }
 "#;
 

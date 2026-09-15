@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {Box, FormControl, InputLabel, MenuItem, Select, TextField, Typography} from "@mui/material"
-import React, {PropsWithChildren, ReactNode} from "react"
+import {Box, MenuItem, Select, TextField, Typography} from "@mui/material"
+import React, {PropsWithChildren, ReactNode, useId} from "react"
+import VisuallyHidden from "../VisuallyHidden/VisuallyHidden"
 import {styled} from "@mui/material/styles"
 import {theme} from "../../services/theme"
 import {Checkbox} from "@mui/material"
@@ -11,7 +12,7 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked"
 import {faBan, faInfoCircle} from "@fortawesome/free-solid-svg-icons"
 import {FontAwesomeIcon} from "@fortawesome/react-fontawesome"
 import {useTranslation} from "react-i18next"
-import {isString, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
+import {ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 import {getOrdinalSuffix} from "./ordinalUtils"
 
 // Type wrapper for MUI icons to work with React 19
@@ -25,7 +26,7 @@ const RadioButtonCheckedIconFixed: React.FC<any> = (props) => {
     return <Icon {...props} />
 }
 
-export const UnselectableTypography = styled(Typography)`
+export const UnselectableTypography = styled(Typography)<{component?: React.ElementType}>`
     user-select: none;
 `
 
@@ -114,6 +115,9 @@ export interface CandidateProps extends PropsWithChildren {
     writeInValue?: string
     setWriteInText?: (value: string) => void
     isInvalidWriteIn?: boolean
+    // Id of the message explaining why the write-in text is rejected, so the
+    // field itself can point at it rather than leaving the voter to find it.
+    writeInErrorId?: string
     index?: number
     shouldDisable?: boolean
     className?: string
@@ -138,6 +142,7 @@ const Candidate: React.FC<CandidateProps> = ({
     writeInValue,
     setWriteInText,
     isInvalidWriteIn,
+    writeInErrorId,
     children,
     shouldDisable,
     index,
@@ -149,6 +154,15 @@ const Candidate: React.FC<CandidateProps> = ({
     handlePreferentialChange,
 }) => {
     const {t} = useTranslation()
+    // The candidate name is the label for every control in the row. Referencing
+    // the rendered title with aria-labelledby keeps the visible text and the
+    // accessible name in sync even when `title` is rich content rather than a
+    // plain string.
+    const generatedId = useId()
+    const titleId = `${generatedId}-title`
+    const positionLabelId = `${generatedId}-position-label`
+    const writeInLabelId = `${generatedId}-writein-label`
+    const moreInfoLabelId = `${generatedId}-more-info-label`
     const onClick: React.MouseEventHandler<HTMLLIElement> = (event) => {
         event.stopPropagation()
         if (!shouldDisable && setChecked) {
@@ -185,6 +199,11 @@ const Candidate: React.FC<CandidateProps> = ({
 
     const scrollablePreferentialVote = maxSelectablePositions > 4
 
+    // A write-in option usually has no name until the voter types one, so the
+    // title alone would leave its checkbox with an empty accessible name. The
+    // hidden write-in label is prepended so the control is always named.
+    const checkboxLabelIds = isWriteIn ? `${writeInLabelId} ${titleId}` : titleId
+
     return (
         <BorderBox
             isSelectable={!!isSelectable}
@@ -195,9 +214,10 @@ const Candidate: React.FC<CandidateProps> = ({
             className={`candidate-item ${className}`}
         >
             <ImageBox className="image-box">{children}</ImageBox>
-            <Box flexGrow={2}>
+            <Box className="candidate-text" flexGrow={2}>
                 <UnselectableTypography
                     className="candidate-title"
+                    id={titleId}
                     fontWeight="bold"
                     fontSize="16px"
                     lineHeight="22px"
@@ -209,6 +229,7 @@ const Candidate: React.FC<CandidateProps> = ({
                 </UnselectableTypography>
                 <UnselectableTypography
                     className="candidate-description"
+                    component="div"
                     color={theme.palette.customGrey.dark}
                     fontSize="16px"
                     marginTop="4px"
@@ -217,24 +238,46 @@ const Candidate: React.FC<CandidateProps> = ({
                     {description}
                 </UnselectableTypography>
                 {isWriteIn ? (
-                    <Box>
+                    <Box className="candidate-write-in">
+                        <VisuallyHidden className="candidate-write-in-label" id={writeInLabelId}>
+                            {t("a11y.writeInFor")}
+                        </VisuallyHidden>
                         <TextField
                             className="candidate-writein-textfield"
                             placeholder={t("candidate.writeInsPlaceholder")}
-                            InputLabelProps={{shrink: true}}
                             value={writeInValue}
                             onChange={onWriteInTextChange}
                             onClick={handleWriteInClick}
                             error={isInvalidWriteIn || false}
+                            slotProps={{
+                                htmlInput: {
+                                    "aria-labelledby": `${writeInLabelId} ${titleId}`,
+                                    "aria-describedby":
+                                        isInvalidWriteIn && writeInErrorId
+                                            ? writeInErrorId
+                                            : undefined,
+                                },
+                            }}
                         />
                     </Box>
                 ) : null}
             </Box>
             {url ? (
-                <StyledLink href={url} target="_blank" className="candidate-link">
-                    <FontAwesomeIcon icon={faInfoCircle} size="sm" className="candidate-icon" />
+                <StyledLink
+                    href={url}
+                    target="_blank"
+                    className="candidate-link"
+                    aria-labelledby={`${moreInfoLabelId} ${titleId}`}
+                >
+                    <FontAwesomeIcon
+                        icon={faInfoCircle}
+                        size="sm"
+                        className="candidate-icon"
+                        aria-hidden="true"
+                    />
                     <Typography
                         className="candidate-link-text"
+                        id={moreInfoLabelId}
                         variant="body2"
                         sx={{margin: "2px 0 0 6px", display: {xs: "none", sm: "block"}}}
                     >
@@ -245,46 +288,71 @@ const Candidate: React.FC<CandidateProps> = ({
 
             {isPreferentialVote ? (
                 isSelectable ? (
-                    <Select
-                        displayEmpty
-                        value={selectedPosition ?? 0}
-                        onChange={handlePositionChange}
-                        renderValue={(value) => {
-                            if (typeof value === "number" && value > 0) {
-                                return getOrdinalSuffix(value, t)
-                            }
-                            return t("candidate.preferential.position")
-                        }}
-                        MenuProps={{
-                            PaperProps: {
-                                style: {
-                                    maxHeight: 200,
-                                    overflowY: scrollablePreferentialVote ? "auto" : "visible",
+                    <>
+                        <VisuallyHidden className="candidate-preference-label" id={positionLabelId}>
+                            {t("a11y.preferenceLabel")}
+                        </VisuallyHidden>
+                        <Select
+                            displayEmpty
+                            disabled={shouldDisable}
+                            value={selectedPosition ?? 0}
+                            onChange={handlePositionChange}
+                            // Must be labelId, not aria-labelledby: MUI puts
+                            // labelId on the element that carries
+                            // role="combobox", whereas aria-labelledby would
+                            // land on the outer wrapper and name nothing.
+                            labelId={`${positionLabelId} ${titleId}`}
+                            renderValue={(value) => {
+                                if (typeof value === "number" && value > 0) {
+                                    return getOrdinalSuffix(value, t)
+                                }
+                                return t("candidate.preferential.position")
+                            }}
+                            MenuProps={{
+                                className: "candidate-preference-menu",
+                                classes: {
+                                    paper: "candidate-preference-paper",
+                                    list: "candidate-preference-options",
                                 },
-                            },
-                            autoFocus: false,
-                        }}
-                        sx={{
-                            "minWidth": 120,
-                            "marginRight": 1,
-                            "& .MuiSelect-select": {
-                                paddingTop: "6px",
-                                paddingBottom: "6px",
-                            },
-                        }}
-                        className="candidate-position-select"
-                    >
-                        <MenuItem value={0}>
-                            <em>{t("candidate.preferential.none")}</em>
-                        </MenuItem>
-                        {Array.from({length: maxSelectablePositions}, (_, i) => i + 1).map(
-                            (num) => (
-                                <MenuItem key={num} value={num}>
-                                    {getOrdinalSuffix(num, t)}
-                                </MenuItem>
-                            )
-                        )}
-                    </Select>
+                                PaperProps: {
+                                    style: {
+                                        maxHeight: 200,
+                                        overflowY: scrollablePreferentialVote ? "auto" : "visible",
+                                    },
+                                },
+                                autoFocus: false,
+                            }}
+                            sx={{
+                                "minWidth": 120,
+                                "marginRight": 1,
+                                "& .MuiSelect-select": {
+                                    paddingTop: "6px",
+                                    paddingBottom: "6px",
+                                },
+                            }}
+                            className="candidate-position-select"
+                        >
+                            <MenuItem
+                                className="candidate-preference-option candidate-preference-none"
+                                value={0}
+                            >
+                                <em className="candidate-preference-none-label">
+                                    {t("candidate.preferential.none")}
+                                </em>
+                            </MenuItem>
+                            {Array.from({length: maxSelectablePositions}, (_, i) => i + 1).map(
+                                (num) => (
+                                    <MenuItem
+                                        className="candidate-preference-option"
+                                        key={num}
+                                        value={num}
+                                    >
+                                        {getOrdinalSuffix(num, t)}
+                                    </MenuItem>
+                                )
+                            )}
+                        </Select>
+                    </>
                 ) : selectedPosition && selectedPosition > 0 ? (
                     <Typography
                         className="candidate-position-label"
@@ -306,21 +374,31 @@ const Candidate: React.FC<CandidateProps> = ({
             ) : isSelectable ? (
                 iconCheckboxPolicy === ECandidatesIconCheckboxPolicy.ROUND_CHECKBOX ? (
                     <Checkbox
-                        inputProps={{
-                            "className": "candidate-input",
-                            "aria-label": isString(title) ? title : "",
+                        className="candidate-checkbox"
+                        slotProps={{
+                            input: {
+                                "className": "candidate-input",
+                                "aria-labelledby": checkboxLabelIds,
+                            },
                         }}
-                        icon={<RadioButtonUncheckedIconFixed />}
-                        checkedIcon={<RadioButtonCheckedIconFixed />}
+                        icon={
+                            <RadioButtonUncheckedIconFixed className="candidate-unchecked-icon" />
+                        }
+                        checkedIcon={
+                            <RadioButtonCheckedIconFixed className="candidate-checked-icon" />
+                        }
                         disabled={shouldDisable}
                         checked={checked}
                         onChange={handleChange}
                     />
                 ) : (
                     <Checkbox
-                        inputProps={{
-                            "className": "candidate-input",
-                            "aria-label": isString(title) ? title : "",
+                        className="candidate-checkbox"
+                        slotProps={{
+                            input: {
+                                "className": "candidate-input",
+                                "aria-labelledby": checkboxLabelIds,
+                            },
                         }}
                         disabled={shouldDisable}
                         checked={checked}

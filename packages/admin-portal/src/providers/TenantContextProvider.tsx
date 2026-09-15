@@ -29,6 +29,11 @@ interface TenantContextProviderProps {
     children: React.ReactNode
 }
 
+export const applyTenantTranslationOverrides = (settings: unknown) => {
+    const i18nSettings = (settings as ITenantSettings | undefined)?.i18n
+    triggerOverrideTranslations(i18nSettings)
+}
+
 export const TenantContextProvider = (props: TenantContextProviderProps) => {
     const [tenantId, setTenantId] = useState<string | null>(
         localStorage.getItem("selected-tenant-id") || null
@@ -46,11 +51,7 @@ export const TenantContextProvider = (props: TenantContextProviderProps) => {
 
     // Overwrites translations based on the settings config
     useEffect(() => {
-        const i18nSettings = (tenant?.settings as ITenantSettings | undefined)?.i18n
-
-        if (i18nSettings) {
-            triggerOverrideTranslations(i18nSettings)
-        }
+        applyTenantTranslationOverrides(tenant?.settings)
     }, [tenant?.settings?.i18n])
 
     const setTenantWrapper = (newTenant: Sequent_Backend_Tenant | undefined) => {
