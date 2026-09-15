@@ -59,6 +59,7 @@ fn overflowing_invalid_totals_return_a_scoped_error_and_no_importable_sheet() {
         );
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "invalid_votes_overflow");
+        assert_eq!(errors[0].field, None);
         assert_eq!(errors[0].area_name.as_deref(), Some(AREA));
         assert_eq!(errors[0].contest_external_id.as_deref(), Some(CONTEST));
     }

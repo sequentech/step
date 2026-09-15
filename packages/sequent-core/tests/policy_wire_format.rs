@@ -5,6 +5,8 @@
 //! JSON names and Borsh discriminants so reordering an enum cannot silently
 //! change the meaning or signature of an already published election.
 
+#![cfg(feature = "default_features")]
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use sequent_core::ballot::*;
 use sequent_core::types::ceremonies::{

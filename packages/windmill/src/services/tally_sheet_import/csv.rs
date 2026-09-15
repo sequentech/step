@@ -249,7 +249,7 @@ pub fn parse_canonical_csv(
                 Some(key.area_name.clone()),
                 Some(key.contest_external_id.clone()),
                 None,
-                Some("total_invalid".into()),
+                None, // Overflow concerns both invalid-vote input fields.
             ));
             continue;
         };
