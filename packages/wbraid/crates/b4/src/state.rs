@@ -14,9 +14,9 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(db: SqlitePool, s3_client: S3Client) -> Self {
-        let bucket_name = std::env::var("S3_BUCKET_NAME")
-            .unwrap_or_else(|_| "wbraid-messages".to_string());
-        
+        let bucket_name =
+            std::env::var("S3_BUCKET_NAME").unwrap_or_else(|_| "wbraid-messages".to_string());
+
         Self {
             db,
             s3_client,

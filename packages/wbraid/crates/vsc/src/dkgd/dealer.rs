@@ -10,8 +10,8 @@ use crate::context::Context;
 use crate::dkgd::recipient::ParticipantPosition;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
-use crate::zkp::schnorr::SchnorrProof;
 use crate::utils::error::Error;
+use crate::zkp::schnorr::SchnorrProof;
 use canonical_derive::Canonical;
 
 /**
@@ -168,8 +168,11 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     pub(crate) fn get_shares(&self) -> [C::Scalar; P] {
         array::from_fn(|p| {
             // p + 1 cannot overflow, P < 100 is compile-time checked
-            let recipient: u32 = p.checked_add(1).expect("P < 100")
-                .try_into().expect("P < 100 < u32::MAX");
+            let recipient: u32 = p
+                .checked_add(1)
+                .expect("P < 100")
+                .try_into()
+                .expect("P < 100 < u32::MAX");
             let recipient: C::Scalar = recipient.into();
             self.polynomial.eval(&recipient)
         })
@@ -178,18 +181,21 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
     /// Compute the `T` checking values for this dealer's polynomial, with Schnorr proofs.
     ///
     /// See <https://eprint.iacr.org/2024/915.pdf> section 2.4:
-    /// 
+    ///
     /// "Common mitigations include an initial round during which every trustee
     /// commits to its Ki,j values before opening them and resuming the protocol, or
     /// requiring every trustee to provide a Schnorr proof that it knows the discrete
-    /// logarithms of its Ki,j values w.r.t. g" 
-    /// 
+    /// logarithms of its Ki,j values w.r.t. g"
+    ///
     /// Each checking value is computed as `g^polynomial_coefficient`.
     /// Use [`Self::get_verifiable_shares`] to obtain the shares [along
     /// with][`DealerShares`] their checking values.
-    pub(crate) fn get_checking_values_proofs(&self, proof_context: &[u8]) -> Result<[CheckingValue<C>; T], Error> {
+    pub(crate) fn get_checking_values_proofs(
+        &self,
+        proof_context: &[u8],
+    ) -> Result<[CheckingValue<C>; T], Error> {
         let g = C::generator();
-        let values: [Result<CheckingValue<C>, Error>; T]  = self.polynomial.0.clone().map(|v| {
+        let values: [Result<CheckingValue<C>, Error>; T] = self.polynomial.0.clone().map(|v| {
             let value = g.exp(&v);
             let proof = SchnorrProof::<C>::prove(&g, &value, &v, proof_context);
             let cv = CheckingValue::new(value, proof?);
@@ -198,8 +204,10 @@ impl<C: Context, const T: usize, const P: usize> Dealer<C, T, P> {
         let values: Vec<CheckingValue<C>> = values
             .into_iter()
             .collect::<Result<Vec<CheckingValue<C>>, Error>>()?;
-        let values: [CheckingValue<C>; T] = values.try_into().expect("Vec length matches array length T");
-        
+        let values: [CheckingValue<C>; T] = values
+            .try_into()
+            .expect("Vec length matches array length T");
+
         Ok(values)
     }
 }
@@ -332,11 +340,11 @@ impl<C: Context> CheckingValue<C> {
         Self { value, proof }
     }
     /// Verify the Schnorr proof of knowledge for this checking value.
-    /// 
+    ///
     /// # Errors
     ///
     /// - `HashToElementError` if challenge generation returns error
-    /// 
+    ///
     /// Returns `true` if the proof is valid, `false` otherwise.
     pub fn verify(&self, g: &C::Element, proof_context: &[u8]) -> Result<bool, Error> {
         self.proof.verify(g, &self.value, proof_context)

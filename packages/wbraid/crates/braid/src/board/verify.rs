@@ -61,7 +61,7 @@ pub fn verify<C: Context>(
                 message.sender.pk
             )
         })?;
-    let is_manager = position == PROTOCOL_MANAGER_INDEX as usize;
+    let is_manager = position == PROTOCOL_MANAGER_INDEX;
     let verifier = if is_manager {
         &configuration.protocol_manager
     } else {

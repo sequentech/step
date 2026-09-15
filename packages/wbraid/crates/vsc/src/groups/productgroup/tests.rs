@@ -713,20 +713,20 @@ fn test_multi_exp_override_matches_the_naive_default() {
     const N: usize = 5;
     let mut rng = RCtx::get_rng();
 
-    let bases: Vec<<RCtx as Context>::Element> =
-        (0..N).map(|_| <RCtx as Context>::Element::random(&mut rng)).collect();
+    let bases: Vec<<RCtx as Context>::Element> = (0..N)
+        .map(|_| <RCtx as Context>::Element::random(&mut rng))
+        .collect();
     let refs: Vec<&<RCtx as Context>::Element> = bases.iter().collect();
-    let exponents: Vec<<RCtx as Context>::Scalar> =
-        (0..N).map(|_| <RCtx as Context>::Scalar::random(&mut rng)).collect();
+    let exponents: Vec<<RCtx as Context>::Scalar> = (0..N)
+        .map(|_| <RCtx as Context>::Scalar::random(&mut rng))
+        .collect();
 
     let specialized = <RCtx as Context>::Element::multi_exp(&refs, &exponents).unwrap();
 
-    let naive = bases
-        .iter()
-        .zip(&exponents)
-        .fold(<RCtx as Context>::Element::one(), |acc, (base, exponent)| {
-            acc.mul(&base.exp(exponent))
-        });
+    let naive = bases.iter().zip(&exponents).fold(
+        <RCtx as Context>::Element::one(),
+        |acc, (base, exponent)| acc.mul(&base.exp(exponent)),
+    );
 
     assert_eq!(specialized, naive);
 }

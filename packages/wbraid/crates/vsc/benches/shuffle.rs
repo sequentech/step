@@ -7,13 +7,13 @@
 //! This benchmark measures the performance of the Terelius-Wikstrom [`shuffler`][`cryptography::zkp::shuffle::Shuffler`]
 //! for proof computation and proof verification. The benchmark will print timings for these functions.
 //!
-//! This benchmark can be run with
+//! This benchmark requires a nightly toolchain and can be run with
 //!
-//! `cargo bench shuffle`
+//! `cargo bench --features nightly-benches shuffle`
 //!
 //! You can include the P-256 benchmark with
 //!
-//! `cargo bench shuffle -- --include-ignored`
+//! `cargo bench --features nightly-benches shuffle -- --include-ignored`
 
 #![feature(test)]
 

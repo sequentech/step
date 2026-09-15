@@ -105,8 +105,7 @@ mod tests {
     /// manager input and must halt the protocol.
     #[test]
     fn mixing_set_size_must_match_threshold() {
-        run(&config_and_ballots(vec![1, 2]))
-            .expect("a threshold-sized mixing set must not error");
+        run(&config_and_ballots(vec![1, 2])).expect("a threshold-sized mixing set must not error");
 
         for trustees in [vec![1], vec![1, 2, 3]] {
             let err = run(&config_and_ballots(trustees.clone()))

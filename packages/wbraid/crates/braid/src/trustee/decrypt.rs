@@ -98,6 +98,9 @@ impl<C: Context> Trustee<C> {
     /// separate `#[inline(never)]` function so each dispatch arm is a call rather
     /// than an inlined copy, bounding the caller's stack frame (see the note in
     /// `compute_partial_decryptions`).
+    // The parameters are exactly the caller's locals, handed down one by one;
+    // bundling them into a struct would only move the count.
+    #[expect(clippy::too_many_arguments, reason = "mirrors the caller's locals")]
     #[inline(never)]
     fn compute_partial_decryptions_inner<const W: usize, const T: usize, const P: usize>(
         &self,
@@ -260,10 +263,9 @@ impl<C: Context> Trustee<C> {
             ));
         }
 
-        let contributions: [AttributedDecryption<C, W, P>; T] =
-            contributions.try_into().map_err(|v: Vec<_>| {
-                anyhow!("expected {} partial decryptions, got {}", T, v.len())
-            })?;
+        let contributions: [AttributedDecryption<C, W, P>; T] = contributions
+            .try_into()
+            .map_err(|v: Vec<_>| anyhow!("expected {} partial decryptions, got {}", T, v.len()))?;
 
         let plaintexts = combine::<C, T, P, W>(&mix.ciphertexts, &contributions, &label)
             .map_err(|e| anyhow!("failed to combine decryption factors: {:?}", e))?;

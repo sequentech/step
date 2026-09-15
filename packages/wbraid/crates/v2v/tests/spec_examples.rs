@@ -22,9 +22,15 @@ fn hex(bytes: &[u8]) -> String {
 #[test]
 fn leaf_and_node_wire_format() {
     // VMNV §4.2: leaf = 01 || len_4 || data, node = 00 || count_4 || children.
-    assert_eq!(hex(&ByteTree::leaf(vec![0x01, 0x07]).to_bytes()), "010000000201 07".replace(' ', ""));
     assert_eq!(
-        hex(&ByteTree::node(vec![ByteTree::leaf(vec![0xaa]), ByteTree::leaf(vec![0xbb])]).to_bytes()),
+        hex(&ByteTree::leaf(vec![0x01, 0x07]).to_bytes()),
+        "010000000201 07".replace(' ', "")
+    );
+    assert_eq!(
+        hex(
+            &ByteTree::node(vec![ByteTree::leaf(vec![0xaa]), ByteTree::leaf(vec![0xbb])])
+                .to_bytes()
+        ),
         "00000000020100000001aa0100000001bb"
     );
 }
@@ -57,7 +63,9 @@ fn example_9_and_10_field_elements_are_fixed_width() {
     let width = arithm::fixed_width_for_modulus_bits(9);
     assert_eq!(width, 2);
     assert_eq!(
-        hex(&arithm::field_element(&[0x01, 0x02], width).unwrap().to_bytes()),
+        hex(&arithm::field_element(&[0x01, 0x02], width)
+            .unwrap()
+            .to_bytes()),
         "01000000020102"
     );
     assert_eq!(
@@ -169,9 +177,17 @@ fn predicted_sizes_match_the_real_corpus() {
     let m_kw = ByteTree::node(vec![arr.clone(); W]);
     let ciphertexts = ByteTree::node(vec![m_kw.clone(), m_kw.clone()]);
 
-    assert_eq!(ByteTree::node(vec![point(), point()]).serialized_len(), 167, "FullPublicKey.bt");
+    assert_eq!(
+        ByteTree::node(vec![point(), point()]).serialized_len(),
+        167,
+        "FullPublicKey.bt"
+    );
     assert_eq!(ciphertexts.serialized_len(), 3275, "Ciphertexts.bt");
-    assert_eq!(m_kw.serialized_len(), 1635, "Plaintexts.bt / DecryptionFactors01.bt");
+    assert_eq!(
+        m_kw.serialized_len(),
+        1635,
+        "Plaintexts.bt / DecryptionFactors01.bt"
+    );
     assert_eq!(arr.serialized_len(), 815, "PermutationCommitment01.bt");
 
     // tau^pos = node(B, A', B', C', D', F') -- VMNV §8.3, and field for field
@@ -181,24 +197,24 @@ fn predicted_sizes_match_the_real_corpus() {
         ByteTree::node(vec![point(); W]),
     ]);
     let tau_pos = ByteTree::node(vec![
-        arr.clone(),   // B
-        point(),       // A'
-        arr.clone(),   // B'
-        point(),       // C'
-        point(),       // D'
-        f_prime,       // F'
+        arr.clone(), // B
+        point(),     // A'
+        arr.clone(), // B'
+        point(),     // C'
+        point(),     // D'
+        f_prime,     // F'
     ]);
     assert_eq!(tau_pos.serialized_len(), 2217, "PoSCommitment01.bt");
 
     // sigma^pos = node(k_A, k_B, k_C, k_D, k_E, k_F) -- braid's Responses.
     let scalar_arr = ByteTree::node(vec![scalar(); N]);
     let sigma_pos = ByteTree::node(vec![
-        scalar(),                            // k_A
-        scalar_arr.clone(),                  // k_B
-        scalar(),                            // k_C
-        scalar(),                            // k_D
-        scalar_arr,                          // k_E
-        ByteTree::node(vec![scalar(); W]),   // k_F
+        scalar(),                          // k_A
+        scalar_arr.clone(),                // k_B
+        scalar(),                          // k_C
+        scalar(),                          // k_D
+        scalar_arr,                        // k_E
+        ByteTree::node(vec![scalar(); W]), // k_F
     ]);
     assert_eq!(sigma_pos.serialized_len(), 970, "PoSReply01.bt");
 }

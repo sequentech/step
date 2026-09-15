@@ -87,7 +87,7 @@ impl<C: Context> Configuration<C> {
         trustee_pk: &<C::SignatureScheme as SignatureScheme<C::Rng>>::Verifier,
     ) -> Option<usize> {
         if trustee_pk == &self.protocol_manager {
-            Some(PROTOCOL_MANAGER_INDEX as usize)
+            Some(PROTOCOL_MANAGER_INDEX)
         } else {
             self.trustees.iter().position(|t| t == trustee_pk)
         }

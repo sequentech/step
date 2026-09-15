@@ -10,6 +10,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::fmt;
 
 use crate::{Rank, Ranked, RankedValue};
 
@@ -45,11 +46,6 @@ impl OrderedCombination {
         Ok(serde_json::from_str(json)?)
     }
 
-    /// Serialize this OrderedCombination to JSON string.
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self).unwrap()
-    }
-
     /// Get the values (ordered chosen elements) of this k-permutation.
     pub fn get_values(&self) -> &Vec<String> {
         &self.values
@@ -58,6 +54,14 @@ impl OrderedCombination {
     /// Get the name of the set this k-permutation belongs to.
     pub fn get_member_of(&self) -> &String {
         &self.member_of
+    }
+}
+
+/// JSON serialization, the inverse of [`OrderedCombination::from_string`].
+impl fmt::Display for OrderedCombination {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let json = serde_json::to_string(self).map_err(|_| fmt::Error)?;
+        f.write_str(&json)
     }
 }
 

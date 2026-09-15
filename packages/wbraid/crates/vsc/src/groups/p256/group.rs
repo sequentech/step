@@ -12,8 +12,8 @@ use crate::traits::groups::GroupScalar;
 
 use p256::NistP256;
 use p256::ProjectivePoint;
-use p256::hash2curve::{ExpandMsgXmd, GroupDigest, hash_to_scalar};
 use p256::elliptic_curve::array::sizes::U32;
+use p256::hash2curve::{ExpandMsgXmd, GroupDigest, hash_to_scalar};
 
 use crate::utils::error::Error;
 use crate::utils::rng;
@@ -41,8 +41,9 @@ impl CryptographicGroup for P256Group {
     /// - `HashToScalarError` if `NistP256::hash_to_scalar` returns error
     #[crate::warning("Panics on empty input")]
     fn hash_to_scalar(input_slices: &[&[u8]], ds_tags: &[&[u8]]) -> Result<Self::Scalar, Error> {
-        let ret = hash_to_scalar::<NistP256, ExpandMsgXmd<Self::Hasher>, U32>(input_slices, ds_tags)
-            .map_err(Error::HashToScalarError);
+        let ret =
+            hash_to_scalar::<NistP256, ExpandMsgXmd<Self::Hasher>, U32>(input_slices, ds_tags)
+                .map_err(Error::HashToScalarError);
 
         Ok(P256Scalar(ret?))
     }
@@ -96,8 +97,7 @@ impl CryptographicGroup for P256Group {
     ) -> Result<[u8; O], Error> {
         let chunks: Result<Vec<[u8; CHUNK_SIZE]>, Error> =
             element.iter().map(Self::decode_30_bytes).collect();
-        let chunks: [[u8; CHUNK_SIZE]; I] =
-            chunks?.try_into().expect("chunks.len() == I");
+        let chunks: [[u8; CHUNK_SIZE]; I] = chunks?.try_into().expect("chunks.len() == I");
         Ok(Codec::<O, I>::join(&chunks))
     }
 
@@ -108,14 +108,17 @@ impl CryptographicGroup for P256Group {
         let ds_tags: &[&[u8]] = &[b"context", b"independent_generators_p256_counter"];
         let mut ret = vec![];
 
-        #[crate::warning("The following code is not optimized. Parallelize with rayon")]
+        #[cfg_attr(
+            feature = "custom-warnings",
+            crate::warning("The following code is not optimized. Parallelize with rayon")
+        )]
         for i in 0..count {
             // Cannot use platform dependent type in random oracle
             let i_u64 = i as u64;
             let inputs = &[label, &i_u64.to_be_bytes()];
             let point = NistP256::hash_from_bytes(inputs, ds_tags)
                 .map_err(|e| Error::HashToElementError(e.to_string()));
-            
+
             ret.push(P256Element(point?));
         }
 
@@ -206,8 +209,7 @@ impl P256Group {
 
         for counter in 0..=u8::MAX {
             x[31] = counter;
-            let candidate =
-                p256::AffinePoint::decompress(&x.into(), Choice::from(0));
+            let candidate = p256::AffinePoint::decompress(&x.into(), Choice::from(0));
             if bool::from(candidate.is_some()) {
                 let affine = candidate.expect("candidate.is_some() == true");
                 return Ok(P256Element(ProjectivePoint::from(affine)));

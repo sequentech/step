@@ -65,7 +65,11 @@ fn generate_and_verify(shape: Shape) -> bool {
     true
 }
 
-fn check<const W: usize>(nizkp: &std::path::Path, info: &ProtocolInfo, meta: &session::ProofMetadata) {
+fn check<const W: usize>(
+    nizkp: &std::path::Path,
+    info: &ProtocolInfo,
+    meta: &session::ProofMetadata,
+) {
     let outcome = session::verify_session::<W>(nizkp, info, meta)
         .expect("the directory must be well formed")
         .expect("every proof in a generated session must verify");
@@ -158,8 +162,7 @@ fn a_tampered_verificatum_proof_is_rejected() {
         .expect("parse byte tree")
     };
     let gamma = v2v::encode::tree_to_elements(&read("proofs/PolynomialInExponent.bt")).unwrap();
-    let correct =
-        v2v::wire::arithm::bool_array_values(&read("proofs/CorrectIndices.bt")).unwrap();
+    let correct = v2v::wire::arithm::bool_array_values(&read("proofs/CorrectIndices.bt")).unwrap();
     let mixed = v2v::encode::tree_to_ciphertexts::<2>(&read(&format!(
         "proofs/Ciphertexts{:02}.bt",
         meta.active_threshold
@@ -225,7 +228,10 @@ fn an_inactive_party_gets_identity_factors_and_a_zero_reply() {
         .unwrap(),
     )
     .unwrap();
-    assert!(!correct[2], "party 2 sat out, so CorrectIndices must say so");
+    assert!(
+        !correct[2],
+        "party 2 sat out, so CorrectIndices must say so"
+    );
 
     let (factors, proof) = read_party::<2>(dir, 2);
     assert!(
@@ -237,7 +243,9 @@ fn an_inactive_party_gets_identity_factors_and_a_zero_reply() {
         "and its commitment is node(1, 1^omega)"
     );
     assert!(
-        proof.k_x.equals(&cryptography::groups::p256::scalar::P256Scalar::zero()),
+        proof
+            .k_x
+            .equals(&cryptography::groups::p256::scalar::P256Scalar::zero()),
         "and its reply is the zero scalar"
     );
 
@@ -281,10 +289,8 @@ fn read_party<const W: usize>(
                 .unwrap()
                 .try_into()
                 .expect("omega components"),
-            k_x: v2v::encode::tree_to_scalar(&read(format!(
-                "proofs/DecrFactReply{party:02}.bt"
-            )))
-            .unwrap(),
+            k_x: v2v::encode::tree_to_scalar(&read(format!("proofs/DecrFactReply{party:02}.bt")))
+                .unwrap(),
         },
     )
 }

@@ -85,10 +85,9 @@ impl Persistence for SqlitePersistence {
     async fn load_own_posts(&self) -> Result<Vec<(Predicate, StagedRef)>> {
         let conn = self.conn.lock().expect("predicate store mutex poisoned");
         let mut statement = conn.prepare("SELECT bytes, staged_ref FROM own_posts")?;
-        let rows = statement
-            .query_map([], |row| {
-                Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, String>(1)?))
-            })?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, String>(1)?))
+        })?;
         let mut out = Vec::new();
         for row in rows {
             let (bytes, staged) = row?;

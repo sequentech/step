@@ -68,10 +68,14 @@ custom-warnings = ["custom_warning_macro/on"]
 serde = ["dep:serde"]
 long_running_tests = []
 wasm = []
+# The benches use the nightly-only libtest harness (#![feature(test)]); this
+# feature keeps them out of stable builds of --all-targets.
+nightly-benches = []
 
 [[bench]]
 name = "shuffle"
 harness = true
+required-features = ["nightly-benches"]
 
 [dev-dependencies]
 serde = { version = "1.0.219", features=["derive"] }

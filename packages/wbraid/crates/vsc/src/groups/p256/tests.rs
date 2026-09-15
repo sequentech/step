@@ -367,10 +367,8 @@ mod encoding {
             let keypair = KeyPair::<crate::context::P256Ctx>::generate();
             let scalar = crate::context::P256Ctx::random_scalar();
 
-            let ciphertext =
-                P256Group::encrypt_scalar(&scalar, &keypair.pkey.y).expect("encrypt");
-            let recovered =
-                P256Group::decrypt_scalar(&ciphertext, &keypair.skey).expect("decrypt");
+            let ciphertext = P256Group::encrypt_scalar(&scalar, &keypair.pkey.y).expect("encrypt");
+            let recovered = P256Group::decrypt_scalar(&ciphertext, &keypair.skey).expect("decrypt");
 
             assert_eq!(scalar, recovered, "DKG share must survive encryption");
         }

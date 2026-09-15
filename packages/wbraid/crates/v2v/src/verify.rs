@@ -32,10 +32,10 @@ use cryptography::groups::p256::scalar::P256Scalar;
 use cryptography::traits::groups::{DistGroupOps, GroupElement, GroupScalar};
 
 use crate::decrypt::{batch, BatchedDecryptionProof};
+use crate::encode;
 use crate::wire::bytetree::ByteTree;
 use crate::wire::crypto::{dec_challenge, dec_seed, Hashfunction, Prg};
 use crate::wire::lagrange::{correct_set, p256_modified_lagrange_coefficients};
-use crate::encode;
 
 /// Session parameters a verifier needs, all of which come from the protocol
 /// info file and the proof directory rather than being assumed.
