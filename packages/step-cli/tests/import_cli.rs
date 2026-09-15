@@ -27,6 +27,9 @@ fn import_kind(error_stage: Option<&str>, tally_command: Option<&str>) -> (Outpu
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint = format!("http://{}", listener.local_addr().unwrap());
     listener.set_nonblocking(true).unwrap();
+    // Queue a peer that closes before sending a request. The following real
+    // command must still complete every expected HTTP exchange.
+    drop(std::net::TcpStream::connect(listener.local_addr().unwrap()).unwrap());
     let config = directory.path().join("config");
     fs::create_dir(&config).unwrap();
     fs::write(
@@ -64,7 +67,11 @@ fn import_kind(error_stage: Option<&str>, tally_command: Option<&str>) -> (Outpu
                 .unwrap();
             let mut reader = BufReader::new(stream.try_clone().unwrap());
             let mut request = String::new();
-            reader.read_line(&mut request).unwrap();
+            // A connection can close before sending an HTTP request (for
+            // example, a readiness probe). It must not consume an exchange.
+            if reader.read_line(&mut request).unwrap() == 0 {
+                continue;
+            }
             let mut length = 0;
             loop {
                 let mut line = String::new();
