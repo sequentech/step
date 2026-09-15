@@ -131,7 +131,7 @@ describe("escapeTranslationValues", () => {
 
     it("escapes values that are not strings but interpolate as one", () => {
         // reaches i18next as String(value), so it must be escaped too
-        const values = {list: ['<a href="https://evil.example">x</a>'] as unknown as string}
+        const values = {list: (['<a href="https://evil.example">x</a>'] as unknown) as string}
         expect(escapeTranslationValues(values).list).toBe(
             "&lt;a href=&quot;https://evil.example&quot;&gt;x&lt;/a&gt;"
         )
@@ -185,7 +185,7 @@ describe("translateHtml", () => {
     })
 
     it("does not let a nested value bypass escaping", () => {
-        const values = {voter: {name: injected} as unknown as string}
+        const values = {voter: ({name: injected} as unknown) as string}
         expect(render(translateHtml(translate, "nested", values))).not.toContain("<a ")
     })
 
