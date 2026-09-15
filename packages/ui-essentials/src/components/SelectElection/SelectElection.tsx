@@ -40,14 +40,6 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
             }
         `
             : ""}
-    ${({isactive}) =>
-        "true" === isactive
-            ? `
-            &:hover {
-                cursor: pointer;
-            }
-        `
-            : ""}
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         position: relative;
         flex-direction: column;
@@ -308,7 +300,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         // <ul>, so the semantics need to be explicit.
         <Box className="election-list-item" role="listitem">
             <BorderBox
-                onClick={handleClickToVote}
                 isopen={String(!!isOpen)}
                 isactive={String(!!isActive)}
                 className={className ? `election-item ${className}` : "election-item"}
