@@ -23,9 +23,10 @@ import {
     ITallyTrusteeStatus,
     ITrusteeStatus,
 } from "@/types/ceremonies"
-import {Box} from "@mui/material"
+import {Alert, Box} from "@mui/material"
 import {
     RestorePrivateKeyMutation,
+    RestorePrivateKeyOutcome,
     Sequent_Backend_Election,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Tally_Session,
@@ -53,6 +54,7 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [tally, setTally] = useState<Sequent_Backend_Tally_Session>()
     const [verified, setVerified] = useState<boolean>(false)
+    const [alreadyRestored, setAlreadyRestored] = useState<boolean>(false)
     const [uploading, setUploading] = useState<boolean>(false)
     const [errors, setErrors] = useState<String | null>(null)
     const [trusteeStatus, setTrusteeStatus] = useState<ITrusteeStatus | null>(null)
@@ -167,10 +169,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
 
     const [restorePrivateKeyMutation] = useMutation<RestorePrivateKeyMutation>(RESTORE_PRIVATE_KEY)
     const uploadPrivateKey = async (files: FileList | null) => {
-        setVerified(true)
-
         setErrors(null)
         setVerified(false)
+        setAlreadyRestored(false)
         setUploading(false)
         if (!files || files.length === 0) {
             setErrors(t("keysGeneration.checkStep.noFileSelected"))
@@ -188,7 +189,6 @@ export const TallyCeremonyTrustees: React.FC = () => {
         }
         try {
             const fileContent = await readFileContent(firstFile)
-            console.log(`uploadPrivateKey(): fileContent: ${fileContent}`)
             if (fileContent == null) {
                 setErrors(t("keysGeneration.checkStep.noFileSelected"))
                 return
@@ -206,12 +206,15 @@ export const TallyCeremonyTrustees: React.FC = () => {
                 setErrors(t("keysGeneration.checkStep.errorUploading", {error: errors.toString()}))
                 return
             } else {
-                const isValid = data?.restore_private_key?.is_valid
-                if (!isValid) {
-                    setErrors(t("keysGeneration.checkStep.errorUploading", {error: "empty"}))
-                    return
+                const outcome = data?.restore_private_key?.outcome
+                if (outcome === RestorePrivateKeyOutcome.Restored) {
+                    setVerified(true)
+                } else if (outcome === RestorePrivateKeyOutcome.AlreadyRestored) {
+                    setVerified(true)
+                    setAlreadyRestored(true)
+                } else {
+                    setErrors(t("keysGeneration.checkStep.errorUploading"))
                 }
-                setVerified(true)
             }
         } catch (exception: any) {
             setUploading(false)
@@ -254,7 +257,9 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                     subtitle={"tally.trusteeSubTitle"}
                                 />
 
-                                <DropFile handleFiles={uploadPrivateKey} />
+                                {!uploading && !verified ? (
+                                    <DropFile handleFiles={uploadPrivateKey} />
+                                ) : null}
 
                                 <WizardStyles.StatusBox>
                                     {uploading ? <WizardStyles.DownloadProgress /> : null}
@@ -263,10 +268,15 @@ export const TallyCeremonyTrustees: React.FC = () => {
                                             {errors}
                                         </WizardStyles.ErrorMessage>
                                     ) : null}
-                                    {verified && (
+                                    {verified && !alreadyRestored && (
                                         <WizardStyles.SucessMessage variant="body1">
                                             {t("keysGeneration.checkStep.verified")}
                                         </WizardStyles.SucessMessage>
+                                    )}
+                                    {alreadyRestored && (
+                                        <Alert severity="info">
+                                            {t("keysGeneration.checkStep.alreadyRestored")}
+                                        </Alert>
                                     )}
                                 </WizardStyles.StatusBox>
                             </Box>
