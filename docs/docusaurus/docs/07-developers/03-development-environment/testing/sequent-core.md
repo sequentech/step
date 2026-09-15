@@ -71,7 +71,9 @@ the expected slot layout.
 `ballot_codec::decode_array_to_vec` returns `Result<Vec<u8>, String>`. Propagate
 errors with `?` in fallible callers, or assert success explicitly in tests.
 Single-contest and multi-contest decoders propagate invalid envelope lengths.
-Payload errors describe the length without including plaintext contents.
+Decoder envelope-length errors report the invalid length without plaintext.
+The legacy encoder helpers can include input bytes in errors; callers must not
+log those errors with real ballot data.
 
 ## Enabled native features
 

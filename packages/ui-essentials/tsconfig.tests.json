@@ -3,27 +3,15 @@
     "compilerOptions": {
         "noEmit": true,
         "target": "es2022",
-        "types": [
-            "jest",
-            "node"
-        ],
+        "types": ["jest", "node"],
         "allowImportingTsExtensions": true,
         "noImplicitAny": true,
         "baseUrl": ".",
         "paths": {
-            "@sequentech/ui-core": [
-                "../ui-core/src/index.tsx"
-            ]
+            "@sequentech/ui-essentials": ["./src/index.tsx"],
+            "@sequentech/ui-core": ["../ui-core/src/index.tsx"]
         }
     },
-    "include": [
-        "src",
-        "tests"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "coverage",
-        "src/**/__stories__/**"
-    ]
+    "include": ["src", "tests"],
+    "exclude": ["node_modules", "dist", "coverage", "src/**/__stories__/**"]
 }

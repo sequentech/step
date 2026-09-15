@@ -65,6 +65,7 @@ export interface DropFileProps {
 }
 
 // based on https://www.codemzy.com/blog/react-drag-drop-file-upload
+/** Children provide presentation only; this component owns the browse button. */
 export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildren<DropFileProps>>(
     (
         {
