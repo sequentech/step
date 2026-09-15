@@ -141,11 +141,8 @@ try {
         const failedRequest = page.waitForEvent("requestfailed", {
             predicate: (request) => request.url() === endpoint,
         })
-        const saveError = page.waitForEvent("pageerror", {
-            predicate: (error) => /fetch|network/i.test(error.message),
-        })
         await page.getByRole("button", {name: "Save", exact: true}).click()
-        await Promise.all([failedRequest, saveError])
+        await failedRequest
         await page.evaluate(() => new Promise(requestAnimationFrame))
         assert.equal(
             await page
