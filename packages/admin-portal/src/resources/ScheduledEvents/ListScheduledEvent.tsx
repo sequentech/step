@@ -43,6 +43,7 @@ import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import ElectionHeader from "@/components/ElectionHeader"
 import {useScheduledEventPermissions} from "../ElectionEvent/useScheduledEventPermissions"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 export const DataGridContainerStyle = styled(DatagridConfigurable)<{isOpenSideBar?: boolean}>`
     @media (min-width: ${({theme}) => theme.breakpoints.values.md}px) {
@@ -332,7 +333,11 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                 }
                 disableSyncWithLocation
             >
-                <DatagridConfigurable bulkActionButtons={false} omit={OMIT_FIELDS}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    bulkActionButtons={false}
+                    omit={OMIT_FIELDS}
+                >
                     <FilterWatcher
                         fieldName="event_payload"
                         onFilterChange={() => setEventScreenElectionId(null)}
@@ -341,6 +346,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     <FunctionField
                         label={String(t("eventsScreen.fields.electionId"))}
                         source="event_payload.election_id"
+                        sortable={false}
                         render={getElectionName}
                     />
                     <FunctionField
@@ -364,6 +370,7 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                     <FunctionField
                         label={String(t("eventsScreen.fields.scheduledDate"))}
                         source="cron_config.scheduled_date"
+                        sortable={false}
                         render={(record: Sequent_Backend_Scheduled_Event) =>
                             ((record.cron_config as ICronConfig | undefined)?.scheduled_date &&
                                 moment

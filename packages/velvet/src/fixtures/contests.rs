@@ -34,6 +34,7 @@ pub fn get_contest_1(tenant_id: &Uuid, election_event_id: &Uuid, election_id: &U
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
+        is_acclaimed: None,
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
             candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),
@@ -100,6 +101,7 @@ pub fn get_contest_min_max_votes(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge), /* plurality-at-large|borda-nauru|borda|borda-mas-madrid|desborda3|desborda2|desborda|cumulative */
         is_encrypted: (true),
+        is_acclaimed: None,
         candidates: vec![
             candidates::get_candidate_0(tenant_id, election_event_id, election_id, &contest_id),
             candidates::get_candidate_1(tenant_id, election_event_id, election_id, &contest_id),

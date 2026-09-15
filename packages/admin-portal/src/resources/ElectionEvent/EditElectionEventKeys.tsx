@@ -48,6 +48,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {useKeysPermissions} from "./useKeysPermissions"
 import {TrusteeItems} from "@/components/TrusteeItems"
 import {StyledChip} from "@/components/StyledChip"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const NotificationLink = styled("span")`
     text-decoration: underline;
@@ -320,7 +321,11 @@ export const EditElectionEventKeys: React.FC<EditElectionEventKeysProps> = (prop
                     }
                 >
                     <ResetFilters />
-                    <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={<></>}>
+                    <DatagridConfigurable
+                        header={ThreeStateDatagridHeader}
+                        omit={OMIT_FIELDS}
+                        bulkActionButtons={<></>}
+                    >
                         <TextField source="id" />
                         <TextField source="name" />
                         <DateField

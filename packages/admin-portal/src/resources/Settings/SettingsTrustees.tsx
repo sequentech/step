@@ -33,6 +33,7 @@ import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {FormStyles} from "@/components/styles/FormStyles"
 import {DownloadDocument} from "../User/DownloadDocument"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const EmptyBox = styled(Box)`
     display: flex;
@@ -218,7 +219,7 @@ export const SettingsTrustees: React.FC<void> = () => {
                 }
                 empty={<Empty />}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable header={ThreeStateDatagridHeader} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="public_key" />
                     <TextField source="name" />

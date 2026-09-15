@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::ballot::*;
+use crate::ballot_codec::multi_ballot::votable_contests;
 use crate::plaintext::*;
 use crate::types::ceremonies::CountingAlgType;
 use crate::util::console_log;
@@ -11,11 +12,15 @@ use std::collections::HashMap;
 
 // Function used to decide if the voter needs to change his/her ballot before
 // continuing
+//
+// Acclaimed contests are skipped: they have no selectable options, so a
+// selection policy such as a minimum number of votes could never be satisfied
+// and would block the voter for good.
 pub fn check_voting_not_allowed_next_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    let voting_not_allowed = contests.iter().any(|contest| {
+    let voting_not_allowed = votable_contests(&contests).any(|contest| {
         let default_vote_policy = InvalidVotePolicy::default();
         let vote_policy = contest
             .presentation
@@ -123,20 +128,23 @@ pub fn check_voting_not_allowed_next_util(
                             )
                     }))
         } else {
-            false
+            // An incomplete validation map is not proof that the contest is
+            // valid. Fail closed until its decoded state is available.
+            true
         }
     });
 
     voting_not_allowed
 }
 
-// if returns true, when the user click next, there will be a dialog that
-// prompts the user to confirm before going to the next screen
+/// if returns true, when the user click next, there will be a dialog that
+/// prompts the user to confirm before going to the next screen
 pub fn check_voting_error_dialog_util(
     contests: Vec<Contest>,
     decoded_contests: HashMap<String, DecodedVoteContest>,
 ) -> bool {
-    let show_voting_alert = contests.iter().any(|contest| {
+    // Acclaimed contests cannot be voted on, so they never warrant a warning.
+    let show_voting_alert = votable_contests(&contests).any(|contest| {
         let invalid_vote_policy = contest
             .presentation
             .as_ref()
@@ -212,9 +220,14 @@ pub fn check_voting_error_dialog_util(
                 );
 
             // Show Alert dialog if:
-            // - there are invalid error and it's not allowed
+            // - there are invalid error and it's not allowed. ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+            //   behaves like ALLOWED here: it only changes how the explicit-invalid
+            //   marker interacts with other selections, not whether unrelated
+            //   invalid_errors trigger this dialog.
             (!invalid_errors.is_empty()
-                && invalid_vote_policy != InvalidVotePolicy::ALLOWED)
+                && invalid_vote_policy != InvalidVotePolicy::ALLOWED
+                && invalid_vote_policy
+                    != InvalidVotePolicy::ALLOWED_WITH_EXCLUSIVE_EXPLICIT)
             // - invalid vote policy is WARN_INVALID_IMPLICIT_AND_EXPLICIT and
             //   there's an explicit invalid ballot
                 || (invalid_vote_policy
@@ -294,6 +307,7 @@ pub fn get_contest_plurality(
         voting_type: Some("first-past-the-post".into()),
         counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
         is_encrypted: true,
+        is_acclaimed: None,
         annotations: None,
         candidates: vec![
             Candidate {
@@ -481,6 +495,7 @@ pub fn get_decoded_contest_plurality(contest: &Contest) -> DecodedVoteContest {
         contest_id: contest.id.clone(),
         is_explicit_invalid: true,
         is_decline_to_vote: false,
+        is_blank_ballot: false,
         invalid_alerts: vec![InvalidPlaintextError {
             error_type: InvalidPlaintextErrorType::Explicit,
             candidate_id: None,

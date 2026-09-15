@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::maintenance::vacuum_analyze_direct;
+use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::{
@@ -22,6 +23,10 @@ pub struct ImportElectionEventBody {
     pub password: Option<String>,
     pub check_only: Option<bool>,
     pub sha256: Option<String>,
+    #[serde(default)]
+    pub may_write_secret_attributes: bool,
+    #[serde(default)]
+    pub secret_write_initiator: Option<ElectoralLogAdminContext>,
 }
 
 #[instrument(err)]

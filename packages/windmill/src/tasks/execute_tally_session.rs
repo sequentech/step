@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::area::get_event_areas;
 use crate::postgres::cast_vote::count_unresolved_cast_votes;
-use crate::postgres::contest::export_contests;
 use crate::postgres::election::set_election_initialization_report_generated;
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
 use crate::postgres::keys_ceremony::{get_keys_ceremonies, get_keys_ceremony_by_id};
@@ -60,6 +59,7 @@ use crate::services::temp_path::{
 };
 use crate::services::users::list_users;
 use crate::services::users::ListUsersFilter;
+use crate::services::weight_batches::{collect_weighted_plaintexts, contest_weight_batches};
 use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context, Result as AnyhowResult};
 use b4::messages::{artifact::Plaintexts, message::Message, statement::StatementType};
@@ -73,6 +73,9 @@ use rand::{Rng, SeedableRng};
 use sequent_core::ballot::BallotStyle;
 use sequent_core::ballot::Contest;
 use sequent_core::ballot::ContestEncryptionPolicy;
+use sequent_core::ballot::Weight;
+use sequent_core::ballot::WeightedVotingPolicy;
+use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::serialization::deserialize_with_path::*;
 use sequent_core::services::area_tree::TreeNode;
@@ -80,7 +83,9 @@ use sequent_core::services::area_tree::TreeNodeArea;
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
+use sequent_core::types::ceremonies::CountingAlgType;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
+use sequent_core::types::ceremonies::TallyRunReason;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
@@ -129,17 +134,53 @@ fn get_ballot_styles(ballot_styles: &Vec<BallotStyleHasura>) -> Result<Vec<Ballo
         .collect::<Result<Vec<BallotStyle>>>()
 }
 
+fn generate_acclaimed_area_contests(
+    ballot_styles: &[BallotStyle],
+    areas: &[Area],
+) -> Vec<AreaContestDataType> {
+    let areas_map: HashMap<&str, &Area> =
+        areas.iter().map(|area| (area.id.as_str(), area)).collect();
+    let mut found = HashSet::new();
+    let mut result = Vec::new();
+
+    for ballot_style in ballot_styles {
+        let Some(area) = areas_map.get(ballot_style.area_id.as_str()) else {
+            event!(Level::WARN, "Area not found {}", ballot_style.area_id);
+            continue;
+        };
+        for contest in ballot_style
+            .contests
+            .iter()
+            .filter(|contest| contest.is_acclaimed())
+        {
+            if !found.insert((ballot_style.area_id.as_str(), contest.id.as_str())) {
+                continue;
+            }
+            result.push(AreaContestDataType {
+                plaintexts: Vec::new(),
+                contest: contest.clone(),
+                ballot_style: ballot_style.clone(),
+                eligible_voters: 0,
+                area: (*area).clone(),
+                auditable_votes: 0,
+                votes_by_channel: None,
+            });
+        }
+    }
+
+    result
+}
+
 #[instrument(skip_all, err)]
 async fn generate_area_contests_mc(
-    hasura_transaction: &Transaction<'_>,
+    _hasura_transaction: &Transaction<'_>,
     relevant_plaintexts: &Vec<&Message>,
     ballot_styles: &Vec<BallotStyle>,
     tally_session_contest: &Vec<TallySessionContest>,
     areas: &Vec<Area>,
-    tenant_id: &str,
-    election_event_id: &str,
+    _tenant_id: &str,
+    _election_event_id: &str,
 ) -> AnyhowResult<Vec<AreaContestDataType>> {
-    let all_contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
     let areas_map: HashMap<String, Area> = areas
         .clone()
         .into_iter()
@@ -147,74 +188,60 @@ async fn generate_area_contests_mc(
         .collect();
     let mut almost_vec: Vec<AreaContestDataType> = vec![];
     for session_election in tally_session_contest.clone() {
-        // contest ids for this election
-        let contest_ids = all_contests
-            .iter()
-            .filter_map(|contest| {
-                if contest.election_id != session_election.election_id {
-                    return None;
-                }
-                Some(contest.id.clone())
-            })
-            .collect::<Vec<_>>();
+        let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+            ballot_style.area_id == session_election.area_id
+                && ballot_style.election_id == session_election.election_id
+        }) else {
+            event!(
+                Level::WARN,
+                "IGNORING: no ballot style for tally session contest {} (area {}, election {})",
+                session_election.id,
+                session_election.area_id,
+                session_election.election_id
+            );
+            continue;
+        };
+        let Some(area) = areas_map.get(&session_election.area_id) else {
+            event!(Level::INFO, "Area not found {}", session_election.area_id);
+            continue;
+        };
+        let contests = votable_contests(&ballot_style.contests).collect::<Vec<_>>();
+        if contests.is_empty() {
+            event!(
+                Level::WARN,
+                "IGNORING: tally session contest {} has no encrypted contests",
+                session_election.id
+            );
+            continue;
+        };
 
-        // Extract plaintexts once per session/batch
-        let batch_num: i64 = session_election.session_id as i64;
-
+        // Extract plaintexts once per session, across every batch the area
+        // owns. Without weighting that is the single batch it always was.
         // We wrap this in an Option. We will 'take' it for the first valid contest we find.
-        let mut pending_plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>> = relevant_plaintexts
-            .iter()
-            .find(|plaintexts_message| {
-                batch_num == plaintexts_message.statement.get_batch_number() as i64
-            })
-            .and_then(|plaintexts_message| {
-                plaintexts_message.artifact.clone().and_then(|artifact| {
-                    Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                        .ok()
-                        .map(|plaintexts| plaintexts.0 .0)
-                })
-            });
+        let mut pending_plaintexts: Option<Vec<<RistrettoCtx as Ctx>::P>> =
+            collect_weighted_plaintexts(&session_election, relevant_plaintexts)?;
 
         if pending_plaintexts.is_none() {
-            event!(
-                Level::INFO,
-                "Expected: Plaintexts not found yet for session contest = {}, batch number = {}",
-                session_election.id,
-                batch_num
-            );
             // Skips the whole batch if there are no plaintexts.
             continue;
         }
 
-        // Loop over contests
-        for contest_id in contest_ids.iter() {
+        let (eligible_voters, auditable_votes, votes_by_channel) =
+            if let Some(annotations) = session_election.annotations.clone() {
+                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
+
+                (
+                    annotations.elegible_voters,
+                    annotations.ballots_without_voter,
+                    annotations.votes_by_channel,
+                )
+            } else {
+                (0u64, 0u64, Default::default())
+            };
+
+        for contest in contests {
             let area_id = session_election.area_id.clone();
             let election_id = session_election.election_id.clone();
-
-            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
-                ballot_style.area_id == area_id
-                    && ballot_style.election_id == election_id
-                    && ballot_style
-                        .contests
-                        .iter()
-                        .any(|contest| contest.id == *contest_id)
-            }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", area_id, election_id, contest_id);
-                continue;
-            };
-
-            let Some(contest) = ballot_style
-                .contests
-                .iter()
-                .find(|contest| contest.election_id == election_id && contest.id == *contest_id)
-            else {
-                event!(
-                    Level::WARN,
-                    "IGNORING: Contest not found for contest id = {}",
-                    contest_id
-                );
-                continue;
-            };
 
             // Assign plaintexts to the first VALID contest
             // .take() returns the value inside the Option and replaces it with None.
@@ -231,33 +258,13 @@ async fn generate_area_contests_mc(
                 vec![]
             };
 
-            let Some(area) = areas_map.get(&ballot_style.area_id) else {
-                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
-                continue;
-            };
-
-            let (eligible_voters, auditable_votes, votes_by_channel) = if let Some(annotations) =
-                session_election.annotations.clone()
-            {
-                let annotations: TallySessionContestAnnotations = deserialize_value(annotations)?;
-
-                (
-                    annotations.elegible_voters,
-                    annotations.ballots_without_voter,
-                    annotations.votes_by_channel,
-                )
-            } else {
-                (0u64, 0u64, Default::default())
-            };
-
             almost_vec.push(AreaContestDataType {
                 plaintexts,
-                last_tally_session_execution: session_election.clone(),
                 contest: contest.clone(),
                 ballot_style: ballot_style.clone(),
                 eligible_voters,
                 auditable_votes,
-                votes_by_channel,
+                votes_by_channel: votes_by_channel.clone(),
                 area: area.clone(),
             })
         }
@@ -285,81 +292,75 @@ fn generate_area_contests(
         &tally_session_contest.len()
     );
 
-    let almost_vec: Vec<AreaContestDataType> = tally_session_contest.clone()
-        .iter()
-        .filter_map(|session_contest| {
-            let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
-                ballot_style.area_id == session_contest.area_id
-                    && ballot_style.election_id == session_contest.election_id
-                    && ballot_style
-                        .contests
-                        .iter()
-                        .any(|contest| contest.id == session_contest.contest_id.clone().unwrap_or_default())
-            }) else {
-                event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
-                return None;
-            };
-
-            let Some(contest) = ballot_style
-                .contests
-                .iter()
-                .find(|contest| contest.election_id == session_contest.election_id &&
-                    contest.id == session_contest.contest_id.clone().unwrap_or_default() ) else {
-                    event!(Level::WARN, "IGNORING: Contest not found for contest id = {}", session_contest.contest_id.clone().unwrap_or_default());
-                    return None;
-                };
-
-            let batch_num: i64 = session_contest.session_id as i64;
-            let Some(plaintexts) = relevant_plaintexts
-                .iter()
-                .find(|plaintexts_message|
-                    batch_num == plaintexts_message.statement.get_batch_number() as i64
-                )
-                .map(|plaintexts_message| {
-                    plaintexts_message.artifact
-                        .clone()
-                        .map(|artifact| -> Option<Vec<<RistrettoCtx as Ctx>::P>> {
-                            Plaintexts::<RistrettoCtx>::strand_deserialize(&artifact)
-                                .ok()
-                                .map(|plaintexts| plaintexts.0 .0)
-                        })
-                        .flatten()
+    // A loop rather than `filter_map`, because gathering the plaintexts can
+    // fail and a closure has nowhere to report it. Hoisting that call above the
+    // guards instead would make a row they deliberately skip -- no ballot
+    // style, no contest, no area -- able to abort every election in the
+    // session, and would hold every area's expanded plaintexts at once.
+    let mut almost_vec: Vec<AreaContestDataType> = vec![];
+    for session_contest in tally_session_contest.iter() {
+        let Some(ballot_style) = ballot_styles.iter().find(|ballot_style| {
+            ballot_style.area_id == session_contest.area_id
+                && ballot_style.election_id == session_contest.election_id
+                && ballot_style.contests.iter().any(|contest| {
+                    contest.id == session_contest.contest_id.clone().unwrap_or_default()
                 })
-                .flatten() else {
-                    event!(Level::INFO, "Expected: Plaintexts not found yet for session contest = {}, batch number = {}", session_contest.id, batch_num );
-                    return None;
-                };
-            let Some(area) = areas_map.get(&ballot_style.area_id) else {
-                event!(Level::INFO, "Area not found {}", ballot_style.area_id);
-                return None;
+        }) else {
+            event!(Level::WARN, "IGNORING: Ballot Style not found for area id = {}, election id = {}, contest id = {}", session_contest.area_id, session_contest.election_id, session_contest.contest_id.clone().unwrap_or_default());
+            continue;
+        };
+
+        let Some(contest) = ballot_style.contests.iter().find(|contest| {
+            contest.election_id == session_contest.election_id
+                && contest.id == session_contest.contest_id.clone().unwrap_or_default()
+        }) else {
+            event!(
+                Level::WARN,
+                "IGNORING: Contest not found for contest id = {}",
+                session_contest.contest_id.clone().unwrap_or_default()
+            );
+            continue;
+        };
+
+        let Some(area) = areas_map.get(&ballot_style.area_id) else {
+            event!(Level::INFO, "Area not found {}", ballot_style.area_id);
+            continue;
+        };
+        // Below every guard, not just most of them: this call can fail, and a
+        // row the guards above deliberately skip must not be able to abort
+        // every election in the session.
+        let Some(plaintexts) = collect_weighted_plaintexts(session_contest, relevant_plaintexts)?
+        else {
+            continue;
+        };
+
+        let (eligible_voters, auditable_votes, votes_by_channel) = if let Some(annotations) =
+            session_contest.annotations.clone()
+        {
+            let Ok(annotations) = deserialize_value::<TallySessionContestAnnotations>(annotations)
+            else {
+                continue;
             };
 
-            let (eligible_voters, auditable_votes, votes_by_channel) =
-            if let Some(annotations) = session_contest.annotations.clone() {
-                let annotations: TallySessionContestAnnotations =
-                    deserialize_value(annotations).ok()?;
+            (
+                annotations.elegible_voters,
+                annotations.ballots_without_voter,
+                annotations.votes_by_channel,
+            )
+        } else {
+            (0u64, 0u64, Default::default())
+        };
 
-                (
-                    annotations.elegible_voters,
-                    annotations.ballots_without_voter,
-                    annotations.votes_by_channel,
-                )
-            } else {
-                (0u64, 0u64, Default::default())
-            };
-
-            Some(AreaContestDataType {
-                plaintexts,
-                last_tally_session_execution: session_contest.clone(),
-                contest: contest.clone(),
-                ballot_style: ballot_style.clone(),
-                eligible_voters,
-                auditable_votes,
-                votes_by_channel,
-                area: area.clone(),
-            })
-        })
-        .collect();
+        almost_vec.push(AreaContestDataType {
+            plaintexts,
+            contest: contest.clone(),
+            ballot_style: ballot_style.clone(),
+            eligible_voters,
+            auditable_votes,
+            votes_by_channel,
+            area: area.clone(),
+        });
+    }
 
     Ok(almost_vec)
 }
@@ -380,7 +381,7 @@ async fn process_plaintexts(
         "Num sequent_backend_tally_session_contest = {}",
         &tally_session_contest.len()
     );
-    let almost_vec = match contest_encryption_policy {
+    let mut almost_vec = match contest_encryption_policy {
         ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
             generate_area_contests_mc(
                 hasura_transaction,
@@ -400,6 +401,7 @@ async fn process_plaintexts(
             areas,
         )?,
     };
+    almost_vec.extend(generate_acclaimed_area_contests(&ballot_styles, areas));
     event!(Level::WARN, "Num almost_vec = {}", almost_vec.len());
     let treenode_areas: Vec<TreeNodeArea> = areas.iter().map(|area| area.into()).collect();
 
@@ -536,16 +538,19 @@ pub async fn upsert_ballots_messages(
         .clone()
         .unwrap_or_default()
         .get_delegated_voting_policy();
-    let expected_batch_ids: HashSet<i64> = tally_session_contests
-        .iter()
-        .map(|tally_session_contest| tally_session_contest.session_id as i64)
-        .collect();
+    let weighted_voting_policy = tally_session_hasura
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_weighted_voting_policy();
+    // Every Ballots batch on the board. Deliberately not narrowed to the
+    // batches this session expects: a contest area's batches are identified by
+    // its recorded mask, and rows allocated before this layout existed sit one
+    // apart, so any range built around `session_id` would read a neighbouring
+    // area's batch as this area's.
     let existing_ballots_batches: HashSet<i64> = messages
         .iter()
-        .filter(|message| {
-            expected_batch_ids.contains(&(message.statement.get_batch_number() as i64))
-                && StatementType::Ballots == message.statement.get_kind()
-        })
+        .filter(|message| StatementType::Ballots == message.statement.get_kind())
         .map(|message| message.statement.get_batch_number() as i64)
         .collect();
     event!(
@@ -553,83 +558,54 @@ pub async fn upsert_ballots_messages(
         "existing_ballots_batches: '{:?}'",
         existing_ballots_batches
     );
-    let missing_ballots_batches: Vec<TallySessionContest> = tally_session_contests
-        .clone()
-        .into_iter()
-        .filter(|tally_session_contest| {
-            !existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
-        })
-        .collect();
 
-    // Contests where Ballots exist on board but annotations were not saved
-    // (e.g. due to a previous failed run where the board write succeeded
-    // but the Hasura transaction was rolled back).
-    let missing_annotations_batches: Vec<TallySessionContest> = tally_session_contests
-        .clone()
-        .into_iter()
-        .filter(|tally_session_contest| {
-            existing_ballots_batches.contains(&(tally_session_contest.session_id as i64))
-                && tally_session_contest.annotations.is_none()
-        })
-        .collect();
+    // A contest area is done when its annotations say which batches it posted
+    // and every one of them is on the board. Anything else is dumped again,
+    // including the case where the board write succeeded but the Hasura
+    // transaction was rolled back: `add_ballots_to_board` skips a batch that
+    // already exists, so re-dumping completes a partially posted area instead
+    // of duplicating it.
+    //
+    // Asking whether *any* batch of the area is present would be wrong in both
+    // directions. The dump is up to `VOTE_WEIGHT_BATCHES` separate board
+    // writes, on a connection no transaction rolls back, so a failure part way
+    // through leaves an area that has some batches and needs the rest; and a
+    // row from before this layout has neighbours one number away, whose posted
+    // batches are not evidence about this row at all.
+    let mut missing_ballots_batches: Vec<TallySessionContest> = vec![];
+    for tally_session_contest in tally_session_contests.iter() {
+        let is_dumped = tally_session_contest.annotations.is_some()
+            && contest_weight_batches(tally_session_contest)?
+                .into_iter()
+                .all(|(batch, _)| existing_ballots_batches.contains(&batch));
+        if !is_dumped {
+            missing_ballots_batches.push(tally_session_contest.clone());
+        }
+    }
 
     event!(
         Level::INFO,
         "missing_ballots_batches num: {}",
         missing_ballots_batches.len()
     );
-    event!(
-        Level::INFO,
-        "missing_annotations_batches num: {}",
-        missing_annotations_batches.len()
-    );
 
-    // The two sets are mutually exclusive: missing_ballots_batches contains
-    // contests whose ballots have NOT been posted to the board yet, while
-    // missing_annotations_batches contains contests whose ballots ARE on the
-    // board but whose annotations were lost (e.g. the board write succeeded
-    // but the Hasura transaction was rolled back in a previous failed run).
-
-    // Post ballots to the board and compute annotations for contests that
-    // have not been processed at all yet.
-    let mut tally_session_contests_updated = if !missing_ballots_batches.is_empty() {
-        insert_ballots_messages(
-            hasura_transaction,
-            keycloak_transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_names.clone(),
-            missing_ballots_batches.clone(),
-            contest_encryption_policy.clone(),
-            delegated_voting_policy.clone(),
-            false,
-        )
-        .await?
-    } else {
-        vec![]
-    };
-
-    // For contests whose ballots are already on the board, only recompute
-    // and persist the annotations (skip the board write).
-    if !missing_annotations_batches.is_empty() {
-        let recovered = insert_ballots_messages(
-            hasura_transaction,
-            keycloak_transaction,
-            tenant_id,
-            election_event_id,
-            board_name,
-            trustee_names,
-            missing_annotations_batches,
-            contest_encryption_policy,
-            delegated_voting_policy,
-            true,
-        )
-        .await?;
-        tally_session_contests_updated.extend(recovered);
+    if missing_ballots_batches.is_empty() {
+        return Ok(vec![]);
     }
 
-    Ok(tally_session_contests_updated)
+    Ok(insert_ballots_messages(
+        hasura_transaction,
+        keycloak_transaction,
+        tenant_id,
+        election_event_id,
+        board_name,
+        trustee_names,
+        missing_ballots_batches,
+        contest_encryption_policy,
+        delegated_voting_policy,
+        weighted_voting_policy,
+    )
+    .await?)
 }
 
 fn get_tally_session_created_at_timestamp_secs(tally_session: &TallySession) -> Result<i64> {
@@ -851,6 +827,110 @@ async fn map_plaintext_data(
     let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
     print_messages(&messages, &bulletin_board)?;
 
+    // `create_tally_ceremony` refuses this combination when a session is
+    // created, but a recount re-executes an existing session without going
+    // through it, and ballots can be republished between creation and
+    // execution. Velvet applies an area weight unconditionally, so without this
+    // every ballot in a weighted area would be counted area_weight times on top
+    // of its per-voter weight.
+    //
+    // This runs before the ballots are dumped, because posting the batches is
+    // what makes each voter's weight public, and the board write is on
+    // its own connection that a rolled back transaction would not undo.
+    if tally_session
+        .configuration
+        .clone()
+        .unwrap_or_default()
+        .get_weighted_voting_policy()
+        == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING
+    {
+        // Parsed here rather than higher up so that a session not using this
+        // policy does not pay for it on every board poll.
+        let published_ballot_styles: Vec<BallotStyle> = get_ballot_styles(&ballot_styles)?;
+        let weighted: Vec<String> = published_ballot_styles
+            .iter()
+            .filter(|ballot_style| {
+                ballot_style
+                    .area_annotations
+                    .as_ref()
+                    .map(|annotations| annotations.get_weight())
+                    .is_some_and(|weight| weight != Weight::default())
+            })
+            .map(|ballot_style| ballot_style.area_id.clone())
+            .collect();
+        if !weighted.is_empty() {
+            return Err(anyhow!(
+                "Refusing to tally: voter-weighted voting is enabled while these \
+                 areas still carry their own weight in the published ballots, \
+                 which would multiply the two: {}. This has to be corrected \
+                 before the ballots are published: set the weighted voting \
+                 policy back to areas-weighted voting, which makes the weight \
+                 editable again, clear it on these areas, set the policy to \
+                 voters-weighted voting and publish. Once voting has begun the \
+                 ballots cannot be republished, so at this point there is no \
+                 remedy left",
+                weighted.join(", ")
+            )
+            .into());
+        }
+
+        // A tally sheet can be approved after the session was created, so this
+        // is re-checked here rather than only at creation. Its votes carry no
+        // weight and would be added to the weighted totals at one each, which
+        // decides contests rather than merely under-counting them.
+        // Scoped to this session's elections, like the two refusals above it.
+        // An approved sheet belonging to a different election in the same event
+        // says nothing about this tally, and refusing on it would name a remedy
+        // -- withdraw the sheet -- that destroys that other election's paper
+        // count.
+        let session_election_ids: Vec<String> =
+            tally_session.election_ids.clone().unwrap_or_default();
+        let approved_tally_sheets: Vec<_> =
+            get_approved_tally_sheets_by_event(hasura_transaction, &tenant_id, &election_event_id)
+                .await?
+                .into_iter()
+                // An empty list needs no fallback: a session that names no
+                // elections has no contest rows, so there is no tally for a
+                // sheet to be counted into.
+                .filter(|sheet| session_election_ids.contains(&sheet.election_id))
+                .collect();
+        if !approved_tally_sheets.is_empty() {
+            return Err(Error::String(format!(
+                "Approved tally sheets cannot be counted when voter-weighted \
+                 voting is enabled: a tally sheet reports a ballot count with no \
+                 weight, so its votes would be added to the weighted totals at a \
+                 weight of one each. {} approved tally sheet(s) exist for this \
+                 election event",
+                approved_tally_sheets.len()
+            )));
+        }
+
+        // Same reasoning as the area weight: the counting algorithm is read
+        // from the published ballot styles at tally time, so a contest switched
+        // to another algorithm and republished after the session was created
+        // would otherwise reach the tally with weight-expanded ballots.
+        let mut unsupported: Vec<String> = Vec::new();
+        for contest in published_ballot_styles
+            .iter()
+            .flat_map(|ballot_style| votable_contests(&ballot_style.contests))
+        {
+            if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
+                && !unsupported.contains(&contest.id)
+            {
+                unsupported.push(contest.id.clone());
+            }
+        }
+        if !unsupported.is_empty() {
+            return Err(anyhow!(
+                "Refusing to tally: voter-weighted voting only supports the \
+                 plurality-at-large counting algorithm, and these contests in \
+                 the published ballots use another one: {}",
+                unsupported.join(", ")
+            )
+            .into());
+        }
+    }
+
     let new_ballots_messages = upsert_ballots_messages(
         hasura_transaction,
         keycloak_transaction,
@@ -901,6 +981,18 @@ async fn map_plaintext_data(
         .map(|board_message| board_message.id)
         .unwrap_or(-1);
 
+    // The reason recorded on the execution row is authoritative; the celery
+    // argument only reflects what the enqueuing process knew. That message can
+    // be lost without the recount ever running -- expired while no worker was
+    // consuming, or dropped because a concurrent process_board run held the
+    // lock and this task returned early -- and the reason would go with it.
+    // Reading it from the row instead means whichever task next wins the lock
+    // carries the recount out, so a lost message costs a delay rather than the
+    // recount itself. The argument is still honoured so that a message queued
+    // by an older producer keeps working.
+    let force_recount =
+        force_recount || tally_session_execution.run_reason() == TallyRunReason::RECOUNT;
+
     // Recounts and tie-break re-runs replay the last processed message; normally
     // we require a new (unprocessed) message to proceed.
     let board_message_to_process = match board_messages.iter().find(|m| m.id > last_message_id) {
@@ -923,10 +1015,24 @@ async fn map_plaintext_data(
         .get_timestamp();
     next_timestamp = std::cmp::max(tally_session_created_at_timestamp_secs, next_timestamp);
 
-    // get the batch ids that are linked to this tally session
+    // get the batch ids that are linked to this tally session. Under weighting
+    // an area contributes one batch per weight bit its voters use, which its
+    // annotations record; every other policy contributes the single batch it
+    // always did.
+    // Deduplicated, because completion is decided by comparing this length
+    // against the number of distinct Plaintexts messages found. Two rows can
+    // name the same batch when their runs overlap, which rows allocated one
+    // apart before this layout existed can do, and a repeated batch would then
+    // make the target unreachable.
     let batch_ids = tally_session_contest
         .iter()
-        .map(|tsc| tsc.session_id as i64)
+        .map(|tsc| contest_weight_batches(tsc))
+        .collect::<AnyhowResult<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .map(|(batch, _)| batch)
+        .collect::<HashSet<_>>()
+        .into_iter()
         .collect::<Vec<_>>();
 
     event!(Level::INFO, "Num batch_ids {}", batch_ids.len());
@@ -1143,6 +1249,13 @@ async fn build_reports_template_data(
     Ok((report_content_template, report_system_template, pdf_options))
 }
 
+fn should_force_initial_results(
+    is_execution_completed: bool,
+    previous_results_event_id: Option<&str>,
+) -> bool {
+    is_execution_completed && previous_results_event_id.is_none()
+}
+
 #[instrument(err, skip(hasura_transaction, keycloak_transaction))]
 pub async fn execute_tally_session_wrapped(
     tenant_id: String,
@@ -1295,7 +1408,16 @@ pub async fn execute_tally_session_wrapped(
         &default_language,
         tally_type_enum.clone(),
         plaintexts_data.is_empty(),
-        force_new_results_id || has_resolved_tie_break,
+        // Same reasoning as the replay decision: a recount must produce a fresh
+        // results event even when the celery argument that requested it was
+        // lost, so the reason on the execution row counts too.
+        force_new_results_id
+            || has_resolved_tie_break
+            || tally_session_execution.run_reason() == TallyRunReason::RECOUNT
+            || should_force_initial_results(
+                is_execution_completed,
+                tally_session_execution.results_event_id.as_deref(),
+            ),
     )
     .await?;
 
@@ -1332,6 +1454,9 @@ pub async fn execute_tally_session_wrapped(
                 results_event_id,
                 session_ids_i32,
                 tally_session_execution_documents,
+                // The run happened; the next execution is a normal one again,
+                // which is what consumes any RECOUNT reason.
+                TallyRunReason::NORMAL,
             )
             .await?;
 
@@ -1374,6 +1499,7 @@ pub async fn execute_tally_session_wrapped(
         results_event_id,
         session_ids_i32,
         tally_session_execution_documents,
+        TallyRunReason::NORMAL,
     )
     .await?;
 
@@ -1546,10 +1672,77 @@ pub async fn execute_tally_session(
 #[cfg(test)]
 mod tests {
 
-    use crate::tasks::execute_tally_session::count_cast_votes_election_with_census;
+    use crate::tasks::execute_tally_session::{
+        count_cast_votes_election_with_census, generate_acclaimed_area_contests,
+        should_force_initial_results,
+    };
     use anyhow::anyhow;
     use anyhow::Result;
-    use sequent_core::types::hasura::core::TallySessionContest;
+    use sequent_core::ballot::{BallotStyle, Contest};
+    use sequent_core::types::hasura::core::{Area, TallySessionContest};
+
+    #[test]
+    fn initial_results_are_forced_only_after_execution_completes() {
+        assert!(should_force_initial_results(true, None));
+        assert!(!should_force_initial_results(false, None));
+        assert!(!should_force_initial_results(
+            true,
+            Some("existing-results")
+        ));
+    }
+
+    #[test]
+    fn acclaimed_results_do_not_require_a_tally_session_contest() {
+        let contest = Contest {
+            id: "acclaimed-contest".to_string(),
+            election_id: "election".to_string(),
+            is_acclaimed: Some(true),
+            ..Default::default()
+        };
+        let ballot_style = BallotStyle {
+            id: "style".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            election_id: "election".to_string(),
+            num_allowed_revotes: None,
+            description: None,
+            public_key: None,
+            area_id: "area".to_string(),
+            area_presentation: None,
+            contests: vec![contest],
+            election_event_presentation: None,
+            election_presentation: None,
+            election_dates: None,
+            election_event_annotations: None,
+            election_annotations: None,
+            area_annotations: None,
+            multi_contest_encoding_mode: None,
+        };
+        let area = Area {
+            id: "area".to_string(),
+            tenant_id: "tenant".to_string(),
+            election_event_id: "event".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            name: None,
+            description: None,
+            r#type: None,
+            parent_id: None,
+            presentation: None,
+        };
+
+        let result = generate_acclaimed_area_contests(&[ballot_style], &[area]);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].contest.id, "acclaimed-contest");
+        assert_eq!(result[0].area.id, "area");
+        assert!(result[0].plaintexts.is_empty());
+        assert_eq!(result[0].eligible_voters, 0);
+        assert_eq!(result[0].auditable_votes, 0);
+        assert!(result[0].votes_by_channel.is_none());
+    }
 
     #[tokio::test]
     async fn test_count_cast_votes_election_with_census() -> Result<()> {

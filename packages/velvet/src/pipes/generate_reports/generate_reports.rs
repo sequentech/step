@@ -7,18 +7,22 @@ use rand::thread_rng;
 use rayon::prelude::*;
 use sequent_core::{
     ballot::{
-        Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest, ContestEncryptionPolicy,
-        DeclineToVotePolicy, StringifiedPeriodDates,
+        BlankBallotsPolicy, Candidate, CandidatesOrder, ConsolidatedReportPolicy, Contest,
+        ContestEncryptionPolicy, ContestsOrder, DeclineToVotePolicy, StringifiedPeriodDates,
     },
     serialization::deserialize_with_path::{deserialize_str, deserialize_value},
     services::{area_tree::TreeNodeArea, pdf, reports},
     sqlite::results_election_area,
-    types::{ceremonies::TallyType, participation::ParticipationChannel, to_map::ToMap},
+    types::{
+        ceremonies::{CountingAlgType, TallyType},
+        participation::ParticipationChannel,
+        to_map::ToMap,
+    },
     util::{date_time::get_date_and_time, path::list_subfolders},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
-use std::cmp::{self, Ordering, Reverse};
+use std::cmp::{self, Ordering};
 use std::{
     collections::HashMap,
     fs::{self, OpenOptions},
@@ -116,6 +120,26 @@ impl GenerateReports {
         areas_map: &HashMap<String, TreeNodeArea>,
         is_consolidated: bool,
     ) -> Result<Vec<ReportDataComputed>> {
+        let election_input = reports.first().and_then(|report| {
+            self.pipe_inputs
+                .election_list
+                .iter()
+                .find(|election| election.id.to_string() == report.election_id)
+        });
+        let contests_order = election_input
+            .and_then(|election| election.presentation.as_ref())
+            .and_then(|presentation| presentation.contests_order.clone())
+            .unwrap_or_default();
+        let random_contest_order = election_input
+            .map(|election| {
+                election
+                    .contest_list
+                    .iter()
+                    .enumerate()
+                    .map(|(position, contest)| (contest.id.to_string(), position))
+                    .collect::<HashMap<_, _>>()
+            })
+            .unwrap_or_default();
         let default_area_annotations: HashMap<String, String> =
             HashMap::from([("registered_voters".to_string(), "0".to_string())]);
         let mut reports = reports
@@ -190,33 +214,22 @@ impl GenerateReports {
                         })
                         .collect();
 
-                    let contest_report_config: ContestReportConfig = contest_result
-                        .contest
-                        .annotations
-                        .clone()
-                        .unwrap_or_default()
-                        .get(CONTEST_REPORT_CONFIG)
-                        .map(|contest_report_config| {
-                            deserialize_str(contest_report_config)
-                                .map_err(|err| {
-                                    warn!("Error deserializing contest_report_config: {err:?}")
-                                })
-                                .unwrap_or_default()
-                        })
-                        .unwrap_or_default();
-
-                    match contest_report_config.candidates_order {
-                        CandidatesOrderPolicy::AsInBallot => {}
-                        CandidatesOrderPolicy::SortByWinningPosition => {
-                            candidate_result.sort_by(|a, b| {
-                                a.winning_position
-                                    .unwrap_or(usize::MAX)
-                                    .cmp(&b.winning_position.unwrap_or(usize::MAX))
-                                    .then_with(|| b.total_count.cmp(&a.total_count))
-                                    .then_with(|| a.candidate.name.cmp(&b.candidate.name))
-                            });
-                        }
-                    };
+                    if matches!(
+                        report_candidates_order_policy(&contest_result.contest),
+                        Some(CandidatesOrderPolicy::SortByWinningPosition)
+                    ) {
+                        candidate_result.sort_by(|a, b| {
+                            a.winning_position
+                                .unwrap_or(usize::MAX)
+                                .cmp(&b.winning_position.unwrap_or(usize::MAX))
+                                .then_with(|| b.total_count.cmp(&a.total_count))
+                                .then_with(|| a.candidate.name.cmp(&b.candidate.name))
+                        });
+                    }
+                    sort_process_result_candidate_references(
+                        contest_result.process_results.as_mut(),
+                        &candidate_result,
+                    );
                     contest_result_opt = Some(contest_result);
                 }
                 let participation_by_channel = contest_result_opt
@@ -239,6 +252,7 @@ impl GenerateReports {
                     area: report.area.clone(),
                     area_annotations,
                     candidate_result,
+                    show_candidate_results: should_show_candidate_results(report.contest.as_ref()),
                     is_aggregate: false,
                     tally_sheet_id: None,
                     channel_type: report.channel_type.clone(),
@@ -248,35 +262,12 @@ impl GenerateReports {
             })
             .collect::<Vec<ReportDataComputed>>();
 
-        if (is_consolidated) {
-            // Sort order:
-            // 1. Report with election_results come first.
-            // 2. Then sort by contest name
-            // 3. Within the same contest:
-            //    - Rows without an area (contest-level) come first.
-            //    - Rows with an area come after, sorted by area name.
-            reports.sort_by_cached_key(|r| {
-                let contest_name: Option<String> = r
-                    .contest_result
-                    .as_ref()
-                    .and_then(|cr| cr.contest.name.clone());
-
-                let area_name: Option<String> = r.area.as_ref().map(|a| a.name.clone());
-
-                (
-                    Reverse(r.election_results.is_some()),
-                    contest_name,
-                    r.area.is_some(),
-                    area_name,
-                )
-            });
-        } else {
-            reports.sort_by(|a, b| {
-                let an = a.contest_result.as_ref().map(|cr| &cr.contest.name);
-                let bn = b.contest_result.as_ref().map(|cr| &cr.contest.name);
-                an.cmp(&bn)
-            });
-        }
+        sort_report_sections(
+            &mut reports,
+            &contests_order,
+            &random_contest_order,
+            is_consolidated,
+        );
         Ok(reports)
     }
 
@@ -517,6 +508,17 @@ impl GenerateReports {
     pub fn read_reports(&self) -> Result<Vec<ElectionReportDataComputed>> {
         let mut election_reports: Vec<ElectionReportDataComputed> = vec![];
 
+        let config = self.get_config()?;
+        let multi_contest_encrypt = config
+            .tally_session_configuration
+            .clone()
+            .map(|c| {
+                c.contest_encryption_policy
+                    .map(|c| c == ContestEncryptionPolicy::MULTIPLE_CONTESTS)
+                    .unwrap_or(false)
+            })
+            .unwrap_or(false);
+
         for election_input in &self.pipe_inputs.election_list {
             let mut reports = vec![];
             let areas_map: HashMap<String, TreeNodeArea> = election_input
@@ -601,6 +603,25 @@ impl GenerateReports {
                 }
             }
 
+            let is_blank_ballots_enabled = multi_contest_encrypt
+                && election_input
+                    .presentation
+                    .clone()
+                    .and_then(|p| p.blank_ballots_policy)
+                    == Some(BlankBallotsPolicy::ENABLED);
+
+            let blank_ballots = if is_blank_ballots_enabled {
+                reports
+                    .iter()
+                    .find(|r| r.area.is_none() && !is_acclaimed_report(r))
+                    .or_else(|| reports.iter().find(|r| r.area.is_none()))
+                    .and_then(|r| r.contest_result.as_ref())
+                    .and_then(|cr| cr.extended_metrics.as_ref())
+                    .map(|m| m.total_blank_ballots)
+            } else {
+                None
+            };
+
             let computed_reports = self.compute_reports(reports, &areas_map, false)?;
 
             election_reports.push(ElectionReportDataComputed {
@@ -608,6 +629,7 @@ impl GenerateReports {
                 area: None,
                 census: election_input.census,
                 total_votes: election_input.total_votes,
+                blank_ballots,
                 reports: computed_reports,
             });
         }
@@ -960,6 +982,10 @@ pub struct ElectionResultReport {
     pub total_decline_to_vote: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub percentage_total_decline_to_vote: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_blank_ballots: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub percentage_total_blank_ballots: Option<f64>,
 }
 
 impl Pipe for GenerateReports {
@@ -1145,8 +1171,7 @@ impl Pipe for GenerateReports {
                         == Some(DeclineToVotePolicy::ENABLED);
 
                 let total_decline_to_vote = if is_decline_to_vote_enabled {
-                    contest_reports
-                        .first()
+                    ballot_level_report(&contest_reports)
                         .and_then(|r| {
                             r.contest_result
                                 .clone()
@@ -1162,6 +1187,30 @@ impl Pipe for GenerateReports {
                 let percentage_total_votes = percentage_of(total_votes, election_census);
                 let percentage_census = 100.0;
 
+                let is_blank_ballots_enabled = multi_contest_encrypt
+                    && election_input
+                        .presentation
+                        .clone()
+                        .and_then(|p| p.blank_ballots_policy)
+                        == Some(BlankBallotsPolicy::ENABLED);
+
+                let total_blank_ballots = if is_blank_ballots_enabled {
+                    ballot_level_report(&contest_reports)
+                        .and_then(|r| {
+                            r.contest_result
+                                .clone()
+                                .map(|r| r.extended_metrics.map(|m| m.total_blank_ballots))
+                        })
+                        .unwrap_or(None)
+                } else {
+                    None
+                };
+
+                // Percentage over total votes cast, not census: a blank
+                // ballot is a valid cast ballot.
+                let percentage_total_blank_ballots =
+                    total_blank_ballots.map(|count| percentage_of(count, total_votes));
+
                 let election_results = ElectionResultReport {
                     census: election_census.clone(),
                     percentage_census,
@@ -1169,6 +1218,8 @@ impl Pipe for GenerateReports {
                     percentage_total_votes,
                     total_decline_to_vote,
                     percentage_total_decline_to_vote,
+                    total_blank_ballots,
+                    percentage_total_blank_ballots,
                 };
 
                 let summary_election_report = contest_reports
@@ -1357,6 +1408,7 @@ pub struct ElectionReportDataComputed {
     pub area: Option<BasicArea>,
     pub census: u64,
     pub total_votes: u64,
+    pub blank_ballots: Option<u64>,
     pub reports: Vec<ReportDataComputed>,
 }
 
@@ -1378,6 +1430,10 @@ pub struct ReportDataComputed {
     pub tally_sheet_id: Option<String>,
     pub contest_result: Option<ContestResult>,
     pub candidate_result: Vec<CandidateResultForReport>,
+    /// Plurality uses this summary table normally; an acclaimed contest uses
+    /// it regardless of its configured algorithm because it has no rounds.
+    #[serde(default)]
+    pub show_candidate_results: bool,
     pub channel_type: Option<String>,
     pub election_results: Option<ElectionResultReport>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1439,6 +1495,186 @@ impl From<CandidateResultForReport> for Option<WinnerResult> {
     }
 }
 
+fn report_candidates_order_policy(contest: &Contest) -> Option<CandidatesOrderPolicy> {
+    let value = contest.annotations.as_ref()?.get(CONTEST_REPORT_CONFIG)?;
+
+    match deserialize_str::<ContestReportConfig>(value) {
+        Ok(config) => Some(config.candidates_order),
+        Err(err) => {
+            warn!("Error deserializing contest_report_config: {err:?}");
+            None
+        }
+    }
+}
+
+fn should_show_candidate_results(contest: Option<&Contest>) -> bool {
+    contest.is_some_and(|contest| {
+        contest.is_acclaimed()
+            || contest.get_counting_algorithm() == CountingAlgType::PluralityAtLarge
+    })
+}
+
+/// Whether this report's contest is acclaimed, and so cannot answer for the
+/// ballot as a whole: it has no ballots at all and reports zero.
+fn is_acclaimed_report(report: &ReportData) -> bool {
+    report
+        .contest
+        .as_ref()
+        .or_else(|| report.contest_result.as_ref().map(|result| &result.contest))
+        .is_some_and(|contest| contest.is_acclaimed())
+}
+
+/// A contest whose result speaks for the whole ballot.
+///
+/// Ballot-level metrics (blank ballots, decline to vote) are replicated onto
+/// every contest result, so any contest answers for the ballot - except an
+/// acclaimed one, which has no ballots at all and reports zero. Contest order
+/// comes from an unsorted directory read, so picking blindly would make the
+/// election-level total depend on filesystem order.
+fn ballot_level_report(reports: &[ReportData]) -> Option<&ReportData> {
+    reports
+        .iter()
+        .find(|report| !is_acclaimed_report(report))
+        .or_else(|| reports.first())
+}
+
+fn report_contest(report: &ReportDataComputed) -> Option<&Contest> {
+    report
+        .contest
+        .as_ref()
+        .or_else(|| report.contest_result.as_ref().map(|result| &result.contest))
+}
+
+fn compare_text(left: &str, right: &str) -> Ordering {
+    left.to_lowercase().cmp(&right.to_lowercase())
+}
+
+fn compare_report_contests(
+    left: Option<&Contest>,
+    right: Option<&Contest>,
+    order: &ContestsOrder,
+    random_contest_order: &HashMap<String, usize>,
+) -> Ordering {
+    match (left, right) {
+        (None, None) => Ordering::Equal,
+        (None, Some(_)) => Ordering::Less,
+        (Some(_), None) => Ordering::Greater,
+        (Some(left), Some(right)) => {
+            let snapshot_order = random_contest_order
+                .get(&left.id)
+                .copied()
+                .unwrap_or(usize::MAX)
+                .cmp(
+                    &random_contest_order
+                        .get(&right.id)
+                        .copied()
+                        .unwrap_or(usize::MAX),
+                );
+            let configured_order = match order {
+                ContestsOrder::Alphabetical => compare_text(
+                    left.alias
+                        .as_deref()
+                        .or(left.name.as_deref())
+                        .unwrap_or_default(),
+                    right
+                        .alias
+                        .as_deref()
+                        .or(right.name.as_deref())
+                        .unwrap_or_default(),
+                ),
+                ContestsOrder::Custom => left
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.sort_order)
+                    .unwrap_or(-1)
+                    .cmp(
+                        &right
+                            .presentation
+                            .as_ref()
+                            .and_then(|presentation| presentation.sort_order)
+                            .unwrap_or(-1),
+                    ),
+                // Result reports must not be randomized on each generation. Preserve the
+                // sequence received by this report snapshot while grouping rows by contest.
+                ContestsOrder::Random => Ordering::Equal,
+            };
+
+            configured_order
+                .then(snapshot_order)
+                .then_with(|| left.id.cmp(&right.id))
+        }
+    }
+}
+
+fn sort_report_sections(
+    reports: &mut [ReportDataComputed],
+    contests_order: &ContestsOrder,
+    random_contest_order: &HashMap<String, usize>,
+    is_consolidated: bool,
+) {
+    reports.sort_by(|left, right| {
+        let summary_order = if is_consolidated {
+            right
+                .election_results
+                .is_some()
+                .cmp(&left.election_results.is_some())
+        } else {
+            Ordering::Equal
+        };
+
+        summary_order
+            .then_with(|| {
+                compare_report_contests(
+                    report_contest(left),
+                    report_contest(right),
+                    contests_order,
+                    random_contest_order,
+                )
+            })
+            .then_with(|| left.area.is_some().cmp(&right.area.is_some()))
+            .then_with(|| {
+                compare_text(
+                    left.area
+                        .as_ref()
+                        .map(|area| area.name.as_str())
+                        .unwrap_or_default(),
+                    right
+                        .area
+                        .as_ref()
+                        .map(|area| area.name.as_str())
+                        .unwrap_or_default(),
+                )
+            })
+            .then_with(|| left.channel_type.cmp(&right.channel_type))
+    });
+}
+
+fn sort_process_result_candidate_references(
+    process_results: Option<&mut serde_json::Value>,
+    candidates: &[CandidateResultForReport],
+) {
+    let Some(name_references) = process_results
+        .and_then(serde_json::Value::as_object_mut)
+        .and_then(|results| results.get_mut("name_references"))
+        .and_then(serde_json::Value::as_array_mut)
+    else {
+        return;
+    };
+    let candidate_order = candidates
+        .iter()
+        .enumerate()
+        .map(|(index, result)| (result.candidate.id.as_str(), index))
+        .collect::<HashMap<_, _>>();
+
+    name_references.sort_by_key(|reference| {
+        reference
+            .get("id")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|id| candidate_order.get(id).copied())
+            .unwrap_or(usize::MAX)
+    });
+}
+
 #[instrument(skip_all)]
 fn sort_candidates(candidates: &mut Vec<CandidateResult>, order_field: CandidatesOrder) {
     match order_field {
@@ -1490,7 +1726,7 @@ mod participation_by_channel_tests {
     use super::*;
     use crate::pipes::do_tally::ExtendedMetricsContest;
     use sequent_core::{
-        ballot::VotingStatusChannel,
+        ballot::{ContestPresentation, VotingStatusChannel},
         types::{
             participation::VotesByChannel, tally_sheets::VotingChannel as TallySheetVotingChannel,
         },
@@ -1516,10 +1752,286 @@ mod participation_by_channel_tests {
             tally_sheet_id: None,
             contest_result: None,
             candidate_result: vec![],
+            show_candidate_results: false,
             channel_type: None,
             election_results: None,
             participation_by_channel,
         }
+    }
+
+    fn report_for_contest(id: &str, name: &str, sort_order: i64) -> ReportDataComputed {
+        let contest = Contest {
+            id: id.to_string(),
+            alias: Some(name.to_string()),
+            presentation: Some(ContestPresentation {
+                sort_order: Some(sort_order),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let mut report = report_with_channels(vec![]);
+        report.contest = Some(contest.clone());
+        report.contest_result = Some(ContestResult {
+            contest,
+            ..Default::default()
+        });
+        report
+    }
+
+    #[test]
+    fn report_sections_follow_custom_contest_order() {
+        for is_consolidated in [false, true] {
+            let mut reports = vec![
+                report_for_contest("contest-a", "A contest", 2),
+                report_for_contest("contest-z", "Z contest", 1),
+            ];
+
+            sort_report_sections(
+                &mut reports,
+                &ContestsOrder::Custom,
+                &HashMap::new(),
+                is_consolidated,
+            );
+
+            assert_eq!(
+                reports
+                    .iter()
+                    .filter_map(report_contest)
+                    .map(|contest| contest.id.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["contest-z", "contest-a"]
+            );
+        }
+    }
+
+    #[test]
+    fn report_section_ties_follow_election_contest_order() {
+        let contest_order =
+            HashMap::from([("contest-z".to_string(), 0), ("contest-a".to_string(), 1)]);
+
+        for order in [ContestsOrder::Alphabetical, ContestsOrder::Custom] {
+            let mut reports = vec![
+                report_for_contest("contest-a", "Same contest", 1),
+                report_for_contest("contest-z", "Same contest", 1),
+            ];
+
+            sort_report_sections(&mut reports, &order, &contest_order, true);
+
+            assert_eq!(
+                reports
+                    .iter()
+                    .filter_map(report_contest)
+                    .map(|contest| contest.id.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["contest-z", "contest-a"]
+            );
+        }
+    }
+
+    #[test]
+    fn alphabetical_report_sections_use_the_full_contest_name() {
+        let mut contest_a = report_for_contest("contest-a", "Same", 1);
+        contest_a.contest.as_mut().unwrap().alias = None;
+        contest_a.contest.as_mut().unwrap().name = Some("Same / Zulu".to_string());
+        contest_a.contest_result.as_mut().unwrap().contest.alias = None;
+        contest_a.contest_result.as_mut().unwrap().contest.name = Some("Same".to_string());
+
+        let mut contest_z = report_for_contest("contest-z", "Same", 1);
+        contest_z.contest.as_mut().unwrap().alias = None;
+        contest_z.contest.as_mut().unwrap().name = Some("Same / Alpha".to_string());
+        contest_z.contest_result.as_mut().unwrap().contest.alias = None;
+        contest_z.contest_result.as_mut().unwrap().contest.name = Some("Same".to_string());
+
+        let mut reports = vec![contest_a, contest_z];
+        sort_report_sections(
+            &mut reports,
+            &ContestsOrder::Alphabetical,
+            &HashMap::new(),
+            true,
+        );
+
+        assert_eq!(
+            reports
+                .iter()
+                .filter_map(report_contest)
+                .map(|contest| contest.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["contest-z", "contest-a"]
+        );
+    }
+
+    #[test]
+    fn random_report_sections_preserve_the_input_snapshot() {
+        let mut z_area = report_for_contest("contest-z", "Z contest", 1);
+        z_area.area = Some(BasicArea {
+            id: "area-z".to_string(),
+            name: "Area Z".to_string(),
+        });
+        let mut a_area = report_for_contest("contest-a", "A contest", 2);
+        a_area.area = Some(BasicArea {
+            id: "area-a".to_string(),
+            name: "Area A".to_string(),
+        });
+        let mut reports = vec![a_area, z_area];
+        reports.push(report_for_contest("contest-z", "Z contest", 1));
+        reports.push(report_for_contest("contest-a", "A contest", 2));
+        let random_contest_order =
+            HashMap::from([("contest-z".to_string(), 0), ("contest-a".to_string(), 1)]);
+
+        sort_report_sections(
+            &mut reports,
+            &ContestsOrder::Random,
+            &random_contest_order,
+            true,
+        );
+
+        assert_eq!(
+            reports
+                .iter()
+                .filter_map(report_contest)
+                .map(|contest| contest.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["contest-z", "contest-z", "contest-a", "contest-a"]
+        );
+        assert_eq!(
+            reports
+                .iter()
+                .map(|report| report.area.is_some())
+                .collect::<Vec<_>>(),
+            vec![false, true, false, true]
+        );
+    }
+
+    #[test]
+    fn report_candidates_only_use_result_rank_when_explicitly_configured() {
+        let mut contest = Contest::default();
+        assert!(report_candidates_order_policy(&contest).is_none());
+
+        let config = ContestReportConfig {
+            candidates_order: CandidatesOrderPolicy::SortByWinningPosition,
+        };
+        contest.annotations = Some(HashMap::from([(
+            CONTEST_REPORT_CONFIG.to_string(),
+            serde_json::to_string(&config).unwrap(),
+        )]));
+
+        assert!(matches!(
+            report_candidates_order_policy(&contest),
+            Some(CandidatesOrderPolicy::SortByWinningPosition)
+        ));
+
+        contest.annotations = Some(HashMap::from([(
+            CONTEST_REPORT_CONFIG.to_string(),
+            "{invalid".to_string(),
+        )]));
+        assert!(report_candidates_order_policy(&contest).is_none());
+    }
+
+    #[test]
+    fn preferential_report_references_follow_candidate_order_and_retain_unknowns() {
+        let candidate_result = ["candidate-z", "candidate-a"]
+            .into_iter()
+            .map(|id| CandidateResultForReport {
+                candidate: Candidate {
+                    id: id.to_string(),
+                    ..Default::default()
+                },
+                total_count: 0,
+                percentage_votes: 0.0,
+                winning_position: None,
+            })
+            .collect::<Vec<_>>();
+        let mut process_results = serde_json::json!({
+            "name_references": [
+                { "id": "candidate-a", "name": "A" },
+                { "id": "process-only-1", "name": "One" },
+                { "id": "candidate-z", "name": "Z" },
+                { "id": "process-only-2", "name": "Two" }
+            ],
+            "rounds": []
+        });
+
+        sort_process_result_candidate_references(Some(&mut process_results), &candidate_result);
+
+        assert_eq!(
+            process_results["name_references"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|reference| reference["id"].as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "candidate-z",
+                "candidate-a",
+                "process-only-1",
+                "process-only-2"
+            ]
+        );
+    }
+
+    #[test]
+    fn built_in_preferential_report_uses_ordered_name_references() {
+        let variables = serde_json::json!({
+            "reports": [{
+                "contest": {
+                    "counting_algorithm": "instant-runoff"
+                },
+                "contest_result": {
+                    "process_results": {
+                        "round_count": 1,
+                        "max_rounds": 2,
+                        "name_references": [
+                            { "id": "candidate-z", "name": "Z ordered candidate" },
+                            { "id": "candidate-a", "name": "A ordered candidate" },
+                            { "id": "candidate-missing", "name": "Missing ordered candidate" }
+                        ],
+                        "rounds": [{
+                            "active_candidates_count": 2,
+                            "active_ballots_count": 2,
+                            "exhausted_ballots_count": 0,
+                            "candidates_wins": {
+                                "candidate-a": {
+                                    "wins": 1,
+                                    "transference": 0,
+                                    "percentage": 50.0
+                                },
+                                "candidate-z": {
+                                    "wins": 7,
+                                    "transference": 3,
+                                    "percentage": 87.5
+                                }
+                            }
+                        }]
+                    }
+                },
+                "candidate_result": []
+            }]
+        });
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+
+        let rendered = reports::render_template_text(
+            include_str!("../../resources/report_content.hbs"),
+            variables,
+        )
+        .unwrap();
+
+        let candidate_z = rendered.find("Z ordered candidate").unwrap();
+        let candidate_a = rendered.find("A ordered candidate").unwrap();
+        let candidate_missing = rendered.find("Missing ordered candidate").unwrap();
+        assert!(candidate_z < candidate_a && candidate_a < candidate_missing);
+        assert!(rendered.contains("<th>Candidate</th>"));
+        assert!(!rendered.contains("<th>Candidate ID</th>"));
+
+        let candidate_z_row = rendered[candidate_z..].split("</tr>").next().unwrap();
+        assert!(candidate_z_row.contains("<td>7</td>"));
+        assert!(candidate_z_row.contains("<td>3</td>"));
+        assert!(candidate_z_row.contains("<td>87.50%</td>"));
+        assert!(!candidate_z_row.contains("<td>n/a</td>"));
+
+        let missing_row = rendered[candidate_missing..].split("</tr>").next().unwrap();
+        assert_eq!(missing_row.matches("<td>n/a</td>").count(), 3);
     }
 
     #[test]
@@ -1644,5 +2156,96 @@ mod participation_by_channel_tests {
             assert!(rendered.contains("Online"));
             assert!(rendered.contains("25.0%"));
         }
+    }
+
+    fn render_both_templates(variables: serde_json::Value) -> Vec<String> {
+        let serde_json::Value::Object(variables) = variables else {
+            panic!("report variables must be an object");
+        };
+        [
+            include_str!("../../resources/report_content.hbs"),
+            include_str!(
+                "../../../../../.devcontainer/minio/public-assets/electoral_results_user.hbs"
+            ),
+        ]
+        .into_iter()
+        .map(|template| reports::render_template_text(template, variables.clone()).unwrap())
+        .collect()
+    }
+
+    fn contest_report(counting_algorithm: &str, is_acclaimed: bool) -> serde_json::Value {
+        serde_json::json!({
+            "reports": [{
+                "election_name": "Election",
+                "contest": {
+                    "name": "Contest",
+                    "description": "",
+                    "counting_algorithm": counting_algorithm,
+                    "is_acclaimed": is_acclaimed,
+                    "min_votes": 0,
+                    "max_votes": 1
+                },
+                "contest_result": {},
+                "show_candidate_results": is_acclaimed || counting_algorithm == "plurality-at-large",
+                "candidate_result": [{
+                    "candidate": {"name": "Alice"},
+                    "total_count": 7,
+                    "percentage_votes": 70.0,
+                    "winning_position": 1
+                }]
+            }]
+        })
+    }
+
+    /// The candidate table is the point of the report. A gate that silently
+    /// stops matching - an `eq` in subexpression position, say - would empty
+    /// every plurality report without failing anything else.
+    #[test]
+    fn renders_the_candidate_table_for_a_plurality_contest() {
+        for rendered in render_both_templates(contest_report("plurality-at-large", false)) {
+            assert!(
+                rendered.contains("Candidate result"),
+                "missing candidate table"
+            );
+            assert!(rendered.contains("Alice"));
+            assert!(rendered.contains("Participation"));
+            assert!(!rendered.contains("Won by acclamation"));
+        }
+    }
+
+    /// An acclaimed contest keeps its candidate table but drops participation,
+    /// which would otherwise be a wall of zeros with no explanation.
+    #[test]
+    fn renders_acclamation_note_without_participation_for_an_acclaimed_contest() {
+        for counting_algorithm in ["plurality-at-large", "instant-runoff"] {
+            for rendered in render_both_templates(contest_report(counting_algorithm, true)) {
+                assert!(rendered.contains("Won by acclamation"));
+                assert!(
+                    rendered.contains("Candidate result"),
+                    "missing candidate table for {counting_algorithm}"
+                );
+                assert!(rendered.contains("Alice"));
+                assert!(
+                    !rendered.contains("Total number of votes counted"),
+                    "acclaimed contests must not show participation"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn candidate_summary_policy_includes_acclaimed_preferential_contests() {
+        let preferential = Contest {
+            counting_algorithm: Some(CountingAlgType::InstantRunoff),
+            ..Contest::default()
+        };
+        let acclaimed_preferential = Contest {
+            is_acclaimed: Some(true),
+            ..preferential.clone()
+        };
+
+        assert!(!should_show_candidate_results(Some(&preferential)));
+        assert!(should_show_candidate_results(Some(&acclaimed_preferential)));
+        assert!(!should_show_candidate_results(None));
     }
 }

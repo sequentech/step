@@ -74,8 +74,13 @@ impl BallotsStatus<'_> {
         let mut ballots = Vec::with_capacity(votes.len());
 
         let mut count_declined_to_vote: u64 = 0;
+        let mut count_blank_ballots: u64 = 0;
 
         for (vote, weight) in votes {
+            if vote.is_blank_ballot {
+                count_blank_ballots = count_blank_ballots.saturating_add(1);
+            }
+
             let status = match classify_ballot(vote, &explicit_blank_candidate_ids) {
                 BallotClass::ExplicitInvalid => {
                     count_invalid_votes.explicit += 1;
@@ -111,6 +116,7 @@ impl BallotsStatus<'_> {
         extended_metrics.total_ballots = total_ballots;
         let count_blank = blank_votes.total();
         extended_metrics.total_declined_to_vote = count_declined_to_vote;
+        extended_metrics.total_blank_ballots = count_blank_ballots;
         let count_valid = total_ballots
             - count_invalid_votes.explicit
             - count_invalid_votes.implicit
@@ -809,6 +815,7 @@ mod tests {
             contest_id: "contest".to_string(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![
@@ -856,6 +863,7 @@ mod tests {
             contest_id: "contest".to_string(),
             is_explicit_invalid: false,
             is_decline_to_vote: false,
+            is_blank_ballot: false,
             invalid_errors: vec![],
             invalid_alerts: vec![],
             choices: vec![
@@ -886,6 +894,46 @@ mod tests {
         assert_eq!(status.blank_votes.explicit, 0);
         assert_eq!(status.blank_votes.implicit, 0);
         assert_eq!(status.ballots[0].0, BallotStatus::Invalid);
+    }
+
+    fn blank_ballot_vote() -> DecodedVoteContest {
+        DecodedVoteContest {
+            contest_id: "contest".to_string(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: true,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![
+                DecodedVoteChoice {
+                    id: "normal".to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+                DecodedVoteChoice {
+                    id: "blank".to_string(),
+                    selected: -1,
+                    write_in_text: None,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn blank_ballot_is_counted_without_changing_existing_blank_vote_figures() {
+        let contest = contest();
+        let votes = vec![(blank_ballot_vote(), Weight::default())];
+
+        let status = BallotsStatus::initialize_ballots_status(&votes, &contest);
+
+        assert_eq!(status.extended_metrics.total_blank_ballots, 1);
+        assert_eq!(status.extended_metrics.total_declined_to_vote, 0);
+        // A blank ballot counts as a valid, implicitly blank ballot in this
+        // contest, exactly like a regular blank vote would — the new
+        // ballot-level counter is additive, not a replacement.
+        assert_eq!(status.blank_votes.explicit, 0);
+        assert_eq!(status.blank_votes.implicit, 1);
+        assert_eq!(status.ballots[0].0, BallotStatus::Blank);
     }
 
     #[test]

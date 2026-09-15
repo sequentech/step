@@ -32,6 +32,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {VotingStatusChannel} from "@/gql/graphql"
 import {IElectionPresentation, IElectionStatus, IChannelButtonInfo} from "@sequentech/ui-core"
 import {usePublishPermissions} from "./usePublishPermissions"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 const OMIT_FIELDS: string[] = []
 
@@ -185,7 +186,11 @@ export const PublishList: React.FC<TPublishList> = ({
             >
                 <ResetFilters />
                 <HeaderTitle title={"publish.header.history"} subtitle="" />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    omit={OMIT_FIELDS}
+                    bulkActionButtons={false}
+                >
                     <TextField source="id" />
                     <BooleanField source="is_generated" />
                     <TextField source="published_at" />

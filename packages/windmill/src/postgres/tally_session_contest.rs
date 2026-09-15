@@ -7,6 +7,7 @@ use chrono::{DateTime, Local};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TallySessionContest;
+use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use serde::Serialize;
 use serde_json::value::Value;
 use tokio_postgres::row::Row;
@@ -187,7 +188,15 @@ pub async fn get_tally_session_highest_batch(
     let Some(value) = values.first() else {
         return Ok(0);
     };
-    Ok(value + 1)
+    // Skip a whole run rather than a single number. Under
+    // `VOTERS_WEIGHTED_VOTING` a contest area owns `VOTE_WEIGHT_BATCHES`
+    // consecutive batches starting at its `session_id`, so the highest stored
+    // `session_id` is the *first* batch of the last run, not the last one.
+    // Striding unconditionally means a later session cannot land inside an
+    // earlier run whatever policy either was created under; the gaps this
+    // leaves in unweighted elections are harmless, as batch numbers are only
+    // ever looked up exactly.
+    Ok(value + VOTE_WEIGHT_BATCHES as BatchNumber)
 }
 
 #[instrument(skip(hasura_transaction), err)]

@@ -30,6 +30,7 @@ import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
 import {MessageField} from "./MessageField"
+import {ThreeStateDatagridHeader} from "./ThreeStateDatagridHeader"
 
 enum ExportFormat {
     CSV = "CSV",
@@ -62,7 +63,7 @@ const ExportDialog: React.FC<ExportWrapperProps> = ({
     })
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const download = async () => {
-        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT, undefined)
+        const currWidget = addWidget(ETasksExecution.EXPORT_ACTIVITY_LOGS_REPORT, true)
         try {
             const {data: exportElectionEventData, errors} = await exportElectionEventActivityLogs({
                 variables: {
@@ -226,7 +227,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 aside={aside}
             >
                 <ResetFilters />
-                <DatagridConfigurable omit={OMIT_FIELDS} bulkActionButtons={false}>
+                <DatagridConfigurable
+                    header={ThreeStateDatagridHeader}
+                    omit={OMIT_FIELDS}
+                    bulkActionButtons={false}
+                >
                     <NumberField source="id" label={String(t("logsScreen.column.id"))} />
                     <FunctionField
                         source="user_id"

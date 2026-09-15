@@ -37,6 +37,7 @@ use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::ResultDocuments;
 use sequent_core::util::temp_path::get_file_size;
 use std::{
+    cmp,
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
@@ -813,6 +814,33 @@ pub async fn save_result_documents(
                 base_tally_path,
             );
 
+            // election_report.blank_ballots is None when the policy is
+            // disabled, or Some when enabled (already resolved by
+            // generate_reports.rs against the tally session
+            // configuration) -- reuse that gate rather than re-deriving
+            // the policy check here. Matched by area id, not the first
+            // report found: a MULTIPLE_CONTESTS election's contests can
+            // have non-identical area coverage.
+            let area_blank_ballots = election_report.blank_ballots.and_then(|_| {
+                election_report
+                    .reports
+                    .iter()
+                    .find(|report| {
+                        report.area.as_ref().map(|report_area| &report_area.id) == Some(&area.id)
+                    })
+                    .and_then(|report| report.contest_result.as_ref())
+                    .and_then(|contest_result| {
+                        contest_result.extended_metrics.as_ref().map(|metrics| {
+                            (metrics.total_blank_ballots, contest_result.total_votes)
+                        })
+                    })
+            });
+            let area_blank_ballots_count = area_blank_ballots.map(|(count, _)| count as i32);
+            // Percentage over total votes cast, not census: a blank ballot
+            // is a valid cast ballot, matching results.rs/generate_db.rs.
+            let area_blank_ballots_percent = area_blank_ballots
+                .map(|(count, total_votes)| (count as f64) / (cmp::max(total_votes, 1) as f64));
+
             save_area_documents(
                 hasura_transaction,
                 &report_tenant_id,
@@ -824,6 +852,8 @@ pub async fn save_result_documents(
                 area,
                 tally_type_enum.clone(),
                 sqlite_transaction_opt,
+                area_blank_ballots_count,
+                area_blank_ballots_percent,
             )
             .await?;
         }
@@ -881,6 +911,8 @@ async fn save_area_documents(
     area: BasicArea,
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
+    blank_ballots: Option<i32>,
+    blank_ballots_percent: Option<f64>,
 ) -> Result<ResultDocuments> {
     let documents = generic_save_documents(
         document_paths,
@@ -900,6 +932,8 @@ async fn save_area_documents(
         &area.id,
         &area.name,
         &documents,
+        blank_ballots,
+        blank_ballots_percent,
     )
     .await?;
 
@@ -913,6 +947,10 @@ async fn save_area_documents(
             &area.id,
             &area.name,
             &documents,
+            blank_ballots.map(|v| v as i64),
+            blank_ballots_percent
+                .map(ordered_float::NotNan::new)
+                .transpose()?,
         )
         .await?;
     }
@@ -982,12 +1020,14 @@ mod tests {
             channel_type: None,
             election_results: None,
             participation_by_channel: vec![],
+            show_candidate_results: false,
         };
         ElectionReportDataComputed {
             election_id: election_id.to_string(),
             area: None,
             census: 0,
             total_votes: 0,
+            blank_ballots: None,
             reports: vec![report],
         }
     }

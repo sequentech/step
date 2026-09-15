@@ -11,6 +11,7 @@ use sequent_core::types::tally_sheets::{
     AreaContestResults, CandidateResults, InvalidVotes, VotingChannel,
 };
 use serde::Deserialize;
+use serde_json::Value;
 use tracing::instrument;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -26,10 +27,46 @@ pub struct ParsedBallotBoxImport {
     pub content: AreaContestResults,
 }
 
+/// A ballot box spans every contest of one (channel, area) -- unlike
+/// `BallotBoxImportKey`, which additionally scopes to a single contest's
+/// sheet. Used to group a CSV batch's sheets for whole-box validation
+/// (e.g. `blank_ballots`, which is replicated across every contest sheet
+/// of the box rather than being a per-contest value).
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub struct BallotBoxGroupKey {
+    pub channel: VotingChannel,
+    pub area_name: String,
+}
+
+impl From<&BallotBoxImportKey> for BallotBoxGroupKey {
+    fn from(key: &BallotBoxImportKey) -> Self {
+        BallotBoxGroupKey {
+            channel: key.channel.clone(),
+            area_name: key.area_name.clone(),
+        }
+    }
+}
+
+/// Groups a CSV batch's parsed sheets by ballot box (channel + area),
+/// regardless of which contests each sheet covers.
+pub fn group_by_ballot_box(
+    imports: &[ParsedBallotBoxImport],
+) -> HashMap<BallotBoxGroupKey, Vec<&ParsedBallotBoxImport>> {
+    let mut groups: HashMap<BallotBoxGroupKey, Vec<&ParsedBallotBoxImport>> = HashMap::new();
+    for import in imports {
+        groups
+            .entry(BallotBoxGroupKey::from(&import.key))
+            .or_default()
+            .push(import);
+    }
+    groups
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum CanonicalField {
     CandidateVotes,
     TotalBlankVotes,
+    BlankBallots,
     ImplicitInvalid,
     ExplicitInvalid,
     TotalValidVotes,
@@ -40,10 +77,17 @@ enum CanonicalField {
 impl FromStr for CanonicalField {
     type Err = ();
 
+    /// The canonical set is closed: every `field` value must be one of the
+    /// above. Unrecognised names are rejected rather than carried through as
+    /// free-form extra data, so that a mistyped canonical field name is
+    /// reported instead of silently dropping the scalar it was meant to set
+    /// — which would surface later as a confusing "missing required field",
+    /// or leave the ballot box carrying a stale value.
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "candidate_votes" => Ok(Self::CandidateVotes),
             "total_blank_votes" => Ok(Self::TotalBlankVotes),
+            "blank_ballots" => Ok(Self::BlankBallots),
             "implicit_invalid" => Ok(Self::ImplicitInvalid),
             "explicit_invalid" => Ok(Self::ExplicitInvalid),
             "total_valid_votes" => Ok(Self::TotalValidVotes),
@@ -71,6 +115,7 @@ struct BallotBoxAccumulator {
     implicit_invalid: Option<u64>,
     explicit_invalid: Option<u64>,
     total_blank_votes: Option<u64>,
+    blank_ballots: Option<u64>,
     census: Option<u64>,
     candidate_results: HashMap<String, CandidateResults>,
 }
@@ -207,8 +252,10 @@ pub fn parse_canonical_csv(
                 total_valid_votes: accumulator.total_valid_votes,
                 invalid_votes: Some(invalid_votes),
                 total_blank_votes: accumulator.total_blank_votes,
+                blank_ballots: accumulator.blank_ballots,
                 census: accumulator.census,
                 candidate_results: accumulator.candidate_results,
+                annotations: None,
             },
         });
     }
@@ -270,6 +317,13 @@ fn apply_row(
             key,
             row,
             &mut accumulator.total_blank_votes,
+            value,
+        ),
+        CanonicalField::BlankBallots => set_scalar(
+            validation_errors,
+            key,
+            row,
+            &mut accumulator.blank_ballots,
             value,
         ),
         CanonicalField::ImplicitInvalid => set_scalar(
@@ -370,6 +424,7 @@ fn error_for_row(
         contest_external_id,
         candidate_external_id,
         field,
+        params: HashMap::new(),
     }
 }
 
@@ -383,6 +438,7 @@ mod tests {
 \nPAPER,Precinct 1,contest-1,candidate_votes,cand-1,7\
 \nPAPER,Precinct 1,contest-1,candidate_votes,cand-2,3\
 \nPAPER,Precinct 1,contest-1,total_blank_votes,,2\
+\nPAPER,Precinct 1,contest-1,blank_ballots,,1\
 \nPAPER,Precinct 1,contest-1,implicit_invalid,,1\
 \nPAPER,Precinct 1,contest-1,explicit_invalid,,4\
 \nPAPER,Precinct 1,contest-1,total_valid_votes,,12\
@@ -398,6 +454,7 @@ mod tests {
         assert_eq!(import.key.area_name, "Precinct 1");
         assert_eq!(import.key.contest_external_id, "contest-1");
         assert_eq!(import.content.total_blank_votes, Some(2));
+        assert_eq!(import.content.blank_ballots, Some(1));
         assert_eq!(import.content.total_valid_votes, Some(12));
         assert_eq!(import.content.total_votes, Some(17));
         assert_eq!(import.content.census, Some(20));
@@ -453,5 +510,110 @@ mod tests {
                 Some("census".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn reports_a_typod_field_name_rather_than_ignoring_the_row() {
+        // `total_vots` is a near-miss of `total_votes`. Reporting it keeps
+        // the row from being silently dropped, which would otherwise
+        // surface later as a confusing "missing required field".
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,total_vots,,17\n";
+
+        let (_imports, errors) = parse_canonical_csv(csv);
+
+        let invalid_field_errors = errors
+            .iter()
+            .filter(|error| error.code == "invalid_field")
+            .collect::<Vec<_>>();
+        assert_eq!(invalid_field_errors.len(), 1);
+        assert_eq!(
+            invalid_field_errors[0].field,
+            Some("total_vots".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_a_field_name_outside_the_canonical_set() {
+        // Unlike the typo case above, this name isn't a near-miss of any
+        // canonical field: the set is closed, so it is reported rather than
+        // carried through as extra data.
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Area A,contest-1,extra_counts,,4\n";
+
+        let (_imports, errors) = parse_canonical_csv(csv);
+
+        assert_eq!(
+            errors
+                .iter()
+                .filter(|error| error.code == "invalid_field")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn blank_ballots_is_optional_and_defaults_to_unavailable() {
+        // Unlike total_blank_votes, a missing blank_ballots row is not a
+        // validation error: it means the ballot box didn't supply a count,
+        // which is "unavailable", not "zero".
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Precinct 1,contest-1,candidate_votes,cand-1,7\
+\nPAPER,Precinct 1,contest-1,total_blank_votes,,2\
+\nPAPER,Precinct 1,contest-1,implicit_invalid,,1\
+\nPAPER,Precinct 1,contest-1,explicit_invalid,,4\
+\nPAPER,Precinct 1,contest-1,total_valid_votes,,12\
+\nPAPER,Precinct 1,contest-1,total_votes,,17\
+\nPAPER,Precinct 1,contest-1,census,,20\n";
+
+        let (imports, errors) = parse_canonical_csv(csv);
+
+        assert!(errors.is_empty());
+        assert_eq!(imports.len(), 1);
+        assert_eq!(imports[0].content.blank_ballots, None);
+    }
+
+    #[test]
+    fn groups_sheets_from_different_contests_into_one_ballot_box() {
+        let csv = b"channel,area_name,contest_external_id,field,candidate_external_id,value\
+\nPAPER,Precinct 1,contest-1,total_votes,,10\
+\nPAPER,Precinct 1,contest-1,total_valid_votes,,10\
+\nPAPER,Precinct 1,contest-1,implicit_invalid,,0\
+\nPAPER,Precinct 1,contest-1,explicit_invalid,,0\
+\nPAPER,Precinct 1,contest-1,total_blank_votes,,3\
+\nPAPER,Precinct 1,contest-1,census,,10\
+\nPAPER,Precinct 1,contest-2,total_votes,,10\
+\nPAPER,Precinct 1,contest-2,total_valid_votes,,10\
+\nPAPER,Precinct 1,contest-2,implicit_invalid,,0\
+\nPAPER,Precinct 1,contest-2,explicit_invalid,,0\
+\nPAPER,Precinct 1,contest-2,total_blank_votes,,5\
+\nPAPER,Precinct 1,contest-2,census,,10\
+\nPAPER,Precinct 2,contest-1,total_votes,,8\
+\nPAPER,Precinct 2,contest-1,total_valid_votes,,8\
+\nPAPER,Precinct 2,contest-1,implicit_invalid,,0\
+\nPAPER,Precinct 2,contest-1,explicit_invalid,,0\
+\nPAPER,Precinct 2,contest-1,total_blank_votes,,1\
+\nPAPER,Precinct 2,contest-1,census,,8\n";
+
+        let (imports, errors) = parse_canonical_csv(csv);
+        assert!(errors.is_empty());
+
+        let groups = group_by_ballot_box(&imports);
+
+        assert_eq!(groups.len(), 2);
+        let precinct_1 = groups
+            .get(&BallotBoxGroupKey {
+                channel: VotingChannel::PAPER,
+                area_name: "Precinct 1".to_string(),
+            })
+            .expect("Precinct 1 group should exist");
+        assert_eq!(precinct_1.len(), 2);
+        let precinct_2 = groups
+            .get(&BallotBoxGroupKey {
+                channel: VotingChannel::PAPER,
+                area_name: "Precinct 2".to_string(),
+            })
+            .expect("Precinct 2 group should exist");
+        assert_eq!(precinct_2.len(), 1);
     }
 }

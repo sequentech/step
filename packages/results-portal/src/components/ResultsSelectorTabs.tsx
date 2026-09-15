@@ -13,6 +13,7 @@ import type {
 } from "@sequentech/ui-essentials"
 import {ResultsManifest, ResultsRow, ResultsSqliteDataset} from "@/types/results"
 import {translatedLabel} from "@/services/resultLabels"
+import {orderResultContestIds, orderResultElectionIds} from "@/services/resultsOrdering"
 import {ContestResultsBlock} from "./ContestResultsBlock"
 
 interface ResultsSelectorTabsProps {
@@ -60,12 +61,8 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
 }) => {
     const {t} = useTranslation()
     const electionIds = useMemo(
-        () =>
-            unique([
-                ...manifest.election_ids,
-                ...manifest.contests.map((contest) => contest.election_id),
-            ]),
-        [manifest.election_ids, manifest.contests]
+        () => orderResultElectionIds(manifest, dataset, locale),
+        [dataset, locale, manifest]
     )
     const electionOptions = useMemo<ResultsSelectorOption[]>(
         () =>
@@ -83,10 +80,7 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
     const getContestOptions = useCallback(
         (selection: Pick<PortalSelection, "election">): ResultsSelectorOption[] => {
             const selectedElectionId = selection.election?.id ?? null
-            const contestManifests = manifest.contests.filter((contest) =>
-                sameId(contest.election_id, selectedElectionId)
-            )
-            const contestIds = unique(contestManifests.map((contest) => contest.contest_id))
+            const contestIds = orderResultContestIds(manifest, dataset, selectedElectionId, locale)
 
             return contestIds.map((contestId) => ({
                 id: contestId,
@@ -97,7 +91,7 @@ export const ResultsSelectorTabs: React.FC<ResultsSelectorTabsProps> = ({
                 ),
             }))
         },
-        [dataset.contest, locale, manifest.contests, t]
+        [dataset, locale, manifest, t]
     )
 
     const getAreaOptions = useCallback(

@@ -9,6 +9,8 @@ insert_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - created_at
               - documents
               - election_event_id
@@ -24,6 +26,8 @@ insert_permissions:
           check: {}
           columns:
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - created_at
               - documents
               - election_event_id
@@ -40,6 +44,8 @@ select_permissions:
           allow_aggregations: true
           columns:
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - created_at
               - documents
               - election_event_id
@@ -58,6 +64,8 @@ select_permissions:
           allow_aggregations: true
           columns:
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - created_at
               - documents
               - election_event_id
@@ -74,6 +82,8 @@ select_permissions:
           allow_aggregations: true
           columns:
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - created_at
               - documents
               - election_event_id
@@ -95,6 +105,8 @@ update_permissions:
                   _eq: X-Hasura-Tenant-Id
           columns:
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - created_at
               - documents
               - election_event_id
@@ -117,6 +129,8 @@ update_permissions:
               - created_at
               - last_updated_at
               - area_id
+              - blank_ballots
+              - blank_ballots_percent
               - election_event_id
               - election_id
               - id

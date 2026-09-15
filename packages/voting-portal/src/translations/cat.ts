@@ -10,6 +10,22 @@ const catalanTranslation: TranslationType = {
             showMore: "Mostra'n més",
             showLess: "Mostra'n menys",
         },
+        a11y: {
+            skipToContent: "Vés al contingut principal",
+            helpAbout: "Ajuda sobre {{topic}}",
+            copyToClipboard: "Copia {{label}} al porta-retalls",
+            previewMaterial: "Vista prèvia de {{title}}",
+            ballotsTable: "Paperetes",
+            ballotLocatorTabs: "Seccions del localitzador de paperetes",
+            ballotIdLabel: "ID de vot",
+            votingProgress: "Progrés de la votació",
+            stepOf: "Pas {{current}} de {{total}}",
+            selectUpTo_one: "Seleccioneu fins a {{count}} opció",
+            selectUpTo_other: "Seleccioneu fins a {{count}} opcions",
+            selectExactly_one: "Seleccioneu {{count}} opció",
+            selectExactly_other: "Seleccioneu {{count}} opcions",
+            selectBetween: "Seleccioneu entre {{min}} i {{max}} opcions",
+        },
         candidatesList: {
             collapseToggle: "Alternar llista {{listTitle}}",
             showCandidates: "Mostra els candidats",
@@ -28,6 +44,12 @@ const catalanTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Funciona amb <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Aquesta votació s'ha resolt per aclamació. Les seves candidatures resulten elegides sense votació, per la qual cosa no es pot seleccionar cap opció ni es registra cap vot.",
+            },
         },
         votingScreen: {
             backButton: "Enrere",
@@ -55,6 +77,13 @@ const catalanTranslation: TranslationType = {
                 continue: "Continua",
                 cancel: "Cancel·la",
             },
+            blankBallotDialog: {
+                title: "No heu seleccionat cap candidat",
+                content:
+                    "No heu fet cap selecció. La vostra papereta s'emetrà com a papereta en blanc, que és una elecció vàlida i deliberada i es comptabilitzarà com a tal.",
+                continue: "Continua",
+                cancel: "Cancel·la",
+            },
         },
         startScreen: {
             startButton: "Començar a votar",
@@ -79,6 +108,18 @@ const catalanTranslation: TranslationType = {
                 "Quan estigueu a punt, emeteu la vostra papereta perquè quedi registrada oficialment. O trieu auditar primer per confirmar que va ser capturada i xifrada correctament",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Resolt per aclamació",
+                helpDialog: {
+                    title: "Informació: Aclamació",
+                    content:
+                        "Aquesta pantalla mostra el que s'ha resolt per aclamació. Com que no s'ha pogut seleccionar cap opció, no s'emet cap papereta i no hi ha res a verificar després.",
+                    ok: "D'acord",
+                },
+                description:
+                    "Revisi el que s'ha resolt per aclamació en aquesta elecció. No s'emetrà cap papereta.",
+                finishButton: "Finalitzar",
+            },
             title: "Revisa el teu vot",
             description:
                 "Per fer canvis a les seves seleccions, faci clic al botó “<b>Edita el teu vot</b>”, per confirmar les seves seleccions, faci clic al botó “<b>Envia el teu vot</b>” a sota, i per auditar la seva papereta faci clic al botó “<b>Auditar papereta</b>” a sota.",
@@ -87,6 +128,9 @@ const catalanTranslation: TranslationType = {
             backButton: "Edita el teu vot",
             castBallotButton: "Envia el vot",
             auditButton: "Auditar papereta",
+            copyBallotId: "Copia l'ID de la papereta",
+            ballotIdCopied: "ID de la papereta copiat",
+            ballotIdCopyError: "No s'ha pogut copiar l'ID de la papereta",
             reviewScreenHelpDialog: {
                 title: "Sobre la pantalla de revisió",
                 content:
@@ -111,6 +155,13 @@ const catalanTranslation: TranslationType = {
                 title: "Esteu segur que voleu emetre el vostre vot?",
                 content: "Un cop confirmeu, el vostre vot serà emès.",
                 ok: "Sí, vull emetre el meu vot",
+                cancel: "Cancel·lar",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Esteu segur que voleu emetre una papereta en blanc?",
+                content:
+                    "No heu seleccionat cap candidat. Un cop confirmeu, la vostra papereta s'emetrà en blanc.",
+                ok: "Sí, vull emetre la meva papereta en blanc",
                 cancel: "Cancel·lar",
             },
             error: {
@@ -206,11 +257,27 @@ const catalanTranslation: TranslationType = {
                     "S'ha produït un error intern en emetre el vot. Si us plau, torneu-ho a provar més tard o contacteu amb el suport per rebre assistència.",
             },
             declineToVote: "Declinar votar",
+            blankBallot: "Papereta en blanc",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Resolt per aclamació",
+                description:
+                    "Totes les votacions d'aquesta elecció s'han resolt per aclamació, per la qual cosa no s'ha emès cap papereta i no hi ha identificador de papereta per consultar.",
+                helpDialog: {
+                    title: "Informació: Aclamació",
+                    content:
+                        "Totes les votacions d'aquesta elecció s'han resolt per aclamació: les seves candidatures resulten elegides sense votació. Com que no s'ha emès cap papereta, no hi ha identificador de papereta, comprovant ni codi QR per verificar.",
+                    ok: "D'acord",
+                },
+            },
             title: "El seu vot ha estat emès",
             description:
                 "La seva papereta va ser emesa correctament. Usi el codi a continuació per verificar que va ser comptabilitzada",
+            blankBallot: {
+                description:
+                    "La vostra papereta s'ha emès en blanc, que és una elecció vàlida i deliberada.",
+            },
             ballotId: "Localitzador del Vot",
             printButton: "Imprimir",
             finishButton: "Finalitzar",
@@ -316,6 +383,10 @@ const catalanTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'esdeveniment electoral encara no ha estat publicat. Si us plau, torneu-ho a intentar més tard o contacteu amb suport per obtenir ajuda.",
             },
+            materialsGate: {
+                instructions:
+                    "Has de llegir <MaterialsLink>{{materialsTitle}}</MaterialsLink> abans de poder votar.",
+            },
         },
         errors: {
             encoding: {
@@ -361,6 +432,12 @@ const catalanTranslation: TranslationType = {
                 back: "Tornar a la llista de votacions",
                 close: "Tancar",
                 preview: "Vista prèvia",
+                download: "Descarregar",
+            },
+            mandatory: {
+                checkboxLabel: "He llegit els Materials de Suport",
+                continueButton: "Continua",
+                error: "Hi ha hagut un problema en registrar la teva confirmació. Si us plau, torna-ho a intentar.",
             },
         },
         ballotLocator: {

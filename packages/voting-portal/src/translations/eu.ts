@@ -10,6 +10,22 @@ const basqueTranslation: TranslationType = {
             showMore: "Erakutsi Gehiago",
             showLess: "Erakutsi Gutxiago",
         },
+        a11y: {
+            skipToContent: "Joan eduki nagusira",
+            helpAbout: "{{topic}} atalari buruzko laguntza",
+            copyToClipboard: "Kopiatu {{label}} arbelean",
+            previewMaterial: "{{title}} aurrebista",
+            ballotsTable: "Botoak",
+            ballotLocatorTabs: "Boto-bilatzailearen atalak",
+            ballotIdLabel: "Botoaren IDa",
+            votingProgress: "Bozketaren aurrerapena",
+            stepOf: "{{total}} urratsetik {{current}}. urratsa",
+            selectUpTo_one: "Hautatu gehienez aukera {{count}}",
+            selectUpTo_other: "Hautatu gehienez {{count}} aukera",
+            selectExactly_one: "Hautatu aukera {{count}}",
+            selectExactly_other: "Hautatu {{count}} aukera",
+            selectBetween: "Hautatu {{min}} eta {{max}} aukera artean",
+        },
         candidatesList: {
             collapseToggle: "{{listTitle}} zerrenda txandakatu",
             showCandidates: "Hautagaiak erakutsi",
@@ -28,6 +44,12 @@ const basqueTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Honek bultzatuta: <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Lehiaketa hau aklamazioz erabaki da. Bere hautagaiak bozketarik gabe hautatzen dira, beraz, ezin da aukerarik hautatu eta ez da bozkarik erregistratzen.",
+            },
         },
         votingScreen: {
             backButton: "Atzera",
@@ -55,6 +77,13 @@ const basqueTranslation: TranslationType = {
                 continue: "Jarraitu",
                 cancel: "Utzi",
             },
+            blankBallotDialog: {
+                title: "Ez duzu hautagairik hautatu",
+                content:
+                    "Ez duzu inolako hautaketarik egin. Zure boto-txartela zuri gisa aurkeztuko da, aukera baliozko eta nahitakoa da eta horrela zenbatuko da.",
+                continue: "Jarraitu",
+                cancel: "Utzi",
+            },
         },
         startScreen: {
             startButton: "Hasi Bozketa",
@@ -79,6 +108,18 @@ const basqueTranslation: TranslationType = {
                 "Eman zure bozketa erregistratzeko, edo zifraketa zuzen egin dela egiaztatu.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Aklamazioz erabakia",
+                helpDialog: {
+                    title: "Informazioa: Aklamazioa",
+                    content:
+                        "Pantaila honek aklamazioz erabaki dena erakusten du. Aukerarik hautatu ezin izan denez, ez da boto-txartelik ematen eta ez dago ondoren egiaztatzeko ezer.",
+                    ok: "Ados",
+                },
+                description:
+                    "Berrikusi hauteskunde honetan aklamazioz erabaki dena. Ez da boto-txartelik emango.",
+                finishButton: "Amaitu",
+            },
             title: "Berrikusi zure bozketa",
             description:
                 '"<b>Editatu bozketa</b>" hautaketak aldatzeko, "<b>Eman bozketa</b>" bidaltzeko, edo "<b>Egiaztatu Bozketa</b>" auditatzeko.',
@@ -87,6 +128,9 @@ const basqueTranslation: TranslationType = {
             backButton: "Editatu bozketa",
             castBallotButton: "Eman bozketa",
             auditButton: "Egiaztatu bozketa",
+            copyBallotId: "Kopiatu bozketa IDa",
+            ballotIdCopied: "Bozketa IDa kopiatu da",
+            ballotIdCopyError: "Ezin izan da bozketa IDa kopiatu",
             reviewScreenHelpDialog: {
                 title: "Berrikuspena pantailari buruz",
                 content:
@@ -111,6 +155,13 @@ const basqueTranslation: TranslationType = {
                 title: "Ziur zaude zure botoa eman nahi duzula?",
                 content: "Berretsi ondoren, zure botoa emango da.",
                 ok: "Bai, nire botoa eman nahi dut",
+                cancel: "Ezeztatu",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Ziur zaude boto-txartel zuria aurkeztu nahi duzula?",
+                content:
+                    "Ez duzu hautagairik hautatu. Berretsi ondoren, zure boto-txartela zuri gisa aurkeztuko da.",
+                ok: "Bai, nire boto-txartel zuria aurkeztu nahi dut",
                 cancel: "Ezeztatu",
             },
             error: {
@@ -204,11 +255,27 @@ const basqueTranslation: TranslationType = {
                     "Barne-errore bat gertatu da botoa ematean. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntza-zerbitzuarekin.",
             },
             declineToVote: "Bozkatzeari uko egin",
+            blankBallot: "Boto-txartel zuria",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Aklamazioz erabakia",
+                description:
+                    "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira, beraz, ez da boto-txartelik eman eta ez dago jarraitzeko boto-txartelaren identifikatzailerik.",
+                helpDialog: {
+                    title: "Informazioa: Aklamazioa",
+                    content:
+                        "Hauteskunde honetako lehiaketa guztiak aklamazioz erabaki dira: haien hautagaiak bozketarik gabe hautatzen dira. Boto-txartelik eman ez denez, ez dago egiaztatzeko boto-txartelaren identifikatzailerik, ordainagiririk edo QR koderik.",
+                    ok: "Ados",
+                },
+            },
             title: "Zure botoa eman da",
             description:
                 "Beheko berrespen kodeak egiaztatzen du <b>zure bozketa arrakastaz eman dela</b>. Kode hau erabil dezakezu zure bozketa kontatu dela egiaztatzeko.",
+            blankBallot: {
+                description:
+                    "Zure boto-txartela zuri gisa aurkeztu da, aukera baliozko eta nahitakoa da.",
+            },
             ballotId: "Bozketa IDa",
             printButton: "Inprimatu",
             finishButton: "Amaitu",
@@ -313,6 +380,10 @@ const basqueTranslation: TranslationType = {
                 electionEventNotPublished:
                     "Hauteskunde gertaera ez da argitaratu oraindik. Mesedez, saiatu berriro geroago edo jarri harremanetan laguntzarekin.",
             },
+            materialsGate: {
+                instructions:
+                    "<MaterialsLink>{{materialsTitle}}</MaterialsLink> irakurri behar duzu bozkatu ahal izateko.",
+            },
         },
         errors: {
             encoding: {
@@ -358,6 +429,12 @@ const basqueTranslation: TranslationType = {
                 back: "Itzuli bozketa zerrendara",
                 close: "Itxi",
                 preview: "Aurrebista",
+                download: "Deskargatu",
+            },
+            mandatory: {
+                checkboxLabel: "Laguntza Materialak irakurri ditut",
+                continueButton: "Jarraitu",
+                error: "Arazoa izan da zure berrespena erregistratzean. Mesedez, saiatu berriro.",
             },
         },
         ballotLocator: {

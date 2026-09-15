@@ -23,6 +23,7 @@ import {IPermissions} from "@/types/keycloak"
 
 import {SettingselectionsTypesEdit} from "./SettingsElectionsTypesEdit"
 import {SettingsElectionsTypesCreate} from "./SettingsElectionsTypesCreate"
+import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 
 export const EmptyBox = styled(Box)`
     display: flex;
@@ -143,7 +144,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
                 }
                 empty={<Empty />}
             >
-                <DatagridConfigurable omit={OMIT_FIELDS}>
+                <DatagridConfigurable header={ThreeStateDatagridHeader} omit={OMIT_FIELDS}>
                     <TextField source="id" />
                     <TextField source="name" />
 

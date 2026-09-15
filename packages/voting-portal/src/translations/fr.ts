@@ -10,6 +10,22 @@ const frenchTranslation: TranslationType = {
             showMore: "Afficher plus",
             showLess: "Afficher moins",
         },
+        a11y: {
+            skipToContent: "Aller au contenu principal",
+            helpAbout: "Aide à propos de {{topic}}",
+            copyToClipboard: "Copier {{label}} dans le presse-papiers",
+            previewMaterial: "Aperçu de {{title}}",
+            ballotsTable: "Bulletins",
+            ballotLocatorTabs: "Sections du localisateur de bulletin",
+            ballotIdLabel: "Identifiant de vote",
+            votingProgress: "Progression du vote",
+            stepOf: "Étape {{current}} sur {{total}}",
+            selectUpTo_one: "Sélectionnez jusqu'à {{count}} option",
+            selectUpTo_other: "Sélectionnez jusqu'à {{count}} options",
+            selectExactly_one: "Sélectionnez {{count}} option",
+            selectExactly_other: "Sélectionnez {{count}} options",
+            selectBetween: "Sélectionnez entre {{min}} et {{max}} options",
+        },
         candidatesList: {
             collapseToggle: "Masquer la liste {{listTitle}}",
             showCandidates: "Afficher les candidats",
@@ -28,6 +44,12 @@ const frenchTranslation: TranslationType = {
         },
         footer: {
             poweredBy: "Développé par <1></1>",
+        },
+        contest: {
+            acclamation: {
+                description:
+                    "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
+            },
         },
         votingScreen: {
             backButton: "Retour",
@@ -55,6 +77,13 @@ const frenchTranslation: TranslationType = {
                 continue: "Continuer",
                 cancel: "Annuler",
             },
+            blankBallotDialog: {
+                title: "Vous n'avez sélectionné aucun candidat",
+                content:
+                    "Vous n'avez fait aucune sélection. Votre bulletin sera déposé comme bulletin blanc, un choix valide et délibéré qui sera comptabilisé comme tel.",
+                continue: "Continuer",
+                cancel: "Annuler",
+            },
         },
         startScreen: {
             startButton: "Commencer à voter",
@@ -79,6 +108,18 @@ const frenchTranslation: TranslationType = {
                 "Soumettez votre bulletin pour qu'il soit enregistré, ou lancez un audit afin de vérifier qu'il a été correctement chiffré.",
         },
         reviewScreen: {
+            acclamation: {
+                title: "Acquis par acclamation",
+                helpDialog: {
+                    title: "Information : Acclamation",
+                    content:
+                        "Cet écran présente ce qui a été acquis par acclamation. Aucune option ne pouvant être sélectionnée, aucun bulletin n'est déposé et il n'y a rien à vérifier ensuite.",
+                    ok: "OK",
+                },
+                description:
+                    "Vérifiez ce qui a été acquis par acclamation lors de cette élection. Aucun bulletin ne sera déposé.",
+                finishButton: "Terminer",
+            },
             title: "Révisez votre vote",
             description:
                 "Cliquez sur “<b>Modifier votre vote</b>” pour changer vos sélections, “<b>Envoyer le vote</b>” pour confirmer, ou “<b>Vérifier le bulletin</b>” pour l'auditer.",
@@ -87,6 +128,9 @@ const frenchTranslation: TranslationType = {
             backButton: "Modifier votre vote",
             castBallotButton: "Envoyer le vote",
             auditButton: "Vérifier le bulletin",
+            copyBallotId: "Copier l’identifiant du bulletin",
+            ballotIdCopied: "Identifiant du bulletin copié",
+            ballotIdCopyError: "Impossible de copier l’identifiant du bulletin",
             reviewScreenHelpDialog: {
                 title: "À propos de l'écran de révision",
                 content: "Cet écran vous permet de réviser vos sélections avant de voter.",
@@ -110,6 +154,13 @@ const frenchTranslation: TranslationType = {
                 title: "Êtes-vous sûr de vouloir voter?",
                 content: "Après confirmation, votre vote sera émis.",
                 ok: "Oui, je veux voter",
+                cancel: "Annuler",
+            },
+            confirmCastBlankBallotDialog: {
+                title: "Êtes-vous sûr de vouloir déposer un bulletin blanc ?",
+                content:
+                    "Vous n'avez sélectionné aucun candidat. Après confirmation, votre bulletin sera déposé blanc.",
+                ok: "Oui, je veux déposer mon bulletin blanc",
                 cancel: "Annuler",
             },
             error: {
@@ -204,11 +255,26 @@ const frenchTranslation: TranslationType = {
                     "Une erreur interne s'est produite lors du vote. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
             declineToVote: "S’abstenir de voter",
+            blankBallot: "Bulletin blanc",
         },
         confirmationScreen: {
+            acclamation: {
+                title: "Acquis par acclamation",
+                description:
+                    "Tous les votes de cette élection ont été acquis par acclamation : aucun bulletin n'a été déposé et il n'y a pas d'identifiant de bulletin à suivre.",
+                helpDialog: {
+                    title: "Information : Acclamation",
+                    content:
+                        "Tous les votes de cette élection ont été acquis par acclamation : leurs candidat(e)s sont élu(e)s sans scrutin. Comme aucun bulletin n'a été déposé, il n'y a ni identifiant de bulletin, ni reçu, ni code QR à vérifier.",
+                    ok: "OK",
+                },
+            },
             title: "Votre vote a été émis",
             description:
                 "Le code de confirmation ci-dessous vérifie que <b>votre vote a été émis correctement</b>. Vous pouvez utiliser ce code pour vérifier que votre vote a été comptabilisé.",
+            blankBallot: {
+                description: "Votre bulletin a été déposé blanc, un choix valide et délibéré.",
+            },
             ballotId: "Localisateur de Vote",
             printButton: "Imprimer",
             finishButton: "Terminer",
@@ -313,6 +379,10 @@ const frenchTranslation: TranslationType = {
                 electionEventNotPublished:
                     "L'événement électoral n'a pas encore été publié. Veuillez réessayer ultérieurement ou contacter le support pour obtenir de l'aide.",
             },
+            materialsGate: {
+                instructions:
+                    "Vous devez lire <MaterialsLink>{{materialsTitle}}</MaterialsLink> avant de pouvoir voter.",
+            },
         },
         errors: {
             encoding: {
@@ -357,6 +427,12 @@ const frenchTranslation: TranslationType = {
                 back: "Retour à la liste des élections",
                 close: "Fermer",
                 preview: "Aperçu",
+                download: "Télécharger",
+            },
+            mandatory: {
+                checkboxLabel: "J'ai lu la documentation et le support",
+                continueButton: "Continuer",
+                error: "Un problème est survenu lors de l'enregistrement de votre confirmation. Veuillez réessayer.",
             },
         },
         ballotLocator: {

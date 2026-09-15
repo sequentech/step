@@ -47,6 +47,9 @@ const catalanTranslation: TranslationType = {
             version: "Versió {{version}}",
             publicAccess: "Accés públic",
             signedInAccess: "Accés amb sessió iniciada",
+            acclaimed: "Elegit per aclamació",
+            acclamationNote:
+                "Elegit per aclamació. Aquesta votació es va resoldre sense votació, per la qual cosa no es va registrar cap vot.",
             published: "Publicat",
             notPublishedYet: "Encara no publicat",
             position: "{{count}} posició",
@@ -74,6 +77,7 @@ const catalanTranslation: TranslationType = {
                 totalVotesCounted: "Total de vots comptats",
                 validVotes: "Vots vàlids",
                 participation: "Participació",
+                totalBlankBallots: "Total de paperetes en blanc",
             },
             resultsAndParticipation: {
                 participationSummary: "Resum de participació",

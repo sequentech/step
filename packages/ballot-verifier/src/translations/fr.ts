@@ -74,6 +74,9 @@ const frenchTranslation: TranslationType = {
             points: "({{points}} Points)",
             contestNotFound: "Question non trouvée : {{contestId}}",
             declineToVote: "A choisi de ne pas voter",
+            blankBallot: "Bulletin blanc",
+            acclamationDescription:
+                "Ce vote a été acquis par acclamation. Ses candidat(e)s sont élu(e)s sans scrutin : aucune option ne peut être sélectionnée et aucune voix n'est enregistrée.",
         },
         "footer": {
             poweredBy: "Propulsé par <1></1>",

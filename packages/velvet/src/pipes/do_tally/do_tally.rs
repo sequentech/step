@@ -84,7 +84,15 @@ fn load_tally_sheet_results(
         return Ok(vec![]);
     }
 
-    list_tally_sheet_subfolders(tally_sheets_dir)
+    let tally_sheet_folders = list_tally_sheet_subfolders(tally_sheets_dir);
+    if contest.is_acclaimed() && !tally_sheet_folders.is_empty() {
+        return Err(Error::UnexpectedError(format!(
+            "Acclaimed contest {} cannot have tally sheets",
+            contest.id
+        )));
+    }
+
+    tally_sheet_folders
         .into_iter()
         .map(|tally_sheet_folder| {
             let tally_sheet_file_path = tally_sheet_folder.join(INPUT_TALLY_SHEET_FILE);
@@ -192,6 +200,11 @@ fn aggregate_area_votes_by_channel<'a>(
 }
 
 fn set_votes_by_channel(result: &mut ContestResult, counts: VotesByChannel) {
+    // Participation belongs to votes. An acclaimed result is canonical and
+    // must not inherit the surrounding election's channel counts.
+    if result.contest.is_acclaimed() {
+        return;
+    }
     result
         .extended_metrics
         .get_or_insert_with(ExtendedMetricsContest::default)
@@ -507,14 +520,16 @@ impl Pipe for DoTally {
                                 .map_err(|e| Error::UnexpectedError(e.to_string()))?;
 
                             let has_channel_input = area_input.area.votes_by_channel.is_some();
-                            {
+                            if !area_tally_results.contest.is_acclaimed() {
                                 let extended_metrics = area_tally_results
                                     .extended_metrics
                                     .get_or_insert_with(ExtendedMetricsContest::default);
                                 extended_metrics.weight = area_weight;
-                                extended_metrics.votes_by_channel =
-                                    area_input.area.votes_by_channel.clone().unwrap_or_default();
                             }
+                            set_votes_by_channel(
+                                &mut area_tally_results,
+                                area_input.area.votes_by_channel.clone().unwrap_or_default(),
+                            );
                             let has_complete_electronic_channels = if has_channel_input {
                                 validate_complete_votes_by_channel(&area_tally_results)?;
                                 true
@@ -781,6 +796,9 @@ pub struct ExtendedMetricsContest {
     pub weight: Weight, // Used to store the actual weight used to tally an specific area.
     pub total_weight: u64, // Used to calculate the right percentage_votes in aggregate
     pub total_declined_to_vote: u64, // Total number of ballots that declined to vote
+    // Total number of ballots left blank in every contest (a distinct,
+    // valid electoral outcome from an ordinary blank vote in this contest).
+    pub total_blank_ballots: u64,
     #[serde(default, skip_serializing_if = "VotesByChannel::is_empty")]
     pub votes_by_channel: VotesByChannel,
 }
@@ -796,18 +814,12 @@ impl ExtendedMetricsContest {
         result.total_ballots += other.total_ballots;
         result.total_weight += other.total_weight;
         result.total_declined_to_vote += other.total_declined_to_vote;
+        result.total_blank_ballots += other.total_blank_ballots;
         for (channel, count) in &other.votes_by_channel {
             *result.votes_by_channel.entry(channel.clone()).or_default() += count;
         }
         result
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ExtendedMetricsElection {
-    // Number of valid ballots processed by the ACM without any
-    // single mark on all contests.
-    pub abstentions: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -988,6 +1000,47 @@ mod tests {
     use sequent_core::{
         ballot::VotingStatusChannel, types::tally_sheets::VotingChannel as TallySheetVotingChannel,
     };
+    use tempfile::tempdir;
+
+    #[test]
+    fn rejects_tally_sheet_artifacts_for_an_acclaimed_contest() {
+        let tally_sheets_dir = tempdir().expect("temporary tally sheet directory");
+        fs::create_dir(tally_sheets_dir.path().join("tally_sheet__unexpected"))
+            .expect("tally sheet folder");
+        let contest = Contest {
+            id: "acclaimed".to_string(),
+            is_acclaimed: Some(true),
+            ..Contest::default()
+        };
+
+        let error = load_tally_sheet_results(tally_sheets_dir.path(), &contest)
+            .expect_err("acclaimed tally sheets must be rejected");
+
+        assert!(error.to_string().contains("cannot have tally sheets"));
+    }
+
+    #[test]
+    fn acclaimed_result_cannot_inherit_election_channel_counts() {
+        let mut result = ContestResult {
+            contest: Contest {
+                is_acclaimed: Some(true),
+                ..Contest::default()
+            },
+            extended_metrics: Some(ExtendedMetricsContest::default()),
+            ..ContestResult::default()
+        };
+
+        set_votes_by_channel(
+            &mut result,
+            VotesByChannel::from([(VotingStatusChannel::ONLINE.into(), 12)]),
+        );
+
+        assert!(result
+            .extended_metrics
+            .expect("extended metrics")
+            .votes_by_channel
+            .is_empty());
+    }
 
     #[test]
     fn extended_metrics_aggregate_channel_counts() {
@@ -1026,6 +1079,22 @@ mod tests {
                 .get(&TallySheetVotingChannel::PAPER.into()),
             Some(&4)
         );
+    }
+
+    #[test]
+    fn extended_metrics_aggregate_sums_blank_ballots_across_areas() {
+        let left = ExtendedMetricsContest {
+            total_blank_ballots: 2,
+            ..Default::default()
+        };
+        let right = ExtendedMetricsContest {
+            total_blank_ballots: 3,
+            ..Default::default()
+        };
+
+        let aggregate = left.aggregate(&right);
+
+        assert_eq!(aggregate.total_blank_ballots, 5);
     }
 
     #[test]

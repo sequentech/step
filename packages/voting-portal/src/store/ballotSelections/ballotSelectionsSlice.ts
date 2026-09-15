@@ -8,6 +8,7 @@ import {
     IDecodedVoteContest,
     IDecodedVoteChoice,
     BallotSelection,
+    EInvalidVotePolicy,
 } from "@sequentech/ui-core"
 import {IBallotStyle} from "../ballotStyles/ballotStylesSlice"
 
@@ -16,6 +17,19 @@ export interface BallotSelectionsState {
 }
 
 const initialState: BallotSelectionsState = {}
+
+/**
+ * The codec rejects a ballot-level blank flag that disagrees with a
+ * contest's actual content (a real selection, an invalid mark, or a
+ * decline), so any reducer that makes such a change must clear
+ * is_blank_ballot across every contest in the election, not just the
+ * one being edited.
+ */
+const clearBlankBallotFlag = (election: BallotSelection): void => {
+    election.forEach((contest) => {
+        contest.is_blank_ballot = false
+    })
+}
 
 export const ballotSelectionsSlice = createSlice({
     name: "ballotSelections",
@@ -65,6 +79,7 @@ export const ballotSelectionsSlice = createSlice({
                                     contest_id: currentContestValue.contest_id,
                                     is_explicit_invalid: currentContestValue.is_explicit_invalid,
                                     is_decline_to_vote: currentContestValue.is_decline_to_vote,
+                                    is_blank_ballot: currentContestValue.is_blank_ballot,
                                     invalid_errors: currentContestValue.invalid_errors,
                                     invalid_alerts: currentContestValue.invalid_alerts,
                                     choices: currentContestValue.choices,
@@ -75,6 +90,7 @@ export const ballotSelectionsSlice = createSlice({
                                 contest_id: question.id,
                                 is_explicit_invalid: false,
                                 is_decline_to_vote: false,
+                                is_blank_ballot: false,
                                 invalid_errors: [],
                                 invalid_alerts: [],
                                 choices: question.candidates.map((answer) => ({
@@ -84,6 +100,16 @@ export const ballotSelectionsSlice = createSlice({
                             }
                         }
                     )
+
+                // A single reset contest (force + contestId) is rebuilt as
+                // not blank while every other contest keeps its prior
+                // is_blank_ballot value, which can leave the election with
+                // some contests blank and one not -- a combination the
+                // codec rejects.
+                const resetElection = state[action.payload.ballotStyle.election_id]
+                if (resetElection) {
+                    clearBlankBallotFlag(resetElection)
+                }
             }
 
             return state
@@ -111,6 +137,25 @@ export const ballotSelectionsSlice = createSlice({
             // update state
             if (!isUndefined(currentQuestion)) {
                 currentQuestion.is_explicit_invalid = action.payload.isExplicitInvalid
+
+                // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, marking the ballot
+                // explicit-invalid is mutually exclusive with any other
+                // selection in the contest, mirroring how blank vote already
+                // clears everything else when selected.
+                if (
+                    action.payload.isExplicitInvalid &&
+                    ballotEmlContest.presentation?.invalid_vote_policy ===
+                        EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+                ) {
+                    currentQuestion.choices = currentQuestion.choices.map((choice) => ({
+                        ...choice,
+                        selected: -1,
+                    }))
+                }
+
+                if (!isUndefined(currentElection)) {
+                    clearBlankBallotFlag(currentElection)
+                }
             }
             return state
         },
@@ -143,6 +188,9 @@ export const ballotSelectionsSlice = createSlice({
                         selected: choice.id === action.payload.candidateId ? 0 : -1,
                     }
                 })
+                if (!isUndefined(currentElection)) {
+                    clearBlankBallotFlag(currentElection)
+                }
             }
             return state
         },
@@ -199,7 +247,18 @@ export const ballotSelectionsSlice = createSlice({
                             ? {...choice, selected: -1}
                             : choice
                     )
+
+                    // Under ALLOWED_WITH_EXCLUSIVE_EXPLICIT, selecting a real
+                    // candidate is mutually exclusive with explicit invalid.
+                    if (
+                        ballotEmlContest.presentation?.invalid_vote_policy ===
+                        EInvalidVotePolicy.ALLOWED_WITH_EXCLUSIVE_EXPLICIT
+                    ) {
+                        currentQuestion.is_explicit_invalid = false
+                    }
                 }
+
+                clearBlankBallotFlag(currentElection)
             }
 
             return state
@@ -219,12 +278,31 @@ export const ballotSelectionsSlice = createSlice({
                     // invalid markers, otherwise it would be tallied as
                     // invalid instead of declined.
                     currentQuestion.is_explicit_invalid = false
+                    // A ballot cannot be both declined and blank.
+                    currentQuestion.is_blank_ballot = false
                     currentQuestion.choices = currentQuestion.choices.map((choice) => {
                         if (choice.selected > -1) {
                             choice.selected = -1
                         }
                         return choice
                     })
+                })
+            }
+            return state
+        },
+        setAllBallotSelectionsBlankBallot: (
+            state,
+            action: PayloadAction<{
+                ballotStyle: IBallotStyle
+            }>
+        ): BallotSelectionsState => {
+            let currentElection = state[action.payload.ballotStyle.election_id]
+
+            if (!isUndefined(currentElection)) {
+                currentElection.forEach((currentQuestion) => {
+                    currentQuestion.is_blank_ballot = true
+                    // A ballot cannot be both blank and declined.
+                    currentQuestion.is_decline_to_vote = false
                 })
             }
             return state
@@ -254,6 +332,7 @@ export const {
     setBallotSelectionBlankVote,
     setBallotSelectionVoteChoice,
     setAllBallotSelectionsDeclineToVote,
+    setAllBallotSelectionsBlankBallot,
 } = ballotSelectionsSlice.actions
 
 export const selectBallotSelectionVoteChoice =

@@ -45,6 +45,7 @@ impl DecodeMCBallots {
         path: &Path,
         contests: &Vec<Contest>,
         include_decline_to_vote: bool,
+        include_blank_ballots: bool,
         mode: MultiContestEncodingMode,
         serial_number_counter: &mut u32,
     ) -> Result<Vec<DecodedBallotChoices>> {
@@ -74,9 +75,13 @@ impl DecodeMCBallots {
             let context = match codec_context.as_mut() {
                 Some(context) => context,
                 None => {
-                    let context =
-                        MultiBallotCodecContext::new(contests, include_decline_to_vote, mode)
-                            .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
+                    let context = MultiBallotCodecContext::new(
+                        contests,
+                        include_decline_to_vote,
+                        include_blank_ballots,
+                        mode,
+                    )
+                    .map_err(|_| Error::UnexpectedError("Wrong ballot format".into()))?;
                     codec_context.get_or_insert(context)
                 }
             };
@@ -149,6 +154,12 @@ impl Pipe for DecodeMCBallots {
                     .and_then(|presentation| presentation.decline_to_vote_policy.clone())
                     == Some(sequent_core::ballot::DeclineToVotePolicy::ENABLED);
 
+                let include_blank_ballots = election_input
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.blank_ballots_policy.clone())
+                    == Some(sequent_core::ballot::BlankBallotsPolicy::ENABLED);
+
                 // Resolved election-wide at publication time, so every ballot style for
                 // this election carries the same value; look it up by area anyway in case
                 // that ever stops being true.
@@ -169,6 +180,7 @@ impl Pipe for DecodeMCBallots {
                     path_ballots.as_path(),
                     &contests,
                     include_decline_to_vote,
+                    include_blank_ballots,
                     multi_contest_encoding_mode,
                     &mut serial_number_counter,
                 );

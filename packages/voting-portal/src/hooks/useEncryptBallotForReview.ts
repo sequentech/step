@@ -64,16 +64,22 @@ export const useEncryptBallotForReview = () => {
                     auditableBallot.voter_ballot_signature = signedContent?.signature
                 }
 
+                let decodedSelectionState = isMultiContest
+                    ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
+                    : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
+
+                const isBlankBallot = Boolean(
+                    decodedSelectionState?.length &&
+                    decodedSelectionState.every((contest) => contest.is_blank_ballot)
+                )
+
                 dispatch(
                     setAuditableBallot({
                         electionId: ballotStyle.election_id,
                         auditableBallot,
+                        isBlankBallot,
                     })
                 )
-
-                let decodedSelectionState = isMultiContest
-                    ? decodeAuditableMultiBallot(auditableBallot as IAuditableMultiBallot)
-                    : decodeAuditableBallot(auditableBallot as IAuditableSingleBallot)
 
                 if (!isUndefined(decodedSelectionState) && decodedSelectionState !== null) {
                     dispatch(

@@ -435,6 +435,7 @@ fn test_preferential_order_error_duplicated_position() {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
         is_decline_to_vote: false,
+        is_blank_ballot: false,
         invalid_errors: vec![], // In practice here should be an error because of the duplication
         invalid_alerts: vec![],
         choices,
@@ -459,6 +460,7 @@ fn test_preferential_order_error_preference_order_with_gaps() {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
         is_decline_to_vote: false,
+        is_blank_ballot: false,
         invalid_errors: vec![],
         invalid_alerts: vec![], // In practice here should be an alert because of the gaps
         choices,
@@ -483,6 +485,7 @@ fn test_preferential_order_ok() {
         contest_id: "some-id".to_string(),
         is_explicit_invalid: false,
         is_decline_to_vote: false,
+        is_blank_ballot: false,
         invalid_errors: vec![],
         invalid_alerts: vec![],
         choices,

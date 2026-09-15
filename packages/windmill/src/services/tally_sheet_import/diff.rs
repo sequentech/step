@@ -56,6 +56,10 @@ pub fn render_ballot_box_csv(
         value = content.total_blank_votes.unwrap_or(0)
     ));
     lines.push(format!(
+        "blank_ballots,,,{value}",
+        value = content.blank_ballots.unwrap_or(0)
+    ));
+    lines.push(format!(
         "census,,,{value}",
         value = content.census.unwrap_or(0)
     ));

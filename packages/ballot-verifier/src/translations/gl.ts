@@ -75,6 +75,9 @@ const galegoTranslation: TranslationType = {
             points: "({{points}} Puntos)",
             contestNotFound: "Concurso non atopado: {{contestId}}",
             declineToVote: "Decidiu non votar",
+            blankBallot: "Papeleta en branco",
+            acclamationDescription:
+                "Este concurso resolveuse por aclamación. As súas candidaturas resultan elixidas sen votación, polo que non se pode seleccionar ningunha opción nin se rexistra ningún voto.",
         },
         footer: {
             poweredBy: "Impulsado por <1></1>",

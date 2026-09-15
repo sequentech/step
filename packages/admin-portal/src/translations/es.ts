@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
                 CREATE_ELECTION_EVENT: "Crear Evento Electoral",
@@ -276,6 +277,7 @@ const spanishTranslation: TranslationType = {
                 EXPORT_TEMPLATES: "Exportar Plantillas",
                 IMPORT_TEMPLATES: "Importar Plantillas",
                 DELETE_ELECTION_EVENT: "Eliminar evento electoral",
+                DELETE_VOTERS: "Delete Voters",
                 PREPARE_PUBLICATION_PREVIEW: "Preparar la vista previa de la publicación",
                 EXPORT_TALLY_RESULTS_XLSX: "Exportar los resultados del escrutinio en formato XLSX",
                 EXPORT_CERTIFICATE_AUTHORITIES: "Exportar autoridades de certificación",
@@ -495,6 +497,7 @@ const spanishTranslation: TranslationType = {
                 notify: {
                     success: "Localización actualizada con éxito",
                     error: "La actualización de la localización ha fallado",
+                    duplicateKey: "Ya existe una sustitución con esta clave y ámbito del portal.",
                     invalidDateTimeFormat:
                         "Formato de fecha/hora no válido. Usa los tokens yyyy, MM, dd, HH, mm, ss (p. ej. dd/MM/yyyy HH:mm).",
                 },
@@ -504,7 +507,16 @@ const spanishTranslation: TranslationType = {
                 },
                 labels: {
                     key: "Clave",
+                    scope: "Ámbito del portal",
                     value: "Valor",
+                },
+                scopes: {
+                    legacy: "Heredado ({{portal}})",
+                    global: "Global",
+                    votingPortal: "Portal de votación",
+                    ballotVerifier: "Verificador de papeletas",
+                    resultsPortal: "Portal de resultados",
+                    adminPortal: "Portal de administración",
                 },
             },
             field: {
@@ -547,12 +559,23 @@ const spanishTranslation: TranslationType = {
                 language: "Idioma",
                 votingChannels: "Canales de Voto",
                 materialActivated: "Materiales de Soporte activados",
+                supportMaterialsPolicy: {
+                    label: "Política de Materiales de Soporte",
+                    helperText:
+                        "La opción Obligatorio para Votar requiere que los votantes abran cada Material de Soporte y confirmen que lo han leído antes de poder votar.",
+                    options: {
+                        off: "Desactivado",
+                        optional: "Opcional",
+                        mandatory_for_voting: "Obligatorio para Votar",
+                    },
+                },
                 materialTitle: "Titulo",
                 materialSubTitle: "Subtitulo",
                 logoUrl: "Logo URL",
                 userVerification:
                     "Puede introducir una plantilla personalizada que se utilizará para verificar manualmente a los votantes",
                 redirectFinishUrl: "URL de redirección al finalizar",
+                kioskRedirectFinishUrl: "URL de redirección al finalizar del quiosco",
                 css: "CSS personalizado",
                 skipElectionList: "Saltar pantalla para escoger elección",
                 showUserProfile: "Mostrar perfil de usuario",
@@ -655,8 +678,13 @@ const spanishTranslation: TranslationType = {
                     policyLabel: "Política de Votación Ponderada",
                     options: {
                         "areas-weighted-voting": "Votación Ponderada por Áreas",
+                        "voters-weighted-voting": "Votación Ponderada por Votantes",
                         "disabled-weighted-voting": "Votación Ponderada Deshabilitada",
                     },
+                    noDelegated:
+                        "La Votación Ponderada por Votantes no puede combinarse con el Voto Delegado",
+                    noDecodedBallots:
+                        "La Votación Ponderada por Votantes no puede combinarse con la inclusión de papeletas descifradas en los resultados",
                 },
                 delegatedVotingPolicy: {
                     policyLabel: "Política de Votación Delegada",
@@ -898,6 +926,8 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
                 encryptWithPassword: "Cifrar con Contraseña",
+                passwordForcedNote:
+                    "El archivo se protegerá con contraseña de todos modos: los informes, las solicitudes y los datos del tablón se cifran siempre. Marca la casilla para incluir también los campos secretos de votante descifrados.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
                 bulletinBoard: "Tablón de Anuncios",
@@ -1028,6 +1058,13 @@ const spanishTranslation: TranslationType = {
                     disabled: "Deshabilitado",
                 },
             },
+            blankBallotsPolicy: {
+                label: "Política de papeletas en blanco",
+                options: {
+                    enabled: "Habilitado",
+                    disabled: "Deshabilitado",
+                },
+            },
             votingScreenBackPolicy: {
                 label: "Política del botón Atrás de la pantalla de votación",
                 options: {
@@ -1091,6 +1128,8 @@ const spanishTranslation: TranslationType = {
                 },
                 fields: {
                     "has_voted": "Voted",
+                    "support_materials_viewed": "Support Materials Viewed",
+                    "vote-weight": "Peso del voto",
                     "voted-channel": "Canal de voto",
                     "disable-comment": "Comentario de deshabilitación",
                     "username": "Nombre de Usuario",
@@ -1121,6 +1160,11 @@ const spanishTranslation: TranslationType = {
                 delete: {
                     body: "¿Estás seguro que quieres borrar este usuario?",
                     bulkBody: "¿Estás seguro que quieres borrar los usuarios seleccionados?",
+                    bulkBodySelected: "Delete the {{count}} selected users? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} users are selected. You can instead delete every user matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar usuarios",
@@ -1146,6 +1190,18 @@ const spanishTranslation: TranslationType = {
                 },
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                secretAttribute: {
+                    storedPlaceholder: "Valor cifrado almacenado",
+                    reveal: "Mostrar",
+                    hide: "Ocultar",
+                    revealError: "No se pudo mostrar el campo cifrado del votante",
+                    includeInExport: "Incluir campos secretos descifrados del votante",
+                    exportWarning:
+                        "Exportación sensible: el CSV descargado contendrá estos campos en texto plano.",
+                    clear: "Borrar",
+                    add: "Añadir valor",
+                    remove: "Eliminar valor",
+                },
                 review: {
                     title: "Revisar cambios",
                     subtitle: "Confirma estas actualizaciones antes de enviarlas.",
@@ -1173,13 +1229,40 @@ const spanishTranslation: TranslationType = {
                 },
                 errors: {
                     editError: "Error editando votante",
+                    editErrorReason: "Error editando votante: {{reason}}",
                     editSuccess: "Votante editado",
                     createError: "Error creando votante",
+                    createErrorReason: "Error creando votante: {{reason}}",
                     createSuccess: "Votante creado",
+                    attribute: {
+                        invalidNamed: 'Se rechazó "{{field}}": {{constraint}}',
+                        fieldsToCorrect: "Algunos campos deben corregirse antes de guardar",
+                        hintBetween: "Entre {{min}} y {{max}} caracteres",
+                        hintMin: "Al menos {{min}} caracteres",
+                        hintMax: "Como máximo {{max}} caracteres",
+                        andMore: "y {{count}} más",
+                        invalidLength: '"{{field}}" debe tener entre {{min}} y {{max}} caracteres',
+                        tooShort: '"{{field}}" debe tener al menos {{min}} caracteres',
+                        tooLong: '"{{field}}" debe tener como máximo {{max}} caracteres',
+                        required: '"{{field}}" es obligatorio',
+                        invalidEmail:
+                            '"{{field}}" debe ser una dirección de correo electrónico válida',
+                        invalidFormat: '"{{field}}" no tiene el formato esperado',
+                        invalid: '"{{field}}" tiene un valor no válido',
+                    },
+                    createPasswordError: "Votante creado, pero no se pudo establecer su contraseña",
+                    createPasswordErrorReason:
+                        "Votante creado, pero no se pudo establecer su contraseña: {{reason}}",
                 },
                 delete: {
                     body: "¿Estás seguro que quieres borrar este votante?",
                     bulkBody: "¿Estás seguro que quieres borrar los votantes seleccionados?",
+                    bulkBodySelected:
+                        "Delete the {{count}} selected voters? This cannot be undone.",
+                    bulkBodyChoose:
+                        "{{count}} voters are selected. You can instead delete every voter matching the current filters, which may be more. This cannot be undone.",
+                    okSelected: "Delete {{count}} selected",
+                    okAllMatching: "Delete all matching",
                 },
                 notifications: {
                     exportError: "Error al exportar votantes",
@@ -1236,6 +1319,8 @@ const spanishTranslation: TranslationType = {
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
                 "voter-write": "Editar Votante",
+                "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
+                "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -1434,6 +1519,23 @@ const spanishTranslation: TranslationType = {
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
                 "google-meet-link": "Generar Enlace de Google Meet",
+                "service-account": "Cuenta de servicio",
+                "datafix-account": "Cuenta de corrección de datos",
+                "gold": "Oro",
+                "silver": "Plata",
+                "election-event-ivr-tab": "Ver IVR del evento electoral",
+                "election-event-cas-tab": "Ver CAS del evento electoral",
+                "ca-read": "Consultar autoridades de certificación",
+                "ca-write": "Editar autoridades de certificación",
+                "generate-preview": "Generar vista previa",
+                "preview-read": "Consultar vista previa",
+                "tally-resolution-submit": "Enviar resolución del escrutinio",
+                "phone-blacklist-read": "Consultar lista negra de teléfonos",
+                "phone-blacklist-create": "Crear entradas en la lista negra de teléfonos",
+                "phone-blacklist-update": "Editar entradas de la lista negra de teléfonos",
+                "phone-blacklist-delete": "Eliminar entradas de la lista negra de teléfonos",
+                "election-event-voter-list-reconciliation":
+                    "Conciliar la lista de votantes del evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -1804,6 +1906,7 @@ const spanishTranslation: TranslationType = {
                 "warn": "Advertencia",
                 "warn-invalid-implicit-and-explicit": "Advertir Inválidos Implícitos y Explícitos",
                 "not-allowed": "No Permitido",
+                "allowed-with-exclusive-explicit": "Permitido con Voto Inválido Exclusivo",
             },
             candidatesIconCheckboxPolicy: {
                 "label": "Forma del icono de la casilla de verificación de los candidatos",
@@ -1854,6 +1957,11 @@ const spanishTranslation: TranslationType = {
             },
             paginationPolicy: {
                 label: "Nombre de la página",
+            },
+            isAcclaimed: {
+                label: "Resuelto por aclamación",
+                helperText:
+                    "Los votantes ven esta votación pero no pueden seleccionar nada, no se registra nada y todas las candidaturas se declaran ganadoras con cero votos. Configúrelo antes de publicar las papeletas: cambiarlo después invalida las papeletas ya emitidas.",
             },
             allowWriteins: {
                 label: "Permitir candidaturas manuales",
@@ -2223,6 +2331,7 @@ const spanishTranslation: TranslationType = {
                     round: "Ronda",
                 },
                 total_declined_to_vote: "Total de votos de renuncia",
+                total_blank_ballots: "Total de Papeletas en Blanco",
                 participation_by_channel: "Participación por canal",
                 channel: "Canal",
                 channel_online: "En línea",
@@ -2232,6 +2341,8 @@ const spanishTranslation: TranslationType = {
                 channel_paper: "Papel",
                 channel_postal: "Postal",
                 channel_in_person: "Presencial",
+                acclamation_note:
+                    "Elegido por aclamación. Esta votación se resolvió sin votación, por lo que no se registró ningún voto.",
             },
             pendingResolutions: {
                 round: "Ronda {{round}}",
@@ -2424,8 +2535,19 @@ const spanishTranslation: TranslationType = {
             },
             inputError: {
                 totalValidDoesNotMatch:
-                    "El total de votos válidos no coincide con la suma de los votos de los candidatos más los votos en blanco",
-                censusTooSmall: "El censo debe ser mayor o igual al total de votos",
+                    "Los votos de candidatos ({{candidateVotesSum}}) deben estar entre {{lowerBound}} y {{upperBound}} según las reglas de votación de esta contienda ({{nonBlankValidVotes}} votos válidos no en blanco × hasta {{maxMarks}} marcas por papeleta)",
+                censusTooSmall:
+                    "El total de votos ({{totalVotes}}) no puede ser mayor que el censo ({{census}})",
+                totalInvalidDoesNotMatch:
+                    "El total de votos inválidos ({{totalInvalid}}) debe ser igual a los votos inválidos implícitos ({{implicitInvalid}}) más los votos inválidos explícitos ({{explicitInvalid}})",
+                totalVotesDoesNotMatch:
+                    "El total de votos ({{totalVotes}}) debe ser igual al total de votos válidos ({{totalValidVotes}}) más el total de votos inválidos ({{totalInvalid}})",
+                unknownCountingAlgorithm:
+                    "El algoritmo de recuento de esta contienda ({{countingAlgorithm}}) no se reconoce, por lo que no se puede determinar el número permitido de votos de candidatos. Revise la configuración de la contienda.",
+                blankBallotsInconsistent:
+                    "Las Papeletas en Blanco deben tener el mismo valor en todas las hojas de escrutinio de esta urna",
+                blankBallotsOutOfBounds:
+                    "El valor de Papeletas en Blanco está fuera del rango que implican los recuentos de votos en blanco por contienda de esta urna",
             },
             label: {
                 area: "Area",
@@ -2436,6 +2558,7 @@ const spanishTranslation: TranslationType = {
                 explicit_invalid: "Votos Explícitamente Inválidos",
                 implicit_invalid: "Votos Implícitamente Inválidos",
                 total_blank_votes: "Votos en Blanco Totales",
+                blank_ballots: "Papeletas en Blanco",
                 census: "Censo",
             },
             common: {

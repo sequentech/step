@@ -150,3 +150,13 @@ pub fn append_tally_resumed_after_resolution(current_logs: &Vec<Log>) -> Vec<Log
     });
     sort_logs(&logs)
 }
+
+#[instrument(skip(current_logs))]
+pub fn append_tally_recount_log(current_logs: &Vec<Log>, election_ids: &Vec<String>) -> Vec<Log> {
+    let mut logs: Vec<Log> = current_logs.clone();
+    logs.push(Log {
+        created_date: ISO8601::to_string(&ISO8601::now()),
+        log_text: format!("Recount launched for election ids: {election_ids:?}"),
+    });
+    sort_logs(&logs)
+}

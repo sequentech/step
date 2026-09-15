@@ -405,6 +405,15 @@ export const ShowTallySheet: React.FC<ShowTallySheetProps> = (props) => {
                     type="number"
                 />
                 <CustomTextField
+                    label={String(t("tallysheet.label.blank_ballots"))}
+                    name="blank_ballots"
+                    value={results.blank_ballots}
+                    onChange={handleTextChange}
+                    size="small"
+                    disabled
+                    type="number"
+                />
+                <CustomTextField
                     label={String(t("tallysheet.label.census"))}
                     name="census"
                     value={results.census}

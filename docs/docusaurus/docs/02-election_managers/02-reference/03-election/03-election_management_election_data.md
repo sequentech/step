@@ -141,6 +141,12 @@ Import advanced settings for this Election and define vote limits, confirmations
   - This setting appears only when the Election Event uses the **Multiple Contests** encryption policy.
   - See [Decline to Vote Policy](../07-decline-to-vote.md) for full configuration, voter flow, and results behavior.
 
+- **Blank Ballots Policy**
+  - Set to **Enabled** to report ballots left empty in every contest as a distinct **Total Blank Ballots** figure, separate from Decline to Vote and from per-contest blank votes.
+  - Set to **Disabled** (default) to leave this figure unavailable.
+  - This setting appears only when the Election Event uses the **Multiple Contests** encryption policy. There is no voter-facing button — blank is inferred when the voter leaves every contest empty during normal voting.
+  - See [Blank Ballots](../09-blank-ballots.md) for full configuration, voter flow, and results behavior.
+
 - **Voting Screen Back Button Policy**
   - Controls where the **Back** button on the first voting screen takes the voter.
   - Set to **Go to the election selection screen** (default) to keep the previous behavior.

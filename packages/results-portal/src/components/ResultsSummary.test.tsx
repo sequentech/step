@@ -41,6 +41,7 @@ jest.mock("react-i18next", () => ({
                 "resultsPortal.summary.eligibleVoters": "Eligible voters",
                 "resultsPortal.summary.totalVotesCounted": "Total votes counted",
                 "resultsPortal.summary.participation": "Participation",
+                "resultsPortal.summary.totalBlankBallots": "Total blank ballots",
                 "resultsPortal.resultsAndParticipation.nonVoters": "Non voters",
             })[key] ?? key,
     }),
@@ -86,5 +87,52 @@ describe("ResultsSummary", () => {
         expect(markup).toContain('data-height="170"')
         expect(markup).toContain("Non voters")
         expect(markup).toContain('data-series="[100]"')
+    })
+
+    it("shows the blank ballots column when a row carries a numeric value", () => {
+        const markup = renderToStaticMarkup(
+            <ResultsSummary
+                elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                resultsElections={[
+                    {
+                        id: "result-id",
+                        election_id: "election-id",
+                        name: "Election",
+                        elegible_census: 10,
+                        total_voters: 5,
+                        total_voters_percent: 50,
+                        blank_ballots: 2,
+                    },
+                ]}
+                locale="en"
+            />
+        )
+
+        expect(markup).toContain("seq-results-summary__blank-ballots-heading")
+        expect(markup).toContain("seq-results-summary__blank-ballots-cell")
+        expect(markup).toContain("Total blank ballots")
+    })
+
+    it("hides the blank ballots column when no row carries a numeric value", () => {
+        const markup = renderToStaticMarkup(
+            <ResultsSummary
+                elections={[{id: "election-id", presentation: {en: "Election"}}]}
+                resultsElections={[
+                    {
+                        id: "result-id",
+                        election_id: "election-id",
+                        name: "Election",
+                        elegible_census: 10,
+                        total_voters: 5,
+                        total_voters_percent: 50,
+                        blank_ballots: null,
+                    },
+                ]}
+                locale="en"
+            />
+        )
+
+        expect(markup).not.toContain("seq-results-summary__blank-ballots-heading")
+        expect(markup).not.toContain("seq-results-summary__blank-ballots-cell")
     })
 })
