@@ -232,7 +232,7 @@ fn serialized_elgamal_keys_retain_their_decryption_contract() {
 
 #[test]
 fn serialized_signatures_and_public_keys_still_verify_the_original_message() {
-    let secret = StrandSignatureSk::generate().unwrap();
+    let secret = StrandSignatureSk::r#gen().unwrap();
     let public = StrandSignaturePk::from_sk(&secret).unwrap();
     let signature = secret.sign(b"stream contract").unwrap();
     public.verify(&signature, b"stream contract").unwrap();
