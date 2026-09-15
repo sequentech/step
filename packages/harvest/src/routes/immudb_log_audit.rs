@@ -124,13 +124,15 @@ impl GetPgauditBody {
 
         // Handle order_by
         if !to_count && self.order_by.is_some() {
-            let order_by_clauses: Vec<String> = self
+            let mut order_by_clauses: Vec<String> = self
                 .order_by
                 .as_ref()
                 .unwrap()
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
+            // JSON objects do not define sort precedence; use a stable field order.
+            order_by_clauses.sort();
             if !order_by_clauses.is_empty() {
                 clauses
                     .push(format!("ORDER BY {}", order_by_clauses.join(", ")));
@@ -203,7 +205,8 @@ impl TryFrom<&Row> for PgAuditRow {
             // Table aliases may differ, but each logical field must occur once.
             let field = column
                 .rsplit_once('.')
-                .map_or(column.as_str(), |(_, field)| field);
+                .map_or(column.as_str(), |(_, field)| field)
+                .trim_end_matches(')');
             if !seen.insert(field) {
                 return Err(anyhow!("duplicate audit column '{field}'"));
             }
