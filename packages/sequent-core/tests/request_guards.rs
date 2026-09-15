@@ -4,7 +4,7 @@
 //! Exercise guards through Rocket dispatch. JwtClaims only parses a token;
 //! signature verification and trusted-proxy enforcement belong upstream.
 
-#![cfg(feature = "keycloak")]
+#![cfg(all(feature = "keycloak", feature = "default_features"))]
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use rocket::{

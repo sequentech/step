@@ -187,3 +187,22 @@ fn box_local_blank_counts_cannot_borrow_another_contests_turnout() {
     assert_eq!(invalid.errors[0].code, "invalid_total_blank_votes");
     assert_eq!(invalid.pre_filled_value, None);
 }
+
+#[test]
+fn box_blank_prefill_rejects_blanks_outside_the_valid_vote_bucket() {
+    let mut sheet = AreaContestResults {
+        total_votes: Some(10),
+        total_valid_votes: Some(10),
+        total_blank_votes: Some(10),
+        ..Default::default()
+    };
+    let valid = validate_ballot_box_blank_ballots(&[&sheet]);
+    assert!(valid.errors.is_empty());
+    assert_eq!(valid.pre_filled_value, Some(10));
+    sheet.total_valid_votes = Some(0);
+    let invalid = validate_ballot_box_blank_ballots(&[&sheet]);
+    assert_eq!(invalid.errors[0].code, "invalid_total_blank_votes");
+    assert_eq!(invalid.pre_filled_value, None);
+    assert_eq!(invalid.errors[0].params["limitField"], "total_valid_votes");
+    assert_eq!(invalid.errors[0].params["upperBound"], "0");
+}
