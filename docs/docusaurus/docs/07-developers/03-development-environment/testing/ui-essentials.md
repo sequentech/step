@@ -56,8 +56,7 @@ file-picker hint; callers must still validate file contents and enforce limits.
 ## Coverage gate
 
 CI measures both actual PR revisions and rejects a decrease in lines, statements,
-functions or branches independently. `test:coverage:baseline` writes reports
-without enforcing the absolute local thresholds configured in Jest.
+functions or branches independently. Both coverage commands write reports; CI enforces each metric against the PR base.
 
 Coverage includes every runtime source module, including unimported modules
 and translations. Only declarations, tests and Storybook examples are excluded.
