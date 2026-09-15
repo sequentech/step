@@ -108,7 +108,10 @@ fn complete_graphql_data_is_returned_and_error_messages_remain_actionable() {
     assert!(error.contains("import is stale"));
     assert!(error.contains("reload it"));
     let empty: Response<Value> = serde_json::from_value(json!({})).unwrap();
-    assert!(response_data(empty).is_err());
+    assert_eq!(
+        response_data(empty).unwrap_err().to_string(),
+        "GraphQL response missing data"
+    );
 }
 
 #[test]

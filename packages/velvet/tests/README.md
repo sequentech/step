@@ -60,13 +60,11 @@ the native aggregate. This is not production-only coverage or branch coverage.
 Cloud rendering, remote storage, ACM Java signing and deployment integrations
 need their own local fixture recipes before their coverage can be claimed.
 
-When running from `packages/velvet`, Cargo defaults both the Rust test harness
-and Rayon to two threads. PDF cases launch real Chrome processes; multiplying
-both pools by the host CPU count can exhaust CI resources. Explicit environment
-values override these defaults. Direct workspace-root Cargo invocations should set
-`RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2` themselves. The coverage profile and
-ordinary hosted test setup supply these settings automatically, including
-`DOC_RENDERER_BACKEND=inplace` for local PDF rendering.
+PDF cases launch real Chrome processes; multiplying both thread pools by the
+host CPU count can exhaust resources. For local tests, set
+`RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2` as shown above. These settings apply to
+the test command only. The coverage profile and hosted test setup supply them
+automatically, including `DOC_RENDERER_BACKEND=inplace` for local PDF rendering.
 
 Unused fixture constructors, `HasId` adapters and diagnostic formatting are not
 called merely to increase a score.
