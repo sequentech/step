@@ -794,9 +794,21 @@ pub async fn audit_inbound_operation(
     {
         Ok((election_event_id, _)) => election_event_id,
         Err(err) => {
-            error!(
-                "Unable to resolve the election event for the inbound Datafix audit entry: {err}"
-            );
+            if let AuditScope::AmbiguousEvents(event_ids) = &err.audit_scope {
+                audit_ambiguous_inbound_operation(
+                    hasura_transaction,
+                    claims,
+                    username,
+                    operation,
+                    outcome,
+                    event_ids,
+                )
+                .await;
+            } else {
+                error!(
+                    "Unable to resolve the election event for the inbound Datafix audit entry: {err}"
+                );
+            }
             return;
         }
     };
@@ -817,6 +829,39 @@ pub async fn audit_inbound_operation(
     .await
     {
         error!("Unable to record the inbound Datafix {operation} audit entry: {err}");
+    }
+}
+
+/// Records a failed inbound operation in the electoral log of every event
+/// sharing the requester's Datafix id. The voter cannot be attributed to any
+/// of them, so the entry carries the username alone.
+#[instrument(skip_all, fields(operation = %operation))]
+async fn audit_ambiguous_inbound_operation(
+    hasura_transaction: &Transaction<'_>,
+    claims: &DatafixClaims,
+    username: &str,
+    operation: InboundOperation,
+    outcome: Result<&AppliedInboundOperation, &DatafixError>,
+    event_ids: &[String],
+) {
+    let entry = inbound_operation_log_entry(username, operation, outcome);
+    for event_id in event_ids {
+        if let Err(err) = post_operation_result_to_electoral_log(
+            hasura_transaction,
+            &claims.tenant_id,
+            event_id,
+            None,
+            Some(username),
+            None,
+            ExtApiRequestDirection::Inbound,
+            entry.clone(),
+        )
+        .await
+        {
+            error!(
+                "Unable to record the inbound Datafix {operation} audit entry in event {event_id}: {err}"
+            );
+        }
     }
 }
 

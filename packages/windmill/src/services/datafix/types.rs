@@ -141,6 +141,18 @@ impl DatafixResponse {
 pub struct DatafixError {
     pub code: DatafixErrorCode,
     pub detail: String,
+    pub audit_scope: AuditScope,
+}
+
+/// Which election events record the electoral log entry of a failed
+/// request. Almost every failure belongs to the single event resolved from
+/// the requester's Datafix id; a shared id belongs to none in particular.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum AuditScope {
+    #[default]
+    ResolvedEvent,
+    /// Every event configured with the requester's Datafix id.
+    AmbiguousEvents(Vec<String>),
 }
 
 impl DatafixError {
@@ -149,6 +161,7 @@ impl DatafixError {
         Self {
             code,
             detail: detail.into(),
+            audit_scope: AuditScope::ResolvedEvent,
         }
     }
 
@@ -156,6 +169,17 @@ impl DatafixError {
     #[instrument(skip(detail))]
     pub fn internal(detail: impl Into<String>) -> Self {
         Self::new(DatafixErrorCode::InternalError, detail)
+    }
+
+    /// Internal failure of a request whose Datafix id is shared by several
+    /// events, to be audited in every one of them.
+    #[instrument(skip(detail))]
+    pub fn ambiguous(detail: impl Into<String>, event_ids: Vec<String>) -> Self {
+        Self {
+            code: DatafixErrorCode::InternalError,
+            detail: detail.into(),
+            audit_scope: AuditScope::AmbiguousEvents(event_ids),
+        }
     }
 }
 

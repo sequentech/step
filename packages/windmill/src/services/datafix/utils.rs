@@ -96,10 +96,8 @@ pub async fn get_event_id_and_datafix_annotations(
             .into_iter()
             .map(|(event_id, _)| event_id)
             .collect();
-        let error = ambiguous_datafix_id_error(requester_datafix_id, &event_ids);
+        let error = ambiguous_datafix_id_error(requester_datafix_id, event_ids);
         error!("{}", error.detail);
-        log_ambiguous_datafix_id(hasura_transaction, tenant_id, &event_ids, &error.detail).await;
-
         return Err(error);
     }
 
@@ -148,43 +146,16 @@ fn find_events_by_datafix_id(
 /// The failure answered when several events are configured with the same
 /// Datafix id: an internal error naming every event holding it, since the
 /// misconfiguration is on the Sequent side and only an administrator can fix
-/// it.
+/// it. The ids travel with the error so the failure is audited in every one
+/// of those events.
 #[instrument]
-fn ambiguous_datafix_id_error(requester_datafix_id: &str, event_ids: &[String]) -> DatafixError {
-    DatafixError::internal(format!(
+fn ambiguous_datafix_id_error(requester_datafix_id: &str, event_ids: Vec<String>) -> DatafixError {
+    let detail = format!(
         "Datafix id {requester_datafix_id} is configured in {} election events ({}), so the target event is ambiguous",
         event_ids.len(),
         event_ids.join(", ")
-    ))
-}
-
-/// Records the ambiguous Datafix id in the electoral log of every event holding
-/// it — the request belongs to none of them in particular, so each one logs the
-/// misconfiguration. Logging failures are swallowed so auditing never turns
-/// into a second failure.
-#[instrument(skip(hasura_transaction))]
-async fn log_ambiguous_datafix_id(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    event_ids: &[String],
-    detail: &str,
-) {
-    for event_id in event_ids {
-        if let Err(err) = post_operation_result_to_electoral_log(
-            hasura_transaction,
-            tenant_id,
-            event_id,
-            None,
-            None,
-            None,
-            ExtApiRequestDirection::Inbound,
-            detail.to_string(),
-        )
-        .await
-        {
-            error!("Unable to record the ambiguous Datafix id in the electoral log of event {event_id}: {err}");
-        }
-    }
+    );
+    DatafixError::ambiguous(detail, event_ids)
 }
 
 /// Composes the area name from the voter information, following the naming contract:
@@ -566,13 +537,17 @@ mod tests {
     fn ambiguous_datafix_id_error_names_every_event_holding_it() {
         let error = ambiguous_datafix_id_error(
             "requested-datafix-id",
-            &["event-1".to_string(), "event-3".to_string()],
+            vec!["event-1".to_string(), "event-3".to_string()],
         );
 
         assert_eq!(error.code, DatafixErrorCode::InternalError);
         assert!(error.detail.contains("requested-datafix-id"), "{error}");
         assert!(error.detail.contains("event-1"), "{error}");
         assert!(error.detail.contains("event-3"), "{error}");
+        assert_eq!(
+            error.audit_scope,
+            AuditScope::AmbiguousEvents(vec!["event-1".to_string(), "event-3".to_string()])
+        );
     }
 
     fn area(area_id: &str, name: Option<&str>) -> Area {

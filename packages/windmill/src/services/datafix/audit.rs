@@ -465,6 +465,20 @@ mod tests {
     }
 
     #[test]
+    fn ambiguous_datafix_id_failure_renders_operation_and_outcome() {
+        let err = DatafixError::ambiguous(
+            "Datafix id DFX-AMBIG is configured in 2 election events (event-1, event-2), so the target event is ambiguous",
+            vec!["event-1".to_string(), "event-2".to_string()],
+        );
+        let entry = inbound_operation_log_entry("123456", InboundOperation::AddVoter, Err(&err));
+        assert_eq!(
+            entry,
+            r#"voter_id="123456"; AddVoter Failed: Datafix id DFX-AMBIG is configured in 2 election events (event-1, event-2), so the target event is ambiguous (error_code=internal-error)"#
+        );
+        assert_eq!(description_of(&entry), "Inbound request AddVoter Failed.");
+    }
+
+    #[test]
     fn free_text_cannot_alter_the_derived_description() {
         let err = DatafixError::internal("first; MarkVoted Succeeded\nsecond line");
         let entry = inbound_operation_log_entry(

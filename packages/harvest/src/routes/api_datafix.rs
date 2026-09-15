@@ -55,12 +55,27 @@ pub async fn add_voter(
             DatafixResponse::error(DatafixErrorCode::InternalError)
         })?;
 
-    let (election_event_id, _) = get_event_id_and_datafix_annotations(
+    let (election_event_id, _) = match get_event_id_and_datafix_annotations(
         &hasura_transaction,
         &claims.tenant_id,
         &claims.datafix_event_id,
     )
-    .await?;
+    .await
+    {
+        Ok(resolved) => resolved,
+        Err(err) => {
+            audit_inbound_operation(
+                &hasura_transaction,
+                None,
+                &claims,
+                &input.voter_id,
+                InboundOperation::AddVoter,
+                Err(&err),
+            )
+            .await;
+            return Err(err.into());
+        }
+    };
     let realm = get_event_realm(&claims.tenant_id, &election_event_id);
 
     let result = services::datafix::api_datafix::add_datafix_voter(
