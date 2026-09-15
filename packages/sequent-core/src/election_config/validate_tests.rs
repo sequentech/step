@@ -681,12 +681,22 @@ fn an_inconsistent_bundle_is_still_refused() {
 
 #[test]
 fn event_identity_and_encryption_protocol_cannot_be_blank() {
-    for field in ["id", "encryption_protocol"] {
+    enum Field {
+        Id,
+        EncryptionProtocol,
+    }
+    for field in [Field::Id, Field::EncryptionProtocol] {
         let mut bundle = sound();
-        match field {
-            "id" => bundle.election_event.id = " ".into(),
-            _ => bundle.election_event.encryption_protocol = " ".into(),
-        }
+        let field = match field {
+            Field::Id => {
+                bundle.election_event.id = " ".into();
+                "id"
+            }
+            Field::EncryptionProtocol => {
+                bundle.election_event.encryption_protocol = " ".into();
+                "encryption_protocol"
+            }
+        };
         let report = validate(&bundle);
         assert!(report
             .problems

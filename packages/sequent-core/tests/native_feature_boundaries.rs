@@ -108,17 +108,15 @@ async fn retry_returns_the_success_value_or_last_error_with_a_bounded_attempt_co
 #[tokio::test]
 async fn health_probe_tracks_live_and_ready_independently() {
     use sequent_core::services::probe::ProbeHandler;
-    let reservation = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let address = reservation.local_addr().unwrap();
-    drop(reservation);
-    let probe = ProbeHandler::new("live", "ready", address);
+    let probe = ProbeHandler::new("live", "ready", ([127, 0, 0, 1], 0));
+    let (address, future) = probe.bind();
     struct Stop(tokio::task::JoinHandle<()>);
     impl Drop for Stop {
         fn drop(&mut self) {
             self.0.abort();
         }
     }
-    let _server = Stop(tokio::spawn(probe.future()));
+    let _server = Stop(tokio::spawn(future));
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(2))
         .build()

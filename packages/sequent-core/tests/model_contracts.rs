@@ -4,6 +4,8 @@
 //! Validate persisted configuration at its boundary, including optional JSON
 //! fields. Invalid nested data must not be accepted merely because the row parses.
 
+#![cfg(feature = "default_features")]
+
 use sequent_core::ballot::*;
 use sequent_core::types::ceremonies::{
     AutomaticRecountPolicy, CeremoniesPolicy,
