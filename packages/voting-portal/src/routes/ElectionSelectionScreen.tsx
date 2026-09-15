@@ -9,6 +9,7 @@ import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/
 import {
     isString,
     stringToHtml,
+    translateHtml,
     translateFromPresentation,
     EVotingStatus,
     IElectionEventStatus,
@@ -476,11 +477,11 @@ const ElectionSelectionScreen: React.FC = () => {
                     {errorMsg || alertMsg ? (
                         <Alert severity="warning">
                             {errorMsg
-                                ? t(`electionSelectionScreen.errors.${errorMsg}`, {
+                                ? translateHtml(t, `electionSelectionScreen.errors.${errorMsg}`, {
                                       electionIds: errorMsgElectionIds,
                                   })
                                 : alertMsg
-                                ? t(`electionSelectionScreen.alerts.${alertMsg}`)
+                                ? stringToHtml(t(`electionSelectionScreen.alerts.${alertMsg}`))
                                 : ""}
                         </Alert>
                     ) : (
@@ -514,7 +515,9 @@ const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box sx={{margin: "auto"}}>
-                        <Typography>{t("electionSelectionScreen.noResults")}</Typography>
+                        <Typography component="div">
+                            {stringToHtml(t("electionSelectionScreen.noResults"))}
+                        </Typography>
                     </Box>
                 )}
             </ElectionContainer>
