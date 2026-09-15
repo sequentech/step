@@ -1,7 +1,13 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {PropsWithChildren, useState, DragEventHandler, ChangeEventHandler} from "react"
+import React, {
+    PropsWithChildren,
+    useState,
+    useRef,
+    DragEventHandler,
+    ChangeEventHandler,
+} from "react"
 import {styled} from "@mui/material/styles"
 import Box from "@mui/material/Box"
 import {useForwardedRef} from "@sequentech/ui-core"
@@ -21,8 +27,9 @@ const StyledInput = styled("input")`
     display: none;
 `
 
-// const StyledLabel = styledEmotion(Paper)<{dragActive: boolean}>`
-const StyledLabel = styled("label")<{dragActive: boolean}>`
+const StyledLabel = styled("button", {
+    shouldForwardProp: (prop) => prop !== "dragActive",
+})<{dragActive: boolean}>`
     height: 100%;
     display: flex;
     align-items: center;
@@ -53,14 +60,47 @@ const DragFileElement = styled(Box)`
 export interface DropFileProps {
     handleFiles: (files: FileList) => void | Promise<void>
     accept?: string
+    /** Localized fallback shown when the importing callback throws or rejects. */
+    errorMessage?: string
 }
 
 // based on https://www.codemzy.com/blog/react-drag-drop-file-upload
+/** Children provide presentation only; this component owns the browse button. */
 export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildren<DropFileProps>>(
-    ({handleFiles, accept, children}, inputRef) => {
+    (
+        {
+            handleFiles,
+            accept,
+            children,
+            errorMessage = "Could not import this file. Please try again.",
+        },
+        inputRef
+    ) => {
         const innerRef = useForwardedRef(inputRef)
         const [dragActive, setDragActive] = useState(false)
         const [fileName, setFileName] = useState<string>("")
+        const [busy, setBusy] = useState(false)
+        const inFlight = useRef(false)
+        const [failed, setFailed] = useState(false)
+
+        /** Keep picker and drop imports on the same failure and retry path. */
+        const importFiles = async (files: FileList | null) => {
+            if (inFlight.current || !files?.[0]) return
+            inFlight.current = true
+            setBusy(true)
+            setFailed(false)
+            setFileName(files[0].name)
+            try {
+                await handleFiles(files)
+            } catch {
+                // The caller may supply translated copy. Do not render parser
+                // errors that could include private file contents.
+                setFailed(true)
+            } finally {
+                inFlight.current = false
+                setBusy(false)
+            }
+        }
 
         // handle drag events
         const handleDrag: DragEventHandler<HTMLElement> = (e) => {
@@ -78,22 +118,17 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
             e.preventDefault()
             e.stopPropagation()
             setDragActive(false)
-            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                setFileName(e.dataTransfer.files[0].name)
-                handleFiles(e.dataTransfer.files)
-            }
+            void importFiles(e.dataTransfer.files)
         }
 
         // triggers when file is selected with click
         const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
             e.preventDefault()
-            if (e.target.files && e.target.files[0]) {
-                setFileName(e.target.files[0].name)
-                handleFiles(e.target.files)
-            }
+            void importFiles(e.target.files)
         }
         // triggers the input when the button is clicked
         const onButtonClick = () => {
+            if (inFlight.current) return
             setFileName("")
             if (innerRef.current?.value) {
                 innerRef.current.value = ""
@@ -106,7 +141,6 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 <StyledForm
                     onDragEnter={handleDrag}
                     onSubmit={(e) => e.preventDefault()}
-                    // className="drop-file-form"
                     className="drop-file-dropzone"
                 >
                     <StyledInput
@@ -114,6 +148,7 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         ref={innerRef}
                         type="file"
                         accept={accept}
+                        disabled={busy}
                         onChange={handleChange}
                         data-testid="drop-input-file"
                         aria-label="Drop Input File"
@@ -121,6 +156,10 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                     <StyledLabel
                         dragActive={dragActive}
                         onClick={onButtonClick}
+                        type="button"
+                        disabled={busy}
+                        aria-disabled={busy}
+                        aria-busy={busy}
                         data-testid="drop-label-file"
                         className="drop-label-file"
                     >
@@ -136,6 +175,11 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                         />
                     )}
                 </StyledForm>
+                {failed && (
+                    <Typography role="alert" color="error">
+                        {errorMessage}
+                    </Typography>
+                )}
                 <Typography
                     className="file-name"
                     variant="h6"
