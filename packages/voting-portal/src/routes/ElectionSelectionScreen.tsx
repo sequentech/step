@@ -8,6 +8,7 @@ import {Trans, useTranslation} from "react-i18next"
 import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    escapeTranslationValues,
     translateFromPresentation,
     EVotingStatus,
     IElectionEventStatus,
@@ -587,10 +588,12 @@ const ElectionSelectionScreen: React.FC = () => {
             if (electionIds.length > 0) errorType = ElectionScreenErrorType.OBTAINING_ELECTION
             else alertType = ElectionScreenMsgType.NO_ELECTIONS
         }
+        // warningMsg is rendered as HTML below, so its interpolated values are escaped
         warningMsg = errorType
-            ? t(`electionSelectionScreen.errors.${errorType}`, {
-                  electionIds: JSON.stringify(electionIds),
-              })
+            ? t(
+                  `electionSelectionScreen.errors.${errorType}`,
+                  escapeTranslationValues({electionIds: JSON.stringify(electionIds)})
+              )
             : alertType
               ? t(`electionSelectionScreen.alerts.${alertType}`)
               : undefined
@@ -650,7 +653,7 @@ const ElectionSelectionScreen: React.FC = () => {
                     </StyledTitle>
                     {warningMsg ? (
                         <Alert className="election-selection-warning" severity="warning">
-                            {warningMsg}
+                            {stringToHtml(warningMsg)}
                         </Alert>
                     ) : (
                         <Typography
@@ -723,8 +726,8 @@ const ElectionSelectionScreen: React.FC = () => {
                     ))
                 ) : (
                     <Box className="elections-empty" sx={{margin: "auto"}}>
-                        <Typography className="election-selection-empty">
-                            {t("electionSelectionScreen.noResults")}
+                        <Typography className="election-selection-empty" component="div">
+                            {stringToHtml(t("electionSelectionScreen.noResults"))}
                         </Typography>
                     </Box>
                 )}
