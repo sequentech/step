@@ -87,7 +87,8 @@ impl<'a> MultiBallotCodecContext<'a> {
         // Validated in contest.id order, the same order `new_unchecked`
         // builds contexts in, so the first invalid contest reported here
         // matches the order used everywhere else.
-        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
+        let mut sorted_contests: Vec<&Contest> =
+            votable_contests(contests).collect();
         sorted_contests.sort_by(|a, b| a.id.cmp(&b.id));
         for contest in sorted_contests {
             validate_contest_configuration(contest)?;
@@ -136,7 +137,12 @@ impl<'a> MultiBallotCodecContext<'a> {
         // The order of the contests is computed sorting by id.
         // The selections must be encoded to and decoded from a ballot
         // following this order, given by contest.id.
-        let mut sorted_contests: Vec<&Contest> = contests.iter().collect();
+        //
+        // Acclaimed contests are dropped here, the single point both the
+        // encoder and the decoder build their contest set from, so the two
+        // cannot disagree about which contests the mixed-radix bases cover.
+        let mut sorted_contests: Vec<&Contest> =
+            votable_contests(contests).collect();
         sorted_contests.sort_by(|a, b| a.id.cmp(&b.id));
 
         // the base for explicit invalid ballot slot is 2:
@@ -506,18 +512,32 @@ impl BallotStyle {
             == Some(BlankBallotsPolicy::ENABLED)
     }
 
+    /// Returns the contests that take part in ballot encoding.
+    ///
+    /// Acclaimed contests are displayed to the voter but never encoded, so
+    /// every codec, validation and consistency path must go through this
+    /// instead of reading `contests` directly. The voting portal keeps a
+    /// selection entry for every contest, acclaimed ones included; those
+    /// entries are ignored here rather than in the portal, so the rule lives
+    /// in one place.
+    pub fn votable_contests(&self) -> impl Iterator<Item = &Contest> {
+        votable_contests(&self.contests)
+    }
+
     /// Returns Error if all counting algorithms are not the same.
+    ///
+    /// Only votable contests are considered: an acclaimed contest is never
+    /// encoded, so its counting algorithm cannot conflict with the rest.
     pub fn get_counting_algorithm(
         &self,
     ) -> Result<CountingAlgType, BallotError> {
         let first_counting_algorithm: CountingAlgType = self
-            .contests
-            .first()
+            .votable_contests()
+            .next()
             .map(|c| c.get_counting_algorithm())
             .unwrap_or_default();
         match self
-            .contests
-            .iter()
+            .votable_contests()
             .all(|c| c.get_counting_algorithm() == first_counting_algorithm)
         {
             true => Ok(first_counting_algorithm),
@@ -526,6 +546,16 @@ impl BallotStyle {
             )),
         }
     }
+}
+
+/// The subset of `contests` that takes part in ballot encoding.
+///
+/// See [`BallotStyle::votable_contests`]; this is the same rule for the paths
+/// that hold a bare contest slice instead of a whole ballot style.
+pub fn votable_contests(
+    contests: &[Contest],
+) -> impl Iterator<Item = &Contest> {
+    contests.iter().filter(|contest| !contest.is_acclaimed())
 }
 
 impl BallotChoices {
@@ -1663,15 +1693,27 @@ mod tests {
             .iter()
             .map(|c| c.id.clone())
             .collect();
-        let mut style = test_ballot_style(vec![contest.clone()]);
+        let mut acclaimed = random_contest(
+            "acclaimed".to_string(),
+            vec![
+                random_candidate("winner-a".to_string(), "1".to_string()),
+                random_candidate("winner-b".to_string(), "1".to_string()),
+            ],
+            0,
+            1,
+        );
+        acclaimed.is_acclaimed = Some(true);
+        let acclaimed_decoded = decoded_vote_contest(&acclaimed, false, &[]);
+        let mut style = test_ballot_style(vec![acclaimed, contest.clone()]);
         style.multi_contest_encoding_mode =
             Some(MultiContestEncodingMode::EXPANDED_CAPACITY);
         let decoded = decoded_vote_contest(&contest, false, &selected_ids);
 
-        let result = test_multi_contest_reencoding(&vec![decoded], &style)
-            .expect(
-                "expanded capacity should encode a selection past max_votes",
-            );
+        let result = test_multi_contest_reencoding(
+            &vec![acclaimed_decoded, decoded],
+            &style,
+        )
+        .expect("expanded capacity should encode a selection past max_votes");
 
         let selected: Vec<&str> = result[0]
             .choices
@@ -1679,6 +1721,7 @@ mod tests {
             .filter(|choice| choice.selected > -1)
             .map(|choice| choice.id.as_str())
             .collect();
+        assert_eq!(result.len(), 1, "acclaimed contest must not be encoded");
         assert_eq!(selected.len(), 4);
         assert!(selected_ids
             .iter()
@@ -3149,6 +3192,205 @@ mod tests {
         ContestChoices::new(contest.id.clone(), choices, false)
     }
 
+    /// An acclaimed contest is displayed but never encoded, so a style that
+    /// contains one must encode exactly like the same style without it.
+    #[test]
+    fn test_acclaimed_contest_is_not_encoded() {
+        let mut acclaimed = test_contest("a", 4, 2);
+        acclaimed.is_acclaimed = Some(true);
+        let votable = test_contest("b", 3, 1);
+
+        let with_acclaimed = vec![acclaimed.clone(), votable.clone()];
+        let without_acclaimed = vec![votable.clone()];
+
+        let bases_with = BallotChoices::get_bases(
+            &with_acclaimed,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+        let bases_without = BallotChoices::get_bases(
+            &without_acclaimed,
+            false,
+            false,
+            MultiContestEncodingMode::LEGACY,
+        )
+        .expect("get_bases should succeed");
+
+        assert_eq!(bases_with, bases_without);
+
+        // The acclaimed contest costs no plaintext capacity either.
+        assert_eq!(
+            BallotChoices::maximum_size_bytes(
+                &with_acclaimed,
+                false,
+                false,
+                MultiContestEncodingMode::LEGACY,
+            )
+            .expect("maximum_size_bytes should succeed"),
+            BallotChoices::maximum_size_bytes(
+                &without_acclaimed,
+                false,
+                false,
+                MultiContestEncodingMode::LEGACY,
+            )
+            .expect("maximum_size_bytes should succeed"),
+        );
+    }
+
+    /// The production path: the voting portal holds one selection per
+    /// displayed contest, and re-encrypting an already-reviewed ballot feeds
+    /// back the decoded one, which only covers the encoded contests. Both
+    /// shapes must encode to the same plaintext, and neither may be rejected.
+    #[test]
+    fn test_acclaimed_contest_selection_shapes_encode_identically() {
+        let mut acclaimed = test_contest("a", 4, 2);
+        acclaimed.is_acclaimed = Some(true);
+        let votable = test_contest("b", 3, 1);
+        let style = test_ballot_style(vec![acclaimed.clone(), votable.clone()]);
+
+        let selected = votable.candidates[0].id.clone();
+        let votable_selection = DecodedVoteContest {
+            contest_id: votable.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: votable
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: i64::from(candidate.id == selected) - 1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+        let acclaimed_selection = DecodedVoteContest {
+            contest_id: acclaimed.id.clone(),
+            choices: acclaimed
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+            ..votable_selection.clone()
+        };
+
+        // As held by the voting portal: one selection per displayed contest.
+        let (from_all_contests, _) = encode_to_plaintext_decoded_multi_contest(
+            &vec![acclaimed_selection, votable_selection.clone()],
+            &style,
+        )
+        .expect("a selection per displayed contest must encode");
+
+        // As returned by decoding that same ballot: encoded contests only.
+        let (from_votable_only, _) = encode_to_plaintext_decoded_multi_contest(
+            &vec![votable_selection],
+            &style,
+        )
+        .expect("a selection per encoded contest must encode");
+
+        assert_eq!(from_all_contests, from_votable_only);
+    }
+
+    /// Every votable contest must have a selection; a missing one is the
+    /// consistency failure the old length comparison used to catch.
+    #[test]
+    fn test_missing_votable_contest_selection_is_rejected() {
+        let mut acclaimed = test_contest("a", 4, 2);
+        acclaimed.is_acclaimed = Some(true);
+        let style =
+            test_ballot_style(vec![acclaimed.clone(), test_contest("b", 3, 1)]);
+
+        let only_acclaimed = DecodedVoteContest {
+            contest_id: acclaimed.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: vec![],
+        };
+
+        assert!(encode_to_plaintext_decoded_multi_contest(
+            &vec![only_acclaimed],
+            &style
+        )
+        .is_err());
+    }
+
+    /// The length comparison these guards replaced would have caught a
+    /// repeated or unknown contest by accident; collecting selections into a
+    /// map would otherwise swallow both.
+    #[test]
+    fn test_repeated_and_unknown_contest_selections_are_rejected() {
+        let votable = test_contest("b", 3, 1);
+        let style = test_ballot_style(vec![votable.clone()]);
+
+        let selection = DecodedVoteContest {
+            contest_id: votable.id.clone(),
+            is_explicit_invalid: false,
+            is_decline_to_vote: false,
+            is_blank_ballot: false,
+            invalid_errors: vec![],
+            invalid_alerts: vec![],
+            choices: votable
+                .candidates
+                .iter()
+                .map(|candidate| DecodedVoteChoice {
+                    id: candidate.id.clone(),
+                    selected: -1,
+                    write_in_text: None,
+                })
+                .collect(),
+        };
+
+        assert!(
+            encode_to_plaintext_decoded_multi_contest(
+                &vec![selection.clone(), selection.clone()],
+                &style
+            )
+            .is_err(),
+            "a repeated contest must be rejected"
+        );
+
+        let unknown = DecodedVoteContest {
+            contest_id: "not-on-this-ballot-style".to_string(),
+            ..selection.clone()
+        };
+        assert!(
+            encode_to_plaintext_decoded_multi_contest(
+                &vec![selection, unknown],
+                &style
+            )
+            .is_err(),
+            "a contest outside the ballot style must be rejected"
+        );
+    }
+
+    /// An acclaimed contest is not encoded, so its counting algorithm cannot
+    /// conflict with the rest of the ballot.
+    #[test]
+    fn test_get_counting_algorithm_ignores_acclaimed_contest() {
+        let mut acclaimed = test_contest("a", 2, 1);
+        acclaimed.is_acclaimed = Some(true);
+        acclaimed.counting_algorithm = Some(CountingAlgType::InstantRunoff);
+        let style = test_ballot_style(vec![acclaimed, test_contest("b", 3, 1)]);
+
+        assert_eq!(
+            style
+                .get_counting_algorithm()
+                .expect("acclaimed contest must not affect the algorithm"),
+            CountingAlgType::PluralityAtLarge
+        );
+    }
+
     fn test_contest(
         id: &str,
         num_candidates: usize,
@@ -3190,6 +3432,7 @@ mod tests {
             voting_type: None,
             counting_algorithm: Some(CountingAlgType::PluralityAtLarge),
             is_encrypted: true,
+            is_acclaimed: None,
             candidates,
             presentation: None,
             tie_breaking_policy: None,

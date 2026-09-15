@@ -14,6 +14,14 @@ DOCS_OUTPUT="$PROJECT_ROOT/docs/docusaurus/docs/reference/third_party_deps/third
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
+# requests and urllib3 in requirements.txt require Python 3.10 or newer. The
+# venv is built from the host python3, which outside devenv may be older, so
+# fail here rather than midway through pip's resolver.
+if ! python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo "Python 3.10 or newer is required (found $(python3 --version 2>&1))." >&2
+    exit 1
+fi
+
 # Create virtualenv if it doesn't exist
 if [ ! -d "$VENV_DIR" ]; then
     python3 -m venv "$VENV_DIR"

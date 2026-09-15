@@ -18,7 +18,7 @@ import {styled} from "@mui/material/styles"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import IconTooltip from "@/components/IconTooltip"
 import FormDialog from "@/components/FormDialog"
-import {getPasswordPolicyViolation} from "./editPasswordError"
+import {getPasswordPolicyMessage} from "./editPasswordError"
 interface EditPasswordProps {
     open: boolean
     handleClose: () => void
@@ -163,15 +163,8 @@ const EditPassword = ({open, handleClose, id, electionEventId}: EditPasswordProp
             refresh()
             handleClose?.()
         } catch (error: unknown) {
-            const violation = getPasswordPolicyViolation(error)
-            if (violation) {
-                const message =
-                    violation.rule && violation.requiredCount !== undefined
-                        ? t(
-                              `usersAndRolesScreen.editPassword.passwordPolicyRules.${violation.rule}`,
-                              {count: violation.requiredCount}
-                          )
-                        : t("usersAndRolesScreen.editPassword.passwordPolicyViolation")
+            const message = getPasswordPolicyMessage(error, t)
+            if (message) {
                 setPasswordPolicyError(message)
                 notify(message, {type: "error"})
                 return

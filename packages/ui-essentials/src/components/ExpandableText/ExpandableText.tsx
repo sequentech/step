@@ -93,8 +93,9 @@ const ExpandableText: React.FC<ExpandableTextProps> = ({
     const [expanded, setExpanded] = useState<boolean>(false)
 
     return (
-        <Box sx={{width: "100%"}}>
+        <Box className="expandable-text" sx={{width: "100%"}}>
             <Box
+                className="expandable-text-content"
                 sx={{
                     flex: 1,
                     overflowWrap: "anywhere",
@@ -102,17 +103,28 @@ const ExpandableText: React.FC<ExpandableTextProps> = ({
                 }}
             >
                 {expanded ? (
-                    <span>{text}</span>
+                    <span className="expandable-text-full">{text}</span>
                 ) : (
                     <>
-                        <span>{text.slice(0, initialLength)}</span>
-                        <span>{text.length > initialLength ? "..." : ""}</span>
+                        <span className="expandable-text-preview">
+                            {text.slice(0, initialLength)}
+                        </span>
+                        <span className="expandable-text-ellipsis">
+                            {text.length > initialLength ? "..." : ""}
+                        </span>
                     </>
                 )}
             </Box>
             {text.length > initialLength && (
-                <Box sx={{display: "flex", justifyContent: "flex-end"}}>
-                    <LinkButton disableRipple onClick={() => setExpanded(!expanded)}>
+                <Box
+                    className="expandable-text-actions"
+                    sx={{display: "flex", justifyContent: "flex-end"}}
+                >
+                    <LinkButton
+                        className="expandable-text-toggle"
+                        disableRipple
+                        onClick={() => setExpanded(!expanded)}
+                    >
                         {expanded ? showLessLabel : showMoreLabel}
                     </LinkButton>
                 </Box>

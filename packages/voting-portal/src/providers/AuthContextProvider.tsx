@@ -11,6 +11,8 @@ import {getLanguageFromURL} from "../utils/queryParams"
 import {useTranslation} from "react-i18next"
 import {IPermissions} from "../types/keycloak"
 import {appendLoginHints, enrollmentRedirectUrl, LoginHints} from "../utils/loginHints"
+import {getLogoutRedirectUrl, isKioskClientId} from "../utils/logoutRedirect"
+import {getKioskAwareUrl, getKioskPortalRedirectUrl} from "../utils/kioskUrls"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -162,34 +164,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 return
             }
 
-            /**
-             * Get the Keycloak URL. If there's a param `kiosk` in the URL, it
-             * appends `-kiosk` to the subdomain (if it exists).
-             */
-            const getKeycloakUrl: (defaultUrl: string) => string = (defaultUrl) => {
-                const searchParams = new URLSearchParams(window.location.search)
-                const isKiosk = searchParams.has("kiosk")
-
-                return defaultUrl
-                /*if (!isKiosk) {
-                    return defaultUrl
-                }
-
-                try {
-                    const url = new URL(defaultUrl)
-                    const subdomainParts = url.hostname.split(".")
-
-                    // Only modify if there is a subdomain
-                    if (subdomainParts.length > 2) {
-                        subdomainParts[0] += "-kiosk"
-                        url.hostname = subdomainParts.join(".")
-                    }
-
-                    return url.toString()
-                } catch (error) {
-                    console.error("Invalid URL provided:", defaultUrl)
-                    return defaultUrl // Fallback to the original URL if an error occurs
-                }*/
+            const isKiosk = new URLSearchParams(window.location.search).has("kiosk")
+            const kioskPortalRedirectUrl = getKioskPortalRedirectUrl(
+                window.location.href,
+                globalSettings.KIOSK_VOTING_PORTAL_URL,
+                isKiosk
+            )
+            if (kioskPortalRedirectUrl) {
+                window.location.replace(kioskPortalRedirectUrl)
+                return
             }
 
             /**
@@ -197,8 +180,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
              * append `-kiosk` to the
              */
             const getClientId: (defaultClientId: string) => string = (defaultClientId) => {
-                const searchParams = new URLSearchParams(window.location.search)
-                const isKiosk = searchParams.has("kiosk")
                 return isKiosk ? `${defaultClientId}-kiosk` : defaultClientId
             }
 
@@ -220,7 +201,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const keycloakConfig = createKeycloakConfig(
                 tenantId,
                 eventId,
-                getKeycloakUrl(globalSettings.KEYCLOAK_URL),
+                getKioskAwareUrl(
+                    globalSettings.KEYCLOAK_URL,
+                    globalSettings.KIOSK_KEYCLOAK_URL,
+                    isKiosk
+                ),
                 getClientId(globalSettings.ONLINE_VOTING_CLIENT_ID)
             )
 
@@ -236,7 +221,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                     newKeycloak.logout()
                 }*/
                 newKeycloak.logout({
-                    redirectUri: `/tenant/${tenantId}/event/${eventId}/`,
+                    redirectUri: getLogoutRedirectUrl({
+                        origin: window.location.origin,
+                        pathname: window.location.pathname,
+                        tenantId,
+                        eventId,
+                        clientId: newKeycloak.clientId,
+                        defaultClientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+                        hasKioskQuery: new URLSearchParams(window.location.search).has("kiosk"),
+                    }),
                 })
             }
 
@@ -253,6 +246,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         setKeycloak,
         loaded,
         globalSettings.KEYCLOAK_URL,
+        globalSettings.KIOSK_KEYCLOAK_URL,
+        globalSettings.KIOSK_VOTING_PORTAL_URL,
         globalSettings.ONLINE_VOTING_CLIENT_ID,
     ])
 
@@ -431,22 +426,16 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     }
 
     const getRedirectUrl = (redirectUrl?: string) => {
-        if (redirectUrl) {
-            return redirectUrl
-        } else {
-            const origin = window.location.origin
-            const searchParams = new URLSearchParams(window.location.search)
-            const isKiosk = searchParams.has("kiosk")
-            if (isKiosk) {
-                return `${origin}/tenant/${tenantId}/event/${eventId}/?kiosk`
-            }
-            const currentPath = window.location.pathname
-            const pathSegments = currentPath.split("/")
-            while (pathSegments.length > 5) {
-                pathSegments.pop() // Remove the last segment (To only keep the teanant and event params)
-            }
-            return origin + pathSegments.join("/")
-        }
+        return getLogoutRedirectUrl({
+            redirectUrl,
+            origin: window.location.origin,
+            pathname: window.location.pathname,
+            tenantId,
+            eventId,
+            clientId: keycloak?.clientId,
+            defaultClientId: globalSettings.ONLINE_VOTING_CLIENT_ID,
+            hasKioskQuery: new URLSearchParams(window.location.search).has("kiosk"),
+        })
     }
 
     const logout = (redirectUrl?: string) => {
@@ -486,11 +475,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
      * @returns whether or not the user in kiosk mode
      */
     const isKiosk = () => {
-        if (!keycloak?.tokenParsed?.azp) {
-            return false
-        }
-
-        return keycloak.tokenParsed.azp.endsWith("-kiosk")
+        const clientId = keycloak?.clientId ?? keycloak?.tokenParsed?.azp
+        return isKioskClientId(clientId, globalSettings.ONLINE_VOTING_CLIENT_ID)
     }
 
     const openProfileLink = async () => {

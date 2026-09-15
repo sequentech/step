@@ -73,6 +73,8 @@ const tagalogTranslation = {
             contestNotFound: "Paligsahan hindi natagpuan: {{contestId}}",
             declineToVote: "Hindi bumoto",
             blankBallot: "Blangkong balota",
+            acclamationDescription:
+                "Ang paligsahang ito ay napagpasyahan sa pamamagitan ng aklamasyon. Ang mga kandidato nito ay nahalal nang walang botohan, kaya walang opsyong mapipili at walang botong naitatala.",
         },
         footer: {
             poweredBy: "Pinapagana ng <1></1>",

@@ -12,6 +12,12 @@ use sequent_core::{
     types::{hasura::core::TasksExecution, permissions::Permissions},
 };
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
@@ -325,6 +331,55 @@ pub async fn generate_report(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    let report_type =
+        ReportType::from_str(&report.report_type).map_err(|error| {
+            (Status::BadRequest, format!("Invalid report type: {error}"))
+        })?;
+    let declared_secret_names =
+        windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names(
+            &hasura_transaction,
+            &report.tenant_id,
+            &report.election_event_id,
+            &report_type,
+            report.election_id.as_deref(),
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading report template: {error:#}"),
+            )
+        })?;
+    let may_read_secret_attributes = !declared_secret_names.is_empty();
+    if may_read_secret_attributes {
+        authorize(
+            &claims,
+            true,
+            Some(report.tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+        let attribute_names: Vec<String> =
+            declared_secret_names.iter().cloned().collect();
+        post_voter_secret_attribute_audit(
+            &report.tenant_id,
+            &report.election_event_id,
+            &ElectoralLogAdminContext::from_claims(&claims),
+            VoterSecretAttributeAction::Report,
+            VoterSecretAttributeAudit {
+                voter_id: None,
+                voter_username: None,
+                attribute_names: &attribute_names,
+                document_id: None,
+            },
+        )
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
+            )
+        })?;
+    }
 
     // Insert the task execution record
     let task_execution = post(
@@ -350,6 +405,7 @@ pub async fn generate_report(
             Some(task_execution.clone()),
             Some(executer_username),
             None,
+            may_read_secret_attributes,
         ))
         .await
         .map_err(|e| {

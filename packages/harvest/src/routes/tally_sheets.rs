@@ -126,6 +126,14 @@ pub async fn create_new_tally_sheet(
         ));
     };
 
+    let is_acclaimed = contest.is_acclaimed.unwrap_or(false);
+    if is_acclaimed {
+        return Err((
+            Status::BadRequest,
+            "Tally sheets cannot be created for acclaimed contests".to_string(),
+        ));
+    }
+
     // Mirrors the import path: an unresolvable counting algorithm is
     // reported on its own rather than validated against a guessed bound.
     let validation_errors = match contest_max_marks_per_ballot(&contest) {
