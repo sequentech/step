@@ -12,6 +12,27 @@ SPDX-License-Identifier: AGPL-3.0-only
 Tally results report participation, blank votes, invalid votes, candidate
 totals, and algorithm-specific process data.
 
+## Acclaimed contests
+
+A contest with `is_acclaimed: true` is decided without a vote and is absent
+from decoded ballots. The tally therefore synthesizes its result from the
+published contest configuration instead of reading ballots or applying the
+configured counting algorithm.
+
+The canonical acclaimed result has:
+
+- zero census, auditable votes, total votes, valid votes, invalid votes, blank
+  votes, candidate totals, and percentages;
+- every eligible configured candidate marked as a winner in configured order,
+  with deterministic winning positions `1..N`; and
+- no counting-algorithm process data or participation-by-channel data.
+
+Explicit blank and invalid markers, disabled candidates, and empty write-in
+slots are configuration artefacts and are excluded from the candidate result.
+Results screens and reports replace the normal participation summary with an
+acclamation notice. Paper, postal, and other tally sheets are rejected because
+there is no vote to add to an acclaimed contest.
+
 ## Vote classifications
 
 Contest results use these vote classifications:

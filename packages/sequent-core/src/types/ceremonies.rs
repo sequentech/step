@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::default::Default;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, VariantNames};
 
 #[derive(
     Display,
@@ -366,6 +366,8 @@ pub struct TallyResolution {
     Debug,
     EnumString,
     Display,
+    // `election_config::validate` reads `VARIANTS` as the list of admissible values.
+    VariantNames,
     Default,
     Serialize,
     Deserialize,

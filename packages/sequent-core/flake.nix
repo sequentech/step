@@ -44,7 +44,7 @@
             pname = "wasm-bindgen-cli";
             version = "0.2.104";
             src = builtins.fetchTarball {
-              url = "https://crates.io/api/v1/crates/${pname}/${version}/download";
+              url = "https://static.crates.io/crates/${pname}/${pname}-${version}.crate";
               sha256 = "00bv402z5n47f7l582xmanaxraacwg2pcm6rvlcify1bn9mvwign";
             };
             cargoHash = "sha256-V0AV5jkve37a5B/UvJ9B3kwOW72vWblST8Zxs8oDctE=";

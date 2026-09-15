@@ -5,18 +5,20 @@
 import {getRandomUniqueItems} from "../../src/utils/getRandomUniqueItems"
 import {getRandomNumberBetween} from "../../src/utils/getRandomNumberBetween"
 
+// Matched on class rather than on element name: the contest title's heading level
+// and the candidate row's element both follow the screen's document structure.
 export const selectCandidatesForContest = (browser, contestItem) => {
     browser.elementIdText(Object.values(contestItem)[0] as string, function (contestTitle) {
         browser.elements(
             "xpath",
-            `//h5[normalize-space()='${contestTitle.value}']/..//div[contains(@class, 'candidate-item')]`,
+            `//*[contains(@class, 'contest-title')][normalize-space()='${contestTitle.value}']/..//*[contains(@class, 'candidate-item')]`,
             async function (candidateList) {
                 const minVotes = await browser.getAttribute(
-                    `//h5[normalize-space()='${contestTitle.value}']`,
+                    `//*[contains(@class, 'contest-title')][normalize-space()='${contestTitle.value}']`,
                     "data-min"
                 )
                 const maxVotes = await browser.getAttribute(
-                    `//h5[normalize-space()='${contestTitle.value}']`,
+                    `//*[contains(@class, 'contest-title')][normalize-space()='${contestTitle.value}']`,
                     "data-max"
                 )
                 const numberOfChoices = getRandomNumberBetween(Number(minVotes), Number(maxVotes))
@@ -30,7 +32,7 @@ export const selectCandidatesForContest = (browser, contestItem) => {
                     browser
                         .useXpath()
                         .click(
-                            `//h5[normalize-space()='${contestTitle.value}']/..//div[contains(@class, 'candidate-item')][${candidateIndex}]`
+                            `//*[contains(@class, 'contest-title')][normalize-space()='${contestTitle.value}']/..//*[contains(@class, 'candidate-item')][${candidateIndex}]`
                         )
                 })
             }

@@ -53,8 +53,11 @@ export const ApolloWrapper: React.FC<PropsWithChildren> = ({children}) => {
     ])
 
     return client === null ? (
-        <Box sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}>
-            <CircularProgress />
+        <Box
+            className="apollo-loading"
+            sx={{flex: 1, display: "flex", justifyContent: "center", alignItems: "center"}}
+        >
+            <CircularProgress className="apollo-loading-progress" />
         </Box>
     ) : (
         <ApolloProvider client={client}>{children}</ApolloProvider>

@@ -23,11 +23,9 @@ pub struct PluginManager {
 }
 
 impl PluginManager {
-    /// Creates a new PluginManager instance with an async-enabled Wasmtime engine and empty plugin registries.
+    /// Creates a new PluginManager instance with a Wasmtime engine and empty plugin registries.
     pub fn new() -> Result<Self> {
-        let mut config = Config::new();
-        config.async_support(true);
-        let engine = Engine::new(&config)?;
+        let engine = Engine::new(&Config::new())?;
 
         Ok(Self {
             plugins: DashMap::new(),

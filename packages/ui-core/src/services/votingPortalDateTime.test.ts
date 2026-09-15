@@ -15,6 +15,7 @@ import {
     EVotingPortalDateTimeFormat,
     IElectionEventPresentation,
 } from "../types/ElectionEventPresentation"
+import {ETranslationScope} from "./translationScopes"
 
 // Built with the local-time constructor so assertions are timezone-independent:
 // both construction and (default) Intl formatting use the local timezone.
@@ -177,6 +178,35 @@ describe("formatVotingPortalDateTime — per-language override", () => {
         expect(formatVotingPortalDateTime(FIXED_DATE, overrideEvent("e-ov-1"), "en")).toBe(
             "2026-03-09"
         )
+    })
+
+    it("uses an explicitly scoped Voting Portal override", () => {
+        const event = makeEvent("e-ov-scoped", {
+            i18n: {
+                en: {
+                    [`${ETranslationScope.VOTING_PORTAL}:${VOTING_PORTAL_DATETIME_FORMAT_KEY}`]:
+                        "yyyy-MM-dd",
+                },
+            },
+        })
+
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("2026-03-09")
+    })
+
+    it("prefers a Voting Portal override over legacy and global values", () => {
+        const event = makeEvent("e-ov-precedence", {
+            i18n: {
+                en: {
+                    [`${ETranslationScope.GLOBAL}:${VOTING_PORTAL_DATETIME_FORMAT_KEY}`]:
+                        "MM/dd/yyyy",
+                    [VOTING_PORTAL_DATETIME_FORMAT_KEY]: "dd/MM/yyyy",
+                    [`${ETranslationScope.VOTING_PORTAL}:${VOTING_PORTAL_DATETIME_FORMAT_KEY}`]:
+                        "yyyy-MM-dd",
+                },
+            },
+        })
+
+        expect(formatVotingPortalDateTime(FIXED_DATE, event, "en")).toBe("2026-03-09")
     })
 
     it("falls through to the preset for languages without an override", () => {

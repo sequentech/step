@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {
+    getPasswordPolicyMessage,
     getPasswordPolicyViolation,
     getVoterInformationLetterPasswordPolicyError,
     hasGraphQLActionErrorCode,
@@ -190,6 +191,45 @@ describe("hasGraphQLActionErrorCode", () => {
                 PASSWORD_POLICY_NOT_CONFIGURED_ERROR_CODE
             )
         ).toBe(true)
+    })
+})
+
+describe("getPasswordPolicyMessage", () => {
+    const translate = (key: string, options?: Record<string, unknown>): string =>
+        options ? `${key}(${Object.values(options).join(",")})` : key
+
+    it("names the rule and the count it requires", () => {
+        expect(
+            getPasswordPolicyMessage(
+                {
+                    graphQLErrors: [
+                        {
+                            extensions: {
+                                code: PASSWORD_POLICY_VIOLATION_ERROR_CODE,
+                                password_policy_rule: "minimumLength",
+                                password_policy_required_count: 12,
+                            },
+                        },
+                    ],
+                },
+                translate
+            )
+        ).toBe("usersAndRolesScreen.editPassword.passwordPolicyRules.minimumLength(12)")
+    })
+
+    it("falls back to the generic message when the violation carries no details", () => {
+        expect(
+            getPasswordPolicyMessage(
+                {graphQLErrors: [{extensions: {code: PASSWORD_POLICY_VIOLATION_ERROR_CODE}}]},
+                translate
+            )
+        ).toBe("usersAndRolesScreen.editPassword.passwordPolicyViolation")
+    })
+
+    it("says nothing about an error that is not a policy violation", () => {
+        expect(
+            getPasswordPolicyMessage({graphQLErrors: [{message: "Unauthorized"}]}, translate)
+        ).toBeUndefined()
     })
 })
 

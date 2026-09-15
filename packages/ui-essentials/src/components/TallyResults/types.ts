@@ -111,6 +111,7 @@ export interface ResultsAndParticipationLabels {
     nextRounds: string
     participationByChannel: string
     channel: string
+    acclamationNote: string
     channelNames: ParticipationChannelNames
 }
 
@@ -129,6 +130,12 @@ export interface ResultsAndParticipationProps {
     showWeight?: boolean
     processResults?: PreferentialProcessResults | null
     preferential?: boolean
+    /**
+     * An acclaimed contest was decided without a vote: every candidate wins
+     * with zero votes, so the participation summary is replaced by a note
+     * explaining why every figure is zero.
+     */
+    acclaimed?: boolean
 }
 
 export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels = {
@@ -165,6 +172,8 @@ export const defaultResultsAndParticipationLabels: ResultsAndParticipationLabels
     nextRounds: "Navigate to next rounds",
     participationByChannel: "Participation by channel",
     channel: "Channel",
+    acclamationNote:
+        "Won by acclamation. This contest was decided without a vote, so no votes were recorded for it.",
     channelNames: {
         [VotingStatusChannel.Online]: "Online",
         [VotingStatusChannel.Kiosk]: "Kiosk",
