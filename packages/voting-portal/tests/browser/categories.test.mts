@@ -13,8 +13,10 @@ import {build} from "esbuild"
 import {chromium, type Browser, type Page} from "playwright-core"
 import type {} from "./fixture.tsx"
 
-const require = createRequire(import.meta.url)
 const localFile = (path: string) => fileURLToPath(new URL(path, import.meta.url))
+// initCore comes from UI Core; serve the WASM paired with that package's JS glue.
+// Yarn can install a different sequent-core archive under Voting Portal.
+const coreRequire = createRequire(localFile("../../../ui-core/package.json"))
 let server: Server
 let browser: Browser
 let page: Page
@@ -83,7 +85,7 @@ before(
                 "/index_bg.wasm",
                 {
                     type: "application/wasm",
-                    body: await readFile(require.resolve("sequent-core/index_bg.wasm")),
+                    body: await readFile(coreRequire.resolve("sequent-core/index_bg.wasm")),
                 },
             ],
         ])
