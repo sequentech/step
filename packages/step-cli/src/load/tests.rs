@@ -472,3 +472,41 @@ fn interrupted_k6_logs_preserve_results_even_with_partial_sample_extraction() {
         assert!(shard.join("attempted").exists());
     }
 }
+
+#[test]
+fn publication_preflight_requires_fresh_gold_authentication() {
+    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+    let now = chrono::Utc::now().timestamp();
+    let mut claims = json!({
+        "exp": now + 300, "iat": now, "auth_time": null,
+        "jti": "test", "iss": "test", "sub": "admin", "typ": "Bearer",
+        "azp": "api-key-client", "acr": "gold", "allowed-origins": [],
+        "scope": "openid", "email_verified": true,
+        "https://hasura.io/jwt/claims": {
+            "x-hasura-default-role": "admin-user", "x-hasura-tenant-id": "test",
+            "x-hasura-user-id": "admin", "x-hasura-allowed-roles": ["admin-user"]
+        }
+    });
+    let check = |claims: &Value| {
+        let token = format!(
+            "header.{}.signature",
+            URL_SAFE_NO_PAD.encode(claims.to_string())
+        );
+        provision::require_gold(&token)
+    };
+    assert!(check(&claims).is_ok()); // Direct grant uses iat when auth_time is absent.
+    claims["acr"] = json!("silver");
+    assert!(check(&claims)
+        .unwrap_err()
+        .to_string()
+        .contains("api-key-client"));
+    claims["acr"] = json!("gold");
+    claims["auth_time"] = json!(now - 120);
+    assert!(check(&claims).is_err()); // A refreshed iat cannot hide stale authentication.
+    claims["auth_time"] = json!(now);
+    assert!(check(&claims).is_ok());
+    claims["auth_time"] = Value::Null;
+    claims["iat"] = json!(now - 120);
+    assert!(check(&claims).is_err());
+    assert!(provision::require_gold("malformed").is_err());
+}

@@ -20,6 +20,13 @@ Rustdoc live in `packages/step-cli/src/load/config.rs`; `step-cli load reference
 generates the operator reference. Image builds accept configurable base images and
 Playwright versions through `step-cli load image --help`.
 
+Before preparing a new election, configure the CLI with the tenant's
+`api-key-client` ID and its client secret. The devcontainer's `admin-portal`
+client issues silver authentication, which cannot publish or open voting.
+Preparation checks for fresh gold authentication before importing a new event
+and refreshes the session before publication and opening voting. Existing-event
+census imports do not require gold authentication.
+
 The fixture retains deployment authentication flows but contains one contest,
 no users and no exported client or CAPTCHA secrets. Supply custom exports through
 `preparation.template`.

@@ -22,6 +22,7 @@ COPY --from=k6-binary /usr/bin/k6 /usr/local/bin/k6
 COPY --from=worker-build /build/packages/step-cli/target/release/step-load-worker /usr/local/bin/step-load-worker
 WORKDIR /runner
 COPY packages/voting-load/*.js /runner/packages/voting-load/
+RUN chmod -R a+rX /runner/packages
 ENV HOME=/tmp STEP_LOAD_CONTAINER=1
 USER 1000:1000
 ENTRYPOINT ["/usr/local/bin/step-load-worker"]
@@ -34,6 +35,7 @@ RUN npm install --save-exact @playwright/test@${PLAYWRIGHT_VERSION} && npx playw
 COPY --from=worker-build /build/packages/step-cli/target/release/step-load-worker /usr/local/bin/step-load-worker
 COPY packages/voting-portal/playwright.scale.config.ts /runner/packages/voting-portal/
 COPY packages/voting-portal/test/load/flow.ts packages/voting-portal/test/load/scale.spec.ts /runner/packages/voting-portal/test/load/
+RUN chmod -R a+rX /runner/packages
 ENV HOME=/tmp STEP_LOAD_CONTAINER=1
 USER 1000:1000
 ENTRYPOINT ["/usr/local/bin/step-load-worker"]

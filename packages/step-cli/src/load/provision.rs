@@ -25,6 +25,17 @@ fn api<T>(result: std::result::Result<T, Box<dyn std::error::Error>>) -> Result<
     result.map_err(|error| anyhow::anyhow!(error.to_string()))
 }
 
+/// Give an actionable preflight error; the server still verifies the token and permissions.
+pub(super) fn require_gold(token: &str) -> Result<()> {
+    let claims = sequent_core::services::jwt::decode_jwt(token)
+        .context("Cannot read CLI administrator authentication")?;
+    ensure!(
+        sequent_core::services::jwt::has_gold_permission(&claims),
+        "Fresh gold authentication is required to publish and open a load-test election. Run step-cli config with the tenant's api-key-client credentials, then retry."
+    );
+    Ok(())
+}
+
 /// Resolve operator paths against their YAML file, independently of working directory.
 pub fn resolve(path: &Option<PathBuf>, base: &Path) -> Option<PathBuf> {
     path.as_ref().map(|path| {
@@ -221,6 +232,7 @@ pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) ->
         import_census(&input, &output.join("census"))?;
         return input.save(&output.join("config.json"));
     }
+    require_gold(&session.auth_token)?;
     let template = resolve(&settings.preparation.template, base)
         .unwrap_or_else(|| assets.join("packages/voting-load/fixtures/election.json"));
     let fixture = fixture(files::read(&template)?, &settings)?;
@@ -293,6 +305,7 @@ pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) ->
             settings.preparation.poll_interval_seconds,
         ));
     }
+    require_gold(&api(refresh_and_save_token())?.auth_token)?;
     let publication = api(commands::publish_changes::publish_changes(&event_id, None))?;
     if let Some(writer) = resolve(&settings.preparation.publication_preparer, base) {
         let log = files::create(&output.join("publication.log"))?;
@@ -306,6 +319,7 @@ pub fn setup(settings_path: &Path, base: &Path, output: &Path, assets: &Path) ->
             "Publication preparation failed; inspect private publication.log"
         );
     }
+    require_gold(&api(refresh_and_save_token())?.auth_token)?;
     use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
     api(
         commands::update_event_voting_status::update_event_voting_status(
