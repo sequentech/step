@@ -87,7 +87,7 @@ jobs:
             try {
               const ref = await github.rest.git.getRef({
                 owner: context.repo.owner,
-                repo: context.repo.repo,
+                repo: 'beyond',
                 ref: `tags/${tagName}`,
               });
 
@@ -98,7 +98,7 @@ jobs:
               if (ref.data.object.type === 'tag') {
                 const tag = await github.rest.git.getTag({
                   owner: context.repo.owner,
-                  repo: context.repo.repo,
+                  repo: 'beyond',
                   tag_sha: commitSha,
                 });
                 commitSha = tag.data.object.sha;
@@ -144,7 +144,7 @@ jobs:
           ref: ${{ needs.resolve-target-commit.outputs.target_commitish }}
           workflow: 'Automated Release Process'
           token: ${{ secrets.PAT }}
-          inputs: '{}'
+          inputs: '{"createMajorReleaseBranch": false, "createMinorReleaseBranch": false, "preRelease": true}'
           wait-for-completion: true
 
   # ===========================================================================
