@@ -290,9 +290,11 @@ const App = () => {
         >
             <StyledApp className="voting-portal app-root">
                 <ScrollRestoration />
-                <a className="skip-link" href="#main-content">
-                    {t("a11y.skipToContent")}
-                </a>
+                <nav className="skip-navigation" aria-label={t("a11y.skipToContent")}>
+                    <a className="skip-link" href="#main-content">
+                        {t("a11y.skipToContent")}
+                    </a>
+                </nav>
                 <ApolloWrapper>
                     <HeaderWithContext />
                     <PageBanner
