@@ -12,6 +12,8 @@ use strand::elgamal::PrivateKey;
 use strand::serialization::{StrandDeserialize, StrandSerialize};
 use strand::zkp::Zkp;
 
+const NOT_QUADRATIC_RESIDUE: &str = "Not a quadratic residue";
+
 struct FailAfter(usize);
 impl Write for FailAfter {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -67,21 +69,24 @@ macro_rules! backend {
 
             #[test]
             fn group_and_ring_operators_obey_small_known_results() {
-                let ctx=C::default();
-                let four=ctx.element_from_bytes(&[4]).unwrap();
-                let nine=ctx.element_from_bytes(&[9]).unwrap();
-                let one=ctx.element_from_bytes(&[1]).unwrap();
-                assert_eq!(four.mul(&nine).modp(&ctx),ctx.element_from_bytes(&[36]).unwrap());
-                assert_eq!(four.divp(&four,&ctx).modp(&ctx),one);
-                assert_eq!(four.invp(&ctx).mul(&four).modp(&ctx),one);
-                assert_eq!(ctx.emod_pow(&four,&ctx.exp_from_u64(0)),one);
-                let three=ctx.exp_from_u64(3);
-                let six=ctx.exp_from_u64(6);
-                assert_eq!(three.add(&six).modq(&ctx),ctx.exp_from_u64(9));
-                assert_eq!(six.sub(&three).modq(&ctx),three);
-                assert_eq!(three.mul(&six).modq(&ctx),ctx.exp_from_u64(18));
-                assert_eq!(six.divq(&three,&ctx).modq(&ctx),ctx.exp_from_u64(2));
-                assert_eq!(three.invq(&ctx).mul(&three).modq(&ctx),ctx.exp_from_u64(1));
+                let ctx = C::default();
+                let four = ctx.element_from_bytes(&[4]).unwrap();
+                let nine = ctx.element_from_bytes(&[9]).unwrap();
+                let one = ctx.element_from_bytes(&[1]).unwrap();
+                assert_eq!(
+                    four.mul(&nine).modp(&ctx),
+                    ctx.element_from_bytes(&[36]).unwrap()
+                );
+                assert_eq!(four.divp(&four, &ctx).modp(&ctx), one);
+                assert_eq!(four.invp(&ctx).mul(&four).modp(&ctx), one);
+                assert_eq!(ctx.emod_pow(&four, &ctx.exp_from_u64(0)), one);
+                let three = ctx.exp_from_u64(3);
+                let six = ctx.exp_from_u64(6);
+                assert_eq!(three.add(&six).modq(&ctx), ctx.exp_from_u64(9));
+                assert_eq!(six.sub(&three).modq(&ctx), three);
+                assert_eq!(three.mul(&six).modq(&ctx), ctx.exp_from_u64(18));
+                assert_eq!(six.divq(&three, &ctx).modq(&ctx), ctx.exp_from_u64(2));
+                assert_eq!(three.invq(&ctx).mul(&three).modq(&ctx), ctx.exp_from_u64(1));
             }
 
             #[test]
@@ -146,7 +151,7 @@ macro_rules! backend {
                 // 5 is a nonresidue for the fixed prime; the valid square 4
                 // above distinguishes membership rejection from parse failure.
                 assert!(matches!(ctx.element_from_bytes(&[5]),
-                    Err(strand::util::StrandError::Generic(message)) if message == "Not a quadratic residue"));
+                    Err(strand::util::StrandError::Generic(message)) if message == NOT_QUADRATIC_RESIDUE));
                 assert!(E::strand_deserialize(&$element).is_ok());
                 assert!(X::strand_deserialize(&$exponent).is_ok());
             }
