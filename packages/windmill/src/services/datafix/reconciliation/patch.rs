@@ -13,7 +13,7 @@
 use crate::services::datafix::reconciliation::diff::DiffItem;
 use crate::services::datafix::reconciliation::types::ReconciliationPatchTarget;
 use crate::services::datafix::types::{
-    DatafixReconciliationField, ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
+    DatafixReconciliationField, ParsedDatafixReconciliationRow, DATAFIX_POLL, FILE_CHANNEL_INTERNET,
 };
 use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use sha2::{Digest, Sha256};
@@ -26,7 +26,8 @@ use tracing::instrument;
 /// the whole diff's items in one call, so a 100k+-row reconciliation never
 /// needs the whole diff resident in memory to produce this document. One row
 /// per changed voter, every `DatafixReconciliationField` as an `_old`/`_new`
-/// pair — unchanged fields repeat this batch's real row value (read off
+/// pair — Poll is always 000 in both columns. Other unchanged fields
+/// repeat this batch's real row value (read off
 /// `file_rows_by_username`, this same batch's parsed rows) in both columns,
 /// per spec. `NONE` is only used when the voter has no row in the file at
 /// all (D, reverse direction — added to Datafix), the spec's own example of
@@ -92,6 +93,7 @@ impl<W: Write> ExternalPatchCsvWriter<W> {
             let values: Vec<String> = DatafixReconciliationField::NAMES
                 .iter()
                 .flat_map(|name| match fields.get(name) {
+                    _ if *name == "Poll" => vec![DATAFIX_POLL.to_string(); 2],
                     Some((old_value, new_value)) => {
                         vec![old_value.to_string(), new_value.to_string()]
                     }
@@ -331,6 +333,45 @@ mod tests {
         let csv = write_csv(&items, &HashMap::new(), 5, 1781780700).unwrap();
         let data_line = csv.lines().nth(2).unwrap();
         assert!(data_line.contains("NONE,NONE")); // e.g. CountyMun_old,CountyMun_new
+    }
+
+    #[test]
+    fn poll_export_is_always_000_for_existing_and_added_voters() {
+        for source_poll in [Some("017"), Some(""), Some("NONE"), None] {
+            for explicit_poll_patch in [false, true] {
+                let mut items = vec![item(
+                    "v1",
+                    ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Channel(
+                        ATTR_RESET_VALUE.to_string(),
+                        FILE_CHANNEL_INTERNET.to_string(),
+                    )),
+                )];
+                if explicit_poll_patch {
+                    items.push(item(
+                        "v1",
+                        ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Poll(
+                            "NONE".to_string(),
+                            "017".to_string(),
+                        )),
+                    ));
+                }
+                let mut rows = HashMap::new();
+                if let Some(poll) = source_poll {
+                    let mut row = file_row("v1");
+                    row.poll = poll.to_string();
+                    rows.insert("v1".to_string(), row);
+                }
+                let csv = write_csv(&items, &rows, 1, 100).unwrap();
+                let body = csv.split_once('\n').unwrap().1;
+                let mut reader = ::csv::Reader::from_reader(body.as_bytes());
+                let headers = reader.headers().unwrap().clone();
+                let record = reader.records().next().unwrap().unwrap();
+                for name in ["Poll_old", "Poll_new"] {
+                    let column = headers.iter().position(|header| header == name).unwrap();
+                    assert_eq!(&record[column], "000");
+                }
+            }
+        }
     }
 
     #[test]

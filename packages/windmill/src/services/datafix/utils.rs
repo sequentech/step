@@ -158,14 +158,9 @@ fn ambiguous_datafix_id_error(requester_datafix_id: &str, event_ids: Vec<String>
     DatafixError::ambiguous(detail, event_ids)
 }
 
-/// Composes the area name from the voter information, following the naming contract:
-/// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
-/// ignored (e.g. `WARD-POLL` when there is no SchoolSupportCode,
-/// `WARD-SCHOOL` when there is no Poll). All values are uppercased.
-/// `pub(crate)` (rather than private) so `reconciliation::diff` can reuse the
-/// exact same Ward-SchoolSupportCode-Poll composition/uppercasing rule when
-/// comparing a reconciliation file row's area against a voter's resolved
-/// `Area::name`.
+/// Composes WARD[-SCHOOLSUPPORT]-000 for Datafix API requests and
+/// reconciliation. Missing or empty school support is omitted; the incoming
+/// poll is ignored. All values are uppercased.
 #[instrument(skip_all)]
 pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     let mut parts = vec![voter_info.ward.clone()];
@@ -176,11 +171,7 @@ pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
         }
     }
 
-    if let Some(poll) = &voter_info.poll {
-        if !poll.is_empty() {
-            parts.push(poll.clone());
-        }
-    }
+    parts.push(DATAFIX_POLL.to_string());
 
     parts.join("-").to_uppercase()
 }
@@ -194,10 +185,7 @@ pub struct ResolvedArea {
 }
 
 /// Returns the area matching the request. If it cannot find the area id by name returns an error.
-/// Area names are a concatenation of Ward-SchoolSupportCode-Poll. The contract: <br>
-/// If any of the values is empty or None, it is omitted. <br>
-/// i.e. Ward-Poll (no SchoolSupportCode), Ward-SchoolSupportCode (no Poll) <br>
-/// All values are set to uppercase
+/// Area names use WARD[-SCHOOLSUPPORT]-000, uppercased.
 #[instrument(skip_all)]
 pub async fn find_user_area_by_name(
     hasura_transaction: &Transaction<'_>,
@@ -616,34 +604,17 @@ mod tests {
     }
 
     #[test]
-    fn composes_all_parts_when_present() {
-        let info = voter_info("ward", Some("school"), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-POLL");
-    }
-
-    #[test]
-    fn renders_missing_poll_omitted() {
-        let info = voter_info("ward", Some("school"), None);
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL");
-    }
-
-    #[test]
-    fn renders_both_optionals_missing_omitted() {
-        let info = voter_info("ward", None, None);
-        assert_eq!(compose_area_name(&info), "WARD");
-    }
-
-    #[test]
-    fn treats_empty_string_the_same_as_none() {
-        let info = voter_info("ward", Some(""), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD-POLL");
-    }
-
-    #[test]
-    fn uppercases_all_values() {
-        let info = voter_info("ward", Some("school"), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-POLL");
-        let mixed = voter_info("Ward-A", Some("Sb_2"), Some("p3"));
-        assert_eq!(compose_area_name(&mixed), "WARD-A-SB_2-P3");
+    fn poll_is_always_000_with_or_without_school_support() {
+        for poll in [Some("017"), Some("000"), Some("NONE"), Some(""), None] {
+            for school in [Some("Sb_2"), Some(""), None] {
+                let info = voter_info("Ward-A", school, poll);
+                let expected = if school == Some("Sb_2") {
+                    "WARD-A-SB_2-000"
+                } else {
+                    "WARD-A-000"
+                };
+                assert_eq!(compose_area_name(&info), expected);
+            }
+        }
     }
 }

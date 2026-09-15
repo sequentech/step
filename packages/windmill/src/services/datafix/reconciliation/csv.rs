@@ -10,7 +10,7 @@
 //! still block the whole import.
 
 use crate::services::datafix::reconciliation::types::ReconciliationFileMeta;
-use crate::services::datafix::types::ParsedDatafixReconciliationRow;
+use crate::services::datafix::types::{ParsedDatafixReconciliationRow, DATAFIX_POLL};
 use ::csv::{ReaderBuilder, StringRecord};
 use sequent_core::types::keycloak::ATTR_RESET_VALUE;
 use std::collections::HashSet;
@@ -101,14 +101,11 @@ pub fn split_meta_and_csv(bytes: &[u8]) -> Result<(ReconciliationFileMeta, &[u8]
     Ok((parse_meta_line(meta_line)?, rest))
 }
 
-/// Datafix represents unset optional area components both as an empty CSV
-/// cell and as `NONE`. Normalize the former at the input boundary so every
-/// downstream comparison and generated patch uses the canonical sentinel.
-fn normalize_optional_area_fields(row: &mut ParsedDatafixReconciliationRow) {
-    for value in [&mut row.poll, &mut row.school_support_code] {
-        if value.is_empty() {
-            *value = ATTR_RESET_VALUE.to_string();
-        }
+/// Ignore the source Poll and canonicalize an unset school support code.
+fn normalize_area_fields(row: &mut ParsedDatafixReconciliationRow) {
+    row.poll = DATAFIX_POLL.to_string();
+    if row.school_support_code.is_empty() {
+        row.school_support_code = ATTR_RESET_VALUE.to_string();
     }
 }
 
@@ -195,7 +192,7 @@ impl<R: Read> ReconciliationRowBatches<R> {
         for _ in 0..batch_size {
             match records.next() {
                 Some(Ok(mut row)) => {
-                    normalize_optional_area_fields(&mut row);
+                    normalize_area_fields(&mut row);
                     match validate_row(&row) {
                         Ok(()) => {
                             rows.push(row);
@@ -326,16 +323,27 @@ mod tests {
     }
 
     #[test]
-    fn normalizes_empty_optional_area_fields_to_none() {
+    fn normalizes_poll_and_empty_school_support() {
         let csv_bytes = b"CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,,P,NONE,false\n0014,17696,1963-05-23,04,000,,NONE,false\n0014,17697,1963-05-23,04,,,NONE,false\n";
         let rows = parse_all_streamed(csv_bytes).unwrap();
 
-        assert_eq!(rows[0].poll, ATTR_RESET_VALUE);
+        assert_eq!(rows[0].poll, "000");
         assert_eq!(rows[0].school_support_code, "P");
         assert_eq!(rows[1].poll, "000");
         assert_eq!(rows[1].school_support_code, ATTR_RESET_VALUE);
-        assert_eq!(rows[2].poll, ATTR_RESET_VALUE);
+        assert_eq!(rows[2].poll, "000");
         assert_eq!(rows[2].school_support_code, ATTR_RESET_VALUE);
+    }
+
+    #[test]
+    fn ignores_every_source_poll_value() {
+        for poll in ["017", "000", "", "NONE", " 017 "] {
+            let csv = format!(
+                "CountyMun,VoterID,DoB,Ward,Poll,SchoolSupportCode,Channel,Deleted\n0014,17695,1963-05-23,04,{poll},P,NONE,false\n"
+            );
+            let rows = parse_all_streamed(csv.as_bytes()).unwrap();
+            assert_eq!(rows[0].poll, "000");
+        }
     }
 
     #[test]

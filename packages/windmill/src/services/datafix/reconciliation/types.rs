@@ -32,7 +32,7 @@ pub enum ReconciliationChangeCategory {
     /// C exception: `Deleted=true` in the file for a voter who *has* voted —
     /// the deletion is not applied, the Datafix patch reverts it.
     DELETION_REVERTED,
-    /// C: `Ward`/`Poll`/`SchoolSupportCode`/`DoB` changed on the Datafix side.
+    /// C: `Ward`/`SchoolSupportCode`/`DoB` changed on the Datafix side.
     PROFILE_UPDATE,
     /// D: a voter present on one side, missing on the other.
     VOTER_ADDED,

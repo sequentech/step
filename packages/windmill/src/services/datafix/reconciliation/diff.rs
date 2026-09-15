@@ -8,7 +8,7 @@ use crate::services::datafix::reconciliation::types::{
 };
 use crate::services::datafix::types::{
     channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixReconciliationField,
-    ParsedDatafixReconciliationRow, FILE_CHANNEL_INTERNET,
+    ParsedDatafixReconciliationRow, DATAFIX_POLL, FILE_CHANNEL_INTERNET,
 };
 use crate::services::users::VoterSnapshot;
 use sequent_core::types::keycloak::{
@@ -108,7 +108,6 @@ fn default_apply_allowed() -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatafixAreaFields {
     pub ward: String,
-    pub poll: String,
     pub school_support_code: String,
 }
 
@@ -122,7 +121,6 @@ pub fn index_datafix_area_fields(
         let name = composed_area_name(row);
         let fields = DatafixAreaFields {
             ward: row.ward.clone(),
-            poll: row.poll.clone(),
             school_support_code: row.school_support_code.clone(),
         };
         index
@@ -430,10 +428,10 @@ fn classify_file_row(
         }
     }
 
-    // C) Profile fields — Datafix wins. Ward/Poll/SchoolSupportCode are
+    // C) Profile fields — Datafix wins. Ward/SchoolSupportCode are
     // compared as a single composed area name (see the module doc in
     // snapshot.rs for why they can't be compared field-by-field), surfaced
-    // here as an AreaName-field change for display/patch purposes.
+    // here as an AreaName-field change for display/patch purposes. Poll is fixed to 000.
     let file_area_name = composed_area_name(row);
     if snapshot.area_name.as_deref() != Some(file_area_name.as_str()) {
         items.push(diff_item(
@@ -663,7 +661,7 @@ fn voter_missing_from_file(
     let fields = [
         DatafixReconciliationField::CountyMun(ATTR_RESET_VALUE.to_string(), county_mun.clone()),
         DatafixReconciliationField::Ward(ATTR_RESET_VALUE.to_string(), area_fields.ward.clone()),
-        DatafixReconciliationField::Poll(ATTR_RESET_VALUE.to_string(), area_fields.poll.clone()),
+        DatafixReconciliationField::Poll(DATAFIX_POLL.to_string(), DATAFIX_POLL.to_string()),
         DatafixReconciliationField::SchoolSupportCode(
             ATTR_RESET_VALUE.to_string(),
             area_fields.school_support_code.clone(),
@@ -789,6 +787,45 @@ mod tests {
             has_valid_internet_vote: false,
             has_unresolved_internet_vote: false,
             disable_comment: None,
+        }
+    }
+
+    #[test]
+    fn poll_differences_do_not_change_profiles_or_make_reverse_areas_ambiguous() {
+        let mut index = HashMap::new();
+        for poll in ["017", "000", "", "NONE"] {
+            let mut file_row = row("voter-1", ATTR_RESET_VALUE, "false");
+            file_row.poll = poll.to_string();
+            assert!(classify_file_row(
+                &file_row,
+                Some(&enabled_snapshot()),
+                &datafix_source("0014"),
+            )
+            .is_empty());
+            index_datafix_area_fields(&mut index, &[file_row]);
+        }
+        assert_eq!(index.len(), 1);
+        let items = voter_missing_from_file(
+            "voter-2",
+            &enabled_snapshot(),
+            &datafix_source("0014"),
+            &index,
+        );
+        assert_eq!(items.len(), 7);
+        assert!(items.iter().all(|item| item.target.is_datafix()));
+    }
+
+    #[test]
+    fn a_new_voter_uses_poll_000_while_ward_changes_still_reconcile() {
+        let mut file_row = row("voter-1", ATTR_RESET_VALUE, "false");
+        file_row.poll = "017".to_string();
+        file_row.ward = "02".to_string();
+        for snapshot in [None, Some(enabled_snapshot())] {
+            let items = classify_file_row(&file_row, snapshot.as_ref(), &datafix_source("0014"));
+            assert!(items.iter().any(|item| matches!(
+                item.target.sequent_field(),
+                Some(SequentReconciliationField::AreaName(_, new)) if new == "02-P-000"
+            )));
         }
     }
 
@@ -1074,7 +1111,6 @@ mod tests {
             "01-P-000".to_string(),
             Some(DatafixAreaFields {
                 ward: "01".to_string(),
-                poll: "000".to_string(),
                 school_support_code: "P".to_string(),
             }),
         )]);
@@ -1099,7 +1135,7 @@ mod tests {
         assert!(items.iter().any(|item| {
             item.target
                 == ReconciliationPatchTarget::Datafix(DatafixReconciliationField::Poll(
-                    ATTR_RESET_VALUE.to_string(),
+                    DATAFIX_POLL.to_string(),
                     "000".to_string(),
                 ))
         }));
@@ -1129,7 +1165,6 @@ mod tests {
             "01-P-000".to_string(),
             Some(DatafixAreaFields {
                 ward: "01".to_string(),
-                poll: "000".to_string(),
                 school_support_code: "P".to_string(),
             }),
         )]);
@@ -1336,7 +1371,7 @@ mod tests {
 
     #[test]
     fn composed_area_name_omits_the_files_none_sentinel() {
-        // The file's own "NONE" sentinel for an absent SchoolSupportCode/Poll
+        // The file's own "NONE" sentinel for an absent SchoolSupportCode
         // must not end up as a literal "-NONE-" segment in the composed name.
         let mut file_row = row("voter-1", ATTR_RESET_VALUE, "false");
         assert_eq!(composed_area_name(&file_row), "01-P-000");
@@ -1345,6 +1380,6 @@ mod tests {
         assert_eq!(composed_area_name(&file_row), "01-000");
 
         file_row.poll = ATTR_RESET_VALUE.to_string();
-        assert_eq!(composed_area_name(&file_row), "01");
+        assert_eq!(composed_area_name(&file_row), "01-000");
     }
 }
