@@ -18,6 +18,7 @@ import {useTranslation} from "react-i18next"
 import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
+import {canTrusteeProceedToDownload} from "./trusteeWizardState"
 
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
@@ -114,6 +115,8 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
     }
 
+    const canProceedToDownload = canTrusteeProceedToDownload(trusteeParticipating, keysGenerated)
+
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
@@ -165,11 +168,11 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     electionEvent={electionEvent}
                     goBack={goBack}
                     goNext={
-                        currentStep === WizardStep.Not_Generated
+                        currentStep === WizardStep.Not_Generated && trusteeParticipating
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
-                    isNextDisabled={checkKeysGenerated()}
+                    isNextDisabled={!canProceedToDownload}
                     message={
                         checkKeysGenerated() ? (
                             <>
