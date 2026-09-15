@@ -18,6 +18,8 @@ For programme trackers, retain this section order:
 - `### Acceptance criteria`: verifiable completion conditions; distinguish an
   improvement target from the actual CI gate.
 - `### Main PRs`: one plain, full PR URL per bullet; preserve every active PR link.
+- `## stable PRs`, when present: matching PRs for stable target versions, in stack
+  order, with the target branch identified; preserve this section too.
 - `### Verification`: a compact before/after table and **Work performed** bullets,
   followed by concrete remaining gaps or validation limits where needed.
 - `### Documentation`: topic bullets with paired rendered and source links.
