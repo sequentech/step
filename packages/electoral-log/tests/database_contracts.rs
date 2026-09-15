@@ -249,6 +249,14 @@ async fn helper_binary_uses_explicit_and_environment_configuration() -> Result<(
             let mut client = server.client().await?;
             let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_bb_helper"));
             command.kill_on_drop(true);
+            for variable in [
+                "IMMUDB_SERVER_URL",
+                "IMMUDB_BOARD_DBNAME",
+                "IMMUDB_USERNAME",
+                "IMMUDB_PASSWORD",
+            ] {
+                command.env_remove(variable);
+            }
             command.args(["--cache-dir", "/unused", "--log-level", "off"]);
             if use_environment {
                 command

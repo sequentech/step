@@ -80,7 +80,7 @@ jobs:
     # Synthetic local fixture, shared with the ordinary Windmill test job.
     services:
       postgres:
-        image: postgres:16
+        image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill') && 'postgres:16' || '' }}
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
