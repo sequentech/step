@@ -35,7 +35,8 @@
 //! | `handlers` (native) | Axum route handlers |
 //! | `s3` (native) | S3 client + presigned upload URLs |
 //! | `state` (native) | shared Axum `AppState` (db pool, S3 client, bucket) |
-//! | `main` (bin, native) | wires the above into the Axum router and starts the server |
+//! | `app` (native) | the Axum router over `AppState`, shared by the binary and the handler tests |
+//! | `main` (bin, native) | reads the environment, wires the above together and starts the server |
 //!
 //! ## Feature flags
 //!
@@ -46,6 +47,8 @@
 pub mod api_types;
 
 // Native-only modules
+#[cfg(feature = "native")]
+pub mod app;
 #[cfg(feature = "native")]
 pub mod db;
 #[cfg(feature = "native")]

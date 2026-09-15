@@ -22,8 +22,10 @@
     "rabbitmq:15672",
     "b4:50051",
     "simplesamlphp:8083",
-    // wbraid's S3 emulator (opt-in profile; packages/wbraid/localstack.sh)
-    "localstack:4566"
+    // wbraid's S3 emulator and bulletin board (opt-in profile;
+    // packages/wbraid/localstack.sh and b4.sh)
+    "localstack:4566",
+    "b4v6:3005"
   ],
   // Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
   // https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
