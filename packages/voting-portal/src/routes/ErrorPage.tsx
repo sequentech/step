@@ -8,6 +8,7 @@ import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {Button, Typography} from "@mui/material"
 import {Header, HeaderErrorVariant} from "@sequentech/ui-essentials"
+import {stringToHtml} from "@sequentech/ui-core"
 import styled from "@emotion/styled"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
@@ -42,8 +43,8 @@ export function ErrorPage() {
             <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                 {t("errors.page.oopsWithoutStatus")}
             </StyledTitle>
-            <Typography variant="h6" sx={{marginBottom: "24px"}}>
-                {t("errors.page.somethingWrong")}
+            <Typography variant="h6" component="div" sx={{marginBottom: "24px"}}>
+                {stringToHtml(t("errors.page.somethingWrong"))}
             </Typography>
         </>
     )
@@ -70,8 +71,8 @@ export function ErrorPage() {
                 <StyledTitle variant="h3" sx={{marginBottom: "24px"}}>
                     {t("errors.page.oopsWithoutStatus")}
                 </StyledTitle>
-                <Typography variant="h6" sx={{marginBottom: "24px"}}>
-                    {t("errors.page.somethingWrong")}
+                <Typography variant="h6" component="div" sx={{marginBottom: "24px"}}>
+                    {stringToHtml(t("errors.page.somethingWrong"))}
                 </Typography>
                 <Typography>
                     <i>{error.message}</i>

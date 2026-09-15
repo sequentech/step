@@ -448,7 +448,7 @@ const ConfirmationScreen: React.FC = () => {
                     {stringToHtml(t("confirmationScreen.confirmationHelpDialog.content"))}
                 </Dialog>
             </StyledTitle>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.description"))}
             </Typography>
             <BallotIdContainer>
@@ -527,12 +527,12 @@ const ConfirmationScreen: React.FC = () => {
             <Typography variant="h5" fontSize="18px" fontWeight="bold">
                 {t("confirmationScreen.verifyCastTitle")}
             </Typography>
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            <Typography variant="body2" component="div" sx={{color: theme.palette.customGrey.main}}>
                 {stringToHtml(t("confirmationScreen.verifyCastDescription"))}
             </Typography>
             <QRContainer className="qr-container">
                 <QRCode
-                    value={isDemo ? t("confirmationScreen.demoQRText") : ballotTrackerUrl ?? ""}
+                    value={isDemo ? t("confirmationScreen.demoQRText") : (ballotTrackerUrl ?? "")}
                 />
             </QRContainer>
             <ActionButtons

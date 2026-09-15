@@ -138,7 +138,9 @@ const StartScreen: React.FC = () => {
                 </Typography>
             ) : null}
             <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
-            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
+            <Typography variant="body2" component="div">
+                {stringToHtml(t("startScreen.instructionsDescription"))}
+            </Typography>
             <Box
                 sx={{
                     display: "flex",
@@ -150,19 +152,25 @@ const StartScreen: React.FC = () => {
                     <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step1Title")}
                     </Typography>
-                    <Typography variant="body2">{t("startScreen.step1Description")}</Typography>
+                    <Typography variant="body2" component="div">
+                        {stringToHtml(t("startScreen.step1Description"))}
+                    </Typography>
                 </Box>
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
                     <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step2Title")}
                     </Typography>
-                    <Typography variant="body2">{t("startScreen.step2Description")}</Typography>
+                    <Typography variant="body2" component="div">
+                        {stringToHtml(t("startScreen.step2Description"))}
+                    </Typography>
                 </Box>
                 <Box sx={{width: {xs: "100%", md: "33.33333333%"}}}>
                     <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
                         {t("startScreen.step3Title")}
                     </Typography>
-                    <Typography variant="body2">{t("startScreen.step3Description")}</Typography>
+                    <Typography variant="body2" component="div">
+                        {stringToHtml(t("startScreen.step3Description"))}
+                    </Typography>
                 </Box>
             </Box>
             <ActionButtons election={election} />

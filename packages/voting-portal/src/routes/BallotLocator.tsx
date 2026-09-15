@@ -13,8 +13,8 @@ import {
     IconButton,
     Dialog,
 } from "@sequentech/ui-essentials"
-import {stringToHtml} from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button, Stack} from "@mui/material"
+import {stringToHtml, stringToText, translateHtml} from "@sequentech/ui-core"
+import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import {Link, useLocation, useNavigate, useParams} from "react-router-dom"
 import {GET_CAST_VOTE} from "../queries/GetCastVote"
@@ -47,7 +47,7 @@ const StyledTitle = styled(Typography)`
     margin-bottom: 16px;
 `
 
-const StyledError = styled(Typography)`
+const StyledError = styled(Typography)<TypographyProps>`
     position: absolute;
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
@@ -209,9 +209,10 @@ const BallotLocator: React.FC = () => {
 
                         <Typography
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
-                            {t("ballotLocator.description")}
+                            {stringToHtml(t("ballotLocator.description"))}
                         </Typography>
                     </Box>
                 </Box>
@@ -219,9 +220,13 @@ const BallotLocator: React.FC = () => {
                 {hasBallotId && !loading && (
                     <Box>
                         {hasBallotId && !!ballotContent ? (
-                            <MessageSuccess>{t("ballotLocator.found", {ballotId})}</MessageSuccess>
+                            <MessageSuccess>
+                                {translateHtml(t, "ballotLocator.found", {ballotId})}
+                            </MessageSuccess>
                         ) : (
-                            <MessageFailed>{t("ballotLocator.notFound", {ballotId})}</MessageFailed>
+                            <MessageFailed>
+                                {translateHtml(t, "ballotLocator.notFound", {ballotId})}
+                            </MessageFailed>
                         )}
                     </Box>
                 )}
@@ -236,18 +241,22 @@ const BallotLocator: React.FC = () => {
                                 shrink: true,
                             }}
                             label="Ballot ID"
-                            placeholder={t("ballotLocator.description")}
+                            placeholder={stringToText(t("ballotLocator.description"))}
                             onKeyDown={captureEnter}
                         />
                         {!validatedBallotId && (
-                            <StyledError>{t("ballotLocator.wrongFormatBallotId")}</StyledError>
+                            <StyledError component="div">
+                                {stringToHtml(t("ballotLocator.wrongFormatBallotId"))}
+                            </StyledError>
                         )}
                     </>
                 )}
 
                 {hasBallotId && ballotContent && (
                     <>
-                        <Typography>{t("ballotLocator.contentDesc")}</Typography>
+                        <Typography component="div">
+                            {stringToHtml(t("ballotLocator.contentDesc"))}
+                        </Typography>
                         <InfoDataBox>{ballotContent}</InfoDataBox>
                     </>
                 )}
