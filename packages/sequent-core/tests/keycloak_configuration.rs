@@ -4,7 +4,7 @@
 //! Verify the configuration sent to Keycloak, including realm isolation and
 //! preservation of settings the operator did not change.
 
-#![cfg(feature = "keycloak")]
+#![cfg(all(feature = "keycloak", feature = "default_features"))]
 
 #[path = "support/http.rs"]
 mod http;

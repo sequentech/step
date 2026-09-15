@@ -48,7 +48,7 @@ fn chrome_can_render_a_blank_page_with_the_pdf_runtime_flags() {
             let _ = child.wait();
             panic!(
                 "Chrome startup timed out: {}",
-                fs::read_to_string(&stderr).unwrap()
+                String::from_utf8_lossy(&fs::read(&stderr).unwrap())
             );
         }
         thread::sleep(Duration::from_millis(50));
@@ -56,7 +56,7 @@ fn chrome_can_render_a_blank_page_with_the_pdf_runtime_flags() {
     assert!(
         status.success(),
         "Chrome exited with {status}: {}",
-        fs::read_to_string(&stderr).unwrap()
+        String::from_utf8_lossy(&fs::read(&stderr).unwrap())
     );
     assert!(fs::read_to_string(stdout).unwrap().contains("<html>"));
 }

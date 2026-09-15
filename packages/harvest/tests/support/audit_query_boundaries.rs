@@ -262,3 +262,16 @@ fn malformed_count_rows_cannot_silently_become_zero_or_the_last_value() {
         assert!(error.to_string().contains("exactly one"), "{error}");
     }
 }
+
+#[test]
+fn multiple_sort_fields_have_stable_precedence() {
+    for order in [
+        json!({"id": "desc", "class": "asc"}),
+        json!({"class": "asc", "id": "desc"}),
+    ] {
+        let (sql, _) = request(json!({"order_by": order, "limit": 7}))
+            .as_sql(false)
+            .unwrap();
+        assert_eq!(sql, "ORDER BY class asc, id desc LIMIT @limit");
+    }
+}
