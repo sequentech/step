@@ -19,6 +19,7 @@ import {DownloadStep} from "./DownloadStep"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {CheckStep} from "./CheckStep"
 import {EElectionEventCeremoniesPolicy} from "@sequentech/ui-core"
+import {canTrusteeProceedToDownload} from "./trusteeWizardState"
 
 export const isTrusteeParticipating = (
     ceremony: Sequent_Backend_Keys_Ceremony,
@@ -124,6 +125,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
             EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
         currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
 
+    const canProceedToDownload = canTrusteeProceedToDownload(trusteeParticipating, keysGenerated)
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
@@ -175,11 +177,11 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     electionEvent={electionEvent}
                     goBack={goBack}
                     goNext={
-                        currentStep === WizardStep.Not_Generated
+                        currentStep === WizardStep.Not_Generated && trusteeParticipating
                             ? () => setCurrentStep(WizardStep.Start)
                             : undefined
                     }
-                    isNextDisabled={checkKeysGenerated() || isAutomaticCeremony}
+                    isNextDisabled={!canProceedToDownload || isAutomaticCeremony}
                     message={
                         checkKeysGenerated() ? (
                             <>
