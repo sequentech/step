@@ -59,10 +59,10 @@ fn vote_hash() -> CastVoteHash {
 }
 
 fn signer() -> Result<(SigningData, StrandSignaturePk)> {
-    let system = StrandSignatureSk::generate()?;
+    let system = StrandSignatureSk::r#gen()?;
     let public = StrandSignaturePk::from_sk(&system)?;
     Ok((
-        SigningData::new(StrandSignatureSk::generate()?, "test-signer", system),
+        SigningData::new(StrandSignatureSk::r#gen()?, "test-signer", system),
         public,
     ))
 }
@@ -135,7 +135,7 @@ fn sender_and_system_signatures_both_reject_changed_statement_bytes() -> Result<
     let encoded = original.strand_serialize()?;
     original.verify(&public)?;
 
-    let wrong_key = StrandSignatureSk::generate()?;
+    let wrong_key = StrandSignatureSk::r#gen()?;
     assert!(original
         .verify(&StrandSignaturePk::from_sk(&wrong_key)?)
         .is_err());
