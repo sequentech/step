@@ -41,7 +41,7 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "sqlite"))]
 mod tests {
     use std::path::PathBuf;
 
