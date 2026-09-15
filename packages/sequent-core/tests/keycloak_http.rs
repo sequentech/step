@@ -4,7 +4,7 @@
 //! Contract tests over real loopback HTTP: verify scope, request bodies and
 //! failure propagation without depending on a running identity provider.
 
-#![cfg(feature = "keycloak")]
+#![cfg(all(feature = "keycloak", feature = "default_features"))]
 
 #[path = "support/http.rs"]
 mod http;
@@ -986,4 +986,41 @@ async fn group_creation_extracts_the_path_id_from_relative_locations() {
         .unwrap();
     peer.finish();
     assert_eq!(id.as_deref(), Some("group-2"));
+}
+
+#[rocket::async_test]
+async fn group_creation_requires_the_requested_realm_and_group_resource() {
+    // The advertised host can differ behind a proxy. Only the ID is consumed;
+    // subsequent requests still use the configured admin endpoint.
+    for (location, expected) in [
+        (
+            "https://public.example/admin/realms/tenant-north/groups/group-1",
+            Some("group-1"),
+        ),
+        ("/admin/realms/tenant-north/users/user-1", None),
+        ("/admin/realms/tenant-other/groups/group-1", None),
+        (
+            "/admin/realms/tenant-north/groups/group-1/children/child-1",
+            None,
+        ),
+    ] {
+        let peer = HttpServer::start(vec![Exchange::json(
+            "POST",
+            GROUPS,
+            201,
+            json!({}),
+        )
+        .header("Location", location)]);
+        let result = peer
+            .client()
+            .create_new_group("north", "Clerks", &peer.public_client())
+            .await;
+        peer.finish();
+        match expected {
+            Some(id) => assert_eq!(result.unwrap().as_deref(), Some(id)),
+            None => {
+                assert!(result.is_err(), "accepted wrong resource: {location}")
+            }
+        }
+    }
 }
