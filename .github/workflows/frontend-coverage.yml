@@ -35,14 +35,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.0'
-      - name: Install the shared locked instrumenter and dependencies
+      - name: Install locked dependencies in both checkouts
         run: |
           npm install --global yarn@1.22.22
           yarn --cwd head/packages install --frozen-lockfile --non-interactive
-          ln -s "$GITHUB_WORKSPACE/head/packages/node_modules" base/packages/node_modules
-          # Git directory ignores do not match symlinks. Only this dependency
-          # link is generated; source changes must still fail identity checks.
-          echo /packages/node_modules >> base/.git/info/exclude
+          # Keep workspace-local dependency versions for each revision.
+          # The comparison still uses the head's locked Jest/Istanbul instrumenter.
+          yarn --cwd base/packages install --frozen-lockfile --non-interactive
       - name: Verify the real frontend gate
         if: matrix.package == 'ui-core'
         run: node head/scripts/coverage/test_frontend.cjs
