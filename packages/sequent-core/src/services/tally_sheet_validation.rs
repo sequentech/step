@@ -189,7 +189,10 @@ pub fn validate_area_contest_results(
             "invalid_total_blank_votes",
             "total_blank_votes must not exceed total_valid_votes".to_string(),
             "total_blank_votes",
-            HashMap::new(),
+            HashMap::from([
+                ("limitField".to_string(), "total_valid_votes".to_string()),
+                ("upperBound".to_string(), total_valid_votes.to_string()),
+            ]),
         ));
     }
 
@@ -330,18 +333,27 @@ pub fn validate_ballot_box_blank_ballots(
 
     // A larger turnout in another contest cannot legitimize this sheet's
     // impossible blank count, nor provide a safe value to pre-fill.
-    if contest_sheets.iter().any(|sheet| {
-        sheet.total_blank_votes.unwrap_or(0) > sheet.total_votes.unwrap_or(0)
-    }) {
-        return BallotBoxBlankBallotsCheck {
-            errors: vec![error(
-                "invalid_total_blank_votes",
-                "Each contest's total_blank_votes must not exceed its total_votes".to_string(),
-                "total_blank_votes",
-                HashMap::new(),
-            )],
-            pre_filled_value: None,
-        };
+    for sheet in contest_sheets {
+        let blank = sheet.total_blank_votes.unwrap_or(0);
+        for (field, limit) in [
+            ("total_votes", Some(sheet.total_votes.unwrap_or(0))),
+            ("total_valid_votes", sheet.total_valid_votes),
+        ] {
+            if let Some(limit) = limit.filter(|limit| blank > *limit) {
+                return BallotBoxBlankBallotsCheck {
+                    errors: vec![error(
+                        "invalid_total_blank_votes",
+                        format!("Each contest's total_blank_votes must not exceed its {field}"),
+                        "total_blank_votes",
+                        HashMap::from([
+                            ("limitField".to_string(), field.to_string()),
+                            ("upperBound".to_string(), limit.to_string()),
+                        ]),
+                    )],
+                    pre_filled_value: None,
+                };
+            }
+        }
     }
 
     let distinct_values: std::collections::BTreeSet<u64> = contest_sheets
