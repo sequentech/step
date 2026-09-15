@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Velvet boundary tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3233/docs/developers/velvet/test-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Velvet boundary tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3233/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3233/docs/developers/velvet/test-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3233/docs/developers/velvet/test-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3233/docs/developers/velvet/test-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Velvet boundary tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3233/docs/developers/velvet/test-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3233/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3233/assets/js/runtime~main.5d014a1b.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3233/assets/js/runtime~main.c17b6e8a.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3233/assets/js/main.a5d20179.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -39,13 +39,11 @@ line regions. Existing inline tests and public fixture builders contribute to
 the native aggregate. This is not production-only coverage or branch coverage.
 Cloud rendering, remote storage, ACM Java signing and deployment integrations
 need their own local fixture recipes before their coverage can be claimed.</p>
-<p>When running from <code>packages/velvet</code>, Cargo defaults both the Rust test harness
-and Rayon to two threads. PDF cases launch real Chrome processes; multiplying
-both pools by the host CPU count can exhaust CI resources. Explicit environment
-values override these defaults. Direct workspace-root Cargo invocations should set
-<code>RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2</code> themselves. The coverage profile and
-ordinary hosted test setup supply these settings automatically, including
-<code>DOC_RENDERER_BACKEND=inplace</code> for local PDF rendering.</p>
+<p>PDF cases launch real Chrome processes; multiplying both thread pools by the
+host CPU count can exhaust resources. For local tests, set
+<code>RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2</code> as shown above. These settings apply to
+the test command only. The coverage profile and hosted test setup supply them
+automatically, including <code>DOC_RENDERER_BACKEND=inplace</code> for local PDF rendering.</p>
 <p>Unused fixture constructors, <code>HasId</code> adapters and diagnostic formatting are not
 called merely to increase a score.</p>
 <p>Area-result aggregation and both counting algorithms check channel additions
