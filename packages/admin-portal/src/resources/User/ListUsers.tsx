@@ -32,7 +32,18 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
+import {
+    Box,
+    Button,
+    Checkbox,
+    Chip,
+    FormControlLabel,
+    Menu,
+    MenuItem,
+    Skeleton,
+    Stack,
+    Typography,
+} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -53,11 +64,12 @@ import {
     DeleteUsersMutation,
     ExportTenantUsersMutation,
     ExportUsersMutation,
-    GetUserProfileAttributesQuery,
+    GetUserProfileConfigurationQuery,
     ImportUsersMutation,
     ManualVerificationMutation,
     GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
+    Sequent_Backend_Support_Material,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
@@ -68,6 +80,8 @@ import {isDatafixElectionEvent} from "@/services/Datafix"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {
     EElectionEventWeightedVotingPolicy,
+    ESupportMaterialsPolicy,
+    getEffectiveSupportMaterialsPolicy,
     IElectionEventPresentation,
     IRole,
     IUser,
@@ -82,8 +96,15 @@ import {EXPORT_TENANT_USERS} from "@/queries/ExportTenantUsers"
 import {DownloadDocument} from "./DownloadDocument"
 import {IMPORT_USERS} from "@/queries/ImportUsers"
 import {ElectoralLogFilters, ElectoralLogList} from "@/components/ElectoralLogList"
-import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
-import {getAttributeLabel, getTranslationLabel, userBasicInfo} from "@/services/UserService"
+import {USER_PROFILE_CONFIGURATION} from "@/queries/GetUserProfileConfiguration"
+import {
+    getAttributeLabel,
+    getTranslationLabel,
+    isHiddenAttribute,
+    isSecretAttribute,
+    getConfiguredSecretAttributeNames,
+    userBasicInfo,
+} from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
 import {ListActionsMenu} from "@/components/ListActionsMenu"
 import SyncAltIcon from "@mui/icons-material/SyncAlt"
@@ -113,6 +134,7 @@ import {getVoterInformationLetterPasswordPolicyError} from "./editPasswordError"
 export const AUTHORIZED_ELECTION_IDS = "authorized-election-ids"
 export const VOTED_CHANNEL = "voted-channel"
 export const DISABLE_COMMENT = "disable-comment"
+export const SUPPORT_MATERIALS_ACKNOWLEDGED = "support-materials-acknowledged"
 export const VOTE_WEIGHT = "vote-weight"
 
 const DataGridContainerStyle = styled(DatagridConfigurable, {
@@ -157,6 +179,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         {enabled: Boolean(electionEventId && tenantId)}
     )
     const isDatafixEvent = isDatafixElectionEvent(electionEventRecord)
+    const isSupportMaterialsMandatory =
+        getEffectiveSupportMaterialsPolicy(electionEventRecord?.presentation?.materials) ===
+        ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
+
+    // A voter has "viewed" Support Materials only once they've acknowledged
+    // every currently visible material for this Election Event, so the
+    // Voters list column/filter needs the full current set to compare
+    // against each voter's attributes['support-materials-acknowledged'].
+    const {data: supportMaterialsList} = useGetList<Sequent_Backend_Support_Material>(
+        "sequent_backend_support_material",
+        {
+            pagination: {page: 1, perPage: 9999},
+            filter: {
+                tenant_id: tenantId,
+                election_event_id: electionEventId,
+                is_hidden: false,
+            },
+        },
+        {enabled: Boolean(electionEventId && tenantId && isSupportMaterialsMandatory)}
+    )
+    const requiredSupportMaterialDocumentIds = useMemo(
+        () =>
+            (supportMaterialsList ?? [])
+                .map((material) => material.document_id)
+                .filter((documentId): documentId is string => Boolean(documentId)),
+        [supportMaterialsList]
+    )
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
@@ -164,6 +213,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
+    const [includeSecretAttributes, setIncludeSecretAttributes] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -214,8 +264,8 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     )
     const PHONE_NUMBER_USER_ATTRIBUTE = "sequent.read-only.mobile-number"
 
-    const {data: userAttributes} = useQuery<GetUserProfileAttributesQuery>(
-        USER_PROFILE_ATTRIBUTES,
+    const {data: userProfileConfiguration} = useQuery<GetUserProfileConfigurationQuery>(
+        USER_PROFILE_CONFIGURATION,
         {
             variables: {
                 tenantId: tenantId,
@@ -223,9 +273,33 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             },
         }
     )
+    // Keep the existing list/filter consumers on their current attributes-only
+    // shape while create/edit also receives the new group metadata.
+    const userAttributes = useMemo(
+        () =>
+            userProfileConfiguration
+                ? {
+                      get_user_profile_attributes:
+                          userProfileConfiguration.get_user_profile_configuration.attributes,
+                  }
+                : undefined,
+        [userProfileConfiguration]
+    )
+    const userAttributeGroups =
+        userProfileConfiguration?.get_user_profile_configuration.groups ?? []
+
+    const secretAttributeNames = useMemo(
+        () => getConfiguredSecretAttributeNames(userAttributes?.get_user_profile_attributes),
+        [userAttributes]
+    )
 
     const visibleUserAttributes = useMemo(() => {
-        const attributes = userAttributes?.get_user_profile_attributes
+        // Attributes hidden from the voter-facing forms are also kept out of
+        // the admin columns, filters, and forms. Username is the exception: it
+        // remains visible to administrators as Keycloak's built-in identifier.
+        const attributes = userAttributes?.get_user_profile_attributes?.filter(
+            (attribute) => !isHiddenAttribute(attribute)
+        )
         if (!attributes || !electionEventId) {
             return attributes
         }
@@ -242,30 +316,37 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const Filters = useMemo(() => {
         let filters: ReactElement[] = []
         if (visibleUserAttributes) {
-            filters = visibleUserAttributes.map((attr) => {
-                //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
-                const source = attr.name?.replaceAll(".", "%")
-                if (attr.annotations?.inputType === "html5-date") {
+            filters = visibleUserAttributes
+                // Has its own dedicated boolean column/handling, not a generic
+                // text filter.
+                .filter(
+                    (attr) =>
+                        !isSecretAttribute(attr) && attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED
+                )
+                .map((attr) => {
+                    //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
+                    const source = attr.name?.replaceAll(".", "%")
+                    if (attr.annotations?.inputType === "html5-date") {
+                        return (
+                            <DateInput
+                                key={attr.name}
+                                source={`attributes.${attr.name}`}
+                                label={getTranslationLabel(attr.name, attr.display_name, t)}
+                            />
+                        )
+                    }
                     return (
-                        <DateInput
+                        <TextInput
                             key={attr.name}
-                            source={`attributes.${attr.name}`}
+                            source={
+                                userBasicInfo.includes(`${attr.name}`)
+                                    ? `${attr.name}.IsLike`
+                                    : `attributes.${source}`
+                            }
                             label={getTranslationLabel(attr.name, attr.display_name, t)}
                         />
                     )
-                }
-                return (
-                    <TextInput
-                        key={attr.name}
-                        source={
-                            userBasicInfo.includes(`${attr.name}`)
-                                ? `${attr.name}.IsLike`
-                                : `attributes.${source}`
-                        }
-                        label={getTranslationLabel(attr.name, attr.display_name, t)}
-                    />
-                )
-            })
+                })
             filters.push(<BooleanInput key="enabled" source={"enabled"} />)
             filters.push(<BooleanInput key="email_verified" source={"email_verified"} />)
             if (electionEventId) {
@@ -324,6 +405,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canReadVoterSecretAttributes,
         canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
@@ -758,6 +840,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
+        setIncludeSecretAttributes(false)
         setOpenExport(true)
     }
 
@@ -770,7 +853,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             if (electionEventId) {
                 currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
-                    variables: {tenantId, electionEventId, electionId},
+                    variables: {
+                        tenantId,
+                        electionEventId,
+                        electionId,
+                        includeSecretAttributes,
+                    },
                 })
                 if (errors || !exportUsersData) {
                     setExporting(false)
@@ -1091,6 +1179,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         visibleUserAttributes?.forEach((attr) => {
             if (attr.name && userBasicInfo.includes(attr.name)) {
                 basicInfoFields.push(attr)
+            } else if (attr.name === SUPPORT_MATERIALS_ACKNOWLEDGED) {
+                // Has its own dedicated boolean column below; must not be
+                // auto-omitted like other Keycloak-attribute-derived columns.
             } else {
                 omitFields.push(`attributes['${attr.name}']`)
                 attributesFields.push(attr)
@@ -1101,6 +1192,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
+            if (isSecretAttribute(attr)) return null
             if (attr.name === AUTHORIZED_ELECTION_IDS) return null
             if (attr.name === DISABLE_COMMENT) return null
             if (attr.name === VOTED_CHANNEL) return null
@@ -1192,6 +1284,16 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             }
         }
         return false
+    }
+
+    const checkSupportMaterialsViewed = (record: IUser) => {
+        const acknowledgedIds = record?.attributes?.[SUPPORT_MATERIALS_ACKNOWLEDGED] ?? []
+        return (
+            requiredSupportMaterialDocumentIds.length > 0 &&
+            requiredSupportMaterialDocumentIds.every((documentId) =>
+                acknowledgedIds.includes(documentId)
+            )
+        )
     }
 
     const checkIsVoted = (record: IUser) => {
@@ -1340,6 +1442,27 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                 }}
                             />
                         )}
+                        {electionEventId && isSupportMaterialsMandatory && (
+                            <FunctionField<IUser>
+                                source={`attributes['${SUPPORT_MATERIALS_ACKNOWLEDGED}']`}
+                                label={String(
+                                    t("usersAndRolesScreen.users.fields.support_materials_viewed")
+                                )}
+                                render={(record, source) => {
+                                    let newRecord = {
+                                        support_materials_viewed:
+                                            checkSupportMaterialsViewed(record),
+                                        ...record,
+                                    }
+                                    return source ? (
+                                        <BooleanField
+                                            record={newRecord}
+                                            source="support_materials_viewed"
+                                        />
+                                    ) : null
+                                }}
+                            />
+                        )}
                         {!canEditVoters &&
                         !canDeleteVoters &&
                         !canSendTemplates &&
@@ -1407,6 +1530,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                                     close={handleClose}
                                     rolesList={rolesList || []}
                                     userAttributes={visibleUserAttributes || []}
+                                    userAttributeGroups={userAttributeGroups}
                                 />
                             }
                             withComponent={canCreateVoters}
@@ -1446,6 +1570,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={visibleUserAttributes || []}
+                    userAttributeGroups={userAttributeGroups}
                     record={userRecord}
                     onTaskLaunched={handleEditUserTask}
                 />
@@ -1456,6 +1581,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
                     close={handleClose}
+                    secretAttributeNames={secretAttributeNames}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
@@ -1464,6 +1590,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     close={handleClose}
                     rolesList={rolesList || []}
                     userAttributes={visibleUserAttributes || []}
+                    userAttributeGroups={userAttributeGroups}
                 />
             </ResourceListStyles.Drawer>
             <Dialog
@@ -1621,22 +1748,48 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }}
             >
                 {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventId ?? ""}
-                            fileName={`users-export.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
+                {electionEventId &&
+                    canReadVoterSecretAttributes &&
+                    secretAttributeNames.length > 0 && (
+                        <Box sx={{mt: 2}}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={includeSecretAttributes}
+                                        onChange={(event) =>
+                                            setIncludeSecretAttributes(event.target.checked)
+                                        }
+                                    />
+                                }
+                                label={String(
+                                    t("usersAndRolesScreen.voters.secretAttribute.includeInExport")
+                                )}
+                            />
+                            {includeSecretAttributes && (
+                                <Typography color="warning.main" variant="body2">
+                                    {t("usersAndRolesScreen.voters.secretAttribute.exportWarning")}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+                {exporting ? (
+                    <FormStyles.ReservedProgressSpace>
+                        <FormStyles.ShowProgress />
+                        {exportDocumentId ? (
+                            <DownloadDocument
+                                documentId={exportDocumentId}
+                                electionEventId={electionEventId ?? ""}
+                                fileName={`users-export.csv`}
+                                onDownload={() => {
+                                    console.log("onDownload called")
+                                    setExportDocumentId(undefined)
+                                    setExporting(false)
+                                    setOpenExport(false)
+                                }}
+                            />
+                        ) : null}
+                    </FormStyles.ReservedProgressSpace>
+                ) : null}
             </Dialog>
 
             <Dialog

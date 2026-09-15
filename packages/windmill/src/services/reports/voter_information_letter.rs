@@ -50,6 +50,7 @@ pub struct SystemData {
 pub struct VoterInformationLetterTemplate {
     ids: ReportOrigins,
     credential: String,
+    may_read_secret_attributes: bool,
 }
 
 impl Debug for VoterInformationLetterTemplate {
@@ -68,6 +69,7 @@ impl VoterInformationLetterTemplate {
         election_event_id: String,
         voter_id: String,
         credential: String,
+        may_read_secret_attributes: bool,
     ) -> Self {
         Self {
             ids: ReportOrigins {
@@ -81,6 +83,7 @@ impl VoterInformationLetterTemplate {
                 tally_session_id: None,
             },
             credential,
+            may_read_secret_attributes,
         }
     }
 
@@ -88,6 +91,7 @@ impl VoterInformationLetterTemplate {
         Self {
             ids,
             credential: String::new(),
+            may_read_secret_attributes: false,
         }
     }
 
@@ -97,7 +101,7 @@ impl VoterInformationLetterTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
     ) -> Result<Vec<u8>> {
-        let (user_template, extra_config) = self
+        let (user_template, extra_config, declared_secret_names) = self
             .user_tpl_and_extra_cfg_provider(hasura_transaction)
             .await
             .with_context(|| "Failed to load Voter Information Letter template")?;
@@ -107,6 +111,8 @@ impl VoterInformationLetterTemplate {
                 hasura_transaction,
                 keycloak_transaction,
                 &user_template,
+                &declared_secret_names,
+                self.may_read_secret_attributes,
             )
             .await
             .with_context(|| "Failed to render Voter Information Letter template")?;
@@ -486,6 +492,14 @@ mod tests {
                 Some("dddd-dddd-dddd-dddd"),
             ),
             "1234567890123456",
+        );
+    }
+
+    #[test]
+    fn pattern_alias_uses_the_same_credential_formatting() {
+        assert_eq!(
+            credential_for_presentation("12345678", Some("pattern"), Some("dddd-dddd")),
+            "1234-5678"
         );
     }
 

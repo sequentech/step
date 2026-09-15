@@ -18,6 +18,7 @@ export const ResultsAndParticipation: React.FC<ResultsAndParticipationProps> = (
     showWeight,
     processResults,
     preferential = false,
+    acclaimed = false,
 }) => {
     const mergedLabels = mergeLabels(labels)
 
@@ -25,15 +26,21 @@ export const ResultsAndParticipation: React.FC<ResultsAndParticipationProps> = (
         <Box
             className={`seq-tally-results seq-tally-results--${
                 preferential ? "preferential" : "candidate"
-            }`}
+            }${acclaimed ? " seq-tally-results--acclaimed" : ""}`}
         >
-            <ParticipationSummary
-                result={summary}
-                chartName={chartName}
-                labels={labels}
-                showWeight={showWeight}
-            />
-            {preferential ? (
+            {acclaimed ? (
+                <Typography className="seq-tally-results__acclamation-note" sx={{mt: 1}}>
+                    {mergedLabels.acclamationNote}
+                </Typography>
+            ) : (
+                <ParticipationSummary
+                    result={summary}
+                    chartName={chartName}
+                    labels={labels}
+                    showWeight={showWeight}
+                />
+            )}
+            {preferential && !acclaimed ? (
                 processResults ? (
                     <PreferentialCandidateResults
                         processResults={processResults}

@@ -7,6 +7,7 @@ import SequentCoreLibInit, {
     IDecodedVoteChoice,
     generate_sample_auditable_ballot_js,
     get_candidate_points_js,
+    is_eligible_acclaimed_candidate_js,
     get_layout_properties_from_contest_js,
     set_hooks,
     get_default_consolidated_report_policy_js,
@@ -140,6 +141,20 @@ export const sortCandidatesInContest = (
     try {
         if (!candidates || !candidates.length) return candidates
         return sort_candidates_list_js(candidates, order, applyRandom)
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+/**
+ * Canonical eligibility policy for candidates elected by acclamation.
+ * The implementation lives in Sequent Core and is shared with tally,
+ * publication, the verifier, and IVR.
+ */
+export const isEligibleAcclaimedCandidate = (candidate: ICandidate): boolean => {
+    try {
+        return is_eligible_acclaimed_candidate_js(candidate)
     } catch (error) {
         console.log(error)
         throw error

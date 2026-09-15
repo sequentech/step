@@ -4,8 +4,12 @@
 
 import {Dialog} from "@sequentech/ui-essentials"
 import {
+    ETranslationScope,
+    isTranslationScope,
     isString,
     isValidVotingPortalDateTimePattern,
+    parseTranslationOverrideKey,
+    updateTranslationOverride,
     VOTING_PORTAL_DATETIME_FORMAT_KEY,
 } from "@sequentech/ui-core"
 import React, {useMemo, useState} from "react"
@@ -45,6 +49,14 @@ import {useTranslation} from "react-i18next"
 import {PageHeaderStyles} from "@/components/styles/PageHeaderStyles"
 import {useLocalizationPermissions} from "./useLocalizationPermissions"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {TranslationScopeInput, translationScopeLabel} from "@/components/TranslationScopeInput"
+
+const ELECTION_EVENT_TRANSLATION_SCOPES = [
+    ETranslationScope.GLOBAL,
+    ETranslationScope.VOTING_PORTAL,
+    ETranslationScope.BALLOT_VERIFIER,
+    ETranslationScope.RESULTS_PORTAL,
+] as const
 
 interface LocalizationListProps {
     selectedLanguage: string
@@ -57,12 +69,17 @@ const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, ac
 
     const translationData = useMemo(() => {
         return Object.entries(record?.presentation?.i18n?.[selectedLanguage] || {}).map(
-            ([key, value]) => ({
-                id: key,
-                value: value as string,
-            })
+            ([storedKey, value]) => {
+                const {key, scope} = parseTranslationOverrideKey(storedKey)
+                return {
+                    id: storedKey,
+                    key,
+                    scope: translationScopeLabel(t, scope, ETranslationScope.VOTING_PORTAL),
+                    value: value as string,
+                }
+            }
         )
-    }, [record?.presentation?.i18n, selectedLanguage])
+    }, [record?.presentation?.i18n, selectedLanguage, t])
 
     const listContext = useList({
         data: translationData,
@@ -75,14 +92,22 @@ const LocalizationList: React.FC<LocalizationListProps> = ({selectedLanguage, ac
                     header={ThreeStateDatagridHeader}
                     bulkActionButtons={false}
                     sx={{
-                        "& .column-id": {minWidth: "150px"},
+                        "& .column-key": {minWidth: "150px"},
                         "& .column-value": {width: "100%"},
                         "& .column-actions": {minWidth: "100px", whiteSpace: "nowrap"},
                     }}
                 >
                     <TextField
-                        source="id"
+                        source="key"
                         label={String(t("electionEventScreen.localization.labels.key"))}
+                    />
+                    <TextField
+                        source="scope"
+                        label={String(
+                            t("electionEventScreen.localization.labels.scope", {
+                                defaultValue: "Portal scope",
+                            })
+                        )}
                     />
                     <TextField
                         source="value"
@@ -115,8 +140,14 @@ const EditElectionEventTextDataTable = () => {
     // The Voting Portal date/time override is a free string typed by an operator. It is
     // validated by the same parser the voter-facing helper uses, so an invalid pattern is
     // rejected at save time instead of silently falling back to the preset at render time.
-    const isInvalidDateTimeOverride = (key: string, value: string): boolean =>
-        key === VOTING_PORTAL_DATETIME_FORMAT_KEY && !isValidVotingPortalDateTimePattern(value)
+    const isInvalidDateTimeOverride = (
+        key: string,
+        value: string,
+        scope: ETranslationScope
+    ): boolean =>
+        [ETranslationScope.GLOBAL, ETranslationScope.VOTING_PORTAL].includes(scope) &&
+        parseTranslationOverrideKey(key).key === VOTING_PORTAL_DATETIME_FORMAT_KEY &&
+        !isValidVotingPortalDateTimePattern(value)
 
     const [selectedLanguage, setSelectedLanguage] = useState<string>(
         record?.presentation?.language_conf?.default_language_code ?? "en"
@@ -158,14 +189,36 @@ const EditElectionEventTextDataTable = () => {
         setOpenEdit(false)
     }
     const handleCreateText = (e: any) => {
-        if (!e || !e?.presentation || !e?.presentation?.i18n) return
-        const newKey: string = e?.presentation?.i18n?.[selectedLanguage]?.newKey ?? ""
-        const newValue: string = e?.presentation?.i18n?.[selectedLanguage]?.newVal ?? ""
-        if (!newValue || !newKey) return
-        if (isInvalidDateTimeOverride(newKey, newValue)) {
+        if (!e) return
+        const newKey: string = e?.newKey ?? ""
+        const newValue: string = e?.newVal ?? ""
+        const newScope = e?.newScope
+        if (
+            !newValue ||
+            !parseTranslationOverrideKey(newKey).key.trim() ||
+            !isTranslationScope(newScope)
+        )
+            return
+        if (isInvalidDateTimeOverride(newKey, newValue, newScope)) {
             notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
                 type: "error",
             })
+            return
+        }
+        const currentTranslations = record?.presentation.i18n?.[selectedLanguage] ?? {}
+        const updatedTranslations = updateTranslationOverride(
+            currentTranslations,
+            newKey,
+            newScope,
+            newValue
+        )
+        if (!updatedTranslations) {
+            notify(
+                t("electionEventScreen.localization.notify.duplicateKey", {
+                    defaultValue: "An override with this key and portal scope already exists.",
+                }),
+                {type: "error"}
+            )
             return
         }
         update(
@@ -178,10 +231,7 @@ const EditElectionEventTextDataTable = () => {
                         ...record?.presentation,
                         i18n: {
                             ...record?.presentation.i18n,
-                            [selectedLanguage]: {
-                                ...record?.presentation.i18n?.[selectedLanguage],
-                                [newKey]: newValue,
-                            },
+                            [selectedLanguage]: updatedTranslations,
                         },
                     },
                 },
@@ -202,11 +252,30 @@ const EditElectionEventTextDataTable = () => {
     const handleEditText = (e: any) => {
         if (!e || !recordId) return
         const editVal: string = e?.editableVal ?? ""
-        if (!editVal) return
-        if (isInvalidDateTimeOverride(recordId as string, editVal)) {
+        const editKey = parseTranslationOverrideKey(String(recordId)).key
+        const editScope = e?.editableScope
+        if (!editVal || !editKey.trim() || !isTranslationScope(editScope)) return
+        if (isInvalidDateTimeOverride(editKey, editVal, editScope)) {
             notify(t("electionEventScreen.localization.notify.invalidDateTimeFormat"), {
                 type: "error",
             })
+            return
+        }
+        const currentTranslations = record?.presentation.i18n?.[selectedLanguage] ?? {}
+        const updatedI18nForLanguage = updateTranslationOverride(
+            currentTranslations,
+            editKey,
+            editScope,
+            editVal,
+            String(recordId)
+        )
+        if (!updatedI18nForLanguage) {
+            notify(
+                t("electionEventScreen.localization.notify.duplicateKey", {
+                    defaultValue: "An override with this key and portal scope already exists.",
+                }),
+                {type: "error"}
+            )
             return
         }
         update(
@@ -219,10 +288,7 @@ const EditElectionEventTextDataTable = () => {
                         ...record?.presentation,
                         i18n: {
                             ...record?.presentation.i18n,
-                            [selectedLanguage]: {
-                                ...record?.presentation.i18n?.[selectedLanguage],
-                                [recordId as string]: editVal,
-                            },
+                            [selectedLanguage]: updatedI18nForLanguage,
                         },
                     },
                 },
@@ -289,6 +355,15 @@ const EditElectionEventTextDataTable = () => {
         )
     }
 
+    const parsedRecordId = parseTranslationOverrideKey(String(recordId ?? ""))
+    const editRecord = {
+        editableKey: parsedRecordId.key,
+        editableScope: parsedRecordId.scope ?? ETranslationScope.VOTING_PORTAL,
+        editableVal: recordId
+            ? record?.presentation?.i18n?.[selectedLanguage]?.[recordId as string]
+            : undefined,
+    }
+
     return (
         <>
             <SimpleForm toolbar={false}>
@@ -345,6 +420,7 @@ const EditElectionEventTextDataTable = () => {
                             }}
                         >
                             <SimpleForm
+                                record={{}}
                                 onSubmit={handleCreateText}
                                 toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                             >
@@ -356,14 +432,22 @@ const EditElectionEventTextDataTable = () => {
                                         {t("electionEventScreen.localization.common.subTitle")}
                                     </PageHeaderStyles.SubTitle>
 
+                                    <Box sx={{display: "flex", gap: 2, width: "100%"}}>
+                                        <TranslationScopeInput
+                                            source="newScope"
+                                            defaultValue={ETranslationScope.VOTING_PORTAL}
+                                            allowedScopes={ELECTION_EVENT_TRANSLATION_SCOPES}
+                                        />
+                                        <TextInput
+                                            source="newKey"
+                                            label={String(
+                                                t("electionEventScreen.localization.labels.key")
+                                            )}
+                                            fullWidth
+                                        />
+                                    </Box>
                                     <TextInput
-                                        source={`presentation.i18n.${selectedLanguage}.newKey`}
-                                        label={String(
-                                            t("electionEventScreen.localization.labels.key")
-                                        )}
-                                    />
-                                    <TextInput
-                                        source={`presentation.i18n.${selectedLanguage}.newVal`}
+                                        source="newVal"
                                         label={String(
                                             t("electionEventScreen.localization.labels.value")
                                         )}
@@ -388,7 +472,8 @@ const EditElectionEventTextDataTable = () => {
                 }}
             >
                 <SimpleForm
-                    record={record?.presentation?.i18n[selectedLanguage]}
+                    key={`${selectedLanguage}:${String(recordId)}`}
+                    record={editRecord}
                     toolbar={<SaveButton sx={{marginInline: "1rem"}} />}
                     onSubmit={handleEditText}
                 >
@@ -400,22 +485,22 @@ const EditElectionEventTextDataTable = () => {
                             {t("electionEventScreen.localization.common.subTitle")}
                         </PageHeaderStyles.SubTitle>
 
-                        <TextInput
-                            source="editableKey"
-                            label={String(t("electionEventScreen.localization.labels.key"))}
-                            defaultValue={recordId ?? undefined}
-                            disabled
-                        />
+                        <Box sx={{display: "flex", gap: 2, width: "100%"}}>
+                            <TranslationScopeInput
+                                source="editableScope"
+                                defaultValue={ETranslationScope.VOTING_PORTAL}
+                                allowedScopes={ELECTION_EVENT_TRANSLATION_SCOPES}
+                            />
+                            <TextInput
+                                source="editableKey"
+                                label={String(t("electionEventScreen.localization.labels.key"))}
+                                readOnly
+                                fullWidth
+                            />
+                        </Box>
                         <TextInput
                             source="editableVal"
                             label={String(t("electionEventScreen.localization.labels.value"))}
-                            defaultValue={
-                                recordId
-                                    ? record?.presentation?.i18n[selectedLanguage][
-                                          recordId as string
-                                      ]
-                                    : undefined
-                            }
                             multiline
                         />
                     </>

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {isTranslatablePresentation, translateFromPresentation} from "./translate"
+import {ETranslationScope, setActiveTranslationScope} from "./translationScopes"
 
 const presentation = {
     i18n: {
@@ -16,6 +17,10 @@ const presentation = {
 }
 
 describe("translateFromPresentation", () => {
+    afterEach(() => {
+        setActiveTranslationScope(undefined)
+    })
+
     it("normalizes regional user locales to internal language codes", () => {
         expect(translateFromPresentation({presentation}, "name", "en-GB")).toBe("Election")
         expect(translateFromPresentation({presentation}, "name", "EN-GB")).toBe("Election")
@@ -135,5 +140,62 @@ describe("translateFromPresentation", () => {
 
     it("preserves the legacy value when no presentation translations exist", () => {
         expect(translateFromPresentation({name: "Election"}, "name", "en-GB")).toBe("Election")
+    })
+
+    it.each([
+        [ETranslationScope.VOTING_PORTAL, "Voting portal"],
+        [ETranslationScope.BALLOT_VERIFIER, "Ballot verifier"],
+        [ETranslationScope.RESULTS_PORTAL, "Results portal"],
+        [ETranslationScope.ADMIN_PORTAL, "Admin portal"],
+    ])("inherits the %s scope configured by the application", (scope, expected) => {
+        setActiveTranslationScope(scope)
+        const scopedPresentation = {
+            i18n: {
+                en: {
+                    "description": "Presentation",
+                    "global:description": "Global",
+                    [`${scope}:description`]: expected,
+                },
+            },
+        }
+
+        expect(translateFromPresentation(scopedPresentation, "description", "en")).toBe(expected)
+    })
+
+    it("prefers a global override over the unscoped presentation value", () => {
+        setActiveTranslationScope(ETranslationScope.VOTING_PORTAL)
+        expect(
+            translateFromPresentation(
+                {
+                    i18n: {
+                        en: {
+                            "description": "Presentation",
+                            "global:description": "Global",
+                        },
+                    },
+                },
+                "description",
+                "en"
+            )
+        ).toBe("Global")
+    })
+
+    it("applies scoped precedence again when falling back to the default language", () => {
+        setActiveTranslationScope(ETranslationScope.BALLOT_VERIFIER)
+        expect(
+            translateFromPresentation(
+                {
+                    presentation: {
+                        i18n: {
+                            en: {"ballotVerifier:name": "Verifier election"},
+                            fr: {},
+                        },
+                    },
+                },
+                "name",
+                "fr-CA",
+                {defaultLanguageCode: "en"}
+            )
+        ).toBe("Verifier election")
     })
 })

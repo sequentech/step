@@ -7,6 +7,8 @@ import {IBallotStyle as IElectionDTO} from "@sequentech/ui-core"
 
 export interface IBallotStyle {
     id: string
+    ballot_publication_id: string
+    publication_published_at: string
     election_id: string
     election_event_id: string
     tenant_id: string
@@ -43,6 +45,23 @@ export const {setBallotStyle} = ballotStylesSlice.actions
 
 export const selectBallotStyleByElectionId = (electionId: string) => (state: RootState) =>
     state.ballotStyles[electionId]
+
+export const selectBallotStyleByElectionEventId =
+    (electionEventId: string | undefined) =>
+    (state: RootState): IBallotStyle | undefined =>
+        electionEventId
+            ? Object.values(state.ballotStyles)
+                  .filter((ballotStyle) => ballotStyle?.election_event_id === electionEventId)
+                  .sort((left, right) => {
+                      const publishedAtOrder = right!.publication_published_at.localeCompare(
+                          left!.publication_published_at
+                      )
+                      return (
+                          publishedAtOrder ||
+                          right!.ballot_publication_id.localeCompare(left!.ballot_publication_id)
+                      )
+                  })[0]
+            : undefined
 
 export const selectBallotStyleElectionIds = (state: RootState) => Object.keys(state.ballotStyles)
 
