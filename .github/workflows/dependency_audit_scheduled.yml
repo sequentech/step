@@ -1,0 +1,54 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Weekly dependency audit across every supported branch.
+#
+# A branch that is not being pushed to still needs re-checking as new advisories
+# are published, and dependency_audit.yml only sees refs that receive a push or
+# a pull request.
+#
+# Scheduled workflows in GitHub Actions always run from the default branch, so
+# each supported branch is checked out explicitly here rather than relying on
+# the triggering ref.
+#
+# Results go to the job log rather than the Security tab: code scanning
+# associates a SARIF upload with the ref that triggered the run, so findings for
+# release/9.0 would be filed against main and be actively misleading.
+
+name: Scheduled Dependency Audit
+
+on:
+  schedule:
+    # Mondays 06:00 UTC, before the Dependabot version-update run.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan ${{ matrix.branch }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        branch:
+          - main
+          - release/10.0
+          - release/9.0
+    steps:
+      - name: Check out ${{ matrix.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+          persist-credentials: false
+
+      - name: Scan ${{ matrix.branch }}
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            ghcr.io/google/osv-scanner:v2.5.1 \
+            scan source --recursive /src \
+            || echo "::warning title=Vulnerabilities found::osv-scanner reported findings on ${{ matrix.branch }} - see the log above"

@@ -58,8 +58,24 @@ Manage how the ballot for this contest is displayed and how voters interact with
 
 ### Display Settings & Alerts
 - **Is acclaimed**
-  - Indicates that the winner is already determined.
-  - Voters can view the result but cannot cast a vote.
+  - Marks a contest whose candidates have been elected without a vote.
+  - The voting and review screens show the contest, its acclamation notice, and
+    all available candidates. Its options are disabled and cannot be selected.
+    A contest-specific translated notice can be supplied as
+    `presentation.i18n.<language>.acclamation_description`; otherwise the
+    standard translated notice is used.
+  - Minimum and maximum selection rules do not apply. Explicit blank and
+    invalid options and write-ins are ignored for this contest.
+  - The contest is not encoded in the ballot. In a mixed election, the voter
+    still casts the other contests normally; if every contest is acclaimed, no
+    ballot or Ballot ID is created.
+  - Tally results contain zero votes, report every eligible configured
+    candidate as a winner, and replace participation figures with an
+    acclamation notice. Tally sheets cannot be added to an acclaimed contest.
+  - Set this value before publishing ballots and do not change it afterwards,
+    because it determines the ballot encoding layout.
+  - See [Acclaimed Contests](../11-acclaimed-contests.md) for the complete voter,
+    verifier, tally, and results behavior.
 - **Min Votes**
   - The minimum number of selections a voter must make before the ballot is considered valid.
   - Setting this to 0 allows voters to submit without selecting any candidate.
@@ -158,6 +174,7 @@ When a voter's ranking has gaps (e.g. positions 1, 2, 4, 5 — skipping 3), this
 
 ---
 
+
 ## Image
 Upload an image or icon representing this contest (e.g., logo, symbol).
 
@@ -190,4 +207,3 @@ Import or upload a custom configuration file for specialized contest behavior.
 - For multilingual elections, verify translations of contest names and alerts.  
 
 ---
-

@@ -208,18 +208,20 @@ three places and must stay in sync:
 
 - **Keycloak realm import** — `alias` field in the IDP entry of the realm JSON
   (e.g. `.devcontainer/keycloak/import/tenant-*-event-*.json`)
-- **Theme template** — `login.ftl` filters the IDP out of the social-providers
-  list when `voter-certificate-policy` is not `enabled`:
-  ```
+- **Theme template** — `social-providers.ftl` (shared by `register.ftl` and both
+  portals' `login.ftl`) filters the IDP out of the social-providers list when
+  `voter-certificate-policy` is not `enabled`:
+  ```text
   p.alias != 'digital-certificates'
   ```
 - **Rust constant** — `sequent_core::types::keycloak::CERTIFICATES_IDP_ALIAS`
   (`packages/sequent-core/src/types/keycloak.rs`)
 
-The `sequent.voting-portal` Keycloak theme (`login.ftl`) renders the
-`digital-certificates` IDP as a social-provider button only when the realm
-attribute `voter-certificate-policy` is set to `enabled`. All other IDPs are
-always shown.
+The Sequent Keycloak themes render the `digital-certificates` IDP as a
+social-provider button only when the realm attribute `voter-certificate-policy`
+is set to `enabled`. All other IDPs are always shown. The rule lives in the
+shared `social-providers.ftl` macro, so it applies identically on both portals'
+login pages and on the registration page in login mode.
 
 ### X509CertClassifierAuthenticator
 

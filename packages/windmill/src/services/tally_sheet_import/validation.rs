@@ -43,6 +43,23 @@ pub fn validate_import_content(
     content: &AreaContestResults,
     contest: &Contest,
 ) -> Vec<TallySheetImportValidationError> {
+    if contest.is_acclaimed.unwrap_or(false) {
+        return vec![error(
+            "tally_sheet_not_allowed_for_acclaimed_contest",
+            format!(
+                "Tally sheets cannot be imported for acclaimed contest '{contest_external_id}'"
+            ),
+            channel,
+            area_name,
+            Some(contest_external_id),
+            "contest_external_id",
+            HashMap::from([(
+                "contestExternalId".to_string(),
+                contest_external_id.to_string(),
+            )]),
+        )];
+    }
+
     // A contest whose counting algorithm cannot be resolved yields only that
     // error: running the bound checks against a guessed bound would bury it
     // under misleading arithmetic failures.
@@ -345,6 +362,34 @@ mod tests {
         );
 
         assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn rejects_an_acclaimed_contest_before_validating_vote_arithmetic() {
+        let mut acclaimed = contest(Some(1), Some("plurality-at-large"), None);
+        acclaimed.is_acclaimed = Some(true);
+        let mut content = contest_sheet(10, 0);
+        // A second error would normally be reported for this arithmetic. The
+        // acclamation error is intentionally the only actionable result.
+        content.total_valid_votes = Some(999);
+
+        let errors = validate_import_content(
+            &VotingChannel::PAPER,
+            "Precinct 1",
+            "mayor",
+            &content,
+            &acclaimed,
+        );
+
+        assert_eq!(errors.len(), 1);
+        let error = &errors[0];
+        assert_eq!(error.code, "tally_sheet_not_allowed_for_acclaimed_contest");
+        assert_eq!(error.contest_external_id.as_deref(), Some("mayor"));
+        assert_eq!(error.field.as_deref(), Some("contest_external_id"));
+        assert_eq!(
+            error.params.get("contestExternalId").map(String::as_str),
+            Some("mayor")
+        );
     }
 
     #[test]

@@ -15,6 +15,12 @@ pub fn validate_tally_sheet(tally_sheet: &TallySheet, contest: &Contest) -> Resu
         "tally sheet {} (area {}, contest {})",
         tally_sheet.id, tally_sheet.area_id, tally_sheet.contest_id
     );
+    if contest.is_acclaimed() {
+        return Err(anyhow!(
+            "Invalid {tally_sheet_ref}: acclaimed contests cannot have tally sheets"
+        )
+        .into());
+    }
     let Some(content) = tally_sheet.content.clone() else {
         return Err(anyhow!("Invalid {tally_sheet_ref}: content missing").into());
     };
@@ -170,5 +176,18 @@ mod tests {
 
         let bad = validate_tally_sheet(&tally_sheet(10, 10, 2, &[9]), &contest(1, 1));
         assert!(bad.is_err());
+    }
+
+    #[test]
+    fn rejects_a_stored_tally_sheet_for_an_acclaimed_contest() {
+        let mut acclaimed = contest(1, 1);
+        acclaimed.is_acclaimed = Some(true);
+
+        let result = validate_tally_sheet(&tally_sheet(10, 10, 0, &[10]), &acclaimed);
+
+        let error = result.expect_err("acclaimed tally sheet must be rejected");
+        assert!(error
+            .to_string()
+            .contains("acclaimed contests cannot have tally sheets"));
     }
 }

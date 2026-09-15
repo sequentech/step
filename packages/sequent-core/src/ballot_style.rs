@@ -301,6 +301,7 @@ fn create_contest(
         voting_type: contest.voting_type,
         counting_algorithm: Some(counting_algorithm),
         is_encrypted: (contest.is_encrypted.unwrap_or(false)),
+        is_acclaimed: contest.is_acclaimed,
         candidates,
         presentation: Some(contest_presentation),
         created_at: contest.created_at.map(|date| date.to_rfc3339()),

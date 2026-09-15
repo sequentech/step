@@ -5,7 +5,7 @@ import React, {useEffect, useState} from "react"
 import {Identifier, RaRecord} from "react-admin"
 import {IRole} from "@sequentech/ui-core"
 import {EditUserForm} from "./EditUserForm"
-import {UserProfileAttribute} from "@/gql/graphql"
+import {UserProfileAttribute, UserProfileAttributeGroup} from "@/gql/graphql"
 
 interface EditUserProps {
     id?: string
@@ -14,6 +14,7 @@ interface EditUserProps {
     close?: () => void
     rolesList: Array<IRole>
     userAttributes: UserProfileAttribute[]
+    userAttributeGroups: UserProfileAttributeGroup[]
     record?: RaRecord<Identifier>
     onTaskLaunched?: (taskExecutionId: string) => void
 }
@@ -25,6 +26,7 @@ export const EditUser: React.FC<EditUserProps> = ({
     electionId,
     rolesList,
     userAttributes,
+    userAttributeGroups,
     record,
     onTaskLaunched,
 }) => {
@@ -45,6 +47,7 @@ export const EditUser: React.FC<EditUserProps> = ({
                 close={close}
                 rolesList={rolesList}
                 userAttributes={userAttributes}
+                userAttributeGroups={userAttributeGroups}
                 record={record}
                 onTaskLaunched={onTaskLaunched}
             />

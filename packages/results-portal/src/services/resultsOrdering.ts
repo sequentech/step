@@ -35,13 +35,13 @@ const unique = (values: unknown[]): string[] => {
 
 const findRow = (rows: ResultsRow[], id: unknown) => rows.find((row) => sameId(row.id, id))
 
-const electionEventPresentation = (
+export const getElectionEventPresentation = (
     manifest: ResultsManifest,
     dataset: ResultsSqliteDataset
 ): IElectionEventPresentation | undefined =>
     parseEntityPresentation<IElectionEventPresentation>(
         dataset.election_event.find((row) => sameId(row.id, manifest.election_event_id))
-            ?.presentation ?? dataset.election_event[0]?.presentation
+            ?.presentation
     )
 
 export const orderResultElectionIds = (
@@ -53,7 +53,7 @@ export const orderResultElectionIds = (
         ...manifest.election_ids,
         ...manifest.contests.map((contest) => contest.election_id),
     ])
-    const order = electionEventPresentation(manifest, dataset)?.elections_order
+    const order = getElectionEventPresentation(manifest, dataset)?.elections_order
 
     return sortByPresentationOrder(ids, order, {
         getLabel: (id) => translatedLabel(findRow(dataset.election, id), locale, id),
@@ -108,7 +108,7 @@ export const orderElectionResultRows = <T extends ResultsRow>(
     dataset: ResultsSqliteDataset,
     locale: string
 ): T[] => {
-    const order = electionEventPresentation(manifest, dataset)?.elections_order
+    const order = getElectionEventPresentation(manifest, dataset)?.elections_order
     const snapshotOrder = new Map(
         unique([
             ...manifest.election_ids,

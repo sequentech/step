@@ -116,6 +116,7 @@ pub fn export_election_event(
         export_configurations: Some(export_election_event::ExportOptions {
             password: None,
             is_encrypted: Some(is_encrypted),
+            encrypt_with_password: Some(encrypted),
             include_voters: Some(include_voters),
             activity_logs: Some(activity_logs),
             bulletin_board: Some(bulletin_board),

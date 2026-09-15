@@ -50,6 +50,14 @@ pub fn normalize_election(
     let mut result: Vec<DecodedVoteContest> = input
         .clone()
         .into_iter()
+        // Acclaimed contests are never encoded, so a decoded ballot never
+        // mentions them and neither does its normalized form. A contest that
+        // is not in the ballot style at all is still an error below.
+        .filter(|decoded_contest| {
+            !contest_map
+                .get(&decoded_contest.contest_id)
+                .is_some_and(|contest| contest.is_acclaimed())
+        })
         .map(|decoded_contest| -> Result<DecodedVoteContest> {
             let contest = contest_map
                 .get(&decoded_contest.contest_id)

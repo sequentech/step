@@ -18,10 +18,15 @@ use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use uuid::Uuid;
+use windmill::postgres::reports::ReportType;
 use windmill::services::celery_app::get_celery_app;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::document_password::save_password;
-use windmill::services::electoral_log::ElectoralLogAdminContext;
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+};
+use windmill::services::reports::template_renderer::get_declared_report_secret_attribute_names;
 use windmill::services::tasks_execution::{post, update_fail};
 use windmill::types::tasks::ETasksExecution;
 
@@ -141,6 +146,63 @@ pub async fn generate_voter_information_letter(
 
     let input = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let mut template_client =
+        get_hasura_pool().await.get().await.map_err(|_| {
+            internal_error("Failed to read Voter Information Letter template")
+        })?;
+    let template_transaction =
+        template_client.transaction().await.map_err(|_| {
+            internal_error("Failed to read Voter Information Letter template")
+        })?;
+    let declared_secret_names = get_declared_report_secret_attribute_names(
+        &template_transaction,
+        &tenant_id,
+        &input.election_event_id,
+        &ReportType::CREDENTIALS,
+        None,
+    )
+    .await
+    .map_err(|_| {
+        internal_error("Failed to read Voter Information Letter template")
+    })?;
+    let may_read_secret_attributes = !declared_secret_names.is_empty();
+    if may_read_secret_attributes {
+        authorize(
+            &claims,
+            true,
+            Some(tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )
+        .map_err(|_| {
+            ErrorResponse::new(
+                Status::Forbidden,
+                "Authorization failed",
+                ErrorCode::Unauthorized,
+            )
+        })?;
+        let attribute_names: Vec<String> =
+            declared_secret_names.iter().cloned().collect();
+        post_voter_secret_attribute_audit(
+            &tenant_id,
+            &input.election_event_id,
+            &ElectoralLogAdminContext::from_claims(&claims),
+            VoterSecretAttributeAction::Report,
+            VoterSecretAttributeAudit {
+                voter_id: Some(&input.voter_id),
+                voter_username: None,
+                attribute_names: &attribute_names,
+                document_id: None,
+            },
+        )
+        .await
+        .map_err(|_| {
+            internal_error(
+                "Failed to record the secret-attribute electoral-log entry",
+            )
+        })?;
+    }
+    drop(template_transaction);
+    drop(template_client);
     let policy = get_realm_password_policy(
         &tenant_id,
         &input.election_event_id,
@@ -234,6 +296,7 @@ pub async fn generate_voter_information_letter(
                 password_secret_id,
                 password_change_initiator,
                 task_execution.clone(),
+                may_read_secret_attributes,
             ),
         )
         .await
