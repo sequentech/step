@@ -16,7 +16,7 @@ strand = { path="../strand" }
 serde = { version = "1.0", features = ["derive"] }
 strum = "0.27"
 strum_macros = "0.27"
-tokio = { version = "1.38", features = ["test-util", "rt-multi-thread"] }
+tokio = { version = "1.38", features = ["test-util", "rt-multi-thread", "process"] }
 tokio-stream = "0.1"
 tonic = "0.13"
 hex = "0.4"
@@ -30,5 +30,13 @@ tracing-attributes = "0.1"
 tracing-subscriber = "0.3"
 tracing-tree = "0.4"
 
+[features]
+immudb-tests = []
+
+[[test]]
+name = "database_contracts"
+required-features = ["immudb-tests"]
+
 [dev-dependencies]
+tempfile = "3"
 serial_test = "3.2"
