@@ -212,9 +212,10 @@ pub fn prepare_scheduled_dates(
             else {
                 return None;
             };
+            // None requests event-wide dates only. An election-specific task
+            // must not overwrite that overview merely because no election was selected.
             if !date_event_processors.contains(&event_processor)
                 || (se_election_id.is_some()
-                    && election_id.is_some()
                     && se_election_id.as_deref() != election_id)
             {
                 return None;

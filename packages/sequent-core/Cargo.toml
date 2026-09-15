@@ -129,6 +129,8 @@ wasmtime = {version = "44.0.3", optional = true}
 wasmtime-wasi = {version = "44.0.3", optional = true}
 
 [dev-dependencies]
+# Capture application logs in credential-confidentiality regressions.
+tracing-subscriber = "0.3"
 ptree = "0.5"
 wasm-bindgen-test = "0.3.42"
 
@@ -140,8 +142,8 @@ default = []
 areas = []
 reports = ["dep:handlebars", "dep:handlebars-chrono", "dep:headless_chrome", "dep:reqwest", "dep:tracing", "dep:tokio", "dep:num-format", "dep:urlencoding", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types", "dep:sha256", "dep:ammonia"]
 reports_sync = []
-s3 = ["dep:reqwest"]
-keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres"]
+s3 = ["dep:tokio", "dep:reqwest", "dep:aws-config", "dep:aws-sdk-sesv2", "dep:aws-sdk-sns", "dep:aws-sdk-s3", "dep:aws-smithy-types"]
+keycloak = ["jwt", "dep:openid", "dep:reqwest", "dep:reqwest-retry", "dep:reqwest-middleware", "dep:serde_urlencoded", "dep:rocket", "dep:keycloak", "dep:tracing", "dep:uuid", "dep:regex", "dep:jsonwebtoken", "dep:tokio-postgres", "dep:time"]
 log = ["dep:tracing", "dep:tracing-subscriber", "dep:tracing-tree", "dep:tracing-log"]
 probe = ["dep:tokio", "dep:warp"]
 # Lambda examples
