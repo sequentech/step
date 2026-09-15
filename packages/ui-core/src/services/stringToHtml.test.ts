@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createElement, Fragment, ReactNode} from "react"
-import {renderToStaticMarkup} from "react-dom/server"
+import {renderToStaticMarkup as reactToStaticHtml} from "react-dom/server"
 import i18next from "i18next"
 import {
     escapeHtml,
@@ -12,56 +12,58 @@ import {
     translateHtml,
 } from "./stringToHtml"
 
-const render = (node: ReactNode): string =>
-    renderToStaticMarkup(createElement(Fragment, null, node))
+const toStaticMarkup = (node: ReactNode): string =>
+    reactToStaticHtml(createElement(Fragment, null, node))
 
 describe("stringToHtml", () => {
     it("parses markup instead of escaping it", () => {
-        expect(render(stringToHtml("<p>Cast your <strong>ballot</strong></p>"))).toBe(
+        expect(toStaticMarkup(stringToHtml("<p>Cast your <strong>ballot</strong></p>"))).toBe(
             "<p>Cast your <strong>ballot</strong></p>"
         )
     })
 
     it("returns plain text unchanged", () => {
-        expect(render(stringToHtml("Follow these steps:"))).toBe("Follow these steps:")
+        expect(toStaticMarkup(stringToHtml("Follow these steps:"))).toBe("Follow these steps:")
     })
 
     it("keeps characters that only look like markup", () => {
         // rendered entities; the browser displays "Tom & Jerry" and "Choose < 3"
-        expect(render(stringToHtml("Tom & Jerry"))).toBe("Tom &amp; Jerry")
-        expect(render(stringToHtml("Choose < 3 options"))).toBe("Choose &lt; 3 options")
-        expect(render(stringToHtml("1 < 2"))).toBe("1 &lt; 2")
+        expect(toStaticMarkup(stringToHtml("Tom & Jerry"))).toBe("Tom &amp; Jerry")
+        expect(toStaticMarkup(stringToHtml("Choose < 3 options"))).toBe("Choose &lt; 3 options")
+        expect(toStaticMarkup(stringToHtml("1 < 2"))).toBe("1 &lt; 2")
     })
 
     // a "<" that no ">" ever closes cannot open a tag, so the text is kept
     // rather than being swallowed by the parser looking for the tag's end
     it("keeps text after a '<' that never closes", () => {
-        expect(render(stringToHtml("a <b and c"))).toBe("a &lt;b and c")
-        expect(render(stringToHtml("<p>hello<b"))).toBe("<p>hello&lt;b</p>")
+        expect(toStaticMarkup(stringToHtml("a <b and c"))).toBe("a &lt;b and c")
+        expect(toStaticMarkup(stringToHtml("<p>hello<b"))).toBe("<p>hello&lt;b</p>")
     })
 
     // a later ">" does close the tag, so the sanitizer consumes it as markup
     it("treats a '<' as a tag when a later '>' closes it", () => {
-        expect(render(stringToHtml("a <b and c > d"))).toBe("a <b> d</b>")
+        expect(toStaticMarkup(stringToHtml("a <b and c > d"))).toBe("a <b> d</b>")
     })
 
     // escaping an earlier "<" must not free a tag that the sanitizer was
     // discarding as another tag's attributes
     it("does not turn swallowed markup into a live element", () => {
-        expect(render(stringToHtml('<x <a href="https://evil.example">click</a>'))).toBe("click")
-        expect(render(stringToHtml("<zz <h1>BALLOT REJECTED</h1>"))).toBe("BALLOT REJECTED")
+        expect(toStaticMarkup(stringToHtml('<x <a href="https://evil.example">click</a>'))).toBe(
+            "click"
+        )
+        expect(toStaticMarkup(stringToHtml("<zz <h1>BALLOT REJECTED</h1>"))).toBe("BALLOT REJECTED")
     })
 
     it("still strips a comment containing an angle bracket", () => {
-        expect(render(stringToHtml("<!-- a < b -->"))).toBe("")
+        expect(toStaticMarkup(stringToHtml("<!-- a < b -->"))).toBe("")
     })
 
     // the "<" inside the attribute must not make the opening "<" look unclosed
     it("keeps a tag whose quoted attribute contains an angle bracket", () => {
-        expect(render(stringToHtml('<a title="a < b">link</a>'))).toBe(
+        expect(toStaticMarkup(stringToHtml('<a title="a < b">link</a>'))).toBe(
             '<a title="a &lt; b">link</a>'
         )
-        expect(render(stringToHtml("<a title='a < b'>link</a>"))).toBe(
+        expect(toStaticMarkup(stringToHtml("<a title='a < b'>link</a>"))).toBe(
             '<a title="a &lt; b">link</a>'
         )
     })
@@ -69,23 +71,23 @@ describe("stringToHtml", () => {
     // a "<" that does open a tag is still handled by the sanitizer, so a
     // disallowed tag is dropped. Translations needing a literal one write &lt;
     it("still drops a tag the sanitizer does not allow", () => {
-        expect(render(stringToHtml("Use the <name> field"))).toBe("Use the  field")
+        expect(toStaticMarkup(stringToHtml("Use the <name> field"))).toBe("Use the  field")
     })
 
     it("leaves real markup untouched", () => {
-        expect(render(stringToHtml('<a href="https://x.example">go</a> now'))).toBe(
+        expect(toStaticMarkup(stringToHtml('<a href="https://x.example">go</a> now'))).toBe(
             '<a href="https://x.example">go</a> now'
         )
     })
 
     it("renders an empty string for empty input", () => {
-        expect(render(stringToHtml(""))).toBe("")
+        expect(toStaticMarkup(stringToHtml(""))).toBe("")
     })
 
     it("strips scripts, event handlers and javascript: urls", () => {
-        expect(render(stringToHtml("<script>alert(1)</script>"))).not.toContain("alert")
-        expect(render(stringToHtml('<b onclick="alert(1)">x</b>'))).toBe("<b>x</b>")
-        expect(render(stringToHtml('<a href="javascript:alert(1)">x</a>'))).toBe("<a>x</a>")
+        expect(toStaticMarkup(stringToHtml("<script>alert(1)</script>"))).not.toContain("alert")
+        expect(toStaticMarkup(stringToHtml('<b onclick="alert(1)">x</b>'))).toBe("<b>x</b>")
+        expect(toStaticMarkup(stringToHtml('<a href="javascript:alert(1)">x</a>'))).toBe("<a>x</a>")
     })
 })
 
@@ -165,13 +167,13 @@ describe("translateHtml", () => {
         values ? i18next.t(key, values) : i18next.t(key)
 
     it("renders markup that comes from the translation", () => {
-        expect(render(translateHtml(translate, "notFound", {ballotId: "abc123"}))).toBe(
+        expect(toStaticMarkup(translateHtml(translate, "notFound", {ballotId: "abc123"}))).toBe(
             "Ballot <b>abc123</b> was not found"
         )
     })
 
     it("keeps an interpolated value inert and visible", () => {
-        const html = render(translateHtml(translate, "notFound", {ballotId: injected}))
+        const html = toStaticMarkup(translateHtml(translate, "notFound", {ballotId: injected}))
         expect(html).not.toContain("<a ")
         expect(html).toContain("&lt;a href=")
     })
@@ -179,22 +181,24 @@ describe("translateHtml", () => {
     // regression: relying on i18next's escapeValue left this open, because the
     // translation itself decides whether {{- value}} skips escaping
     it("keeps an interpolated value inert even when the translation uses {{- }}", () => {
-        const html = render(translateHtml(translate, "notFoundUnescaped", {ballotId: injected}))
+        const html = toStaticMarkup(
+            translateHtml(translate, "notFoundUnescaped", {ballotId: injected})
+        )
         expect(html).not.toContain("<a ")
         expect(html).toContain("&lt;a href=")
     })
 
     it("does not let a nested value bypass escaping", () => {
         const values = {voter: ({name: injected} as unknown) as string}
-        expect(render(translateHtml(translate, "nested", values))).not.toContain("<a ")
+        expect(toStaticMarkup(translateHtml(translate, "nested", values))).not.toContain("<a ")
     })
 
     it("keeps plurals working", () => {
-        expect(render(translateHtml(translate, "plural", {count: 1}))).toBe("1 ballot")
-        expect(render(translateHtml(translate, "plural", {count: 5}))).toBe("5 ballots")
+        expect(toStaticMarkup(translateHtml(translate, "plural", {count: 1}))).toBe("1 ballot")
+        expect(toStaticMarkup(translateHtml(translate, "plural", {count: 5}))).toBe("5 ballots")
     })
 
     it("renders a translation with no values", () => {
-        expect(render(translateHtml(translate, "missing.key"))).toBe("missing.key")
+        expect(toStaticMarkup(translateHtml(translate, "missing.key"))).toBe("missing.key")
     })
 })
