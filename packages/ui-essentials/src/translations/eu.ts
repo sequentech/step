@@ -114,6 +114,7 @@ const basqueTranslation = {
             openDialog: "Ireki Elkarrizketa-koadroa",
         },
         dragNDrop: {
+            importError: "Ezin izan da fitxategi hau inportatu. Saiatu berriro.",
             firstLine: "Arrastatu eta jaregin fitxategiak edo",
             browse: "Arakatu",
             format: "Onartutako formatua: txt",

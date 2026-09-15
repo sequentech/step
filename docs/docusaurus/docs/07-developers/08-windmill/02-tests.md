@@ -170,3 +170,8 @@ real user IDs and usernames and inserts synthetic `SendCommunications` log
 entries in batches of 1 000 rows.
 
 Open election event's LOGS tab in the Admin Portal to confirm the new entries.
+
+## Boundary tests and coverage
+
+See the [Windmill boundary test guide](test-coverage.md) for isolated fixtures,
+contract tests, coverage commands and measured gaps.

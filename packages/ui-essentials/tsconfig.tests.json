@@ -1,0 +1,29 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "target": "es2022",
+        "types": [
+            "jest",
+            "node"
+        ],
+        "allowImportingTsExtensions": true,
+        "noImplicitAny": true,
+        "baseUrl": ".",
+        "paths": {
+            "@sequentech/ui-core": [
+                "../ui-core/src/index.tsx"
+            ]
+        }
+    },
+    "include": [
+        "src",
+        "tests"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "coverage",
+        "src/**/__stories__/**"
+    ]
+}

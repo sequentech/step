@@ -450,8 +450,8 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                 // period is not yet open, and the start date is in the future
                 getStartDate(electionDates) &&
                     !isOpen &&
-                    timeLeft?.totalSeconds &&
-                    timeLeft?.totalSeconds > 0 && (
+                    timeLeft !== null &&
+                    timeLeft.totalSeconds > 0 && (
                         <BannerBox
                             className="election-countdown"
                             id="countdown-banner-box"

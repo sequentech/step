@@ -57,16 +57,11 @@ const WithButtonTemplate: StoryFn<React.FC<DropFileProps & WithButtonTemplatePro
         alert("Number of files: " + files.length)
     }
 
-    // triggers the input when the button is clicked
-    const onButtonClick = () => {
-        inputRef.current?.click()
-    }
-
     return (
         <CustomDropFile {...args} handleFiles={handleFiles} ref={inputRef}>
             <Paper variant="responsive">
                 {text}
-                <Button variant="outlined" onClick={onButtonClick} data-testid="drop-file-button">
+                <Button component="span" variant="outlined" data-testid="drop-file-button">
                     {buttonText}
                 </Button>
             </Paper>

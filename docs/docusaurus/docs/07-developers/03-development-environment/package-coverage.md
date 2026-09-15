@@ -113,3 +113,33 @@ python3 -m unittest discover -s scripts/coverage
 The tests exercise exact comparison boundaries, real test-removal regressions,
 invalid reports, source changes, failed commands and concurrent-run rejection.
 See `scripts/assurance/README.md` for lint configuration and commands.
+
+## Frontend packages
+
+Install locked workspace dependencies with the Node and Yarn versions pinned in
+CI. From `packages/`, use the package's `test:coverage:baseline` script to export
+Istanbul reports, `test:types` for type checking where provided, and `test:browser`
+for the separate Chromium integration suite. Use a focused Jest file while editing.
+The package guides below specify browser binaries, fixtures and commands.
+
+Frontend CI compares lines, statements, functions and branches separately against
+the actual PR base. Babel instruments executable source before transformation;
+erased TypeScript declarations and compiler-generated re-export helpers do not
+become application statements. Unimported runtime modules remain in scope.
+Browser checks are required independently; their execution is not added to Jest's
+source counters. Preserve local fixture isolation when adding browser scenarios.
+
+## Package guides
+
+- [Sequent Core Tests](testing/sequent-core.md)
+- [Strand boundary tests](testing/strand.md)
+- [Error conversion macro tests](testing/wrap-map-err.md)
+- [Harvest request boundary tests](testing/harvest.md)
+- [Windmill boundary tests](../08-windmill/test-coverage.md)
+- [Step CLI boundary tests](../02-cli/testing.md)
+- [UI Core tests](testing/ui-core.md)
+- [Electoral Log tests](testing/electoral-log.md)
+- [Voting Portal tests](../05-voting-portal/testing.md)
+- [UI Essentials tests](testing/ui-essentials.md)
+- [Velvet boundary tests](../07-velvet/test-coverage.md)
+- [Assurance lint policy](production-assurance.md)
