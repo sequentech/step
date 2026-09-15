@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Test file paths in this guide are relative to [`packages/sequent-core/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/main/packages/sequent-core/tests). Commands state their working directory.
+Test file paths in this guide are relative to [`packages/sequent-core/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/release-10.0/packages/sequent-core/tests). Commands state their working directory.
 
 From the repository's `packages` directory:
 
@@ -133,7 +133,7 @@ browser boundary.
 ## Browser tests
 
 Install the `wasm32-unknown-unknown` target for the pinned Rust toolchain, Clang,
-`wasm-bindgen-test-runner` 0.2.104 and a ChromeDriver matching your Chrome version.
+`wasm-bindgen-test-runner` 0.2.100 and a ChromeDriver matching your Chrome version.
 The pinned downloads and checksums are in `core-native-features.yml`. Put both
 executables on `PATH` and set the runner:
 
@@ -144,8 +144,9 @@ cargo test --locked --target wasm32-unknown-unknown -p sequent-core \
   --features wasmtest,default_features --test mod
 ```
 
-For a custom browser binary, set `WASM_BINDGEN_TEST_WEBDRIVER_JSON` to a JSON file
-with `goog:chromeOptions.binary` and the required Chrome arguments (CI includes
+For a custom browser binary, place `webdriver.json` in `packages/sequent-core/`
+with `goog:chromeOptions.binary` and the required Chrome arguments; runner 0.2.100
+reads that fixed filename rather than an environment-selected path (CI includes
 `--single-process` and `--no-zygote`). The tests exercise real JavaScript values:
 a current signed ballot succeeds, content changes and replay fail, incomplete
 signature pairs are rejected, and unsigned ballots return false. An obsolete

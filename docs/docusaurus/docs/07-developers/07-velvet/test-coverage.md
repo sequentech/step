@@ -6,7 +6,7 @@ title: Velvet boundary tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Test file paths in this guide are relative to [`packages/velvet/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/main/packages/velvet/tests). Commands state their working directory.
+Test file paths in this guide are relative to [`packages/velvet/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/release-10.0/packages/velvet/tests). Commands state their working directory.
 
 Use small elections with totals that can be checked by hand. A passing test
 should establish what is counted, rejected or published, including the failure
@@ -54,7 +54,7 @@ RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 DOC_RENDERER_BACKEND=inplace \
 
 Set `CHROME` to a compatible local executable. CI uses the official Chrome for
 Testing **headless shell 153.0.8010.36**, with the download and checksum pinned in
-[the browser setup action](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/main/.github/actions/setup-test-browser/action.yml).
+[the browser setup action](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/release-10.0/.github/actions/setup-test-browser/action.yml).
 Both `--single-process` and `--no-zygote` remain enabled. The startup control uses the
 same executable resolver as the production renderer.
 

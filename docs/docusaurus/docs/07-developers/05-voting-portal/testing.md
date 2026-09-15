@@ -6,7 +6,7 @@ title: Voting Portal tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Test file paths in this guide are relative to [`packages/voting-portal/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/main/packages/voting-portal/tests). Commands state their working directory.
+Test file paths in this guide are relative to [`packages/voting-portal/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/release-10.0/packages/voting-portal/tests). Commands state their working directory.
 
 Install the locked workspace dependencies from `packages/`, then run:
 
