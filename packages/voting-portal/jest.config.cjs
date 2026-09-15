@@ -15,16 +15,31 @@ module.exports = {
     moduleNameMapper: {
         "^@sequentech/ui-core$": "<rootDir>/src/__mocks__/uiCoreTestEntry.ts",
     },
+    // Unimported runtime files remain in the denominator. Only Jest support
+    // and tests are excluded; production fixtures and entry points stay.
+    collectCoverageFrom: [
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.d.ts",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/__mocks__/**",
+        "!src/setupTests.ts",
+        "!src/setupJestGlobals.ts",
+    ],
+    coverageProvider: "babel",
+    coverageDirectory: "coverage",
+    coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
+    coverageThreshold: {global: {lines: 95, statements: 95, functions: 95, branches: 95}},
     transform: {
-        "^.+\\.(t|j)sx?$": [
-            "@swc/jest",
+        "^.+\\.[jt]sx?$": [
+            "babel-jest",
             {
-                jsc: {
-                    parser: {syntax: "typescript", tsx: true},
-                    target: "es2022",
-                    transform: {react: {runtime: "automatic"}},
-                },
-                module: {type: "commonjs"},
+                babelrc: false,
+                configFile: false,
+                presets: [
+                    ["@babel/preset-env", {targets: {node: "current"}}],
+                    ["@babel/preset-react", {runtime: "automatic"}],
+                    "@babel/preset-typescript",
+                ],
             },
         ],
     },

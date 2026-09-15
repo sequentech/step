@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "target": "es2022",
+        "types": ["jest", "node"],
+        "allowImportingTsExtensions": true,
+        "baseUrl": ".",
+        "paths": {
+            "@sequentech/ui-core": ["../ui-core/src/index.tsx"],
+            "@sequentech/ui-essentials": ["../ui-essentials/src/index.tsx"]
+        }
+    },
+    "include": ["src", "tests", "../ui-essentials/src/**/*.d.ts"],
+    "exclude": ["node_modules", "dist", "coverage"]
+}
