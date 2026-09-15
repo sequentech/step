@@ -179,7 +179,9 @@ export const Question: React.FC<IQuestionProps> = ({
         question.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
     const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
     const defaultAllExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
-    const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({})
+    const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>(() =>
+        Object.create(null)
+    )
 
     const getExpanded = (key: string): boolean =>
         Object.prototype.hasOwnProperty.call(expandedStates, key)
