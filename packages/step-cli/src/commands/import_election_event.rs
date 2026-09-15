@@ -40,7 +40,8 @@ impl ImportElectionEventFile {
                 );
             }
             Err(err) => {
-                eprintln!("Error! Failed to create election event: {}", err)
+                eprintln!("Error! Failed to create election event: {}", err);
+                std::process::exit(1);
             }
         }
     }
@@ -66,6 +67,12 @@ pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::er
 
     if response.status().is_success() {
         let response_body: Response<import_election_event::ResponseData> = response.json()?;
+        // A GraphQL response can contain usable-looking data and errors.
+        // Reject the partial operation before acting on any returned ID/URL.
+        if let Some(errors) = response_body.errors.filter(|errors| !errors.is_empty()) {
+            let messages: Vec<_> = errors.into_iter().map(|error| error.message).collect();
+            return Err(Box::from(messages.join(", ")));
+        }
         if let Some(data) = response_body.data {
             if let Some(e) = data.import_election_event {
                 if let Some(err) = e.error {
@@ -78,9 +85,6 @@ pub fn import(file_path: &str, is_local: bool) -> Result<String, Box<dyn std::er
             } else {
                 Err(Box::from("failed generating id"))
             }
-        } else if let Some(errors) = response_body.errors {
-            let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-            Err(Box::from(error_messages.join(", ")))
         } else {
             Err(Box::from("Unknown error occurred"))
         }
