@@ -13,6 +13,11 @@ test conventions, pinned tools and coverage profiles. Check an existing PR’s
 latest CI/review and actual base. Preserve scope, protected behavior and unrelated
 working-tree changes.
 
+When an issue tracks PRs or stacks for multiple target versions, find the matching
+PR in each stack and carry equivalent tests and fixes across where practical.
+Adapt to each version's APIs, validate against its own base, and record justified
+differences in the issue; do not import unrelated changes from another version.
+
 ## Test contracts
 
 - Exercise observable results, boundaries, rejected inputs and failure propagation
