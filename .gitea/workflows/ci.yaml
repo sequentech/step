@@ -1,0 +1,62 @@
+name: Build and Deploy (Airgap)
+on: [push]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-22.04 # Locked to specific version
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Verify Tools
+        run: |
+          kubectl version --client
+          docker version
+
+      - name: Check out repository
+        run: |
+          git clone "http://oauth2:${{ secrets.GITHUB_TOKEN }}@gitea.gitea:3000/admin/step.git" .
+          git checkout "${{ github.sha }}"
+
+      - name: Login to Local Gitea Registry
+        run: echo "${{ secrets.GITEA_REGISTRY_PASSWORD }}" | docker login http://gitea.gitea:3000 -u "admin" --password-stdin
+
+      - name: Build and Push Harvest
+        run: |
+          docker build -f ./packages/harvest/Dockerfile.airgap -t gitea.gitea:3000/admin/harvest:latest ./packages
+          docker push gitea.gitea:3000/admin/harvest:latest
+
+      - name: Build and Push Windmill
+        run: |
+          docker build -f ./packages/windmill/Dockerfile.airgap -t gitea.gitea:3000/admin/windmill:latest ./packages
+          docker push gitea.gitea:3000/admin/windmill:latest
+
+      - name: Build and Push Voting Portal
+        run: |
+          docker build -f ./packages/Dockerfile.airgap --build-arg SPA_NAME=voting-portal -t gitea.gitea:3000/admin/voting-portal:latest ./packages
+          docker push gitea.gitea:3000/admin/voting-portal:latest
+
+      - name: Build and Push Hasura
+        run: |
+          docker build -f ./hasura/Dockerfile -t gitea.gitea:3000/admin/hasura:latest ./hasura
+          docker push gitea.gitea:3000/admin/hasura:latest
+
+      - name: Build and Push B4
+        run: |
+          docker build -f ./packages/b4/Dockerfile.prod -t gitea.gitea:3000/admin/b4:latest ./packages
+          docker push gitea.gitea:3000/admin/b4:latest
+
+      - name: Build and Push Immudb
+        run: |
+          docker build -f ./packages/Dockerfile.immudb -t gitea.gitea:3000/admin/immudb:latest ./packages
+          docker push gitea.gitea:3000/admin/immudb:latest
+
+      - name: Build and Push Braid (Trustees)
+        run: |
+          docker build -f ./packages/braid/Dockerfile.prod -t gitea.gitea:3000/admin/braid:latest ./packages
+          docker push gitea.gitea:3000/admin/braid:latest
+
+      - name: Rollout Update
+        run: |
+          kubectl rollout restart deployment/harvest deployment/windmill deployment/voting-portal deployment/hasura deployment/b4 deployment/beat -n step-apps
+          kubectl rollout restart deployment/immudb deployment/trustee1 deployment/trustee2 -n step-infra
