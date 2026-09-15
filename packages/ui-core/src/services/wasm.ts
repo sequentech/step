@@ -427,7 +427,7 @@ export const getLayoutProperties = (question: IContest): IContestLayoutPropertie
 export const getPoints = (question: IContest, answer: IDecodedVoteChoice): number | null => {
     try {
         let points: number | undefined = get_candidate_points_js(question, answer)
-        return points || null
+        return points ?? null
     } catch (error) {
         console.log(error)
         return null
