@@ -30,5 +30,14 @@ tracing-attributes = "0.1"
 tracing-subscriber = "0.3"
 tracing-tree = "0.4"
 
+[features]
+immudb-tests = []
+
+[[test]]
+name = "database_contracts"
+required-features = ["immudb-tests"]
+
 [dev-dependencies]
+tokio = { version = "1.38", features = ["process"] }
+tempfile = "3"
 serial_test = "3.2"
