@@ -7,7 +7,7 @@ on:
   pull_request:
     paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/core-native-features.yml', '.github/actions/setup-test-browser/**']
   push:
-    branches: [main]
+    branches: [release/10.0]
     paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/core-native-features.yml', '.github/actions/setup-test-browser/**']
   workflow_dispatch:
     inputs:
@@ -20,7 +20,7 @@ on:
       base_ref:
         description: Compare with this base branch or commit (select a different candidate branch above)
         type: string
-        default: main
+        default: release/10.0
         required: true
 
 permissions:
@@ -139,8 +139,8 @@ jobs:
         uses: ./.github/actions/setup-test-browser
       - name: Install matching WASM runner and ChromeDriver
         run: |
-          curl --fail --location --silent --show-error --output /tmp/wasm-bindgen.tar.gz https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.104/wasm-bindgen-0.2.104-x86_64-unknown-linux-musl.tar.gz
-          echo '9553740907c2c1008f9a44bb00ed1f5b39ffc55d9d331581b5aebc891a4b772f  /tmp/wasm-bindgen.tar.gz' | sha256sum --check
+          curl --fail --location --silent --show-error --output /tmp/wasm-bindgen.tar.gz https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.100/wasm-bindgen-0.2.100-x86_64-unknown-linux-musl.tar.gz
+          echo '63d6a38deb65bd7023c02bdf382ab66b0d2c0241c8582fd3413b5a808b8aeb5b  /tmp/wasm-bindgen.tar.gz' | sha256sum --check
           mkdir -p "$RUNNER_TEMP/wasm-tools"
           tar -xzf /tmp/wasm-bindgen.tar.gz --strip-components=1 -C "$RUNNER_TEMP/wasm-tools"
           echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
@@ -148,11 +148,13 @@ jobs:
           echo 'c05f3bfb501b37b12b7fa2a54b8b30b51d089a64389898362aeb2785f12ac83f  /tmp/chromedriver.zip' | sha256sum --check
           unzip -q /tmp/chromedriver.zip -d "$RUNNER_TEMP/wasm-tools"
           echo "$RUNNER_TEMP/wasm-tools/chromedriver-linux64" >> "$GITHUB_PATH"
+      # Runner 0.2.100 reads webdriver.json from the tested crate directory.
       - name: Test actual JavaScript exports
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
-          WASM_BINDGEN_TEST_WEBDRIVER_JSON: ${{ runner.temp }}/webdriver.json
+          WASM_BINDGEN_TEST_WEBDRIVER_JSON: ${{ github.workspace }}/packages/sequent-core/webdriver.json
         run: |
+          trap 'rm -f "$WASM_BINDGEN_TEST_WEBDRIVER_JSON"' EXIT
           python3 - <<'PYTHON'
           import json, os
           with open(os.environ['WASM_BINDGEN_TEST_WEBDRIVER_JSON'], 'w') as output:
