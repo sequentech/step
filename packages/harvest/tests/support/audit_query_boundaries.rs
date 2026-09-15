@@ -248,7 +248,14 @@ fn malformed_count_rows_cannot_silently_become_zero_or_the_last_value() {
         }],
     };
     assert_eq!(Aggregate::try_from(&valid).unwrap().count, 42);
-    for (columns, values) in [(0, 0), (0, 1), (1, 0), (1, 2), (2, 1), (2, 2)] {
+    for (columns, values, diagnostic) in [
+        (0, 0, "got 0 columns and 0 values"),
+        (0, 1, "got 0 columns and 1 values"),
+        (1, 0, "got 1 columns and 0 values"),
+        (1, 2, "got 1 columns and 2 values"),
+        (2, 1, "got 2 columns and 1 values"),
+        (2, 2, "got 2 columns and 2 values"),
+    ] {
         let row = Row {
             columns: vec!["count".into(); columns],
             values: vec![
@@ -260,6 +267,7 @@ fn malformed_count_rows_cannot_silently_become_zero_or_the_last_value() {
         };
         let error = Aggregate::try_from(&row).unwrap_err();
         assert!(error.to_string().contains("exactly one"), "{error}");
+        assert!(error.to_string().contains(diagnostic), "{error}");
     }
 }
 
