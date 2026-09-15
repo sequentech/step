@@ -858,7 +858,7 @@ fn response_data<T>(response_body: Response<T>) -> Result<T, Box<dyn Error>> {
     }
     response_body
         .data
-        .ok_or_else(|| Box::from("Unknown error occurred"))
+        .ok_or_else(|| Box::from("GraphQL response missing data"))
 }
 
 fn print_json(message: &str, value: &Value) {

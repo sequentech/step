@@ -46,7 +46,9 @@ impl TryFrom<&Row> for Aggregate {
         // row must not become zero or silently keep only the final value.
         if row.columns.len() != 1 || row.values.len() != 1 {
             return Err(anyhow!(
-                "count row must contain exactly one column and value"
+                "count row must contain exactly one column and value (got {} columns and {} values)",
+                row.columns.len(),
+                row.values.len()
             ));
         }
         let mut count = 0;

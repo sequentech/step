@@ -124,15 +124,19 @@ impl GetPgauditBody {
 
         // Handle order_by
         if !to_count && self.order_by.is_some() {
-            let mut order_by_clauses: Vec<String> = self
+            let mut fields: Vec<_> = self
                 .order_by
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|(field, direction)| format!("{field} {direction}"))
+                .map(|(field, direction)| (field.to_string(), direction))
                 .collect();
             // JSON objects do not define sort precedence; use a stable field order.
-            order_by_clauses.sort();
+            fields.sort_by(|(left, _), (right, _)| left.cmp(right));
+            let order_by_clauses: Vec<_> = fields
+                .into_iter()
+                .map(|(field, direction)| format!("{field} {direction}"))
+                .collect();
             if !order_by_clauses.is_empty() {
                 clauses
                     .push(format!("ORDER BY {}", order_by_clauses.join(", ")));
