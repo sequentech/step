@@ -25,6 +25,7 @@ import {
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
+    escapeTranslationValues,
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
@@ -658,11 +659,15 @@ export const ReviewScreen: React.FC = () => {
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
     if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
+        // errorMsg is rendered as HTML below, so its interpolated values are escaped
         setErrorMsg(
-            t("errors.encoding.writeInCharsExceeded", {
-                ballotId,
-                auditableBallotHash: auditableBallot.ballot_hash,
-            })
+            t(
+                "errors.encoding.writeInCharsExceeded",
+                escapeTranslationValues({
+                    ballotId,
+                    auditableBallotHash: auditableBallot.ballot_hash,
+                })
+            )
         )
     }
 
@@ -804,7 +809,7 @@ export const ReviewScreen: React.FC = () => {
                     variant="error"
                     announcement={EWarnBoxAnnouncement.ASSERTIVE}
                 >
-                    {errorMsg}
+                    {stringToHtml(errorMsg)}
                 </WarnBox>
                 <Box
                     className="review-error-actions"
@@ -933,7 +938,7 @@ export const ReviewScreen: React.FC = () => {
                     variant="error"
                     announcement={EWarnBoxAnnouncement.ASSERTIVE}
                 >
-                    {errorMsg}
+                    {stringToHtml(errorMsg)}
                 </WarnBox>
             )}
             <Typography

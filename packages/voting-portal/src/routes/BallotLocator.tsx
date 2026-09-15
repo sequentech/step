@@ -18,8 +18,10 @@ import {
     stringToHtml,
     EShowCastVoteLogsPolicy,
     formatVotingPortalDateTime,
+    translateHtml,
+    stringToText,
 } from "@sequentech/ui-core"
-import {Box, TextField, Typography, Button, Stack} from "@mui/material"
+import {Box, TextField, Typography, Button, Stack, TypographyProps} from "@mui/material"
 import {styled} from "@mui/material/styles"
 import Tabs from "@mui/material/Tabs"
 import Tab from "@mui/material/Tab"
@@ -62,7 +64,7 @@ const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-bottom: 16px;
 `
 
-const StyledError = styled(Typography)`
+const StyledError = styled(Typography)<TypographyProps>`
     position: absolute;
     margin-top: -12px;
     color: ${({theme}) => theme.palette.red.main};
@@ -684,8 +686,8 @@ const LogsTable: React.FC<LogsTableProps> = ({
                 onRowsPerPageChange={handleChangeRowsPerPage}
             />
             {somethingWentWrongErr && (
-                <StyledError className="cast-vote-logs-error">
-                    {t("errors.page.somethingWrong")}
+                <StyledError className="cast-vote-logs-error" component="div">
+                    {stringToHtml(t("errors.page.somethingWrong"))}
                 </StyledError>
             )}
         </>
@@ -721,7 +723,7 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
                 }}
                 value={inputBallotId}
                 label={t("a11y.ballotIdLabel")}
-                placeholder={t(placeholderLabel)}
+                placeholder={stringToText(t(placeholderLabel))}
                 onKeyDown={captureEnter}
                 error={hasBallotIdError}
                 slotProps={{
@@ -734,11 +736,16 @@ const BallotIdInput: React.FC<BallotIdInputProps> = ({
             />
             {/* The live region stays mounted and only its text changes: a region
                 inserted at the same moment as its text is not reliably read. */}
-            <StyledError className="ballot-id-error" id={BALLOT_ID_ERROR_ID} role="alert">
+            <StyledError
+                className="ballot-id-error"
+                id={BALLOT_ID_ERROR_ID}
+                role="alert"
+                component="div"
+            >
                 {!validatedBallotId
-                    ? t("ballotLocator.wrongFormatBallotId")
+                    ? stringToHtml(t("ballotLocator.wrongFormatBallotId"))
                     : ballotIdNotFoundErr
-                      ? t("ballotLocator.ballotIdNotFoundAtFilter")
+                      ? stringToHtml(t("ballotLocator.ballotIdNotFoundAtFilter"))
                       : ""}
             </StyledError>
         </>
@@ -868,9 +875,10 @@ const BallotLocatorLogic = () => {
                     <Typography
                         className="screen-description"
                         variant="body1"
+                        component="div"
                         sx={{color: theme.palette.customGrey.contrastText}}
                     >
-                        {t("ballotLocator.description")}
+                        {stringToHtml(t("ballotLocator.description"))}
                     </Typography>
                 </Box>
             </Box>
@@ -881,15 +889,15 @@ const BallotLocatorLogic = () => {
                 {hasBallotId && !lookupLoading ? (
                     ambiguousBallotId ? (
                         <MessageFailed className="ballot-locator-failure">
-                            {t("ballotLocator.ambiguous", {ballotId})}
+                            {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
                         </MessageFailed>
                     ) : ballotContent ? (
                         <MessageSuccess className="ballot-locator-success">
-                            {t("ballotLocator.found", {ballotId})}
+                            {translateHtml(t, "ballotLocator.found", {ballotId})}
                         </MessageSuccess>
                     ) : (
                         <MessageFailed className="ballot-locator-failure">
-                            {t("ballotLocator.notFound", {ballotId})}
+                            {translateHtml(t, "ballotLocator.notFound", {ballotId})}
                         </MessageFailed>
                     )
                 ) : null}
@@ -905,8 +913,8 @@ const BallotLocatorLogic = () => {
             )}
             {hasBallotId && ballotContent && (
                 <>
-                    <Typography className="ballot-content-description">
-                        {t("ballotLocator.contentDesc")}
+                    <Typography className="ballot-content-description" component="div">
+                        {stringToHtml(t("ballotLocator.contentDesc"))}
                     </Typography>
                     <InfoDataBox className="ballot-content">{ballotContent}</InfoDataBox>
                 </>
