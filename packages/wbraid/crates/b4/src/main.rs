@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     let state = AppState::from_env(db, s3_client);
     // Logged under the library's target so `RUST_LOG=b4=info` shows it: this
     // binary is the `b4v6` crate, whose own target the scripts do not enable.
-    tracing::info!("S3 bucket {:?}", state.bucket_name,);
+    tracing::info!("S3 bucket {:?}", state.bucket_name);
 
     let app = app::router(state);
 
