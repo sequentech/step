@@ -10,21 +10,27 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use strand::hash::{self, HashWrapper};
+use strand::hash;
+#[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
+use strand::hash::HashWrapper;
 use strand::serialization::{StrandDeserialize, StrandSerialize, StrandVector};
 use strand::shuffler_product::StrandRectangle;
+#[cfg(not(feature = "openssl_full"))]
 use strand::signature::{
     StrandSignature, StrandSignaturePk, StrandSignatureSk,
 };
 use strand::symm;
 
+#[cfg(not(feature = "openssl_full"))]
 const PUBLIC_KEY_HEX: &str =
     "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
+#[cfg(not(feature = "openssl_full"))]
 const SIGNATURE_HEX: &str = concat!(
     "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e06522490155",
     "5fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b",
 );
 
+#[cfg(not(feature = "openssl_full"))]
 fn reference_key() -> StrandSignaturePk {
     StrandSignaturePk::from_bytes(
         hex::decode(PUBLIC_KEY_HEX).unwrap().try_into().unwrap(),
@@ -33,6 +39,7 @@ fn reference_key() -> StrandSignaturePk {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn ed25519_verifies_the_rfc8032_empty_message_vector() {
     // RFC 8032, section 7.1, TEST 1. The expected signature is independent of
     // Strand's signer: https://www.rfc-editor.org/rfc/rfc8032.txt
@@ -51,6 +58,7 @@ fn ed25519_verifies_the_rfc8032_empty_message_vector() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn public_keys_round_trip_through_their_documented_hex_json_format() {
     let public_key = reference_key();
     let json = serde_json::to_string(&public_key).unwrap();
@@ -60,6 +68,7 @@ fn public_keys_round_trip_through_their_documented_hex_json_format() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn signature_json_preserves_the_independent_signature_vector() {
     let wire = format!("\"{SIGNATURE_HEX}\"");
     let signature: StrandSignature = serde_json::from_str(&wire).unwrap();
@@ -69,6 +78,7 @@ fn signature_json_preserves_the_independent_signature_vector() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn signature_json_rejects_bad_types_nonhex_and_wrong_lengths() {
     // A valid hex string is the control for the same JSON visitor.
     let _: StrandSignature =
@@ -90,6 +100,7 @@ fn signature_json_rejects_bad_types_nonhex_and_wrong_lengths() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn public_key_json_rejects_bad_types_nonhex_and_wrong_byte_lengths() {
     for malformed in [
         serde_json::json!(null),
@@ -109,6 +120,7 @@ fn public_key_json_rejects_bad_types_nonhex_and_wrong_byte_lengths() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn public_key_transport_rejects_a_full_length_non_curve_point() {
     // The compressed Edwards y-coordinate 2 has no corresponding curve point.
     // Length checks alone cannot validate a verification key.
@@ -130,6 +142,7 @@ fn public_key_transport_rejects_a_full_length_non_curve_point() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn signature_and_key_transport_rejects_truncation_and_trailing_bytes() {
     let secret = StrandSignatureSk::r#gen().unwrap();
     let public = StrandSignaturePk::from_sk(&secret).unwrap();
@@ -170,6 +183,7 @@ fn signature_and_key_transport_rejects_truncation_and_trailing_bytes() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn imported_signing_keys_preserve_key_identity_and_signature_validity() {
     let secret = StrandSignatureSk::r#gen().unwrap();
     let public = StrandSignaturePk::from_sk(&secret).unwrap();
@@ -216,6 +230,7 @@ fn sha2_outputs_match_independent_known_vectors() {
         hash::hash_b64(b"abc").unwrap(),
         STANDARD_NO_PAD.encode(&expected_sha512)
     );
+    #[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
     assert_eq!(
         hex::encode(hash::hash_sha256(b"abc").unwrap()),
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
@@ -252,6 +267,7 @@ impl Drop for TestFile {
 }
 
 #[test]
+#[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
 fn file_hashing_reads_past_the_buffer_boundary_and_reports_io_errors() {
     // Constants also checked independently with Python hashlib. The 8,193-byte
     // case needs a second read after the production helper's 8,192-byte buffer.
@@ -277,6 +293,7 @@ fn file_hashing_reads_past_the_buffer_boundary_and_reports_io_errors() {
 }
 
 #[test]
+#[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
 fn hash_json_requires_exactly_sixty_four_bytes() {
     let bytes = [42; 64];
     let wrapped = HashWrapper::new(bytes);
@@ -307,6 +324,7 @@ fn hash_json_requires_exactly_sixty_four_bytes() {
 }
 
 #[test]
+#[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
 fn symmetric_decryption_rejects_wrong_keys_and_tampering_in_each_component() {
     let key = symm::sk_from_bytes(&[42; 32]).unwrap();
     for plaintext in [b"".as_slice(), b"private trustee share"] {
@@ -376,7 +394,78 @@ fn backend_diagnostics_name_the_active_implementations() {
     let info = strand::info();
     assert_eq!(info["VERSION"], env!("CARGO_PKG_VERSION"));
     for component in ["HASH", "RNG", "SIGNATURE", "SYMMETRIC"] {
-        assert!(info[component].contains("FIPS_ENABLED: FALSE"));
+        let openssl = if component == "SIGNATURE" {
+            cfg!(feature = "openssl_full")
+        } else {
+            cfg!(any(feature = "openssl_core", feature = "openssl_full"))
+        };
+        let expected = if openssl {
+            "FIPS_ENABLED: TRUE"
+        } else {
+            "FIPS_ENABLED: FALSE"
+        };
+        // This is the backend's diagnostic label, not provider certification.
+        assert!(info[component].contains(expected));
         assert!(strand::info_string().contains(&info[component]));
     }
+}
+
+// These release backends use AES-GCM and P-384 rather than the default
+// ChaCha20/Ed25519 wire formats. Keep their valid and rejected controls separate.
+#[cfg(any(feature = "openssl_core", feature = "openssl_full"))]
+#[test]
+fn aes_gcm_rejects_wrong_keys_and_changes_to_ciphertext_iv_or_tag() {
+    let key = symm::sk_from_bytes(&[42; 32]).unwrap();
+    for plaintext in [b"".as_slice(), b"private trustee share"] {
+        let encrypted = symm::encrypt(key, plaintext, b"context").unwrap();
+        assert_eq!(
+            symm::decrypt(&key, &encrypted, b"context").unwrap(),
+            plaintext
+        );
+        assert!(symm::decrypt(&[43; 32], &encrypted, b"context").is_err());
+        assert!(symm::decrypt(&key, &encrypted, b"other context").is_err());
+        let mut changed = encrypted.clone();
+        changed.iv[0] ^= 1;
+        assert!(symm::decrypt(&key, &changed, b"context").is_err());
+        let mut changed = encrypted.clone();
+        changed.tag[0] ^= 1;
+        assert!(symm::decrypt(&key, &changed, b"context").is_err());
+        for index in 0..encrypted.encrypted_bytes.len() {
+            let mut changed = encrypted.clone();
+            changed.encrypted_bytes[index] ^= 1;
+            assert!(symm::decrypt(&key, &changed, b"context").is_err());
+        }
+    }
+    for length in [0, 1, 31, 33, 64] {
+        assert!(symm::sk_from_bytes(&vec![0; length]).is_err());
+    }
+}
+
+#[cfg(feature = "openssl_full")]
+#[test]
+fn p384_imported_keys_verify_only_the_original_message_and_signer() {
+    use strand::signature::{
+        StrandSignature, StrandSignaturePk, StrandSignatureSk,
+    };
+    let secret = StrandSignatureSk::r#gen().unwrap();
+    let public = StrandSignaturePk::from(&secret).unwrap();
+    let signature = secret.sign(b"trustee message").unwrap();
+    public.verify(&signature, b"trustee message").unwrap();
+    let imported_public =
+        StrandSignaturePk::from_der(&public.to_der().unwrap()).unwrap();
+    let imported_signature =
+        StrandSignature::from_der(&signature.to_der().unwrap()).unwrap();
+    imported_public
+        .verify(&imported_signature, b"trustee message")
+        .unwrap();
+    assert!(imported_public
+        .verify(&imported_signature, b"changed message")
+        .is_err());
+    let other =
+        StrandSignaturePk::from(&StrandSignatureSk::r#gen().unwrap()).unwrap();
+    assert!(other
+        .verify(&imported_signature, b"trustee message")
+        .is_err());
+    assert!(StrandSignaturePk::from_der(b"not DER").is_err());
+    assert!(StrandSignature::from_der(b"not DER").is_err());
 }
