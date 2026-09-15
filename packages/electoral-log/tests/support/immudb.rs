@@ -13,6 +13,10 @@ use tempfile::TempDir;
 
 pub const DATABASE: &str = "electoralcoveragetest";
 pub const USERNAME: &str = "immudb";
+const START_ATTEMPTS: usize = 5;
+const READINESS_POLLS: usize = 100;
+const CONNECT_TIMEOUT: Duration = Duration::from_millis(200);
+const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
 pub struct DatabaseServer {
     process: Child,
@@ -27,7 +31,7 @@ impl DatabaseServer {
     }
 
     pub async fn start_with_first_port(first_port: Option<u16>) -> Result<Self> {
-        for attempt in 0..5 {
+        for attempt in 0..START_ATTEMPTS {
             let port = if attempt == 0 && first_port.is_some() {
                 first_port.unwrap()
             } else {
@@ -37,7 +41,8 @@ impl DatabaseServer {
             match Self::start_on_port(port).await {
                 Ok(server) => return Ok(server),
                 Err(error)
-                    if attempt < 4 && error.to_string().contains("address already in use") => {}
+                    if attempt + 1 < START_ATTEMPTS
+                        && error.to_string().contains("address already in use") => {}
                 Err(error) => return Err(error),
             }
         }
@@ -84,13 +89,11 @@ impl DatabaseServer {
             password,
         };
 
-        for _ in 0..100 {
+        for _ in 0..READINESS_POLLS {
             if server.process.try_wait()?.is_some() {
                 return Err(anyhow!("ImmuDB exited during startup: {}", server.logs()));
             }
-            if let Ok(Ok(_)) =
-                tokio::time::timeout(Duration::from_millis(200), server.client()).await
-            {
+            if let Ok(Ok(_)) = tokio::time::timeout(CONNECT_TIMEOUT, server.client()).await {
                 // The per-process password prevents adopting another fixture
                 // that won the port race. Also check that our child is alive.
                 if server.process.try_wait()?.is_none() {
@@ -98,7 +101,7 @@ impl DatabaseServer {
                 }
                 return Err(anyhow!("ImmuDB exited during startup: {}", server.logs()));
             }
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            tokio::time::sleep(POLL_INTERVAL).await;
         }
         Err(anyhow!("ImmuDB did not become ready: {}", server.logs()))
     }

@@ -272,7 +272,9 @@ fn order_clause<K: Display, V: Display>(order_by: Option<HashMap<K, V>>) -> Resu
                 | "version"
         ) || !matches!(direction.as_str(), "ASC" | "DESC")
         {
-            return Err(anyhow!("invalid audit sort column or direction"));
+            return Err(anyhow!(
+                "invalid audit sort column {field:?} or direction {direction:?}"
+            ));
         }
         columns.insert(field, direction);
     }
