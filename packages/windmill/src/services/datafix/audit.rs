@@ -97,7 +97,7 @@ const VALUE_NONE: &str = "none";
 const VALUE_UNCHANGED: &str = "unchanged";
 
 /// Formats the operation string of an inbound entry, e.g.
-/// `voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-1", previous_area_id=..., area="WARD-2", area_id=..., previous_birthdate=1990-01-01, birthdate=unchanged, previous_enabled=true, enabled=true)`
+/// `voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-1", previous_area_id="...", area="WARD-2", area_id="...", previous_birthdate="1990-01-01", birthdate=unchanged, previous_enabled=true, enabled=true)`
 /// or `voter_id="123456"; ReplacePin Failed: Cannot replace pin because the user is disabled (error_code=invalid-request)`.
 #[instrument(skip_all, fields(operation = %operation))]
 pub fn inbound_operation_log_entry(
@@ -118,8 +118,11 @@ pub fn inbound_operation_log_entry(
     }
 }
 
+/// Values read back from Keycloak (`area_id`, `previous_area_id`,
+/// `previous_birthdate`) are quoted like the request's free text: they are
+/// attributes an administrator can edit, so nothing bounds their content.
 fn applied_details(applied: &AppliedInboundOperation) -> String {
-    let area_id = optional(applied.area_id.as_deref(), VALUE_NONE);
+    let area_id = optional_quoted(applied.area_id.as_deref(), VALUE_NONE);
     match &applied.changes {
         InboundVoterChanges::VoterAdded {
             area_name,
@@ -140,9 +143,9 @@ fn applied_details(applied: &AppliedInboundOperation) -> String {
         } => format!(
             "previous_area={}, previous_area_id={}, area={}, area_id={area_id}, previous_birthdate={}, birthdate={}, previous_enabled={}, enabled={}",
             optional_quoted(previous_area_name.as_deref(), VALUE_NONE),
-            optional(previous_area_id.as_deref(), VALUE_NONE),
+            optional_quoted(previous_area_id.as_deref(), VALUE_NONE),
             quoted(area_name),
-            optional(previous_birthdate.as_deref(), VALUE_NONE),
+            optional_quoted(previous_birthdate.as_deref(), VALUE_NONE),
             optional(birthdate.as_deref(), VALUE_UNCHANGED),
             optional_bool(*previous_enabled, VALUE_NONE),
             optional_bool(*enabled, VALUE_UNCHANGED),
@@ -255,7 +258,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            r#"voter_id="123456"; AddVoter Succeeded (area="WARD-2-SCHOOL-POLL-5", area_id=area-id, birthdate=1990-01-01, enabled=true)"#
+            r#"voter_id="123456"; AddVoter Succeeded (area="WARD-2-SCHOOL-POLL-5", area_id="area-id", birthdate=1990-01-01, enabled=true)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -272,7 +275,7 @@ mod tests {
         );
         assert_eq!(
             without_birthdate,
-            r#"voter_id="123456"; AddVoter Succeeded (area="WARD-2", area_id=area-id, birthdate=none, enabled=true)"#
+            r#"voter_id="123456"; AddVoter Succeeded (area="WARD-2", area_id="area-id", birthdate=none, enabled=true)"#
         );
     }
 
@@ -293,7 +296,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-1-POLL-3", previous_area_id=previous-area-id, area="WARD-2-POLL-5", area_id=area-id, previous_birthdate=1944-11-13, birthdate=1944-11-14, previous_enabled=true, enabled=false)"#
+            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-1-POLL-3", previous_area_id="previous-area-id", area="WARD-2-POLL-5", area_id="area-id", previous_birthdate="1944-11-13", birthdate=1944-11-14, previous_enabled=true, enabled=false)"#
         );
         assert_eq!(
             description_of(&entry),
@@ -318,7 +321,7 @@ mod tests {
         );
         assert_eq!(
             entry,
-            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-2-POLL-5", previous_area_id=area-id, area="WARD-2-POLL-5", area_id=area-id, previous_birthdate=1990-01-01, birthdate=unchanged, previous_enabled=true, enabled=false)"#
+            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area="WARD-2-POLL-5", previous_area_id="area-id", area="WARD-2-POLL-5", area_id="area-id", previous_birthdate="1990-01-01", birthdate=unchanged, previous_enabled=true, enabled=false)"#
         );
     }
 
@@ -537,11 +540,38 @@ mod tests {
         );
         assert_eq!(
             entry,
-            r#"voter_id="1, area_id=spoofed"; AddVoter Succeeded (area="WARD9\", AREA_ID=\\\"spoofed", area_id=area-id, birthdate=none, enabled=true)"#
+            r#"voter_id="1, area_id=spoofed"; AddVoter Succeeded (area="WARD9\", AREA_ID=\\\"spoofed", area_id="area-id", birthdate=none, enabled=true)"#
         );
         assert_eq!(
             description_of(&entry),
             "Inbound request AddVoter Succeeded."
+        );
+    }
+
+    /// The previous area id and birthdate, and the area id read back after the
+    /// write, are Keycloak attributes an administrator can edit freely.
+    #[test]
+    fn keycloak_attributes_cannot_pose_as_another_field() {
+        let entry = inbound_operation_log_entry(
+            "123456",
+            InboundOperation::UpdateVoter,
+            Ok(&AppliedInboundOperation {
+                user_id: Some("user-id".to_string()),
+                area_id: Some("area-id, enabled=false".to_string()),
+                changes: InboundVoterChanges::VoterUpdated {
+                    previous_area_name: None,
+                    previous_area_id: Some("spoofed, enabled=false".to_string()),
+                    area_name: "WARD2-POLL2".to_string(),
+                    previous_birthdate: Some("1990-01-01, previous_enabled=false".to_string()),
+                    birthdate: None,
+                    previous_enabled: Some(true),
+                    enabled: None,
+                },
+            }),
+        );
+        assert_eq!(
+            entry,
+            r#"voter_id="123456"; UpdateVoter Succeeded (previous_area=none, previous_area_id="spoofed, enabled=false", area="WARD2-POLL2", area_id="area-id, enabled=false", previous_birthdate="1990-01-01, previous_enabled=false", birthdate=unchanged, previous_enabled=true, enabled=unchanged)"#
         );
     }
 

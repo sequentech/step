@@ -1,6 +1,15 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+//! Inbound Datafix API routes.
+//!
+//! Every route span records the request body (`#[instrument(skip(claims))]`
+//! keeps only the JWT out) so a failing request can be debugged from the
+//! tracing output alone. The body is deliberately not treated as sensitive:
+//! the voter id is an anonymous registry identifier, and the same values are
+//! already recorded in the electoral log entry of the operation and in the
+//! voter files exchanged with the registry, so there is nothing to protect
+//! here that is not already stored elsewhere.
 use crate::services::authorization::authorize;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -10,7 +19,7 @@ use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
-use tracing::{debug, error, instrument};
+use tracing::{error, instrument};
 use windmill::services;
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 use windmill::services::datafix::api_datafix::{
@@ -23,14 +32,16 @@ use windmill::services::datafix::audit::InboundOperation;
 use windmill::services::datafix::types::*;
 use windmill::services::datafix::utils::get_event_id_and_datafix_annotations;
 
-#[instrument(skip_all)]
+// Do not skip the body! Datafix integration requires being able to debug
+// these requests to identify issues such as empty values, malformed
+// requests, etc.
+#[instrument(skip(claims))]
 #[post("/add-voter", format = "json", data = "<body>")]
 pub async fn add_voter(
     claims: DatafixClaims,
     body: Json<VoterInformationBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
-    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -100,14 +111,16 @@ pub async fn add_voter(
     Ok(DatafixResponse::ok())
 }
 
-#[instrument(skip_all)]
+// Do not skip the body! Datafix integration requires being able to debug
+// these requests to identify issues such as empty values, malformed
+// requests, etc.
+#[instrument(skip(claims))]
 #[post("/update-voter", format = "json", data = "<body>")]
 pub async fn update_voter(
     claims: DatafixClaims,
     body: Json<VoterInformationBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterInformationBody = body.into_inner();
-    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -269,14 +282,16 @@ pub struct VoterIdBody {
     voter_id: String,
 }
 
-#[instrument(skip_all)]
+// Do not skip the body! Datafix integration requires being able to debug
+// these requests to identify issues such as empty values, malformed
+// requests, etc.
+#[instrument(skip(claims))]
 #[post("/delete-voter", format = "json", data = "<body>")]
 pub async fn delete_voter(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -413,14 +428,16 @@ pub async fn delete_voter(
     Ok(DatafixResponse::ok())
 }
 
-#[instrument(skip_all)]
+// Do not skip the body! Datafix integration requires being able to debug
+// these requests to identify issues such as empty values, malformed
+// requests, etc.
+#[instrument(skip(claims))]
 #[post("/unmark-voted", format = "json", data = "<body>")]
 pub async fn unmark_voted(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -557,14 +574,16 @@ pub async fn unmark_voted(
     Ok(DatafixResponse::ok())
 }
 
-#[instrument(skip_all)]
+// Do not skip the body! Datafix integration requires being able to debug
+// these requests to identify issues such as empty values, malformed
+// requests, etc.
+#[instrument(skip(claims))]
 #[post("/mark-voted", format = "json", data = "<body>")]
 pub async fn mark_voted(
     claims: DatafixClaims,
     body: Json<MarkVotedBody>,
 ) -> Result<Json<DatafixResponse>, JsonErrorResponse> {
     let input: MarkVotedBody = body.into_inner();
-    debug!(body = ?input, "Datafix request body");
 
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
@@ -722,14 +741,16 @@ pub struct ReplacePinOutput {
     pin: String,
 }
 
-#[instrument(skip_all)]
+// Do not skip the body! Datafix integration requires being able to debug
+// these requests to identify issues such as empty values, malformed
+// requests, etc.
+#[instrument(skip(claims))]
 #[post("/replace-pin", format = "json", data = "<body>")]
 pub async fn replace_pin(
     claims: DatafixClaims,
     body: Json<VoterIdBody>,
 ) -> Result<Json<ReplacePinOutput>, JsonErrorResponse> {
     let input: VoterIdBody = body.into_inner();
-    debug!(body = ?input, "Datafix request body");
     let required_perm = vec![Permissions::DATAFIX_ACCOUNT];
     authorize(
         &claims.jwt_claims,

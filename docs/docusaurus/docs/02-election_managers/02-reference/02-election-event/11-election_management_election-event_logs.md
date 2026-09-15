@@ -35,13 +35,17 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   ```
 
   Values that come from free text (the voter id, the area name, the channel)
-  are written double-quoted, with `"` and `\` escaped, so a value containing
-  `, ` or `=` is still read as a single value and not as another field.
+  and values read back from Keycloak (`area_id`, `previous_area_id`,
+  `previous_birthdate`, which are attributes an administrator can edit) are
+  written double-quoted, with `"` and `\` escaped, so a value containing
+  `, ` or `=` is still read as a single value and not as another field. Only
+  the fixed vocabulary (`none`, `unchanged`, `true`, `false`) and the
+  validated `birthdate` of the request are written bare.
 
   | Operation | Values recorded on success |
   |---|---|
   | `AddVoter` | `area`, `area_id`, `birthdate` (`none` when not sent), `enabled=true` |
-  | `UpdateVoter` | `area`, `area_id`, `birthdate`, `enabled`; a field that was not sent is written as `unchanged` |
+  | `UpdateVoter` | What the voter carried before the write (`previous_area`, `previous_area_id`, `previous_birthdate`, `previous_enabled`; `none` when the voter had no such value) next to what the request applied (`area`, `area_id`, `birthdate`, `enabled`); a field that was not sent is written as `unchanged` |
   | `DeleteVoter` | `enabled=false` and the `disable_comment` written to the voter (Datafix voters are disabled, never deleted) |
   | `MarkVoted` | `channel`, `enabled=false`, `disable_comment` |
   | `UnmarkVoted` | `previous_channel`, `channel=NONE`, and whether the account was re-enabled (`enabled`, `disable_comment`); `unchanged` means an administrator's disable was preserved |
@@ -58,6 +62,16 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   silently drop one, the operation fails without changing the voter, the
   external system receives `internal-error`, and the entry names the
   attributes the realm does not store.
+
+  A request is attributed to the election event whose `datafix:id` annotation
+  matches the Datafix id in the caller's token. If several election events of
+  the tenant share that id, the request cannot be attributed to any of them
+  and is rejected with `internal-error` before touching any voter, since only
+  an administrator can fix the configuration. The failed entry is then
+  recorded in the electoral log of **every** event configured with that id,
+  naming all of them in the reason, with the voter's username alone (no
+  `user_id` or `area_id`, because the voter cannot be resolved without an
+  event).
 - **User id** and **username** identify the voter (the Datafix voter id is the
   username) and the message's `area_id` is the voter's area, as in Keycloak
   events. A field the entry has no value for is left out of the message
@@ -65,3 +79,13 @@ back to it, is recorded as an `ExternalApiRequest` entry.
   operations apply to the whole election event, and `user_id`/`area_id` when
   the voter cannot be resolved, as in an `AddVoter` that failed before the
   voter was created.
+
+### Request bodies in the service logs
+
+Besides the electoral log entry, the API service records the full body of
+every inbound Datafix request in its tracing output, so a rejected request can
+be debugged without reproducing it. This data is deliberately not treated as
+sensitive: the voter id is an anonymous registry identifier, and the same
+values are already stored in the electoral log entry described above and in
+the voter files exchanged with the external system. Only the caller's token is
+kept out of the service logs.
