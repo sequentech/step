@@ -179,10 +179,14 @@ export const Question: React.FC<IQuestionProps> = ({
         question.presentation?.collapsible_lists ?? ECollapsibleLists.DISABLED
     const isCollapsible = collapsibleListsPolicy !== ECollapsibleLists.DISABLED
     const defaultAllExpanded = collapsibleListsPolicy !== ECollapsibleLists.ENABLED_COLLAPSED
-    const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({})
+    const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>(() =>
+        Object.create(null)
+    )
 
     const getExpanded = (key: string): boolean =>
-        key in expandedStates ? expandedStates[key] : defaultAllExpanded
+        Object.prototype.hasOwnProperty.call(expandedStates, key)
+            ? expandedStates[key]
+            : defaultAllExpanded
 
     const allCollapsed =
         !!categoriesMapOrder &&
@@ -192,7 +196,8 @@ export const Question: React.FC<IQuestionProps> = ({
     const handleToggleAll = () => {
         if (!categoriesMapOrder) return
         const targetExpanded = allCollapsed
-        const newState: Record<string, boolean> = {}
+        // Authored category names may match inherited properties such as __proto__.
+        const newState: Record<string, boolean> = Object.create(null)
         Object.keys(categoriesMapOrder).forEach((k) => {
             newState[k] = targetExpanded
         })
@@ -490,10 +495,14 @@ export const Question: React.FC<IQuestionProps> = ({
                                             setIsTouched={setIsTouched}
                                             externalExpanded={getExpanded(categoryName)}
                                             onExpandedChange={(expanded) =>
-                                                setExpandedStates((prev) => ({
-                                                    ...prev,
-                                                    [categoryName]: expanded,
-                                                }))
+                                                setExpandedStates((prev) => {
+                                                    // Keep authored keys safe after TypeScript's
+                                                    // ES5 object-spread transformation as well.
+                                                    const next: Record<string, boolean> =
+                                                        Object.assign(Object.create(null), prev)
+                                                    next[categoryName] = expanded
+                                                    return next
+                                                })
                                             }
                                         />
                                     )
