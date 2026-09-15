@@ -131,7 +131,7 @@ fn public_key_transport_rejects_a_full_length_non_curve_point() {
 
 #[test]
 fn signature_and_key_transport_rejects_truncation_and_trailing_bytes() {
-    let secret = StrandSignatureSk::generate().unwrap();
+    let secret = StrandSignatureSk::r#gen().unwrap();
     let public = StrandSignaturePk::from_sk(&secret).unwrap();
     let signature = secret.sign(b"fixture message").unwrap();
     let signature_bytes = signature.strand_serialize().unwrap();
@@ -171,7 +171,7 @@ fn signature_and_key_transport_rejects_truncation_and_trailing_bytes() {
 
 #[test]
 fn imported_signing_keys_preserve_key_identity_and_signature_validity() {
-    let secret = StrandSignatureSk::generate().unwrap();
+    let secret = StrandSignatureSk::r#gen().unwrap();
     let public = StrandSignaturePk::from_sk(&secret).unwrap();
     let imported = StrandSignatureSk::from_der_b64_string(
         &secret.to_der_b64_string().unwrap(),
