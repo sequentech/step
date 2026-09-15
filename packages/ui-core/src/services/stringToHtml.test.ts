@@ -171,17 +171,17 @@ describe("translateHtml", () => {
     })
 
     it("keeps an interpolated value inert and visible", () => {
-        const output = render(translateHtml(translate, "notFound", {ballotId: injected}))
-        expect(output).not.toContain("<a ")
-        expect(output).toContain("&lt;a href=")
+        const html = render(translateHtml(translate, "notFound", {ballotId: injected}))
+        expect(html).not.toContain("<a ")
+        expect(html).toContain("&lt;a href=")
     })
 
     // regression: relying on i18next's escapeValue left this open, because the
     // translation itself decides whether {{- value}} skips escaping
     it("keeps an interpolated value inert even when the translation uses {{- }}", () => {
-        const output = render(translateHtml(translate, "notFoundUnescaped", {ballotId: injected}))
-        expect(output).not.toContain("<a ")
-        expect(output).toContain("&lt;a href=")
+        const html = render(translateHtml(translate, "notFoundUnescaped", {ballotId: injected}))
+        expect(html).not.toContain("<a ")
+        expect(html).toContain("&lt;a href=")
     })
 
     it("does not let a nested value bypass escaping", () => {
