@@ -4,6 +4,8 @@
 //! Borsh is part of the signed ballot format. Small golden records pin byte
 //! order; larger records exercise truncation and sink failures at every byte.
 
+#![cfg(feature = "default_features")]
+
 use sequent_core::ballot::*;
 use sequent_core::types::ceremonies::TallySessionResolutionData;
 use serde_json::json;

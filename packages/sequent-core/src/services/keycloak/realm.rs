@@ -470,24 +470,33 @@ impl KeycloakAdminClient {
                     text: e.to_string(),
                 }
             })?;
-            // Resolve relative Location headers too, but never return an empty
-            // ID or a query/fragment as part of the role-mapping identifier.
-            let location = reqwest::Url::parse(&url)
-                .and_then(|base| base.join(location_str))
-                .map_err(|e| KeycloakError::HttpFailure {
+            // Keycloak may advertise a public origin behind a reverse proxy.
+            // Only consume an ID for this realm's exact groups resource; never
+            // follow the advertised host or accept a different resource path.
+            let base = reqwest::Url::parse(&url).map_err(|e| {
+                KeycloakError::HttpFailure {
                     status: response.status().into(),
                     body: None,
                     text: e.to_string(),
-                })?;
+                }
+            })?;
+            let location = base.join(location_str).map_err(|e| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                }
+            })?;
+            let prefix = format!("{}/", base.path());
             let id = location
-                .path_segments()
-                .and_then(|parts| parts.last())
-                .filter(|id| !id.is_empty() && *id != "groups");
+                .path()
+                .strip_prefix(&prefix)
+                .filter(|id| !id.is_empty() && !id.contains('/'));
             return id.map(|id| Some(id.to_string())).ok_or_else(|| {
                 KeycloakError::HttpFailure {
                     status: response.status().into(),
                     body: None,
-                    text: "Group creation Location has no group ID".to_string(),
+                    text: "Group creation Location does not identify a group in the requested realm".to_string(),
                 }
             });
         }
