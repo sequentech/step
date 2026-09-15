@@ -78,9 +78,54 @@ LOG_LEVEL = "info"
 package = "strand"
 features = []
 limitations = [
-    "Native default backend only; optional backends, rayon and WASM require separate runs.",
+    "Ristretto default backend; strand-native exercises NumBigInt/Rayon and strand-backends also exercises Rug/Malachite. WASM is separate.",
     "Stable LLVM includes inline unit-test code and does not measure branches or doctests.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.strand.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
+"src/random/mod.rs" = "Module declaration only; the rand implementation is measured."
+"src/signatures/mod.rs" = "Module declaration only; the Dalek implementation is measured."
+"src/symmetric/mod.rs" = "Module declaration only; the RustCrypto implementation is measured."
+"src/wasm/test.rs" = "Browser-only test module compiled for browser testing; no native application implementation."
+"src/wasm/test/bench.rs" = "Browser benchmark harness compiled for browser testing; no native application implementation."
+"src/wasm/test/demo.rs" = "Browser demonstration compiled for browser testing; no native application implementation."
+"src/wasm/test/test.rs" = "Browser test harness compiled for browser testing; no native application implementation."
+
+[profiles.strand-native]
+package = "strand"
+features = ["num_bigint", "rayon"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
+    "Do not substitute zero for a base revision that cannot build this feature configuration.",
+]
+[profiles.strand-native.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.strand-native.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declarations only."
+"src/random/mod.rs" = "Module declarations only."
+"src/signatures/mod.rs" = "Module declarations only."
+"src/symmetric/mod.rs" = "Module declarations only."
+
+[profiles.strand-backends]
+package = "strand"
+features = ["num_bigint", "rayon", "rug", "malachite"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Enabled native backends; inline test code remains counted. WASM and actual branch coverage are separate.",
+    "Do not substitute zero for a base revision that cannot build this feature configuration.",
+]
+[profiles.strand-backends.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.strand-backends.scope_exceptions]
+"src/context.rs" = "Trait declarations without executable default methods; implementations are measured in the selected backend."
+"src/hashing/mod.rs" = "Module declarations only."
+"src/random/mod.rs" = "Module declarations only."
+"src/signatures/mod.rs" = "Module declarations only."
+"src/symmetric/mod.rs" = "Module declarations only."

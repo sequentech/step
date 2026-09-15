@@ -1,33 +1,33 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Package coverage
+name: Strand native backend coverage
 
 on:
   pull_request:
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/strand-native-backends.yml', '.github/actions/setup-test-browser/**']
   push:
-    branches: [release/10.0]
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    branches: [main]
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/strand-native-backends.yml', '.github/actions/setup-test-browser/**']
   workflow_dispatch:
     inputs:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand]
-        default: sequent-core
+        options: [strand-native, strand-backends]
+        default: strand-native
         required: true
       base_ref:
         description: Compare with this base branch or commit (select a different candidate branch above)
         type: string
-        default: release/10.0
+        default: main
         required: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: package-coverage-${{ github.event.pull_request.number || github.ref }}
+  group: strand-native-backends-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -69,14 +69,14 @@ jobs:
           retention-days: 7
 
   package-comparison:
-    name: ${{ matrix.profile }} coverage — no decrease
+    name: ${{ matrix.profile }} — coverage
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: reporter-tests
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["strand-native", "strand-backends"]') }}
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
     steps:
@@ -93,10 +93,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
-      - name: Install Core database fixture dependencies
-        if: env.COVERAGE_PROFILE == 'sequent-core'
-        run: sudo apt-get install -y postgresql libpq-dev
+          sudo apt-get install -y build-essential m4 pkg-config libssl-dev protobuf-compiler libprotobuf-dev
       - name: Install both repository Rust toolchains
         run: |
           for checkout in base head; do
@@ -107,10 +104,31 @@ jobs:
           curl --fail --location --silent --show-error --output /tmp/cargo-llvm-cov.tar.gz https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz
           echo 'b3f68e625481fed9b16444174f3fa5ebcdbde4a1878803a35eabe2dcefcdc41a  /tmp/cargo-llvm-cov.tar.gz' | sha256sum --check
           tar -xzf /tmp/cargo-llvm-cov.tar.gz -C "$HOME/.cargo/bin"
+      - name: Identify a comparable feature scope
+        id: scope
+        env:
+          PROFILE: ${{ env.COVERAGE_PROFILE }}
+        run: |
+          python3 - <<'PYTHON'
+          import os, tomllib
+          with open('base/scripts/coverage/profiles.toml', 'rb') as source:
+              profiles = tomllib.load(source)['profiles']
+          # NumBigInt/Rayon compile on the original base. Rug/Malachite establish
+          # a first measurement here; later bases declare the restored profile.
+          comparable = os.environ['PROFILE'] != 'strand-backends' or 'strand-backends' in profiles
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              print(f'comparable={str(comparable).lower()}', file=output)
+          PYTHON
       - name: Compare package coverage
+        if: steps.scope.outputs.comparable == 'true'
         run: >-
           python3 head/scripts/coverage/ci.py rust "$COVERAGE_PROFILE"
           --base base --head head --output "$RUNNER_TEMP/coverage/native"
+      - name: Measure restored backends without inventing a base
+        if: steps.scope.outputs.comparable != 'true'
+        run: |
+          python3 head/scripts/coverage/run.py strand-backends --baseline --checkout head --output-dir "$RUNNER_TEMP/coverage/native"
+          echo 'Rug/Malachite: first buildable measurement; no comparable base or improvement claim. Default and NumBigInt/Rayon still require actual-base comparisons.' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
