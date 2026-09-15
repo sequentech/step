@@ -55,3 +55,13 @@ The k6 adapters use the locally bundled url-1.0.0.js from
 HTTP(S) origins, including IPv6 and internationalized hostnames. The vendored
 file records its upstream checksum and licenses; keep it unformatted when updating.
 It is included in the CLI runtime and worker images, with no runtime download.
+
+Every HTML and JSON report includes sample counts, mean, p50, p95, p99 and maximum
+latency for Keycloak authentication (login page, credentials, token exchange and
+complete login), voter status, each publication download, cast acceptance and
+the full journey. Quantiles combine individual samples, never worker percentiles.
+Measured steps from failed journeys are included; missing steps and older samples
+remain unavailable rather than becoming zero. Browser complete-login time also
+includes navigation, rendering and filling the form between authentication requests.
+Phase latency shows where voters spend time; CPU, memory and controlled changes
+in concurrency are needed to establish a service's capacity bottleneck.

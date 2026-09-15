@@ -160,13 +160,25 @@ fn status_protocol_has_no_publication_or_cast_steps() {
 fn exact_global_quantiles_and_throughput_are_reported() {
     let directory = tempfile::tempdir().unwrap();
     let input = input();
-    samples(directory.path(), &input, &successful_rows());
+    let mut rows = successful_rows();
+    rows[0]["timings"] = json!({"keycloak_ms": 100, "login": 40});
+    rows[1]["timings"] = json!({"keycloak_ms": 200, "login": 80});
+    // The third sample models a legacy adapter without phase measurements.
+    samples(directory.path(), &input, &rows);
     report::generate(directory.path(), None).unwrap();
     let summary: Value = files::read(&directory.path().join("results.json")).unwrap();
     assert_eq!(summary["casts_per_second"], 3.0);
+    assert_eq!(summary["latency"]["keycloak_ms"]["count"], 2.0);
+    assert_eq!(summary["latency"]["keycloak_ms"]["mean"], 150.0);
+    assert_eq!(summary["latency"]["keycloak_ms"]["p95"], 195.0);
+    assert_eq!(summary["latency"]["keycloak_ms"]["p99"], 199.0);
+    assert_eq!(summary["latency"]["keycloak_ms"]["max"], 200.0);
+    assert!(summary["latency"]["token"]["p50"].is_null());
     assert_eq!(summary["latency"]["status_ms"]["p50"], 2.0);
     assert_eq!(summary["latency"]["status_ms"]["p99"], 2.98);
     let html = fs::read_to_string(directory.path().join("report.html")).unwrap();
+    assert!(html.contains("Keycloak login (complete)"));
+    assert!(html.contains("195.0 ms"));
     assert!(!html.contains("receipt-100"));
     assert!(!html.contains("GraphQL operations"));
     assert!(html.contains("data:font/woff2;base64,"));

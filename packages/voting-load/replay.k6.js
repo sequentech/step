@@ -51,12 +51,11 @@ function query(parameters) {
 }
 
 /** Execute the authenticated protocol with a fresh cookie jar and PKCE verifier. */
-export function replayJourney(profile, ballot, index, config, cast) {
+export function replayJourney(profile, ballot, index, config, cast, timings = {}) {
   const started = Date.now();
   const jar = new http.CookieJar();
-  let form, authorization, code, file, authParameters;
+  let form, authorization, code, file, authParameters, loginStarted;
   const publications = {};
-  const timings = {};
   const state = encoding.b64encode(crypto.randomBytes(24), "rawurl");
   const verifier = encoding.b64encode(crypto.randomBytes(32), "rawurl");
   const nonce = encoding.b64encode(crypto.randomBytes(24), "rawurl");
@@ -106,6 +105,7 @@ export function replayJourney(profile, ballot, index, config, cast) {
     if (delay > 0) sleep(delay / 1000);
     switch (step.kind) {
       case "auth": {
+        loginStarted = Date.now();
         authParameters = {
           ...step.parameters,
           state,
@@ -167,6 +167,7 @@ export function replayJourney(profile, ballot, index, config, cast) {
         );
         if (claims.nonce !== nonce) throw new Error("OIDC nonce mismatch");
         authorization = "Bearer " + result.access_token;
+        timings.keycloak_ms = Date.now() - loginStarted;
         break;
       }
       case "status": {

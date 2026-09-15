@@ -17,8 +17,8 @@ svg text{font-family:"Report Sans",sans-serif!important}
 <header><div><h1>$title</h1><p>$subtitle</p></div><span class="badge">$verdict</span></header>
 <section class="cards">$cards</section>
 <section class="panel chart"><h2>Performance over the measured run</h2>$chart</section>
-<div class="grid">
-<section class="panel"><h2>Response times</h2><table><thead><tr><th>Stage</th><th class="num">p50</th><th class="num">p99</th></tr></thead><tbody>$latency_rows</tbody></table><p class="note">p50 is the median. 99% of measured responses completed within p99.</p></section>
+<div>
+<section class="panel" style="overflow-x:auto;margin-bottom:20px"><h2>Response times</h2><table><thead><tr><th>Stage</th><th class="num">Samples</th><th class="num">Mean</th><th class="num">p50</th><th class="num">p95</th><th class="num">p99</th><th class="num">Max</th></tr></thead><tbody>$latency_rows</tbody></table><p class="note">Exact percentiles across individual worker samples. Includes measured steps from failed journeys. — means unavailable. Keycloak complete includes its three requests and intervening client work; its component rows overlap this total. A slower stage suggests where time is spent, but server saturation requires resource measurements.</p></section>
 <section class="panel"><h2>Goals</h2>$goals</section>
 </div>
 $errors

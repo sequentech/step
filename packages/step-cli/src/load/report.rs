@@ -17,14 +17,52 @@ use std::{
 /// Latency columns are an enum so SQL identifiers never come from operator input.
 #[derive(Clone, Copy)]
 pub enum Stage {
+    Keycloak,
+    Auth,
+    Login,
+    Token,
+    Event,
+    Election,
+    Summary,
+    Style,
     Status,
     Cast,
     Journey,
 }
 impl Stage {
-    pub const ALL: [Self; 3] = [Self::Status, Self::Cast, Self::Journey];
+    pub const EXTRA: [Self; 8] = [
+        Self::Keycloak,
+        Self::Auth,
+        Self::Login,
+        Self::Token,
+        Self::Event,
+        Self::Election,
+        Self::Summary,
+        Self::Style,
+    ];
+    pub const ALL: [Self; 11] = [
+        Self::Keycloak,
+        Self::Auth,
+        Self::Login,
+        Self::Token,
+        Self::Status,
+        Self::Event,
+        Self::Election,
+        Self::Summary,
+        Self::Style,
+        Self::Cast,
+        Self::Journey,
+    ];
     pub fn column(self) -> &'static str {
         match self {
+            Self::Keycloak => "keycloak_ms",
+            Self::Auth => "auth",
+            Self::Login => "login",
+            Self::Token => "token",
+            Self::Event => "event_url",
+            Self::Election => "election_url",
+            Self::Summary => "summary_url",
+            Self::Style => "style_url",
             Self::Status => "status_ms",
             Self::Cast => "cast_ms",
             Self::Journey => "journey_ms",
@@ -32,6 +70,14 @@ impl Stage {
     }
     pub fn label(self) -> &'static str {
         match self {
+            Self::Keycloak => "Keycloak login (complete)",
+            Self::Auth => "Keycloak login page",
+            Self::Login => "Keycloak credentials",
+            Self::Token => "Keycloak token exchange",
+            Self::Event => "Event download",
+            Self::Election => "Election download",
+            Self::Summary => "Summary download",
+            Self::Style => "Ballot style download",
             Self::Status => "Voter status",
             Self::Cast => "Cast acceptance",
             Self::Journey => "Complete journey",
@@ -49,6 +95,8 @@ struct Sample {
     cast_ms: Option<f64>,
     status_ms: Option<f64>,
     receipt: Option<String>,
+    #[serde(default)]
+    timings: BTreeMap<String, f64>,
 }
 
 /// Portable report data; request inventory stays in private JSON, outside the HTML.
@@ -200,6 +248,12 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
     )?;
     db.pragma_update(None, "temp_store", "FILE")?;
     db.execute_batch("CREATE TABLE samples(voter INTEGER PRIMARY KEY, passed INTEGER, start REAL, end REAL, cast_ms REAL, status_ms REAL, journey_ms REAL, receipt TEXT UNIQUE)")?;
+    for stage in Stage::EXTRA {
+        db.execute_batch(&format!(
+            "ALTER TABLE samples ADD COLUMN {} REAL",
+            stage.column()
+        ))?;
+    }
     let mut failures = Failures {
         messages: vec![],
         count: 0,
@@ -227,7 +281,8 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
         let (first, count) = input.bounds(shard)?;
         let transaction = db.transaction()?;
         {
-            let mut insert = transaction.prepare("INSERT INTO samples VALUES(?,?,?,?,?,?,?,?)")?;
+            let mut insert = transaction.prepare("INSERT INTO samples(voter,passed,start,end,cast_ms,status_ms,journey_ms,receipt) VALUES(?,?,?,?,?,?,?,?)")?;
+            let mut timing_update = transaction.prepare("UPDATE samples SET keycloak_ms=?,auth=?,login=?,token=?,event_url=?,election_url=?,summary_url=?,style_url=? WHERE voter=?")?;
             for line in BufReader::new(File::open(samples)?).lines() {
                 let line = line?;
                 let json = if from_log {
@@ -252,6 +307,10 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
                 if !sample.start.is_finite()
                     || !sample.end.is_finite()
                     || sample.end < sample.start
+                    || sample
+                        .timings
+                        .values()
+                        .any(|value| !value.is_finite() || *value < 0.0)
                     || [sample.status_ms, sample.cast_ms]
                         .into_iter()
                         .flatten()
@@ -270,7 +329,19 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
                     sample.end - sample.start,
                     sample.receipt
                 ]) {
-                    Ok(_) => (),
+                    Ok(_) => {
+                        timing_update.execute(params![
+                            sample.timings.get("keycloak_ms"),
+                            sample.timings.get("auth"),
+                            sample.timings.get("login"),
+                            sample.timings.get("token"),
+                            sample.timings.get("event_url"),
+                            sample.timings.get("election_url"),
+                            sample.timings.get("summary_url"),
+                            sample.timings.get("style_url"),
+                            sample.index
+                        ])?;
+                    }
                     Err(error)
                         if error.sqlite_error_code() == Some(ErrorCode::ConstraintViolation) =>
                     {
@@ -316,10 +387,22 @@ pub fn generate(directory: &Path, dsn_env: Option<&str>) -> Result<()> {
     };
     let mut latency = BTreeMap::new();
     for stage in Stage::ALL {
-        let values = quantiles(&db, stage, &[0.5, 0.99])?;
+        let values = quantiles(&db, stage, &[0.5, 0.95, 0.99, 1.0])?;
+        let (count, mean): (f64, Option<f64>) = db.query_row(
+            &format!("SELECT count({0}),avg({0}) FROM samples", stage.column()),
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
         latency.insert(
             stage.column().into(),
-            BTreeMap::from([("p50".into(), values[0]), ("p99".into(), values[1])]),
+            BTreeMap::from([
+                ("count".into(), Some(count)),
+                ("mean".into(), mean),
+                ("p50".into(), values[0]),
+                ("p95".into(), values[1]),
+                ("p99".into(), values[2]),
+                ("max".into(), values[3]),
+            ]),
         );
     }
 

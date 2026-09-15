@@ -78,13 +78,13 @@ export default function () {
     },
   };
   const start = Date.now();
+  const timings = {};
   let reason = null;
   let passed = false,
     receipt = null,
-    castMs = null,
-    statusMs = null;
+    castMs = null;
   try {
-    const result = replayJourney(
+    replayJourney(
       config.profile,
       ballot,
       index,
@@ -118,8 +118,8 @@ export default function () {
         else receipt = null;
         return ok;
       },
+      timings,
     );
-    statusMs = result.timings.GetVoterStatus;
     passed = true;
   } catch (error) {
     // Only adapter-owned messages are safe; runtime errors can contain signed URLs.
@@ -155,7 +155,8 @@ export default function () {
         start,
         end: Date.now(),
         cast_ms: castMs,
-        status_ms: statusMs,
+        status_ms: timings.GetVoterStatus ?? null,
+        timings,
         receipt: receipt?.id || null,
       }),
   );
