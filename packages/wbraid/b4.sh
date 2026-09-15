@@ -70,7 +70,7 @@ export AWS_FORCE_PATH_STYLE="true"
 export RUST_LOG="b4=info"
 
 # Database URL points at the workspace root b4.db
-export DATABASE_URL="sqlite:$(pwd)/b4.db?mode=rwc"
+export DATABASE_URL="sqlite:$(pwd)/b4.db"
 
 # aws CLI, or the official image when it isn't installed (the devcontainer):
 # joined to the compose project network, it resolves http://localstack:4566
@@ -188,4 +188,4 @@ if [ "$RESET_DATA" -eq 1 ]; then
 fi
 
 # Run the service from workspace root.
-cargo run --bin b4v6 --release
+cargo run --bin b4v6 --features sqlite --release

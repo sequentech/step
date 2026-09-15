@@ -41,8 +41,8 @@ cargo test -p braid --release
 
 Two harnesses talk to a real `b4` over HTTP and are `#[ignore]`d so the default
 run stays hermetic. Both need `b4` **and** S3/LocalStack: b4 stores every message
-body in S3 (`MAX_INLINE_MESSAGE_SIZE = 0`), so any live-b4 run touches S3
-regardless of the test. They differ in the *client* board setup:
+body in S3, so any live-b4 run touches S3 regardless of the test. They differ in 
+the *client* board setup:
 
 - `test_protocol_http` — single board, `NoOpPersistence` (no client-side
   persistence).
@@ -77,11 +77,11 @@ label, since a release build plus two full protocol runs is slow.
 - For the live-b4 tests: **Docker** + the **AWS CLI** — `localstack.ps1` starts
   LocalStack, creates the `wbraid-messages` bucket, and applies `s3-cors.json` —
   and the **`b4`** server (`b4.ps1` sets the S3 endpoint/credentials and points
-  `DATABASE_URL` at a repo-root `b4.db`). In the devcontainer, `localstack.sh`
-  starts the `localstack` compose service instead (opt-in `wbraid` profile in
-  `.devcontainer/docker-compose-base.yml`) and `b4.sh` the `b4v6` one; the S3
-  endpoint is `http://localstack:4566` on the project network — `b4.sh` picks
-  the right endpoint automatically, and falls back to the `amazon/aws-cli`
+  `DATABASE_URL` at a repo-root `b4.db` sqlite db). In the devcontainer, 
+  `localstack.sh` starts the `localstack` compose service instead (opt-in `wbraid`
+  profile in `.devcontainer/docker-compose-base.yml`) and `b4.sh` the `b4v6` one; 
+  the S3 endpoint is `http://localstack:4566` on the project network — `b4.sh`
+  picks the right endpoint automatically, and falls back to the `amazon/aws-cli`
   docker image when the AWS CLI is not installed. The image is pinned to
   `localstack/localstack:4`: from the 2026 releases on, `latest` exits at
   startup without an auth token, so a fresh pull of `latest` (which
