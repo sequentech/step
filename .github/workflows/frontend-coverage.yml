@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Frontend coverage
+on:
+  pull_request:
+    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**']
+  push:
+    branches: [release/10.0]
+    paths: ['packages/**', 'scripts/coverage/**', '.github/workflows/frontend-coverage.yml', '.github/actions/setup-test-browser/**']
+permissions:
+  contents: read
+concurrency:
+  group: frontend-coverage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  comparison:
+    name: ${{ matrix.package }} coverage — no decrease
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [ui-core]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.before }}
+          path: base
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - name: Install locked dependencies in both checkouts
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd head/packages install --frozen-lockfile --non-interactive
+          # Keep workspace-local dependency versions for each revision.
+          # The comparison still uses the head's locked Jest/Istanbul instrumenter.
+          yarn --cwd base/packages install --frozen-lockfile --non-interactive
+      - name: Verify the real frontend gate
+        if: matrix.package == 'ui-core'
+        run: node head/scripts/coverage/test_frontend.cjs
+      - name: Install the pinned local test browser
+        uses: ./head/.github/actions/setup-test-browser
+      - name: Exercise the real browser boundary
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          export UI_CORE_CHROME_PATH="$CHROME"
+          export VOTING_PORTAL_TEST_CHROME_PATH="$CHROME"
+          export UI_ESSENTIALS_TEST_CHROME_PATH="$CHROME"
+          yarn --cwd "head/packages/$PACKAGE" test:browser
+      - name: Compare all four source metrics
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: >-
+          python3 head/scripts/coverage/ci.py frontend "$PACKAGE"
+          --base base --head head --output "$RUNNER_TEMP/coverage/frontend"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: frontend-coverage-${{ matrix.package }}
+          path: ${{ runner.temp }}/coverage/frontend/
+          if-no-files-found: error
+          retention-days: 7

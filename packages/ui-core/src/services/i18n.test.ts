@@ -186,4 +186,42 @@ describe("overwriteTranslations", () => {
             }
         }
     })
+
+    it("treats prototype-like legacy keys as data instead of inherited objects", () => {
+        // These paths must never reach Object.prototype, even when several
+        // translation keys share the same intermediate object.
+        try {
+            overwriteTranslations(
+                {
+                    i18n: {
+                        en: {
+                            "__proto__.translationPollutionProbe": "unexpected",
+                            "constructor.prototype.translationPollutionProbe": "unexpected",
+                            "legacyGroup.title": "Title",
+                            "legacyGroup.description": "Description",
+                        },
+                    },
+                },
+                false
+            )
+
+            expect(Object.hasOwn(Object.prototype, "translationPollutionProbe")).toBe(false)
+            expect(i18n.t("legacyGroup.title")).toBe("Title")
+            expect(i18n.t("legacyGroup.description")).toBe("Description")
+        } finally {
+            // Keep a failed regression from contaminating unrelated tests.
+            Reflect.deleteProperty(Object.prototype, "translationPollutionProbe")
+        }
+    })
+})
+
+it("ignores malformed legacy leaves before traversing a later dotted key", () => {
+    // JSON can violate the TypeScript interface; a null parent used to throw
+    // while constructing the next key, discarding otherwise valid translations.
+    const config = JSON.parse(
+        '{"i18n":{"en":{"reviewBoundary":null,"reviewBoundary.title":"Readable"}}}'
+    )
+    // The boolean reports a language change, not whether resources were written.
+    expect(overwriteTranslations(config, false)).toBe(false)
+    expect(i18n.getResource("en", "translations", "reviewBoundary.title")).toBe("Readable")
 })
