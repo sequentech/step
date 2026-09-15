@@ -58,6 +58,9 @@ Cargo tests while editing and a complete measurement after the changes stabilize
 - Every Rust source file is inventoried, including files absent from LLVM output.
   An absent measurement is a gap to investigate, not a measured zero or permission
   to omit the source. Identify which enabled profile exercises feature-gated code.
+- Native profiles support `excluded_files`: exact support/test files with reasons.
+  Their covered and total counters, including raw function records, are removed
+  from every export. Base and head use the same exclusions; excluded tests still run.
 - `scope_exceptions` explains files without executable regions, such as module
   declarations. These entries cannot remove measured code from the denominator;
   an exception fails if the file acquires measured executable code.

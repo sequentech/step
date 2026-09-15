@@ -459,6 +459,7 @@ impl KeycloakAdminClient {
             .send()
             .await?;
 
+        let response = error_check(response).await?;
         if let Some(location_header) =
             response.headers().get(reqwest::header::LOCATION)
         {
@@ -469,10 +470,35 @@ impl KeycloakAdminClient {
                     text: e.to_string(),
                 }
             })?;
-            // The ID is the trailing part of the URL
-            if let Some(id) = location_str.split('/').last() {
-                return Ok(Some(id.to_string()));
-            }
+            // Keycloak may advertise a public origin behind a reverse proxy.
+            // Only consume an ID for this realm's exact groups resource; never
+            // follow the advertised host or accept a different resource path.
+            let base = reqwest::Url::parse(&url).map_err(|e| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                }
+            })?;
+            let location = base.join(location_str).map_err(|e| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: e.to_string(),
+                }
+            })?;
+            let prefix = format!("{}/", base.path());
+            let id = location
+                .path()
+                .strip_prefix(&prefix)
+                .filter(|id| !id.is_empty() && !id.contains('/'));
+            return id.map(|id| Some(id.to_string())).ok_or_else(|| {
+                KeycloakError::HttpFailure {
+                    status: response.status().into(),
+                    body: None,
+                    text: "Group creation Location does not identify a group in the requested realm".to_string(),
+                }
+            });
         }
 
         Ok(None)
@@ -555,7 +581,8 @@ impl KeycloakAdminClient {
             .await
             .context("Failed to get groups roles")?;
 
-        let roles: Vec<RoleRepresentation> = resp.json().await?;
+        let roles: Vec<RoleRepresentation> =
+            error_check(resp).await?.json().await?;
         Ok(roles)
     }
 
@@ -571,7 +598,7 @@ impl KeycloakAdminClient {
             "{}/admin/realms/{}/groups/{}",
             client.url,
             realm,
-            group.id.as_ref().unwrap()
+            group.id.as_ref().context("Missing group id")?
         );
         let response = client
             .client
@@ -616,6 +643,7 @@ impl KeycloakAdminClient {
                 .send()
                 .await
                 .context(format!("Failed to send request to update localization texts for locale '{}'", locale))?;
+                error_check(response).await?;
             }
         }
 
@@ -802,11 +830,12 @@ impl KeycloakAdminClient {
                 .realm_put(&board_name, realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
-            Err(_) => self
+            Err(KeycloakError::HttpFailure { status: 404, .. }) => self
                 .client
                 .post(realm)
                 .await
                 .map_err(|err| anyhow!("Keycloak error: {:?}", err)),
+            Err(error) => Err(error.into()),
         }
     }
 }
