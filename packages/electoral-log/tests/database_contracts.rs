@@ -354,3 +354,35 @@ async fn a_competing_listener_causes_a_bounded_retry_on_a_new_port() -> Result<(
     assert!(client.has_database(DATABASE).await?);
     Ok(())
 }
+
+#[tokio::test]
+async fn explicit_blob_sort_uses_lexicographic_bytes() -> Result<()> {
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
+        let server = DatabaseServer::start().await?;
+        let mut client = server.client().await?;
+        client.upsert_electoral_log_db(DATABASE).await?;
+        let mut inputs = vec![message(0), message(1), message(2)];
+        inputs[0].message = vec![255];
+        inputs[1].message = vec![0, 1];
+        inputs[2].message = vec![0];
+        client
+            .insert_electoral_log_messages(DATABASE, &inputs)
+            .await?;
+        let rows = client
+            .get_electoral_log_messages_filtered::<String, String>(
+                DATABASE,
+                None,
+                None,
+                None,
+                Some(3),
+                None,
+                Some(HashMap::from([("message".into(), "ASC".into())])),
+            )
+            .await?;
+        // Payload order differs from both insertion order and timestamp order.
+        assert_eq!(rows.iter().map(|row| row.id).collect::<Vec<_>>(), [3, 2, 1]);
+        Ok(())
+    })
+    .await
+    .context("local ImmuDB blob sort exceeded two minutes")?
+}
