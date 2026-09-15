@@ -7,3 +7,7 @@ pub mod config;
 pub mod fixtures;
 pub mod pipes;
 pub mod utils;
+
+#[cfg(test)]
+#[path = "../tests/support/browser_startup.rs"]
+mod browser_startup;
