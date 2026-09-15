@@ -2228,6 +2228,14 @@ const dutchTranslation: TranslationType = {
             generalInfoTitle: "Algemene Informatie",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status import sleutelfragment",
+            eligibility: {
+                selectElection: "Selecteer ten minste één verkiezing.",
+                publishElection:
+                    "Publiceer elke geselecteerde verkiezing voordat u de telling aanmaakt.",
+                tallyDisallowed: "Tellen is uitgeschakeld voor een geselecteerde verkiezing.",
+                endVoting:
+                    "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
+            },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
             startTallySuccess: "Telling gestart",

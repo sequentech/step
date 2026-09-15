@@ -2206,6 +2206,13 @@ const englishTranslation = {
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
+            eligibility: {
+                selectElection: "Select at least one election.",
+                publishElection: "Publish each selected election before creating its tally.",
+                tallyDisallowed: "Tallying is disabled for a selected election.",
+                endVoting:
+                    "End voting in each selected election and stop its active voting channels before creating the tally.",
+            },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",

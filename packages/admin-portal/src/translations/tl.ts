@@ -2235,6 +2235,15 @@ const tagalogTranslation: TranslationType = {
             generalInfoTitle: "Pangkalahatang Impormasyon",
             trusteeTallyTitle: "Tagapagtiwala",
             trusteeTallySubTitle: "Katayuan ng pag-import ng fragment ng key",
+            eligibility: {
+                selectElection: "Pumili ng kahit isang halalan.",
+                publishElection:
+                    "I-publish ang bawat napiling halalan bago gumawa ng pagbibilang nito.",
+                tallyDisallowed:
+                    "Hindi pinapayagan ang pagbibilang para sa isang napiling halalan.",
+                endVoting:
+                    "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
+            },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
             startTallySuccess: "Nagsimula ang pagbibilang",

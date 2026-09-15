@@ -33,6 +33,53 @@ pub async fn update_event_voting_status(
     new_status: &VotingStatus,
     channels: &Option<Vec<VotingStatusChannel>>,
 ) -> Result<ElectionEvent> {
+    update_event_voting_status_impl(
+        hasura_transaction,
+        tenant_id,
+        user_id,
+        username,
+        election_event_id,
+        new_status,
+        channels,
+        false,
+    )
+    .await
+}
+
+#[instrument(err)]
+pub async fn update_scheduled_event_voting_status(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    user_id: Option<&str>,
+    username: Option<&str>,
+    election_event_id: &str,
+    new_status: &VotingStatus,
+    channels: &Option<Vec<VotingStatusChannel>>,
+) -> Result<ElectionEvent> {
+    update_event_voting_status_impl(
+        hasura_transaction,
+        tenant_id,
+        user_id,
+        username,
+        election_event_id,
+        new_status,
+        channels,
+        true,
+    )
+    .await
+}
+
+#[instrument(err)]
+async fn update_event_voting_status_impl(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    user_id: Option<&str>,
+    username: Option<&str>,
+    election_event_id: &str,
+    new_status: &VotingStatus,
+    channels: &Option<Vec<VotingStatusChannel>>,
+    enabled_only: bool,
+) -> Result<ElectionEvent> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
         .with_context(|| "Error obtaining election event")?;
@@ -107,10 +154,31 @@ pub async fn update_event_voting_status(
         return Ok(election_event);
     }
 
+    let configured: HashMap<String, VotingChannels> = elections
+        .iter()
+        .filter(|_| enabled_only)
+        .map(|election| {
+            let channels = election
+                .voting_channels
+                .clone()
+                .map(deserialize_value)
+                .transpose()?
+                .unwrap_or_default();
+            Ok((election.id.clone(), channels))
+        })
+        .collect::<Result<_>>()?;
+
     for channel in channels {
+        if enabled_only
+            && !configured
+                .values()
+                .any(|config| channel.channel_from(config) == Some(true))
+        {
+            continue;
+        }
         let current_voting_status = status.status_by_channel(channel).clone();
 
-        if current_voting_status == new_status.clone() {
+        if current_voting_status == new_status.clone() && !enabled_only {
             info!("Current voting status is the same as the new voting status, skipping");
             continue;
         }
@@ -130,13 +198,20 @@ pub async fn update_event_voting_status(
             }
         };
 
-        if !expected_next_status.contains(&new_status) {
+        if enabled_only
+            && *new_status == VotingStatus::CLOSED
+            && current_voting_status == VotingStatus::NOT_STARTED
+        {
+            continue;
+        }
+        if current_voting_status != *new_status && !expected_next_status.contains(&new_status) {
             return Err(anyhow!(
             "Unexpected next status {new_status:?}, expected {expected_next_status:?}, current {current_voting_status:?}",
         ));
         }
 
         if channel == VotingStatusChannel::EARLY_VOTING
+            && (!enabled_only || *new_status == VotingStatus::OPEN)
             && status.status_by_channel(VotingStatusChannel::ONLINE) != VotingStatus::NOT_STARTED
         {
             return Err(anyhow!(
@@ -151,8 +226,22 @@ pub async fn update_event_voting_status(
         if *new_status == VotingStatus::OPEN || *new_status == VotingStatus::CLOSED {
             for election in &elections {
                 if let Some(status) = elections_status.get_mut(&election.id) {
-                    status.close_early_voting_if_online_status_change(channel, new_status.clone());
-                    status.set_status_by_channel(channel, new_status.clone());
+                    if enabled_only {
+                        if !apply_scheduled_channel(
+                            status,
+                            &configured[&election.id],
+                            channel,
+                            new_status,
+                        ) {
+                            continue;
+                        }
+                    } else {
+                        status.close_early_voting_if_online_status_change(
+                            channel,
+                            new_status.clone(),
+                        );
+                        status.set_status_by_channel(channel, new_status.clone());
+                    }
                 }
                 elections_ids.push(election.id.clone());
             }
@@ -332,4 +421,72 @@ pub async fn update_election_voting_status_impl(
     .with_context(|| "Error updating electoral board on status change")?;
 
     Ok(())
+}
+
+fn apply_scheduled_channel(
+    status: &mut ElectionStatus,
+    configured: &VotingChannels,
+    channel: VotingStatusChannel,
+    new_status: &VotingStatus,
+) -> bool {
+    if channel.channel_from(configured) != Some(true)
+        || (*new_status == VotingStatus::CLOSED
+            && status.status_by_channel(channel) == VotingStatus::NOT_STARTED)
+    {
+        return false;
+    }
+    status.close_early_voting_if_online_status_change(channel, new_status.clone());
+    status.set_status_by_channel(channel, new_status.clone());
+    true
+}
+#[cfg(test)]
+mod scheduled_channel_tests {
+    use super::*;
+    #[test]
+    fn start_and_end_only_change_enabled_election_channels() {
+        for channel in [
+            VotingStatusChannel::ONLINE,
+            VotingStatusChannel::KIOSK,
+            VotingStatusChannel::EARLY_VOTING,
+            VotingStatusChannel::TELEPHONE,
+        ] {
+            for enabled in [None, Some(false), Some(true)] {
+                let configured = VotingChannels {
+                    online: enabled,
+                    kiosk: enabled,
+                    early_voting: enabled,
+                    telephone: enabled,
+                    paper: None,
+                };
+                for (old, next) in [
+                    (VotingStatus::NOT_STARTED, VotingStatus::OPEN),
+                    (VotingStatus::OPEN, VotingStatus::CLOSED),
+                ] {
+                    let mut status = ElectionStatus::default();
+                    status.set_status_by_channel(channel, old);
+                    let before = serde_json::to_value(&status).unwrap();
+                    assert_eq!(
+                        apply_scheduled_channel(&mut status, &configured, channel, &next),
+                        enabled == Some(true)
+                    );
+                    if enabled == Some(true) {
+                        assert_eq!(status.status_by_channel(channel), next);
+                    } else {
+                        assert_eq!(serde_json::to_value(status).unwrap(), before);
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn end_skips_an_enabled_channel_that_never_started() {
+        let mut status = ElectionStatus::default();
+        assert!(!apply_scheduled_channel(
+            &mut status,
+            &VotingChannels::default(),
+            VotingStatusChannel::ONLINE,
+            &VotingStatus::CLOSED
+        ));
+        assert_eq!(status.voting_status, VotingStatus::NOT_STARTED);
+    }
 }

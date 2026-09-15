@@ -2231,6 +2231,14 @@ const galegoTranslation: TranslationType = {
             generalInfoTitle: "Información Xeral",
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de importación do fragmento de chave",
+            eligibility: {
+                selectElection: "Selecciona polo menos unha elección.",
+                publishElection:
+                    "Publica cada elección seleccionada antes de crear o seu escrutinio.",
+                tallyDisallowed: "O escrutinio está desactivado para unha elección seleccionada.",
+                endVoting:
+                    "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
+            },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
             startTallySuccess: "Escrutinio iniciado",
