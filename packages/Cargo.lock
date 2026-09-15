@@ -9475,7 +9475,7 @@ dependencies = [
  "openssl",
  "p384",
  "rand 0.8.6",
- "rand_core 0.9.3",
+ "rand_core 0.6.4",
  "rayon",
  "rcgen",
  "rug",

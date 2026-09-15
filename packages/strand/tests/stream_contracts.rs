@@ -11,6 +11,7 @@ use strand::context::{Ctx, Element};
 use strand::elgamal::{Ciphertext, PrivateKey, PublicKey};
 use strand::serialization::{StrandDeserialize, StrandSerialize, StrandVector};
 use strand::shuffler_product::StrandRectangle;
+#[cfg(not(feature = "openssl_full"))]
 use strand::signature::{
     StrandSignature, StrandSignaturePk, StrandSignatureSk,
 };
@@ -231,6 +232,7 @@ fn serialized_elgamal_keys_retain_their_decryption_contract() {
 }
 
 #[test]
+#[cfg(not(feature = "openssl_full"))]
 fn serialized_signatures_and_public_keys_still_verify_the_original_message() {
     let secret = StrandSignatureSk::r#gen().unwrap();
     let public = StrandSignaturePk::from_sk(&secret).unwrap();
@@ -303,6 +305,7 @@ fn serialized_proofs_keep_statement_and_context_binding() {
 }
 
 #[test]
+#[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
 fn encrypted_data_streams_preserve_authenticated_plaintext() {
     let key = strand::symm::sk_from_bytes(&[42; 32]).unwrap();
     let value = strand::symm::encrypt(key, b"synthetic trustee share").unwrap();
@@ -318,6 +321,7 @@ fn encrypted_data_streams_preserve_authenticated_plaintext() {
 }
 
 #[test]
+#[cfg(not(any(feature = "openssl_core", feature = "openssl_full")))]
 fn hash_wrapper_streams_preserve_all_sixty_four_bytes() {
     let expected = std::array::from_fn::<_, 64, _>(|i| i as u8);
     let value = strand::hash::HashWrapper::new(expected);
@@ -388,4 +392,44 @@ fn product_shuffle_proof_streams_preserve_a_valid_proof() {
     assert!(!shuffler
         .check_proof(&restored, &original, &shuffled, b"other")
         .unwrap());
+}
+
+#[cfg(any(feature = "openssl_core", feature = "openssl_full"))]
+#[test]
+fn aes_streams_preserve_the_tag_iv_and_authenticated_context() {
+    let key = strand::symm::sk_from_bytes(&[42; 32]).unwrap();
+    let value =
+        strand::symm::encrypt(key, b"trustee share", b"context").unwrap();
+    let restored = stream_contract(&value, &value.strand_serialize().unwrap());
+    assert_eq!(
+        strand::symm::decrypt(&key, &restored, b"context").unwrap(),
+        b"trustee share"
+    );
+    assert!(strand::symm::decrypt(&key, &restored, b"other context").is_err());
+}
+
+#[cfg(feature = "openssl_full")]
+#[test]
+fn p384_streams_preserve_signing_keys_and_reject_partial_der_records() {
+    use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+    let secret = StrandSignatureSk::r#gen().unwrap();
+    let public = StrandSignaturePk::from(&secret).unwrap();
+    let signature = secret.sign(b"trustee message").unwrap();
+    // DER payloads have a Borsh u32 byte-length prefix, independently of the
+    // opaque key material. Every prefix and failing writer must be rejected.
+    let frame = |der: Vec<u8>| {
+        let mut bytes =
+            u32::try_from(der.len()).unwrap().to_le_bytes().to_vec();
+        bytes.extend(der);
+        bytes
+    };
+    let secret = stream_contract(&secret, &frame(secret.to_der().unwrap()));
+    let public = stream_contract(&public, &frame(public.to_der().unwrap()));
+    let signature =
+        stream_contract(&signature, &frame(signature.to_der().unwrap()));
+    public.verify(&signature, b"trustee message").unwrap();
+    public
+        .verify(&secret.sign(b"restored key").unwrap(), b"restored key")
+        .unwrap();
+    assert!(public.verify(&signature, b"changed message").is_err());
 }
