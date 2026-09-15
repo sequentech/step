@@ -15,7 +15,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
@@ -131,7 +131,10 @@ impl GetPgauditBody {
                 .iter()
                 .map(|(field, direction)| format!("{field} {direction}"))
                 .collect();
-            clauses.push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+            if !order_by_clauses.is_empty() {
+                clauses
+                    .push(format!("ORDER BY {}", order_by_clauses.join(", ")));
+            }
         }
 
         // Handle limit
@@ -178,6 +181,12 @@ impl TryFrom<&Row> for PgAuditRow {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        const EXPECTED_COLUMNS: usize = 9;
+        // zip() stops at the shorter input. Reject a malformed row before it
+        // can silently drop an audit column or value.
+        if row.columns.len() != row.values.len() {
+            return Err(anyhow!("audit row column and value counts differ"));
+        }
         let mut id = 0;
         let _audit_type = String::from("");
         let mut class = String::from("");
@@ -189,7 +198,15 @@ impl TryFrom<&Row> for PgAuditRow {
         let mut user = String::from("");
         let mut audit_type = String::from("");
 
+        let mut seen = HashSet::with_capacity(EXPECTED_COLUMNS);
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
+            // Table aliases may differ, but each logical field must occur once.
+            let field = column
+                .rsplit_once('.')
+                .map_or(column.as_str(), |(_, field)| field);
+            if !seen.insert(field) {
+                return Err(anyhow!("duplicate audit column '{field}'"));
+            }
             match column.as_str() {
                 c if c.ends_with(".id)") => {
                     assign_value!(Value::N, value, id)
@@ -228,6 +245,9 @@ impl TryFrom<&Row> for PgAuditRow {
                     ))
                 }
             }
+        }
+        if seen.len() != EXPECTED_COLUMNS {
+            return Err(anyhow!("audit row is missing required columns"));
         }
         Ok(PgAuditRow {
             id,
@@ -389,3 +409,7 @@ mod tests {
         assert!(params.is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/audit_query_boundaries.rs"]
+mod boundary_tests;

@@ -229,6 +229,7 @@ def measure(
                 "features": profile["features"],
                 "consumer_packages": profile.get("consumer_packages", []),
                 "test_environment": profile.get("test_environment", {}),
+                "compiler_coverage": profile.get("compiler_coverage", False),
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
                 "issue": profile["issue"],
@@ -258,6 +259,9 @@ def measure(
             arguments.extend(["--features", ",".join(profile["features"])])
         if offline:
             arguments.append("--offline")
+        # Clear workspace binaries as well as counters: LLVM can otherwise
+        # collect regions from an earlier package/feature profile. This also
+        # reruns compiler-time macro coverage. External dependencies stay cached.
         execute(
             ["cargo", "llvm-cov", "clean", "--workspace"],
             output / "clean.log",
