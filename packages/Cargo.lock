@@ -7057,6 +7057,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "postgres-native-tls"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fef4de47bb81477e0c3deaf153a1b10ae176484713ff1640969f4cb96b653ebc"
+dependencies = [
+ "native-tls",
+ "tokio",
+ "tokio-native-tls",
+ "tokio-postgres",
+]
+
+[[package]]
 name = "postgres-openssl"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9029,6 +9041,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap 2.14.2",
+ "itoa 1.0.15",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "serial_test"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9402,22 +9427,29 @@ dependencies = [
  "graphql_client",
  "hex",
  "immudb-rs",
+ "libc",
+ "native-tls",
+ "postgres-native-tls",
  "rand 0.9.3",
  "rayon",
  "reqwest",
  "ring",
+ "rusqlite",
  "sequent-core",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sha2 0.10.9",
  "strand",
  "strum 0.27.2",
  "strum_macros 0.27.2",
+ "tempfile",
  "tokio",
  "tokio-postgres",
  "url",
  "uuid",
  "windmill",
+ "zip 2.4.2",
 ]
 
 [[package]]
@@ -10615,6 +10647,12 @@ dependencies = [
  "crypto-common 0.1.7",
  "subtle",
 ]
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"
