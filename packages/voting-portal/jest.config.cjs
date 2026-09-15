@@ -28,7 +28,7 @@ module.exports = {
     coverageProvider: "babel",
     coverageDirectory: "coverage",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
-    coverageThreshold: {global: {lines: 95, statements: 95, functions: 95, branches: 95}},
+    // CI compares every measured metric against the PR base.
     transform: {
         "^.+\\.[jt]sx?$": [
             "babel-jest",

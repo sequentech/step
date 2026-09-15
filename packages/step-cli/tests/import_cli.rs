@@ -21,9 +21,13 @@ fn import_command(error_stage: Option<&str>) -> (Output, Vec<String>) {
 
 fn import_kind(error_stage: Option<&str>, tally_command: Option<&str>) -> (Output, Vec<String>) {
     let binary = std::path::Path::new(env!("CARGO_BIN_EXE_step-cli"));
-    let directory = tempfile::tempdir_in(binary.parent().unwrap()).unwrap();
+    let directory = tempfile::tempdir().unwrap();
     let executable = directory.path().join("step-cli");
-    fs::hard_link(binary, &executable).unwrap();
+    // Keep the installed/build directory read-only. Across filesystems, copy
+    // the fixture executable instead of requiring a hard link.
+    fs::hard_link(binary, &executable)
+        .or_else(|_| fs::copy(binary, &executable).map(|_| ()))
+        .unwrap();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint = format!("http://{}", listener.local_addr().unwrap());
     listener.set_nonblocking(true).unwrap();
