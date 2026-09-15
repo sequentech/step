@@ -4,7 +4,7 @@
 //! Pure identity configuration contracts, including operator-facing validation
 //! errors. Password limits are checked without allocating oversized passwords.
 
-#![cfg(feature = "keycloak")]
+#![cfg(all(feature = "keycloak", feature = "default_features"))]
 
 use sequent_core::services::keycloak::*;
 use sequent_core::types::keycloak::*;

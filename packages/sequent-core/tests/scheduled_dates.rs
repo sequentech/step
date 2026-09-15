@@ -4,6 +4,8 @@
 //! Scheduled dates must stay inside their tenant/event/election scope. These
 //! tests use literal task identifiers, independently of the name generator.
 
+#![cfg(feature = "default_features")]
+
 use sequent_core::types::scheduled_event::*;
 use serde_json::{json, Value};
 
