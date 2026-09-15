@@ -8,9 +8,7 @@ name: wbraid
 # so it gets its own workflow, scoped to changes under that subtree.
 on:
   pull_request:
-    # `labeled` so that adding the `wbraid-live-b4` label (see the live-b4 job)
-    # runs that job on the spot rather than on the next push.
-    types: [ opened, synchronize, reopened, labeled ]
+    types: [ opened, synchronize, reopened ]
     paths:
       - 'packages/wbraid/**'
       - '.github/workflows/wbraid.yml'
@@ -110,9 +108,8 @@ jobs:
 
   live-b4:
     name: Live b4 protocol tests
-    # Opt-in: a release build of b4 and braid plus two full protocol runs
-    # against a real b4 and the S3 emulator is slow, so only pull requests
-    # carrying the `wbraid-live-b4` label run it. The same two tests run in
+    # A release build of b4 and braid plus two full protocol runs
+    # against a real b4 and the S3 emulator. The same two tests run in
     # the devcontainer with `cargo test -p braid --release -- --ignored`
     # (TESTING.md, "Live-b4 tests").
     runs-on: ubuntu-24.04
