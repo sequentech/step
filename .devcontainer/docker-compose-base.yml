@@ -174,7 +174,7 @@ services:
   localstack:
     profiles: [ "wbraid" ]
     container_name: localstack
-    image: localstack/localstack:4
+    image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
     ports:
       - "4566:4566"
     environment:
