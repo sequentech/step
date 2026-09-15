@@ -84,3 +84,6 @@ Parser details must not reach the rendered error message.
 An initially selected label that is entered again remains available after its
 chip is removed, even when the remote choices omit it. Repeated input neither
 duplicates the option nor requests creation of an already selected label.
+
+Package scripts that set environment variables assume a POSIX shell. Use a
+POSIX-compatible shell (for example, WSL or Git Bash) when running them on Windows.

@@ -205,6 +205,11 @@ it.each([DropFile, DropJsonFile])(
         const input = container.querySelector<HTMLInputElement>("input[type=file]")!
         const picker = jest.spyOn(input, "click").mockImplementation(() => {})
         expect(screen.getAllByRole("button")).toHaveLength(1)
+        expect(
+            screen
+                .getByTestId("drop-label-file")
+                .querySelector("button, input, a[href], [role=button]")
+        ).toBeNull()
         await user.click(screen.getByTestId("drop-file-button"))
         expect(picker).toHaveBeenCalledTimes(1)
         fireEvent.change(input, {target: {files: fileList(new File(["bad"], "invalid.json"))}})
