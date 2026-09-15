@@ -192,6 +192,7 @@ def measure(
     result: dict[str, Any] = {
         "status": "running",
         "profile": profile_name,
+        "package": profile["package"],
         "passes": False,
     }
     write_json(output / "summary.json", result)
