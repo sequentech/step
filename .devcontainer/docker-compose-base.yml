@@ -264,13 +264,15 @@ services:
       "-x",
       "run --bin b4v6 --features postgres --release"
     ]
-    volumes_from:
-      - devcontainer
     volumes:
       - b4v6_data:/var/lib/b4v6
+      - type: bind
+        source: ../..
+        target: /workspaces
+        bind:
+          create_host_path: true
+          selinux: z
     depends_on:
-      devcontainer:
-        condition: service_started
       postgres-b4v6:
         condition: service_healthy
       localstack:

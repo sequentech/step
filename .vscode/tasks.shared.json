@@ -1510,7 +1510,7 @@
             "command": "bash",
             "args": [
                 "-c",
-                "docker compose stop b4v6; docker compose up -d --no-deps b4v6 && docker compose logs -f --tail 100 b4v6"
+                "docker compose stop b4v6; docker compose up -d b4v6 && docker compose logs -f --tail 100 b4v6"
             ],
             "presentation": {
                 "echo": true,
