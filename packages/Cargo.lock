@@ -1575,7 +1575,7 @@ dependencies = [
  "indexed_db_futures",
  "js-sys",
  "log",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rayon",
  "reedline-repl-rs",
  "reqwest",
@@ -3424,7 +3424,7 @@ dependencies = [
  "anyhow",
  "clap",
  "csv",
- "rand 0.9.3",
+ "rand 0.9.5",
  "reqwest",
  "rocket",
  "rusqlite",
@@ -3725,7 +3725,7 @@ dependencies = [
  "deunicode",
  "dummy",
  "either",
- "rand 0.9.3",
+ "rand 0.9.5",
 ]
 
 [[package]]
@@ -4600,7 +4600,7 @@ dependencies = [
  "base64 0.22.1",
  "derive_builder",
  "log",
- "rand 0.9.3",
+ "rand 0.9.5",
  "regex",
  "serde",
  "serde_json",
@@ -4949,7 +4949,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -5836,7 +5836,7 @@ dependencies = [
  "md-5",
  "nom 8.0.0",
  "nom_locate 5.0.0",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rangemap",
  "rayon",
  "sha2 0.10.9",
@@ -6220,7 +6220,7 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
- "rand 0.9.3",
+ "rand 0.9.5",
  "reqwest",
  "rocket",
  "rusqlite",
@@ -6739,7 +6739,7 @@ dependencies = [
  "hmac",
  "pkcs12",
  "pkcs5",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rc2",
  "sha1",
  "sha2 0.10.9",
@@ -7382,7 +7382,7 @@ dependencies = [
  "hmac",
  "md-5",
  "memchr",
- "rand 0.9.3",
+ "rand 0.9.5",
  "sha2 0.10.9",
  "stringprep",
 ]
@@ -7568,8 +7568,8 @@ version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
- "heck 0.4.1",
- "itertools 0.10.5",
+ "heck 0.5.0",
+ "itertools 0.14.0",
  "log",
  "multimap",
  "once_cell",
@@ -7589,7 +7589,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.110",
@@ -7717,7 +7717,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls 0.23.35",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -7733,7 +7733,7 @@ dependencies = [
  "bytes",
  "getrandom 0.3.4",
  "lru-slab",
- "rand 0.9.3",
+ "rand 0.9.5",
  "ring",
  "rustc-hash 2.1.1",
  "rustls 0.23.35",
@@ -7754,7 +7754,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -7814,9 +7814,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.9.3"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"
+checksum = "b9ef1d0d795eb7d84685bca4f72f3649f064e6641543d3a8c415898726a57b41"
 dependencies = [
  "rand_chacha 0.9.0",
  "rand_core 0.9.3",
@@ -9042,7 +9042,7 @@ dependencies = [
  "printpdf",
  "ptree",
  "quick-error",
- "rand 0.8.6",
+ "rand 0.9.5",
  "regex",
  "reqwest",
  "reqwest-middleware",
@@ -9640,7 +9640,7 @@ dependencies = [
  "graphql_client",
  "hex",
  "immudb-rs",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rayon",
  "reqwest",
  "ring",
@@ -9678,7 +9678,7 @@ dependencies = [
  "num-modular 0.5.1",
  "num-traits",
  "openssl",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rand_chacha 0.9.0",
  "rand_core 0.6.4",
  "rand_core 0.9.3",
@@ -10274,7 +10274,7 @@ dependencies = [
  "pin-project-lite",
  "postgres-protocol",
  "postgres-types",
- "rand 0.9.3",
+ "rand 0.9.5",
  "socket2 0.6.1",
  "tokio",
  "tokio-util",
@@ -10699,7 +10699,7 @@ dependencies = [
  "http 1.3.1",
  "httparse",
  "log",
- "rand 0.9.3",
+ "rand 0.9.5",
  "sha1",
  "thiserror 2.0.17",
  "utf-8",
@@ -10951,7 +10951,7 @@ checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
 dependencies = [
  "getrandom 0.3.4",
  "js-sys",
- "rand 0.9.3",
+ "rand 0.9.5",
  "serde",
  "wasm-bindgen",
 ]
@@ -11009,7 +11009,7 @@ dependencies = [
  "hex",
  "num-bigint",
  "ordered-float 4.6.0",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rayon",
  "rusqlite",
  "sequent-core",
@@ -11893,7 +11893,7 @@ dependencies = [
  "ouroboros 0.18.5",
  "postgres-openssl",
  "quick-error",
- "rand 0.9.3",
+ "rand 0.9.5",
  "rayon",
  "regex",
  "reqwest",
