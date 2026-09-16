@@ -1,0 +1,450 @@
+<!--
+SPDX-FileCopyrightText: 2026 Sequent Tech <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>braid v0.6 — mixnet emulator</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
+
+    /* A fixed left frame for the controls and a main column for everything the
+       protocol produces. Vertical space is what runs out first, horizontal
+       space is what there is most of. */
+    .page { display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.25rem; }
+    /* Bounded by the viewport so it stays wholly visible: a sticky column
+       taller than the screen loses its bottom, and the log is now at the
+       bottom. */
+    .sidebar { flex: 0 0 23rem; position: sticky; top: 1.25rem;
+               max-height: calc(100vh - 2.5rem); overflow-y: auto; }
+    /* min-width:0 so wide tables scroll inside main rather than stretching it. */
+    main { flex: 1; min-width: 0; }
+    @media (max-width: 60rem) {
+      .page { flex-wrap: wrap; }
+      .sidebar { flex: 1 1 100%; position: static; }
+    }
+    h1 { font-size: 1.3rem; margin-bottom: 0.2rem; }
+    h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
+    h3 { font-size: 0.9rem; margin: 0.6rem 0 0.2rem; color: #444; }
+    .subtitle { color: #666; margin: 0 0 1rem; font-size: 0.82rem; }
+    fieldset { border: 1px solid #ccc; border-radius: 6px; margin: 0 0 1rem; padding: 0.6rem 0.9rem; }
+    legend { font-weight: 600; font-size: 0.9rem; color: #333; }
+    #boardLegend { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
+    label { display: inline-block; margin: 0.2rem 0.7rem 0.2rem 0; font-size: 0.9rem; }
+    input.num { width: 4.5rem; }
+    input.url { width: 100%; box-sizing: border-box; }
+    button { padding: 0.35rem 0.8rem; font-size: 0.9rem; cursor: pointer; margin: 0.15rem 0.15rem 0.15rem 0; }
+    button:disabled, select:disabled { opacity: 0.5; cursor: default; }
+    .status { font-weight: bold; margin: 0.5rem 0; font-size: 0.9rem; }
+    .ok { color: #137333; }
+    .fail { color: #b3261e; }
+
+    /* Single-digit values, so the fields stay narrow. */
+    input.tiny { width: 2.6rem; }
+    .boardctl { margin-top: 0.5rem; }
+    tr.active td, tr.active th { background: #e8f0fe; font-weight: 600; }
+    .tallies button.open { font-size: 0.75rem; padding: 0.1rem 0.45rem; margin: 0; }
+
+    /* The board is as wide as its tables need; the log takes what is left, which
+       is where its longer lines stop wrapping. */
+    .mainrow { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; }
+    .mainrow .board { flex: 0 1 auto; min-width: 26rem; }
+    .mainrow .logpanel { flex: 1 1 20rem; min-width: 18rem; }
+    pre.log { background: #f5f5f5; border-radius: 6px; padding: 0.5rem 0.75rem; overflow: auto;
+              white-space: pre-wrap; height: 15rem; font-size: 0.78rem; margin: 0; }
+
+    /* Row 3: one panel per trustee, stacked. */
+    .trustee { border: 1px solid #ccc; border-radius: 6px; padding: 0.5rem 0.9rem; margin-bottom: 0.6rem; }
+    .trustee > h2 { display: flex; align-items: baseline; gap: 0.6rem; }
+    .trustee > h2 button { font-size: 0.78rem; padding: 0.15rem 0.55rem; }
+    .trustee .count { font-weight: normal; color: #666; font-size: 0.8rem; }
+    pre.store { background: #f5f5f5; border-radius: 6px; padding: 0.5rem 0.75rem; overflow: auto;
+                white-space: pre-wrap; max-height: 11rem; font-size: 0.78rem; margin: 0; }
+    details > summary { cursor: pointer; font-size: 0.9rem; color: #444; margin: 0.5rem 0 0.3rem; }
+
+    table { border-collapse: collapse; margin: 0.3rem 0; font-size: 0.82rem; }
+    td, th { border: 1px solid #ddd; padding: 0.12rem 0.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+    th { text-align: left; background: #f5f5f5; }
+    td.l, th.l { text-align: left; }
+    .boardtables { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <aside class="sidebar">
+      <h1>braid v0.6 — mixnet emulator</h1>
+      <p class="subtitle">
+        interactive, browser-hosted trustees against a live b4 — one committee,
+        one DKG, many tallies (§8.2). Needs <code>localstack.ps1</code> +
+        <code>b4.ps1</code>. Everything is saved, so a refresh reconnects by
+        itself.
+      </p>
+      <fieldset>
+        <legend>b4</legend>
+        <div><label>URL <input id="b4url" class="url" type="text" value="http://127.0.0.1:3000" /></label></div>
+        <div><label>Trustees <input id="trustees" class="tiny" type="number" min="2" max="8" value="3" /></label></div>
+        <div><label>Threshold <input id="threshold" class="tiny" type="number" min="2" max="8" value="2" /></label></div>
+        <div><label>Width <input id="width" class="tiny" type="number" min="1" max="8" value="2" /></label></div>
+        <div style="margin-top:0.5rem;">
+          <button id="create" disabled>Create new board</button>
+        </div>
+        <div id="setupId" style="color:#666; margin-top:0.4rem; font-size:0.78rem;"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Tallies</legend>
+        <div id="tallyList"></div>
+        <div style="margin-top:0.5rem;">
+          <label>Ciphertexts <input id="ciphertexts" class="num" type="number" min="1" value="50" /></label>
+          <button id="newTally" disabled>New tally</button>
+        </div>
+      </fieldset>
+    </aside>
+
+    <main>
+      <p id="status" class="status">Loading wasm…</p>
+
+      <div class="mainrow">
+        <fieldset class="board">
+          <legend id="boardLegend">Board</legend>
+          <div id="boardView"></div>
+          <div class="boardctl">
+            <button id="stepOne" disabled>Step once</button>
+            <button id="stepFix" disabled>Step to fixpoint</button>
+            <button id="verify" disabled>Verify plaintexts</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="logpanel">
+          <legend>Log</legend>
+          <pre class="log" id="log"></pre>
+        </fieldset>
+      </div>
+
+      <div id="trusteePanels"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    const statusEl = document.getElementById("status");
+    const logEl = document.getElementById("log");
+    const boardView = document.getElementById("boardView");
+    const trusteesEl = document.getElementById("trusteePanels");
+    const setupIdEl = document.getElementById("setupId");
+    const createBtn = document.getElementById("create");
+    const stepOneBtn = document.getElementById("stepOne");
+    const stepFixBtn = document.getElementById("stepFix");
+    const newTallyBtn = document.getElementById("newTally");
+    const verifyBtn = document.getElementById("verify");
+    const tallyListEl = document.getElementById("tallyList");
+    const boardLegendEl = document.getElementById("boardLegend");
+
+    function params() {
+      return {
+        b4url: document.getElementById("b4url").value.trim(),
+        trustees: Number(document.getElementById("trustees").value),
+        threshold: Number(document.getElementById("threshold").value),
+        ciphertexts: Number(document.getElementById("ciphertexts").value),
+        width: Number(document.getElementById("width").value),
+      };
+    }
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // The board's name is the legend: `emu_<id>_dkg` or `emu_<id>_tally_<k>`
+    // says which board, which phase and which tally, so none of it is repeated
+    // in a table.
+    function renderBoard(s) {
+      boardLegendEl.textContent = s.board;
+      const types = `
+        <tr><th class="l">Configuration</th><td>${s.configuration}</td></tr>
+        <tr><th class="l">Shares</th><td>${s.shares}</td></tr>
+        <tr><th class="l">PublicKey</th><td>${s.public_key}</td></tr>
+        <tr><th class="l">Ballots</th><td>${s.ballots}</td></tr>
+        <tr><th class="l">Mix</th><td>${s.mix}</td></tr>
+        <tr><th class="l">MixSignature</th><td>${s.mix_signature}</td></tr>
+        <tr><th class="l">PartialDecryptions</th><td>${s.partial_decryptions}</td></tr>
+        <tr><th class="l">Plaintexts</th><td>${s.plaintexts}</td></tr>`;
+      const msgs = s.messages
+        .map((m) => `<tr><td class="l">${m.kind}</td><td class="l">${m.sender}</td><td class="l">${m.digest}</td></tr>`)
+        .join("");
+      boardView.innerHTML = `
+        <div class="boardtables">
+          <table>${types}</table>
+          <table><tr><th class="l">type</th><th class="l">sender</th><th class="l">digest</th></tr>${msgs}</table>
+        </div>`;
+    }
+
+    // Every tally started, so it is visible what exists, which is open, and how
+    // big each one is -- none of which was apparent from "New tally" alone.
+    function renderTallies() {
+      if (!emu) { tallyListEl.innerHTML = ""; return; }
+      const list = emu.tallies();
+      if (!list.length) {
+        tallyListEl.innerHTML = `<p style="color:#666; font-size:0.82rem; margin:0.4rem 0 0;">none yet — run the DKG to a fixpoint, then New tally</p>`;
+        return;
+      }
+      const rows = list
+        .map((t) => `
+          <tr class="${t.active ? "active" : ""}">
+            <th class="l">tally ${t.index}</th>
+            <td>${t.ciphertexts}</td>
+            <td>${plaintextResults[t.index] ?? "—"}</td>
+            <td class="l">${t.active ? "open" : `<button class="open" data-tally="${t.index}">Open</button>`}</td>
+          </tr>`)
+        .join("");
+      tallyListEl.innerHTML =
+        `<table><tr><th class="l">tally</th><th class="l">ciphertexts</th><th class="l">plaintexts</th><th class="l"></th></tr>${rows}</table>`;
+      for (const btn of tallyListEl.querySelectorAll("button.open")) {
+        btn.addEventListener("click", async () => {
+          if (!emu) return;
+          const k = Number(btn.dataset.tally);
+          setControls({ busy: true });
+          try {
+            const s = await emu.open_tally(k);
+            log(`opened tally ${k} on ${s.board}`);
+            renderBoard(s);
+            renderTallies();
+            refreshTrustees();
+          } catch (err) { log("open_tally error: " + err); }
+          finally { setControls({ busy: false }); }
+        });
+      }
+    }
+
+    // One panel per trustee, stacked, so every message store is visible at once
+    // instead of one at a time behind a selector.
+    function renderTrustees() {
+      const n = emu.trustee_count();
+      trusteesEl.innerHTML = "";
+      for (let i = 0; i < n; i++) {
+        const panel = document.createElement("fieldset");
+        panel.className = "trustee";
+        panel.innerHTML = `
+          <h2>Trustee ${i + 1}
+            <button class="tstep" data-trustee="${i}">Step</button>
+            <span class="count" id="count${i}"></span></h2>
+          <h3>Message store (predicates)</h3>
+          <pre class="store" id="store${i}"></pre>
+          <details>
+            <summary>Committed in (anti-rewrite baseline)</summary>
+            <pre class="store" id="committed${i}"></pre>
+          </details>
+          <details>
+            <summary>Committed out (own posts, anti-self-equivocation)</summary>
+            <pre class="store" id="ownposts${i}"></pre>
+          </details>`;
+        trusteesEl.appendChild(panel);
+      }
+      // One handler per panel; the page-level lock disables them all together.
+      for (const btn of trusteesEl.querySelectorAll("button.tstep")) {
+        btn.addEventListener("click", async () => {
+          if (!emu) return;
+          const i = Number(btn.dataset.trustee);
+          setControls({ busy: true });
+          try {
+            const r = await emu.step_trustee(i);
+            log(`t${r.trustee} [${r.phase}]: ${r.advanced ? "[" + r.produced.join(",") + "]" : "no change"}`);
+            await refreshAll();
+          } catch (err) { log("step error: " + err); }
+          finally { setControls({ busy: false }); }
+        });
+      }
+      setupIdEl.textContent = "setup id: " + emu.setup_id();
+    }
+
+    function refreshTrustees() {
+      if (!emu) return;
+      const n = emu.trustee_count();
+      for (let i = 0; i < n; i++) {
+        try {
+          const preds = emu.trustee_predicates(i);
+          const committed = emu.trustee_committed(i);
+          const ownPosts = emu.trustee_own_posts(i);
+          document.getElementById(`store${i}`).textContent = preds.length ? preds.join("\n") : "(empty)";
+          document.getElementById(`committed${i}`).textContent = committed.length ? committed.join("\n") : "(empty)";
+          document.getElementById(`ownposts${i}`).textContent = ownPosts.length ? ownPosts.join("\n") : "(empty)";
+          // "out" counts what this trustee has handed b4; "in" what b4 has shown
+          // it back. Out running ahead of in is the loop-back lag - and if it
+          // stays ahead, b4 is withholding the trustee's own message.
+          document.getElementById(`count${i}`).textContent =
+            `${preds.length} predicates, ${committed.length} in, ${ownPosts.length} out`;
+        } catch (err) {
+          document.getElementById(`store${i}`).textContent = "error: " + err;
+        }
+      }
+    }
+
+    function activityLine(r) {
+      if (!r.advanced) return "no change (fixpoint)";
+      const acts = r.activity
+        .filter((a) => a.produced.length)
+        .map((a) => `t${a.trustee}→[${a.produced.join(",")}]`)
+        .join(" ");
+      return acts || "advanced";
+    }
+
+    // A single page-level lock: every control goes down while any operation
+    // runs, so the emulator is never re-entered mid-await.
+    function setControls({ busy }) {
+      createBtn.disabled = busy;
+      const canRun = !!emu && !busy;
+      stepOneBtn.disabled = !canRun;
+      stepFixBtn.disabled = !canRun;
+      newTallyBtn.disabled = !canRun;
+      verifyBtn.disabled = !canRun;
+      for (const btn of trusteesEl.querySelectorAll("button.tstep")) {
+        btn.disabled = !canRun;
+      }
+      for (const btn of tallyListEl.querySelectorAll("button.open")) {
+        btn.disabled = !canRun;
+      }
+    }
+
+    async function refreshAll() {
+      renderBoard(await emu.state());
+      renderTallies();
+      refreshTrustees();
+    }
+
+    let wasm;
+    let emu = null;
+    // Plaintext-check outcomes by tally index. Held here rather than recomputed
+    // so a result survives re-rendering the table, and so several tallies can be
+    // compared at once. Cleared with the setup they belong to.
+    let plaintextResults = {};
+
+    try {
+      const timestamp = new Date().getTime();
+      wasm = await import(`./crates/braid/pkg/braid.js?v=${timestamp}`);
+      await wasm.default({});
+      if (wasm.initThreadPool) {
+        await wasm.initThreadPool(navigator.hardwareConcurrency || 4);
+      }
+      createBtn.disabled = false;
+      if (wasm.Emulator.has_saved()) {
+        statusEl.textContent = "Reconnecting to the saved setup…";
+        try {
+          emu = await wasm.Emulator.restore(params().b4url);
+          renderTrustees();
+          log(`restored setup ${emu.setup_id()}`);
+          statusEl.textContent = "Restored. Continue stepping, or New tally.";
+          await refreshAll();
+          setControls({ busy: false });
+        } catch (err) {
+          emu = null;
+          statusEl.textContent = "Could not reconnect (" + err + "). Create a board to start over.";
+          statusEl.className = "status fail";
+        }
+      } else {
+        statusEl.textContent = "Ready. Create a board.";
+      }
+    } catch (err) {
+      statusEl.textContent = "Failed to load wasm: " + err;
+      statusEl.className = "status fail";
+      throw err;
+    }
+
+    createBtn.addEventListener("click", async () => {
+      // New keys and a new id: the boards already on b4 stay there, but their
+      // keys are replaced here, so the previous committee becomes unreachable.
+      if (emu && !confirm("Create a new board? This mints a new committee and replaces the saved one; the current boards stay on b4 but become unreachable.")) {
+        return;
+      }
+      const p = params();
+      setControls({ busy: true });
+      statusEl.className = "status";
+      statusEl.textContent = "Creating the DKG board on b4 and posting the configuration…";
+      logEl.textContent = "";
+      boardView.innerHTML = "";
+      boardLegendEl.textContent = "Board";
+      trusteesEl.innerHTML = "";
+      tallyListEl.innerHTML = "";
+      plaintextResults = {};
+      emu = null;
+      try {
+        emu = await wasm.Emulator.create(p.b4url, p.trustees, p.threshold, p.width);
+        renderTrustees();
+        log(`created: ${p.trustees} trustees, threshold ${p.threshold}, width ${p.width}`);
+        statusEl.textContent = "Board created. Step to run the DKG, then New tally.";
+        await refreshAll();
+      } catch (err) {
+        statusEl.textContent = "Error: " + err;
+        statusEl.className = "status fail";
+      } finally {
+        setControls({ busy: false });
+      }
+    });
+
+    stepOneBtn.addEventListener("click", async () => {
+      if (!emu) return;
+      setControls({ busy: true });
+      try {
+        const r = await emu.step();
+        log(`round ${r.round} [${r.phase}]: ${activityLine(r)}`);
+        await refreshAll();
+      } catch (err) { log("step error: " + err); }
+      finally { setControls({ busy: false }); }
+    });
+
+    stepFixBtn.addEventListener("click", async () => {
+      if (!emu) return;
+      setControls({ busy: true });
+      try {
+        let last = null, guard = 0;
+        while (guard++ < 500) {
+          const r = await emu.step();
+          last = r;
+          if (!r.advanced) break;
+          log(`round ${r.round} [${r.phase}]: ${activityLine(r)}`);
+        }
+        if (last) log(`reached fixpoint at round ${last.round} [${last.phase}]`);
+        await refreshAll();
+      } catch (err) { log("step error: " + err); }
+      finally { setControls({ busy: false }); }
+    });
+
+    newTallyBtn.addEventListener("click", async () => {
+      if (!emu) return;
+      setControls({ busy: true });
+      try {
+        const n = params().ciphertexts;
+        const s = await emu.new_tally(n);
+        log(`started tally on ${s.board} with ${n} ciphertexts`);
+        renderBoard(s);
+        renderTallies();
+        refreshTrustees();
+      } catch (err) { log("new_tally error: " + err); }
+      finally { setControls({ busy: false }); }
+    });
+
+    verifyBtn.addEventListener("click", async () => {
+      if (!emu) return;
+      setControls({ busy: true });
+      try {
+        const open = emu.tallies().find((t) => t.active);
+        const v = await emu.verify_plaintexts();
+        log(`tally ${open ? open.index : "?"} plaintexts: expected=${v.expected}, actual=${v.actual}, match=${v.success}`);
+        if (open) {
+          plaintextResults[open.index] = v.success ? "✓" : "✗";
+          renderTallies();
+        }
+        statusEl.textContent = v.success
+          ? "PASS — plaintexts out match ballots in"
+          : "FAIL — plaintexts do not match";
+        statusEl.className = v.success ? "status ok" : "status fail";
+      } catch (err) {
+        statusEl.textContent = "plaintexts error: " + err;
+        statusEl.className = "status fail";
+      } finally {
+        setControls({ busy: false });
+      }
+    });
+  </script>
+</body>
+</html>
