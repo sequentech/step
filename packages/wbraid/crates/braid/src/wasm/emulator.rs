@@ -58,7 +58,7 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 
 use cryptography::context::{Context, RistrettoCtx};
-use cryptography::cryptosystem::elgamal::{Ciphertext, KeyPair, PublicKey};
+use cryptography::cryptosystem::elgamal::{KeyPair, PublicKey};
 use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::{Deserializable, Serializable};
 use cryptography::utils::signatures::SignatureScheme;
