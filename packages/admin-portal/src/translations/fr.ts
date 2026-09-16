@@ -2080,6 +2080,7 @@ const frenchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Vérifiez vos Copies de Sauvegarde de votre Clé Privée Cryptée",
+                verifyButton: "Vérifier la clé",
                 subtitle:
                     "Chargez la Copie de Sauvegarde de votre Clé Privée Cryptée pour vérifier qu'elle est correcte. Vous pouvez essayer autant de fois que nécessaire, depuis vos différentes copies de sauvegarde :",
                 errorUploading:

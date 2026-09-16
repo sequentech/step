@@ -33,3 +33,24 @@ export interface IExecutionStatus {
     logs: Array<IKeysCeremonyLog>
     trustees: Array<IKeysCeremonyTrustee>
 }
+
+interface CanTrusteeRecheckPrivateKeyParams {
+    executionStatus: IKeysCeremonyExecutionStatus
+    trusteeStatus?: IKeysCeremonyTrusteeStatus
+    isAutomaticCeremony: boolean
+}
+
+export const canTrusteeRecheckPrivateKey = ({
+    executionStatus,
+    trusteeStatus,
+    isAutomaticCeremony,
+}: CanTrusteeRecheckPrivateKeyParams): boolean => {
+    if (isAutomaticCeremony || trusteeStatus !== IKeysCeremonyTrusteeStatus.KEY_CHECKED) {
+        return false
+    }
+
+    return (
+        executionStatus === IKeysCeremonyExecutionStatus.IN_PROGRESS ||
+        executionStatus === IKeysCeremonyExecutionStatus.SUCCESS
+    )
+}
