@@ -38,9 +38,8 @@ it.each([
     })
 })
 
-// JSDOM does not resolve the later component box-shadow resets against the
-// higher-specificity theme focus selector correctly. Verify the white halo in
-// a real browser; these tests cover the outline and interaction state.
+// JSDOM does not apply the theme focus selector over the component box-shadow
+// resets, so these tests assert the outline and the interaction state only.
 it("keeps the ballot locator Show more control visibly focused after activation", async () => {
     render(
         <ThemeProvider theme={theme}>

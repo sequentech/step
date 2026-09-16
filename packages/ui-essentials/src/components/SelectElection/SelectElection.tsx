@@ -271,20 +271,13 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     const closeDate = hasDate(endVotingDate) && formatElectionDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
-    const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
-        event
-    ) => {
-        event.stopPropagation()
-
+    const handleClickToVote: React.MouseEventHandler<HTMLButtonElement> = () => {
         if (!isUndefined(onClickToVote)) {
             onClickToVote()
         }
     }
 
-    const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
-        event
-    ) => {
-        event.stopPropagation()
+    const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement> = () => {
         if (!isUndefined(onClickBallotLocator)) {
             onClickBallotLocator()
         }
@@ -419,7 +412,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             href={resultsUrl}
                             target="_blank"
                             rel="noreferrer"
-                            onClick={(event) => event.stopPropagation()}
                         >
                             {t("selectElection.resultsButton")}
                         </Button>

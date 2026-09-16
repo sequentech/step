@@ -2,6 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// These cases assert rendered styles and ARIA wiring, so they run the real
+// Candidate and WarnBox components instead of stubs. ui-essentials and ui-core
+// are imported from source rather than their build output so the test does not
+// depend on a prior `yarn build:ui-essentials`; the virtual module mock below
+// only lists what Question renders, so adding an import there means adding it
+// here too.
 import React from "react"
 import {render, screen} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
