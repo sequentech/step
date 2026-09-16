@@ -97,6 +97,7 @@ pub async fn create_ballot_receipt(
                         &hasura_transaction,
                         &keycloak_transaction,
                         Some(task_execution),
+                        false,
                     )
                     .await
                     .map_err(|err| anyhow!("Error generating ballot receipt report: {err:?}"))?;

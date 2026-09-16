@@ -172,6 +172,72 @@ then be impossible, since the field it insists on is one the form does not show.
 Note this is different from setting the `Input type` annotation to `hidden`, which is Keycloak's own
 way of rendering an attribute as a hidden input on a form rather than keeping it off the form.
 
+## Protecting a Voter Attribute as Secret
+
+An election-event attribute can be stored as an encrypted **secret voter attribute**. Use this for
+data that administrators or voter-level outputs need, but which must not be exposed in ordinary
+voter lists or default exports. An eligible custom secret can also serve as the credential for
+the explicitly configured **Multi-Attribute + Password** authenticators.
+
+In **Annotations** > **Add annotation**, set:
+
+| Key | Value |
+|---|---|
+| `sequent.secret` | `true` |
+
+The value may also be the JSON boolean `true` when the profile is configured through an API. Secret
+attributes are supported only in election-event realms.
+
+Before enabling the annotation:
+
+- Restrict the User Profile attribute's view and edit permissions to administrators. Do not use a
+  secret attribute in voter registration, identity-attribute login matching, token mappers, reconciliation, filters,
+  sorting, uniqueness checks, or voter self-service. Keycloak stores ciphertext, so those features
+  cannot use its original value.
+  The supported authentication exception is
+  [encrypted-attribute credential verification](./101-admin_portal_tutorials_multi-attribute-password-login.md#optional-use-an-encrypted-voter-attribute-as-the-credential):
+  the extension decrypts it server-side and verifies the existing password input. This requires
+  `SECRET_ATTRIBUTE` policy and the matching master key in Keycloak; the annotation alone does
+  not change login behavior.
+- Do not configure a Keycloak value validator on the attribute. The
+  `person-name-prohibited-characters` validator is the only supported exception because it accepts
+  the encrypted envelope. A **Required field** rule is supported.
+- Keep each plaintext value at or below 150 bytes. The encrypted envelope must fit the
+  255-character Keycloak attribute value column that voter imports and listings use.
+- Protect or migrate any existing plaintext values before enabling the annotation. Existing values
+  are not encrypted retroactively, and Step refuses to reveal an unencrypted value as a fallback.
+
+Only custom voter attributes can be secret. The following identity and operational attributes
+cannot:
+
+- `username`, `email`, `first_name`, `last_name`, `dateOfBirth`, `area-id`, and `tenant-id`
+- `authorized-election-ids`, `authorized-to-election-alias`, and `permission_labels`
+- `vote-weight`, `voted-channel`, and `disable-comment`
+- `sequent.read-only.id-card-number-validated` and `sequent.read-only.mobile-number`
+
+Step reads the secret-attribute configuration through a short cache, so a change to the
+annotation can take up to 30 seconds to be reflected in the voter list and editor. If the
+configuration is invalid (a forbidden attribute or a value validator on a secret attribute), voter
+lists still redact the attribute, but revealing, editing, importing, exporting and voter-level
+outputs refuse to use it until the profile is corrected.
+
+Secret and hidden are different classifications. A hidden attribute is omitted from the editor but
+its plaintext can still reach the browser and ordinary exports. A secret attribute is encrypted at
+rest, removed from ordinary list/filter/export paths, and represented by a masked value in the
+voter editor.
+
+Authorized operators may explicitly include decrypted secrets in
+[voter CSV and password-protected event exports](./20-admin_portal_tutorials_export-data.md).
+Anyone who can reveal or export a secret used for login can authenticate as that voter; grant
+secret-read permission accordingly. CSV imports accept plaintext and encrypt it for storage.
+
+Combining `hidden=true` with `sequent.secret=true` keeps the field out of the editor, but it remains
+available to authorized secret exports and explicitly declared communication templates.
+
+Users need separate permissions to reveal or modify secret values. See
+[Permissions](../02-reference/user-manual/users-and-roles/users-and-roles_permissions.md) and
+[Create Voters](./07-admin_portal_tutorials_create-voters.md#secret-voter-fields).
+
 ## Limiting the Number of Characters
 
 To bound how much text an attribute accepts, **Add Validator** > **Validator type**: `length`, and

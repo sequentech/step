@@ -1,3 +1,7 @@
+type Query {
+    get_ballot_files_urls(election_event_id: String!): jsonb!
+}
+
 type Mutation {
     ApplicationChangeStatus(
         body: ApplicationChangeStatusBody!
@@ -135,11 +139,16 @@ type Mutation {
         election_event_id: String
         user: KeycloakUser2!
         user_roles_ids: [String!]
+        secret_attributes: jsonb
     ): KeycloakUser!
 }
 
 type Mutation {
     delete_election_event(election_event_id: String!): DeleteElectionEvent
+}
+
+type Mutation {
+    delete_tenant(tenant_id: String!): DeleteTenant
 }
 
 type Mutation {
@@ -354,7 +363,17 @@ type Mutation {
         tenant_id: String!
         election_event_id: String
         election_id: String
+        include_secret_attributes: Boolean
     ): ExportUsersOutput
+}
+
+type Query {
+    reveal_voter_secret_attribute(
+        tenant_id: String!
+        election_event_id: String!
+        user_id: String!
+        attribute_name: String!
+    ): RevealVoterSecretAttributeOutput!
 }
 
 type Query {
@@ -1027,6 +1046,7 @@ input EditUsersInput {
     enabled: Boolean
     election_event_id: String
     attributes: jsonb
+    secret_attributes: jsonb
     email: String
     first_name: String
     last_name: String
@@ -1034,6 +1054,11 @@ input EditUsersInput {
     username: String
     password: String
     temporary: Boolean
+}
+
+type RevealVoterSecretAttributeOutput {
+    attribute_name: String!
+    values: [String!]!
 }
 
 input DeleteUserInput {
@@ -1125,6 +1150,7 @@ input GetTopCastVotesByIpInput {
 input ExportOptions {
     password: String
     is_encrypted: Boolean
+    encrypt_with_password: Boolean
     include_voters: Boolean
     activity_logs: Boolean
     bulletin_board: Boolean
@@ -1672,6 +1698,12 @@ type SetCustomUrlsOutput {
 }
 
 type DeleteElectionEvent {
+    id: String
+    task_execution: tasks_execution_type
+    error_msg: String
+}
+
+type DeleteTenant {
     id: String
     task_execution: tasks_execution_type
     error_msg: String

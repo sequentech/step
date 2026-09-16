@@ -238,6 +238,13 @@ export type DeleteElectionEvent = {
     task_execution?: Maybe<Tasks_Execution_Type>
 }
 
+export type DeleteTenant = {
+    __typename?: "DeleteTenant"
+    error_msg?: Maybe<Scalars["String"]["output"]>
+    id?: Maybe<Scalars["String"]["output"]>
+    task_execution?: Maybe<Tasks_Execution_Type>
+}
+
 export type DeleteUserOutput = {
     __typename?: "DeleteUserOutput"
     id?: Maybe<Scalars["String"]["output"]>
@@ -275,6 +282,7 @@ export type EditUsersInput = {
     groups?: InputMaybe<Array<Scalars["String"]["input"]>>
     last_name?: InputMaybe<Scalars["String"]["input"]>
     password?: InputMaybe<Scalars["String"]["input"]>
+    secret_attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     temporary?: InputMaybe<Scalars["Boolean"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user_id: Scalars["String"]["input"]
@@ -389,6 +397,7 @@ export type ExportOptions = {
     activity_logs?: InputMaybe<Scalars["Boolean"]["input"]>
     applications?: InputMaybe<Scalars["Boolean"]["input"]>
     bulletin_board?: InputMaybe<Scalars["Boolean"]["input"]>
+    encrypt_with_password?: InputMaybe<Scalars["Boolean"]["input"]>
     include_certificates?: InputMaybe<Scalars["Boolean"]["input"]>
     include_voters?: InputMaybe<Scalars["Boolean"]["input"]>
     is_encrypted?: InputMaybe<Scalars["Boolean"]["input"]>
@@ -969,6 +978,12 @@ export enum ResultsWebsiteVisibilityScope {
     FullEvent = "full_event",
 }
 
+export type RevealVoterSecretAttributeOutput = {
+    __typename?: "RevealVoterSecretAttributeOutput"
+    attribute_name: Scalars["String"]["output"]
+    values: Array<Scalars["String"]["output"]>
+}
+
 export type RevokeResultsPublicationOutput = {
     __typename?: "RevokeResultsPublicationOutput"
     publication_id: Scalars["String"]["output"]
@@ -1512,6 +1527,8 @@ export type Mutation_Root = {
     delete_sequent_backend_trustee?: Maybe<Sequent_Backend_Trustee_Mutation_Response>
     /** delete single row from the table: "sequent_backend.trustee" */
     delete_sequent_backend_trustee_by_pk?: Maybe<Sequent_Backend_Trustee>
+    /** delete_tenant */
+    delete_tenant?: Maybe<DeleteTenant>
     delete_user?: Maybe<DeleteUserOutput>
     delete_user_role?: Maybe<SetUserRoleOutput>
     /** delete users */
@@ -2247,6 +2264,7 @@ export type Mutation_RootCreate_Transmission_PackageArgs = {
 /** mutation root */
 export type Mutation_RootCreate_UserArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
+    secret_attributes?: InputMaybe<Scalars["jsonb"]["input"]>
     tenant_id: Scalars["String"]["input"]
     user: KeycloakUser2
     user_roles_ids?: InputMaybe<Array<Scalars["String"]["input"]>>
@@ -2774,6 +2792,11 @@ export type Mutation_RootDelete_Sequent_Backend_Trustee_By_PkArgs = {
 }
 
 /** mutation root */
+export type Mutation_RootDelete_TenantArgs = {
+    tenant_id: Scalars["String"]["input"]
+}
+
+/** mutation root */
 export type Mutation_RootDelete_UserArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     tenant_id: Scalars["String"]["input"]
@@ -2893,6 +2916,7 @@ export type Mutation_RootExport_Tenant_UsersArgs = {
 export type Mutation_RootExport_UsersArgs = {
     election_event_id?: InputMaybe<Scalars["String"]["input"]>
     election_id?: InputMaybe<Scalars["String"]["input"]>
+    include_secret_attributes?: InputMaybe<Scalars["Boolean"]["input"]>
     tenant_id: Scalars["String"]["input"]
 }
 
@@ -5015,6 +5039,7 @@ export type Query_Root = {
     logEvent?: Maybe<LogEventOutput>
     /** Resolve the active results website publication for authenticated viewers */
     resolveResultsPublication?: Maybe<ResolveResultsPublicationOutput>
+    reveal_voter_secret_attribute: RevealVoterSecretAttributeOutput
     /** fetch data from the table: "sequent_backend.applications" */
     sequent_backend_applications: Array<Sequent_Backend_Applications>
     /** fetch aggregated fields from the table: "sequent_backend.applications" */
@@ -5386,6 +5411,13 @@ export type Query_RootLogEventArgs = {
 export type Query_RootResolveResultsPublicationArgs = {
     ee_id: Scalars["String"]["input"]
     election_id?: InputMaybe<Scalars["String"]["input"]>
+}
+
+export type Query_RootReveal_Voter_Secret_AttributeArgs = {
+    attribute_name: Scalars["String"]["input"]
+    election_event_id: Scalars["String"]["input"]
+    tenant_id: Scalars["String"]["input"]
+    user_id: Scalars["String"]["input"]
 }
 
 export type Query_RootSequent_Backend_ApplicationsArgs = {

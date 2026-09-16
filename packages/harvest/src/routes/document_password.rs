@@ -91,6 +91,21 @@ pub async fn get_document_password(
             internal_error("Failed to read document access metadata")
         })?
         .ok_or_else(unavailable)?;
+    if annotations.requires_voter_secret_attribute_read() {
+        authorize(
+            &claims,
+            true,
+            Some(tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )
+        .map_err(|_| {
+            ErrorResponse::new(
+                Status::Forbidden,
+                "Authorization failed",
+                ErrorCode::Unauthorized,
+            )
+        })?;
+    }
     let password_secret_id =
         annotations.password_secret_id().ok_or_else(unavailable)?;
     let secret = read_password(
