@@ -26,6 +26,7 @@ jest.mock("@sequentech/ui-core", () => ({
     ...jest.requireActual("../../../../ui-core/src/utils/array"),
     ...jest.requireActual("../../../../ui-core/src/services/acclamation"),
     ...jest.requireActual("../../../../ui-core/src/services/categoryService"),
+    ...jest.requireActual("../../../../ui-core/src/services/candidatePresentation"),
     // These helpers normally call WASM; the fixture has one ordinary eligible
     // candidate, so no encoding, winner filtering or ordering is needed here.
     sortCandidatesInContest: (candidates: ICandidate[]) => candidates,
