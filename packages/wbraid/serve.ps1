@@ -13,6 +13,6 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-Write-Host "Starting development server on http://127.0.0.1:8080" -ForegroundColor Green
-Write-Host "Open http://127.0.0.1:8080/emulator.html" -ForegroundColor Green
+Write-Host "Starting development server on http://127.0.0.1:8085" -ForegroundColor Green
+Write-Host "Open http://127.0.0.1:8085/emulator.html" -ForegroundColor Green
 python server.py

@@ -13,8 +13,9 @@
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 
-/// Maximum size for inline blob storage (set to 0 to force all blobs to S3 for testing)
-pub const MAX_INLINE_MESSAGE_SIZE: usize = 0; // Was: 1024 * 1024 (1MB)
+/// Largest message body stored inline; anything above it goes to S3.
+/// Currently kept as 0 because such an optimisation is not implemented yet.
+pub const MAX_INLINE_MESSAGE_SIZE: usize = 0;
 
 /// A blob stored in the bulletin board.
 ///
