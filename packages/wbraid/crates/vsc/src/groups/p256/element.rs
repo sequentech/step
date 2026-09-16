@@ -12,7 +12,7 @@ use core::fmt::Debug;
 use p256::elliptic_curve::Group;
 use p256::elliptic_curve::sec1::{FromSec1Point, ToSec1Point};
 use p256::elliptic_curve::subtle::CtOption;
-use p256::{Sec1Point, ProjectivePoint};
+use p256::{ProjectivePoint, Sec1Point};
 
 /**
  * A [`GroupElement`] implementation for the P-256 curve.
@@ -150,8 +150,9 @@ impl Deserializable for P256Element {
                 "Failed to parse P256 encoded point".to_string(),
             )
         })?;
-        let point: CtOption<P256Element> =
-            ProjectivePoint::from_sec1_point(&point).map(P256Element).into();
+        let point: CtOption<P256Element> = ProjectivePoint::from_sec1_point(&point)
+            .map(P256Element)
+            .into();
 
         if point.is_some().into() {
             Ok(point.expect("point.is_some() == true"))

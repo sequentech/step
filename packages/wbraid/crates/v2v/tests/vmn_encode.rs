@@ -12,16 +12,15 @@
 //! Corpus-backed checks run against a generated corpus; the rest are
 //! self-contained.
 
-
 mod common;
 
 use std::path::PathBuf;
 
-use v2v::encode;
 use cryptography::context::{Context, P256Ctx};
 use cryptography::cryptosystem::elgamal::KeyPair;
 use cryptography::groups::p256::element::P256Element;
 use cryptography::traits::groups::{CryptographicGroup, GroupElement};
+use v2v::encode;
 use v2v::wire::bytetree::ByteTree;
 
 /// The reference proof directory: the in-repo corpus by default, overridable
@@ -84,7 +83,11 @@ fn ciphertext_arrays_are_transposed_not_listed() {
     for side in sides {
         let components = side.as_node_of(W).expect("W component arrays");
         for component in components {
-            assert_eq!(component.as_node().unwrap().len(), N, "N entries per component");
+            assert_eq!(
+                component.as_node().unwrap().len(),
+                N,
+                "N entries per component"
+            );
         }
     }
 }

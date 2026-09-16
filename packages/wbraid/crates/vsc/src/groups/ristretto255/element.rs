@@ -78,10 +78,7 @@ impl GroupElement for RistrettoElement {
     /// implementation which is faster still, but it is only sound for public
     /// scalars, so adopting it would need a separate method with that
     /// precondition in its name.
-    fn multi_exp(
-        bases: &[&Self],
-        exponents: &[Self::Scalar],
-    ) -> Result<Self, CryptographyError> {
+    fn multi_exp(bases: &[&Self], exponents: &[Self::Scalar]) -> Result<Self, CryptographyError> {
         if bases.len() != exponents.len() {
             return Err(CryptographyError::MismatchedMultiExpLength(
                 bases.len(),

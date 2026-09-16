@@ -17,8 +17,8 @@ use crate::utils::signatures::Ed25519;
 use crate::utils::signatures::SignatureScheme;
 
 /// Global hashing function
-/// 
-/// Used by 
+///
+/// Used by
 /// - cryptographic groups for hashing to curve and hashing to scalar
 pub type CryptographicHasher = crate::utils::hash::Hasher512;
 
@@ -62,14 +62,20 @@ pub type CryptographicHasher = crate::utils::hash::Hasher512;
  * }
  * ```
  */
-pub trait Context: private::Sealed + std::fmt::Debug + PartialEq + Clone + Send + Sync + 'static
+pub trait Context:
+    private::Sealed + std::fmt::Debug + PartialEq + Clone + Send + Sync + 'static
 where
     <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Signer: Send + Sync,
     <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Verifier: Send + Sync,
     <Self::SignatureScheme as SignatureScheme<Self::Rng>>::Signature: Send + Sync,
 {
     /// The group element type.
-    type Element: GroupElement<Scalar = Self::Scalar> + Serializable + Deserializable + Clone + Send + Sync;
+    type Element: GroupElement<Scalar = Self::Scalar>
+        + Serializable
+        + Deserializable
+        + Clone
+        + Send
+        + Sync;
 
     /// The group scalar type.
     type Scalar: GroupScalar + Serializable + Deserializable + Clone + Send + Sync + From<u32>;
@@ -141,7 +147,7 @@ where
  * - The library's default hasher as the hashing function
  * - `StdRng` as the random number generator.
  * - `Ed25519` as the digital signature scheme.
- * 
+ *
  * Note: hashing to curve and scalar uses the p256 crate's internal hasher (SHA-256),
  * not the the hasher specified with `Hasher` (which is the library's default hasher).
  */

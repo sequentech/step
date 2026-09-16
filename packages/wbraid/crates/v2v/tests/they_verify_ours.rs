@@ -41,13 +41,11 @@
 //! exactly like `-shuffle`, so it is not a safe way to check the mixing phase
 //! alone.
 
-
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 // Shared with the other interop tests: locating Verificatum, and the random
 // source it refuses to start without.
-#[allow(dead_code)]
 mod common;
 
 // The shipped emitter, so these tests exercise what the tool ships rather
@@ -59,7 +57,6 @@ const W: usize = 2;
 const N: usize = 8;
 const SID: &str = "braidpoc";
 const AUXSID: &str = "default";
-
 
 const VERIFY_TOOL: &str = "com.verificatum.protocol.mixnet.MixNetElGamalVerifyFiatShamirTool";
 
@@ -201,7 +198,7 @@ fn vmnv_accepts(env: &Env, dir: &PathBuf) -> bool {
 
 /// Rewrite a proof directory to claim the output is the input, i.e. that nothing
 /// was shuffled. The proof is then invalid for that statement.
-fn claim_no_shuffling_happened(dir: &PathBuf) {
+fn claim_no_shuffling_happened(dir: &Path) {
     let input = std::fs::read(dir.join("Ciphertexts.bt")).unwrap();
     std::fs::write(dir.join("ShuffledCiphertexts.bt"), &input).unwrap();
     std::fs::write(dir.join("proofs/Ciphertexts01.bt"), &input).unwrap();
@@ -445,8 +442,6 @@ fn vmnv_is_silent_about_a_failed_shuffle() {
     );
 }
 
-
-
 /// Assert that `vmnv -mix` verified every phase, and say which one failed if not.
 fn assert_mix_verified(output: &str, mixers: usize) {
     assert!(
@@ -467,7 +462,6 @@ fn assert_mix_verified(output: &str, mixers: usize) {
 // -------------------------------------------------------------------------
 // Synthesized protocol info files
 // -------------------------------------------------------------------------
-
 
 /// Write a synthesized protocol info file and return its path.
 fn write_protinfo(info: &ProtocolInfo, name: &str) -> PathBuf {
@@ -500,7 +494,10 @@ fn vmnv_accepts_a_synthesized_protocol_info_file() {
     emit_chain(&dir, 3);
 
     let (code, output) = run_vmnv(&env, &dir, true);
-    assert_eq!(code, 0, "vmnv must accept a synthesized info file:\n{output}");
+    assert_eq!(
+        code, 0,
+        "vmnv must accept a synthesized info file:\n{output}"
+    );
     assert_eq!(
         output.matches("Verify proof of shuffle... done.").count(),
         3,
@@ -532,8 +529,7 @@ fn vmnv_accepts_a_sweep_of_session_shapes() {
 
             // lambda_a >= lambda, and the emitter derives the active threshold
             // from the number of mixers.
-            let dir = std::env::temp_dir()
-                .join(format!("braid_vmnv_sweep_{parties}_{threshold}"));
+            let dir = std::env::temp_dir().join(format!("braid_vmnv_sweep_{parties}_{threshold}"));
             emit_chain(&dir, threshold);
 
             let (code, output) = run_vmnv(&env, &dir, true);

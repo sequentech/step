@@ -214,6 +214,105 @@ fn number(body: &str, tag: &str) -> Result<usize> {
         .map_err(|_| Error::BadProtocolInfo("element is not a non-negative integer"))
 }
 
+// -------------------------------------------------------------------------
+// Writing protocol info files
+// -------------------------------------------------------------------------
+
+/// A signature key lifted verbatim from a generated protocol info file, reused
+/// for every party in a synthesized one.
+///
+/// Producing genuine per-party keys would mean implementing VMN's marshalling of
+/// RSA public keys, and buys nothing: Fiat–Shamir verification checks no
+/// signatures, which is why `vmnv` accepts a file whose parties share a key.
+/// That was confirmed by running it against a hand-built four-party file.
+///
+/// It is also why [`ProtocolInfo::to_xml`] stamps its output as
+/// verification-only — a file with duplicate signing keys resembles a real
+/// protocol configuration and must never be used as one.
+pub(crate) const PLACEHOLDER_PKEY: &str = concat!(
+    "com.verificatum.crypto.SignaturePKeyHeuristic(RSA, bitlength=2048)::",
+    "0000000002010000002d636f6d2e766572696669636174756d2e63727970746f2e53",
+    "69676e6174757265504b657948657572697374696300000000020100000126308201",
+    "22300d06092a864886f70d01010105000382010f003082010a0282010100a9e0b6b8",
+    "450981b9baf72550e4ac92ed78a886bff8c0f2a2f123e0c9e75449c63772c2215131",
+    "1aa0800b2acc9d4dff21c95e9860be2a52258172b2339f8d265a5da4e176658a4477",
+    "19527b6cbaa2d5c9609726361c5f24764ffc4f2976bc7d2e652c742f74e9be3a41d4",
+    "7c965b2760631a8baad172df34291c0b911fb68dee88ff4f68ffb4d369a54cffe8e3",
+    "aa8a4664139d961e14df715a5334d2ea0ea88d9ddc15fff041c30af33142f8e2e0d1",
+    "5cf96364774f274757e80c3b26f1054d244554ab240acd5005e568239ca6d4b8b114",
+    "3c6b071dc06dfb7287e420bae4f84e44ec42301a363fc053d224c37df40b0301c467",
+    "aa506e7a6238aa9c9cb695b8207f0203010001010000000400000800",
+);
+
+impl ProtocolInfo {
+    /// Render a protocol info file that `vmnv` will accept.
+    ///
+    /// The point is parameterization: `vmnv` takes its session shape — `k`, `λ`,
+    /// the group, the widths — from this file, so testing a shape means having a
+    /// file for it. Checking one in per combination does not scale, and
+    /// generating them with `vmni` needs a Unix host.
+    ///
+    /// # This is not a protocol configuration
+    ///
+    /// Every party gets the same signature key, so the result is usable only for
+    /// verification. It carries a comment saying so, because the format is
+    /// otherwise indistinguishable from a real one.
+    ///
+    /// # Round-trip
+    ///
+    /// `parse(x.to_xml())` returns `x`, which is what makes ρ derived from a
+    /// synthesized file agree with ρ derived from a generated one.
+    #[must_use]
+    pub fn to_xml(&self) -> String {
+        let mut out = String::new();
+        out.push_str(
+            "<!-- GENERATED FOR VERIFICATION ONLY.\n\
+             \x20    Every party shares one signature key, so this file describes no\n\
+             \x20    protocol that could actually be run. It exists so a verifier can be\n\
+             \x20    told the shape of a session. -->\n\n<protocol>\n",
+        );
+
+        let mut element = |tag: &str, value: &str| {
+            out.push_str(&format!("   <{tag}>{value}</{tag}>\n"));
+        };
+        element("version", &self.version);
+        element("sid", &self.sid);
+        element("name", "Synthesized");
+        element("descr", "");
+        element("nopart", &self.parties.to_string());
+        element("statdist", &self.n_r.to_string());
+        element(
+            "bullboard",
+            "com.verificatum.protocol.com.BullBoardBasicHTTPW",
+        );
+        element("thres", &self.threshold.to_string());
+        element("pgroup", &self.pgroup);
+        element("keywidth", &self.key_width.to_string());
+        element("vbitlen", "128");
+        element("vbitlenro", &self.n_v.to_string());
+        element("ebitlen", "128");
+        element("ebitlenro", &self.n_e.to_string());
+        element("prg", &self.prg);
+        element("rohash", &self.rohash);
+        element("corr", "noninteractive");
+        element("width", &self.width.to_string());
+        element("maxciph", "0");
+
+        for party in 1..=self.parties {
+            out.push_str(&format!(
+                "\n   <party>\n      <name>Party{party}</name>\n      \
+                 <srtbyrole>anyrole</srtbyrole>\n      <descr></descr>\n      \
+                 <pkey>{PLACEHOLDER_PKEY}</pkey>\n      \
+                 <http>http://localhost:8040</http>\n      \
+                 <hint>localhost:4040</hint>\n   </party>\n"
+            ));
+        }
+
+        out.push_str("\n</protocol>\n");
+        out
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,7 +423,9 @@ mod tests {
 
     #[test]
     fn auxsid_comes_from_the_caller_not_the_file() {
-        let params = ProtocolInfo::parse(SAMPLE).unwrap().prefix_params("session7");
+        let params = ProtocolInfo::parse(SAMPLE)
+            .unwrap()
+            .prefix_params("session7");
         assert_eq!(params.auxsid, "session7");
         assert_eq!(params.sid, "braidpoc");
     }
@@ -391,101 +492,5 @@ mod tests {
         assert_eq!(xml.matches("<party>").count(), 5);
         assert_eq!(xml.matches(PLACEHOLDER_PKEY).count(), 5);
         assert_eq!(ProtocolInfo::parse(&xml).unwrap().parties, 5);
-    }
-}
-
-// -------------------------------------------------------------------------
-// Writing protocol info files
-// -------------------------------------------------------------------------
-
-/// A signature key lifted verbatim from a generated protocol info file, reused
-/// for every party in a synthesized one.
-///
-/// Producing genuine per-party keys would mean implementing VMN's marshalling of
-/// RSA public keys, and buys nothing: Fiat–Shamir verification checks no
-/// signatures, which is why `vmnv` accepts a file whose parties share a key.
-/// That was confirmed by running it against a hand-built four-party file.
-///
-/// It is also why [`ProtocolInfo::to_xml`] stamps its output as
-/// verification-only — a file with duplicate signing keys resembles a real
-/// protocol configuration and must never be used as one.
-pub(crate) const PLACEHOLDER_PKEY: &str = concat!(
-    "com.verificatum.crypto.SignaturePKeyHeuristic(RSA, bitlength=2048)::",
-    "0000000002010000002d636f6d2e766572696669636174756d2e63727970746f2e53",
-    "69676e6174757265504b657948657572697374696300000000020100000126308201",
-    "22300d06092a864886f70d01010105000382010f003082010a0282010100a9e0b6b8",
-    "450981b9baf72550e4ac92ed78a886bff8c0f2a2f123e0c9e75449c63772c2215131",
-    "1aa0800b2acc9d4dff21c95e9860be2a52258172b2339f8d265a5da4e176658a4477",
-    "19527b6cbaa2d5c9609726361c5f24764ffc4f2976bc7d2e652c742f74e9be3a41d4",
-    "7c965b2760631a8baad172df34291c0b911fb68dee88ff4f68ffb4d369a54cffe8e3",
-    "aa8a4664139d961e14df715a5334d2ea0ea88d9ddc15fff041c30af33142f8e2e0d1",
-    "5cf96364774f274757e80c3b26f1054d244554ab240acd5005e568239ca6d4b8b114",
-    "3c6b071dc06dfb7287e420bae4f84e44ec42301a363fc053d224c37df40b0301c467",
-    "aa506e7a6238aa9c9cb695b8207f0203010001010000000400000800",
-);
-
-impl ProtocolInfo {
-    /// Render a protocol info file that `vmnv` will accept.
-    ///
-    /// The point is parameterization: `vmnv` takes its session shape — `k`, `λ`,
-    /// the group, the widths — from this file, so testing a shape means having a
-    /// file for it. Checking one in per combination does not scale, and
-    /// generating them with `vmni` needs a Unix host.
-    ///
-    /// # This is not a protocol configuration
-    ///
-    /// Every party gets the same signature key, so the result is usable only for
-    /// verification. It carries a comment saying so, because the format is
-    /// otherwise indistinguishable from a real one.
-    ///
-    /// # Round-trip
-    ///
-    /// `parse(x.to_xml())` returns `x`, which is what makes ρ derived from a
-    /// synthesized file agree with ρ derived from a generated one.
-    #[must_use]
-    pub fn to_xml(&self) -> String {
-        let mut out = String::new();
-        out.push_str(
-            "<!-- GENERATED FOR VERIFICATION ONLY.\n\
-             \x20    Every party shares one signature key, so this file describes no\n\
-             \x20    protocol that could actually be run. It exists so a verifier can be\n\
-             \x20    told the shape of a session. -->\n\n<protocol>\n",
-        );
-
-        let mut element = |tag: &str, value: &str| {
-            out.push_str(&format!("   <{tag}>{value}</{tag}>\n"));
-        };
-        element("version", &self.version);
-        element("sid", &self.sid);
-        element("name", "Synthesized");
-        element("descr", "");
-        element("nopart", &self.parties.to_string());
-        element("statdist", &self.n_r.to_string());
-        element("bullboard", "com.verificatum.protocol.com.BullBoardBasicHTTPW");
-        element("thres", &self.threshold.to_string());
-        element("pgroup", &self.pgroup);
-        element("keywidth", &self.key_width.to_string());
-        element("vbitlen", "128");
-        element("vbitlenro", &self.n_v.to_string());
-        element("ebitlen", "128");
-        element("ebitlenro", &self.n_e.to_string());
-        element("prg", &self.prg);
-        element("rohash", &self.rohash);
-        element("corr", "noninteractive");
-        element("width", &self.width.to_string());
-        element("maxciph", "0");
-
-        for party in 1..=self.parties {
-            out.push_str(&format!(
-                "\n   <party>\n      <name>Party{party}</name>\n      \
-                 <srtbyrole>anyrole</srtbyrole>\n      <descr></descr>\n      \
-                 <pkey>{PLACEHOLDER_PKEY}</pkey>\n      \
-                 <http>http://localhost:8040</http>\n      \
-                 <hint>localhost:4040</hint>\n   </party>\n"
-            ));
-        }
-
-        out.push_str("\n</protocol>\n");
-        out
     }
 }

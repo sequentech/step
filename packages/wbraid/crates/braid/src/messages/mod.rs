@@ -20,8 +20,8 @@
 //! *participant* (a `Signer`) rather than message vocabulary — lives in
 //! [`crate::protocol_manager`], alongside [`crate::trustee`].
 
-pub mod newtypes;
 pub mod artifact;
+pub mod newtypes;
 pub mod wire;
 
 pub mod predicate;

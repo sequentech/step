@@ -30,15 +30,15 @@ use crate::messages::artifact::{Ballots, Configuration, DkgPublicKey, Plaintexts
 use crate::messages::newtypes::{
     hash_bytes, ConfigurationHash, PublicKeyHash, Timestamp, TrusteeIndex, MAX_TRUSTEES,
 };
-use crate::protocol_manager::ProtocolManager;
 use crate::messages::wire::{MessageType, ProtocolMessage};
+use crate::protocol_manager::ProtocolManager;
 
 use crate::board::persistence::NoOpPersistence;
 use crate::board::transport::Transport;
 use crate::board::BoardClient;
 use crate::native::http_transport::HttpTransport;
-use crate::trustee::Trustee;
 use crate::session::Session;
+use crate::trustee::Trustee;
 
 /// b4 server endpoint the test drives against (must be running, with S3).
 const HTTP_URL: &str = "http://127.0.0.1:3000";

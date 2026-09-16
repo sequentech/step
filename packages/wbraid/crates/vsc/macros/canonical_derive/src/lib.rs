@@ -56,7 +56,8 @@ fn impl_canonical(ast: &syn::DeriveInput) -> TokenStream {
                     .collect();
                 let tys: Vec<_> = fields.named.iter().map(|f| &f.ty).collect();
                 write_stmts = quote! { #( Serializable::write(&self.#names, out); )* };
-                read_ctor = quote! { Self { #( #names: <#tys as Deserializable>::read(input)?, )* } };
+                read_ctor =
+                    quote! { Self { #( #names: <#tys as Deserializable>::read(input)?, )* } };
             }
             syn::Fields::Unnamed(fields) => {
                 let indices = (0..fields.unnamed.len()).map(syn::Index::from);

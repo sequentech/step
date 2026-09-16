@@ -277,8 +277,8 @@ mod tests {
 
     use crate::messages::artifact::Configuration;
     use crate::messages::newtypes::{zero_hash, ConfigurationHash, PublicKeyHash};
-    use crate::protocol_manager::ProtocolManager;
     use crate::messages::wire::ProtocolMessage;
+    use crate::protocol_manager::ProtocolManager;
 
     use cryptography::utils::serialization::Serializable;
 
@@ -363,7 +363,11 @@ mod tests {
         let first = ProtocolMessage::<C>::shares(&trustee1, DATE, cfg_hash, &vec![1u8, 2, 3]);
         let first_bytes = first.ser();
         client.post(vec![first]).await?;
-        assert_eq!(board.snapshot().len(), 2, "Configuration + the first Shares");
+        assert_eq!(
+            board.snapshot().len(),
+            2,
+            "Configuration + the first Shares"
+        );
         assert_eq!(client.own_posts().len(), 1, "the slot is now recorded");
 
         // A recomputed sharing for the same slot: fresh randomness, so a different
@@ -403,8 +407,7 @@ mod tests {
             cfg_message,
         } = setup::<C>(2)?;
         let sk1 = signing_keys.into_iter().next().unwrap();
-        let trustee1 =
-            Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+        let trustee1 = Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
         // Parent (DKG) board: Configuration + a Shares from trustee 1.
         let parent_board = MemoryBoard::<C>::new();
@@ -493,8 +496,7 @@ mod tests {
             cfg_message,
         } = setup::<C>(2)?;
         let sk1 = signing_keys.into_iter().next().unwrap();
-        let trustee1 =
-            Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+        let trustee1 = Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
         let dkg_board = MemoryBoard::<C>::new();
         dkg_board.push(cfg_message);
@@ -563,8 +565,7 @@ mod tests {
             ..
         } = setup::<C>(2)?;
         let sk1 = signing_keys.into_iter().next().unwrap();
-        let trustee1 =
-            Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
+        let trustee1 = Trustee::<C>::new("1".to_string(), sk1, KeyPair::<C>::generate(), &cfg)?;
 
         let board = MemoryBoard::<C>::new();
         board.push(cfg_message);
