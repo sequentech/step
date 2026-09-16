@@ -71,6 +71,7 @@ export default function DashboardElection() {
             timeResolution: votesTimeSelection.resolution,
             bucketCount: getVotesBucketCount(votesTimeSelection),
         },
+        fetchPolicy: "network-only",
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         skip: !canQueryStats,
     })

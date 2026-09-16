@@ -92,6 +92,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             timeResolution: votesTimeSelection.resolution,
             bucketCount: getVotesBucketCount(votesTimeSelection),
         },
+        fetchPolicy: "network-only",
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         skip: !canQuery,
     })
