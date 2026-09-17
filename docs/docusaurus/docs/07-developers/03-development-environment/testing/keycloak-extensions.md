@@ -6,8 +6,9 @@ title: Keycloak extension tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-From `packages/keycloak-extensions`, run `mvn test` using Java 17 and Maven 3.9.9.
-Run from the reactor root so sibling modules resolve correctly. Fetch dependency
+From `packages/keycloak-extensions` (the Maven reactor root), run `mvn test`
+using Java 17 and Maven 3.9.9. This directory resolves the sibling extension
+modules together. Fetch dependency
 artifacts before using `mvn -o test` in a network-isolated worker. Surefire can
 resolve extra provider artifacts that `dependency:go-offline` alone misses.
 
