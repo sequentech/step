@@ -32,6 +32,6 @@ jobs:
           printf '%s  %s\n' "$(cat "$RUNNER_TEMP/maven.sha512")" "$RUNNER_TEMP/maven.tar.gz" | sha512sum --check
           tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/apache-maven-3.9.9/bin" >> "$GITHUB_PATH"
-      - name: Run package contracts
+      - name: Run ${{ matrix.package }} contracts
         working-directory: packages/${{ matrix.package }}
         run: mvn -B -ntp test
