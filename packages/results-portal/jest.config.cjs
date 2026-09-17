@@ -7,6 +7,8 @@ module.exports = {
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     moduleNameMapper: {
+        "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/index.tsx",
+        "^@sequentech/ui-essentials$": "<rootDir>/../ui-essentials/src/index.tsx",
         "^@/(.*)$": "<rootDir>/src/$1",
     },
     testEnvironment: "node",
