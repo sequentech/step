@@ -73,7 +73,37 @@ pub async fn get_keys_ceremony_board(
     }
 }
 
-#[instrument(err)]
+fn validate_private_key_download(
+    keys_ceremony: &KeysCeremony,
+    trustee_name: &str,
+) -> Result<KeysCeremonyStatus> {
+    // check keys_ceremony has correct execution status
+    if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
+        return Err(PrivateKeyDownloadUnavailable.into());
+    }
+
+    // get ceremony status
+    let current_status: KeysCeremonyStatus = keys_ceremony
+        .status()
+        .with_context(|| "error parsing keys ceremony current status")?;
+
+    // check the trustee is part of this ceremony
+    let trustee = current_status
+        .trustees
+        .iter()
+        .find(|trustee| trustee.name == trustee_name)
+        .ok_or_else(|| anyhow!("Trustee not part of the keys ceremony"))?;
+
+    // downloading again would move a trustee who already checked the key
+    // back to KEY_RETRIEVED
+    if trustee.status == TrusteeStatus::KEY_CHECKED {
+        return Err(PrivateKeyDownloadUnavailable.into());
+    }
+
+    Ok(current_status)
+}
+
+#[instrument]
 pub async fn get_private_key(
     transaction: &Transaction<'_>,
     claims: JwtClaims,
@@ -92,25 +122,7 @@ pub async fn get_private_key(
         &keys_ceremony_id,
     )
     .await?;
-    // check keys_ceremony has correct execution status
-    if keys_ceremony.execution_status()? != KeysCeremonyExecutionStatus::IN_PROGRESS {
-        return Err(PrivateKeyDownloadUnavailable.into());
-    }
-
-    // get ceremony status
-    let current_status: KeysCeremonyStatus = keys_ceremony
-        .status()
-        .with_context(|| "error parsing keys ceremony current status")?;
-
-    // check the trustee is part of this ceremony
-    if let None = current_status
-        .trustees
-        .clone()
-        .into_iter()
-        .find(|trustee| trustee.name == trustee_name)
-    {
-        return Err(anyhow!("Trustee not part of the keys ceremony"));
-    }
+    let current_status = validate_private_key_download(&keys_ceremony, &trustee_name)?;
 
     let (board_name, _) =
         get_keys_ceremony_board(transaction, &tenant_id, &election_event_id, &keys_ceremony)
@@ -522,4 +534,139 @@ pub async fn validate_permission_labels(
         .all(|c| user_permission_labels_vec.contains(c));
 
     Ok(is_valid_permission_labels)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TRUSTEE_NAME: &str = "trustee1";
+
+    fn keys_ceremony(
+        execution_status: KeysCeremonyExecutionStatus,
+        trustee_status: TrusteeStatus,
+    ) -> KeysCeremony {
+        let status = KeysCeremonyStatus {
+            stop_date: None,
+            public_key: Some("public-key".to_string()),
+            logs: vec![],
+            trustees: vec![
+                Trustee {
+                    name: TRUSTEE_NAME.to_string(),
+                    status: trustee_status,
+                },
+                Trustee {
+                    name: "trustee2".to_string(),
+                    status: TrusteeStatus::KEY_GENERATED,
+                },
+            ],
+        };
+
+        KeysCeremony {
+            id: "keys-ceremony".to_string(),
+            created_at: None,
+            last_updated_at: None,
+            tenant_id: "tenant".to_string(),
+            election_event_id: "election-event".to_string(),
+            trustee_ids: vec![],
+            status: Some(serde_json::to_value(status).expect("serializable status")),
+            execution_status: Some(execution_status.to_string()),
+            labels: None,
+            annotations: None,
+            threshold: 2,
+            name: None,
+            settings: None,
+            is_default: None,
+            permission_label: None,
+        }
+    }
+
+    fn is_download_unavailable(result: &Result<KeysCeremonyStatus>) -> bool {
+        result.as_ref().is_err_and(|error| {
+            error
+                .downcast_ref::<PrivateKeyDownloadUnavailable>()
+                .is_some()
+        })
+    }
+
+    #[test]
+    fn allows_download_until_the_trustee_checks_the_key() {
+        for trustee_status in [TrusteeStatus::KEY_GENERATED, TrusteeStatus::KEY_RETRIEVED] {
+            let ceremony = keys_ceremony(KeysCeremonyExecutionStatus::IN_PROGRESS, trustee_status);
+
+            assert!(validate_private_key_download(&ceremony, TRUSTEE_NAME).is_ok());
+        }
+    }
+
+    #[test]
+    fn rejects_download_when_the_ceremony_is_not_in_progress() {
+        for execution_status in [
+            KeysCeremonyExecutionStatus::USER_CONFIGURATION,
+            KeysCeremonyExecutionStatus::STARTED,
+            KeysCeremonyExecutionStatus::SUCCESS,
+            KeysCeremonyExecutionStatus::CANCELLED,
+        ] {
+            let ceremony = keys_ceremony(execution_status, TrusteeStatus::KEY_CHECKED);
+
+            assert!(is_download_unavailable(&validate_private_key_download(
+                &ceremony,
+                TRUSTEE_NAME
+            )));
+        }
+    }
+
+    #[test]
+    fn rejects_download_after_the_trustee_checked_the_key() {
+        let ceremony = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::KEY_CHECKED,
+        );
+
+        assert!(is_download_unavailable(&validate_private_key_download(
+            &ceremony,
+            TRUSTEE_NAME
+        )));
+    }
+
+    #[test]
+    fn reports_a_trustee_outside_the_ceremony_as_a_failure() {
+        let ceremony = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::KEY_GENERATED,
+        );
+
+        let result = validate_private_key_download(&ceremony, "trustee3");
+
+        assert!(result.is_err());
+        assert!(!is_download_unavailable(&result));
+    }
+
+    #[test]
+    fn reports_invalid_ceremony_data_as_a_failure() {
+        let mut unknown_execution_status = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::KEY_GENERATED,
+        );
+        unknown_execution_status.execution_status = Some("UNKNOWN".to_string());
+
+        let mut missing_execution_status = unknown_execution_status.clone();
+        missing_execution_status.execution_status = None;
+
+        let mut malformed_status = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::KEY_GENERATED,
+        );
+        malformed_status.status = Some(serde_json::json!({"trustees": "invalid"}));
+
+        for ceremony in [
+            unknown_execution_status,
+            missing_execution_status,
+            malformed_status,
+        ] {
+            let result = validate_private_key_download(&ceremony, TRUSTEE_NAME);
+
+            assert!(result.is_err());
+            assert!(!is_download_unavailable(&result));
+        }
+    }
 }

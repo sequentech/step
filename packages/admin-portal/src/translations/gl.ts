@@ -2052,10 +2052,10 @@ const galegoTranslation: TranslationType = {
                 downloadButton: "Descargar a túa Chave Privada Cifrada",
                 downloaded: "Chave Privada Cifrada descargada correctamente.",
                 errorEmptyKey: "Erro de descarga, ficheiro baleiro",
-                unexpectedError: "Non se puido descargar a clave privada. Téntao de novo.",
+                unexpectedError: "Non se puido descargar a chave privada. Téntao de novo.",
                 alreadyVerified: "A túa chave privada xa se descargara e verificara.",
                 unavailable:
-                    "A descarga da clave privada xa non está dispoñible porque a cerimonia avanzou.",
+                    "A descarga da chave privada xa non está dispoñible porque a cerimonia avanzou.",
                 confirmdDialog: {
                     ok: "Confirmar Copias de Seguridade e Continuar",
                     cancel: "Volver Atrás",

@@ -2046,10 +2046,10 @@ const basqueTranslation: TranslationType = {
                 downloadButton: "Deskargatu zure Zifratutako Giltza Pribatua",
                 downloaded: "Zifratutako Giltza Pribatua behar bezala deskargatu da.",
                 errorEmptyKey: "Deskarga errorea, fitxategi hutsa",
-                unexpectedError: "Ezin izan da gako pribatua deskargatu. Saiatu berriro.",
-                alreadyVerified: "Zure gako pribatua deskargatuta eta egiaztatuta zegoen.",
+                unexpectedError: "Ezin izan da giltza pribatua deskargatu. Saiatu berriro.",
+                alreadyVerified: "Zure giltza pribatua deskargatuta eta egiaztatuta zegoen.",
                 unavailable:
-                    "Gako pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
+                    "Giltza pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
                 confirmdDialog: {
                     ok: "Berretsi Babeskopiak eta Jarraitu",
                     cancel: "Itzuli",
