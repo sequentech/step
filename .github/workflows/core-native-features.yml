@@ -1,0 +1,162 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Core native feature coverage
+
+on:
+  pull_request:
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/core-native-features.yml', '.github/actions/setup-test-browser/**']
+  push:
+    branches: [main]
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/core-native-features.yml', '.github/actions/setup-test-browser/**']
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Native profile supported by this hosted worker
+        type: choice
+        options: [sequent-core-native]
+        default: sequent-core-native
+        required: true
+      base_ref:
+        description: Compare with this base branch or commit (select a different candidate branch above)
+        type: string
+        default: main
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: core-native-features-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
+  HEAD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  reporter-tests:
+    name: Coverage tooling — no decrease
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: base
+          persist-credentials: false
+      - name: Install the Python coverage tool
+        run: python3 -m pip install coverage==7.16.0 ruff==0.16.7
+      - name: Check Python formatting and imports
+        run: |
+          ruff format --check --config head/scripts/coverage/ruff.toml head/scripts/coverage
+          ruff check --config head/scripts/coverage/ruff.toml head/scripts/coverage
+      - name: Test and compare both revisions
+        run: >-
+          python3 head/scripts/coverage/ci.py python coverage-tooling
+          --base base --head head --output "$RUNNER_TEMP/coverage/tooling"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: coverage-tooling
+          path: ${{ runner.temp }}/coverage/tooling/
+          if-no-files-found: error
+          retention-days: 7
+
+  package-comparison:
+    name: Core native features — no decrease
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: reporter-tests
+    env:
+      COVERAGE_PROFILE: ${{ inputs.profile || 'sequent-core-native' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.BASE_REF }}
+          path: base
+          persist-credentials: false
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
+      - name: Install Core database fixture dependencies
+        if: env.COVERAGE_PROFILE == 'sequent-core-native'
+        run: sudo apt-get install -y postgresql libpq-dev
+      - name: Install both repository Rust toolchains
+        run: |
+          for checkout in base head; do
+            (cd "$checkout" && rustup show active-toolchain && rustup component add llvm-tools-preview)
+          done
+      - name: Install cargo-llvm-cov 0.9.1
+        run: |
+          curl --fail --location --silent --show-error --output /tmp/cargo-llvm-cov.tar.gz https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.9.1/cargo-llvm-cov-x86_64-unknown-linux-gnu.tar.gz
+          echo 'b3f68e625481fed9b16444174f3fa5ebcdbde4a1878803a35eabe2dcefcdc41a  /tmp/cargo-llvm-cov.tar.gz' | sha256sum --check
+          tar -xzf /tmp/cargo-llvm-cov.tar.gz -C "$HOME/.cargo/bin"
+      - name: Install the PDF test browser
+        uses: ./head/.github/actions/setup-test-browser
+      - name: Compare package coverage
+        run: >-
+          python3 head/scripts/coverage/ci.py rust "$COVERAGE_PROFILE"
+          --base base --head head --output "$RUNNER_TEMP/coverage/native"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: coverage-${{ env.COVERAGE_PROFILE }}
+          path: |
+            ${{ runner.temp }}/coverage/native/
+            base/coverage/${{ env.COVERAGE_PROFILE }}/
+            head/coverage/${{ env.COVERAGE_PROFILE }}/
+          if-no-files-found: error
+          retention-days: 7
+
+  browser-tests:
+    name: Core JavaScript boundary — WASM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+          persist-credentials: false
+      - name: Install WASM build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libssl-dev protobuf-compiler
+          rustup show active-toolchain
+          rustup target add wasm32-unknown-unknown
+      - name: Install the browser
+        uses: ./.github/actions/setup-test-browser
+      - name: Install matching WASM runner and ChromeDriver
+        run: |
+          curl --fail --location --silent --show-error --output /tmp/wasm-bindgen.tar.gz https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.128/wasm-bindgen-0.2.128-x86_64-unknown-linux-musl.tar.gz
+          echo 'b51f0208fdff83515a787bd8ab9ac5865ed84dabb66d0c709957bb59793c645f  /tmp/wasm-bindgen.tar.gz' | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/wasm-tools"
+          tar -xzf /tmp/wasm-bindgen.tar.gz --strip-components=1 -C "$RUNNER_TEMP/wasm-tools"
+          echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
+          curl --fail --location --silent --show-error --output /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/153.0.8010.36/linux64/chromedriver-linux64.zip
+          echo 'c05f3bfb501b37b12b7fa2a54b8b30b51d089a64389898362aeb2785f12ac83f  /tmp/chromedriver.zip' | sha256sum --check
+          unzip -q /tmp/chromedriver.zip -d "$RUNNER_TEMP/wasm-tools"
+          echo "$RUNNER_TEMP/wasm-tools/chromedriver-linux64" >> "$GITHUB_PATH"
+      - name: Test actual JavaScript exports
+        env:
+          CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: wasm-bindgen-test-runner
+          WASM_BINDGEN_TEST_WEBDRIVER_JSON: ${{ runner.temp }}/webdriver.json
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          with open(os.environ['WASM_BINDGEN_TEST_WEBDRIVER_JSON'], 'w') as output:
+              json.dump({'goog:chromeOptions': {'binary': os.environ['CHROME'], 'args': ['--no-sandbox', '--disable-dev-shm-usage', '--single-process', '--no-zygote']}}, output)
+          PYTHON
+          cd packages
+          cargo test --locked --target wasm32-unknown-unknown -p sequent-core --features wasmtest,default_features --test mod

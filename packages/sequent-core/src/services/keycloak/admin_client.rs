@@ -103,7 +103,7 @@ fn get_keycloak_login_admin_config() -> KeycloakLoginConfig {
     KeycloakLoginConfig::new(client_id, client_secret, tenant_id)
 }
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 pub async fn get_credentials_inner(
     login_config: KeycloakLoginConfig,
 ) -> Result<String> {
@@ -112,8 +112,7 @@ pub async fn get_credentials_inner(
         ("scope".into(), "openid".into()),
         ("client_secret".into(), login_config.client_secret.clone()),
         ("grant_type".into(), "client_credentials".into()),
-    ])
-    .unwrap();
+    ])?;
 
     let keycloak_endpoint = format!(
         "{}/realms/{}/protocol/openid-connect/token",
@@ -127,9 +126,8 @@ pub async fn get_credentials_inner(
         .build();
     event!(
         Level::INFO,
-        "Acquiring credentials to {} with {:?}",
-        keycloak_endpoint,
-        body_string
+        "Acquiring credentials from {}",
+        keycloak_endpoint
     );
 
     let res = async {
@@ -140,12 +138,11 @@ pub async fn get_credentials_inner(
             .send();
         event!(Level::INFO, "Awaiting future from endpoint");
         let res = res_future.await;
-        event!(Level::INFO, "Result from endpoint: {:?}", res);
         res
     }
     .await?;
 
-    res.text().await.map_err(|e| anyhow!(e))
+    res.error_for_status()?.text().await.map_err(|e| anyhow!(e))
 }
 
 // Client Credentials OpenID Authentication flow.
@@ -154,12 +151,9 @@ pub async fn get_credentials_inner(
 pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
-    let credentials: KeycloakAdminToken =
-        deserialize_str(&text).map_err(|err| {
-            anyhow!(format!(
-                "Error deserializing: {err:?}, Inner credentials: {text:?}"
-            ))
-        })?;
+    // Token responses contain secrets, including malformed responses.
+    let credentials: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(connection::AuthHeaders {
@@ -175,19 +169,16 @@ pub async fn get_client_credentials() -> Result<connection::AuthHeaders> {
 pub async fn get_auth_credentials() -> Result<KeycloakAdminToken> {
     let login_config = get_keycloak_login_config();
     let text = get_credentials_inner(login_config).await?;
-    let credentials: KeycloakAdminToken =
-        deserialize_str(&text).map_err(|err| {
-            anyhow!(format!(
-                "Error deserializing: {err:?}, Inner credentials: {text:?}"
-            ))
-        })?;
+    // Token responses contain secrets, including malformed responses.
+    let credentials: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(credentials)
 }
 
 /// Authenticate a party client in keycloak with specific client credentials and
 /// tenant_id
-#[instrument(err)]
+#[instrument(err, skip(client_secret))]
 pub async fn get_third_party_client_access_token(
     client_id: String,
     client_secret: String,
@@ -197,12 +188,9 @@ pub async fn get_third_party_client_access_token(
         KeycloakLoginConfig::new(client_id, client_secret, tenant_id);
 
     let text = get_credentials_inner(login_config).await?;
-    let keycloak_adm_tkn: KeycloakAdminToken =
-        deserialize_str(&text).map_err(|err| {
-            anyhow!(format!(
-                "Error deserializing: {err:?}, Inner credentials: {text:?}"
-            ))
-        })?;
+    // Token responses contain secrets, including malformed responses.
+    let keycloak_adm_tkn: KeycloakAdminToken = deserialize_str(&text)
+        .map_err(|_| anyhow!("Invalid Keycloak token response"))?;
 
     event!(Level::INFO, "Successfully acquired credentials");
     Ok(keycloak_adm_tkn)
