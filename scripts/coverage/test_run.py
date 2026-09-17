@@ -212,6 +212,8 @@ HASURA_DB__HOST = "127.0.0.1"
         self.assertFalse(any("--tests" in command for command in commands))
 
     def test_successful_run_cleans_before_collecting_new_counters(self) -> None:
+        # Clearing counters alone retains binaries from old feature profiles.
+        # Their source regions must not contaminate the new denominator.
         commands = []
 
         def record(command: list[str], log: Path, environment: dict[str, str]) -> str:
@@ -225,6 +227,26 @@ HASURA_DB__HOST = "127.0.0.1"
             index for index, command in enumerate(commands) if "--tests" in command
         )
         self.assertLess(cleanup, collect)
+
+    def test_compile_time_coverage_rebuilds_macros_instead_of_reusing_old_expansions(
+        self,
+    ) -> None:
+        self.config.write_text(
+            self.config.read_text().replace(
+                'package = "sequent-core"',
+                'package = "sequent-core"\ncompiler_coverage = true',
+            )
+        )
+        commands = []
+
+        def record(command: list[str], log: Path, environment: dict[str, str]) -> str:
+            commands.append(command)
+            return self.tool_output(command, log, environment)
+
+        with patch.object(run, "execute", side_effect=record):
+            self.assertEqual(run.measure("sequent-core", False, True), 0)
+        self.assertIn(["cargo", "llvm-cov", "clean", "--workspace"], commands)
+        self.assertNotIn(["cargo", "llvm-cov", "clean", "--profraw-only"], commands)
 
     def test_strict_shortfall_fails(self) -> None:
         self.covered = 94

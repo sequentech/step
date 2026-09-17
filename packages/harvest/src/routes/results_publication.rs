@@ -34,7 +34,10 @@ fn map_service_error(
         ResultsPublicationServiceError::NotFound(_) => Status::NotFound,
         ResultsPublicationServiceError::Conflict(_) => Status::Conflict,
         ResultsPublicationServiceError::Internal(_) => {
-            Status::InternalServerError
+            return (
+                Status::InternalServerError,
+                "Internal server error".into(),
+            );
         }
     };
     (status, error.to_string())
@@ -155,3 +158,7 @@ pub async fn refresh_results_publication_index(
     .map_err(map_service_error)?;
     Ok(Json(output))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/publication_errors.rs"]
+mod boundary_tests;
