@@ -83,7 +83,7 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
             Err(e) => {
                 if e.to_string().contains("HTTP Status") {
                     eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break;
+                    return Err(e);
                 } else {
                     thread::sleep(polling_interval);
                 }
@@ -334,3 +334,7 @@ pub fn update_script(test_id: &str, test_config: TestConfig) -> Result<()> {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/loadero_contracts.rs"]
+mod tests;
