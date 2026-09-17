@@ -803,6 +803,10 @@ const galegoTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a Xeración de Chaves...",
                 started: "Iniciado o",
+                actions: {
+                    participate: "Participar na cerimonia de chaves",
+                    view: "Ver a cerimonia de chaves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Cerimonia",

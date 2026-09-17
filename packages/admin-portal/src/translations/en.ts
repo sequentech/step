@@ -794,6 +794,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
