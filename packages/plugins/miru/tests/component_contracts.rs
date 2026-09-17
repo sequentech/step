@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Execute the real compiled component. Only imported authorization is synthetic.
+#![cfg(not(target_arch = "wasm32"))]
 use wasmtime::component::{Component, ComponentType, Lift, Linker, ResourceTable};
-use wasmtime::{Config, Engine, Store};
+use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 #[derive(ComponentType, Lift, Debug, PartialEq)]
@@ -34,6 +35,7 @@ struct Host {
     table: ResourceTable,
     calls: Vec<Authorization>,
     reject: bool,
+    limits: StoreLimits,
 }
 impl WasiView for Host {
     fn ctx(&mut self) -> WasiCtxView<'_> {
@@ -86,8 +88,13 @@ fn component() -> (Store<Host>, wasmtime::component::Instance) {
             table: ResourceTable::new(),
             calls: Vec::new(),
             reject: false,
+            limits: StoreLimitsBuilder::new()
+                .memory_size(64 * 1024 * 1024)
+                .table_elements(10_000)
+                .build(),
         },
     );
+    store.limiter(|host| &mut host.limits);
     store.set_fuel(10_000_000).unwrap();
     let instance = linker.instantiate(&mut store, &component).unwrap();
     (store, instance)

@@ -28,7 +28,9 @@ literal claims, tenant, super-admin flag and permission list. Success, denial,
 malformed JSON, missing/wrongly typed claims and the manifest route are exercised.
 
 The WASI host inherits no environment, filesystem directories or sockets. Fuel
-bounds guest execution. Each test owns its store, so authorization state cannot
+bounds guest execution; store limits cap each linear memory at 64 MiB and each
+table at 10,000 elements. The test host compiles only for native targets. Each test
+owns its store, so authorization state cannot
 leak between tests. The real host's JWT verification and transaction services
 remain separate integration boundaries. These WASM contracts do not publish
 native LLVM coverage or imply that host services were exercised.
