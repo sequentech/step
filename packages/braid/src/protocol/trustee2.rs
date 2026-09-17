@@ -396,7 +396,9 @@ impl<C: Ctx> Trustee<C> {
         }
         // Process the rest of the messages
         if !messages.is_empty() {
-            return self.update(messages, configuration);
+            return self
+                .update(messages, configuration)
+                .map(|(remaining, last)| (added + remaining, last));
         }
 
         Ok((added, last_added_id))
@@ -834,3 +836,7 @@ impl StepResult {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/trustee_contracts.rs"]
+mod coverage_contracts;

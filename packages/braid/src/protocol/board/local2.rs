@@ -732,7 +732,6 @@ impl<C: Ctx> LocalBoard<C> {
                         row.kind, row.sender_pk, row.batch, row.mix_number
                     );
                     let path = blob_store.join(name.replace("/", ":"));
-                    assert!(path.exists());
                     let mut file = File::open(&path)?;
                     let mut buffer = vec![];
 
@@ -1004,3 +1003,7 @@ struct SqliteStoreMessageRow {
     batch: i32,
     mix_number: i32,
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/storage_contracts.rs"]
+mod coverage_contracts;
