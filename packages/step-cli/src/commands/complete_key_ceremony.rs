@@ -5,7 +5,7 @@
 use crate::utils::trustees::{
     check_private_key::CheckPrivateKey,
     get_trustee_private_key::GetTrusteePrivateKey,
-    store_private_key::{download_private_key, read_stored_private_key},
+    store_private_key::{download_private_key, read_stored_private_key, store_event_private_key},
 };
 use clap::Args;
 use colored::Colorize;
@@ -52,19 +52,24 @@ pub fn complete_ceremony(
             // Store the key before checking it, as a checked key can't be
             // downloaded again
             Ok(private_key) => {
-                let path = download_private_key(&election_event_id, &private_key)?;
+                let path =
+                    download_private_key(&election_event_id, &key_ceremony_id, &private_key)?;
                 (private_key, path)
             }
             // A previous run already checked the key, so check the stored copy
-            Err(error) if error.is::<PrivateKeyDownloadUnavailable>() => {
-                read_stored_private_key(&election_event_id).map_err(|read_error| {
-                    format!("{error}, and the stored private key could not be read: {read_error}")
-                })?
-            }
+            Err(error) if error.is::<PrivateKeyDownloadUnavailable>() => read_stored_private_key(
+                &election_event_id,
+                &key_ceremony_id,
+            )
+            .map_err(|read_error| {
+                format!("{error}, and the stored private key could not be read: {read_error}")
+            })?,
             Err(error) => return Err(error),
         };
     let checked = CheckPrivateKey::check(&election_event_id, &key_ceremony_id, &private_key)?;
     if checked {
+        // confirm-key-tally reads the checked key of the election event
+        store_event_private_key(&election_event_id, &private_key)?;
         let path_str = path.to_str().unwrap_or_default();
         Ok(path_str.to_string())
     } else {

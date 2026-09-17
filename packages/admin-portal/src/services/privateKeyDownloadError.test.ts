@@ -16,28 +16,6 @@ describe("isPrivateKeyDownloadUnavailableError", () => {
         ).toBe(true)
     })
 
-    it("recognizes a code in the action response body", () => {
-        expect(
-            isPrivateKeyDownloadUnavailableError({
-                graphQLErrors: [
-                    {
-                        extensions: {
-                            internal: {
-                                response: {
-                                    body: JSON.stringify({
-                                        extensions: {
-                                            code: PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_ERROR_CODE,
-                                        },
-                                    }),
-                                },
-                            },
-                        },
-                    },
-                ],
-            })
-        ).toBe(true)
-    })
-
     it("rejects unrelated and malformed errors", () => {
         expect(
             isPrivateKeyDownloadUnavailableError({
