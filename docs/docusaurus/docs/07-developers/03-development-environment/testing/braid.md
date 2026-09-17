@@ -43,3 +43,9 @@ The HTTP protocol test needs a synthetic bulletin-board service and object store
 Browser IndexedDB/OPFS, concurrent long-running sessions, interactive commands and
 recovery from partial filesystem writes require separate targeted execution.
 Passing native tests does not establish coverage of those environments.
+
+Blob-batch regressions check that ordinary SQL/decode failures remove newly
+created files and preserve committed rows/files. The writer lock covers metadata
+and file creation; a retry must read its own bytes. This cleanup does not make
+SQLite and the filesystem one crash-atomic transaction: process termination or a
+filesystem refusing deletion needs separate recovery testing.
