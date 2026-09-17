@@ -4,6 +4,9 @@
 
 /** @type {import('jest').Config} */
 module.exports = {
+    collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/*.d.ts", "!src/**/*.test.{ts,tsx}"],
+    coverageProvider: "babel",
+    coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     testEnvironment: "node",
     testMatch: ["<rootDir>/src/**/*.test.ts"],
     moduleNameMapper: {
