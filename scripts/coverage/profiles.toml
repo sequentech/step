@@ -398,3 +398,19 @@ RAYON_NUM_THREADS = "2"
 "src/wasm/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
 "src/wasm/session.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
 "src/wasm/verify.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+
+[profiles.immudb-rs]
+package = "immudb-rs"
+consumer_packages = ["electoral-log"]
+features = ["electoral-log/immudb-tests"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Bounded local gRPC fixtures test client request mapping and error propagation; electoral-log supplies real owned ImmuDB consumer tests on both revisions.",
+    "Only immudb-rs source counters are reported; consumer tests do not inflate its denominator. Generated protocol transport is exercised through the client.",
+    "Actual Rust branches remain separately unmeasured."
+]
+[profiles.immudb-rs.test_environment]
+RUST_TEST_THREADS = "2"
+[profiles.immudb-rs.scope_exceptions]
+"src/lib.rs" = "Module declarations and re-exports only."
+"src/schema.rs" = "Includes generated protocol definitions from OUT_DIR; no handwritten executable source in this file."
