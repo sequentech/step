@@ -20,6 +20,62 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
         .await
         .is_err());
     assert_eq!(client.get_boards().await.unwrap().len(), 2);
+    for valid in ["_poll_9$".to_string(), "a".repeat(63)] {
+        client.create_board_ine(&valid).await.unwrap();
+        assert_eq!(client.get_message_count(&valid).await.unwrap(), 0);
+        client.delete_board(&valid).await.unwrap();
+    }
+    for invalid in [
+        "",
+        "9poll",
+        "poll-name",
+        "poll\"",
+        "poll, other",
+        "poll CROSS JOIN other",
+        &"a".repeat(64),
+    ] {
+        assert_eq!(
+            client
+                .create_board_ine(invalid)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "Invalid board SQL identifier"
+        );
+        assert_eq!(
+            client
+                .get_message_count(invalid)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "Invalid board SQL identifier"
+        );
+        assert_eq!(
+            client
+                .get_messages(invalid, 0)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "Invalid board SQL identifier"
+        );
+        assert_eq!(
+            client
+                .get_one_message(invalid, 1)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "Invalid board SQL identifier"
+        );
+        assert_eq!(
+            client.delete_board(invalid).await.unwrap_err().to_string(),
+            "Invalid board SQL identifier"
+        );
+    }
+
+    assert!(client.delete_board("poll, other").await.is_err());
+    assert_eq!(client.get_message_count("poll").await.unwrap(), 0);
+    assert_eq!(client.get_message_count("other").await.unwrap(), 0);
+
     let row = B3MessageRow {
         id: 0,
         created: 123,
@@ -31,6 +87,14 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
         message: vec![0, 255, 16],
         version: "1".into(),
     };
+    assert_eq!(
+        client
+            .insert_messages("poll, other", &vec![row.clone()])
+            .await
+            .unwrap_err()
+            .to_string(),
+        "Invalid board SQL identifier"
+    );
     client.insert_messages("poll", &vec![row]).await.unwrap();
     let messages = client.get_messages("poll", 0).await.unwrap();
     assert_eq!(messages.len(), 1);
