@@ -68,10 +68,11 @@ services:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
       - b4_db_logs:/b4_logs
+      - b4v6_db_logs:/b4v6_logs
     user: root
     group_add:
       - '999'
-    command: chown -R 999:999 /logs /keycloak_logs /b4_logs
+    command: chown -R 999:999 /logs /keycloak_logs /b4_logs /b4v6_logs
 
   postgres:
     profiles: ["full", "base"]
@@ -164,6 +165,140 @@ services:
       - KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY=${KEYCLOAK_TENANT_REALM_CONFIG_S3_KEY}
       - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
+
+  # S3 emulator for the wbraid dev loop (packages/wbraid): its b4v6 bulletin
+  # board keeps every message body in S3. Opt-in profile — not started with the
+  # base stack; packages/wbraid/localstack.sh brings it up by name, which
+  # auto-enables the profile.
+  # The image is pinned to the 4.x line: from the 2026 calendar releases on,
+  # localstack/localstack:latest exits at startup without an auth token.
+  localstack:
+    profiles: [ "wbraid" ]
+    container_name: localstack
+    image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
+    ports:
+      - "4566:4566"
+    environment:
+      - HOSTNAME_EXTERNAL=localhost
+      - S3_HOSTNAME=localhost:4566
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health" ]
+      interval: 5s
+      timeout: 10s
+      retries: 25
+      start_period: 5s
+
+  # Creates the wbraid-messages bucket and applies its CORS rules — the twin of
+  # what localstack.ps1 does inline on Windows.
+  configure-localstack:
+    profiles: [ "wbraid" ]
+    container_name: configure-localstack
+    image: amazon/aws-cli
+    volumes:
+      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: /bin/sh
+    command: >-
+      -c "aws --endpoint-url=http://localstack:4566 s3 mb s3://wbraid-messages 2>/dev/null;
+      aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors
+      --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
+
+  postgres-b4v6:
+    profiles: [ "wbraid" ]
+    image: sequentech.local/postgresql-b4v6
+    build:
+      context: ./postgresql-b4v6
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - b4v6_db_data:/var/lib/postgresql
+      - b4v6_db_logs:/logs
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+    user: "999:999"  # This ensures that the postgres user inside the container is used
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready  -U postgres"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 5s
+    depends_on:
+      - postgres-volume-init
+
+  # wbraid's bulletin board (packages/wbraid/crates/b4, binary b4v6), built and
+  # run from the mounted checkout like the other Rust services: cargo-watch
+  # rebuilds it when crates/b4 changes. Same opt-in `wbraid` profile as
+  # localstack; packages/wbraid/b4.sh brings it up by name. Reachable as
+  # http://b4v6:3005 on the project network (WBRAID_B4_URL for the live tests)
+  # and, forwarded by devcontainer.json, as http://127.0.0.1:3005 on the host
+  # for emulator.html.
+  # b4 only presigns S3 URLs, it never calls S3 itself, so AWS_ENDPOINT_URL is
+  # the address the *clients* fetch bodies from: the localstack service name,
+  # which the host browser resolves through a hosts-file entry (TESTING.md).
+  # The SQLite file lives in a named volume, b4.sh --reset clears it.
+  b4v6:
+    profiles: [ "wbraid" ]
+    image: sequentech.local/cargo-packages
+    build:
+      context: ../packages/
+      dockerfile: ./Dockerfile.cargo-packages
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    working_dir: /workspaces/step/packages/wbraid
+    entrypoint: [
+      "cargo",
+      "watch",
+      "--why",
+      "--watch", "crates/b4",
+      "--watch", "Cargo.toml",
+      "--watch", "Cargo.lock",
+      "-x",
+      "run --bin b4v6 --features postgres --release"
+    ]
+    volumes:
+      - b4v6_data:/var/lib/b4v6
+      - type: bind
+        source: ../..
+        target: /workspaces
+        bind:
+          create_host_path: true
+          selinux: z
+    depends_on:
+      postgres-b4v6:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      configure-localstack:
+        condition: service_completed_successfully
+    environment:
+      RUSTFLAGS: ${RUSTFLAGS}
+      RUST_BACKTRACE: ${RUST_BACKTRACE}
+      CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
+      RUST_LOG: b4=info,b4v6=info
+      WBRAID_B4_BIND: 0.0.0.0:3005
+      WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
+      DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
+      AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: us-east-1
+      S3_BUCKET_NAME: wbraid-messages
+    healthcheck:
+      # The first start compiles a release build; give it time before failing.
+      test: [ "CMD-SHELL", "curl -sf http://127.0.0.1:3005/boards" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 900s
 
   # hashicorp vault to store secrets
   # vault:
@@ -947,3 +1082,6 @@ volumes:
   protocol_manager_data:
   b4_db_logs:
   b4_db_data:
+  b4v6_data:
+  b4v6_db_data:
+  b4v6_db_logs:
