@@ -365,3 +365,20 @@ RAYON_NUM_THREADS = "2"
 [profiles.b3.scope_exceptions]
 "src/messages/mod.rs" = "Module declarations only."
 "src/client/mod.rs" = "Module declarations only."
+
+[profiles.braid]
+package = "braid"
+features = []
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "v10 native protocol, SQLite persistence and trustee contracts; inline code and generated protocol logic remain counted.",
+    "Live gRPC/PostgreSQL protocol transport and optional cryptographic backend configurations require separate execution. Actual Rust branches are unmeasured."
+]
+[profiles.braid.test_environment]
+CARGO_PROFILE_TEST_OPT_LEVEL = "2"
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.braid.scope_exceptions]
+"src/protocol/board/local.rs" = "Legacy implementation not declared by any module; the compiled local2 implementation is exercised."
+"src/test/mod.rs" = "Module declarations only."
+"src/verify/mod.rs" = "Module declarations only."
