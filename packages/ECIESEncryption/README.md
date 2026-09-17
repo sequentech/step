@@ -103,3 +103,7 @@ Please ensure you update the
 latest version whenever you change the `ECIESEncryption` project, since
 this is the file used during the generation of the windmill dockerfile in
 `/workspaces/step/packages/windmill/Dockerfile.prod`.
+
+## Tests
+
+See the [CLI testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/ecies-encryption.md).
