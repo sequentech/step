@@ -349,3 +349,19 @@ RAYON_NUM_THREADS = "2"
 "src/random/mod.rs" = "Module declarations only."
 "src/signatures/mod.rs" = "Module declarations only."
 "src/symmetric/mod.rs" = "Module declarations only."
+
+[profiles.b3]
+package = "b3"
+features = ["client", "server", "sqlcopy"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Native B3 wire, signature, mapping and owned PostgreSQL tests with client, server and SQL-copy features enabled.",
+    "The legacy external-service tests remain ignored; owned fixtures cover client behavior without deployment credentials.",
+    "Live gRPC server transport, SQL-copy batching, complete protocol workflows and actual branches require additional targeted execution."
+]
+[profiles.b3.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.b3.scope_exceptions]
+"src/messages/mod.rs" = "Module declarations only."
+"src/client/mod.rs" = "Module declarations only."

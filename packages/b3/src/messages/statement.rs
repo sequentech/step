@@ -410,8 +410,15 @@ impl BorshDeserialize for ChannelsHashes {
             .map(|v| <[u8; 64]>::try_from_slice(v))
             .collect();
 
+        let inner = inner?;
+        if inner.len() != crate::messages::newtypes::MAX_TRUSTEES {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Expected exactly MAX_TRUSTEES hashes",
+            ));
+        }
         let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner?);
+        ret.copy_from_slice(&inner);
 
         Ok(ChannelsHashes(ret))
     }
@@ -438,8 +445,15 @@ impl BorshDeserialize for SharesHashes {
             .map(|v| <[u8; 64]>::try_from_slice(v))
             .collect();
 
+        let inner = inner?;
+        if inner.len() != crate::messages::newtypes::MAX_TRUSTEES {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Expected exactly MAX_TRUSTEES hashes",
+            ));
+        }
         let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner?);
+        ret.copy_from_slice(&inner);
 
         Ok(SharesHashes(ret))
     }
@@ -466,8 +480,15 @@ impl BorshDeserialize for DecryptionFactorsHashes {
             .map(|v| <[u8; 64]>::try_from_slice(v))
             .collect();
 
+        let inner = inner?;
+        if inner.len() != crate::messages::newtypes::MAX_TRUSTEES {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Expected exactly MAX_TRUSTEES hashes",
+            ));
+        }
         let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner?);
+        ret.copy_from_slice(&inner);
 
         Ok(DecryptionFactorsHashes(ret))
     }

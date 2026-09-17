@@ -14,7 +14,7 @@ on:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand, velvet, wrap-map-err, harvest, windmill, step-cli, electoral-log-native]
+        options: [sequent-core, strand, velvet, wrap-map-err, harvest, windmill, step-cli, electoral-log-native, b3]
         default: sequent-core
         required: true
       base_ref:
@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native", "b3"]') }}
     # Synthetic local fixture, shared with the ordinary Windmill test job.
     services:
       postgres:
@@ -110,7 +110,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential pkg-config libssl-dev protobuf-compiler libprotobuf-dev
       - name: Install Core database fixture dependencies
-        if: env.COVERAGE_PROFILE == 'sequent-core'
+        if: env.COVERAGE_PROFILE == 'sequent-core' || env.COVERAGE_PROFILE == 'b3'
         run: sudo apt-get install -y postgresql libpq-dev
       - name: Install the local PDF test browser
         if: env.COVERAGE_PROFILE == 'velvet'
