@@ -13,7 +13,7 @@ const style = (election: string, publication: string) =>
     ({
         id: `style-${publication}`,
         election_id: election,
-        election_event_id: "event",
+        election_event_id: `event-${election}`,
         ballot_publication_id: publication,
         publication_published_at: "2026-08-18T00:00:00Z",
     }) as IBallotStyle
@@ -30,7 +30,7 @@ it("replaces only the selected election while preserving the previous Redux stat
     expect(selectBallotStyleByElectionId("missing")(state)).toBeUndefined()
     expect(selectBallotStyleElectionIds(state)).toEqual(["e1", "e2"])
     expect(selectFirstBallotStyle(state)).toBe(replacement)
-    expect(selectBallotStyleByElectionEventId("event")(state)).toBe(replacement)
+    expect(selectBallotStyleByElectionEventId("event-e1")(state)).toBe(replacement)
     expect(selectBallotStyleByElectionEventId(undefined)(state)).toBeUndefined()
 })
 it("returns empty selectors for an initial store and ignores absent cached entries", () => {
@@ -39,5 +39,5 @@ it("returns empty selectors for an initial store and ignores absent cached entri
     expect(selectBallotStyleElectionIds(state)).toEqual([])
     const present = style("e1", "a")
     const partial = {ballotStyles: {missing: undefined, e1: present}} as RootState
-    expect(selectBallotStyleByElectionEventId("event")(partial)).toBe(present)
+    expect(selectBallotStyleByElectionEventId("event-e1")(partial)).toBe(present)
 })
