@@ -21,6 +21,7 @@ export interface GlobalSettings {
     DEFAULT_DOCUMENT: {[langCode: string]: string}
     PUBLIC_BUCKET_URL: string
     VOTING_PORTAL_URL: string
+    KIOSK_VOTING_PORTAL_URL?: string
     RESULTS_PORTAL_URL: string
     IVR_EMULATOR_BASE_URL: string
     ACTIVATE_MIRU_EXPORT: boolean

@@ -92,6 +92,7 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
             timeResolution: votesTimeSelection.resolution,
             bucketCount: getVotesBucketCount(votesTimeSelection),
         },
+        fetchPolicy: "network-only",
         pollInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
         skip: !canQuery,
     })
@@ -205,6 +206,20 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
         )
     }, [globalSettings.VOTING_PORTAL_URL, tenantId, record?.id])
 
+    const kioskEnrollUrl = useMemo(() => {
+        return getAuthUrl(
+            globalSettings.KIOSK_VOTING_PORTAL_URL?.trim() || globalSettings.VOTING_PORTAL_URL,
+            tenantId ?? "",
+            record?.id ?? "",
+            "login"
+        )
+    }, [
+        globalSettings.KIOSK_VOTING_PORTAL_URL,
+        globalSettings.VOTING_PORTAL_URL,
+        tenantId,
+        record?.id,
+    ])
+
     if (loading) {
         return <CircularProgress />
     }
@@ -271,7 +286,10 @@ const DashboardElectionEvent: React.FC<DashboardElectionEventProps> = (props) =>
                     {record?.voting_channels?.kiosk === true && (
                         <>
                             <p>|</p>
-                            <a href={enrollUrl ? `${enrollUrl}?kiosk` : ""} target="_blank">
+                            <a
+                                href={kioskEnrollUrl ? `${kioskEnrollUrl}?kiosk` : ""}
+                                target="_blank"
+                            >
                                 {t("dashboard.voterEnrollKioskURL")}
                             </a>
                         </>

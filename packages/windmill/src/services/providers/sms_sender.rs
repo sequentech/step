@@ -12,6 +12,21 @@ use tracing::{event, instrument, Level};
 
 type MessageAttributes = Option<HashMap<String, MessageAttributeValue>>;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn explicit_console_accepts_test_messages_but_typos_fail() {
+        let sender = SmsSender::from_transport_name("Console").await.unwrap();
+        assert!(matches!(sender.transport, SmsTransport::Console));
+        sender
+            .send("synthetic-recipient".into(), "synthetic-secret".into())
+            .await
+            .unwrap();
+        assert!(SmsSender::from_transport_name("AwsSNS").await.is_err());
+    }
+}
+
 pub enum SmsTransport {
     AwsSns((AwsSnsClient, MessageAttributes)),
     Console,
@@ -31,8 +46,12 @@ impl SmsSender {
             Level::INFO,
             "SmsTransport: sms_transport_name={sms_transport_name}"
         );
+        Self::from_transport_name(&sms_transport_name).await
+    }
+
+    async fn from_transport_name(sms_transport_name: &str) -> Result<Self> {
         Ok(SmsSender {
-            transport: match sms_transport_name.as_str() {
+            transport: match sms_transport_name {
                 "AwsSns" => {
                     let shared_config = get_from_env_aws_config().await?;
                     let client = AwsSnsClient::new(&shared_config);
@@ -61,7 +80,13 @@ impl SmsSender {
                     );
                     SmsTransport::AwsSns((client, messsage_attributes))
                 }
-                _ => SmsTransport::Console,
+                "Console" => SmsTransport::Console,
+                _ => {
+                    return Err(anyhow!(
+                        "Unsupported SMS_TRANSPORT_NAME; expected AwsSns or Console"
+                    )
+                    .into())
+                }
             },
         })
     }

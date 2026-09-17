@@ -222,6 +222,7 @@ const catalanTranslation: TranslationType = {
                 logs: "Registres",
             },
             tasksExecution: {
+                DELETE_TENANT: "Suprimir organització",
                 PUBLISH_BALLOT: "Publicar papereta",
                 VOTER_INFORMATION_LETTER: "Carta d'informació per al votant",
                 EXPORT_ELECTION_EVENT: "Exportar esdeveniment electoral",
@@ -932,6 +933,8 @@ const catalanTranslation: TranslationType = {
                 subtitle:
                     "L'exportació pot ser una operació llarga. Estàs segur que vols exportar els registres?",
                 encryptWithPassword: "Xifrar amb Contrasenya",
+                passwordForcedNote:
+                    "L'arxiu es protegirà amb contrasenya igualment: els informes, les sol·licituds i les dades del tauler sempre es xifren. Marca la casella per incloure també els camps secrets de votant desxifrats.",
                 includeVoters: "Incloure Votants",
                 activityLogs: "Registres d'Activitat",
                 bulletinBoard: "Tauler d'Anuncis",
@@ -1194,6 +1197,18 @@ const catalanTranslation: TranslationType = {
                 },
                 title: "Votants",
                 subtitle: "Veure i editar dades del votant",
+                secretAttribute: {
+                    storedPlaceholder: "Valor xifrat emmagatzemat",
+                    reveal: "Mostra",
+                    hide: "Amaga",
+                    revealError: "No s'ha pogut mostrar el camp xifrat del votant",
+                    includeInExport: "Inclou els camps secrets desxifrats del votant",
+                    exportWarning:
+                        "Exportació sensible: el CSV descarregat contindrà aquests camps en text pla.",
+                    clear: "Esborra",
+                    add: "Afegeix un valor",
+                    remove: "Elimina el valor",
+                },
                 review: {
                     title: "Revisar canvis",
                     subtitle: "Confirma aquestes actualitzacions abans d'enviar-les.",
@@ -1303,6 +1318,7 @@ const catalanTranslation: TranslationType = {
                 "tenant-create": "Crear Inquilí",
                 "tenant-read": "Llegir Inquilí",
                 "tenant-write": "Editar Inquilí",
+                "tenant-delete": "Esborrar Inquilí",
                 "election-event-create": "Crear Esdeveniment Electoral",
                 "election-event-read": "Llegir Esdeveniment Electoral",
                 "election-event-write": "Editar Esdeveniment Electoral",
@@ -1312,6 +1328,8 @@ const catalanTranslation: TranslationType = {
                 "voter-create": "Crear Votant",
                 "voter-read": "Llegir Votant",
                 "voter-write": "Editar Votant",
+                "voter-secret-attribute-read": "Mostrar Camps Secrets del Votant",
+                "voter-secret-attribute-write": "Editar Camps Secrets del Votant",
                 "user-create": "Crear Usuari",
                 "user-read": "Llegir Usuari",
                 "user-write": "Editar Usuari",
@@ -1519,6 +1537,23 @@ const catalanTranslation: TranslationType = {
                 "cloudflare-write": "Edita les regles de bloqueig per país a Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmissió",
                 "google-meet-link": "Generar Enllaç de Google Meet",
+                "service-account": "Compte de servei",
+                "datafix-account": "Compte de correcció de dades",
+                "gold": "Or",
+                "silver": "Plata",
+                "election-event-ivr-tab": "Mostra l’IVR de l’esdeveniment electoral",
+                "election-event-cas-tab": "Mostra el CAS de l’esdeveniment electoral",
+                "ca-read": "Consulta les autoritats de certificació",
+                "ca-write": "Edita les autoritats de certificació",
+                "generate-preview": "Genera la previsualització",
+                "preview-read": "Consulta la previsualització",
+                "tally-resolution-submit": "Envia la resolució del recompte",
+                "phone-blacklist-read": "Consulta la llista negra de telèfons",
+                "phone-blacklist-create": "Crea entrades a la llista negra de telèfons",
+                "phone-blacklist-update": "Edita entrades de la llista negra de telèfons",
+                "phone-blacklist-delete": "Suprimeix entrades de la llista negra de telèfons",
+                "election-event-voter-list-reconciliation":
+                    "Concilia la llista de votants de l’esdeveniment electoral",
             },
         },
         generalSettingsScreen: {
@@ -2046,6 +2081,7 @@ const catalanTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verifica les teves Còpies de Seguretat de la teva Clau Privada Encriptada",
+                verifyButton: "Verifica la clau",
                 subtitle:
                     "Puja la Còpia de Seguretat de la teva Clau Privada Encriptada per verificar que sigui correcta. Pots intentar-ho tantes vegades com sigui necessari, des de les teves diferents còpies de seguretat:",
                 errorUploading:

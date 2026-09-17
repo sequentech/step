@@ -4,7 +4,7 @@
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
-import {createContext, useEffect, useState} from "react"
+import {createContext, useCallback, useEffect, useState} from "react"
 import {getValueFromCookie, sleep, toBCP47, USER_LANGUAGE_COOKIE_NAME} from "@sequentech/ui-core"
 import {SettingsContext} from "./SettingsContextProvider"
 import {getLanguageFromURL} from "../utils/queryParams"
@@ -12,6 +12,7 @@ import {useTranslation} from "react-i18next"
 import {IPermissions} from "../types/keycloak"
 import {appendLoginHints, enrollmentRedirectUrl, LoginHints} from "../utils/loginHints"
 import {getLogoutRedirectUrl, isKioskClientId} from "../utils/logoutRedirect"
+import {getKioskAwareUrl, getKioskPortalRedirectUrl} from "../utils/kioskUrls"
 
 /**
  * AuthContextValues defines the structure for the default values of the {@link AuthContext}.
@@ -129,7 +130,7 @@ interface AuthContextProviderProps {
     /**
      * The elements wrapped by the auth context.
      */
-    children: JSX.Element
+    children: React.ReactNode
 }
 
 /**
@@ -163,34 +164,15 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 return
             }
 
-            /**
-             * Get the Keycloak URL. If there's a param `kiosk` in the URL, it
-             * appends `-kiosk` to the subdomain (if it exists).
-             */
-            const getKeycloakUrl: (defaultUrl: string) => string = (defaultUrl) => {
-                const searchParams = new URLSearchParams(window.location.search)
-                const isKiosk = searchParams.has("kiosk")
-
-                return defaultUrl
-                /*if (!isKiosk) {
-                    return defaultUrl
-                }
-
-                try {
-                    const url = new URL(defaultUrl)
-                    const subdomainParts = url.hostname.split(".")
-
-                    // Only modify if there is a subdomain
-                    if (subdomainParts.length > 2) {
-                        subdomainParts[0] += "-kiosk"
-                        url.hostname = subdomainParts.join(".")
-                    }
-
-                    return url.toString()
-                } catch (error) {
-                    console.error("Invalid URL provided:", defaultUrl)
-                    return defaultUrl // Fallback to the original URL if an error occurs
-                }*/
+            const isKiosk = new URLSearchParams(window.location.search).has("kiosk")
+            const kioskPortalRedirectUrl = getKioskPortalRedirectUrl(
+                window.location.href,
+                globalSettings.KIOSK_VOTING_PORTAL_URL,
+                isKiosk
+            )
+            if (kioskPortalRedirectUrl) {
+                window.location.replace(kioskPortalRedirectUrl)
+                return
             }
 
             /**
@@ -198,8 +180,6 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
              * append `-kiosk` to the
              */
             const getClientId: (defaultClientId: string) => string = (defaultClientId) => {
-                const searchParams = new URLSearchParams(window.location.search)
-                const isKiosk = searchParams.has("kiosk")
                 return isKiosk ? `${defaultClientId}-kiosk` : defaultClientId
             }
 
@@ -221,7 +201,11 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
             const keycloakConfig = createKeycloakConfig(
                 tenantId,
                 eventId,
-                getKeycloakUrl(globalSettings.KEYCLOAK_URL),
+                getKioskAwareUrl(
+                    globalSettings.KEYCLOAK_URL,
+                    globalSettings.KIOSK_KEYCLOAK_URL,
+                    isKiosk
+                ),
                 getClientId(globalSettings.ONLINE_VOTING_CLIENT_ID)
             )
 
@@ -262,6 +246,8 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         setKeycloak,
         loaded,
         globalSettings.KEYCLOAK_URL,
+        globalSettings.KIOSK_KEYCLOAK_URL,
+        globalSettings.KIOSK_VOTING_PORTAL_URL,
         globalSettings.ONLINE_VOTING_CLIENT_ID,
     ])
 
@@ -425,19 +411,22 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         }
     }, [keycloak, isAuthenticated, isKeycloakInitialized])
 
-    const setTenantEvent = (
-        tenantId: string,
-        eventId: string,
-        authType?: "register" | "login",
-        defaultLocale?: string,
-        initialLoginHints?: LoginHints
-    ) => {
-        setTenantId(tenantId)
-        setEventId(eventId)
-        setDefaultLocale(defaultLocale)
-        authType && setAuthType(authType)
-        setLoginHints(initialLoginHints ?? {})
-    }
+    const setTenantEvent = useCallback(
+        (
+            tenantId: string,
+            eventId: string,
+            authType?: "register" | "login",
+            defaultLocale?: string,
+            initialLoginHints?: LoginHints
+        ) => {
+            setTenantId(tenantId)
+            setEventId(eventId)
+            setDefaultLocale(defaultLocale)
+            authType && setAuthType(authType)
+            setLoginHints(initialLoginHints ?? {})
+        },
+        []
+    )
 
     const getRedirectUrl = (redirectUrl?: string) => {
         return getLogoutRedirectUrl({

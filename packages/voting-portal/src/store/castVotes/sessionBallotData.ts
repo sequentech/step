@@ -2,12 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import type {EVotingPortalAuditButtonCfg} from "@sequentech/ui-core"
+
 export interface SessionBallotData {
     ballotId: string
     electionId: string
     isDemo: boolean
     ballot: string
     timestamp?: number
+    auditButtonCfg?: EVotingPortalAuditButtonCfg
 }
 
 export const BALLOT_DATA_KEY = "ballotData"

@@ -284,7 +284,11 @@ export const Answer: React.FC<IAnswerProps> = ({
             handlePreferentialChange={handlePreferentialChange}
         >
             {imageUrl ? (
-                <Image src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`} duration={100} />
+                <Image
+                    className="candidate-image"
+                    src={`${globalSettings.PUBLIC_BUCKET_URL}${imageUrl}`}
+                    duration={100}
+                />
             ) : null}
         </Candidate>
     )

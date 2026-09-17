@@ -9,12 +9,15 @@ use crate::services::celery_app::get_worker_threads;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
 use crate::services::consolidation::zip::compress_folder_to_zip;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::upload_and_return_document;
+use crate::services::documents::upload_and_return_document_with_annotations;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use crate::services::reports_vault::get_report_secret_key;
 use crate::services::tasks_execution::{update_complete, update_fail};
 use crate::services::temp_path::PUBLIC_ASSETS_QRCODE_LIB;
 use crate::services::vault;
+use crate::services::voter_secret_attributes::{
+    decrypt_user_attributes, get_secret_attribute_config, strip_undeclared_secret_attributes,
+};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use deadpool_postgres::Transaction;
@@ -26,7 +29,7 @@ use rayon::ThreadPoolBuilder;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::services::keycloak::{self, get_event_realm, KeycloakAdminClient};
 use sequent_core::services::{pdf, reports};
-use sequent_core::types::hasura::core::TasksExecution;
+use sequent_core::types::hasura::core::{DocumentAnnotations, TasksExecution};
 use sequent_core::types::templates::{
     CommunicationTemplatesExtraConfig, EmailConfig, PrintToPdfOptionsLocal, ReportExtraConfig,
     ReportOptions, SendTemplateBody, SmsConfig,
@@ -34,6 +37,8 @@ use sequent_core::types::templates::{
 use sequent_core::types::to_map::ToMap;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Map, Value};
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -49,6 +54,41 @@ static GLOBAL_RT: Lazy<Runtime> = Lazy::new(|| {
         .build()
         .expect("Failed to build global Tokio runtime")
 });
+
+/// Return the encrypted voter attributes explicitly declared by the template
+/// currently assigned to a report type. Callers use this before enqueueing a
+/// report so permission checks happen in the authenticated request, while the
+/// worker independently validates the declaration against the realm profile.
+pub async fn get_declared_report_secret_attribute_names(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    report_type: &ReportType,
+    election_id: Option<&str>,
+) -> Result<HashSet<String>> {
+    let Some(template_alias) = get_template_alias_for_report(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        report_type,
+        election_id,
+    )
+    .await
+    .context("Error getting template alias for report")?
+    else {
+        return Ok(HashSet::new());
+    };
+    let Some(template) =
+        template::get_template_by_alias(hasura_transaction, tenant_id, &template_alias)
+            .await
+            .context("Error getting report template")?
+    else {
+        return Ok(HashSet::new());
+    };
+    let body: SendTemplateBody =
+        deserialize_value(template.template).context("Error deserializing report template")?;
+    Ok(body.secret_attribute_names.into_iter().collect())
+}
 #[allow(non_camel_case_types)]
 #[derive(Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString)]
 pub enum GenerateReportMode {
@@ -169,6 +209,70 @@ pub trait TemplateRenderer: Debug {
     #[instrument(skip(self))]
     fn get_voter_id(&self) -> Option<String> {
         None
+    }
+
+    /// Add the canonical `user` variable object for a true per-voter report.
+    /// Stored ciphertext is never added to the rendering map: undeclared
+    /// fields are absent and declared fields are decrypted only here.
+    #[instrument(err, skip_all)]
+    async fn inject_voter_secret_variables(
+        &self,
+        user_data_map: &mut Map<String, Value>,
+        declared_names: &HashSet<String>,
+        may_read_secret_attributes: bool,
+    ) -> Result<()> {
+        if declared_names.is_empty() {
+            return Ok(());
+        }
+        if !may_read_secret_attributes {
+            return Err(anyhow!(
+                "Generating this voter report requires voter-secret-attribute-read"
+            ));
+        }
+        let voter_id = self.get_voter_id().ok_or_else(|| {
+            anyhow!("Encrypted voter attributes are only supported by per-voter reports")
+        })?;
+        let tenant_id = self.get_tenant_id();
+        let election_event_id = self.get_election_event_id();
+        let realm = get_event_realm(&tenant_id, &election_event_id);
+        let configured_names = get_secret_attribute_config(&tenant_id, &election_event_id)
+            .await
+            .context("Error reading the secret-attribute configuration for voter report")?
+            .validated_names()?;
+        let client = KeycloakAdminClient::new()
+            .await
+            .context("Error initializing Keycloak client for voter report")?;
+        if let Some(name) = declared_names
+            .iter()
+            .find(|name| !configured_names.contains(*name))
+        {
+            return Err(anyhow!(
+                "Report declares `{name}`, which is not configured as an encrypted voter attribute"
+            ));
+        }
+
+        let mut voter = client
+            .get_user(&realm, &voter_id)
+            .await
+            .context("Error reading voter for voter report")?;
+        decrypt_user_attributes(&mut voter, &tenant_id, &election_event_id, declared_names).await?;
+        strip_undeclared_secret_attributes(&mut voter, &configured_names, declared_names);
+        let attributes = voter.attributes.unwrap_or_default();
+        let mut user_variables = Map::new();
+        user_variables.insert("first_name".to_string(), json!(voter.first_name));
+        user_variables.insert("last_name".to_string(), json!(voter.last_name));
+        user_variables.insert("username".to_string(), json!(voter.username));
+        user_variables.insert("email".to_string(), json!(voter.email));
+        for (name, values) in &attributes {
+            if let Some(value) = values.first() {
+                user_variables
+                    .entry(name.clone())
+                    .or_insert_with(|| json!(value));
+            }
+        }
+        user_variables.insert("attributes".to_string(), json!(attributes));
+        user_data_map.insert("user".to_string(), Value::Object(user_variables));
+        Ok(())
     }
 
     #[instrument(err, skip(self))]
@@ -327,6 +431,8 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
+        declared_secret_names: &HashSet<String>,
+        may_read_secret_attributes: bool,
     ) -> Result<String> {
         // Prepare user data either preview or real
         let user_data = if generate_mode == GenerateReportMode::PREVIEW {
@@ -339,12 +445,16 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error preparing user data: {e:?}"))?
         };
 
-        let user_data_map = user_data
+        let mut user_data_map = user_data
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
-
-        if !self.contains_sensitive_data() {
-            debug!("user data in template renderer: {user_data_map:#?}");
+        if generate_mode == GenerateReportMode::REAL {
+            self.inject_voter_secret_variables(
+                &mut user_data_map,
+                declared_secret_names,
+                may_read_secret_attributes,
+            )
+            .await?;
         }
         let rendered_user_template =
             reports::render_template_text(&user_tpl_document, user_data_map)
@@ -375,6 +485,8 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
+        declared_secret_names: &HashSet<String>,
+        may_read_secret_attributes: bool,
         offset: &mut Option<i64>,
         limit: Option<i64>,
     ) -> Result<String> {
@@ -400,12 +512,16 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        let user_data_map = user_data
+        let mut user_data_map = user_data
             .to_map()
             .map_err(|e| anyhow!("Error converting user data to map: {e:?}"))?;
-
-        if !self.contains_sensitive_data() {
-            debug!("user data in template renderer: {user_data_map:#?}");
+        if generate_mode == GenerateReportMode::REAL {
+            self.inject_voter_secret_variables(
+                &mut user_data_map,
+                declared_secret_names,
+                may_read_secret_attributes,
+            )
+            .await?;
         }
 
         let rendered_user_template =
@@ -437,17 +553,23 @@ pub trait TemplateRenderer: Debug {
     async fn user_tpl_and_extra_cfg_provider(
         &self,
         hasura_transaction: &Transaction<'_>,
-    ) -> Result<(String, ReportExtraConfig)> {
+    ) -> Result<(String, ReportExtraConfig, HashSet<String>)> {
         // Do the query to get the user template data
         let template_data_opt: Option<SendTemplateBody> = self
             .get_custom_user_template_data(hasura_transaction)
             .await
             .map_err(|e| anyhow!("Error getting custom user template: {e:?}"))?;
         // Set the data from the user
-        let (mut tpl_pdf_options, mut tpl_report_options, mut tpl_email, mut tpl_sms) =
-            (None, None, None, None);
+        let (
+            mut tpl_pdf_options,
+            mut tpl_report_options,
+            mut tpl_email,
+            mut tpl_sms,
+            mut declared_secret_names,
+        ) = (None, None, None, None, HashSet::new());
         let user_tpl_document = match template_data_opt {
             Some(template) => {
+                declared_secret_names = template.secret_attribute_names.into_iter().collect();
                 tpl_pdf_options = template.pdf_options;
                 tpl_report_options = template.report_options;
                 tpl_email = template.email;
@@ -471,7 +593,7 @@ pub trait TemplateRenderer: Debug {
                 .map_err(|e| anyhow!("Error getting default user template: {e:?}"))?,
             Some(user_tpl_document) => user_tpl_document,
         };
-        Ok((user_tpl_document, ext_cfg))
+        Ok((user_tpl_document, ext_cfg, declared_secret_names))
     }
 
     // Inner implementation for `execute_report()` so that implementors of the
@@ -490,9 +612,10 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
+        may_read_secret_attributes: bool,
     ) -> Result<()> {
         let task_execution_ref = task_execution.as_ref();
-        let (user_tpl_document, ext_cfg) = self
+        let (user_tpl_document, ext_cfg, declared_secret_names) = self
             .user_tpl_and_extra_cfg_provider(hasura_transaction)
             .await
             .map_err(|e| {
@@ -507,6 +630,8 @@ pub trait TemplateRenderer: Debug {
                 anyhow!("Error providing the user template and extra config: {e:?}")
             })?;
 
+        let contains_voter_secrets =
+            generate_mode == GenerateReportMode::REAL && !declared_secret_names.is_empty();
         let items_count = self.count_items(&hasura_transaction).await?.unwrap_or(0);
         let report_options = ext_cfg.report_options.clone();
         let per_report_limit = report_options
@@ -556,6 +681,8 @@ pub trait TemplateRenderer: Debug {
                                     hasura_transaction,
                                     keycloak_transaction,
                                     &user_tpl_document,
+                                    &declared_secret_names,
+                                    may_read_secret_attributes,
                                     &mut Some(offset),
                                     Some(per_report_limit),
                                 )
@@ -622,6 +749,8 @@ pub trait TemplateRenderer: Debug {
                 hasura_transaction,
                 keycloak_transaction,
                 &user_tpl_document,
+                &declared_secret_names,
+                may_read_secret_attributes,
                 generate_mode,
                 task_execution.clone(),
                 &ext_cfg,
@@ -635,6 +764,11 @@ pub trait TemplateRenderer: Debug {
             final_file_path, file_size, final_report_name, mimetype
         );
 
+        let mut annotations = if contains_voter_secrets {
+            DocumentAnnotations::voter_secret_export()
+        } else {
+            DocumentAnnotations::default()
+        };
         let encrypted_temp_data: Option<TempPath> = if let Some(report) = &report {
             if report.encryption_policy == EReportEncryption::ConfiguredPassword {
                 let secret_key =
@@ -662,6 +796,21 @@ pub trait TemplateRenderer: Debug {
                 )
                 .map_err(|err| anyhow!("Error encrypting file: {err:?}"))?;
 
+                // Bind the actual password used to this document. Editing the report's
+                // configured password later must not break downloads of earlier reports.
+                let password_secret_id = crate::services::document_password::save_password(
+                    hasura_transaction,
+                    tenant_id,
+                    Some(election_event_id),
+                    document_id,
+                    &encryption_password,
+                )
+                .await?;
+                annotations
+                    .access
+                    .get_or_insert_with(Default::default)
+                    .password_secret_id = Some(password_secret_id);
+
                 Some(enc_temp_path)
             } else {
                 None
@@ -675,7 +824,7 @@ pub trait TemplateRenderer: Debug {
             let enc_temp_size = get_file_size(encrypted_temp_path.as_str())
                 .with_context(|| "Error obtaining file size")?;
             let enc_report_name: String = format!("{}.epdf", self.prefix());
-            let _document = upload_and_return_document(
+            let _document = upload_and_return_document_with_annotations(
                 hasura_transaction,
                 &encrypted_temp_path,
                 enc_temp_size,
@@ -684,7 +833,8 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &enc_report_name,
                 Some(document_id.to_string()),
-                true,
+                !contains_voter_secrets,
+                &annotations,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
@@ -715,7 +865,7 @@ pub trait TemplateRenderer: Debug {
                     .map_err(|err| anyhow!("Error sending email: {err:?}"))?;
             }
         } else {
-            let _document = upload_and_return_document(
+            let _document = upload_and_return_document_with_annotations(
                 hasura_transaction,
                 &final_file_path,
                 file_size,
@@ -724,7 +874,8 @@ pub trait TemplateRenderer: Debug {
                 Some(election_event_id.to_string()),
                 &final_report_name,
                 Some(document_id.to_string()),
-                true,
+                !contains_voter_secrets,
+                &annotations,
             )
             .await
             .map_err(|err| anyhow!("Error uploading document: {err:?}"))?;
@@ -771,6 +922,8 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         user_tpl_document: &str,
+        declared_secret_names: &HashSet<String>,
+        may_read_secret_attributes: bool,
         generate_mode: GenerateReportMode,
         task_execution: Option<TasksExecution>,
         ext_cfg: &ReportExtraConfig,
@@ -781,6 +934,8 @@ pub trait TemplateRenderer: Debug {
                 hasura_transaction,
                 keycloak_transaction,
                 &user_tpl_document,
+                declared_secret_names,
+                may_read_secret_attributes,
                 &mut None,
                 None,
             )
@@ -797,14 +952,11 @@ pub trait TemplateRenderer: Debug {
             }
         };
 
-        if !self.contains_sensitive_data() {
-            debug!("Report generated: {rendered_system_template}");
-        }
         let extension_suffix = "pdf";
         let content_bytes = pdf::PdfRenderer::render_pdf_with_sensitivity(
             rendered_system_template.clone(),
             Some(ext_cfg.pdf_options.to_print_to_pdf_options()),
-            self.contains_sensitive_data(),
+            self.contains_sensitive_data() || !declared_secret_names.is_empty(),
         )
         .await
         .map_err(|err| anyhow!("Error rendering report to pdf: {err:?}"))?;
@@ -838,6 +990,7 @@ pub trait TemplateRenderer: Debug {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
+        may_read_secret_attributes: bool,
     ) -> Result<()> {
         self.execute_report_inner(
             document_id,
@@ -850,6 +1003,7 @@ pub trait TemplateRenderer: Debug {
             hasura_transaction,
             keycloak_transaction,
             task_execution,
+            may_read_secret_attributes,
         )
         .await
     }
