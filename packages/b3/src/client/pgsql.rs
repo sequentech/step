@@ -462,9 +462,26 @@ async fn create_index_ine(client: &mut Client) -> Result<()> {
     Ok(())
 }
 
+// Board names become unquoted PostgreSQL identifiers in this legacy client.
+// Validate before interpolation, including reads and COPY, not only creation.
+fn validate_board_identifier(board: &str) -> Result<()> {
+    let mut bytes = board.bytes();
+    let valid_first = bytes
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_');
+    if board.len() > 63
+        || !valid_first
+        || !bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$')
+    {
+        return Err(anyhow!("Invalid board SQL identifier"));
+    }
+    Ok(())
+}
+
 /// Creates the requested board table and adds it to the index, if it doesn't exist.
 #[instrument(err, skip(client))]
 async fn create_board_ine(client: &mut Client, board: &str) -> Result<()> {
+    validate_board_identifier(board)?;
     let transaction = client.transaction().await?;
     transaction
         .execute(
@@ -552,6 +569,7 @@ async fn get_messages(
 
 #[instrument(err, skip(client))]
 async fn get_message_count(client: &Client, board: &str) -> Result<i64> {
+    validate_board_identifier(board)?;
     let sql = format!(
         r#"
     SELECT count(*)
@@ -582,6 +600,7 @@ async fn get_with_kind(
     kind: &str,
     sender_pk: &str,
 ) -> Result<Vec<B3MessageRow>> {
+    validate_board_identifier(board)?;
     let sql = format!(
         r#"
     SELECT
@@ -612,6 +631,7 @@ async fn get_with_kind(
 
 #[instrument(err, skip(client))]
 async fn get_with_kind_only(client: &Client, board: &str, kind: &str) -> Result<Vec<B3MessageRow>> {
+    validate_board_identifier(board)?;
     let sql = format!(
         r#"
     SELECT
@@ -839,6 +859,7 @@ async fn insert_messages(
 /// Deletes the requested board table and removes it from the index.
 #[instrument(err, skip(client))]
 async fn delete_board(client: &mut Client, board_name: &str) -> Result<()> {
+    validate_board_identifier(board_name)?;
     let transaction = client.transaction().await?;
     let message_sql = format!(
         r#"
@@ -884,6 +905,7 @@ async fn get(
     limit: Option<usize>,
     offset: Option<usize>,
 ) -> Result<Vec<B3MessageRow>> {
+    validate_board_identifier(board)?;
     let sql = format!(
         r#"
     SELECT
@@ -918,6 +940,7 @@ async fn get(
 
 #[instrument(err, skip(client, messages))]
 async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]) -> Result<()> {
+    validate_board_identifier(board_name)?;
     // Start a new transaction
     let transaction = client.transaction().await?;
     // http://disq.us/p/2ficy6c
@@ -1019,6 +1042,7 @@ async fn insert(client: &mut Client, board_name: &str, messages: &[B3MessageRow]
 
 #[instrument(err, skip(client))]
 async fn get_one(client: &Client, board_name: &str, id: i64) -> Result<Option<B3MessageRow>> {
+    validate_board_identifier(board_name)?;
     let sql = format!(
         r#"
     SELECT
@@ -1056,6 +1080,7 @@ cfg_if::cfg_if! { if #[cfg(feature = "sqlcopy")] {
         board_name: &str,
         messages: &[B3MessageRow],
     ) -> Result<()> {
+        validate_board_identifier(board_name)?;
         // Start a new transaction
         let transaction = client.transaction().await?;
         let types: Vec<Type> = vec![
