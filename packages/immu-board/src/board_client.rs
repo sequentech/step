@@ -88,12 +88,12 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                 "version" => assign_value!(Value::S, value, version),
                 "user_id" => match value.value.as_ref() {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
-                    None => user_id = None,
+                    None | Some(Value::Null(_)) => user_id = None,
                     _ => return Err(anyhow!("invalid column value for 'userId'")),
                 },
                 "username" => match value.value.as_ref() {
                     Some(Value::S(inner)) => username = Some(inner.clone()),
-                    None => username = None,
+                    None | Some(Value::Null(_)) => username = None,
                     _ => return Err(anyhow!("invalid column value for 'username'")),
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),

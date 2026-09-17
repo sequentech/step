@@ -403,22 +403,23 @@ impl BorshSerialize for ChannelsHashes {
 
 impl BorshDeserialize for ChannelsHashes {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-
-        let inner: std::io::Result<Vec<[u8; 64]>> = vectors
-            .iter()
-            .map(|v| <[u8; 64]>::try_from_slice(v))
-            .collect();
-
-        let inner = inner?;
-        if inner.len() != crate::messages::newtypes::MAX_TRUSTEES {
+        let count = u32::deserialize_reader(reader)?;
+        if count as usize != crate::messages::newtypes::MAX_TRUSTEES {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Expected exactly MAX_TRUSTEES hashes",
             ));
         }
         let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner);
+        for hash in &mut ret {
+            if u32::deserialize_reader(reader)? != 64 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Expected exactly 64 hash bytes",
+                ));
+            }
+            reader.read_exact(hash)?;
+        }
 
         Ok(ChannelsHashes(ret))
     }
@@ -438,22 +439,23 @@ impl BorshSerialize for SharesHashes {
 
 impl BorshDeserialize for SharesHashes {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-
-        let inner: std::io::Result<Vec<[u8; 64]>> = vectors
-            .iter()
-            .map(|v| <[u8; 64]>::try_from_slice(v))
-            .collect();
-
-        let inner = inner?;
-        if inner.len() != crate::messages::newtypes::MAX_TRUSTEES {
+        let count = u32::deserialize_reader(reader)?;
+        if count as usize != crate::messages::newtypes::MAX_TRUSTEES {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Expected exactly MAX_TRUSTEES hashes",
             ));
         }
         let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner);
+        for hash in &mut ret {
+            if u32::deserialize_reader(reader)? != 64 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Expected exactly 64 hash bytes",
+                ));
+            }
+            reader.read_exact(hash)?;
+        }
 
         Ok(SharesHashes(ret))
     }
@@ -473,22 +475,23 @@ impl BorshSerialize for DecryptionFactorsHashes {
 
 impl BorshDeserialize for DecryptionFactorsHashes {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> Result<Self, std::io::Error> {
-        let vectors = <Vec<Vec<u8>>>::deserialize_reader(reader)?;
-
-        let inner: std::io::Result<Vec<[u8; 64]>> = vectors
-            .iter()
-            .map(|v| <[u8; 64]>::try_from_slice(v))
-            .collect();
-
-        let inner = inner?;
-        if inner.len() != crate::messages::newtypes::MAX_TRUSTEES {
+        let count = u32::deserialize_reader(reader)?;
+        if count as usize != crate::messages::newtypes::MAX_TRUSTEES {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "Expected exactly MAX_TRUSTEES hashes",
             ));
         }
         let mut ret = [[0u8; 64]; crate::messages::newtypes::MAX_TRUSTEES];
-        ret.copy_from_slice(&inner);
+        for hash in &mut ret {
+            if u32::deserialize_reader(reader)? != 64 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Expected exactly 64 hash bytes",
+                ));
+            }
+            reader.read_exact(hash)?;
+        }
 
         Ok(DecryptionFactorsHashes(ret))
     }
