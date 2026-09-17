@@ -111,7 +111,20 @@ impl LocalBoardStorage for SqliteStorage {
 
         let mut statement = connection.prepare(sql)?;
 
-        connection.execute("BEGIN TRANSACTION", [])?;
+        // Keep the writer lock until new blobs and their metadata commit together.
+        // On an ordinary error, delete only files created by this batch.
+        struct PendingBlobs(Vec<PathBuf>);
+        impl Drop for PendingBlobs {
+            fn drop(&mut self) {
+                for path in &self.0 {
+                    if let Err(error) = fs::remove_file(path) {
+                        tracing::error!("could not remove rolled-back blob {:?}: {}", path, error);
+                    }
+                }
+            }
+        }
+        connection.execute("BEGIN IMMEDIATE TRANSACTION", [])?;
+        let mut pending_blobs = PendingBlobs(Vec::new());
 
         for m in messages {
             // Verify schema version compatibility
@@ -136,7 +149,8 @@ impl LocalBoardStorage for SqliteStorage {
                 let path = blob_store.join(name.replace("/", ":"));
 
                 if !path.exists() {
-                    let mut file = File::create(&path)?;
+                    let mut file = File::options().write(true).create_new(true).open(&path)?;
+                    pending_blobs.0.push(path.clone());
                     file.write_all(&m.message)?;
                     tracing::info!(
                         "store_messages: wrote {} bytes to {:?}",
@@ -154,6 +168,7 @@ impl LocalBoardStorage for SqliteStorage {
         }
 
         connection.execute("END TRANSACTION", [])?;
+        pending_blobs.0.clear();
         drop(statement);
 
         if !messages.is_empty() {
