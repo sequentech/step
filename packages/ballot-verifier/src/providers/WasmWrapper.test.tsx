@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
-import {WasmGate, WasmWrapper} from "./WasmWrapper"
+import {WasmWrapper} from "./WasmWrapper"
 let mockStatus = "loading"
 jest.mock("@sequentech/ui-core", () => ({
     useWasm: () => ({status: mockStatus}),
@@ -17,11 +17,11 @@ it("withholds verification children until WASM is ready", () => {
         mockStatus = status
         expect(
             renderToStaticMarkup(
-                <WasmGate>
+                <WasmWrapper>
                     <strong>Verify ballot</strong>
-                </WasmGate>
+                </WasmWrapper>
             )
-        ).toBe("<span>Loading verification engine</span>")
+        ).toBe("<section><span>Loading verification engine</span></section>")
     }
     mockStatus = "ready"
     expect(
