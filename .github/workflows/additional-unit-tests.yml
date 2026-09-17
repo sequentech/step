@@ -34,4 +34,9 @@ jobs:
         run: cargo test --locked -p '${{ matrix.package }}' --tests
       - name: Check production code
         working-directory: packages
-        run: cargo clippy --locked -p '${{ matrix.package }}' --bins
+        run: |
+          if [ '${{ matrix.package }}' = immu-board ]; then
+            cargo clippy --locked -p immu-board --lib
+          else
+            cargo clippy --locked -p '${{ matrix.package }}' --bins
+          fi
