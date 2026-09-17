@@ -72,22 +72,15 @@ pub fn run_test(loadero_url: &str, test_id: &str) -> Result<()> {
     let polling_interval = Duration::from_secs(loadero_interval_polling_sec);
     loop {
         println!("check status:");
-        match check_test_status(&loadero_url, &test_id, &run_id) {
-            Ok((pass, fail)) => {
+        match check_test_status(&loadero_url, &test_id, &run_id)? {
+            Some((pass, fail)) => {
                 println!(
                     "Test {} (run ID {}): Passed {} times, Failed {} times",
                     test_id, run_id, pass, fail
                 );
                 break;
             }
-            Err(e) => {
-                if e.to_string().contains("HTTP Status") {
-                    eprintln!("HTTP Error checking status for test {}: {}", test_id, e);
-                    break;
-                } else {
-                    thread::sleep(polling_interval);
-                }
-            }
+            None => thread::sleep(polling_interval),
         }
     }
 
@@ -250,7 +243,11 @@ pub fn launch_test(loadero_url: &str, test_id: &str) -> Result<String> {
     Ok(run_id.to_string())
 }
 
-fn check_test_status(loadero_url: &str, test_id: &str, run_id: &str) -> Result<(usize, usize)> {
+fn check_test_status(
+    loadero_url: &str,
+    test_id: &str,
+    run_id: &str,
+) -> Result<Option<(usize, usize)>> {
     let client = reqwest::blocking::Client::new();
     let headers = create_header().context("Failed to create headers in check_test_status")?;
 
@@ -284,10 +281,10 @@ fn check_test_status(loadero_url: &str, test_id: &str, run_id: &str) -> Result<(
                         .get("fail")
                         .and_then(Value::as_u64)
                         .unwrap_or(0) as usize;
-                    return Ok((pass, fail));
+                    return Ok(Some((pass, fail)));
                 }
             } else {
-                return Err(anyhow!("Test is not yet done"));
+                return Ok(None);
             }
         }
     }
@@ -334,3 +331,7 @@ pub fn update_script(test_id: &str, test_config: TestConfig) -> Result<()> {
         ));
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/loadero_contracts.rs"]
+mod tests;
