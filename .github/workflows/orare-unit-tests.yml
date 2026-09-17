@@ -3,10 +3,10 @@
 name: Orare runtime contracts
 on:
   pull_request:
-    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml']
+    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-test-browser/**']
   push:
     branches: [main]
-    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml']
+    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-test-browser/**']
 permissions:
   contents: read
 jobs:
