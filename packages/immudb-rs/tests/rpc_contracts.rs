@@ -50,6 +50,7 @@ struct Seen {
 struct Script {
     replies: VecDeque<Reply>,
     seen: Vec<Seen>,
+    errors: Vec<String>,
 }
 struct Server {
     state: Arc<Mutex<Script>>,
@@ -68,6 +69,7 @@ impl Server {
         let state = Arc::new(Mutex::new(Script {
             replies: replies.into(),
             seen: vec![],
+            errors: vec![],
         }));
         let app = Router::new()
             .fallback(post(respond))
@@ -83,6 +85,11 @@ impl Server {
     fn finish(&self) -> Vec<Seen> {
         let mut state = self.state.lock().unwrap();
         assert!(
+            state.errors.is_empty(),
+            "fixture errors: {:?}",
+            state.errors
+        );
+        assert!(
             state.replies.is_empty(),
             "not all expected RPCs were called"
         );
@@ -94,21 +101,50 @@ async fn respond(
     request: Request<Body>,
 ) -> Response<Body> {
     let (parts, body) = request.into_parts();
-    let bytes = to_bytes(body, 1024 * 1024).await.unwrap();
-    assert_eq!(bytes[0], 0, "requests must be uncompressed");
-    let length = u32::from_be_bytes(bytes[1..5].try_into().unwrap()) as usize;
-    assert_eq!(bytes.len(), length + 5);
+    let body = to_bytes(body, 1024 * 1024).await;
     let mut state = state.lock().unwrap();
-    let reply = state.replies.pop_front().expect("unexpected RPC");
-    assert_eq!(
-        parts.uri.path(),
-        format!("/immudb.schema.ImmuService/{}", reply.method)
-    );
+    let actual_method = parts.uri.path().to_owned();
+    let bytes = match body {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            state.errors.push(format!("{actual_method}: {error}"));
+            return Response::builder().status(500).body(Body::empty()).unwrap();
+        }
+    };
+    if bytes.len() < 5
+        || bytes[0] != 0
+        || bytes.len() != 5 + u32::from_be_bytes(bytes[1..5].try_into().unwrap()) as usize
+    {
+        state
+            .errors
+            .push(format!("invalid gRPC frame for {actual_method}"));
+        return Response::builder().status(500).body(Body::empty()).unwrap();
+    }
     state.seen.push(Seen {
-        method: reply.method.into(),
+        method: actual_method
+            .strip_prefix("/immudb.schema.ImmuService/")
+            .unwrap_or(&actual_method)
+            .into(),
         headers: parts.headers,
         payload: bytes[5..].to_vec(),
     });
+    let Some(reply) = state.replies.pop_front() else {
+        state
+            .errors
+            .push(format!("unexpected RPC: {actual_method}"));
+        return Response::builder()
+            .header("content-type", "application/grpc")
+            .header("grpc-status", "13")
+            .header("grpc-message", "unexpected RPC")
+            .body(Body::empty())
+            .unwrap();
+    };
+    if actual_method != format!("/immudb.schema.ImmuService/{}", reply.method) {
+        state.errors.push(format!(
+            "expected {}, received {actual_method}",
+            reply.method
+        ));
+    }
     let mut response = Response::builder()
         .header("content-type", "application/grpc")
         .header("grpc-status", reply.status.to_string());
@@ -486,4 +522,16 @@ async fn invalid_session_metadata_is_rejected_before_sending_an_authenticated_re
         assert_eq!(server.finish().len(), 1);
     })
     .await
+}
+
+#[tokio::test]
+async fn fixture_remembers_unexpected_rpcs_even_when_the_client_expects_an_error() {
+    bounded(async {
+        let server = Server::start(vec![]).await;
+        assert!(server.client().await.logout().await.is_err());
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| server.finish())).is_err()
+        );
+    })
+    .await;
 }

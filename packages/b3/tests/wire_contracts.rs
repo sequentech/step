@@ -16,6 +16,20 @@ fn wire_hashes(count: u32, width: u32) -> Vec<u8> {
     bytes
 }
 
+// A malicious length must be rejected before the decoder requests its body.
+struct HeaderOnly(std::io::Cursor<Vec<u8>>);
+impl std::io::Read for HeaderOnly {
+    fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+        if self.0.position() == self.0.get_ref().len() as u64 {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "body must not be read",
+            ));
+        }
+        std::io::Read::read(&mut self.0, bytes)
+    }
+}
+
 struct BoundedWriter(Vec<u8>, usize);
 impl Write for BoundedWriter {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
@@ -69,6 +83,19 @@ macro_rules! hash_contracts {
                 let mut trailing = bytes;
                 trailing.push(0);
                 assert!($ty::try_from_slice(&trailing).is_err());
+            }
+            #[test]
+            fn oversized_lengths_are_rejected_before_requesting_payload_bytes() {
+                let outer = u32::MAX.to_le_bytes().to_vec();
+                let mut inner = 12_u32.to_le_bytes().to_vec();
+                inner.extend(u32::MAX.to_le_bytes());
+                for header in [outer, inner] {
+                    let error =
+                        $ty::deserialize_reader(&mut HeaderOnly(std::io::Cursor::new(header)))
+                            .unwrap_err();
+                    assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+                    assert_ne!(error.to_string(), "body must not be read");
+                }
             }
             #[test]
             fn partial_writer_failure_is_preserved() {
