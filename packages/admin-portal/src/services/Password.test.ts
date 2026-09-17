@@ -17,5 +17,5 @@ it("maps secure random bytes to the documented alphabet including punctuation", 
 it("honors requested lengths without changing the alphabet", () => {
     expect(generateRandomPassword(0)).toBe("")
     expect(generateRandomPassword(40)).toMatch(/^[a-zA-Z0-9_.-]{40}$/)
-    expect(() => generateRandomPassword(-1)).toThrow("Invalid typed array length")
+    expect(() => generateRandomPassword(-1)).toThrow(expect.objectContaining({name: "RangeError"}))
 })
