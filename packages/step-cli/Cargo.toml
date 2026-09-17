@@ -39,3 +39,6 @@ base64 = "0.21.0"
 [[bin]]
 name = "step-cli"
 path = "src/main.rs"
+
+[dev-dependencies]
+tempfile = "3"
