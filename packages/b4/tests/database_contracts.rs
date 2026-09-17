@@ -263,6 +263,16 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
         .await
         .is_err());
     assert_eq!(client.get_message_count("poll").await.unwrap(), 1);
+    assert_eq!(
+        client
+            .delete_board("poll, other")
+            .await
+            .unwrap_err()
+            .to_string(),
+        "Invalid identifier: poll, other"
+    );
+    assert_eq!(client.get_message_count("poll").await.unwrap(), 1);
+    assert_eq!(client.get_message_count("other").await.unwrap(), 0);
     client.delete_board("poll").await.unwrap();
     assert!(client.get_board("poll").await.unwrap().is_none());
     assert!(client.get_board("other").await.unwrap().is_some());
