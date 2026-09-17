@@ -11,7 +11,9 @@ use rocket::serde::json::Json;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
-use sequent_core::types::scheduled_event::EventProcessors;
+use sequent_core::types::scheduled_event::{
+    validate_scheduled_voting_channels, EventProcessors,
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use windmill::services::database::get_hasura_pool;
@@ -61,6 +63,11 @@ pub async fn manage_election_dates(
             ErrorCode::InvalidEventProcessor,
         ));
     }
+
+    validate_voting_channels(
+        &input.event_processor,
+        input.voting_channels.as_deref(),
+    )?;
 
     let mut hasura_db_client: DbClient =
         get_hasura_pool().await.get().await.map_err(|e| {
@@ -129,4 +136,46 @@ pub async fn manage_election_dates(
     })?;
 
     Ok(Json(ManageElectionDatesResponse { error_msg: None }))
+}
+
+fn validate_voting_channels(
+    event_processor: &EventProcessors,
+    voting_channels: Option<&[VotingStatusChannel]>,
+) -> Result<(), JsonError> {
+    validate_scheduled_voting_channels(event_processor, voting_channels)
+        .map_err(|err| {
+            ErrorResponse::new(
+                Status::BadRequest,
+                &err.to_string(),
+                ErrorCode::InvalidVotingChannels,
+            )
+        })
+}
+
+#[cfg(test)]
+mod voting_channel_validation_tests {
+    use super::*;
+    use sequent_core::types::scheduled_event::ONLINE_WITH_EARLY_VOTING_START_ERROR;
+    use VotingStatusChannel::{EARLY_VOTING, KIOSK, ONLINE};
+
+    #[test]
+    fn start_schedule_opening_online_and_early_voting_is_a_bad_request() {
+        let response = validate_voting_channels(
+            &EventProcessors::START_VOTING_PERIOD,
+            Some(&[EARLY_VOTING, KIOSK, ONLINE]),
+        )
+        .unwrap_err();
+        assert_eq!(response.0, Status::BadRequest);
+        assert_eq!(response.1.message, ONLINE_WITH_EARLY_VOTING_START_ERROR);
+        assert_eq!(response.1.extensions.code, "InvalidVotingChannels");
+    }
+
+    #[test]
+    fn end_schedule_can_close_online_and_early_voting() {
+        assert!(validate_voting_channels(
+            &EventProcessors::END_VOTING_PERIOD,
+            Some(&[ONLINE, EARLY_VOTING]),
+        )
+        .is_ok());
+    }
 }

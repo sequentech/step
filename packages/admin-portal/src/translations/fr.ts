@@ -1559,6 +1559,8 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création de l'Événement Planifié",
                 editSuccess: "Événement Planifié modifié avec succès",
                 editError: "Erreur lors de la modification de l'Événement Planifié",
+                onlineWithEarlyVoting:
+                    "Une planification de début ne peut pas ouvrir à la fois le vote en ligne et le vote anticipé : le vote anticipé doit commencer avant le vote en ligne.",
             },
             eventType: {
                 label: "Type",

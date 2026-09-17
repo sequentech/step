@@ -1552,6 +1552,8 @@ const galegoTranslation: TranslationType = {
                 createError: "Erro ao crear o Evento Programado",
                 editSuccess: "Evento Programado editado correctamente",
                 editError: "Erro ao editar o Evento Programado",
+                onlineWithEarlyVoting:
+                    "Unha programación de inicio non pode abrir á vez o voto en liña e o voto anticipado: o voto anticipado debe comezar antes ca o voto en liña.",
             },
             eventType: {
                 label: "Tipo",

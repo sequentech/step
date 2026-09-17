@@ -2,7 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {FC, useEffect, useState} from "react"
-import {Create, DateTimeInput, SimpleForm, useGetOne, useNotify, useRefresh} from "react-admin"
+import {
+    Create,
+    DateTimeInput,
+    SaveButton,
+    SimpleForm,
+    Toolbar,
+    useGetOne,
+    useNotify,
+    useRefresh,
+} from "react-admin"
 import {useFormContext} from "react-hook-form"
 import {useTranslation} from "react-i18next"
 import {
@@ -10,6 +19,7 @@ import {
     Checkbox,
     FormControlLabel,
     FormGroup,
+    FormHelperText,
     FormLabel,
     FormControl,
     InputLabel,
@@ -30,6 +40,7 @@ import {IPermissions} from "@/types/keycloak"
 import {ICronConfig, IManageElectionDatePayload} from "@/types/scheduledEvents"
 import {VotingStatusChannel} from "@sequentech/ui-core"
 import SelectElection from "@/components/election/SelectElection"
+import {getGraphQLActionErrorReason} from "@/services/graphqlActionError"
 
 interface CreateEventProps {
     electionEventId: string
@@ -55,11 +66,12 @@ const VotingChannelsInput: FC<{
     value: VotingStatusChannel[]
     onChange: (channels: VotingStatusChannel[]) => void
     disabled: boolean
-}> = ({value, onChange, disabled}) => {
+    error?: string
+}> = ({value, onChange, disabled, error}) => {
     const {t} = useTranslation()
     const {setValue} = useFormContext()
     return (
-        <FormControl component="fieldset" margin="normal">
+        <FormControl component="fieldset" margin="normal" error={!!error}>
             <FormLabel component="legend">{t("electionScreen.field.votingChannels")}</FormLabel>
             <FormGroup row>
                 {Object.values(VotingStatusChannel).map((channel) => (
@@ -86,6 +98,7 @@ const VotingChannelsInput: FC<{
                     />
                 ))}
             </FormGroup>
+            {error && <FormHelperText>{error}</FormHelperText>}
         </FormControl>
     )
 }
@@ -145,6 +158,11 @@ const CreateEvent: FC<CreateEventProps> = ({
     const isVotingEvent =
         eventType === EventProcessors.START_VOTING_PERIOD ||
         eventType === EventProcessors.END_VOTING_PERIOD
+    // Early voting cannot start once online voting has started.
+    const opensOnlineWithEarlyVoting =
+        eventType === EventProcessors.START_VOTING_PERIOD &&
+        votingChannels.includes(VotingStatusChannel.Online) &&
+        votingChannels.includes(VotingStatusChannel.EarlyVoting)
     const targetsElection = (event_processor: EventProcessors) => {
         switch (event_processor) {
             case EventProcessors.ALLOW_INIT_REPORT:
@@ -162,6 +180,9 @@ const CreateEvent: FC<CreateEventProps> = ({
     }
 
     const onSubmit = async () => {
+        if (opensOnlineWithEarlyVoting) {
+            return
+        }
         setIsLoading(true)
         try {
             let variables: ManageElectionDatesMutationVariables = {
@@ -188,7 +209,10 @@ const CreateEvent: FC<CreateEventProps> = ({
                 notify(t("eventsScreen.messages.editSuccess"), {type: "success"})
             }
         } catch (error) {
-            console.error(error)
+            setIsLoading(false)
+            notify(getGraphQLActionErrorReason(error) ?? t("eventsScreen.messages.createError"), {
+                type: "error",
+            })
         }
     }
     const isRequiredElection = (eventType: EventProcessors) =>
@@ -200,7 +224,14 @@ const CreateEvent: FC<CreateEventProps> = ({
 
     return (
         <Create hasEdit={isEditEvent}>
-            <SimpleForm onSubmit={onSubmit}>
+            <SimpleForm
+                onSubmit={onSubmit}
+                toolbar={
+                    <Toolbar>
+                        <SaveButton disabled={opensOnlineWithEarlyVoting} />
+                    </Toolbar>
+                }
+            >
                 <Typography variant="h4">
                     {t(`${isEditEvent ? "eventsScreen.edit.title" : "eventsScreen.create.title"}`)}
                 </Typography>
@@ -282,6 +313,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                         value={votingChannels}
                         onChange={setVotingChannels}
                         disabled={isLoading}
+                        error={
+                            opensOnlineWithEarlyVoting
+                                ? t("eventsScreen.messages.onlineWithEarlyVoting")
+                                : undefined
+                        }
                     />
                 )}
                 <DateTimeInput

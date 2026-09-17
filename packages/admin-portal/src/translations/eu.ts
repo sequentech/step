@@ -1544,6 +1544,8 @@ const basqueTranslation: TranslationType = {
                 createError: "Errorea Programatutako Gertaera sortzerakoan",
                 editSuccess: "Programatutako Gertaera arrakastaz editatua",
                 editError: "Errorea Programatutako Gertaera editatzerakoan",
+                onlineWithEarlyVoting:
+                    "Hasierako programazio batek ezin ditu aldi berean lineako botoa eta aurretiazko botoa ireki: aurretiazko botoak lineako botoa baino lehen hasi behar du.",
             },
             eventType: {
                 label: "Mota",

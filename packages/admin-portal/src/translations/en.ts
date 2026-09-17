@@ -1531,6 +1531,8 @@ const englishTranslation = {
                 createError: "Error creating Scheduled Event",
                 editSuccess: "Scheduled Event edited successfully",
                 editError: "Error editing Scheduled Event",
+                onlineWithEarlyVoting:
+                    "A start schedule cannot open Online and Early voting together: early voting has to start before online voting.",
             },
             eventType: {
                 label: "Type",

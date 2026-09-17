@@ -1564,6 +1564,8 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'Esdeveniment Programat",
                 editSuccess: "Esdeveniment Programat editat amb èxit",
                 editError: "Error en editar l'Esdeveniment Programat",
+                onlineWithEarlyVoting:
+                    "Una programació d'inici no pot obrir alhora el vot en línia i el vot anticipat: el vot anticipat ha de començar abans que el vot en línia.",
             },
             eventType: {
                 label: "Tipus",

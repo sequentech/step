@@ -47,6 +47,7 @@ pub enum ErrorCode {
     BallotIdMismatch,
     BallotPublicationValidation,
     TallyValidation,
+    InvalidVotingChannels,
     // Add any other needed error codes
 }
 

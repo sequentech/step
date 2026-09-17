@@ -65,14 +65,32 @@ pub struct ManageElectionDatePayload {
     pub voting_channels: Option<Vec<VotingStatusChannel>>,
 }
 
+/// Order in which scheduled channel changes are applied, so the saved order of
+/// a selection never changes the outcome.
+const SCHEDULED_CHANNEL_ORDER: [VotingStatusChannel; 4] = [
+    VotingStatusChannel::ONLINE,
+    VotingStatusChannel::KIOSK,
+    VotingStatusChannel::EARLY_VOTING,
+    VotingStatusChannel::TELEPHONE,
+];
+
+pub const ONLINE_WITH_EARLY_VOTING_START_ERROR: &str =
+    "A start voting period schedule cannot open ONLINE and EARLY_VOTING \
+     together: early voting has to start before online voting.";
+
 impl ManageElectionDatePayload {
     pub fn channels(&self) -> Vec<VotingStatusChannel> {
-        self.voting_channels
+        let selected = self
+            .voting_channels
             .clone()
             .filter(|channels| !channels.is_empty())
             .unwrap_or_else(|| {
                 vec![VotingStatusChannel::ONLINE, VotingStatusChannel::KIOSK]
-            })
+            });
+        SCHEDULED_CHANNEL_ORDER
+            .into_iter()
+            .filter(|channel| selected.contains(channel))
+            .collect()
     }
 
     pub fn enabled_channels(
@@ -82,10 +100,24 @@ impl ManageElectionDatePayload {
         let mut channels = self.channels();
         channels
             .retain(|channel| channel.channel_from(configured) == Some(true));
-        let mut seen = std::collections::HashSet::new();
-        channels.retain(|channel| seen.insert(*channel));
         channels
     }
+}
+
+/// Early voting cannot start once online voting has started, so a single
+/// start schedule cannot open both channels.
+pub fn validate_scheduled_voting_channels(
+    event_processor: &EventProcessors,
+    voting_channels: Option<&[VotingStatusChannel]>,
+) -> Result<()> {
+    let channels = voting_channels.unwrap_or_default();
+    if *event_processor == EventProcessors::START_VOTING_PERIOD
+        && channels.contains(&VotingStatusChannel::ONLINE)
+        && channels.contains(&VotingStatusChannel::EARLY_VOTING)
+    {
+        return Err(anyhow!(ONLINE_WITH_EARLY_VOTING_START_ERROR));
+    }
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -309,12 +341,57 @@ mod voting_channel_tests {
         };
         assert_eq!(
             payload.enabled_channels(&config),
-            vec![VotingStatusChannel::TELEPHONE, VotingStatusChannel::ONLINE]
+            vec![VotingStatusChannel::ONLINE, VotingStatusChannel::TELEPHONE]
         );
         assert!(serde_json::from_value::<ManageElectionDatePayload>(
             json!({"voting_channels": ["INVALID"]})
         )
         .is_err());
+    }
+    #[test]
+    fn channels_follow_a_fixed_order_regardless_of_the_saved_order() {
+        let payload: ManageElectionDatePayload = serde_json::from_value(
+            json!({"voting_channels": ["TELEPHONE", "EARLY_VOTING", "KIOSK", "ONLINE", "KIOSK"]}),
+        )
+        .unwrap();
+        assert_eq!(
+            payload.channels(),
+            vec![
+                VotingStatusChannel::ONLINE,
+                VotingStatusChannel::KIOSK,
+                VotingStatusChannel::EARLY_VOTING,
+                VotingStatusChannel::TELEPHONE,
+            ]
+        );
+    }
+    #[test]
+    fn start_schedules_cannot_open_online_and_early_voting_together() {
+        use VotingStatusChannel::*;
+        let both = [EARLY_VOTING, ONLINE];
+        assert!(validate_scheduled_voting_channels(
+            &EventProcessors::START_VOTING_PERIOD,
+            Some(&both)
+        )
+        .is_err());
+        for (processor, channels) in [
+            (EventProcessors::END_VOTING_PERIOD, Some(&both[..])),
+            (
+                EventProcessors::START_VOTING_PERIOD,
+                Some(&[EARLY_VOTING][..]),
+            ),
+            (
+                EventProcessors::START_VOTING_PERIOD,
+                Some(&[ONLINE, KIOSK, TELEPHONE][..]),
+            ),
+            (EventProcessors::START_VOTING_PERIOD, Some(&[][..])),
+            (EventProcessors::START_VOTING_PERIOD, None),
+        ] {
+            assert!(
+                validate_scheduled_voting_channels(&processor, channels)
+                    .is_ok(),
+                "{processor:?} {channels:?}"
+            );
+        }
     }
     #[test]
     fn online_dates_accept_extended_payload_but_ignore_kiosk_only_schedules() {

@@ -1552,6 +1552,8 @@ const tagalogTranslation: TranslationType = {
                 createError: "Error sa paglikha ng Naka-schedule na Kaganapan",
                 editSuccess: "Matagumpay na na-edit ang Naka-schedule na Kaganapan",
                 editError: "Error sa pag-edit ng Naka-schedule na Kaganapan",
+                onlineWithEarlyVoting:
+                    "Hindi maaaring buksan ng iskedyul ng pagsisimula ang Online at Maagang pagboto nang sabay: ang maagang pagboto ay dapat magsimula bago ang online na pagboto.",
             },
             eventType: {
                 label: "Uri",
