@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {
     PropsWithChildren,
+    useEffect,
     useState,
     useRef,
     DragEventHandler,
@@ -101,6 +102,22 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 setBusy(false)
             }
         }
+
+        useEffect(() => {
+            const preventFileNavigation = (event: DragEvent) => {
+                if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+                    event.preventDefault()
+                }
+            }
+
+            document.addEventListener("dragover", preventFileNavigation)
+            document.addEventListener("drop", preventFileNavigation)
+
+            return () => {
+                document.removeEventListener("dragover", preventFileNavigation)
+                document.removeEventListener("drop", preventFileNavigation)
+            }
+        }, [])
 
         // handle drag events
         const handleDrag: DragEventHandler<HTMLElement> = (e) => {

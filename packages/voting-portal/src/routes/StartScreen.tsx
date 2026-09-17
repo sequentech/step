@@ -166,8 +166,8 @@ const StartScreen: React.FC = () => {
             <Typography className="instructions-title" variant="h5" component="h2">
                 {t("startScreen.instructionsTitle")}
             </Typography>
-            <Typography className="instructions-description" variant="body2">
-                {t("startScreen.instructionsDescription")}
+            <Typography className="instructions-description" variant="body2" component="div">
+                {stringToHtml(t("startScreen.instructionsDescription"))}
             </Typography>
             <Box
                 className="instructions-steps"
@@ -189,8 +189,12 @@ const StartScreen: React.FC = () => {
                     >
                         {t("startScreen.step1Title")}
                     </Typography>
-                    <Typography className="instructions-step-description" variant="body2">
-                        {t("startScreen.step1Description")}
+                    <Typography
+                        className="instructions-step-description"
+                        variant="body2"
+                        component="div"
+                    >
+                        {stringToHtml(t("startScreen.step1Description"))}
                     </Typography>
                 </Box>
                 <Box
@@ -205,8 +209,12 @@ const StartScreen: React.FC = () => {
                     >
                         {t("startScreen.step2Title")}
                     </Typography>
-                    <Typography className="instructions-step-description" variant="body2">
-                        {t("startScreen.step2Description")}
+                    <Typography
+                        className="instructions-step-description"
+                        variant="body2"
+                        component="div"
+                    >
+                        {stringToHtml(t("startScreen.step2Description"))}
                     </Typography>
                 </Box>
                 <Box
@@ -221,8 +229,12 @@ const StartScreen: React.FC = () => {
                     >
                         {t("startScreen.step3Title")}
                     </Typography>
-                    <Typography className="instructions-step-description" variant="body2">
-                        {t("startScreen.step3Description")}
+                    <Typography
+                        className="instructions-step-description"
+                        variant="body2"
+                        component="div"
+                    >
+                        {stringToHtml(t("startScreen.step3Description"))}
                     </Typography>
                 </Box>
             </Box>
