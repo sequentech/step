@@ -3,10 +3,10 @@
 name: Miru component contracts
 on:
   pull_request:
-    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml']
+    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**']
   push:
     branches: [release/10.0]
-    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml']
+    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**']
 permissions:
   contents: read
 jobs:
