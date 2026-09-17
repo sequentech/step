@@ -348,7 +348,11 @@ impl Message {
         let artifact_hash = strand::hash::hash_to_array(&artifact)?;
         // If the cfg_h field matches the artifact, the artifact must be Configuration
         if st_cfg_h == artifact_hash {
-            assert!(kind == StatementType::Configuration);
+            if kind != StatementType::Configuration {
+                return Err(anyhow!(
+                    "A configuration artifact requires a Configuration statement"
+                ));
+            }
             if trustee != PROTOCOL_MANAGER_INDEX as usize {
                 return Err(anyhow!("Configuration must be signed by protocol manager"));
             }
@@ -362,7 +366,9 @@ impl Message {
             ))
         } else {
             // If the statement type were configuration, cfg_hash should have matched the artifact above
-            assert!(kind != StatementType::Configuration);
+            if kind == StatementType::Configuration {
+                return Err(anyhow!("Mismatched configuration artifact hash"));
+            }
 
             if kind == StatementType::Ballots {
                 if trustee != PROTOCOL_MANAGER_INDEX as usize {
