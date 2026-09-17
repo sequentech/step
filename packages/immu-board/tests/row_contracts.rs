@@ -113,6 +113,9 @@ fn malformed_column_names_return_errors_without_panicking() {
         "(t.unknown)",
         "t.id",
         "(t.id",
+        "((t.id)",
+        "(t).id)",
+        "(t.id))",
         "t.id)",
     ] {
         let mut source = row();
