@@ -51,6 +51,10 @@ impl TryFrom<&Row> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        if row.columns.len() != row.values.len() {
+            return Err(anyhow!("Mismatched column and value counts"));
+        }
+        let mut seen = std::collections::HashSet::new();
         let mut id = 0;
         let mut created = 0;
         let mut sender_pk = String::from("");
@@ -62,11 +66,15 @@ impl TryFrom<&Row> for ElectoralLogMessage {
         let mut username: Option<String> = None;
 
         for (column, value) in row.columns.iter().zip(row.values.iter()) {
-            // FIXME for some reason columns names appear with parentheses
-            let dot = column
-                .find('.')
-                .ok_or(anyhow!("invalid column found '{}'", column.as_str()))?;
-            let bare_column = &column[dot + 1..column.len() - 1];
+            let (_, bare_column) = column
+                .strip_prefix('(')
+                .and_then(|name| name.strip_suffix(')'))
+                .and_then(|name| name.split_once('.'))
+                .filter(|(table, name)| !table.is_empty() && !name.is_empty())
+                .ok_or_else(|| anyhow!("invalid column found '{}'", column))?;
+            if !seen.insert(bare_column) {
+                return Err(anyhow!("duplicate column '{}'", bare_column));
+            }
 
             match bare_column {
                 "id" => assign_value!(Value::N, value, id),
@@ -89,6 +97,20 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                     _ => return Err(anyhow!("invalid column value for 'username'")),
                 },
                 _ => return Err(anyhow!("invalid column found '{}'", bare_column)),
+            }
+        }
+
+        for required in [
+            "id",
+            "created",
+            "sender_pk",
+            "statement_timestamp",
+            "statement_kind",
+            "message",
+            "version",
+        ] {
+            if !seen.contains(required) {
+                return Err(anyhow!("missing column '{}'", required));
             }
         }
 
