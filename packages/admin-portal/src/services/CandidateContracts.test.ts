@@ -12,7 +12,10 @@ import {EEnableCheckableLists} from "../../../ui-core/src/types/ContestPresentat
 import type {Sequent_Backend_Candidate} from "@/gql/graphql"
 import type {ICandidate, IContest} from "@sequentech/ui-core"
 
-jest.mock("@sequentech/ui-core", () => require("../../../ui-core/src/types/ContestPresentation"))
+jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual("@sequentech/ui-core"),
+    ...jest.requireActual("../../../ui-core/src/types/ContestPresentation"),
+}))
 const candidate = (presentation = {}) => ({presentation}) as Sequent_Backend_Candidate
 
 it.each([

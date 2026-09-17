@@ -9,9 +9,9 @@ title: Braid protocol and persistence tests
 From `packages/`, with the repository's pinned Rust toolchain:
 
 ```sh
-CARGO_PROFILE_TEST_OPT_LEVEL=2 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test --locked -p braid --tests
-cargo test --locked -p braid --lib coverage_contracts
-cargo test --locked -p braid --test util_contracts
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test --release --locked -p braid --tests
+cargo test --release --locked -p braid --lib coverage_contracts
+cargo test --release --locked -p braid --test util_contracts
 ```
 
 The persistence tests own temporary SQLite databases and blob directories. They
