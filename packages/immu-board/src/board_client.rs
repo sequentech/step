@@ -70,7 +70,12 @@ impl TryFrom<&Row> for ElectoralLogMessage {
                 .strip_prefix('(')
                 .and_then(|name| name.strip_suffix(')'))
                 .and_then(|name| name.split_once('.'))
-                .filter(|(table, name)| !table.is_empty() && !name.is_empty())
+                .filter(|(table, name)| {
+                    !table.is_empty()
+                        && !name.is_empty()
+                        && !table.contains('(')
+                        && !table.contains(')')
+                })
                 .ok_or_else(|| anyhow!("invalid column found '{}'", column))?;
             if !seen.insert(bare_column) {
                 return Err(anyhow!("duplicate column '{}'", bare_column));
