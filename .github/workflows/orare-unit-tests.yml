@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Orare runtime contracts
+on:
+  pull_request:
+    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml']
+  push:
+    branches: [release/10.0]
+    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml']
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [openwhisk, aws_lambda]
+    env:
+      DOC_RENDERER_BACKEND: inplace
+      RUST_TEST_THREADS: '2'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: orare-${{ matrix.runtime }}
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+      - uses: ./.github/actions/setup-test-browser
+      - name: Build the compiled OpenWhisk consumer
+        if: matrix.runtime == 'openwhisk'
+        working-directory: packages
+        run: cargo build --locked -p orare --features openwhisk --example contract-openwhisk
+      - name: Exercise the runtime and renderer
+        working-directory: packages
+        env:
+          RUNTIME: ${{ matrix.runtime }}
+        run: |
+          export ORARE_TEST_OPENWHISK_BINARY="$PWD/target/debug/examples/contract-openwhisk"
+          cargo test --locked -p orare --no-default-features --features "$RUNTIME" --test runtime_contracts
+          cargo test --locked -p doc_renderer --no-default-features --features "$RUNTIME"
+          cargo clippy --locked -p orare --lib --no-default-features --features "$RUNTIME"
+          cargo clippy --locked -p doc_renderer --bins --no-default-features --features "$RUNTIME"

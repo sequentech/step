@@ -6345,14 +6345,17 @@ name = "orare"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "aws_lambda_events",
  "cfg-if",
  "clap",
+ "lambda_runtime",
  "proc-macro2",
  "quote",
  "sequent-core",
  "serde",
  "serde_json",
  "syn 2.0.110",
+ "tokio",
 ]
 
 [[package]]
