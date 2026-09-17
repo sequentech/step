@@ -35,7 +35,7 @@ fn message(id: i64, batch: u64, mix: usize) -> HttpB3Message {
     let signed = Message::mix_signed_msg(
         &cfg,
         batch,
-        CiphertextsHash([1; 64]),
+        CiphertextsHash([id as u8; 64]),
         CiphertextsHash([2; 64]),
         mix,
         &signer,
@@ -229,4 +229,35 @@ fn transient_storage_replaces_consumes_and_clears_even_invalid_batches() {
     assert!(store.retrieve_messages(-1).is_err());
     assert!(store.retrieve_messages(-1).unwrap().is_empty());
     assert_eq!(store.get_last_external_id().unwrap(), -1);
+}
+
+#[test]
+fn failed_blob_batches_remove_new_files_and_retry_uses_fresh_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let blobs = dir.path().join("blobs");
+    let store = SqliteStorage::new(dir.path().join("board.sqlite"), Some(blobs.clone()));
+    store.store_messages(&[message(10, 1, 1)], false).unwrap();
+    let mut malformed = message(40, 4, 1);
+    malformed.version = "unknown".into();
+    for bad in [malformed, message(10, 4, 1)] {
+        assert!(store
+            .store_messages(&[message(30, 3, 1), bad], false)
+            .is_err());
+        assert_eq!(store.retrieve_messages(-1).unwrap().len(), 1);
+        assert_eq!(
+            fs::read_dir(&blobs).unwrap().count(),
+            1,
+            "failed batch left unreferenced blobs"
+        );
+    }
+    let retry = message(31, 3, 1);
+    store.store_messages(&[retry.clone()], false).unwrap();
+    assert_eq!(
+        store.retrieve_messages(-1).unwrap()[1]
+            .0
+            .strand_serialize()
+            .unwrap(),
+        retry.message
+    );
+    assert_eq!(fs::read_dir(&blobs).unwrap().count(), 2);
 }
