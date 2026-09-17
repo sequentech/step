@@ -3,16 +3,20 @@
 name: Java package unit tests
 on:
   pull_request:
-    paths: ['packages/ECIESEncryption/**', '.github/workflows/java-unit-tests.yml']
+    paths: ['packages/ECIESEncryption/**', 'packages/keycloak-extensions/**', '.github/workflows/java-unit-tests.yml']
   push:
     branches: [main]
-    paths: ['packages/ECIESEncryption/**', '.github/workflows/java-unit-tests.yml']
+    paths: ['packages/ECIESEncryption/**', 'packages/keycloak-extensions/**', '.github/workflows/java-unit-tests.yml']
 permissions:
   contents: read
 jobs:
   contracts:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [ECIESEncryption, keycloak-extensions]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -28,6 +32,6 @@ jobs:
           printf '%s  %s\n' "$(cat "$RUNNER_TEMP/maven.sha512")" "$RUNNER_TEMP/maven.tar.gz" | sha512sum --check
           tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/apache-maven-3.9.9/bin" >> "$GITHUB_PATH"
-      - name: Run command-line contracts
-        working-directory: packages/ECIESEncryption
+      - name: Run package contracts
+        working-directory: packages/${{ matrix.package }}
         run: mvn -B -ntp test
