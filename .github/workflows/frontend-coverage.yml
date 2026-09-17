@@ -49,7 +49,7 @@ jobs:
         if: contains(fromJSON('["ui-core", "voting-portal", "ui-essentials"]'), matrix.package)
         uses: ./head/.github/actions/setup-test-browser
       - name: Exercise the real browser boundary
-        if: matrix.package == 'ui-core' || matrix.package == 'voting-portal' || matrix.package == 'ui-essentials'
+        if: contains(fromJSON('["ui-core", "voting-portal", "ui-essentials"]'), matrix.package)
         env:
           PACKAGE: ${{ matrix.package }}
         run: |
