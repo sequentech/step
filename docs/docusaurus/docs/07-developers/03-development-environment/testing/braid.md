@@ -40,3 +40,9 @@ per-file differences if measurement varies.
 Live gRPC/PostgreSQL transports, long-running sessions and optional cryptographic
 backend configurations need separate execution. The old `local.rs` implementation
 is not declared by any module; tests exercise the compiled `local2.rs` backend.
+
+Blob-batch regressions check that ordinary SQL/decode failures remove newly
+created files and preserve committed rows/files. The writer lock covers metadata
+and file creation; a retry must read its own bytes. This cleanup does not make
+SQLite and the filesystem one crash-atomic transaction: process termination or a
+filesystem refusing deletion needs separate recovery testing.
