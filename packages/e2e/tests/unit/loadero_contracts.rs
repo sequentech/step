@@ -194,11 +194,8 @@ fn completed_status_reports_both_counts_and_pending_is_not_completion() {
         ),
     ]);
     let _env = Environment::set(&[("LOADERO_API_KEY", "synthetic-key")]);
-    assert_eq!(check_test_status(&url, "23", "41").unwrap(), (7, 2));
-    assert_eq!(
-        check_test_status(&url, "23", "41").unwrap_err().to_string(),
-        "Test is not yet done"
-    );
+    assert_eq!(check_test_status(&url, "23", "41").unwrap(), Some((7, 2)));
+    assert_eq!(check_test_status(&url, "23", "41").unwrap(), None);
     server.join().unwrap();
 }
 
@@ -209,6 +206,11 @@ fn polling_http_failure_is_not_reported_as_a_successful_run() {
         .unwrap_or_else(|error| error.into_inner());
     let (url, server) = fixture(vec![
         ("POST /tests/23/runs/ HTTP/1.1", 201, r#"{"id":41}"#),
+        (
+            "GET /tests/23/runs/41/ HTTP/1.1",
+            200,
+            r#"{"status":"running"}"#,
+        ),
         (
             "GET /tests/23/runs/41/ HTTP/1.1",
             200,
@@ -229,4 +231,33 @@ fn polling_http_failure_is_not_reported_as_a_successful_run() {
     let result = run_test(&url, "23");
     server.join().unwrap();
     assert!(result.unwrap_err().to_string().contains("HTTP Status: 503"));
+}
+
+#[test]
+fn malformed_poll_response_is_returned_instead_of_retried() {
+    let _lock = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let (url, server) = fixture(vec![
+        ("POST /tests/23/runs/ HTTP/1.1", 201, r#"{"id":41}"#),
+        ("GET /tests/23/runs/41/ HTTP/1.1", 200, "not JSON"),
+        // The old loop retries and returns this different error. The fixed loop
+        // returns the decode error; the explicit request below drains the sentinel.
+        ("GET /tests/23/runs/41/ HTTP/1.1", 503, "unexpected retry"),
+    ]);
+    let _env = Environment::set(&[
+        ("LOADERO_API_KEY", "synthetic-key"),
+        ("LOADERO_INTERVAL_POLLING_TIME", "0"),
+    ]);
+    let error = run_test(&url, "23").unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Failed to parse JSON in check_test_status"
+    );
+    assert!(error.chain().any(|cause| cause.is::<serde_json::Error>()));
+    assert!(check_test_status(&url, "23", "41")
+        .unwrap_err()
+        .to_string()
+        .contains("HTTP Status: 503"));
+    server.join().unwrap();
 }
