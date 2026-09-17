@@ -36,26 +36,6 @@ pub fn parse_i18n_field(
     Some(content)
 }
 
-/// Datafix annotations hold VoterView credentials and must never reach voters.
-pub const DATAFIX_ANNOTATIONS_PREFIX: &str = "datafix:";
-
-/// Election event annotations that can be published in a ballot style.
-pub fn voter_election_event_annotations(
-    annotations: Option<serde_json::Value>,
-) -> Result<HashMap<String, String>> {
-    let annotations: HashMap<String, String> = annotations
-        .map(|annotations| deserialize_value(annotations))
-        .transpose()
-        .map_err(|err| {
-            anyhow!("Error parsing election Event annotations {:?}", err)
-        })?
-        .unwrap_or_default();
-    Ok(annotations
-        .into_iter()
-        .filter(|(key, _)| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX))
-        .collect())
-}
-
 pub fn create_ballot_style(
     id: String,
     area: hasura_types::Area,                    // Area
@@ -86,8 +66,15 @@ pub fn create_ballot_style(
         })?
         .unwrap_or_default();
 
-    let election_event_annotations =
-        voter_election_event_annotations(election_event.annotations.clone())?;
+    let election_event_annotations: HashMap<String, String> = election_event
+        .annotations
+        .clone()
+        .map(|annotations| deserialize_value(annotations))
+        .transpose()
+        .map_err(|err| {
+            anyhow!("Error parsing election Event annotations {:?}", err)
+        })?
+        .unwrap_or_default();
 
     let election_presentation: ElectionPresentation = election
         .presentation
@@ -325,89 +312,4 @@ fn create_contest(
             .transpose()?,
         tie_breaking_policy,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn voter_election_event_annotations_removes_datafix_keys() {
-        let annotations = voter_election_event_annotations(Some(json!({
-            "datafix:id": "event",
-            "datafix:voterview_request": r#"{"usr":"user","psw":"secret"}"#,
-            "datafix:password_policy": "{}",
-            "miru:election-event-id": "miru-event",
-        })))
-        .unwrap();
-
-        assert_eq!(
-            annotations,
-            HashMap::from([(
-                "miru:election-event-id".to_string(),
-                "miru-event".to_string()
-            )])
-        );
-    }
-
-    #[test]
-    fn voter_election_event_annotations_handles_missing_annotations() {
-        assert!(voter_election_event_annotations(None).unwrap().is_empty());
-    }
-
-    #[test]
-    fn voter_election_event_annotations_rejects_invalid_annotations() {
-        assert!(
-            voter_election_event_annotations(Some(json!(["datafix:id"])))
-                .is_err()
-        );
-    }
-
-    #[test]
-    fn create_ballot_style_removes_datafix_event_annotations() {
-        env::set_var("DEMO_PUBLIC_KEY", "demo-public-key");
-        let ids = json!({
-            "id": "id",
-            "tenant_id": "tenant",
-            "election_event_id": "event",
-        });
-        let area: hasura_types::Area =
-            serde_json::from_value(ids.clone()).unwrap();
-        let election: hasura_types::Election =
-            serde_json::from_value(ids).unwrap();
-        let election_event: hasura_types::ElectionEvent =
-            serde_json::from_value(json!({
-                "id": "event",
-                "tenant_id": "tenant",
-                "is_archived": false,
-                "encryption_protocol": "RSA_PKCS1",
-                "annotations": {
-                    "datafix:voterview_request": "secret",
-                    "miru:election-event-id": "miru-event",
-                },
-            }))
-            .unwrap();
-
-        let ballot_style = create_ballot_style(
-            "style".to_string(),
-            area,
-            election_event,
-            election,
-            vec![],
-            &[],
-            vec![],
-            StringifiedPeriodDates::default(),
-            None,
-        )
-        .unwrap();
-
-        assert_eq!(
-            ballot_style.election_event_annotations,
-            Some(HashMap::from([(
-                "miru:election-event-id".to_string(),
-                "miru-event".to_string()
-            )]))
-        );
-    }
 }
