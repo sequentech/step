@@ -212,6 +212,35 @@ describe("computeUserDiff", () => {
         const diff = computeUserDiff(baseline, current, userAttributes, t)
         expect(diff.find((row) => row.field === "sequent.read-only.mobile-number")).toBeUndefined()
     })
+
+    it("reports a secret change without exposing either value", () => {
+        const baseline = buildBaseline()
+        baseline.user.attributes = {
+            ...baseline.user.attributes,
+            private_reference: ["<redacted>"],
+        }
+        const current = {
+            user: baseline.user,
+            phoneInputs: {},
+            selectedActedTrustee: "Trustee A",
+            secretAttributeChanges: {private_reference: ["clear-text-value"]},
+        }
+        const attributes = [
+            ...userAttributes,
+            {
+                name: "private_reference",
+                display_name: "Private reference",
+                annotations: {"sequent.secret": true},
+            } as UserProfileAttribute,
+        ]
+
+        expect(computeUserDiff(baseline, current, attributes, t)).toContainEqual({
+            field: "private_reference",
+            label: "Private reference",
+            currentValue: "••••••••",
+            newValue: "••••••••",
+        })
+    })
 })
 
 describe("formatFieldValue", () => {

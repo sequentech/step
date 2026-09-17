@@ -255,6 +255,7 @@ const tagalogTranslation: TranslationType = {
                 logs: "Mga Log",
             },
             tasksExecution: {
+                DELETE_TENANT: "Tanggalin ang tenant",
                 PUBLISH_BALLOT: "I-publish ang balota",
                 VOTER_INFORMATION_LETTER: "Liham ng impormasyon para sa botante",
                 EXPORT_ELECTION_EVENT: "I-export ang Kaganapan sa Halalan",
@@ -925,6 +926,8 @@ const tagalogTranslation: TranslationType = {
                 subtitle:
                     "Ang pag-export ay maaaring isang mahabang proseso. Sigurado ka bang gusto mong i-export ang mga tala?",
                 encryptWithPassword: "I-encrypt gamit ang Password",
+                passwordForcedNote:
+                    "Mapoprotektahan pa rin ng password ang archive: palaging naka-encrypt ang mga ulat, aplikasyon at datos ng bulletin board. Lagyan ng tsek ang kahon para isama rin ang mga na-decrypt na lihim na field ng botante.",
                 includeVoters: "Isama ang mga Botante",
                 activityLogs: "Mga Log ng Aktibidad",
                 bulletinBoard: "Bulletin Board",
@@ -1188,6 +1191,18 @@ const tagalogTranslation: TranslationType = {
                 },
                 title: "Mga Botante",
                 subtitle: "Tingnan at i-edit ang data ng botante",
+                secretAttribute: {
+                    storedPlaceholder: "Nakaimbak na naka-encrypt na halaga",
+                    reveal: "Ipakita",
+                    hide: "Itago",
+                    revealError: "Hindi maipakita ang naka-encrypt na field ng botante",
+                    includeInExport: "Isama ang na-decrypt na mga lihim na field ng botante",
+                    exportWarning:
+                        "Sensitibong export: ang na-download na CSV ay maglalaman ng mga field na ito bilang plain text.",
+                    clear: "Burahin",
+                    add: "Magdagdag ng halaga",
+                    remove: "Alisin ang halaga",
+                },
                 review: {
                     title: "Suriin ang mga Pagbabago",
                     subtitle: "Kumpirmahin ang mga update na ito bago isumite.",
@@ -1297,6 +1312,7 @@ const tagalogTranslation: TranslationType = {
                 "tenant-create": "Lumikha ng Tenant",
                 "tenant-read": "Basahin ang Tenant",
                 "tenant-write": "I-edit ang Tenant",
+                "tenant-delete": "Tanggalin ang Tenant",
                 "election-event-create": "Lumikha ng Kaganapan ng Halalan",
                 "election-event-read": "Basahin ang Kaganapan ng Halalan",
                 "election-event-write": "I-edit ang Kaganapan ng Halalan",
@@ -1306,6 +1322,8 @@ const tagalogTranslation: TranslationType = {
                 "voter-create": "Lumikha ng Botante",
                 "voter-read": "Basahin ang Botante",
                 "voter-write": "I-edit ang Botante",
+                "voter-secret-attribute-read": "Ipakita ang mga Lihim na Field ng Botante",
+                "voter-secret-attribute-write": "I-edit ang mga Lihim na Field ng Botante",
                 "user-create": "Lumikha ng Tagagamit",
                 "user-read": "Basahin ang Tagagamit",
                 "user-write": "I-edit ang Tagagamit",
@@ -1503,6 +1521,23 @@ const tagalogTranslation: TranslationType = {
                 "cloudflare-write": "I-edit ang mga patakaran sa pag-block ng bansa sa Cloudflare",
                 "transmission-report-generate": "Lumikha ng Ulat ng Transmisyon",
                 "google-meet-link": "Bumuo ng Google Meet Link",
+                "service-account": "Service account",
+                "datafix-account": "Datafix account",
+                "gold": "Ginto",
+                "silver": "Pilak",
+                "election-event-ivr-tab": "Tingnan ang IVR ng election event",
+                "election-event-cas-tab": "Tingnan ang CAS ng election event",
+                "ca-read": "Basahin ang mga certificate authority",
+                "ca-write": "I-edit ang mga certificate authority",
+                "generate-preview": "Bumuo ng preview",
+                "preview-read": "Basahin ang preview",
+                "tally-resolution-submit": "Isumite ang resolusyon ng tally",
+                "phone-blacklist-read": "Basahin ang blacklist ng telepono",
+                "phone-blacklist-create": "Gumawa ng mga entry sa blacklist ng telepono",
+                "phone-blacklist-update": "I-edit ang mga entry sa blacklist ng telepono",
+                "phone-blacklist-delete": "Tanggalin ang mga entry sa blacklist ng telepono",
+                "election-event-voter-list-reconciliation":
+                    "I-reconcile ang listahan ng mga botante ng election event",
             },
         },
         generalSettingsScreen: {
@@ -2040,6 +2075,7 @@ const tagalogTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Suriin ang Iyong Encrypted Private Key Backups",
+                verifyButton: "Beripikahin ang key",
                 subtitle:
                     "I-upload ang isang Backup ng Encrypted Private Key upang suriin kung ito ay tama. Maaari mong subukan ng maraming beses hangga't kinakailangan, mula sa iyong iba't ibang backups:",
                 errorUploading: "Di-wastong Encrypted Private Key Backup, mangyaring subukan muli",

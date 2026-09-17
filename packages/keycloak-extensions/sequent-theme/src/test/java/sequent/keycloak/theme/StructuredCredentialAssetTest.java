@@ -40,6 +40,20 @@ class StructuredCredentialAssetTest {
   }
 
   @Test
+  void patternPolicyIsAnAliasForTheExistingStructuredPasswordInput() throws IOException {
+    String login =
+        Files.readString(Path.of("src/main/resources/theme/sequent.voting-portal/login/login.ftl"));
+    String register =
+        Files.readString(
+            Path.of("src/main/resources/theme/sequent.admin-portal/login/register.ftl"));
+    assertTrue(login.contains("['structured', 'pattern']?seq_contains"));
+    assertTrue(register.contains("['structured', 'pattern']?seq_contains"));
+    assertTrue(login.contains("name=\"password\" type=\"password\""));
+    assertTrue(login.contains("data-credential-pattern="));
+    assertFalse(login.contains("name=\"secret\""));
+  }
+
+  @Test
   void autofocusMovesFromTheHiddenRealInputToTheVisibleOne() throws IOException {
     // credential-field-position=FIRST puts autofocus on the real input, which this widget hides.
     // Without the transfer the page opens with nothing focused.

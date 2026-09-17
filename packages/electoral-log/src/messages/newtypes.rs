@@ -169,7 +169,9 @@ pub enum ExtApiName {
     BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, PartialEq, Eq, Hash, Debug,
 )]
 pub struct ExternalApiSubject {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
 }
 
@@ -301,4 +303,18 @@ pub struct ResultsPublicationDetails {
     pub access: ResultsPublicationAccessString,
     pub visibility_scope: ResultsPublicationVisibilityScopeString,
     pub contest_ids: Vec<ContestIdString>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub enum BallotPublicationStage {
+    Generate,
+    Publish,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Deserialize, Serialize, Clone, Debug)]
+pub struct BallotPublicationFailure {
+    pub publication_id: BallotPublicationIdString,
+    pub task_id: String,
+    pub stage: BallotPublicationStage,
+    pub error: ErrorMessageString,
 }

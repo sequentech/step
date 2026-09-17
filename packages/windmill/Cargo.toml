@@ -23,7 +23,7 @@ fips_full = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 [dependencies]
 rocket = { version = "0.5", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["raw_value"] }
 serde_path_to_error = "0.1"
 reqwest = { version="0.12", features = ["multipart", "blocking", "json"] }
 handlebars = "6.1"
@@ -56,8 +56,8 @@ xz2 = "0.1"
 zip = "2.1"
 
 # WASM plugin management
-wasmtime = "41.0.2"
-wasmtime-wasi = "41.0.2"
+wasmtime = "44.0.3"
+wasmtime-wasi = "44.0.3"
 
 # logging
 tracing = "0.1"

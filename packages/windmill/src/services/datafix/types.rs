@@ -13,11 +13,16 @@ use rocket::serde::json::Json;
 use sequent_core::ballot::Annotations;
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use strum_macros::{Display, EnumString};
 use tracing::{instrument, warn};
 
 use crate::postgres::election_event::ElectionEventDatafix;
 use crate::services::consolidation::eml_generator::ValidateAnnotations;
+
+/// Poll is fixed for every Datafix voter, regardless of the source value.
+pub const DATAFIX_POLL: &str = "000";
+
 #[derive(Deserialize, Debug)]
 pub struct VoterInformationBody {
     pub voter_id: String,
@@ -132,6 +137,71 @@ impl DatafixResponse {
     }
 }
 
+/// Failure of a Datafix operation: the stable [`DatafixErrorCode`] answered
+/// to the caller plus the internal reason, which is recorded in the electoral
+/// log entry of the operation and never sent to the caller — converting into
+/// the HTTP reply drops it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatafixError {
+    pub code: DatafixErrorCode,
+    pub detail: String,
+    pub audit_scope: AuditScope,
+}
+
+/// Which election events record the electoral log entry of a failed
+/// request. Almost every failure belongs to the single event resolved from
+/// the requester's Datafix id; a shared id belongs to none in particular.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum AuditScope {
+    #[default]
+    ResolvedEvent,
+    /// Every event configured with the requester's Datafix id.
+    AmbiguousEvents(Vec<String>),
+}
+
+impl DatafixError {
+    #[instrument(skip(detail))]
+    pub fn new(code: DatafixErrorCode, detail: impl Into<String>) -> Self {
+        Self {
+            code,
+            detail: detail.into(),
+            audit_scope: AuditScope::ResolvedEvent,
+        }
+    }
+
+    /// Shorthand for the most common code, an unexpected internal failure.
+    #[instrument(skip(detail))]
+    pub fn internal(detail: impl Into<String>) -> Self {
+        Self::new(DatafixErrorCode::InternalError, detail)
+    }
+
+    /// Internal failure of a request whose Datafix id is shared by several
+    /// events, to be audited in every one of them.
+    #[instrument(skip(detail))]
+    pub fn ambiguous(detail: impl Into<String>, event_ids: Vec<String>) -> Self {
+        Self {
+            code: DatafixErrorCode::InternalError,
+            detail: detail.into(),
+            audit_scope: AuditScope::AmbiguousEvents(event_ids),
+        }
+    }
+}
+
+/// Renders exactly the text the electoral log records after `Failed: `.
+impl fmt::Display for DatafixError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (error_code={})", self.detail, self.code)
+    }
+}
+
+impl std::error::Error for DatafixError {}
+
+impl From<DatafixError> for JsonErrorResponse {
+    fn from(err: DatafixError) -> Self {
+        DatafixResponse::error(err.code)
+    }
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VoterviewRequest {
     pub url: String,
@@ -181,6 +251,10 @@ pub struct PasswordPolicy {
     base: BasePolicy,
     size: usize,
     characters: CharactersPolicy,
+    /// Whether the generated PIN is a Keycloak temporary credential (forcing
+    /// a change on next login). `None` when the annotation omits it; callers
+    /// decide their own default rather than relying on Keycloak's.
+    pub temporary: Option<bool>,
 }
 
 impl PasswordPolicy {
@@ -463,10 +537,41 @@ impl ParsedDatafixReconciliationRow {
 #[cfg(test)]
 mod tests {
     use super::{
-        channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixErrorCode,
-        DatafixResponse, FILE_CHANNEL_INTERNET,
+        channels_equal, file_channel_to_keycloak, keycloak_channel_to_file, DatafixError,
+        DatafixErrorCode, DatafixResponse, JsonErrorResponse, FILE_CHANNEL_INTERNET,
     };
     use rocket::http::Status;
+
+    #[test]
+    fn datafix_error_displays_its_reason_and_code() {
+        let err = DatafixError::new(
+            DatafixErrorCode::InvalidRequest,
+            "Cannot replace pin because the user is disabled",
+        );
+        assert_eq!(
+            err.to_string(),
+            "Cannot replace pin because the user is disabled (error_code=invalid-request)"
+        );
+        assert_eq!(
+            DatafixError::internal("Error editing user").code,
+            DatafixErrorCode::InternalError
+        );
+    }
+
+    #[test]
+    fn datafix_error_reply_keeps_the_code_and_drops_the_reason() {
+        let response: JsonErrorResponse =
+            DatafixError::new(DatafixErrorCode::VoterNotFound, "Voter not found").into();
+        assert_eq!(response.0, Status::NotFound);
+        assert_eq!(
+            serde_json::to_value(&*response.1).unwrap(),
+            serde_json::json!({
+                "code": 404,
+                "message": "Not Found",
+                "error_code": "voter-not-found"
+            })
+        );
+    }
 
     #[test]
     fn error_reply_carries_the_documented_status_and_error_code() {

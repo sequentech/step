@@ -48,6 +48,21 @@ public final class RealmNames {
     return Optional.of(new EventRealm(tenantId, electionEventId));
   }
 
+  /** Extract the tenant identifier from an administrative tenant realm, not an event realm. */
+  public static Optional<String> tenantIdFromRealmName(String realmName) {
+    String prefix = TENANT_SEGMENT + "-";
+    if (realmName == null || !realmName.startsWith(prefix)) {
+      return Optional.empty();
+    }
+    String tenantId = realmName.substring(prefix.length());
+    // The event segment is reserved by the event-realm grammar. Reject malformed
+    // event names too, so a smart link cannot treat one as an administrative realm.
+    if (tenantId.isBlank() || Arrays.asList(tenantId.split("-", -1)).contains(EVENT_SEGMENT)) {
+      return Optional.empty();
+    }
+    return Optional.of(tenantId);
+  }
+
   public static Optional<String> electionEventIdFromRealmName(String realmName) {
     return parseEventRealmName(realmName).map(EventRealm::electionEventId);
   }

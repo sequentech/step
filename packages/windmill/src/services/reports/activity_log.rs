@@ -350,6 +350,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
         hasura_transaction: &Transaction<'_>,
         keycloak_transaction: &Transaction<'_>,
         task_execution: Option<TasksExecution>,
+        may_read_secret_attributes: bool,
     ) -> Result<()> {
         if self.report_format == ReportFormat::PDF {
             // Call the default implementation for PDF
@@ -364,6 +365,7 @@ impl TemplateRenderer for ActivityLogsTemplate {
                 hasura_transaction,
                 keycloak_transaction,
                 task_execution,
+                may_read_secret_attributes,
             )
             .await
         } else {
