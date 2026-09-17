@@ -143,3 +143,4 @@ source counters. Preserve local fixture isolation when adding browser scenarios.
 - [UI Essentials tests](testing/ui-essentials.md)
 - [Velvet boundary tests](../07-velvet/test-coverage.md)
 - [Assurance lint policy](production-assurance.md)
+- [B3 bulletin-board tests](./testing/b3.md)
