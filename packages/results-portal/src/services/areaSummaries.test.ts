@@ -8,7 +8,10 @@ import type {ResultsManifest, ResultsSqliteDataset} from "@/types/results"
 
 it("chooses the largest census, then votes, without summing overlapping contests", () => {
     const dataset = {
-        results_election_area: [{election_id: "e", area_id: "1", name: "North"}, {election_id: "e", area_id: "missing"}],
+        results_election_area: [
+            {election_id: "e", area_id: "1", name: "North"},
+            {election_id: "e", area_id: "missing"},
+        ],
         results_area_contest: [
             {election_id: "e", area_id: 1, elegible_census: "100", total_votes: "70"},
             {election_id: "e", area_id: "1", elegible_census: 100, total_votes: 80},
@@ -18,20 +21,45 @@ it("chooses the largest census, then votes, without summing overlapping contests
         ],
     } as unknown as ResultsSqliteDataset
     expect(buildAreaElectionSummaries(dataset)).toEqual([
-        {election_id: "e", area_id: "1", name: "North", elegible_census: 100, total_voters: 80, total_voters_percent: 0.8},
-        {election_id: "e", area_id: "missing", elegible_census: 0, total_voters: 0, total_voters_percent: 0},
+        {
+            election_id: "e",
+            area_id: "1",
+            name: "North",
+            elegible_census: 100,
+            total_voters: 80,
+            total_voters_percent: 0.8,
+        },
+        {
+            election_id: "e",
+            area_id: "missing",
+            elegible_census: 0,
+            total_voters: 0,
+            total_voters_percent: 0,
+        },
     ])
     expect(dataset.results_election_area[0]).not.toHaveProperty("total_voters")
 })
 it("normalizes invalid numeric values and avoids division by zero", () => {
-    const dataset = {results_election_area: [{election_id: 1, area_id: 2}], results_area_contest: [
-        {election_id: "1", area_id: "2", elegible_census: "invalid", total_votes: Infinity},
-        {election_id: 1, area_id: 2, elegible_census: 0, total_votes: null},
-    ]} as unknown as ResultsSqliteDataset
-    expect(buildAreaElectionSummaries(dataset)[0]).toMatchObject({elegible_census: 0, total_voters: 0, total_voters_percent: 0})
+    const dataset = {
+        results_election_area: [{election_id: 1, area_id: 2}],
+        results_area_contest: [
+            {election_id: "1", area_id: "2", elegible_census: "invalid", total_votes: Infinity},
+            {election_id: 1, area_id: 2, elegible_census: 0, total_votes: null},
+        ],
+    } as unknown as ResultsSqliteDataset
+    expect(buildAreaElectionSummaries(dataset)[0]).toMatchObject({
+        elegible_census: 0,
+        total_voters: 0,
+        total_voters_percent: 0,
+    })
 })
 it("combines event and selected-election CSS while preserving meaningful whitespace", () => {
-    const manifest = {custom_css: {election_event: "  .event {}  ", elections: {e: ".election {}", blank: " \n "}}} as ResultsManifest
+    const manifest = {
+        custom_css: {
+            election_event: "  .event {}  ",
+            elections: {e: ".election {}", blank: " \n "},
+        },
+    } as unknown as ResultsManifest
     expect(manifestCustomCss(manifest, "e")).toBe("  .event {}  \n.election {}")
     expect(manifestCustomCss(manifest, "blank")).toBe("  .event {}  ")
     expect(manifestCustomCss(manifest, "other")).toBe("  .event {}  ")
