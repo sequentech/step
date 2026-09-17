@@ -20,6 +20,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
+          # https://github.com/adoptium/temurin17-binaries/releases/tag/jdk-17.0.20.1%2B1
           java-version: '17.0.20.1+1'
       - name: Install Maven 3.9.9
         run: |
