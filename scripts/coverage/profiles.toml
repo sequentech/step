@@ -353,3 +353,22 @@ RAYON_NUM_THREADS = "2"
 "src/random/mod.rs" = "Module declarations only."
 "src/signatures/mod.rs" = "Module declarations only."
 "src/symmetric/mod.rs" = "Module declarations only."
+
+[profiles.b4]
+package = "b4"
+features = ["native"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Native HTTP server, protocol messages and owned Unix-socket PostgreSQL fixtures; no production database or cloud credentials.",
+    "Client-feature tests run separately: the original client test target lacks its serial_test dependency, so it has no buildable comparable baseline.",
+    "The monitor feature currently fails to build: monitor.rs imports undeclared sqlx and still queries the retired SQLite schema. It needs a separate compatibility decision, not a coverage exclusion from an enabled target.",
+    "WASM and actual Rust branches are separate scopes. Inline tests and generated serialization remain counted.",
+]
+[profiles.b4.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.b4.scope_exceptions]
+"src/messages/mod.rs" = "Module declarations only."
+"src/client/mod.rs" = "Module declarations for the separately tested client feature."
+"src/client/pgsql.rs" = "Client feature is separately tested, including owned database fixtures; the original feature test target cannot build without its missing serial_test dependency."
+"src/monitor.rs" = "Separate monitor binary is currently unbuildable: undeclared sqlx dependency and legacy SQLite queries. The native server profile does not compile this binary."
