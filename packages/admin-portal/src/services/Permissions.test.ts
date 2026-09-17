@@ -5,7 +5,10 @@ import {IPermissions} from "@/types/keycloak"
 import type {GraphQLRequest} from "@apollo/client"
 
 // Keep the real shared predicate without loading the browser component barrel.
-jest.mock("@sequentech/ui-core", () => require("../../../ui-core/src/utils/typechecks"))
+jest.mock("@sequentech/ui-core", () => ({
+    ...jest.requireActual("@sequentech/ui-core"),
+    ...jest.requireActual("../../../ui-core/src/utils/typechecks"),
+}))
 const operation = (operationName?: string) => ({operationName}) as GraphQLRequest
 
 it.each([
