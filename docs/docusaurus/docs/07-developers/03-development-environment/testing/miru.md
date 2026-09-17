@@ -22,8 +22,8 @@ cargo clippy --locked -p miru --lib
 
 The release build is intentional: this pinned toolchain's debug component link
 can crash while emitting Sequent Core's auxiliary cdylib. The release artifact is
-executed directly through Wasmtime; no generated bindings or production imports
-are replaced. The host supplies synthetic authorization responses and checks the
+executed directly through Wasmtime with unchanged plugin code and generated
+bindings. The authorization import is supplied by a synthetic host, which checks the
 literal claims, tenant, super-admin flag and permission list. Success, denial,
 malformed JSON, missing/wrongly typed claims and the manifest route are exercised.
 
