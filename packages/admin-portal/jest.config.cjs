@@ -8,7 +8,7 @@ module.exports = {
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     testEnvironment: "node",
-    testMatch: ["<rootDir>/src/**/*.test.ts"],
+    testMatch: ["<rootDir>/src/**/*.test.{ts,tsx}"],
     moduleNameMapper: {
         "^@/(.*)$": "<rootDir>/src/$1",
         "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/types/VotingChannel.ts",
