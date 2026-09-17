@@ -41,6 +41,7 @@ fn message(id: i64, batch: u64, mix: usize) -> HttpB3Message {
         &signer,
     )
     .unwrap();
+    // Deliberately inconsistent envelope fields: signed bytes are authoritative.
     HttpB3Message {
         id,
         message: signed.strand_serialize().unwrap(),
