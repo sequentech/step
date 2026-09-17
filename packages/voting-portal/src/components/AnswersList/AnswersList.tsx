@@ -170,16 +170,16 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     }
 
     const categoryCandidatesMap = keyBy(category.candidates, "id")
-    let listPresentation = contest.presentation?.types_presentation?.[title] ?? {
-        name: title,
-    }
-    listPresentation.name = title
-    let subtypesPresentation = Object.entries(listPresentation.subtypes_presentation ?? {}).map(
-        ([key, value]) => {
-            value.name = key
-            value.sort_order = value.sort_order ?? 0
-            return value
-        }
+    const presentations = contest.presentation?.types_presentation
+    const configuredPresentation =
+        presentations && Object.prototype.hasOwnProperty.call(presentations, title)
+            ? presentations[title]
+            : undefined
+    // Rendering must neither read inherited category definitions nor mutate
+    // configuration shared by other contests or Redux consumers.
+    const listPresentation = {...configuredPresentation, name: title}
+    const subtypesPresentation = Object.entries(listPresentation.subtypes_presentation ?? {}).map(
+        ([name, value]) => ({...value, name, sort_order: value.sort_order ?? 0})
     )
 
     let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
