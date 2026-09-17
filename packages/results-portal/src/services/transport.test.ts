@@ -107,22 +107,17 @@ describe("artifact access", () => {
         expect(fetch).not.toHaveBeenCalled()
     })
     it("requests the selected publication and election with the supplied token", async () => {
-        const fetch = jest
-            .spyOn(globalThis, "fetch")
-            .mockResolvedValue(
-                new Response(
-                    JSON.stringify({
-                        data: {
-                            fetchResultsArtifact: {
-                                urls: [
-                                    "https://signed.invalid/first",
-                                    "https://signed.invalid/second",
-                                ],
-                            },
+        const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValue(
+            new Response(
+                JSON.stringify({
+                    data: {
+                        fetchResultsArtifact: {
+                            urls: ["https://signed.invalid/first", "https://signed.invalid/second"],
                         },
-                    })
-                )
+                    },
+                })
             )
+        )
         await expect(
             resolveSqliteArtifactUrl(settings, manifest(), "synthetic-token", "election")
         ).resolves.toBe("https://signed.invalid/first")
