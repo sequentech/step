@@ -798,6 +798,10 @@ const basqueTranslation: TranslationType = {
                 statusLabel: "Egoera",
                 waitingKeys: "Giltzen Sorkuntza itxoiten..",
                 started: "Hasita:",
+                actions: {
+                    participate: "Parte hartu giltzen zeremonian",
+                    view: "Ikusi giltzen zeremonia",
+                },
                 breadCrumbs: {
                     configure: "Konfiguratu",
                     ceremony: "Zeremonia",
