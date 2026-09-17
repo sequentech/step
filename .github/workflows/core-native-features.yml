@@ -139,8 +139,8 @@ jobs:
         uses: ./.github/actions/setup-test-browser
       - name: Install matching WASM runner and ChromeDriver
         run: |
-          curl --fail --location --silent --show-error --output /tmp/wasm-bindgen.tar.gz https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.104/wasm-bindgen-0.2.104-x86_64-unknown-linux-musl.tar.gz
-          echo '9553740907c2c1008f9a44bb00ed1f5b39ffc55d9d331581b5aebc891a4b772f  /tmp/wasm-bindgen.tar.gz' | sha256sum --check
+          curl --fail --location --silent --show-error --output /tmp/wasm-bindgen.tar.gz https://github.com/wasm-bindgen/wasm-bindgen/releases/download/0.2.128/wasm-bindgen-0.2.128-x86_64-unknown-linux-musl.tar.gz
+          echo 'b51f0208fdff83515a787bd8ab9ac5865ed84dabb66d0c709957bb59793c645f  /tmp/wasm-bindgen.tar.gz' | sha256sum --check
           mkdir -p "$RUNNER_TEMP/wasm-tools"
           tar -xzf /tmp/wasm-bindgen.tar.gz --strip-components=1 -C "$RUNNER_TEMP/wasm-tools"
           echo "$RUNNER_TEMP/wasm-tools" >> "$GITHUB_PATH"
