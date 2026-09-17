@@ -27,6 +27,5 @@ country filtering with bound parameters, and invokes Rocket's local client.
 Malformed database rows must remain errors, not disappear into an empty result.
 
 The JavaScript scenario scripts, deployed browser sessions and remote identity
-services require separate environments. No source percentage is published for
-these test-free baseline packages; a passing local suite is not a measured
+services require separate environments. These packages have no instrumented source coverage profile; a passing local suite is not a measured
 coverage comparison or proof of remote scenario success.
