@@ -70,13 +70,14 @@ export const DownloadStep: React.FC<DownloadStepProps> = ({
         {id: currentCeremony.id},
         {refetchInterval: globalSettings.QUERY_FAST_POLL_INTERVAL_MS}
     )
-    const isDownloadUnavailable =
-        downloadUnavailable ||
-        (latestCeremony?.execution_status ?? currentCeremony.execution_status) !==
-            EStatus.IN_PROGRESS
     const trusteeStatus = (latestCeremony?.status ?? currentCeremony.status)?.trustees?.find(
         (trustee: {name: string}) => trustee.name === authContext.trustee
     )?.status
+    const isDownloadUnavailable =
+        downloadUnavailable ||
+        trusteeStatus === TStatus.KEY_CHECKED ||
+        (latestCeremony?.execution_status ?? currentCeremony.execution_status) !==
+            EStatus.IN_PROGRESS
     const downloadUnavailableMessage =
         trusteeStatus === TStatus.KEY_CHECKED
             ? "keysGeneration.downloadStep.alreadyVerified"
