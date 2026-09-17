@@ -52,7 +52,7 @@ interface TrusteeWizardProps {
     goBack: () => void
 }
 
-enum WizardStep {
+export enum WizardStep {
     Not_Generated = -1,
     Start = 0,
     Download = 1,
