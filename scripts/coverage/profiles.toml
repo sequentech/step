@@ -383,6 +383,7 @@ limitations = [
     "Inline tests and generated protocol logic remain counted; no source exclusions."
 ]
 [profiles.braid.test_environment]
+CARGO_PROFILE_TEST_OPT_LEVEL = "2"
 RUST_TEST_THREADS = "2"
 RAYON_NUM_THREADS = "2"
 [profiles.braid.scope_exceptions]
