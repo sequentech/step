@@ -11,7 +11,7 @@ use b3::{
 use std::{fs, marker::PhantomData};
 use strand::{
     backend::ristretto::RistrettoCtx,
-    serialization::StrandSerialize,
+    serialization::{StrandDeserialize, StrandSerialize},
     signature::{StrandSignaturePk, StrandSignatureSk},
 };
 fn message(id: i64, batch: usize, mix: usize) -> GrpcB3Message {
@@ -27,7 +27,7 @@ fn message(id: i64, batch: usize, mix: usize) -> GrpcB3Message {
     let signed = Message::mix_signed_msg(
         &cfg,
         batch,
-        CiphertextsHash([1; 64]),
+        CiphertextsHash([id as u8; 64]),
         CiphertextsHash([2; 64]),
         mix,
         &signer,
@@ -158,7 +158,91 @@ fn blob_reads_preserve_bytes_and_return_errors_for_corrupt_or_missing_files() {
     let blob = fs::read_dir(blobs).unwrap().next().unwrap().unwrap().path();
     assert_eq!(fs::read(&blob).unwrap(), original.message);
     fs::write(&blob, [0]).unwrap();
-    assert!(board.store_and_return_messages(&vec![], -1, false).is_err());
+    let corrupt = board
+        .store_and_return_messages(&vec![], -1, false)
+        .unwrap_err();
+    assert!(matches!(
+        corrupt.downcast_ref::<strand::util::StrandError>(),
+        Some(strand::util::StrandError::SerializationError(_))
+    ));
     fs::remove_file(blob).unwrap();
-    assert!(board.store_and_return_messages(&vec![], -1, false).is_err());
+    let missing = board
+        .store_and_return_messages(&vec![], -1, false)
+        .unwrap_err();
+    assert_eq!(
+        missing.downcast_ref::<std::io::Error>().unwrap().kind(),
+        std::io::ErrorKind::NotFound
+    );
+}
+
+#[test]
+fn artifact_lookup_propagates_corrupt_and_missing_blob_errors() {
+    let dir = tempfile::tempdir().unwrap();
+    let blobs = dir.path().join("blobs");
+    let board =
+        LocalBoard::<RistrettoCtx>::new(Some(dir.path().join("board.sqlite")), Some(blobs.clone()));
+    let mut original = message(9, 3, 2);
+    // This storage accessor preserves opaque artifact bytes; signature verification
+    // belongs to the trustee, not this persistence method.
+    let mut decoded = Message::strand_deserialize(&original.message).unwrap();
+    decoded.artifact = Some(vec![1, 2, 3]);
+    original.message = decoded.strand_serialize().unwrap();
+    board.update_store(&vec![original], false).unwrap();
+    assert_eq!(board.get_artifact_from_store(1).unwrap(), [1, 2, 3]);
+    let path = fs::read_dir(&blobs)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    fs::write(&path, [0]).unwrap();
+    let corrupt = board.get_artifact_from_store(1).unwrap_err();
+    assert!(matches!(
+        corrupt.downcast_ref::<strand::util::StrandError>(),
+        Some(strand::util::StrandError::SerializationError(_))
+    ));
+    fs::remove_file(path).unwrap();
+    let missing = board.get_artifact_from_store(1).unwrap_err();
+    assert_eq!(
+        missing.downcast_ref::<std::io::Error>().unwrap().kind(),
+        std::io::ErrorKind::NotFound
+    );
+}
+
+#[test]
+fn failed_blob_batches_remove_new_files_and_retry_uses_fresh_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let blobs = dir.path().join("blobs");
+    let mut store =
+        LocalBoard::<RistrettoCtx>::new(Some(dir.path().join("board.sqlite")), Some(blobs.clone()));
+    store.update_store(&vec![message(10, 1, 1)], false).unwrap();
+    let mut malformed = message(40, 4, 1);
+    malformed.version = "unknown".into();
+    for bad in [malformed, message(10, 4, 1)] {
+        assert!(store
+            .update_store(&vec![message(30, 3, 1), bad], false)
+            .is_err());
+        assert_eq!(
+            store
+                .store_and_return_messages(&vec![], -1, false)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            fs::read_dir(&blobs).unwrap().count(),
+            1,
+            "failed batch left unreferenced blobs"
+        );
+    }
+    let retry = message(31, 3, 1);
+    store.update_store(&vec![retry.clone()], false).unwrap();
+    assert_eq!(
+        store.store_and_return_messages(&vec![], -1, false).unwrap()[1]
+            .0
+            .strand_serialize()
+            .unwrap(),
+        retry.message
+    );
+    assert_eq!(fs::read_dir(&blobs).unwrap().count(), 2);
 }

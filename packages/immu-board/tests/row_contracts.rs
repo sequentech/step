@@ -67,6 +67,9 @@ fn complete_rows_map_distinct_fields_and_allow_optional_voter_identity() {
     let mapped = ElectoralLogMessage::try_from(&source).unwrap();
     assert!(mapped.user_id.is_none());
     assert!(mapped.username.is_none());
+    source.values[7].value = Some(Value::Null(0));
+    source.values[8].value = Some(Value::Null(0));
+    assert_eq!(ElectoralLogMessage::try_from(&source).unwrap(), mapped);
     source.columns.reverse();
     source.values.reverse();
     assert_eq!(ElectoralLogMessage::try_from(&source).unwrap(), mapped);
@@ -123,6 +126,17 @@ fn malformed_column_names_return_errors_without_panicking() {
 #[test]
 fn truncated_missing_and_duplicate_columns_cannot_become_default_fields() {
     assert!(ElectoralLogMessage::try_from(&row()).is_ok());
+    // Keep every required column present: only an extra value is malformed.
+    let mut extra_value = row();
+    extra_value.values.push(SqlValue {
+        value: Some(Value::N(99)),
+    });
+    assert_eq!(
+        ElectoralLogMessage::try_from(&extra_value)
+            .unwrap_err()
+            .to_string(),
+        "Mismatched column and value counts"
+    );
     let mut missing_value = row();
     missing_value.values.pop();
     assert!(ElectoralLogMessage::try_from(&missing_value).is_err());

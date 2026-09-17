@@ -100,3 +100,14 @@ fn modified_signatures_are_rejected_without_adding_statements() {
     assert_eq!(trustee.update_local_board(vec![(ack, 2)]).unwrap(), (1, 2));
     assert_eq!(trustee.local_board.get_statement_entries().len(), 1);
 }
+
+#[test]
+fn bootstrap_cursor_keeps_the_highest_id_when_remaining_messages_are_older() {
+    let (mut trustee, bootstrap, ack) = fixture();
+    assert_eq!(
+        trustee
+            .update_local_board(vec![(bootstrap, 10), (ack, 2)])
+            .unwrap(),
+        (2, 10)
+    );
+}
