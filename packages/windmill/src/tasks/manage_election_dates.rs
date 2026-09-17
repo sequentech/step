@@ -6,6 +6,7 @@ use crate::postgres::election::get_election_by_id;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::scheduled_event::*;
 use crate::services::database::get_hasura_pool;
+use crate::services::election_event_status::scheduled_transition_applies;
 use crate::services::pg_lock::PgLock;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::services::voting_status::{self};
@@ -97,8 +98,7 @@ async fn manage_election_date_wrapper(
         .enabled_channels(&configured)
         .into_iter()
         .filter(|channel| {
-            status != VotingStatus::CLOSED
-                || election_status.status_by_channel(*channel) != VotingStatus::NOT_STARTED
+            scheduled_transition_applies(&election_status.status_by_channel(*channel), &status)
         })
         .collect();
 
