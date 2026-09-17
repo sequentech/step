@@ -73,8 +73,26 @@ if __name__ == "__main__":
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
         ScheduledChannelTests.database = database
         result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(ScheduledChannelTests))
+        explicit = Election()
+        explicit.create(database.connection)
+        explicit_schedule = explicit.schedule(database.connection, "END", "2027-01-01T12:00:00Z")
+        database.connection.execute(
+            "UPDATE sequent_backend.scheduled_event SET event_payload = %s WHERE id = %s",
+            (Jsonb({"election_id": str(explicit.election), "voting_channels": ["KIOSK", "EARLY_VOTING"]}), explicit_schedule),
+        )
         database.apply(CHANNELS_MIGRATION, "down")
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
+        # Rolled-back schedules return to the legacy payload, so the restored
+        # constraint still accepts the updates Windmill makes when they run.
+        assert database.connection.execute(
+            "SELECT event_payload FROM sequent_backend.scheduled_event WHERE id = %s", (explicit_schedule,),
+        ).fetchone()[0] == {"election_id": str(explicit.election)}
+        database.connection.execute(
+            "UPDATE sequent_backend.scheduled_event SET stopped_at = now() WHERE id = %s", (explicit_schedule,),
+        )
+        assert database.connection.execute(
+            "SELECT convalidated FROM pg_constraint WHERE conname = 'scheduled_event_voting_period_valid'"
+        ).fetchone()[0]
         database.apply(CHANNELS_MIGRATION)
         if not result.wasSuccessful():
             raise SystemExit(1)

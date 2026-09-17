@@ -3,6 +3,12 @@
 
 ALTER TABLE sequent_backend.scheduled_event DROP CONSTRAINT scheduled_event_voting_period_valid;
 
+-- Without the channel field, rolled-back schedules fall back to the legacy
+-- ONLINE + KIOSK behavior and satisfy the previous payload check again.
+UPDATE sequent_backend.scheduled_event
+SET event_payload = event_payload - 'voting_channels'
+WHERE event_payload ? 'voting_channels';
+
 ALTER TABLE sequent_backend.scheduled_event
 ADD CONSTRAINT scheduled_event_voting_period_valid CHECK (
     CASE WHEN archived_at IS NULL AND task_id ~ '^tenant_[0-9a-f-]{36}_event_[0-9a-f-]{36}_election_[0-9a-f-]{36}_(START|END)_VOTING_PERIOD$' THEN
@@ -26,4 +32,4 @@ ADD CONSTRAINT scheduled_event_voting_period_valid CHECK (
             )), false
         )
     ELSE true END
-) NOT VALID;
+);
