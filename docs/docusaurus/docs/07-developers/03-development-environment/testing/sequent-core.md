@@ -135,7 +135,7 @@ browser boundary.
 ## Browser tests
 
 Install the `wasm32-unknown-unknown` target for the pinned Rust toolchain, Clang,
-`wasm-bindgen-test-runner` 0.2.104 and a ChromeDriver matching your Chrome version.
+`wasm-bindgen-test-runner` 0.2.128 and a ChromeDriver matching your Chrome version.
 The pinned downloads and checksums are in `core-native-features.yml`. Put both
 executables on `PATH` and set the runner:
 
