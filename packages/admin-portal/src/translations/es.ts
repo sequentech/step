@@ -2049,8 +2049,12 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
                 downloadButton: "Descargar tu Clave Privada Encriptada",
-                errorDownloading: "Error de descarga: {{error}}",
+                downloaded: "Clave Privada Encriptada descargada correctamente.",
                 errorEmptyKey: "Error de descarga, fichero vacío",
+                unexpectedError: "No se pudo descargar la clave privada. Inténtalo de nuevo.",
+                alreadyVerified: "Tu clave privada ya se había descargado y verificado.",
+                unavailable:
+                    "La descarga de la clave privada ya no está disponible porque la ceremonia ha avanzado.",
                 confirmdDialog: {
                     ok: "Confirmar copias de seguridad y Continuar",
                     cancel: "Volver",
@@ -2071,7 +2075,6 @@ const spanishTranslation: TranslationType = {
                     "Copa de Seguridad de la Clave Encriptada Privada inválida, por favor inténtalo de nuevo",
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
-                downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
         miruExport: {
