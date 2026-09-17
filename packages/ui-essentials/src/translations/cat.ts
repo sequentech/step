@@ -116,6 +116,7 @@ const catalanTranslation: TranslationType = {
             openDialog: "Obrir Diàleg",
         },
         dragNDrop: {
+            importError: "No s’ha pogut importar aquest fitxer. Torneu-ho a provar.",
             firstLine: "Arrossega i deixa anar fitxers o",
             browse: "Carrega fitxer",
             format: "Formats suportats: txt",
