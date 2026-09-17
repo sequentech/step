@@ -23,6 +23,8 @@ use std::collections::HashMap;
 use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
+/// Datafix annotations must never be published.
+pub const DATAFIX_ANNOTATIONS_PREFIX: &str = "datafix:";
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
@@ -47,6 +49,13 @@ pub const DATAFIX_VOTER_LOCK_SECS: i64 = 300;
 #[instrument]
 pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id: &Uuid) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
+}
+
+/// Strips Datafix annotations so they are not published in ballot styles.
+pub fn remove_datafix_annotations(annotations: &mut Option<serde_json::Value>) {
+    if let Some(serde_json::Value::Object(map)) = annotations {
+        map.retain(|key, _| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX));
+    }
 }
 
 /// Returns true if the voter has voted via Sequent´s system -
@@ -465,6 +474,37 @@ mod tests {
             DATAFIX_PSW_POLICY_KEY: r#"{"base":"password-only","size":6,"characters":"numeric"}"#,
             DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret","county_mun":"county"}"#,
         })
+    }
+
+    #[test]
+    fn remove_datafix_annotations_keeps_only_non_datafix_keys() {
+        let mut annotations = Some(json!({
+            DATAFIX_ID_KEY: "event",
+            DATAFIX_VOTERVIEW_REQ_KEY: "secret",
+            DATAFIX_LAST_APPLIED_SEQUENCE_KEY: "3",
+            "miru:election-event-id": "miru-event",
+        }));
+
+        remove_datafix_annotations(&mut annotations);
+
+        assert_eq!(
+            annotations,
+            Some(json!({ "miru:election-event-id": "miru-event" }))
+        );
+    }
+
+    #[test]
+    fn remove_datafix_annotations_handles_missing_annotations() {
+        let mut annotations = None;
+        remove_datafix_annotations(&mut annotations);
+        assert_eq!(annotations, None);
+    }
+
+    #[test]
+    fn remove_datafix_annotations_leaves_non_object_values_untouched() {
+        let mut annotations = Some(json!(["datafix:id"]));
+        remove_datafix_annotations(&mut annotations);
+        assert_eq!(annotations, Some(json!(["datafix:id"])));
     }
 
     #[test]
