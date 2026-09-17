@@ -31,7 +31,10 @@ class CliContractTest {
             assertTrue(child.waitFor(20, TimeUnit.SECONDS), "CLI timed out");
             return new Result(child.exitValue(), new String(Files.readAllBytes(output), StandardCharsets.UTF_8).trim());
         } finally {
-            if (child.isAlive()) child.destroyForcibly().waitFor();
+            if (child.isAlive()) {
+                child.destroyForcibly();
+                assertTrue(child.waitFor(5, TimeUnit.SECONDS), "CLI did not terminate after forceful cleanup");
+            }
         }
     }
     private static class Result {

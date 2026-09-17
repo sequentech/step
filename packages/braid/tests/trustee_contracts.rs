@@ -88,8 +88,7 @@ fn modified_signatures_are_rejected_without_adding_statements() {
     trustee.update_local_board(vec![(bootstrap, 1)]).unwrap();
     let mut bad = ack.try_clone().unwrap();
     // A valid signature on another statement must not authenticate this acknowledgement.
-    let (_, other, _) = fixture();
-    bad.signature = other.signature;
+    bad.signature = key(2).sign(b"different statement bytes").unwrap();
     assert!(matches!(
         trustee.update_local_board(vec![(bad, 2)]),
         Err(ProtocolError::VerificationError(_))
