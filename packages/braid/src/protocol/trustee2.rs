@@ -398,7 +398,7 @@ impl<C: Ctx> Trustee<C> {
         if !messages.is_empty() {
             return self
                 .update(messages, configuration)
-                .map(|(remaining, last)| (added + remaining, last));
+                .map(|(remaining, last)| (added + remaining, last.max(last_id)));
         }
 
         Ok((added, last_added_id))

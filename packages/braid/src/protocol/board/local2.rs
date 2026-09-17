@@ -634,7 +634,20 @@ impl<C: Ctx> LocalBoard<C> {
             )?
         };
 
-        connection.execute("BEGIN TRANSACTION", [])?;
+        // Keep the writer lock until new blobs and their metadata commit together.
+        // On an ordinary error, delete only files created by this batch.
+        struct PendingBlobs(Vec<PathBuf>);
+        impl Drop for PendingBlobs {
+            fn drop(&mut self) {
+                for path in &self.0 {
+                    if let Err(error) = fs::remove_file(path) {
+                        tracing::error!("could not remove rolled-back blob {:?}: {}", path, error);
+                    }
+                }
+            }
+        }
+        connection.execute("BEGIN IMMEDIATE TRANSACTION", [])?;
+        let mut pending_blobs = PendingBlobs(Vec::new());
         for m in messages {
             if m.version != b3::get_schema_version() {
                 return Err(anyhow::anyhow!(
@@ -657,7 +670,8 @@ impl<C: Ctx> LocalBoard<C> {
                 let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
                 if !path.exists() {
-                    let mut file = File::create(&path)?;
+                    let mut file = File::options().write(true).create_new(true).open(&path)?;
+                    pending_blobs.0.push(path.clone());
                     file.write_all(&m.message)?;
                     tracing::info!(
                         "update_store: wrote {} bytes to {:?}",
@@ -671,6 +685,7 @@ impl<C: Ctx> LocalBoard<C> {
             }
         }
         connection.execute("END TRANSACTION", [])?;
+        pending_blobs.0.clear();
 
         drop(statement);
 
@@ -787,7 +802,6 @@ impl<C: Ctx> LocalBoard<C> {
                 let mix_number: i32 = row.get(5)?;
                 let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
-                assert!(path.exists());
                 let mut file = File::open(&path)?;
                 let mut buffer = vec![];
 
