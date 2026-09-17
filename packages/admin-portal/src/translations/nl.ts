@@ -2053,8 +2053,12 @@ const dutchTranslation: TranslationType = {
                 subtitle:
                     "Om door te gaan, download en bewaar uw Versleutelde Privésleutel op minstens twee verschillende apparaten:",
                 downloadButton: "Download uw Versleutelde Privésleutel",
-                errorDownloading: "Downloadfout: {{error}}",
+                downloaded: "Versleutelde privésleutel succesvol gedownload.",
                 errorEmptyKey: "Downloadfout, leeg bestand",
+                unexpectedError: "De privésleutel kon niet worden gedownload. Probeer het opnieuw.",
+                alreadyVerified: "Uw privésleutel was al gedownload en geverifieerd.",
+                unavailable:
+                    "De privésleutel kan niet meer worden gedownload omdat de ceremonie is gevorderd.",
                 confirmdDialog: {
                     ok: "Back-ups Bevestigen en Doorgaan",
                     cancel: "Terug",
@@ -2075,7 +2079,6 @@ const dutchTranslation: TranslationType = {
                 errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
                 errorEmptyFile: "Bestand leeg of niet gevonden",
                 verified: "Back-up succesvol geverifieerd.",
-                downloaded: "Versleutelde Privésleutel succesvol gegenereerd.",
             },
         },
         miruExport: {
