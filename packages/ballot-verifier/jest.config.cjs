@@ -22,6 +22,7 @@ module.exports = {
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     testEnvironment: "node",
+    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     transform: {
         "^.+\\.[jt]sx?$": [
             "babel-jest",
