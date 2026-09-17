@@ -12,8 +12,8 @@ provides its own `TESTING.md` and model-checking suites.
 From `packages/`, with the repository's pinned Rust toolchain:
 
 ```sh
-CARGO_PROFILE_TEST_OPT_LEVEL=2 RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test --locked -p braid --tests
-cargo test --locked -p braid --test storage_contracts --test trustee_contracts --test util_contracts
+RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test --release --locked -p braid --tests
+cargo test --release --locked -p braid --test storage_contracts --test trustee_contracts --test util_contracts
 ```
 
 The persistence tests own temporary SQLite databases and blob directories. They
