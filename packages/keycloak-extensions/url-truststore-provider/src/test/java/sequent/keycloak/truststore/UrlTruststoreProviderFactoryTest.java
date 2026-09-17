@@ -22,6 +22,21 @@ import org.keycloak.truststore.TruststoreProvider;
 
 class UrlTruststoreProviderFactoryTest {
 
+  @Test
+  void invalidHostnamePolicyPreservesItsCause() {
+    Config.Scope config = mock(Config.Scope.class);
+    when(config.get("hostname-verification-policy", "DEFAULT")).thenReturn("invalid-policy");
+    UrlTruststoreProviderFactory factory = new UrlTruststoreProviderFactory();
+
+    // An operator needs both the rejected setting and the original enum parsing
+    // failure. Replacing it with a generic, cause-free exception loses context.
+    IllegalArgumentException error =
+        assertThrows(IllegalArgumentException.class, () -> factory.init(config));
+
+    assertTrue(error.getMessage().contains("invalid-policy"));
+    assertInstanceOf(IllegalArgumentException.class, error.getCause());
+  }
+
   private static String certUrl(String filename) {
     URL resource =
         UrlTruststoreProviderFactoryTest.class.getClassLoader().getResource("certs/" + filename);

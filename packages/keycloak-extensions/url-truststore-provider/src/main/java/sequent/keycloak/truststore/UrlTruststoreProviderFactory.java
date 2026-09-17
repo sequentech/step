@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLConnection;
+import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -73,12 +74,25 @@ import org.keycloak.truststore.TruststoreProviderFactory;
 @AutoService(TruststoreProviderFactory.class)
 public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
 
+  /** Provider lifecycle and certificate-loading diagnostics. */
   private static final Logger log = Logger.getLogger(UrlTruststoreProviderFactory.class);
+
+  /** Keycloak SPI identifier selected by the deployment configuration. */
   private static final String PROVIDER_ID = "url";
+
+  /** Optional global PEM bundle location. */
   private static final String CFG_URL = "url";
+
+  /** Refresh interval in seconds; zero disables scheduled refreshes. */
   private static final String CFG_REFRESH_INTERVAL = "refresh-interval-seconds";
+
+  /** Keycloak hostname-verification policy setting. */
   private static final String CFG_HOSTNAME_VERIFICATION_POLICY = "hostname-verification-policy";
+
+  /** Administrative realm, which always uses the global truststore. */
   private static final String MASTER_REALM_NAME = "master";
+
+  /** Separator preceding the election event identifier in a realm name. */
   private static final String EVENT_REALM_INFIX = "-event-";
 
   /**
@@ -88,10 +102,10 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
    */
   static final String ENV_HARVEST_DOMAIN = "HARVEST_DOMAIN";
 
-  // package-private for testing — overridden in unit tests to avoid reading real env vars
+  /** Supplies the service domain; tests substitute a value without reading deployment secrets. */
   Supplier<String> harvestDomainSupplier = () -> System.getenv(ENV_HARVEST_DOMAIN);
 
-  // package-private for testing — overridden to redirect URL construction to local test resources
+  /** Builds realm URLs; tests redirect certificate requests to local synthetic resources. */
   BiFunction<String, String, String> realmUrlBuilder =
       (domain, electionEventId) ->
           "http://"
@@ -100,14 +114,35 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
               + electionEventId
               + "/certificate-authorities/pem";
 
+  /** Cached URL and provider; a null provider records an absent realm CA bundle. */
   private record RealmTruststoreEntry(String url, UrlTruststoreProvider provider) {}
 
+  /** Global fallback, published atomically when a refresh succeeds. */
   private volatile UrlTruststoreProvider provider;
+
+  /** Per-realm entries; compute serializes initial loads for the same realm. */
   private final ConcurrentHashMap<String, RealmTruststoreEntry> realmCache =
       new ConcurrentHashMap<>();
+
+  /** Optional refresh worker, stopped when Keycloak closes this factory. */
   private ScheduledExecutorService scheduler;
+
+  /** Configured global bundle URL, or null when using JVM trust roots. */
   private String certUrl;
+
+  /** Validated hostname policy shared by global and realm providers. */
   private HostnameVerificationPolicy policy;
+
+  /**
+   * An expected I/O, certificate or keystore failure. Keeping this distinct from programming
+   * exceptions makes the fallback boundary explicit.
+   */
+  private static final class TruststoreLoadException extends RuntimeException {
+    /** Retains the original cause, including FileNotFoundException for absent realm bundles. */
+    private TruststoreLoadException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
 
   @Override
   public void init(Config.Scope config) {
@@ -118,12 +153,13 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     try {
       policy = HostnameVerificationPolicy.valueOf(policyValue);
     } catch (IllegalArgumentException e) {
-      throw new RuntimeException(
+      throw new IllegalArgumentException(
           "Invalid value for '"
               + CFG_HOSTNAME_VERIFICATION_POLICY
               + "': "
               + policyValue
-              + " (must be DEFAULT, ANY, or WILDCARD)");
+              + " (must be DEFAULT, ANY, or WILDCARD)",
+          e);
     }
 
     if (certUrl != null && !certUrl.isBlank()) {
@@ -217,7 +253,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
           UrlTruststoreProvider fresh;
           try {
             fresh = fetchAndBuild(realmUrl, policy);
-          } catch (RuntimeException e) {
+          } catch (TruststoreLoadException e) {
             if (e.getCause() instanceof FileNotFoundException) {
               // 404: no CA certificate exists for this realm. Cache a sentinel to avoid
               // hammering harvest on every request. The refresh cycle will retry periodically.
@@ -262,12 +298,13 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     return PROVIDER_ID;
   }
 
+  /** Retries known loading failures without discarding the last usable provider. */
   private void refresh() {
     if (certUrl != null && !certUrl.isBlank()) {
       try {
         provider = fetchAndBuild(certUrl, policy);
         log.infof("URL TruststoreProvider refreshed from: %s", certUrl);
-      } catch (Exception e) {
+      } catch (TruststoreLoadException e) {
         log.errorf(e, "Failed to refresh URL TruststoreProvider from: %s", certUrl);
       }
     }
@@ -282,7 +319,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         } else {
           log.infof("Realm truststore refreshed for realm %s from: %s", realmId, current.url());
         }
-      } catch (RuntimeException e) {
+      } catch (TruststoreLoadException e) {
         if (e.getCause() instanceof FileNotFoundException) {
           // Still absent — keep sentinel and wait for next refresh cycle.
           log.debugf(
@@ -300,6 +337,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     }
   }
 
+  /** Copies the JVM trust roots into the provider's in-memory store. */
   static UrlTruststoreProvider buildFromJvmTruststore(HostnameVerificationPolicy policy) {
     try {
       TrustManagerFactory tmf =
@@ -327,11 +365,12 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
           policy,
           Collections.unmodifiableMap(rootCerts),
           Collections.unmodifiableMap(intermediateCerts));
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to load JVM default truststore", e);
+    } catch (GeneralSecurityException | IOException e) {
+      throw new TruststoreLoadException("Failed to load JVM default truststore", e);
     }
   }
 
+  /** Loads and classifies a PEM bundle, preserving the cause of any loading failure. */
   static UrlTruststoreProvider fetchAndBuild(String url, HostnameVerificationPolicy policy) {
     Collection<? extends Certificate> certs = fetchCertificates(url);
 
@@ -339,8 +378,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     try {
       keyStore = KeyStore.getInstance("PKCS12");
       keyStore.load(null, null);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to create in-memory KeyStore", e);
+    } catch (GeneralSecurityException | IOException e) {
+      throw new TruststoreLoadException("Failed to create in-memory KeyStore", e);
     }
 
     int index = 0;
@@ -348,7 +387,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
       try {
         keyStore.setCertificateEntry("cert-" + index++, cert);
       } catch (KeyStoreException e) {
-        throw new RuntimeException("Failed to add certificate to KeyStore", e);
+        throw new TruststoreLoadException("Failed to add certificate to KeyStore", e);
       }
     }
 
@@ -363,9 +402,13 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         Collections.unmodifiableMap(intermediateCerts));
   }
 
+  /** Bound on connection establishment so a missing CA service cannot stall login. */
   private static final int FETCH_CONNECT_TIMEOUT_MS = 5_000;
+
+  /** Bound on reading a certificate bundle after connection establishment. */
   private static final int FETCH_READ_TIMEOUT_MS = 10_000;
 
+  /** Reads a bounded connection and always closes its input stream. */
   private static Collection<? extends Certificate> fetchCertificates(String url) {
     URLConnection connection;
     try {
@@ -373,8 +416,8 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
       connection.setConnectTimeout(FETCH_CONNECT_TIMEOUT_MS);
       connection.setReadTimeout(FETCH_READ_TIMEOUT_MS);
       connection.connect();
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to connect to certificate URL: " + url, e);
+    } catch (IOException | IllegalArgumentException e) {
+      throw new TruststoreLoadException("Failed to connect to certificate URL: " + url, e);
     }
     try (InputStream stream = connection.getInputStream()) {
       CertificateFactory cf = CertificateFactory.getInstance("X.509");
@@ -386,7 +429,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
       log.debugf("Fetched %d certificate(s) from: %s", certs.size(), url);
       return certs;
     } catch (IOException | CertificateException e) {
-      throw new RuntimeException("Failed to fetch certificates from URL: " + url, e);
+      throw new TruststoreLoadException("Failed to fetch certificates from URL: " + url, e);
     } finally {
       if (connection instanceof HttpURLConnection http) {
         http.disconnect();
@@ -394,6 +437,7 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
     }
   }
 
+  /** Separates self-signed roots from intermediate issuers by subject principal. */
   private static void classifyCertificates(
       KeyStore keyStore,
       Map<X500Principal, List<X509Certificate>> rootCerts,
@@ -417,10 +461,11 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
         }
       }
     } catch (KeyStoreException e) {
-      throw new RuntimeException("Failed to read KeyStore entries", e);
+      throw new TruststoreLoadException("Failed to read KeyStore entries", e);
     }
   }
 
+  /** Checks whether the certificate verifies under its own public key. */
   private static boolean isSelfSigned(X509Certificate cert) {
     PublicKey key = cert.getPublicKey();
     try {
