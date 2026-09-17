@@ -372,3 +372,28 @@ RAYON_NUM_THREADS = "2"
 "src/client/mod.rs" = "Module declarations for the separately tested client feature."
 "src/client/pgsql.rs" = "Client feature is separately tested, including owned database fixtures; the original feature test target cannot build without its missing serial_test dependency."
 "src/monitor.rs" = "Separate monitor binary is currently unbuildable: undeclared sqlx dependency and legacy SQLite queries. The native server profile does not compile this binary."
+
+[profiles.braid]
+package = "braid"
+features = ["native"]
+issue = "https://github.com/sequentech/meta/issues/13302"
+limitations = [
+    "Native protocol, SQLite persistence and transient storage. The existing in-memory protocol test remains included.",
+    "HTTP/cloud protocol tests require their own synthetic service environment. Browser IndexedDB/OPFS and actual Rust branches are separate scopes.",
+    "Inline tests and generated protocol logic remain counted; no source exclusions."
+]
+[profiles.braid.test_environment]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+[profiles.braid.scope_exceptions]
+"src/native/board/mod.rs" = "Module declarations only."
+"src/native/mod.rs" = "Module declarations only."
+"src/native/session/mod.rs" = "Module declarations only."
+"src/native/test/mod.rs" = "Module declarations only."
+"src/native/verify/mod.rs" = "Module declarations only."
+"src/wasm/board/http.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+"src/wasm/board/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+"src/wasm/board/storage_indexeddb.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+"src/wasm/mod.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+"src/wasm/session.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
+"src/wasm/verify.rs" = "Browser-only implementation; requires separate WASM execution and measurement."
