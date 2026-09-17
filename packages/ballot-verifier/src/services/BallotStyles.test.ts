@@ -69,3 +69,65 @@ describe("updateBallotStyleAndSelection", () => {
         expect(dispatch.mock.calls[1][0].payload.id).toBe("newer-style")
     })
 })
+
+describe("published ballot style contracts", () => {
+    it("uses publication id as the tie-breaker without sorting the received array in place", () => {
+        const dispatch = jest.fn()
+        const data = {
+            sequent_backend_ballot_publication: [
+                {id: "b", published_at: "2026-08-18T00:00:00Z"},
+                {id: "a", published_at: "2026-08-18T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [ballotStyle("B", "b"), ballotStyle("A", "a")],
+        } as GetPublishedBallotStylesQuery
+        updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+        expect(dispatch.mock.calls.map(([action]) => action.payload.id)).toEqual(["A", "B"])
+        expect(data.sequent_backend_ballot_style.map(({id}) => id)).toEqual(["B", "A"])
+    })
+    it("ignores non-text EML but preserves every field of a valid published snapshot", () => {
+        const dispatch = jest.fn()
+        const good = {
+            ...ballotStyle("valid", "published"),
+            ballot_eml: '{"id":"config-7"}',
+            ballot_signature: "synthetic-signature",
+            area_id: "area-7",
+        }
+        const data = {
+            sequent_backend_ballot_publication: [
+                {id: "published", published_at: "2026-08-18T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [{...good, id: "no-eml", ballot_eml: null}, good],
+        } as GetPublishedBallotStylesQuery
+        updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+        expect(dispatch).toHaveBeenCalledTimes(1)
+        const {status: _status, deleted_at: _deleted, ...expected} = good
+        expect(dispatch.mock.calls[0][0].payload).toEqual({
+            ...expected,
+            ballot_eml: {id: "config-7"},
+            publication_published_at: "2026-08-18T00:00:00Z",
+        })
+    })
+    it("propagates malformed published EML without dispatching a default ballot", () => {
+        const dispatch = jest.fn()
+        const log = jest.spyOn(console, "log").mockImplementation(() => {})
+        const data = {
+            sequent_backend_ballot_publication: [
+                {id: "published", published_at: "2026-08-18T00:00:00Z"},
+            ],
+            sequent_backend_ballot_style: [
+                {...ballotStyle("invalid", "published"), ballot_eml: "{invalid"},
+            ],
+        } as GetPublishedBallotStylesQuery
+        try {
+            expect(() =>
+                updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+            ).toThrow(SyntaxError)
+            expect(dispatch).not.toHaveBeenCalled()
+            data.sequent_backend_ballot_style[0].ballot_eml = '{"id":"valid"}'
+            updateBallotStyleAndSelection(data, dispatch as unknown as AppDispatch)
+            expect(dispatch.mock.calls[0][0].payload.ballot_eml).toEqual({id: "valid"})
+        } finally {
+            log.mockRestore()
+        }
+    })
+})

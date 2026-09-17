@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [ui-core, voting-portal, ui-essentials, results-portal]
+        package: [ui-core, voting-portal, ui-essentials, results-portal, ballot-verifier]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -46,9 +46,10 @@ jobs:
         if: matrix.package == 'ui-core'
         run: node head/scripts/coverage/test_frontend.cjs
       - name: Install the pinned local test browser
+        if: contains(fromJSON('["ui-core", "voting-portal", "ui-essentials"]'), matrix.package)
         uses: ./head/.github/actions/setup-test-browser
       - name: Exercise the real browser boundary
-        if: matrix.package != 'results-portal'
+        if: matrix.package == 'ui-core' || matrix.package == 'voting-portal' || matrix.package == 'ui-essentials'
         env:
           PACKAGE: ${{ matrix.package }}
         run: |
