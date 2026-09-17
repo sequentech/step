@@ -250,6 +250,32 @@ public final class MultiAttributeCredentialResolver {
       String password,
       ThrottleConfig throttleConfig,
       MatchPolicy matchPolicy) {
+    return resolveAuthenticatedUser(
+        session,
+        realm,
+        matchAttributes,
+        submittedValues,
+        password,
+        throttleConfig,
+        matchPolicy,
+        null);
+  }
+
+  public static Resolution resolveAuthenticatedUser(
+      KeycloakSession session,
+      RealmModel realm,
+      List<String> matchAttributes,
+      Map<String, String> submittedValues,
+      String password,
+      ThrottleConfig throttleConfig,
+      MatchPolicy matchPolicy,
+      org.keycloak.models.AuthenticatorConfigModel credentialConfig) {
+    var verifier =
+        EncryptedAttributeCredential.verifier(
+            session, realm, credentialConfig, matchAttributes, matchPolicy);
+    if (verifier.isEmpty()) {
+      return dummyFailure(session, realm);
+    }
     if (matchAttributes == null || matchAttributes.isEmpty()) {
       // Logged at ERROR: a static misconfiguration, not a one-off bad request - every login
       // attempt through this authenticator config fails until an admin fixes it, so it needs to
@@ -367,6 +393,35 @@ public final class MultiAttributeCredentialResolver {
             .filter(candidate -> lockoutStates.get(candidate) == LockoutState.NONE)
             .collect(Collectors.toList());
 
+    if (!EncryptedAttributeCredential.usesPassword(credentialConfig)) {
+      // Preserve the dummy password-hash work used for nonexistent users/tuples.
+      // Constant-time equality alone does not hide the existence of a candidate.
+      performDummyHash(session, realm);
+      // Include locked accounts in ambiguity detection: locking one account must not
+      // make a credential shared by two accounts authenticate as the other one.
+      List<UserModel> matches =
+          enabledCandidates.stream()
+              .filter(candidate -> verifier.get().test(candidate, password))
+              .toList();
+      if (matches.size() == 1) {
+        UserModel candidate = matches.get(0);
+        if (lockoutStates.get(candidate) == LockoutState.NONE) {
+          clearTupleThrottle(session, tupleKey);
+          return Resolution.success(candidate);
+        }
+        recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+        return Resolution.lockedOut(candidate, lockoutStates.get(candidate));
+      }
+      recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
+      if (enabledCandidates.size() == 1) {
+        UserModel candidate = enabledCandidates.get(0);
+        return lockoutStates.get(candidate) == LockoutState.NONE
+            ? Resolution.failureAttributedTo(candidate)
+            : Resolution.lockedOut(candidate, lockoutStates.get(candidate));
+      }
+      return Resolution.failure();
+    }
+
     if (viableCandidates.isEmpty()) {
       // Every enabled candidate for these attributes is currently locked out: only report the
       // specific lockout when there is exactly one such account to attribute it to - an ambiguous
@@ -381,7 +436,7 @@ public final class MultiAttributeCredentialResolver {
 
     if (viableCandidates.size() == 1) {
       UserModel candidate = viableCandidates.get(0);
-      if (isPasswordValid(candidate, password)) {
+      if (verifier.get().test(candidate, password)) {
         clearTupleThrottle(session, tupleKey);
         return Resolution.success(candidate);
       }
@@ -393,7 +448,7 @@ public final class MultiAttributeCredentialResolver {
       // Stops at the first match rather than checking every candidate - see MatchPolicy's
       // javadoc for why this is only safe when passwords are unique across the candidate set.
       for (UserModel candidate : viableCandidates) {
-        if (isPasswordValid(candidate, password)) {
+        if (verifier.get().test(candidate, password)) {
           clearTupleThrottle(session, tupleKey);
           return Resolution.success(candidate);
         }
@@ -404,7 +459,7 @@ public final class MultiAttributeCredentialResolver {
 
     List<UserModel> passwordMatches =
         viableCandidates.stream()
-            .filter(candidate -> isPasswordValid(candidate, password))
+            .filter(candidate -> verifier.get().test(candidate, password))
             .collect(Collectors.toList());
 
     if (passwordMatches.size() == 1) {

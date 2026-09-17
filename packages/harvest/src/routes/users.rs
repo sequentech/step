@@ -27,7 +27,7 @@ use sequent_core::types::keycloak::{
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -41,6 +41,10 @@ use windmill::services::electoral_log::{
     post_voter_password_change, ElectoralLogAdminContext,
     VoterPasswordChangeSource,
 };
+use windmill::services::electoral_log::{
+    post_voter_secret_attribute_audit, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
+};
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
 };
@@ -51,6 +55,11 @@ use windmill::services::users::{
     count_keycloak_users, list_users, list_users_with_vote_info,
 };
 use windmill::services::users::{FilterOption, ListUsersFilter};
+use windmill::services::voter_secret_attributes::{
+    decrypt_attribute_values, encrypt_secret_attribute_map,
+    get_secret_attribute_config, redact_user, user_attribute_values,
+    SecretAttributeConfig,
+};
 use windmill::tasks::delete_users::{
     self as delete_users_task, DeleteUsersOutput,
 };
@@ -81,6 +90,139 @@ async fn ensure_election_event_not_locked(
             format!("Failed to check election event lockdown: {err}"),
         )),
     }
+}
+
+async fn get_event_secret_attribute_config(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<SecretAttributeConfig, (Status, String)> {
+    get_secret_attribute_config(tenant_id, election_event_id)
+        .await
+        .map_err(|error| (Status::InternalServerError, format!("{error:#}")))
+}
+
+/// Secret attributes a write, reveal or decrypt path may operate on. A
+/// misconfigured profile is rejected here rather than half-applied.
+async fn get_event_validated_secret_names(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashSet<String>, (Status, String)> {
+    get_event_secret_attribute_config(tenant_id, election_event_id)
+        .await?
+        .validated_names()
+        .map_err(|error| (Status::BadRequest, error.to_string()))
+}
+
+/// Secret attributes a read path must redact, misconfigured ones included.
+async fn get_event_redacted_secret_names(
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<HashSet<String>, (Status, String)> {
+    Ok(
+        get_event_secret_attribute_config(tenant_id, election_event_id)
+            .await?
+            .redacted_names()
+            .clone(),
+    )
+}
+
+/// Records a secret-attribute action before it takes effect, so an action
+/// that cannot be audited does not happen.
+async fn audit_secret_attributes(
+    claims: &jwt::JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    action: VoterSecretAttributeAction,
+    audit: VoterSecretAttributeAudit<'_>,
+) -> Result<(), (Status, String)> {
+    post_voter_secret_attribute_audit(
+        tenant_id,
+        election_event_id,
+        &ElectoralLogAdminContext::from_claims(claims),
+        action,
+        audit,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
+        )
+    })
+}
+
+/// Splits requested secret changes into the names being set and cleared.
+fn secret_change_names(
+    secret_attributes: &HashMap<String, Option<Vec<String>>>,
+) -> (Vec<String>, Vec<String>) {
+    let mut set = Vec::new();
+    let mut cleared = Vec::new();
+    for (name, values) in secret_attributes {
+        if values.as_ref().is_some_and(|values| {
+            values.iter().any(|value| !value.trim().is_empty())
+        }) {
+            set.push(name.clone());
+        } else {
+            cleared.push(name.clone());
+        }
+    }
+    (set, cleared)
+}
+
+async fn audit_secret_changes(
+    claims: &jwt::JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+    voter_id: Option<&str>,
+    voter_username: Option<&str>,
+    secret_attributes: &HashMap<String, Option<Vec<String>>>,
+) -> Result<(), (Status, String)> {
+    let (set, cleared) = secret_change_names(secret_attributes);
+    for (action, names) in [
+        (VoterSecretAttributeAction::Set, set),
+        (VoterSecretAttributeAction::Clear, cleared),
+    ] {
+        if names.is_empty() {
+            continue;
+        }
+        audit_secret_attributes(
+            claims,
+            tenant_id,
+            election_event_id,
+            action,
+            VoterSecretAttributeAudit {
+                voter_id,
+                voter_username,
+                attribute_names: &names,
+                document_id: None,
+            },
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+fn ensure_secret_attributes_not_queried(
+    input: &GetUsersBody,
+    secret_names: &HashSet<String>,
+) -> Result<(), (Status, String)> {
+    let filtered_secret = input.attributes.as_ref().and_then(|attributes| {
+        attributes
+            .keys()
+            .find(|name| secret_names.contains(name.trim_matches('\'')))
+    });
+    let sorted_secret = input
+        .sort
+        .as_ref()
+        .and_then(|sort| sort.get("'field'"))
+        .filter(|name| secret_names.contains(name.trim_matches('\'')));
+    if let Some(name) = filtered_secret.or(sorted_secret) {
+        return Err((
+            Status::BadRequest,
+            format!("Encrypted voter attribute `{name}` cannot be filtered or sorted"),
+        ));
+    }
+    Ok(())
 }
 
 #[instrument(skip(claims))]
@@ -341,7 +483,7 @@ pub struct CountUserOutput {
     count: i64,
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims, body), ret)]
 #[post("/count-users", format = "json", data = "<body>")]
 pub async fn count_users(
     claims: jwt::JwtClaims,
@@ -366,6 +508,14 @@ pub async fn count_users(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        let secret_names = get_event_redacted_secret_names(
+            &input.tenant_id,
+            election_event_id,
+        )
+        .await?;
+        ensure_secret_attributes_not_queried(&input, &secret_names)?;
+    }
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
@@ -436,7 +586,7 @@ pub async fn count_users(
     }))
 }
 
-#[instrument(skip(claims), ret)]
+#[instrument(skip(claims, body), ret)]
 #[post("/get-users", format = "json", data = "<body>")]
 pub async fn get_users(
     claims: jwt::JwtClaims,
@@ -461,6 +611,18 @@ pub async fn get_users(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+    let secret_names =
+        if let Some(election_event_id) = input.election_event_id.as_deref() {
+            let names = get_event_redacted_secret_names(
+                &input.tenant_id,
+                election_event_id,
+            )
+            .await?;
+            ensure_secret_attributes_not_queried(&input, &names)?;
+            names
+        } else {
+            HashSet::new()
+        };
 
     let mut keycloak_db_client: DbClient =
         get_keycloak_pool().await.get().await.map_err(|e| {
@@ -514,7 +676,7 @@ pub async fn get_users(
     };
 
     if input.has_voted.is_some() {
-        let (users, count) = list_users_has_voted(
+        let (mut users, count) = list_users_has_voted(
             &hasura_transaction,
             &keycloak_transaction,
             filter,
@@ -528,6 +690,9 @@ pub async fn get_users(
             )
         })?;
 
+        for user in &mut users {
+            redact_user(user, &secret_names);
+        }
         return Ok(Json(DataList {
             items: users,
             total: TotalAggregate {
@@ -538,7 +703,7 @@ pub async fn get_users(
         }));
     }
 
-    let (users, count) = match input.show_votes_info.unwrap_or(false) {
+    let (mut users, count) = match input.show_votes_info.unwrap_or(false) {
         true =>
         // If show_vote_info is true, call list_users_with_vote_info()
         {
@@ -567,6 +732,9 @@ pub async fn get_users(
             })?,
     };
 
+    for user in &mut users {
+        redact_user(user, &secret_names);
+    }
     Ok(Json(DataList {
         items: users,
         total: TotalAggregate {
@@ -645,19 +813,35 @@ pub struct CreateUserBody {
     election_event_id: Option<String>,
     user: User,
     user_roles_ids: Option<Vec<String>>,
+    #[serde(default)]
+    secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, body))]
 #[post("/create-user", format = "json", data = "<body>")]
 pub async fn create_user(
     claims: jwt::JwtClaims,
     body: Json<CreateUserBody>,
 ) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
+    let has_secret_attributes = input
+        .secret_attributes
+        .as_ref()
+        .is_some_and(|attributes| !attributes.is_empty());
     let mut required_perms = Vec::<Permissions>::new();
     if input.election_event_id.is_some() {
-        required_perms.push(Permissions::VOTER_CREATE)
+        required_perms.push(Permissions::VOTER_CREATE);
+        if has_secret_attributes {
+            required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
+        }
     } else {
+        if has_secret_attributes {
+            return Err(ErrorResponse::new(
+                Status::BadRequest,
+                "Encrypted attributes are only supported for election-event voters",
+                ErrorCode::UnknownError,
+            ));
+        }
         required_perms.push(Permissions::USER_CREATE);
         if let Some(attributes) = &input.user.attributes {
             if attributes.contains_key(PERMISSION_LABELS) {
@@ -689,6 +873,42 @@ pub async fn create_user(
             ErrorCode::InternalServerError,
         )
     })?;
+    let secret_names = if let Some(election_event_id) =
+        input.election_event_id.as_deref()
+    {
+        let config = get_event_secret_attribute_config(
+            &input.tenant_id,
+            election_event_id,
+        )
+        .await
+        .map_err(|(status, message)| {
+            ErrorResponse::new(status, &message, ErrorCode::InternalServerError)
+        })?;
+        if has_secret_attributes {
+            config.validated_names().map_err(|error| {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &error.to_string(),
+                    ErrorCode::UnknownError,
+                )
+            })?
+        } else {
+            config.redacted_names().clone()
+        }
+    } else {
+        HashSet::new()
+    };
+    if let Some(name) = input.user.attributes.as_ref().and_then(|attributes| {
+        attributes.keys().find(|name| secret_names.contains(*name))
+    }) {
+        return Err(ErrorResponse::new(
+            Status::BadRequest,
+            &format!(
+                "Encrypted voter attribute `{name}` must be supplied through secret_attributes"
+            ),
+            ErrorCode::UnknownError,
+        ));
+    }
     let (tenant_id_attribute, groups) = if input.election_event_id.is_some() {
         let voter_group_name =
             env::var("KEYCLOAK_VOTER_GROUP_NAME").map_err(|error| {
@@ -715,7 +935,7 @@ pub async fn create_user(
         )
     };
 
-    let user_attributes =
+    let mut user_attributes =
         match (&tenant_id_attribute, input.user.attributes.clone()) {
             (Some(tenant_id_attribute), Some(user_attributes)) => {
                 let mut attributes = tenant_id_attribute.clone();
@@ -735,8 +955,60 @@ pub async fn create_user(
         };
     let mut user = input.user.clone();
     user.email_verified = Some(true);
+    let requested_enabled = user.enabled.unwrap_or(true);
+    if has_secret_attributes {
+        // Keycloak validates required attributes before assigning the user id.
+        // Supply encrypted values under a provisional scope, then bind them to
+        // the assigned id below. An incomplete voter must remain disabled.
+        user.enabled = Some(false);
+        let election_event_id =
+            input.election_event_id.as_deref().ok_or_else(|| {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    "Encrypted attributes require an election event",
+                    ErrorCode::UnknownError,
+                )
+            })?;
+        if let Some(secret_attributes) = input.secret_attributes.as_ref() {
+            let provisional_id = Uuid::new_v4().to_string();
+            let encrypted = encrypt_secret_attribute_map(
+                &input.tenant_id,
+                election_event_id,
+                &provisional_id,
+                &secret_names,
+                secret_attributes.clone(),
+            )
+            .await
+            .map_err(|error| {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &error.to_string(),
+                    ErrorCode::UnknownError,
+                )
+            })?;
+            audit_secret_changes(
+                &claims,
+                &input.tenant_id,
+                election_event_id,
+                None,
+                user.username.as_deref(),
+                secret_attributes,
+            )
+            .await
+            .map_err(|(status, message)| {
+                ErrorResponse::new(
+                    status,
+                    &message,
+                    ErrorCode::InternalServerError,
+                )
+            })?;
+            user_attributes
+                .get_or_insert_with(HashMap::new)
+                .extend(encrypted);
+        }
+    }
 
-    let user = client
+    let mut user = client
         .create_user(&realm, &user, user_attributes, groups)
         .await
         .map_err(|error| {
@@ -755,6 +1027,87 @@ pub async fn create_user(
         _ => (),
     };
 
+    if let Some(secret_attributes) = input.secret_attributes {
+        if !secret_attributes.is_empty() {
+            let user_id = user.id.clone().ok_or_else(|| {
+                ErrorResponse::new(
+                    Status::InternalServerError,
+                    "Keycloak created the voter without returning its id",
+                    ErrorCode::InternalServerError,
+                )
+            })?;
+            let election_event_id =
+                input.election_event_id.as_deref().ok_or_else(|| {
+                    ErrorResponse::new(
+                        Status::BadRequest,
+                        "Encrypted attributes require an election event",
+                        ErrorCode::UnknownError,
+                    )
+                })?;
+            let encrypted = encrypt_secret_attribute_map(
+                &input.tenant_id,
+                election_event_id,
+                &user_id,
+                &secret_names,
+                secret_attributes.clone(),
+            )
+            .await
+            .map_err(|error| {
+                ErrorResponse::new(
+                    Status::BadRequest,
+                    &error.to_string(),
+                    ErrorCode::UnknownError,
+                )
+            })?;
+            audit_secret_changes(
+                &claims,
+                &input.tenant_id,
+                election_event_id,
+                Some(&user_id),
+                user.username.as_deref(),
+                &secret_attributes,
+            )
+            .await
+            .map_err(|(status, message)| {
+                ErrorResponse::new(
+                    status,
+                    &message,
+                    ErrorCode::InternalServerError,
+                )
+            })?;
+            user = KeycloakAdminClient::new()
+                .await
+                .map_err(|error| {
+                    ErrorResponse::new(
+                        Status::InternalServerError,
+                        &format!("Error connecting to Keycloak: {error:?}"),
+                        ErrorCode::InternalServerError,
+                    )
+                })?
+                .edit_user(
+                    &realm,
+                    &user_id,
+                    Some(requested_enabled),
+                    Some(encrypted),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await
+                .map_err(|error| {
+                    keycloak_user_error(
+                        error,
+                        "Voter was created, but its encrypted attributes could not be stored",
+                    )
+                })?;
+        }
+    }
+
+    redact_user(&mut user, &secret_names);
+
     Ok(Json(user))
 }
 
@@ -765,6 +1118,8 @@ pub struct EditUserBody {
     enabled: Option<bool>,
     election_event_id: Option<String>,
     attributes: Option<HashMap<String, Vec<String>>>,
+    #[serde(default)]
+    secret_attributes: Option<HashMap<String, Option<Vec<String>>>>,
     email: Option<String>,
     first_name: Option<String>,
     last_name: Option<String>,
@@ -890,11 +1245,16 @@ pub async fn edit_user(
         && input.password.is_some()
         && input.enabled.is_none()
         && input.attributes.is_none()
+        && input.secret_attributes.is_none()
         && input.email.is_none()
         && input.first_name.is_none()
         && input.last_name.is_none()
         && input.username.is_none();
     let mut required_perms = Vec::<Permissions>::new();
+    let has_secret_changes = input
+        .secret_attributes
+        .as_ref()
+        .is_some_and(|attributes| !attributes.is_empty());
     let mut voter_voted_edit = false;
     let mut voter_email_tlf_edit = false;
     if input.election_event_id.is_some() {
@@ -923,8 +1283,21 @@ pub async fn edit_user(
             if input.password.is_some() {
                 required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
             }
+            if has_secret_changes {
+                required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
+                if !voter_write {
+                    required_perms.push(Permissions::VOTER_WRITE);
+                }
+            }
         }
     } else {
+        if has_secret_changes {
+            return Err((
+                Status::BadRequest,
+                "Encrypted attributes are only supported for election-event voters".to_string(),
+            )
+                .into());
+        }
         required_perms.push(Permissions::USER_WRITE);
         if let Some(attributes) = &input.attributes {
             if attributes.contains_key(PERMISSION_LABELS) {
@@ -942,6 +1315,33 @@ pub async fn edit_user(
         }
         None => get_tenant_realm(&input.tenant_id),
     };
+    let secret_names = if let Some(election_event_id) =
+        input.election_event_id.as_deref()
+    {
+        if has_secret_changes {
+            get_event_validated_secret_names(
+                &input.tenant_id,
+                election_event_id,
+            )
+            .await?
+        } else {
+            get_event_redacted_secret_names(&input.tenant_id, election_event_id)
+                .await?
+        }
+    } else {
+        HashSet::new()
+    };
+    if let Some(name) = input.attributes.as_ref().and_then(|attributes| {
+        attributes.keys().find(|name| secret_names.contains(*name))
+    }) {
+        return Err((
+            Status::BadRequest,
+            format!(
+                "Encrypted voter attribute `{name}` must be supplied through secret_attributes"
+            ),
+        )
+            .into());
+    }
 
     if let (Some(election_event_id), Some(password)) = (
         input.election_event_id.as_deref(),
@@ -1022,7 +1422,31 @@ pub async fn edit_user(
         }
     }
 
-    let new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+    let mut new_attributes = input.attributes.clone().unwrap_or(HashMap::new());
+    if let Some(secret_attributes) = input.secret_attributes.clone() {
+        if !secret_attributes.is_empty() {
+            let election_event_id =
+                input.election_event_id.as_deref().ok_or_else(|| {
+                    EditUserError::from((
+                        Status::BadRequest,
+                        "Encrypted attributes require an election event"
+                            .to_string(),
+                    ))
+                })?;
+            let encrypted = encrypt_secret_attribute_map(
+                &input.tenant_id,
+                election_event_id,
+                &input.user_id,
+                &secret_names,
+                secret_attributes,
+            )
+            .await
+            .map_err(|error| {
+                EditUserError::from((Status::BadRequest, error.to_string()))
+            })?;
+            new_attributes.extend(encrypted);
+        }
+    }
 
     // maintain current user attributes and do not allow to override tenant-id
     if new_attributes.contains_key(TENANT_ID_ATTR_NAME) {
@@ -1067,6 +1491,21 @@ pub async fn edit_user(
         )
     })?;
     drop(hasura_db_client);
+
+    if let (Some(election_event_id), Some(secret_attributes)) = (
+        input.election_event_id.as_deref(),
+        input.secret_attributes.as_ref(),
+    ) {
+        audit_secret_changes(
+            &claims,
+            &input.tenant_id,
+            election_event_id,
+            Some(&input.user_id),
+            input.username.as_deref(),
+            secret_attributes,
+        )
+        .await?;
+    }
 
     // For Datafix election events the edit is offloaded to the `edit_user`
     // task, which notifies VoterView (SetNotVoted) and reconciles the voter's
@@ -1158,7 +1597,7 @@ pub async fn edit_user(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    let user = client
+    let mut user = client
         .edit_user(
             &realm,
             &input.user_id,
@@ -1207,14 +1646,13 @@ pub async fn edit_user(
         .map_err(|error| -> EditUserError {
             (
                 Status::InternalServerError,
-                format!(
-                    "Voter password changed, but its electoral-log entry failed: {error:#}"
-                ),
+                format!("Voter password changed, but its electoral-log entry failed: {error:#}"),
             )
                 .into()
         })?;
     }
 
+    redact_user(&mut user, &secret_names);
     Ok(Json(EditUserOutput {
         user: Some(user),
         task_execution: None,
@@ -1246,21 +1684,128 @@ pub async fn get_user(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
-    let realm = match input.election_event_id {
+    let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
-            get_event_realm(&input.tenant_id, &election_event_id)
+            get_event_realm(&input.tenant_id, election_event_id)
         }
         None => get_tenant_realm(&input.tenant_id),
     };
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
-    let user = client
+    let mut user = client
         .get_user(&realm, &input.user_id)
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
+    if let Some(election_event_id) = input.election_event_id.as_deref() {
+        let secret_names = get_event_redacted_secret_names(
+            &input.tenant_id,
+            election_event_id,
+        )
+        .await?;
+        redact_user(&mut user, &secret_names);
+    }
+
     Ok(Json(user))
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RevealSecretAttributeBody {
+    tenant_id: String,
+    election_event_id: String,
+    user_id: String,
+    attribute_name: String,
+}
+
+#[derive(Serialize, Debug)]
+pub struct RevealSecretAttributeOutput {
+    attribute_name: String,
+    values: Vec<String>,
+}
+
+#[instrument(skip(claims, body))]
+#[post("/reveal-voter-secret-attribute", format = "json", data = "<body>")]
+pub async fn reveal_voter_secret_attribute(
+    claims: jwt::JwtClaims,
+    body: Json<RevealSecretAttributeBody>,
+) -> Result<Json<RevealSecretAttributeOutput>, (Status, String)> {
+    let input = body.into_inner();
+    authorize(
+        &claims,
+        true,
+        Some(input.tenant_id.clone()),
+        vec![
+            Permissions::VOTER_READ,
+            Permissions::VOTER_SECRET_ATTRIBUTE_READ,
+        ],
+    )?;
+    let secret_names = get_event_validated_secret_names(
+        &input.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
+    if !secret_names.contains(&input.attribute_name) {
+        return Err((
+            Status::BadRequest,
+            format!(
+                "User-profile attribute `{}` is not configured as encrypted",
+                input.attribute_name
+            ),
+        ));
+    }
+
+    let realm = get_event_realm(&input.tenant_id, &input.election_event_id);
+    let user = KeycloakAdminClient::new()
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error connecting to Keycloak: {error:?}"),
+            )
+        })?
+        .get_user(&realm, &input.user_id)
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Error reading voter from Keycloak: {error:?}"),
+            )
+        })?;
+    let encrypted_values = user_attribute_values(&user, &input.attribute_name);
+    let attribute_names = [input.attribute_name.clone()];
+    audit_secret_attributes(
+        &claims,
+        &input.tenant_id,
+        &input.election_event_id,
+        VoterSecretAttributeAction::Reveal,
+        VoterSecretAttributeAudit {
+            voter_id: Some(&input.user_id),
+            voter_username: user.username.as_deref(),
+            attribute_names: &attribute_names,
+            document_id: None,
+        },
+    )
+    .await?;
+    let values = decrypt_attribute_values(
+        &input.tenant_id,
+        &input.election_event_id,
+        &input.user_id,
+        &input.attribute_name,
+        &encrypted_values,
+    )
+    .await
+    .map_err(|error| {
+        (
+            Status::InternalServerError,
+            format!("Error decrypting voter attribute: {error:#}"),
+        )
+    })?;
+
+    Ok(Json(RevealSecretAttributeOutput {
+        attribute_name: input.attribute_name,
+        values,
+    }))
 }
 
 #[instrument(skip(claims))]
@@ -1310,6 +1855,17 @@ pub async fn import_users_f(
 
     let mut task_input = input.clone();
     task_input.is_admin = is_admin;
+    task_input.may_write_secret_attributes = input.election_event_id.is_some()
+        && authorize(
+            &claims,
+            true,
+            Some(input.tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
+        )
+        .is_ok();
+    task_input.secret_write_initiator = task_input
+        .may_write_secret_attributes
+        .then(|| ElectoralLogAdminContext::from_claims(&claims));
 
     let _celery_task = match celery_app
         .send_task(import_users::import_users::new(
@@ -1335,14 +1891,14 @@ pub async fn import_users_f(
     Ok(Json(output))
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, input))]
 #[post("/export-users", format = "json", data = "<input>")]
 pub async fn export_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportUsersBody>,
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
     let body = input.into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
+    let tenant_id = body.tenant_id.clone();
     let executer_name = claims
         .name
         .clone()
@@ -1354,15 +1910,66 @@ pub async fn export_users_f(
         Permissions::USER_READ
     };
 
-    // Create task execution record only if election_event_id is present
+    authorize(
+        &claims,
+        true,
+        Some(body.tenant_id.clone()),
+        vec![required_perm],
+    )?;
+
+    let may_read_secret_attributes = if body.include_secret_attributes {
+        if body.election_event_id.is_none() {
+            return Err((
+                Status::BadRequest,
+                "Secret attributes can only be included in an election-event voter export"
+                    .to_string(),
+            ));
+        }
+        authorize(
+            &claims,
+            true,
+            Some(body.tenant_id.clone()),
+            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+        )?;
+        true
+    } else {
+        false
+    };
+
+    let document_id = Uuid::new_v4().to_string();
+    if let (true, Some(election_event_id)) = (
+        may_read_secret_attributes,
+        body.election_event_id.as_deref(),
+    ) {
+        audit_secret_attributes(
+            &claims,
+            &body.tenant_id,
+            election_event_id,
+            VoterSecretAttributeAction::Export,
+            VoterSecretAttributeAudit {
+                voter_id: None,
+                voter_username: None,
+                attribute_names: &[],
+                document_id: Some(&document_id),
+            },
+        )
+        .await?;
+    }
+
+    // Authorize before creating the task row, then persist a task-bound grant.
+    // The worker reloads this row and never trusts a broker-supplied boolean.
     let task_execution =
         if let Some(ref election_event_id) = body.election_event_id {
             Some(
-                post(
+                post_with_annotations(
                     &tenant_id,
                     Some(election_event_id),
                     ETasksExecution::EXPORT_VOTERS,
                     &executer_name,
+                    secret_export_task_annotations(
+                        &document_id,
+                        may_read_secret_attributes,
+                    ),
                 )
                 .await
                 .map_err(|error| {
@@ -1378,14 +1985,6 @@ pub async fn export_users_f(
             None
         };
 
-    authorize(
-        &claims,
-        true,
-        Some(body.tenant_id.clone()),
-        vec![required_perm],
-    )?;
-
-    let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
 
     let celery_task = match celery_app
@@ -1394,6 +1993,7 @@ pub async fn export_users_f(
                 tenant_id: body.tenant_id,
                 election_event_id: body.election_event_id.clone(),
                 election_id: body.election_id,
+                include_secret_attributes: body.include_secret_attributes,
             },
             document_id.clone(),
             task_execution.clone(),
@@ -1402,6 +2002,21 @@ pub async fn export_users_f(
     {
         Ok(celery_task) => celery_task,
         Err(err) => {
+            if let Some(task_execution) = &task_execution {
+                update_fail(
+                    task_execution,
+                    &format!("Failed to enqueue voter export: {err:?}"),
+                )
+                .await
+                .map_err(|update_error| {
+                    (
+                        Status::InternalServerError,
+                        format!(
+                            "Failed to revoke voter export authorization: {update_error:?}"
+                        ),
+                    )
+                })?;
+            }
             return Ok(Json(ExportUsersOutput {
                 document_id,
                 error_msg: Some(format!(
@@ -1558,6 +2173,52 @@ pub async fn get_user_profile_configuration(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn blank_secret_values_are_audited_as_clears() {
+        let attributes = std::collections::HashMap::from([
+            ("blank".into(), Some(vec!["".into(), "  ".into()])),
+            ("value".into(), Some(vec!["".into(), " actual ".into()])),
+        ]);
+        let (set, cleared) = super::secret_change_names(&attributes);
+        assert_eq!(set, vec!["value"]);
+        assert_eq!(cleared, vec!["blank"]);
+    }
+
+    #[test]
+    fn secret_query_guard_matches_sql_attribute_normalization() {
+        let names =
+            std::collections::HashSet::from(["private-reference".to_string()]);
+        for attributes in [
+            serde_json::json!({"private-reference": "value"}),
+            serde_json::json!({"'private-reference'": "value"}),
+        ] {
+            let input: super::GetUsersBody =
+                serde_json::from_value(serde_json::json!({
+                    "tenant_id": "tenant", "attributes": attributes
+                }))
+                .unwrap();
+            assert!(super::ensure_secret_attributes_not_queried(
+                &input, &names
+            )
+            .is_err());
+        }
+        for field in ["private-reference", "'private-reference'"] {
+            let input: super::GetUsersBody = serde_json::from_value(serde_json::json!({
+                "tenant_id": "tenant", "sort": {"'field'": field, "'order'": "'ASC'"}
+            })).unwrap();
+            assert!(super::ensure_secret_attributes_not_queried(
+                &input, &names
+            )
+            .is_err());
+        }
+        let public: super::GetUsersBody = serde_json::from_value(serde_json::json!({
+            "tenant_id": "tenant", "attributes": {"'public-reference'": "value"},
+            "sort": {"'field'": "'public-reference'", "'order'": "'ASC'"}
+        })).unwrap();
+        assert!(super::ensure_secret_attributes_not_queried(&public, &names)
+            .is_ok());
+    }
+
     use super::{
         user_profile_error, EditUserError, MAX_REPORTED_USER_PROFILE_ERRORS,
     };

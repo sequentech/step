@@ -217,6 +217,7 @@ impl DocumentAnnotations {
         Self {
             access: Some(DocumentAccess {
                 password_secret_id: Some(password_secret_id.into()),
+                voter_secret_attributes: false,
             }),
         }
     }
@@ -226,12 +227,33 @@ impl DocumentAnnotations {
             .as_ref()
             .and_then(|access| access.password_secret_id.as_deref())
     }
+
+    pub fn voter_secret_export() -> Self {
+        Self {
+            access: Some(DocumentAccess {
+                password_secret_id: None,
+                voter_secret_attributes: true,
+            }),
+        }
+    }
+
+    pub fn requires_voter_secret_attribute_read(&self) -> bool {
+        self.access
+            .as_ref()
+            .is_some_and(|access| access.voter_secret_attributes)
+    }
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DocumentAccess {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub password_secret_id: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub voter_secret_attributes: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -267,6 +289,17 @@ mod document_annotations_tests {
             })
         );
         assert_eq!(Some("secret-id"), annotations.password_secret_id());
+    }
+
+    #[test]
+    fn marks_decrypted_voter_exports_as_restricted() {
+        let annotations = DocumentAnnotations::voter_secret_export();
+
+        assert!(annotations.requires_voter_secret_attribute_read());
+        assert_eq!(
+            serde_json::to_value(&annotations).unwrap(),
+            json!({"access": {"voter_secret_attributes": true}})
+        );
     }
 }
 

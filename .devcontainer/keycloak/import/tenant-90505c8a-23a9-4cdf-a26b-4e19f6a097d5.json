@@ -1662,6 +1662,15 @@
         "attributes": {}
       },
       {
+        "id": "2000b34e-1974-4c73-9bf7-99fb1a5d1480",
+        "name": "tenant-delete",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
         "id": "124788ff-8306-4e31-968c-77e49d9d24fa",
         "name": "trustee-ceremony",
         "description": "",
@@ -1862,6 +1871,24 @@
       {
         "id": "0c63d668-fe97-4da6-b654-ace5e4e41b24",
         "name": "voter-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ef49e644-6ed4-4db9-9688-820993b531db",
+        "name": "voter-secret-attribute-read",
+        "description": "",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "9c67adb8-ae12-43ad-a3f4-2bc275fc888a",
+        "attributes": {}
+      },
+      {
+        "id": "ee774092-f4d3-4ac9-880e-9bed4ff67c08",
+        "name": "voter-secret-attribute-write",
         "description": "",
         "composite": false,
         "clientRole": false,
@@ -2429,6 +2456,7 @@
         "resource-write",
         "election-event-areas-tab",
         "tenant-create",
+        "tenant-delete",
         "communication-template-read",
         "tenant-write",
         "election-event-logs-tab",
@@ -2490,6 +2518,8 @@
         "election-event-data-tab",
         "user-create",
         "voter-read",
+        "voter-secret-attribute-read",
+        "voter-secret-attribute-write",
         "election-event-reports-tab",
         "election-event-scheduled-tab",
         "election-type-write",
