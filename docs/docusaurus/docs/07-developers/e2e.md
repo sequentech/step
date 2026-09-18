@@ -62,6 +62,9 @@ folders. Prefer role/name locators and readiness polling; use API/CLI setup for
 unrelated state. A real cast must pass encryption, reject demo mode, return no
 GraphQL errors, match its UI/API identifiers and exist in PostgreSQL through a
 read-only audit connection. The audit journey downloads a fresh auditable ballot.
+The admin lifecycle creates its own event, checks persistence across reloads,
+archives/restores it and deletes it. It is excluded from remote `@probe` checks.
+Focused `test.only` calls fail in every environment; use `--grep` for local selection.
 
 `packages/e2e/scenarios.yaml` records current ownership and migration status.
 Existing Nightwatch admin management/login configuration matrices and Loadero
@@ -94,6 +97,11 @@ claims. Record image preparation, runner timings and cache saving from an actual
 Actions run before making this a required branch-protection check. The intended warm smoke budget is 15
 minutes; coverage and broader lifecycle tests belong in a separate lane if they
 exceed it. A contracts-only green run does not validate the application.
+
+Qualification at runtime revision `7e61aafa26`: the seven-scenario warm PR path
+passed in **13m49s**, including cache saving. The application-cache-cold run with
+both tiny load engines passed in **29m12s** (tool images were cached). This exceeds
+the initial 25-minute cold target; it does not establish fully cold image-build time.
 
 The Actions job summary includes stage timings and coverage Markdown. HTML and
 machine-readable coverage are retained for 14 days. Missing reports and missing

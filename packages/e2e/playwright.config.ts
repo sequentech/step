@@ -13,7 +13,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0, // A fresh run owns fresh voters; never repeat a cast after an ambiguous response.
-  forbidOnly: Boolean(process.env.CI),
+  // Select local scenarios with --grep; container environment forwarding must
+  // never allow an accidental focused test to hide the rest of the suite.
+  forbidOnly: true,
   globalTimeout: 12 * 60_000,
   outputDir: path.join(artifacts, "private/test-results"),
   reporter: [

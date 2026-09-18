@@ -31,11 +31,17 @@ scenarios:
     implementation: packages/step-cli/src/load
     engines: [k6, chromium]
     status: implemented
+  - id: admin-event-lifecycle
+    owner: admin-portal
+    implementation: packages/admin-portal/test/e2e/admin.spec.ts
+    replaces: [admin-portal/test/e2e/general.test.ts]
+    status: implemented
+    evidence: [owned-event, create, reload-persistence, archive, restore, delete]
   - id: admin-management
     owner: admin-portal
     implementation: packages/admin-portal/test/e2e
     status: legacy-retained
-    remaining: [event-crud, elections-contests-candidates, areas, voters, import-export, sidebar, publication, manual-trustees]
+    remaining: [event-edit, elections-contests-candidates, areas, voters, import-export, sidebar, publication, manual-trustees]
   - id: configurable-login-matrix
     owner: voting-portal
     implementation: packages/voting-portal/test/e2e/login_hints.test.ts
