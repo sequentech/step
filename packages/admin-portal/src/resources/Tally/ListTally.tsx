@@ -47,6 +47,7 @@ import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
+    ETallyKeyRestoreEligibility,
     ETallyType,
     IExecutionStatus,
     ITallyCeremonyStatus,
@@ -66,7 +67,7 @@ import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
 import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
-import {canTrusteeRestorePrivateKey} from "./utils"
+import {getTallyKeyRestoreEligibility} from "./utils"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -206,12 +207,12 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 },
                 tenant_id: tenantId,
             },
+            meta: {latestPerTallySession: true},
         },
         {
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
-            meta: {latestPerTallySession: true},
         }
     )
 
@@ -317,8 +318,8 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         openRecountTallySet(true)
     }
 
-    const canTrusteeAct = (record: RaRecord): boolean =>
-        canTrusteeRestorePrivateKey(
+    const trusteeKeyRestoreEligibility = (record: RaRecord): ETallyKeyRestoreEligibility =>
+        getTallyKeyRestoreEligibility(
             getTallyTrusteeStatus(
                 latestExecutionByTallySessionId.get(String(record.id)),
                 authContext.trustee
@@ -366,15 +367,16 @@ export const ListTally: React.FC<ListAreaProps> = () => {
                 record.is_execution_completed,
         },
         {
-            icon: canTrusteeAct(record) ? (
-                <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
-                    <TrusteeKeyIcon />
-                </Tooltip>
-            ) : (
-                <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
-                    <DescriptionIcon />
-                </Tooltip>
-            ),
+            icon:
+                trusteeKeyRestoreEligibility(record) === ETallyKeyRestoreEligibility.ALLOWED ? (
+                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
+                        <TrusteeKeyIcon />
+                    </Tooltip>
+                ) : (
+                    <Tooltip title={String(t("tallysheet.common.tallyCeremony.view"))}>
+                        <DescriptionIcon />
+                    </Tooltip>
+                ),
             action: viewTrusteeTally,
             showAction: (id: Identifier) => canTrusteeCeremony,
         },
@@ -444,14 +446,15 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         if (!tallySessions) {
             return
         } else {
-            return tallySessions.find((tallySession) =>
-                canTrusteeRestorePrivateKey(
-                    getTallyTrusteeStatus(
-                        latestExecutionByTallySessionId.get(tallySession.id),
-                        trusteeName
-                    ),
-                    tallySession.execution_status
-                )
+            return tallySessions.find(
+                (tallySession) =>
+                    getTallyKeyRestoreEligibility(
+                        getTallyTrusteeStatus(
+                            latestExecutionByTallySessionId.get(tallySession.id),
+                            trusteeName
+                        ),
+                        tallySession.execution_status
+                    ) === ETallyKeyRestoreEligibility.ALLOWED
             )
         }
     }
