@@ -27,7 +27,7 @@ imported commit, so the work is part of this import (see `STATERIGHT.md` and
 
 ## `crates/vsc`
 
-`crates/vsc` (crate version `0.6.4`, `[lib] name = "cryptography"`) is a vendored
+`crates/vsc` (crate version `0.6.5`, `[lib] name = "cryptography"`) is a vendored
 fork of https://github.com/FreeAndFair/VoteSecure, licensed Apache-2.0,
 © Free & Fair. It was taken verbatim from `feat/braid-0.6.3/main` @ `9b159b2582`;
 no delta against upstream is measured or recorded here. The relationship to
