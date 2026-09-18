@@ -106,13 +106,13 @@ hunts panics *and* canonicality violations in one pass.
   and the pre-existing `encode_bytes`/`encode_scalar` targets.
 - `crates/braid/fuzz`: oracles for `ProtocolMessage` and `Predicate`.
 
-**How to run — vsc** (any platform; `cargo fuzz` needs the nightly toolchain,
-which is this workspace's default). From `crates/vsc`:
+**How to run — vsc** (any platform; `cargo fuzz` needs a nightly toolchain and this
+workspace pins stable, so invoke it as `cargo +nightly fuzz`). From `crates/vsc`:
 
 ```sh
-cargo fuzz list                                        # enumerate the targets
-cargo fuzz run deser_ny_ciphertext_ristretto           # fuzz until Ctrl-C
-cargo fuzz run deser_ny_ciphertext_ristretto -- -max_total_time=300
+cargo +nightly fuzz list                                        # enumerate the targets
+cargo +nightly fuzz run deser_ny_ciphertext_ristretto           # fuzz until Ctrl-C
+cargo +nightly fuzz run deser_ny_ciphertext_ristretto -- -max_total_time=300
 ```
 
 libFuzzer options go after the `--` separator: `-max_total_time=<seconds>`
@@ -121,8 +121,8 @@ bounds a run (deeper campaigns = raise it); `-help=1` lists the rest.
 **How to run — braid** (Linux only, see below). From the **workspace root**:
 
 ```sh
-cargo fuzz run deser_predicate --fuzz-dir crates/braid/fuzz -- -max_total_time=300
-cargo fuzz run deser_protocol_message_ristretto --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+cargo +nightly fuzz run deser_predicate --fuzz-dir crates/braid/fuzz -- -max_total_time=300
+cargo +nightly fuzz run deser_protocol_message_ristretto --fuzz-dir crates/braid/fuzz -- -max_total_time=300
 ```
 
 Two platform constraints, one of which shapes the command:
