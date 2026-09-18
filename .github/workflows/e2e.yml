@@ -26,6 +26,9 @@ on:
         .github/workflows/e2e.yml,
         scripts/e2e,
       ]
+  push:
+    branches: [main]
+    paths: [packages/**, .devcontainer/**, .github/workflows/e2e.yml, scripts/e2e]
 permissions:
   contents: read
   actions: read

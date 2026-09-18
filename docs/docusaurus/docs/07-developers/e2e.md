@@ -83,7 +83,8 @@ yarn workspace @sequentech/e2e test --list
 ## CI and wall time
 
 `E2E Tests` (`e2e.yml`) runs contracts and the isolated Chromium suite for relevant
-package/devcontainer PRs into main, and exposes manual full-stack runs with `none`,
+package/devcontainer PRs into main and main pushes (which keep the shared default-branch
+cache warm), and exposes manual full-stack runs with `none`,
 `e2e` or `combined` coverage. Manual normal runs can add the bounded two-engine load
 smoke. It caches tool/Keycloak image layers, separate native build trees and webpack
 compilation, bounds the job and always attempts
