@@ -41,8 +41,13 @@ async function lines(map) {
   const output = {};
   for (const filename of remapped.files()) {
     const relative = normalize(filename);
-    if (relative)
-      output[relative] = remapped.fileCoverageFor(filename).getLineCoverage();
+    if (relative) {
+      const coverage = remapped.fileCoverageFor(filename).getLineCoverage();
+      const length = fs.readFileSync(path.join(root, relative), "utf8").split("\n").length;
+      if (Object.keys(coverage).some((line) => Number(line) < 1 || Number(line) > length))
+        throw new Error(`Coverage locations do not match source: ${relative}`);
+      output[relative] = coverage;
+    }
   }
   return output;
 }

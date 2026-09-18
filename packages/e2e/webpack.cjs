@@ -17,6 +17,11 @@ module.exports = (env, argv) => {
   const mode =
     process.env.E2E_BUILD_MODE === "coverage" ? "coverage" : "normal";
   config.context = directory;
+  config.cache = {
+    type: "filesystem",
+    cacheDirectory: path.resolve(__dirname, "../../.e2e/webpack-cache", mode, env.portal),
+    buildDependencies: { config: [__filename, path.join(directory, "webpack.config.cjs")] },
+  };
   config.output.path = path.resolve(
     __dirname,
     "../../.e2e/web",
@@ -46,6 +51,18 @@ module.exports = (env, argv) => {
     }),
   );
   if (mode === "coverage") {
+    // webpack's devtool does not enable TypeScript's own source maps. Without
+    // this first map, Babel maps Istanbul locations to transpiled JS line numbers
+    // while retaining the original .tsx filename, producing false coverage.
+    for (const rule of config.module.rules) {
+      for (const use of Array.isArray(rule.use) ? rule.use : []) {
+        if (typeof use === "object" && use.loader === "ts-loader") {
+          use.options = { ...use.options, compilerOptions: {
+            ...use.options?.compilerOptions, sourceMap: true, inlineSourceMap: false,
+          } };
+        }
+      }
+    }
     config.module.rules.push({
       test: /\.[jt]sx?$/,
       enforce: "post",

@@ -33,9 +33,11 @@ if [[ "$stage" == all || "$stage" == native ]]; then
       source <(cargo llvm-cov show-env --sh)
       export RUSTFLAGS="${RUSTFLAGS:-} -C llvm-args=-runtime-counter-relocation"
     fi
-    cargo build --locked -p harvest --bin harvest -p step-cli --bin step-cli -p b4 --bin b4 --features b4/native
+    # A single invocation keeps the shared crate feature set stable instead of
+    # recompiling Windmill's dependency tree for each group of service binaries.
+    cargo build --locked -p harvest -p step-cli -p b4 -p windmill \
+      --bin harvest --bin step-cli --bin b4 --bin main --bin beat --features b4/native
     for binary in harvest step-cli b4; do install_binary "$CARGO_TARGET_DIR/debug/$binary" "../.e2e/bin/$mode/$binary"; done
-    cargo build --locked -p windmill --bin main --bin beat
     install_binary "$CARGO_TARGET_DIR/debug/main" "../.e2e/bin/$mode/windmill"
     install_binary "$CARGO_TARGET_DIR/debug/beat" "../.e2e/bin/$mode/beat"
   )

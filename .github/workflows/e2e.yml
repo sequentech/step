@@ -21,9 +21,8 @@ on:
     branches: [main]
     paths:
       [
-        packages/e2e/**,
-        packages/*/test/e2e/**,
-        .devcontainer/e2e/**,
+        packages/**,
+        .devcontainer/**,
         .github/workflows/e2e.yml,
         scripts/e2e,
       ]
@@ -42,13 +41,13 @@ jobs:
       - name: Runner contracts
         run: PYTHONPATH=packages/e2e python3 -m unittest discover -s packages/e2e/tests_runner -v
   chromium:
-    if: github.event_name == 'workflow_dispatch' && !inputs.contracts_only
+    if: github.event_name != 'workflow_dispatch' || !inputs.contracts_only
     needs: contracts
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       RUN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
-      COVERAGE: ${{ inputs.coverage }}
+      COVERAGE: ${{ inputs.coverage || 'none' }}
       LOAD_SMOKE: ${{ inputs.load_smoke }}
     steps:
       - uses: actions/checkout@v4
@@ -87,9 +86,10 @@ jobs:
             .e2e/cargo
             .e2e/wasm
             .e2e/yarn-cache
-          key: e2e-build-${{ runner.os }}-${{ inputs.coverage }}-${{ hashFiles('packages/Cargo.lock', 'packages/rust-toolchain*', 'packages/yarn.lock') }}-${{ github.sha }}
+            .e2e/webpack-cache
+          key: e2e-build-${{ runner.os }}-${{ env.COVERAGE }}-${{ hashFiles('packages/Cargo.lock', 'packages/rust-toolchain*', 'packages/yarn.lock') }}-${{ github.sha }}
           restore-keys: |
-            e2e-build-${{ runner.os }}-${{ inputs.coverage }}-${{ hashFiles('packages/Cargo.lock', 'packages/rust-toolchain*', 'packages/yarn.lock') }}-
+            e2e-build-${{ runner.os }}-${{ env.COVERAGE }}-${{ hashFiles('packages/Cargo.lock', 'packages/rust-toolchain*', 'packages/yarn.lock') }}-
       - name: Full isolated Chromium journey
         run: |
           extra=()
@@ -140,4 +140,17 @@ jobs:
             .e2e/cargo
             .e2e/wasm
             .e2e/yarn-cache
+            .e2e/webpack-cache
           key: ${{ steps.build-cache.outputs.cache-primary-key }}
+      - name: Total wall time including saved caches
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          started = os.environ.get('E2E_WORKFLOW_STARTED')
+          if started:
+              seconds = (datetime.now(timezone.utc) - datetime.fromisoformat(started.replace('Z', '+00:00'))).total_seconds()
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+                  output.write(f'\nTotal workflow wall time including cache saving: **{seconds / 60:.1f} minutes** (excluding final action teardown).\n')
+          PY

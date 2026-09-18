@@ -82,13 +82,15 @@ yarn workspace @sequentech/e2e test --list
 
 ## CI and wall time
 
-`E2E Tests` (`e2e.yml`) runs contracts for changes to the harness and exposes manual
-full-stack runs with `none`, `e2e` or `combined` coverage. It caches tool/Keycloak
-image layers and separate native build trees, bounds the job and always attempts
+`E2E Tests` (`e2e.yml`) runs contracts and the isolated Chromium suite for relevant
+package/devcontainer PRs into main, and exposes manual full-stack runs with `none`,
+`e2e` or `combined` coverage. Manual normal runs can add the bounded two-engine load
+smoke. It caches tool/Keycloak image layers, separate native build trees and webpack
+compilation, bounds the job and always attempts
 cleanup/reporting. Full-stack runs currently have a 90-minute cold-build ceiling;
 the browser phase has a 12-minute ceiling. These are ceilings, not performance
-claims. Record image preparation plus runner timings from an actual Actions run
-before making this a required PR gate. The intended warm smoke budget is 15
+claims. Record image preparation, runner timings and cache saving from an actual
+Actions run before making this a required branch-protection check. The intended warm smoke budget is 15
 minutes; coverage and broader lifecycle tests belong in a separate lane if they
 exceed it. A contracts-only green run does not validate the application.
 
@@ -98,8 +100,9 @@ profiles fail visibly. Build instrumentation is separate from normal load images
 
 ## Coverage
 
-Frontend webpack instrumentation produces Istanbul data across navigation and
-test teardown. Reporting includes an unvisited-source baseline. Unit and webpack
+Frontend webpack instrumentation preserves the TypeScript-to-JavaScript source map
+and produces Istanbul data before authentication redirects and at test teardown.
+Reporting rejects locations outside the source and includes an unvisited-source baseline. Unit and webpack
 transforms can assign different statement IDs, so the combined report unions
 remapped executable source lines. It never adds duplicate line counts or averages
 percentages. It does not claim combined branch/function coverage.
