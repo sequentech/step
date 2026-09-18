@@ -1556,6 +1556,8 @@ const galegoTranslation: TranslationType = {
                 createError: "Erro ao crear o Evento Programado",
                 editSuccess: "Evento Programado editado correctamente",
                 editError: "Erro ao editar o Evento Programado",
+                onlineWithEarlyVoting:
+                    "Unha programación de inicio non pode abrir á vez o voto en liña e o voto anticipado: o voto anticipado debe comezar antes ca o voto en liña.",
             },
             eventType: {
                 label: "Tipo",
@@ -2239,6 +2241,14 @@ const galegoTranslation: TranslationType = {
             generalInfoTitle: "Información Xeral",
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de importación do fragmento de chave",
+            eligibility: {
+                selectElection: "Selecciona polo menos unha elección.",
+                publishElection:
+                    "Publica cada elección seleccionada antes de crear o seu escrutinio.",
+                tallyDisallowed: "O escrutinio está desactivado para unha elección seleccionada.",
+                endVoting:
+                    "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
+            },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
             startTallySuccess: "Escrutinio iniciado",

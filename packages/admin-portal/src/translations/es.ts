@@ -1556,6 +1556,8 @@ const spanishTranslation: TranslationType = {
                 createError: "Error al crear el Evento Programado",
                 editSuccess: "Evento Programado editado con éxito",
                 editError: "Error al editar el Evento Programado",
+                onlineWithEarlyVoting:
+                    "Una programación de inicio no puede abrir a la vez el voto en línea y el voto anticipado: el voto anticipado debe empezar antes que el voto en línea.",
             },
             eventType: {
                 label: "Tipo",
@@ -2240,6 +2242,13 @@ const spanishTranslation: TranslationType = {
             generalInfoTitle: "Información General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estado de importación del fragmento de clave",
+            eligibility: {
+                selectElection: "Selecciona al menos una elección.",
+                publishElection: "Publica cada elección seleccionada antes de crear su recuento.",
+                tallyDisallowed: "El recuento está deshabilitado para una elección seleccionada.",
+                endVoting:
+                    "Finaliza la votación en cada elección seleccionada y detén sus canales activos antes de crear el recuento.",
+            },
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",
             startTallySuccess: "Recuento iniciado",

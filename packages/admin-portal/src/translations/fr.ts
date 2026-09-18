@@ -1563,6 +1563,8 @@ const frenchTranslation: TranslationType = {
                 createError: "Erreur lors de la création de l'Événement Planifié",
                 editSuccess: "Événement Planifié modifié avec succès",
                 editError: "Erreur lors de la modification de l'Événement Planifié",
+                onlineWithEarlyVoting:
+                    "Une planification de début ne peut pas ouvrir à la fois le vote en ligne et le vote anticipé : le vote anticipé doit commencer avant le vote en ligne.",
             },
             eventType: {
                 label: "Type",
@@ -2254,6 +2256,14 @@ const frenchTranslation: TranslationType = {
             generalInfoTitle: "Informations Générales",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "État d'importation du fragment de clé",
+            eligibility: {
+                selectElection: "Sélectionnez au moins une élection.",
+                publishElection:
+                    "Publiez chaque élection sélectionnée avant de créer son dépouillement.",
+                tallyDisallowed: "Le dépouillement est désactivé pour une élection sélectionnée.",
+                endVoting:
+                    "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
+            },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
             startTallySuccess: "Comptage commencé",

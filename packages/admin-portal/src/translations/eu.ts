@@ -1548,6 +1548,8 @@ const basqueTranslation: TranslationType = {
                 createError: "Errorea Programatutako Gertaera sortzerakoan",
                 editSuccess: "Programatutako Gertaera arrakastaz editatua",
                 editError: "Errorea Programatutako Gertaera editatzerakoan",
+                onlineWithEarlyVoting:
+                    "Hasierako programazio batek ezin ditu aldi berean lineako botoa eta aurretiazko botoa ireki: aurretiazko botoak lineako botoa baino lehen hasi behar du.",
             },
             eventType: {
                 label: "Mota",
@@ -2232,6 +2234,14 @@ const basqueTranslation: TranslationType = {
             generalInfoTitle: "Informazio Orokorra",
             trusteeTallyTitle: "Fideikomisarioak",
             trusteeTallySubTitle: "Giltza zatiaren inportazio egoera",
+            eligibility: {
+                selectElection: "Hautatu gutxienez hauteskunde bat.",
+                publishElection:
+                    "Argitaratu hautatutako hauteskunde bakoitza zenbaketa sortu aurretik.",
+                tallyDisallowed: "Zenbaketa desgaituta dago hautatutako hauteskunde batean.",
+                endVoting:
+                    "Amaitu hautatutako hauteskunde bakoitzeko bozketa eta gelditu kanal aktiboak zenbaketa sortu aurretik.",
+            },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",
             startTallySuccess: "Zenbaketa hasita",
