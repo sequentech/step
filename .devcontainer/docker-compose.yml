@@ -78,7 +78,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: quay.io/minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
     ports:
@@ -115,7 +115,7 @@ services:
       - "9002:9002"
     volumes:
       - ./minio/nginx:/etc/nginx/conf.d
-    #image: minio/mc
+    #image: quay.io/minio/mc
     depends_on:
       - minio
 

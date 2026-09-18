@@ -43,7 +43,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: quay.io/minio/minio
     platform: linux/amd64
     ports:
       - "9000:9000"
@@ -63,7 +63,7 @@ services:
     platform: linux/amd64
     ports:
       - "9002:9002"
-    #image: minio/mc
+    #image: quay.io/minio/mc
     depends_on:
       - minio
 
