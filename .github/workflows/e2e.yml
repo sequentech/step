@@ -51,15 +51,28 @@ jobs:
       LOAD_SMOKE: ${{ inputs.load_smoke }}
     steps:
       - uses: actions/checkout@v4
-      - name: Reserve disk for Rust and browser artifacts
-        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
-      - uses: docker/setup-buildx-action@v3
       - name: Record workflow start for total wall time
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           started=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .run_started_at)
           echo "E2E_WORKFLOW_STARTED=$started" >> "$GITHUB_ENV"
+      - name: Bound disk preparation for Rust and browser artifacts
+        run: |
+          minimum=$((28 * 1024 * 1024))
+          if [[ "$COVERAGE" != none ]]; then minimum=$((36 * 1024 * 1024)); fi
+          available() { df -Pk . | awk 'NR == 2 { print $4 }'; }
+          df -h .
+          for unused in /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/lib/android; do
+            if (( $(available) >= minimum )); then break; fi
+            timeout 20s sudo rm -rf "$unused" || true
+          done
+          df -h .
+          if (( $(available) < minimum )); then
+            echo '::error::Insufficient disk for the bounded E2E build after SDK cleanup.'
+            exit 1
+          fi
+      - uses: docker/setup-buildx-action@v3
       - name: Tool image
         uses: docker/build-push-action@v6
         with:

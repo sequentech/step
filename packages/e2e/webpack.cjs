@@ -55,13 +55,17 @@ module.exports = (env, argv) => {
     // this first map, Babel maps Istanbul locations to transpiled JS line numbers
     // while retaining the original .tsx filename, producing false coverage.
     for (const rule of config.module.rules) {
-      for (const use of Array.isArray(rule.use) ? rule.use : []) {
-        if (typeof use === "object" && use.loader === "ts-loader") {
+      if (!Array.isArray(rule.use)) continue;
+      rule.use = rule.use.map((entry) => {
+        const use = typeof entry === "string" ? { loader: entry } : entry;
+        if (use.loader === "ts-loader") {
           use.options = { ...use.options, compilerOptions: {
             ...use.options?.compilerOptions, sourceMap: true, inlineSourceMap: false,
           } };
+          return use;
         }
-      }
+        return entry;
+      });
     }
     config.module.rules.push({
       test: /\.[jt]sx?$/,

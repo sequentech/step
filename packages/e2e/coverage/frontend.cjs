@@ -37,6 +37,13 @@ function normalize(filename) {
     : undefined;
 }
 async function lines(map) {
+  for (const filename of map.files()) {
+    const relative = normalize(filename);
+    const input = map.fileCoverageFor(filename).data.inputSourceMap;
+    if (relative && input?.sourcesContent &&
+        !input.sourcesContent.includes(fs.readFileSync(path.join(root, relative), "utf8")))
+      throw new Error(`Coverage source map does not contain the original source: ${relative}`);
+  }
   const remapped = await createSourceMapStore().transformCoverage(map);
   const output = {};
   for (const filename of remapped.files()) {
