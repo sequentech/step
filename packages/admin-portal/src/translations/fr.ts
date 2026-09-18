@@ -2084,6 +2084,7 @@ const frenchTranslation: TranslationType = {
                     "Copa de Sauvegarde de la Clé Privée Cryptée invalide, veuillez réessayer",
                 errorEmptyFile: "Fichier vide ou non trouvé",
                 verified: "Copie de sauvegarde vérifiée avec succès.",
+                alreadyRestored: "Votre clé avait déjà été restaurée.",
                 downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
