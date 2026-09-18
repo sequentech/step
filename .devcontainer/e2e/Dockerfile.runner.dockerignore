@@ -8,8 +8,7 @@
 !scripts/
 !scripts/e2e
 !packages/
-!packages/node_modules/
-!packages/node_modules/**
+!packages/yarn.lock
 !packages/e2e/
 !packages/e2e/**
 !packages/voting-portal/
