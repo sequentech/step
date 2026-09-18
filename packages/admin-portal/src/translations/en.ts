@@ -252,6 +252,7 @@ const englishTranslation = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Delete tenant",
                 PUBLISH_BALLOT: "Publish Ballot",
                 EXPORT_ELECTION_EVENT: "Export Election Event",
                 CREATE_ELECTION_EVENT: "Create Election Event",
@@ -793,6 +794,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -916,6 +921,8 @@ const englishTranslation = {
                 subtitle:
                     "Export can be a long operation. Are you sure you want to export records?",
                 encryptWithPassword: "Encrypt with Password",
+                passwordForcedNote:
+                    "The archive will be password protected anyway: reports, applications and bulletin-board data are always encrypted. Tick the box to also include decrypted secret voter fields.",
                 includeVoters: "Include Voters",
                 activityLogs: "Activity Logs",
                 bulletinBoard: "Bulletin Board",
@@ -1163,6 +1170,18 @@ const englishTranslation = {
             voters: {
                 title: "Voters",
                 subtitle: "View and edit voter data",
+                secretAttribute: {
+                    storedPlaceholder: "Stored encrypted value",
+                    reveal: "Reveal",
+                    hide: "Hide",
+                    revealError: "The encrypted voter field could not be revealed",
+                    includeInExport: "Include decrypted secret voter fields",
+                    exportWarning:
+                        "Sensitive export: the downloaded CSV will contain these fields in plaintext.",
+                    clear: "Clear",
+                    add: "Add value",
+                    remove: "Remove value",
+                },
                 review: {
                     title: "Review changes",
                     subtitle: "Confirm these updates before submitting.",
@@ -1283,6 +1302,7 @@ const englishTranslation = {
                 "tenant-create": "Create Tenant",
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
+                "tenant-delete": "Delete Tenant",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",
@@ -1292,6 +1312,8 @@ const englishTranslation = {
                 "voter-create": "Create Voter",
                 "voter-read": "Read Voter",
                 "voter-write": "Edit Voter",
+                "voter-secret-attribute-read": "Reveal Secret Voter Fields",
+                "voter-secret-attribute-write": "Edit Secret Voter Fields",
                 "user-create": "Create User",
                 "user-read": "Read User",
                 "user-write": "Edit User",
@@ -1483,6 +1505,22 @@ const englishTranslation = {
                 "cloudflare-write": "Edit Country Blocking Rules in Cloudflare",
                 "transmission-report-generate": "Generate Transmission Report",
                 "google-meet-link": "Generate google meet link",
+                "service-account": "Service account",
+                "datafix-account": "Datafix account",
+                "gold": "Gold",
+                "silver": "Silver",
+                "election-event-ivr-tab": "View election event IVR",
+                "election-event-cas-tab": "View election event CAS",
+                "ca-read": "Read certificate authorities",
+                "ca-write": "Edit certificate authorities",
+                "generate-preview": "Generate preview",
+                "preview-read": "Read preview",
+                "tally-resolution-submit": "Submit tally resolution",
+                "phone-blacklist-read": "Read phone blacklist",
+                "phone-blacklist-create": "Create phone blacklist entries",
+                "phone-blacklist-update": "Edit phone blacklist entries",
+                "phone-blacklist-delete": "Delete phone blacklist entries",
+                "election-event-voter-list-reconciliation": "Reconcile election event voter list",
             },
         },
         generalSettingsScreen: {
@@ -1993,8 +2031,12 @@ const englishTranslation = {
                 subtitle:
                     "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
-                errorDownloading: "Download error: {{error}}",
+                downloaded: "Encrypted Private Key downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The private key could not be downloaded. Please try again.",
+                alreadyVerified: "Your private key was already downloaded and verified.",
+                unavailable:
+                    "Private key download is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
@@ -2009,13 +2051,13 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
+                verifyButton: "Verify key",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
                 alreadyRestored: "Your key was already restored.",
-                downloaded: "Encrypted Private Key generated successfully.",
             },
         },
         miruExport: {

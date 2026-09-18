@@ -51,7 +51,14 @@ const StyledImage = styled(Image)`
 `
 
 export const StyledButtonTooltip = styled(({className, ...props}: TooltipProps) => (
-    <Tooltip {...props} classes={{popper: className}} />
+    <Tooltip
+        {...props}
+        classes={{
+            popper: `header-tooltip${className ? ` ${className}` : ""}`,
+            tooltip: "header-tooltip-content",
+            arrow: "header-tooltip-arrow",
+        }}
+    />
 ))(({theme}) => ({
     [`& .${tooltipClasses.tooltip}`]: {
         backgroundColor: theme.palette.blue.light,
@@ -166,12 +173,22 @@ export default function Header({
                 role="banner"
                 component="header"
             >
-                <PageLimit maxWidth="lg" sx={{height: {xs: "37px", md: "47px"}}}>
-                    <PageBanner direction="row" sx={{height: "100%"}}>
-                        <StyledLink href={logoLink} target="_blank">
-                            <StyledImage src={logoUrl || ""} duration={100} alt="Logo Image" />
+                <PageLimit
+                    className="header-page-limit"
+                    maxWidth="lg"
+                    sx={{height: {xs: "37px", md: "47px"}}}
+                >
+                    <PageBanner className="header-content" direction="row" sx={{height: "100%"}}>
+                        <StyledLink className="header-logo-link" href={logoLink} target="_blank">
+                            <StyledImage
+                                className="header-logo"
+                                src={logoUrl || ""}
+                                duration={100}
+                                alt="Logo Image"
+                            />
                         </StyledLink>
                         <Box
+                            className="header-actions"
                             display="flex"
                             alignItems="center"
                             sx={{gap: {xs: "11px", lg: "31px"}}}
@@ -191,8 +208,11 @@ export default function Header({
                                             setOpenModal(true)
                                         }}
                                     >
-                                        <LogoutIcon aria-hidden />
-                                        <Box sx={{display: {xs: "none", sm: "block"}}}>
+                                        <LogoutIcon className="logout-button-icon" aria-hidden />
+                                        <Box
+                                            className="logout-button-label"
+                                            sx={{display: {xs: "none", sm: "block"}}}
+                                        >
                                             {t("logout.buttonText")}
                                         </Box>
                                     </StyledButton>
@@ -217,6 +237,7 @@ export default function Header({
             </HeaderWrapper>
 
             <Dialog
+                className="logout-dialog"
                 handleClose={handleCloseModal}
                 open={openModal}
                 title={t("logout.modal.title")}
@@ -224,9 +245,10 @@ export default function Header({
                 cancel={t("logout.modal.close")}
                 variant="action"
             >
-                <p>{t("logout.modal.content")}</p>
+                <p className="logout-dialog-description">{t("logout.modal.content")}</p>
             </Dialog>
             <Dialog
+                className="session-expiry-dialog"
                 handleClose={() => handleToggleTimeModal(false)}
                 open={openTimeModal}
                 title={t("header.session.title")}
@@ -234,7 +256,9 @@ export default function Header({
                 cancel={t("logout.modal.close")}
                 variant="info"
             >
-                <p>{t("header.session.timeLeft", {time: countdownTimeLeft})}</p>
+                <p className="session-expiry-dialog-description">
+                    {t("header.session.timeLeft", {time: countdownTimeLeft})}
+                </p>
             </Dialog>
         </>
     )

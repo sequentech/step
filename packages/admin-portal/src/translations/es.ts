@@ -254,6 +254,7 @@ const spanishTranslation: TranslationType = {
                 logs: "Registros",
             },
             tasksExecution: {
+                DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para el votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
@@ -803,6 +804,10 @@ const spanishTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a la Generación de Claves..",
                 started: "Iniciada en",
+                actions: {
+                    participate: "Participar en la ceremonia de claves",
+                    view: "Ver la ceremonia de claves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
@@ -926,6 +931,8 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "La exportación puede ser una operación larga. ¿Estás seguro de que deseas exportar los registros?",
                 encryptWithPassword: "Cifrar con Contraseña",
+                passwordForcedNote:
+                    "El archivo se protegerá con contraseña de todos modos: los informes, las solicitudes y los datos del tablón se cifran siempre. Marca la casilla para incluir también los campos secretos de votante descifrados.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Registros de Actividad",
                 bulletinBoard: "Tablón de Anuncios",
@@ -1188,6 +1195,18 @@ const spanishTranslation: TranslationType = {
                 },
                 title: "Votantes",
                 subtitle: "Ver y editar datos del votante",
+                secretAttribute: {
+                    storedPlaceholder: "Valor cifrado almacenado",
+                    reveal: "Mostrar",
+                    hide: "Ocultar",
+                    revealError: "No se pudo mostrar el campo cifrado del votante",
+                    includeInExport: "Incluir campos secretos descifrados del votante",
+                    exportWarning:
+                        "Exportación sensible: el CSV descargado contendrá estos campos en texto plano.",
+                    clear: "Borrar",
+                    add: "Añadir valor",
+                    remove: "Eliminar valor",
+                },
                 review: {
                     title: "Revisar cambios",
                     subtitle: "Confirma estas actualizaciones antes de enviarlas.",
@@ -1296,6 +1315,7 @@ const spanishTranslation: TranslationType = {
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
+                "tenant-delete": "Eliminar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
@@ -1305,6 +1325,8 @@ const spanishTranslation: TranslationType = {
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
                 "voter-write": "Editar Votante",
+                "voter-secret-attribute-read": "Mostrar Campos Secretos del Votante",
+                "voter-secret-attribute-write": "Editar Campos Secretos del Votante",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -1503,6 +1525,23 @@ const spanishTranslation: TranslationType = {
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
                 "google-meet-link": "Generar Enlace de Google Meet",
+                "service-account": "Cuenta de servicio",
+                "datafix-account": "Cuenta de corrección de datos",
+                "gold": "Oro",
+                "silver": "Plata",
+                "election-event-ivr-tab": "Ver IVR del evento electoral",
+                "election-event-cas-tab": "Ver CAS del evento electoral",
+                "ca-read": "Consultar autoridades de certificación",
+                "ca-write": "Editar autoridades de certificación",
+                "generate-preview": "Generar vista previa",
+                "preview-read": "Consultar vista previa",
+                "tally-resolution-submit": "Enviar resolución del escrutinio",
+                "phone-blacklist-read": "Consultar lista negra de teléfonos",
+                "phone-blacklist-create": "Crear entradas en la lista negra de teléfonos",
+                "phone-blacklist-update": "Editar entradas de la lista negra de teléfonos",
+                "phone-blacklist-delete": "Eliminar entradas de la lista negra de teléfonos",
+                "election-event-voter-list-reconciliation":
+                    "Conciliar la lista de votantes del evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -2016,8 +2055,12 @@ const spanishTranslation: TranslationType = {
                 subtitle:
                     "Para continuar, por favor descarga y guarda tu Clave Privada Encriptada en al menos dos dispositivos diferentes:",
                 downloadButton: "Descargar tu Clave Privada Encriptada",
-                errorDownloading: "Error de descarga: {{error}}",
+                downloaded: "Clave Privada Encriptada descargada correctamente.",
                 errorEmptyKey: "Error de descarga, fichero vacío",
+                unexpectedError: "No se pudo descargar la clave privada. Inténtalo de nuevo.",
+                alreadyVerified: "Tu clave privada ya se había descargado y verificado.",
+                unavailable:
+                    "La descarga de la clave privada ya no está disponible porque la ceremonia ha avanzado.",
                 confirmdDialog: {
                     ok: "Confirmar copias de seguridad y Continuar",
                     cancel: "Volver",
@@ -2032,6 +2075,7 @@ const spanishTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verifica tus Copias de Seguridad de tu Clave Privada Encriptada",
+                verifyButton: "Verificar clave",
                 subtitle:
                     "Sube la Copia de Seguridad de tu Clave Privada Encriptada para verificar que sea correcta. Puedes intentarlo tantas veces como sea necesario, desde tus diferentes copias de seguridad:",
                 errorUploading:
@@ -2039,7 +2083,6 @@ const spanishTranslation: TranslationType = {
                 errorEmptyFile: "Fichero vacío o no encontrado",
                 verified: "Copia de seguridad verificada correctamente.",
                 alreadyRestored: "Tu clave ya se había restaurado.",
-                downloaded: "Clave Encriptada Privada generada exitosamente.",
             },
         },
         miruExport: {

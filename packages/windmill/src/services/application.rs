@@ -102,7 +102,7 @@ pub async fn verify_application(
 
     // Uses applicant data to lookup possible users
     let users = lookup_users(hasura_transaction, keycloak_transaction, filter).await?;
-    debug!("Found users before verification: {:?}", users);
+    debug!("Found {} users before verification", users.len());
 
     // Finds an user from the list of found possible users
     let result = automatic_verification(users.clone(), &annotations, applicant_data)?;
@@ -896,8 +896,6 @@ pub async fn confirm_application(
         user.last_name
     };
 
-    info!("update_attributes={attributes:?}, attributes_to_store={attributes_to_store:?}");
-
     let client = KeycloakAdminClient::new()
         .await
         .map_err(|err| anyhow!("Error obtaining keycloak admin client: {}", err))?;
@@ -1073,6 +1071,7 @@ pub async fn send_application_communication_response(
                 alias: None,
                 pdf_options: None,
                 report_options: None,
+                secret_attribute_names: Vec::new(),
             };
 
             let celery_app = get_celery_app().await;

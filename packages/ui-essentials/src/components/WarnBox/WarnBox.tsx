@@ -98,15 +98,20 @@ const WarnBox: React.FC<PropsWithChildren<WarnBoxProps>> = ({
             data-warn-id={warnId}
             data-warn-type={warnType}
         >
-            <Icon icon={faWarning} size="lg" aria-hidden="true" />
-            <Box flexGrow={2}>
+            <Icon className="warn-box-icon" icon={faWarning} size="lg" aria-hidden="true" />
+            <Box className="warn-box-content" flexGrow={2}>
                 {variant ? (
-                    <VisuallyHidden>{`${t(SEVERITY_KEY[variant])}: `}</VisuallyHidden>
+                    <VisuallyHidden className="warn-box-severity">{`${t(SEVERITY_KEY[variant])}: `}</VisuallyHidden>
                 ) : null}
                 {children}
             </Box>
             {onClose ? (
-                <IconButton icon={faTimes} onClick={onClose} ariaLabel={t("a11y.dismissMessage")} />
+                <IconButton
+                    buttonClassName="warn-box-close-button"
+                    icon={faTimes}
+                    onClick={onClose}
+                    ariaLabel={t("a11y.dismissMessage")}
+                />
             ) : undefined}
         </WarnContainer>
     )

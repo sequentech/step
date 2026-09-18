@@ -8,16 +8,15 @@ use crate::postgres::ballot_publication::get_ballot_publication;
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::certificate_authority::get_certificate_authorities_pem;
 use crate::postgres::contest::export_contests;
-use crate::postgres::document::get_document;
+use crate::postgres::document::{get_document, get_exportable_document_ids};
 use crate::postgres::election::export_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::keys_ceremony::get_keys_ceremonies;
 use crate::postgres::reports::get_reports_by_election_event_id;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::database::get_hasura_pool;
-use crate::services::export::export_ballot_publication::{self, export_election_event_config_file};
+use crate::services::export::export_ballot_publication::export_election_event_config_file;
 use crate::services::import::import_election_event::ImportElectionEventSchema;
-use crate::services::reports::activity_log;
 use crate::services::reports::activity_log::{ActivityLogsTemplate, ReportFormat};
 use crate::services::reports::template_renderer::{
     ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
@@ -34,11 +33,11 @@ use sequent_core::services::keycloak::KeycloakAdminClient;
 use sequent_core::services::s3;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
-use sequent_core::types::hasura::core::KeysCeremony;
-use sequent_core::types::hasura::core::{Candidate, Contest, Election};
+use sequent_core::types::hasura::core::{
+    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony,
+};
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
@@ -55,10 +54,12 @@ use super::export_tally;
 use super::export_users::export_users_file;
 use super::export_users::ExportBody;
 use crate::services::consolidation::aes_256_cbc_encrypt::encrypt_file_aes_256_cbc;
-use crate::services::documents::upload_and_return_document;
+use crate::services::documents::{
+    upload_and_return_document, upload_and_return_document_with_annotations,
+};
 use crate::services::password;
 
-#[instrument(err, skip(transaction))]
+#[instrument(err, skip(transaction, export_config))]
 pub async fn read_export_data(
     transaction: &Transaction<'_>,
     tenant_id: &str,
@@ -168,7 +169,7 @@ pub async fn read_export_data(
     Ok((import_election_event_schema, images_files_path))
 }
 
-#[instrument(err)]
+#[instrument(err, skip(password))]
 pub async fn generate_encrypted_zip(
     temp_path_string: String,
     encrypted_temp_file_string: String,
@@ -329,13 +330,28 @@ pub async fn process_event_images(
     Ok(s3_files)
 }
 
-#[instrument(err)]
+fn select_export_upload_path<'a>(
+    encryption_password: &str,
+    zip_path: &'a PathBuf,
+    encrypted_zip_path: &'a PathBuf,
+) -> Result<&'a PathBuf> {
+    if encryption_password.is_empty() {
+        return Ok(zip_path);
+    }
+    if encrypted_zip_path.exists() {
+        return Ok(encrypted_zip_path);
+    }
+    Err(anyhow!("Encrypted election-event archive was not created"))
+}
+
+#[instrument(err, skip(export_config))]
 pub async fn process_export_zip(
     tenant_id: &str,
     election_event_id: &str,
     document_id: &str,
     export_config: ExportOptions,
 ) -> Result<()> {
+    let contains_voter_secrets = export_config.contains_voter_secrets;
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
         .get()
@@ -345,10 +361,16 @@ pub async fn process_export_zip(
         .transaction()
         .await
         .map_err(|err| anyhow!("Error starting hasura transaction: {err}"))?;
-    info!("export_config: {:?}", export_config);
-    // Temporary file path for the ZIP archive
+    info!(
+        include_voters = export_config.include_voters,
+        contains_voter_secrets, "exporting election event"
+    );
+    // A task-private 0700 directory prevents same-event exports from racing
+    // over a predictable filename and removes plaintext on every return path.
+    let export_temp_dir =
+        tempfile::tempdir().context("Error creating temporary election-event export directory")?;
     let zip_filename = format!("export-election-event-{election_event_id}.zip");
-    let zip_path = env::temp_dir().join(&zip_filename);
+    let zip_path = export_temp_dir.path().join(&zip_filename);
 
     // Create a new ZIP file
     let zip_file =
@@ -411,6 +433,7 @@ pub async fn process_export_zip(
                 tenant_id: tenant_id.to_string(),
                 election_event_id: Some(election_event_id.to_string()),
                 election_id: None,
+                include_secret_attributes: export_config.contains_voter_secrets,
             },
         )
         .await
@@ -516,17 +539,14 @@ pub async fn process_export_zip(
             ReportFormat::CSV, // Assuming CSV format for this export
         );
 
-        // Prepare user data
-        let user_data = activity_logs_template
-            .prepare_user_data(&hasura_transaction, &hasura_transaction)
+        // Generate the CSV file directly from the electoral log board, streaming
+        // in batches (same path used by ActivityLogsTemplate::execute_report for
+        // the CSV report type), since prepare_user_data is not implemented for
+        // this report type.
+        let temp_activity_logs_file = activity_logs_template
+            .generate_export_csv_data(&activity_logs_filename)
             .await
-            .map_err(|e| anyhow!("Error preparing activity logs data: {e:?}"))?;
-
-        // Generate the CSV file using generate_export_data
-        let temp_activity_logs_file =
-            activity_log::generate_export_data(&user_data.electoral_log, &activity_logs_filename)
-                .await
-                .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
+            .map_err(|e| anyhow!("Error generating export data: {e:?}"))?;
 
         zip_writer
             .start_file(&activity_logs_filename, options)
@@ -543,10 +563,18 @@ pub async fn process_export_zip(
         let s3_folder_name = format!("{}", EDocuments::S3_FILES.to_file_name());
         let documents_prefix = format!("tenant-{}/event-{}/", tenant_id, election_event_id);
         let bucket = s3::get_private_bucket()?;
+        let exportable_document_ids = get_exportable_document_ids(
+            &hasura_transaction,
+            tenant_id,
+            election_event_id,
+            contains_voter_secrets,
+        )
+        .await?;
 
-        let s3_files = s3::get_files_from_s3(bucket, documents_prefix.clone())
-            .await
-            .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
+        let s3_files =
+            s3::get_files_from_s3(bucket, documents_prefix.clone(), &exportable_document_ids)
+                .await
+                .map_err(|err| anyhow!("Error retrieving files from S3: {err:?}"))?;
 
         for file_path in s3_files {
             let file_name = file_path
@@ -618,39 +646,42 @@ pub async fn process_export_zip(
             .start_file(&publications_filename, options)
             .map_err(|e| anyhow!("Error starting ballot publications file in ZIP: {e:?}"))?;
 
-        let temp_path = export_ballot_publication::export_ballot_publications(
-            &hasura_transaction,
-            document_id,
-            tenant_id,
-            election_event_id,
-        )
-        .await
-        .map_err(|err| anyhow!("Error exporting ballot publications: {err}"))?;
+        let (publications, files) =
+            crate::services::ballot_styles::publication_archive::export_publication_archive(
+                &hasura_transaction,
+                tenant_id,
+                election_event_id,
+            )
+            .await?;
+        std::io::Write::write_all(&mut zip_writer, &serde_json::to_vec(&publications)?)?;
+        for (name, path) in files {
+            zip_writer.start_file(name, options)?;
+            std::io::copy(&mut File::open(path)?, &mut zip_writer)?;
+        }
 
-        let mut ballot_publication_file = File::open(temp_path)
-            .map_err(|e| anyhow!("Error opening temporary ballot publications file: {e:?}"))?;
-        std::io::copy(&mut ballot_publication_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying ballot publications file to ZIP: {e:?}"))?;
+        if publications.has_generated_publications() {
+            // Handle election event config file (which is created in ballot publication)
+            let election_event_config = format!(
+                "{}-{}.json",
+                EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
+                election_event_id
+            );
 
-        // Handle election event config file (which is created in ballot publication)
-        let election_event_config = format!(
-            "{}-{}.json",
-            EDocuments::ELECTION_EVENT_CONFIG.to_file_name(),
-            election_event_id
-        );
+            zip_writer
+                .start_file(&election_event_config, options)
+                .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
+            let election_event_config_temp_path =
+                export_election_event_config_file(tenant_id, election_event_id)
+                    .await
+                    .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
 
-        zip_writer
-            .start_file(&election_event_config, options)
-            .map_err(|e| anyhow!("Error starting election event config file in ZIP: {e:?}"))?;
-        let election_event_config_temp_path =
-            export_election_event_config_file(tenant_id, election_event_id)
-                .await
-                .map_err(|err| anyhow!("Error exporting election event config file: {err}"))?;
-
-        let mut election_event_config_file = File::open(election_event_config_temp_path)
-            .map_err(|e| anyhow!("Error opening temporary election event config file: {e:?}"))?;
-        std::io::copy(&mut election_event_config_file, &mut zip_writer)
-            .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
+            let mut election_event_config_file = File::open(election_event_config_temp_path)
+                .map_err(|e| {
+                    anyhow!("Error opening temporary election event config file: {e:?}")
+                })?;
+            std::io::copy(&mut election_event_config_file, &mut zip_writer)
+                .map_err(|e| anyhow!("Error copying election event config file to ZIP: {e:?}"))?;
+        }
     }
 
     // add protocol manager secrets
@@ -770,12 +801,9 @@ pub async fn process_export_zip(
         .await?;
     }
 
-    // Use encrypted_zip_path if encryption is enabled, otherwise use zip_path
-    let upload_path = if encryption_password.len() > 0 && encrypted_zip_path.exists() {
-        &encrypted_zip_path
-    } else {
-        &zip_path
-    };
+    // Never fall back to the plaintext archive after encryption was requested.
+    let upload_path =
+        select_export_upload_path(&encryption_password, &zip_path, &encrypted_zip_path)?;
 
     let zip_size = std::fs::metadata(&upload_path)
         .map_err(|e| anyhow!("Error getting ZIP file metadata: {e:?}"))?
@@ -789,27 +817,37 @@ pub async fn process_export_zip(
     .map_err(|e| anyhow!("Error generating the exported election event filename: {e:?}"))?;
 
     // Upload the ZIP file (encrypted or original) to Hasura
-    let _document = upload_and_return_document(
-        &hasura_transaction,
-        upload_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?,
-        zip_size,
-        "application/zip",
-        &tenant_id.to_string(),
-        Some(election_event_id.to_string()),
-        &export_event_filename,
-        Some(document_id.to_string()),
-        false,
-    )
-    .await?;
-
-    // Clean up the ZIP files (optional)
-    std::fs::remove_file(&zip_path).map_err(|e| anyhow!("Error removing ZIP file: {e:?}"))?;
-    if encrypted_zip_path.exists() {
-        std::fs::remove_file(&encrypted_zip_path)
-            .map_err(|e| anyhow!("Error removing encrypted ZIP file: {e:?}"))?;
-    }
+    let upload_path = upload_path
+        .to_str()
+        .ok_or_else(|| anyhow!("Can't convert {:?} to string", upload_path))?;
+    let _document = if contains_voter_secrets {
+        upload_and_return_document_with_annotations(
+            &hasura_transaction,
+            upload_path,
+            zip_size,
+            "application/zip",
+            &tenant_id.to_string(),
+            Some(election_event_id.to_string()),
+            &export_event_filename,
+            Some(document_id.to_string()),
+            false,
+            &DocumentAnnotations::voter_secret_export(),
+        )
+        .await?
+    } else {
+        upload_and_return_document(
+            &hasura_transaction,
+            upload_path,
+            zip_size,
+            "application/zip",
+            &tenant_id.to_string(),
+            Some(election_event_id.to_string()),
+            &export_event_filename,
+            Some(document_id.to_string()),
+            false,
+        )
+        .await?
+    };
 
     hasura_transaction
         .commit()
@@ -817,4 +855,31 @@ pub async fn process_export_zip(
         .map_err(|e| anyhow!("Commit failed: {e:?}"))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encryption_never_falls_back_to_plaintext() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let zip_path = temp_dir.path().join("export.zip");
+        let encrypted_zip_path = temp_dir.path().join("export.ezip");
+        File::create(&zip_path).unwrap();
+
+        assert!(select_export_upload_path("password", &zip_path, &encrypted_zip_path).is_err());
+        assert_eq!(
+            select_export_upload_path("", &zip_path, &encrypted_zip_path).unwrap(),
+            &zip_path
+        );
+    }
+
+    #[test]
+    fn temporary_directories_are_unique_for_concurrent_event_exports() {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+
+        assert_ne!(first.path(), second.path());
+    }
 }

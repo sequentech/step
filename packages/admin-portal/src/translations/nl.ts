@@ -255,6 +255,7 @@ const dutchTranslation: TranslationType = {
                 logs: "Logs",
             },
             tasksExecution: {
+                DELETE_TENANT: "Tenant verwijderen",
                 PUBLISH_BALLOT: "Stembiljet publiceren",
                 VOTER_INFORMATION_LETTER: "Kiezersinformatiebrief",
                 EXPORT_ELECTION_EVENT: "Verkiezingsevenement Exporteren",
@@ -802,6 +803,10 @@ const dutchTranslation: TranslationType = {
                 statusLabel: "Status",
                 waitingKeys: "Wachten op sleutelgeneratie...",
                 started: "Gestart op",
+                actions: {
+                    participate: "Deelnemen aan sleutelceremonie",
+                    view: "Sleutelceremonie bekijken",
+                },
                 breadCrumbs: {
                     configure: "Configureren",
                     ceremony: "Ceremonie",
@@ -924,6 +929,8 @@ const dutchTranslation: TranslationType = {
                 title: "Verkiezingsevenement Exporteren",
                 subtitle: "Exporteren kan lang duren. Weet u zeker dat u records wilt exporteren?",
                 encryptWithPassword: "Versleutelen met wachtwoord",
+                passwordForcedNote:
+                    "Het archief wordt hoe dan ook met een wachtwoord beveiligd: rapporten, aanvragen en bulletinboardgegevens worden altijd versleuteld. Vink het vakje aan om ook ontsleutelde geheime kiezersvelden op te nemen.",
                 includeVoters: "Kiezers Opnemen",
                 activityLogs: "Activiteitenlogs",
                 bulletinBoard: "Prikbord",
@@ -1187,6 +1194,18 @@ const dutchTranslation: TranslationType = {
                 },
                 title: "Kiezers",
                 subtitle: "Kiezersgegevens bekijken en bewerken",
+                secretAttribute: {
+                    storedPlaceholder: "Opgeslagen versleutelde waarde",
+                    reveal: "Tonen",
+                    hide: "Verbergen",
+                    revealError: "Het versleutelde kiezersveld kon niet worden getoond",
+                    includeInExport: "Ontsleutelde geheime kiezersvelden opnemen",
+                    exportWarning:
+                        "Gevoelige export: de gedownloade CSV bevat deze velden als platte tekst.",
+                    clear: "Wissen",
+                    add: "Waarde toevoegen",
+                    remove: "Waarde verwijderen",
+                },
                 review: {
                     title: "Wijzigingen controleren",
                     subtitle: "Bevestig deze updates voordat u ze indient.",
@@ -1297,6 +1316,7 @@ const dutchTranslation: TranslationType = {
                 "tenant-create": "Tenant Aanmaken",
                 "tenant-read": "Tenant Lezen",
                 "tenant-write": "Tenant Bewerken",
+                "tenant-delete": "Tenant Verwijderen",
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",
@@ -1306,6 +1326,8 @@ const dutchTranslation: TranslationType = {
                 "voter-create": "Kiezer Aanmaken",
                 "voter-read": "Kiezer Lezen",
                 "voter-write": "Kiezer Bewerken",
+                "voter-secret-attribute-read": "Geheime Kiezersvelden Tonen",
+                "voter-secret-attribute-write": "Geheime Kiezersvelden Bewerken",
                 "user-create": "Gebruiker Aanmaken",
                 "user-read": "Gebruiker Lezen",
                 "user-write": "Gebruiker Bewerken",
@@ -1501,6 +1523,23 @@ const dutchTranslation: TranslationType = {
                 "cloudflare-write": "Regels Landblokkering in Cloudflare Bewerken",
                 "transmission-report-generate": "Transmissierapport Genereren",
                 "google-meet-link": "Google Meet Link Genereren",
+                "service-account": "Serviceaccount",
+                "datafix-account": "Datafix-account",
+                "gold": "Goud",
+                "silver": "Zilver",
+                "election-event-ivr-tab": "IVR van verkiezingsevenement bekijken",
+                "election-event-cas-tab": "CAS van verkiezingsevenement bekijken",
+                "ca-read": "Certificeringsinstanties lezen",
+                "ca-write": "Certificeringsinstanties bewerken",
+                "generate-preview": "Voorbeeld genereren",
+                "preview-read": "Voorbeeld lezen",
+                "tally-resolution-submit": "Tellingbesluit indienen",
+                "phone-blacklist-read": "Telefoonblokkadelijst lezen",
+                "phone-blacklist-create": "Vermeldingen aan de telefoonblokkadelijst toevoegen",
+                "phone-blacklist-update": "Vermeldingen in de telefoonblokkadelijst bewerken",
+                "phone-blacklist-delete": "Vermeldingen uit de telefoonblokkadelijst verwijderen",
+                "election-event-voter-list-reconciliation":
+                    "Kiezerslijst van verkiezingsevenement afstemmen",
             },
         },
         generalSettingsScreen: {
@@ -2014,8 +2053,12 @@ const dutchTranslation: TranslationType = {
                 subtitle:
                     "Om door te gaan, download en bewaar uw Versleutelde Privésleutel op minstens twee verschillende apparaten:",
                 downloadButton: "Download uw Versleutelde Privésleutel",
-                errorDownloading: "Downloadfout: {{error}}",
+                downloaded: "Versleutelde privésleutel succesvol gedownload.",
                 errorEmptyKey: "Downloadfout, leeg bestand",
+                unexpectedError: "De privésleutel kon niet worden gedownload. Probeer het opnieuw.",
+                alreadyVerified: "Uw privésleutel was al gedownload en geverifieerd.",
+                unavailable:
+                    "De privésleutel kan niet meer worden gedownload omdat de ceremonie is gevorderd.",
                 confirmdDialog: {
                     ok: "Back-ups Bevestigen en Doorgaan",
                     cancel: "Terug",
@@ -2030,13 +2073,13 @@ const dutchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Controleer uw Back-ups van de Versleutelde Privésleutel",
+                verifyButton: "Sleutel verifiëren",
                 subtitle:
                     "Upload een Back-up van de Versleutelde Privésleutel om te controleren of deze correct is. U kunt het zo vaak als nodig proberen, vanaf uw verschillende back-ups:",
                 errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
                 errorEmptyFile: "Bestand leeg of niet gevonden",
                 verified: "Back-up succesvol geverifieerd.",
                 alreadyRestored: "Uw sleutel was al hersteld.",
-                downloaded: "Versleutelde Privésleutel succesvol gegenereerd.",
             },
         },
         miruExport: {

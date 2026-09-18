@@ -40,6 +40,7 @@ const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""})
     return (
         <>
             <StyledButtonTooltipText
+                className="session-countdown-title"
                 sx={{
                     fontWeight: 500,
                     color: theme.palette.brandColor,
@@ -47,7 +48,7 @@ const CountdownTooltipContent: React.FC<{timeLeft?: string}> = ({timeLeft = ""})
             >
                 {t("header.session.title")}
             </StyledButtonTooltipText>
-            <StyledButtonTooltipText>
+            <StyledButtonTooltipText className="session-countdown-time">
                 {t("header.session.timeLeft", {time: timeLeft})}
             </StyledButtonTooltipText>
         </>
@@ -143,7 +144,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             : userProfile.username
 
     return (
-        <Box>
+        <Box className="profile-menu-container">
             <StyledButtonTooltip
                 disableHoverListener={
                     !expiry || (expiry.countdownAt ? timeLeft > expiry?.countdownAt : true)
@@ -169,11 +170,11 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                         <CountdownTimer progress={(timeLeft / totalDuration) * 100} />
                     )}
                     <StyledButton
-                        className="logout-button"
+                        className="logout-button profile-menu-button"
                         aria-labelledby="welcome-text-name"
                         onClick={handleMenu}
                     >
-                        <AccountCircle sx={{fontSize: 40}} />
+                        <AccountCircle className="profile-menu-icon" sx={{fontSize: 40}} />
                         <Box
                             id="welcome-text-name"
                             className="user-first-name"
@@ -193,13 +194,18 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                 values={{
                                     name: profileName,
                                 }}
-                                components={{br: <br />, span: <Name />}}
+                                components={{
+                                    br: <br className="profile-name-break" />,
+                                    span: <Name className="profile-name" />,
+                                }}
                             />
                         </Box>
                     </StyledButton>
                 </StyledButtonContainerWrapper>
             </StyledButtonTooltip>
             <Menu
+                className="profile-menu"
+                classes={{paper: "profile-menu-paper", list: "profile-menu-options"}}
                 id="menu-appbar"
                 anchorEl={anchorEl}
                 anchorOrigin={{
@@ -218,6 +224,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                 {(!!userProfile.firstName || !!userProfile.username || !!userProfile.email) && (
                     <MenuItem className="user-details">
                         <Box
+                            className="profile-menu-identity"
                             sx={{
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -238,7 +245,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                                             ? userProfile.firstName
                                             : userProfile.username}
                                     </span>
-                                    <br />
+                                    <br className="profile-name-break" />
                                 </>
                             )}
                             {!!userProfile.email && (
@@ -257,7 +264,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             userProfile?.openLink?.()
                         }}
                     >
-                        <AccountCircle sx={{marginRight: "14px"}} />
+                        <AccountCircle className="profile-menu-icon" sx={{marginRight: "14px"}} />
                         {t("header.profile")}
                     </MenuItem>
                 )}
@@ -269,7 +276,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                             handleClose()
                         }}
                     >
-                        <LogoutIcon sx={{marginRight: "14px"}} />
+                        <LogoutIcon className="profile-logout-icon" sx={{marginRight: "14px"}} />
                         {t("logout.buttonText")}
                     </MenuItem>
                 )}

@@ -18,6 +18,7 @@ import {
     BallotSelection,
     EInvalidVotePolicy,
     EOverVotePolicy,
+    translateHtml,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {Box} from "@mui/material"
@@ -218,6 +219,7 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
         <ErrorWrapper className="error-list" id={contestErrorsId(question.id)} role="status">
             {numAvailableChars < 0 ? (
                 <WarnBox
+                    className="write-in-error"
                     variant="warning"
                     id={writeInErrorId(question.id)}
                     // The write-in field points aria-describedby at this box, so
@@ -226,31 +228,33 @@ export const InvalidErrorsList: React.FC<IInvalidErrorsListProps> = ({
                     warnId="errors.encoding.writeInCharsExceeded"
                     warnType={IInvalidPlaintextErrorType.EncodingError}
                 >
-                    {t("errors.encoding.writeInCharsExceeded", {
+                    {translateHtml(t, "errors.encoding.writeInCharsExceeded", {
                         numCharsExceeded: -numAvailableChars,
                     })}
                 </WarnBox>
             ) : null}
             {filteredSelection?.invalid_errors.map((error, index) => (
                 <WarnBox
+                    className="contest-validation-warning"
                     variant="warning"
                     key={index}
                     announcement={EWarnBoxAnnouncement.SILENT}
                     warnId={error.message}
                     warnType={error.error_type}
                 >
-                    {t(error.message || "", error.message_map ?? {})}
+                    {translateHtml(t, error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
             {filteredSelection?.invalid_alerts.map((error, index) => (
                 <WarnBox
+                    className="contest-validation-info"
                     variant="info"
                     key={index}
                     announcement={EWarnBoxAnnouncement.SILENT}
                     warnId={error.message}
                     warnType={error.error_type}
                 >
-                    {t(error.message || "", error.message_map ?? {})}
+                    {translateHtml(t, error.message || "", error.message_map ?? {})}
                 </WarnBox>
             ))}
         </ErrorWrapper>
