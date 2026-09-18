@@ -1,11 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-//! The legacy positional CSV decoder used by Windmill. Header and malformed
+//! Legacy positional CSV decoding retained for migration. Header and malformed
 //! tenant rows are skipped, matching the existing import task.
 use chrono::{DateTime, Local};
 use serde_json::Value;
 use std::io::Read;
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImportedTemplate {
     pub alias: String,
     pub tenant_id: String,

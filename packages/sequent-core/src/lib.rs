@@ -40,7 +40,7 @@ pub mod plugins_wit;
 
 #[cfg(feature = "default_features")]
 pub mod serialization;
-#[cfg(feature = "default_features")]
+#[cfg(any(feature = "default_features", feature = "template_rendering"))]
 pub mod services;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;

@@ -1069,6 +1069,7 @@ pub async fn send_application_communication_response(
                 email: email_config,
                 sms: sms_config,
                 document: None,
+                assets: Default::default(),
                 name: None,
                 alias: None,
                 pdf_options: None,

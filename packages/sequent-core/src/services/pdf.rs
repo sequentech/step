@@ -630,6 +630,12 @@ pub fn html_to_pdf(
     html: String,
     options: Option<PrintToPdfOptions>,
 ) -> Result<Vec<u8>> {
+    let has_files = super::reports::assets::has_envelope(&html);
+    let (html, assets) =
+        super::reports::assets::detach(&html).map_err(|e| anyhow!(e))?;
+    if has_files {
+        return super::template_pdf::render(&html, &assets, options);
+    }
     // Create temp html file
     let dir = tempdir()?;
     let file_path = dir.path().join("index.html");

@@ -2619,7 +2619,7 @@ const englishTranslation = {
                 title: "Import Templates",
                 subtitle: "Import templates data",
                 paragraph:
-                    "Import templates using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                    "Import a template ZIP bundle containing the template sources, settings, and attached files.",
             },
         },
         materials: {

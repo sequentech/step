@@ -445,7 +445,13 @@ pub trait TemplateRenderer: Debug {
                 tpl_report_options = template.report_options;
                 tpl_email = template.email;
                 tpl_sms = template.sms;
-                Some(template.document.unwrap_or_default())
+                Some(
+                    reports::assets::attach(
+                        &template.document.unwrap_or_default(),
+                        &template.assets,
+                    )
+                    .map_err(|e| anyhow!("Invalid template files: {e}"))?,
+                )
             }
             None => None,
         };

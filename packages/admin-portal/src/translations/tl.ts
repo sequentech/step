@@ -2651,7 +2651,7 @@ const tagalogTranslation: TranslationType = {
                 title: "Mag-import ng Mga Template",
                 subtitle: "Mag-import ng data ng mga template",
                 paragraph:
-                    "Mag-import ng mga template gamit ang spreadsheet file sa format na Comma Separated Values (CSV). I-download ang isang halimbawa ng import na CSV file dito.",
+                    "Mag-import ng ZIP na naglalaman ng mga template, setting, at kalakip na file.",
             },
         },
         materials: {

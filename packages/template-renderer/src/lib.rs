@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+pub mod assets;
+pub mod bundle;
 mod exchange;
 pub mod helpers;
 pub mod localization;
@@ -8,7 +10,7 @@ mod schema;
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::*;
 
-const MAX_INPUT: usize = 2_000_000;
+const MAX_INPUT: usize = 32_000_000;
 const CATALOG: &str = include_str!("../catalog/v1/catalog.json");
 fn failure(message: impl ToString) -> Value {
     json!({"html":null,"diagnostics":[{"severity":"error","code":"render","message":message.to_string()}]})
@@ -16,7 +18,7 @@ fn failure(message: impl ToString) -> Value {
 #[wasm_bindgen]
 pub fn studio_execute(input: &str) -> String {
     let result = if input.len() > MAX_INPUT {
-        failure("Input exceeds 2 MB")
+        failure("Input exceeds 32 MB")
     } else {
         match serde_json::from_str(input) {
             Ok(value) => execute(value),
@@ -27,13 +29,19 @@ pub fn studio_execute(input: &str) -> String {
 }
 pub fn execute(input: Value) -> Value {
     if input.to_string().len() > MAX_INPUT {
-        return failure("Input exceeds 2 MB");
+        return failure("Input exceeds 32 MB");
     }
     match input["op"].as_str().unwrap_or("render") {
         "catalog" => serde_json::from_str(CATALOG).expect("embedded catalog"),
         "render" => render(&input).unwrap_or_else(failure),
         "export" => exchange::export(&input).unwrap_or_else(failure),
         "import" => exchange::import(&input).unwrap_or_else(failure),
+        "export_zip" => exchange::export_zip(&input).unwrap_or_else(failure),
+        "import_zip" => exchange::import_zip(&input).unwrap_or_else(failure),
+        "validate_assets" => match assets::from_value(&input["assets"]) {
+            Ok(_) => json!({"diagnostics": []}),
+            Err(e) => failure(e),
+        },
         _ => failure("Unknown operation"),
     }
 }
@@ -102,6 +110,8 @@ fn render(input: &Value) -> Result<Value, String> {
             ),
         )
         .into_owned();
+    let files = assets::from_value(&input["template"]["assets"])?;
+    let html = assets::attach(&html, &files)?;
     Ok(
         json!({"html":html,"diagnostics":diagnostics,"catalogVersion":1,"language":language,"direction":direction}),
     )

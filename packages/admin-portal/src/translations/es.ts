@@ -2646,7 +2646,7 @@ const spanishTranslation: TranslationType = {
                 title: "Importar Plantillas",
                 subtitle: "Importar datos de plantillas",
                 paragraph:
-                    "Importa plantillas usando un archivo de hoja de cálculo en formato de valores separados por comas (CSV). Descarga un archivo CSV de ejemplo aquí.",
+                    "Importa un paquete ZIP con las plantillas, la configuración y los archivos adjuntos.",
             },
         },
         materials: {

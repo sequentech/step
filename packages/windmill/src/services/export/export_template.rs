@@ -5,14 +5,12 @@ use crate::postgres::template::get_templates_by_tenant_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use anyhow::{anyhow, Result};
-use csv::Writer;
 use deadpool_postgres::{Client as DbClient, Transaction};
+use sequent_core::services::reports::{bundle, platform_csv::ImportedTemplate};
+use sequent_core::types::hasura::core::Document;
 use sequent_core::types::hasura::core::Template;
 use sequent_core::util::temp_path::write_into_named_temp_file;
-use sequent_core::{services::keycloak::get_event_realm, types::hasura::core::Document};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
-use tracing::{event, info, instrument, Level};
+use tracing::instrument;
 
 #[instrument(err, skip(transaction))]
 pub async fn read_export_data(
@@ -28,8 +26,8 @@ pub async fn read_export_data(
             tenant_id: template.tenant_id.to_string(),
             template: template.template,
             created_by: template.created_by,
-            labels: Some(template.labels.unwrap_or_default()),
-            annotations: Some(template.annotations.unwrap_or_default()),
+            labels: template.labels,
+            annotations: template.annotations,
             created_at: template.created_at,
             updated_at: template.updated_at,
             communication_method: template.communication_method,
@@ -45,56 +43,34 @@ pub async fn write_export_document(
     data: Vec<Template>,
     document_id: &str,
 ) -> Result<Document> {
-    // Define the headers
-    let headers = vec![
-        "alias",
-        "tenant_id",
-        "template",
-        "created_by",
-        "labels",
-        "annotations",
-        "created_at",
-        "updated_at",
-        "communication_method",
-        "type",
-    ];
-
     let name = format!("template-{}", document_id);
-    let full_name = format!("{}.csv", name);
-
-    let mut writer = Writer::from_writer(vec![]);
-    writer.write_record(&headers)?;
-
-    for template in data.clone() {
-        writer
-            .write_record(&[
-                template.alias,
-                template.tenant_id,
-                template.template.to_string(),
-                template.created_by,
-                template.labels.unwrap_or_default().to_string(),
-                template.annotations.unwrap_or_default().to_string(),
-                template.created_at.expect("REASON").to_string(),
-                template.updated_at.expect("REASON").to_string(),
-                template.communication_method,
-                template.r#type,
-            ])
-            .map_err(|e| anyhow!("Error writting the template: {e:?}"))?;
-    }
-
-    let data_bytes = writer
-        .into_inner()
-        .map_err(|e| anyhow!("Error converting writer into inner: {e:?}"))?;
+    let full_name = format!("{}.zip", name);
+    let rows: Vec<ImportedTemplate> = data
+        .iter()
+        .map(|template| ImportedTemplate {
+            alias: template.alias.clone(),
+            tenant_id: template.tenant_id.clone(),
+            template: template.template.clone(),
+            created_by: template.created_by.clone(),
+            labels: template.labels.clone(),
+            annotations: template.annotations.clone(),
+            created_at: template.created_at,
+            updated_at: template.updated_at,
+            communication_method: template.communication_method.clone(),
+            r#type: template.r#type.clone(),
+        })
+        .collect();
+    let data_bytes = bundle::encode(rows).map_err(|e| anyhow!(e))?;
     let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&data_bytes, &name, ".csv")
-            .map_err(|e| anyhow!("Error writing into named temp file: {e:?}"))?;
+        write_into_named_temp_file(&data_bytes, &name, ".zip")
+            .map_err(|e| anyhow!("Error writing template bundle: {e:?}"))?;
 
     if let Some(first_template) = data.first() {
         upload_and_return_document(
             transaction,
             &temp_path_string,
             file_size,
-            "text/csv",
+            "application/zip",
             &first_template.tenant_id.to_string(),
             None,
             &full_name,

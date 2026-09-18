@@ -52,7 +52,7 @@ pub fn import(input: &Value) -> Result<Value, String> {
     }
     Ok(json!({"rows":rows,"diagnostics":[]}))
 }
-pub fn export(input: &Value) -> Result<Value, String> {
+fn localized_rows(input: &Value) -> Result<(Vec<Value>, Vec<Value>), String> {
     let metadata = &input["metadata"];
     if !uuid_v4(metadata["tenant_id"].as_str().unwrap_or("")) {
         return Err("Set destination tenant_id to a UUID v4 before export".into());
@@ -64,8 +64,7 @@ pub fn export(input: &Value) -> Result<Value, String> {
         return Err("Select at least one export language".into());
     }
     let mut aliases = std::collections::HashSet::new();
-    let mut writer = csv::Writer::from_writer(Vec::new());
-    writer.write_record(HEADERS).map_err(|e| e.to_string())?;
+    let mut rows = Vec::new();
     let mut diagnostics = Vec::new();
     for lang in languages {
         let language = lang.as_str().ok_or("Language must be text")?;
@@ -128,16 +127,89 @@ pub fn export(input: &Value) -> Result<Value, String> {
                 }
             }
         }
-        // Other ordinary fields (email, SMS, destinations and PDF/report options) survive.
+        let mut row_metadata = metadata.as_object().cloned().unwrap_or_default();
+        row_metadata.insert("alias".into(), json!(alias));
+        rows.push(json!({"metadata": row_metadata, "template": template}));
+    }
+    Ok((rows, diagnostics))
+}
+pub fn export(input: &Value) -> Result<Value, String> {
+    let (rows, diagnostics) = localized_rows(input)?;
+    let mut writer = csv::Writer::from_writer(Vec::new());
+    writer.write_record(HEADERS).map_err(|e| e.to_string())?;
+    for value in rows {
         let mut row: Vec<String> = HEADERS
             .iter()
-            .map(|h| metadata[*h].as_str().unwrap_or("").to_string())
+            .map(|h| value["metadata"][*h].as_str().unwrap_or("").to_string())
             .collect();
-        row[0] = alias;
-        row[2] = Value::Object(template).to_string();
+        row[2] = value["template"].to_string();
         writer.write_record(row).map_err(|e| e.to_string())?;
     }
     let csv = String::from_utf8(writer.into_inner().map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
     Ok(json!({"csv":csv,"diagnostics":diagnostics}))
+}
+pub fn export_zip(input: &Value) -> Result<Value, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (rows, diagnostics) = localized_rows(input)?;
+    let rows = rows
+        .into_iter()
+        .map(|value| {
+            let m = &value["metadata"];
+            let text = |key: &str| m[key].as_str().unwrap_or("").to_string();
+            let date = |key: &str| {
+                let s = text(key);
+                if s.is_empty() {
+                    Ok(None)
+                } else {
+                    s.parse()
+                        .map(Some)
+                        .map_err(|_| format!("Invalid {key} timestamp"))
+                }
+            };
+            let json_cell =
+                |key: &str| serde_json::from_str(&text(key)).unwrap_or_else(|_| json!(text(key)));
+            Ok(crate::platform_csv::ImportedTemplate {
+                alias: text("alias"),
+                tenant_id: text("tenant_id"),
+                template: value["template"].clone(),
+                created_by: text("created_by"),
+                labels: Some(json_cell("labels")),
+                annotations: Some(json_cell("annotations")),
+                created_at: date("created_at")?,
+                updated_at: date("updated_at")?,
+                communication_method: text("communication_method"),
+                r#type: text("type"),
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let bytes = crate::bundle::encode(rows)?;
+    Ok(
+        json!({"base64": STANDARD.encode(bytes), "mime":"application/zip", "diagnostics":diagnostics}),
+    )
+}
+pub fn import_zip(input: &Value) -> Result<Value, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let text = input["base64"].as_str().ok_or("ZIP must be base64")?;
+    if text.len() > crate::bundle::MAX_ZIP_BYTES.div_ceil(3) * 4 {
+        return Err("Template ZIP exceeds 20 MB".into());
+    }
+    let bytes = STANDARD.decode(text).map_err(|_| "Invalid ZIP base64")?;
+    let rows = crate::bundle::decode(&bytes)?
+        .into_iter()
+        .map(|row| {
+            json!({
+                "template": row.template,
+                "metadata": {
+                    "alias":row.alias, "tenant_id":row.tenant_id, "created_by":row.created_by,
+                    "labels":row.labels.map(|v| v.to_string()).unwrap_or_default(),
+                    "annotations":row.annotations.map(|v| v.to_string()).unwrap_or_default(),
+                    "created_at":row.created_at.map(|v| v.to_rfc3339()).unwrap_or_default(),
+                    "updated_at":row.updated_at.map(|v| v.to_rfc3339()).unwrap_or_default(),
+                    "communication_method":row.communication_method, "type":row.r#type,
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({"rows":rows,"diagnostics":[]}))
 }

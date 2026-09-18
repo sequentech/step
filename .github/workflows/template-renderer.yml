@@ -3,7 +3,7 @@
 name: Template renderer
 on:
   pull_request:
-    paths: ['packages/template-renderer/**', 'packages/sequent-core/src/services/reports.rs', 'packages/sequent-core/src/services/mod.rs', 'packages/sequent-core/Cargo.toml', 'packages/windmill/src/tasks/import_templates.rs', '.github/workflows/template-renderer.yml']
+    paths: ['packages/template-renderer/**', 'packages/sequent-core/src/services/reports.rs', 'packages/sequent-core/src/services/template_pdf.rs', 'packages/sequent-core/src/services/pdf.rs', 'packages/sequent-core/src/services/mod.rs', 'packages/sequent-core/src/lib.rs', 'packages/sequent-core/Cargo.toml', 'packages/windmill/src/tasks/import_templates.rs', 'packages/windmill/src/services/export/export_template.rs', 'packages/windmill/src/services/reports/template_renderer.rs', '.github/workflows/template-renderer.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,5 +23,16 @@ jobs:
       - run: cargo fmt --manifest-path packages/template-renderer/Cargo.toml -- --check
       - run: cargo test --locked --manifest-path packages/template-renderer/Cargo.toml
       - run: cargo build --locked --manifest-path packages/template-renderer/Cargo.toml --target wasm32-unknown-unknown --release
-      - working-directory: packages
-        run: cargo test --locked -p sequent-core --no-default-features --features template_rendering,election_config_archive,election_config_xlsx --lib services::reports
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npx --yes playwright@1.63.0 install --with-deps --only-shell chromium
+      - name: Native entry points and isolated file rendering
+        working-directory: packages
+        env:
+          CARGO_PROFILE_DEV_DEBUG: '0'
+          CARGO_BUILD_JOBS: '1'
+        run: |
+          export CHROME="$(find "$HOME/.cache/ms-playwright" -type f -name chrome-headless-shell -print -quit)"
+          test -n "$CHROME"
+          cargo test --locked -p sequent-core --no-default-features --features template_pdf --lib services:: -- --include-ignored

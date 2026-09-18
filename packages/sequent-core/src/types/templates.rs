@@ -153,6 +153,11 @@ pub struct SendTemplateBody {
     pub email: Option<EmailConfig>,
     pub sms: Option<SmsConfig>,
     pub document: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "std::collections::BTreeMap::is_empty"
+    )]
+    pub assets: crate::services::reports::assets::TemplateAssets,
     pub name: Option<String>,
     pub alias: Option<String>,
     pub pdf_options: Option<PrintToPdfOptionsLocal>,

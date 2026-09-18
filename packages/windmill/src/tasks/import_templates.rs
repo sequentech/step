@@ -13,7 +13,8 @@ use deadpool_postgres::Transaction;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 
-use std::io::Seek;
+use sequent_core::services::reports::bundle;
+use std::io::{Read, Seek};
 use tracing::{info, instrument};
 
 #[instrument(err)]
@@ -50,11 +51,19 @@ pub async fn import_templates(
         }
     }
 
-    let templates: Vec<Template> = sequent_core::services::reports::platform_csv::parse(temp_file)?
+    temp_file.rewind()?;
+    let mut bytes = Vec::new();
+    temp_file
+        .take(bundle::MAX_ZIP_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)?;
+    let templates: Vec<Template> = bundle::decode(&bytes)
+        .map_err(|e| anyhow!(e))?
         .into_iter()
         .map(|row| Template {
             alias: row.alias,
-            tenant_id: row.tenant_id,
+            // The selected tenant is authoritative, including for archives
+            // exported from another tenant. Never trust an archive tenant ID.
+            tenant_id: tenant_id.clone(),
             template: row.template,
             created_by: row.created_by,
             labels: row.labels,
@@ -66,6 +75,15 @@ pub async fn import_templates(
         })
         .collect();
 
+    let mut aliases = std::collections::HashSet::new();
+    if templates
+        .iter()
+        .any(|template| !aliases.insert(&template.alias))
+    {
+        return Err(anyhow!(
+            "The bundle contains duplicate aliases for the selected tenant"
+        ));
+    }
     insert_templates(hasura_transaction, &templates).await?;
 
     Ok(())
