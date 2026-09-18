@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Template renderer
+on:
+  pull_request:
+    paths: ['packages/template-renderer/**', 'packages/sequent-core/src/services/reports.rs', 'packages/sequent-core/src/services/mod.rs', 'packages/sequent-core/Cargo.toml', 'packages/windmill/src/tasks/import_templates.rs', '.github/workflows/template-renderer.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  renderer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/template-renderer
+      - run: cargo fmt --manifest-path packages/template-renderer/Cargo.toml -- --check
+      - run: cargo test --locked --manifest-path packages/template-renderer/Cargo.toml
+      - run: cargo build --locked --manifest-path packages/template-renderer/Cargo.toml --target wasm32-unknown-unknown --release
+      - working-directory: packages
+        run: cargo test --locked -p sequent-core --no-default-features --features template_rendering,election_config_archive,election_config_xlsx --lib services::reports
