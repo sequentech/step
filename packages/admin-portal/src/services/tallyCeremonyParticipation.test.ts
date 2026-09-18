@@ -24,4 +24,12 @@ describe("getTallyTrusteeStatus", () => {
     it.each(["another-trustee", undefined, null])("returns null for non-participant %s", (name) => {
         expect(getTallyTrusteeStatus(execution, name)).toBeNull()
     })
+
+    it("returns null while the ceremony execution is unknown", () => {
+        expect(getTallyTrusteeStatus(undefined, "trustee-1")).toBeNull()
+    })
+
+    it("returns null when the execution carries no trustee list", () => {
+        expect(getTallyTrusteeStatus({status: null}, "trustee-1")).toBeNull()
+    })
 })

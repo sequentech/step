@@ -16,6 +16,6 @@ export const getTallyTrusteeStatus = (
         return null
     }
     return (
-        execution?.status?.trustees.find((trustee) => trustee.name === trusteeName)?.status ?? null
+        execution?.status?.trustees?.find((trustee) => trustee.name === trusteeName)?.status ?? null
     )
 }

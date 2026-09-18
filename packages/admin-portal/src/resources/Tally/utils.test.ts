@@ -2,16 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {ITallyExecutionStatus, ITallyTrusteeStatus} from "@/types/ceremonies"
-import {canTrusteeRestorePrivateKey, orderItemsByIds} from "./utils"
+import {
+    ETallyKeyRestoreEligibility,
+    ITallyExecutionStatus,
+    ITallyTrusteeStatus,
+} from "@/types/ceremonies"
+import {getTallyKeyRestoreEligibility, orderItemsByIds} from "./utils"
 
-describe("canTrusteeRestorePrivateKey", () => {
+describe("getTallyKeyRestoreEligibility", () => {
     it.each([ITallyExecutionStatus.STARTED, ITallyExecutionStatus.CONNECTED])(
         "allows a waiting trustee while the tally accepts keys (%s)",
         (executionStatus) => {
-            expect(canTrusteeRestorePrivateKey(ITallyTrusteeStatus.WAITING, executionStatus)).toBe(
-                true
-            )
+            expect(
+                getTallyKeyRestoreEligibility(ITallyTrusteeStatus.WAITING, executionStatus)
+            ).toBe(ETallyKeyRestoreEligibility.ALLOWED)
         }
     )
 
@@ -21,23 +25,34 @@ describe("canTrusteeRestorePrivateKey", () => {
         ITallyExecutionStatus.AWAITING_INPUT,
         ITallyExecutionStatus.SUCCESS,
         ITallyExecutionStatus.CANCELLED,
-    ])("does not allow key restoration while the tally is %s", (executionStatus) => {
-        expect(canTrusteeRestorePrivateKey(ITallyTrusteeStatus.WAITING, executionStatus)).toBe(
-            false
+    ])("denies key restoration while the tally is %s", (executionStatus) => {
+        expect(getTallyKeyRestoreEligibility(ITallyTrusteeStatus.WAITING, executionStatus)).toBe(
+            ETallyKeyRestoreEligibility.DENIED
         )
     })
 
-    it("does not allow a trustee whose key is already restored", () => {
+    it.each([undefined, null])(
+        "denies key restoration while the tally status is unknown (%s)",
+        (executionStatus) => {
+            expect(
+                getTallyKeyRestoreEligibility(ITallyTrusteeStatus.WAITING, executionStatus)
+            ).toBe(ETallyKeyRestoreEligibility.DENIED)
+        }
+    )
+
+    it("denies a trustee whose key is already restored", () => {
         expect(
-            canTrusteeRestorePrivateKey(
+            getTallyKeyRestoreEligibility(
                 ITallyTrusteeStatus.KEY_RESTORED,
                 ITallyExecutionStatus.STARTED
             )
-        ).toBe(false)
+        ).toBe(ETallyKeyRestoreEligibility.DENIED)
     })
 
-    it("does not allow a user who is absent from the tally ceremony", () => {
-        expect(canTrusteeRestorePrivateKey(null, ITallyExecutionStatus.STARTED)).toBe(false)
+    it("denies a user who is absent from the tally ceremony", () => {
+        expect(getTallyKeyRestoreEligibility(null, ITallyExecutionStatus.STARTED)).toBe(
+            ETallyKeyRestoreEligibility.DENIED
+        )
     })
 })
 
