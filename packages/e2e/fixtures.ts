@@ -59,11 +59,18 @@ export const test = base.extend<{ fixture: Fixture; collectCoverage: void }>({
         async (_source, coverage: Record<string, unknown>) => save(coverage),
       );
       await context.addInitScript(() => {
-        window.addEventListener("pagehide", () => {
+        const snapshot = () => {
           const instrumented = window as CoverageWindow;
           if (instrumented.__coverage__)
-            void instrumented.__saveE2ECoverage?.(instrumented.__coverage__);
-        });
+            void instrumented.__saveE2ECoverage?.(instrumented.__coverage__).catch(() => {});
+        };
+        // Capture executed bundles before asynchronous authentication redirects.
+        // A pagehide binding alone can lose its context during an origin change.
+        document.addEventListener("load", (event) => {
+          if (event.target instanceof HTMLScriptElement) snapshot();
+        }, true);
+        window.addEventListener("beforeunload", snapshot);
+        window.addEventListener("pagehide", snapshot);
       });
       await use();
       for (const page of context.pages()) {
