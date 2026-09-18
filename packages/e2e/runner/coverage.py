@@ -4,7 +4,6 @@
 import html
 import json
 import os
-import re
 from pathlib import Path
 from .process import ROOT, execute, save, source_digest
 
@@ -75,8 +74,11 @@ def main():
     binaries = [ROOT / ".e2e/bin/coverage" / name for name in ("harvest", "windmill", "beat", "b4", "step-cli")]
     scopes = {"Rust": {"e2e": native(artifacts, "e2e", binaries)}}
     if manifest["coverage"] == "combined":
-        unit_objects = binaries + [file for file in (ROOT / ".e2e/cargo/coverage/debug/deps").iterdir()
-                     if file.is_file() and os.access(file, os.X_OK) and re.match(r"(sequent_core|step_cli)-[0-9a-f]+$", file.name)]
+        unit_objects = [Path(file) for file in json.loads((artifacts / "coverage/rust/unit/objects.json").read_text())]
+        if len(unit_objects) != 2 or any(not file.is_relative_to(ROOT / ".e2e/cargo/coverage")
+                or not file.is_file() or not os.access(file, os.X_OK) for file in unit_objects):
+            raise RuntimeError("Missing current Cargo unit executables")
+        unit_objects = binaries + unit_objects
         scopes["Rust"]["unit"] = production_lines(native(artifacts, "unit", unit_objects), scopes["Rust"]["e2e"])
     execute(["node", "packages/e2e/coverage/frontend.cjs"])
     scopes["Frontend"] = json.loads((artifacts / "coverage/frontend-lines.json").read_text())

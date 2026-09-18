@@ -132,6 +132,8 @@ and unlinked crates are outside these denominators. Combined mode currently adds
 voting-portal unit coverage and sequent-core/step-cli native unit binaries; extend
 other unit suites explicitly. Unit-only Rust test bodies are filtered against the
 production binaries' executable lines, so they cannot inflate the denominator.
+Unit executable paths come from Cargo's current build metadata; stale cached test
+binaries cannot participate in the report.
 All inputs come from the same checkout/build.
 
 ## Load testing and live dashboards
