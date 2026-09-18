@@ -28,6 +28,10 @@ def summary(directory, stages, success, started):
              "| Stage | Seconds | Result |", "| --- | ---: | --- |"]
     for name, seconds, result in stages:
         lines.append(f"| {name} | {seconds:.1f} | {result} |")
+    browser_report = directory / "private/playwright.json"
+    if browser_report.exists():
+        stats = json.loads(browser_report.read_text()).get("stats", {})
+        lines += ["", f"Browser checks: **{stats.get('expected', 0)} passed, {stats.get('unexpected', 0)} failed, {stats.get('skipped', 0)} skipped**."]
     lines += ["", "Browser traces, session data and raw service logs remain private. Coverage excludes WASM and third-party code.", ""]
     (public / "summary.md").write_text("\n".join(lines))
     save(public / "timings.json", {"success": success, "wall_seconds": time.monotonic() - started, "stages": stages})
@@ -104,8 +108,11 @@ def run(args):
                 try:
                     stack.compose("logs", "--no-color", log=stack.directory / "private/services.log", timeout=30)
                 finally:
-                    if not args.keep:
-                        stage("cleanup", stack.down)
+                    try:
+                        stage("artifact ownership", stack.reclaim_artifacts)
+                    finally:
+                        if not args.keep:
+                            stage("cleanup", stack.down)
         except BaseException:
             success = False
             raise

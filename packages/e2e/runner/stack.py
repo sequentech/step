@@ -160,3 +160,12 @@ class Stack:
         if self.file.exists():
             self.compose("down", "--volumes", "--remove-orphans", timeout=180,
                          log=self.directory / "cleanup.log")
+
+    def reclaim_artifacts(self):
+        # Tool containers run as root; reports must remain usable by the checkout
+        # owner, including when the host entry point writes the final summary.
+        owner = ROOT.stat()
+        self.compose("run", "--rm", "--no-deps", "--entrypoint", "/bin/chown", "runner",
+                     "-R", f"{owner.st_uid}:{owner.st_gid}",
+                     f"/workspaces/step/{self.directory.relative_to(ROOT)}",
+                     timeout=120, log=self.directory / "private/ownership.log")

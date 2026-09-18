@@ -24,6 +24,13 @@ def totals(mapping):
     return sum(count > 0 for count in counts), len(counts)
 
 
+def production_lines(mapping, baseline):
+    """Unit binaries include test bodies; keep the production binary denominator."""
+    return {filename: {line: count for line, count in lines.items()
+                       if line in baseline[filename]}
+            for filename, lines in mapping.items() if filename in baseline}
+
+
 def lcov(text):
     result, current = {}, None
     for line in text.splitlines():
@@ -66,11 +73,11 @@ def main():
     if (ROOT / ".e2e/bin/coverage/source-digest").read_text().strip() != manifest["source_digest"] or source_digest() != manifest["source_digest"]:
         raise RuntimeError("Sources changed between build and coverage collection")
     binaries = [ROOT / ".e2e/bin/coverage" / name for name in ("harvest", "windmill", "beat", "b4", "step-cli")]
-    if manifest["coverage"] == "combined":
-        binaries += [file for file in (ROOT / ".e2e/cargo/coverage/debug/deps").iterdir()
-                     if file.is_file() and os.access(file, os.X_OK) and re.match(r"(sequent_core|step_cli)-[0-9a-f]+$", file.name)]
     scopes = {"Rust": {"e2e": native(artifacts, "e2e", binaries)}}
-    if manifest["coverage"] == "combined": scopes["Rust"]["unit"] = native(artifacts, "unit", binaries)
+    if manifest["coverage"] == "combined":
+        unit_objects = binaries + [file for file in (ROOT / ".e2e/cargo/coverage/debug/deps").iterdir()
+                     if file.is_file() and os.access(file, os.X_OK) and re.match(r"(sequent_core|step_cli)-[0-9a-f]+$", file.name)]
+        scopes["Rust"]["unit"] = production_lines(native(artifacts, "unit", unit_objects), scopes["Rust"]["e2e"])
     execute(["node", "packages/e2e/coverage/frontend.cjs"])
     scopes["Frontend"] = json.loads((artifacts / "coverage/frontend-lines.json").read_text())
     public = artifacts / "report"
@@ -89,7 +96,7 @@ def main():
         rows.append(f"| {name} | {percentage(e2e)} | {unit} | {percentage(combined)} |")
         detailed[name] = {"e2e": e2e, "unit": maps.get("unit", {}), "union": combined}
     rows += ["", "Frontend scope: portal source, excluding generated GraphQL, translations, stories, mocks and tests. "
-             "Rust scope: code linked into instrumented backend services/CLI (plus selected unit binaries when requested). "
+             "Rust scope: production lines linked into instrumented backend services/CLI; unit-only test bodies do not enlarge the denominator. "
              "WASM, Java, SQL, dependencies and unlinked native crates are not measured. Unit scope currently covers voting-portal, sequent-core and step-cli. "
              "Cross-transform function/branch percentages are deliberately not combined.", ""]
     (public / "coverage.md").write_text("\n".join(rows))

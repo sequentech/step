@@ -115,7 +115,9 @@ generated GraphQL, translations, stories, mocks and tests. Native scope is linke
 workspace code in the selected service/CLI binaries. WASM, Java, SQL, dependencies
 and unlinked crates are outside these denominators. Combined mode currently adds
 voting-portal unit coverage and sequent-core/step-cli native unit binaries; extend
-other unit suites explicitly. All inputs come from the same checkout/build.
+other unit suites explicitly. Unit-only Rust test bodies are filtered against the
+production binaries' executable lines, so they cannot inflate the denominator.
+All inputs come from the same checkout/build.
 
 ## Load testing and live dashboards
 
