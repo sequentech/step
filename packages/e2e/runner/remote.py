@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 import yaml
 from .process import ROOT, execute, save
-from .monitoring import Status, target
+from .monitoring import Status, target, validate_workload
 from .live import run as run_live
 from .stack import project_name
 
@@ -36,7 +36,8 @@ def phase(args, selected, artifacts, cli, env, status):
     state = json.loads((transfer / "coordinator.json").read_text())
     if state["target"] != selected["name"] or state["tenant"] != selected["tenant_id"]:
         raise ValueError("Coordinator target mismatch")
-    if state["engine"] != args.engine or state["workers"] != args.workers:
+    if (state["engine"] != args.engine or state["workers"] != args.workers
+            or state["concurrency"] != args.concurrency):
         raise ValueError("Worker topology does not match preparation")
     log = artifacts / "private/run.log"
     if args.phase == "worker":
@@ -67,11 +68,8 @@ def phase(args, selected, artifacts, cli, env, status):
 def run(args):
     selected = target(args.registry, args.target)
     workers = args.workers
-    count = 8 if args.command == "probe" else {"smoke": 8, "small": 100, "medium": 1000}[args.preset]
-    if workers > selected["max_workers"] or count > selected["max_voters"]:
-        raise ValueError("Requested workload exceeds the registered target limits")
-    if args.command == "load" and not selected.get("allow_load", False):
-        raise ValueError("Load generation is not enabled for this target")
+    count = validate_workload(selected, kind=args.command, engine=args.engine,
+        preset=args.preset, workers=workers, concurrency=args.concurrency)
     if args.command == "probe" and (args.phase != "full" or args.engine != "chromium"):
         raise ValueError("Browser probes use the full Chromium lifecycle")
     if args.phase != "full" and not args.run_id: raise ValueError("Distributed phases require an explicit run ID")
@@ -98,7 +96,7 @@ def run(args):
                  "--storage-origin", selected["storage_origins"][0], "--output", str(config)], env=env, log=log)
         settings = yaml.safe_load(config.read_text())
         settings["target"]["storage_origins"] = selected["storage_origins"]
-        settings["workload"].update(engine=args.engine, count=count, concurrency=1,
+        settings["workload"].update(engine=args.engine, count=count, concurrency=args.concurrency,
             shard_size=max(1, (count + workers - 1) // workers), username_prefix=run_id + "-",
             max_duration="10m", journey_timeout_ms=120000)
         settings["execution"].update(workers=workers, executor="local")
@@ -118,7 +116,7 @@ def run(args):
             for pattern in ("*.jsonl", "*.sha256"):
                 for file in (prepared / "inputs").glob(pattern): shutil.copy2(file, transfer / "inputs" / file.name)
             save(transfer / "coordinator.json", {"target": selected["name"], "tenant": selected["tenant_id"],
-                "engine": args.engine, "workers": args.workers, "started": time.time()})
+                "engine": args.engine, "workers": args.workers, "concurrency": args.concurrency, "started": time.time()})
             handed_off = True
             return
         if args.command == "probe":

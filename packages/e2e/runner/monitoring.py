@@ -29,7 +29,25 @@ def target(registry, name):
         raise ValueError("Explicit HTTPS publication storage origins are required")
     if not 1 <= value.get("max_workers", 0) <= 4 or not 1 <= value.get("max_voters", 0) <= 10000:
         raise ValueError("Target needs bounded worker and voter limits")
+    if not 1 <= value.get("max_concurrency", 1) <= 200:
+        raise ValueError("Target needs a total concurrency limit between 1 and 200")
     return value
+
+
+def validate_workload(selected, *, kind, engine, preset, workers, concurrency):
+    """Apply the same finite workload budget in dispatch and each runner phase."""
+    count = 8 if kind == "probe" else {"smoke": 8, "small": 100, "medium": 1000}[preset]
+    if not 1 <= workers <= selected["max_workers"] or count > selected["max_voters"]:
+        raise ValueError("Requested workload exceeds the registered worker/voter limits")
+    if not 1 <= concurrency <= 50 or workers * concurrency > selected.get("max_concurrency", 1):
+        raise ValueError("Requested workload exceeds the registered total concurrency limit")
+    if engine == "chromium" and concurrency > 2:
+        raise ValueError("Chromium is limited to two concurrent voters per bounded runner")
+    if kind == "probe" and (engine != "chromium" or workers != 1 or concurrency != 1):
+        raise ValueError("Browser probes use one worker and one concurrent voter")
+    if kind == "load" and not selected.get("allow_load", False):
+        raise ValueError("Load generation is not enabled for this target")
+    return count
 
 
 class Status:

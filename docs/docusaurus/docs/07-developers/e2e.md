@@ -44,6 +44,9 @@ publishable summaries and coverage; `private/` contains service/build logs,
 Playwright HTML, failure traces, synthetic credentials and provisioning evidence.
 Do not upload the entire run directory. Inspect the first failed stage, then its
 private log. Source builds, generated WASM and run data stay under ignored `.e2e/`.
+On a CI application-build failure, the report includes the compilation log from
+before fixture provisioning; runtime credentials, service logs and browser traces
+remain private.
 
 ## Test ownership and acceptance
 
@@ -144,7 +147,11 @@ immutable voter shards to one to four GitHub runners, aggregates all results,
 reconciles receipts and cleans the owned election. Workers receive synthetic
 inputs/passwords and telemetry credentials; administrator sessions stay with
 preparation/cleanup. The default is eight voters, one runner and one concurrent
-voter. Larger presets still obey the target's registered caps. There are no
+voter. Dispatch also selects concurrent voters per runner: up to 50 for k6 or
+2 for Chromium within the runner's fixed CPU/memory budget. The registry's
+`max_concurrency` caps **workers × concurrency**, defaults to 1, and is checked
+before preparation and again in every phase. Larger presets still obey registered
+voter/runner caps; preparation freezes the worker topology. There are no
 automatic cast retries. Incomplete workers, failed goals, telemetry loss and
 cleanup failure prevent a passing result. k6 also aborts sustained high errors.
 

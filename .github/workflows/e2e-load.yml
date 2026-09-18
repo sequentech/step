@@ -32,6 +32,11 @@ name: Designated tenant load test
           - "3"
           - "4"
         default: "1"
+      concurrency:
+        description: Concurrent voters per runner (Chromium maximum 2; target total cap also applies)
+        type: choice
+        options: ["1", "2", "5", "10", "25", "50"]
+        default: "1"
 permissions:
   contents: read
 concurrency:
@@ -43,6 +48,7 @@ env:
   ENGINE: ${{ inputs.engine }}
   WORKERS: ${{ inputs.workers }}
   PRESET: ${{ inputs.preset }}
+  LOAD_CONCURRENCY: ${{ inputs.concurrency }}
 jobs:
   select:
     runs-on: ubuntu-24.04
@@ -58,12 +64,11 @@ jobs:
           python3 - <<'PYCODE'
           import json, os
           from pathlib import Path
-          from runner.monitoring import target
+          from runner.monitoring import target, validate_workload
           entry = target(Path('packages/e2e/targets.json'), os.environ['TARGET'])
           workers = int(os.environ['WORKERS'])
-          count = {'smoke':8, 'small':100, 'medium':1000}[os.environ['PRESET']]
-          if not entry.get('allow_load') or not 1 <= workers <= entry['max_workers'] or count > entry['max_voters']:
-              raise SystemExit('Workload is not allowed by this target registry')
+          validate_workload(entry, kind='load', engine=os.environ['ENGINE'],
+              preset=os.environ['PRESET'], workers=workers, concurrency=int(os.environ['LOAD_CONCURRENCY']))
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('matrix=' + json.dumps({'index':list(range(workers))}) + '\n')
           PYCODE

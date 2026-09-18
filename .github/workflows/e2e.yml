@@ -116,8 +116,20 @@ jobs:
         run: |
           sudo chown -R "$(id -u):$(id -g)" ".e2e/runs/$RUN_ID" || true
           python3 - <<'PY'
-          import os
+          import json, os, shutil
           from datetime import datetime, timezone
+          from pathlib import Path
+          run = Path('.e2e/runs') / os.environ['RUN_ID']
+          timings = run / 'report/timings.json'
+          if timings.exists() and any(name == 'application build' and result == 'failed'
+              for name, _, result in json.loads(timings.read_text())['stages']):
+              # Compilation runs before fixture provisioning, without target
+              # credentials. Keep service/browser/session logs private.
+              build_log = run / 'private/build.log'
+              if build_log.exists():
+                  shutil.copyfile(build_log, run / 'report/build.log')
+                  print('Application build failed; full compilation log is in the report artifact.')
+                  print('\n'.join(build_log.read_text(errors='replace').splitlines()[-80:]))
           started = os.environ.get('E2E_WORKFLOW_STARTED')
           if started:
               seconds = (datetime.now(timezone.utc) - datetime.fromisoformat(started.replace('Z', '+00:00'))).total_seconds()

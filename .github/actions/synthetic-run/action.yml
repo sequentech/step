@@ -28,4 +28,5 @@ runs:
           -e E2E_VOTER_PASSWORD -e E2E_AUDIT_DSN -e E2E_PUSHGATEWAY_URL -e E2E_METRICS_TOKEN \
           "$RUNNER_IMAGE" python3 scripts/e2e load --registry /synthetic/targets.json \
           --target "$TARGET" --engine "$ENGINE" --workers "$WORKERS" --preset "$PRESET" \
+          --concurrency "$LOAD_CONCURRENCY" \
           --run-id "$RUN_ID" --phase "$PHASE" --index "$INDEX"

@@ -141,6 +141,8 @@ def main():
         remote.add_argument("--target", required=True)
         remote.add_argument("--engine", choices=["k6", "chromium"], default="chromium")
         remote.add_argument("--workers", type=int, choices=range(1, 5), default=1)
+        remote.add_argument("--concurrency", type=int, choices=range(1, 51), default=1,
+                            help="Concurrent voters per worker; the registered total cap also applies")
         remote.add_argument("--preset", choices=["smoke", "small", "medium"], default="smoke")
         remote.add_argument("--phase", choices=["full", "prepare", "worker", "report", "cleanup"], default="full")
         remote.add_argument("--run-id")
