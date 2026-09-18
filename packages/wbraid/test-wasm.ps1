@@ -12,10 +12,28 @@
 # IMPORTANT: run from the repo root (this directory), NOT crates/braid, so the
 # atomics `.cargo/config.toml` in crates/braid is not applied.
 #
-# Prerequisites: `wasm-bindgen-test-runner` (ships with wasm-bindgen-cli) and a
-# `chromedriver` matching your Chrome, both on PATH.
+# Prerequisites: `wasm-bindgen-test-runner` (ships with wasm-bindgen-cli, and must
+# match the wasm-bindgen crate pinned in Cargo.lock) and a `chromedriver` matching
+# your Chrome, both on PATH. Both are checked before anything is built.
 
 Write-Host "Running wasm IndexedDB test in headless Chrome..." -ForegroundColor Green
+
+# Preflight: wasm-bindgen-test-runner (ships with wasm-bindgen-cli) must match the wasm-bindgen
+# crate version this workspace pins EXACTLY. The crate stamps a schema version
+# into the .wasm and the CLI refuses any other; the mismatch only surfaces after
+# a full compile. The pin is read from Cargo.lock so this follows future bumps.
+$want = (Select-String -Path Cargo.lock -Pattern '^name = "wasm-bindgen"$' -Context 0,1 |
+    Select-Object -First 1).Context.PostContext[0] -replace '^version = "(.*)"$', '$1'
+$have = $null
+if (Get-Command wasm-bindgen-test-runner -ErrorAction SilentlyContinue) {
+    $have = ((& wasm-bindgen-test-runner --version) | Select-Object -First 1) -replace '^\S+\s+(\S+).*', '$1'
+}
+if ($have -ne $want) {
+    Write-Host "wasm-bindgen-test-runner $(if ($have) { $have } else { 'not found' }) on PATH, but this workspace pins wasm-bindgen $want." -ForegroundColor Red
+    Write-Host "Install the matching CLI (it provides both wasm-bindgen and wasm-bindgen-test-runner):" -ForegroundColor Yellow
+    Write-Host "  cargo install wasm-bindgen-cli --version $want --locked --force" -ForegroundColor Yellow
+    exit 1
+}
 
 # Preflight: chromedriver's major version must match the installed Chrome's.
 # Chrome auto-updates its major version; chromedriver is a manual install that
