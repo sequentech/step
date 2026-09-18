@@ -10,14 +10,11 @@ use crate::{postgres::document::get_document, services::documents::get_document_
 use anyhow::{anyhow, Error as AnyhowError, Result as AnyhowResult};
 use celery::error::TaskError;
 use deadpool_postgres::Transaction;
-use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::types::hasura::core::{TasksExecution, Template};
 use sequent_core::util::integrity_check::{integrity_check, HashFileVerifyError};
 
-use sequent_core::services::uuid_validation::parse_uuid_v4;
 use std::io::Seek;
 use tracing::{info, instrument};
-use uuid::Uuid;
 
 #[instrument(err)]
 pub async fn import_templates(
@@ -53,47 +50,21 @@ pub async fn import_templates(
         }
     }
 
-    let mut rdr = csv::ReaderBuilder::new()
-        .delimiter(b',')
-        .has_headers(false)
-        .from_reader(temp_file);
-
-    let mut templates: Vec<Template> = vec![];
-
-    for result in rdr.records() {
-        let record = result.map_err(|e| anyhow!("Error reading CSV record: {:?}", e))?;
-
-        let template_alias = record.get(0).unwrap_or("");
-        let tenant_id = record.get(1).unwrap_or("");
-        let template_content = record.get(2).unwrap_or("");
-        let created_by = record.get(3).unwrap_or("");
-        let labels = record.get(4).unwrap_or("");
-        let annotations = record.get(5).unwrap_or("");
-        let created_at = record.get(6).unwrap_or("");
-        let updated_at = record.get(7).unwrap_or("");
-        let communication_method = record.get(8).unwrap_or("");
-        let template_type = record.get(9).unwrap_or("");
-
-        let tenant_id_parsed = match parse_uuid_v4(tenant_id) {
-            Ok(uuid) => uuid.to_string(),
-            Err(_) => {
-                tracing::warn!("Invalid UUID for tenant_id: {}", tenant_id);
-                continue;
-            }
-        };
-        templates.push(Template {
-            alias: template_alias.to_string(),
-            tenant_id: tenant_id_parsed,
-            template: deserialize_str(template_content).unwrap_or_default(),
-            created_by: created_by.to_string(),
-            labels: Some(serde_json::Value::String(labels.to_string())),
-            annotations: Some(serde_json::Value::String(annotations.to_string())),
-            created_at: Some(created_at.parse().unwrap_or_default()),
-            updated_at: Some(updated_at.parse().unwrap_or_default()),
-            communication_method: communication_method.to_string(),
-            r#type: template_type.to_string(),
-        });
-    }
+    let templates: Vec<Template> = sequent_core::services::reports::platform_csv::parse(temp_file)?
+        .into_iter()
+        .map(|row| Template {
+            alias: row.alias,
+            tenant_id: row.tenant_id,
+            template: row.template,
+            created_by: row.created_by,
+            labels: row.labels,
+            annotations: row.annotations,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            communication_method: row.communication_method,
+            r#type: row.r#type,
+        })
+        .collect();
 
     insert_templates(hasura_transaction, &templates).await?;
 

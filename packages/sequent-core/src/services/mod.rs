@@ -16,7 +16,7 @@ pub mod keycloak;
 pub mod pdf;
 #[cfg(feature = "probe")]
 pub mod probe;
-#[cfg(feature = "reports")]
+#[cfg(feature = "template_rendering")]
 pub mod reports;
 #[cfg(feature = "s3")]
 pub mod s3;
