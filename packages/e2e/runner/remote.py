@@ -128,7 +128,7 @@ def run(args):
                 "adminUrl": selected["admin_url"], "verifierUrl": selected["verifier_url"], "resultsUrl": selected["results_url"],
                 "adminUsername": os.environ["E2E_ADMIN_USERNAME"], "adminPassword": os.environ["E2E_ADMIN_PASSWORD"],
                 "auditDsn": os.environ["E2E_AUDIT_DSN"]})
-            execute(["yarn", "test", "--grep", "@probe"], cwd=ROOT / "packages/e2e", env=env, log=log, timeout=900)
+            execute(["node", "playwright.cjs", "test", "--grep", "@probe"], cwd=ROOT / "packages/e2e", env=env, log=log, timeout=900)
         else:
             metrics_url = os.environ["E2E_PUSHGATEWAY_URL"].rstrip("/") + (
                 f"/metrics/job/step_load/environment/{selected['name']}/engine/{args.engine}/run/{run_id}/worker/coordinator")
