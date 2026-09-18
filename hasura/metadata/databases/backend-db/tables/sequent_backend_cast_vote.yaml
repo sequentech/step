@@ -112,6 +112,8 @@ select_permissions:
               - voter_id_string
           filter:
               _and:
+                  - election_event_id:
+                        _eq: X-Hasura-Election-Event-Id
                   - area_id:
                         _eq: X-Hasura-Area-Id
                   - tenant_id:
