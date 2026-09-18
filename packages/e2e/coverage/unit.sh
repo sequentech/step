@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 set -euo pipefail
 cd /workspaces/step/packages
+# The PDF unit test uses rust-headless-chrome's executable discovery, while
+# Playwright keeps the pinned browser outside the system PATH.
+export CHROME="$(node -p "require('@playwright/test').chromium.executablePath()")"
 export CARGO_TARGET_DIR=/workspaces/step/.e2e/cargo/coverage
 source <(cargo llvm-cov show-env --sh)
 export RUSTFLAGS="${RUSTFLAGS:-} -C llvm-args=-runtime-counter-relocation"

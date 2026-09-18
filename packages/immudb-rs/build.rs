@@ -14,7 +14,10 @@ fn main() {
         .build_server(false)
         .compile_protos(
             &["proto/immudb/immudb.proto"],
-            &["proto/immudb", "google/api", "google/protobuf"],
+            // Imported Google protos already live below this root. Nonexistent
+            // include paths make Cargo rerun this build script on every build,
+            // invalidating electoral-log and the entire Windmill dependency tree.
+            &["proto/immudb"],
         )
         .unwrap();
 
