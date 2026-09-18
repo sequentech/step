@@ -1,0 +1,206 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Designated tenant load test
+"on":
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Enabled synthetic target registry name
+        type: string
+        required: true
+      engine:
+        description: Voting engine
+        type: choice
+        options:
+          - k6
+          - chromium
+        default: k6
+      preset:
+        description: Finite total voter budget
+        type: choice
+        options:
+          - smoke
+          - small
+          - medium
+        default: smoke
+      workers:
+        description: Independent GitHub runners (target limit still applies)
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+          - "4"
+        default: "1"
+permissions:
+  contents: read
+concurrency:
+  group: synthetic-${{ inputs.target }}
+  cancel-in-progress: false
+env:
+  RUN_ID: load-${{ github.run_id }}-${{ github.run_attempt }}
+  TARGET: ${{ inputs.target }}
+  ENGINE: ${{ inputs.engine }}
+  WORKERS: ${{ inputs.workers }}
+  PRESET: ${{ inputs.preset }}
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: select
+        env:
+          PYTHONPATH: packages/e2e
+        run: |-
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          from runner.monitoring import target
+          entry = target(Path('packages/e2e/targets.json'), os.environ['TARGET'])
+          workers = int(os.environ['WORKERS'])
+          count = {'smoke':8, 'small':100, 'medium':1000}[os.environ['PRESET']]
+          if not entry.get('allow_load') or not 1 <= workers <= entry['max_workers'] or count > entry['max_voters']:
+              raise SystemExit('Workload is not allowed by this target registry')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps({'index':list(range(workers))}) + '\n')
+          PYCODE
+  prepare:
+    needs: select
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: synthetic-${{ inputs.target }}
+    env:
+      RUNNER_IMAGE: ${{ vars.E2E_RUNNER_IMAGE }}
+      E2E_VOTER_PASSWORD: ${{ secrets.E2E_VOTER_PASSWORD }}
+      E2E_PUSHGATEWAY_URL: ${{ secrets.E2E_PUSHGATEWAY_URL }}
+      E2E_METRICS_TOKEN: ${{ secrets.E2E_METRICS_TOKEN }}
+      E2E_ADMIN_USERNAME: ${{ secrets.E2E_ADMIN_USERNAME }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
+      E2E_CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/synthetic-run
+        with:
+          phase: prepare
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-inputs
+          path: .e2e/runs/${{ env.RUN_ID }}/transfer
+          retention-days: 1
+          if-no-files-found: warn
+  workers:
+    needs:
+      - select
+      - prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: synthetic-${{ inputs.target }}
+    env:
+      RUNNER_IMAGE: ${{ vars.E2E_RUNNER_IMAGE }}
+      E2E_VOTER_PASSWORD: ${{ secrets.E2E_VOTER_PASSWORD }}
+      E2E_PUSHGATEWAY_URL: ${{ secrets.E2E_PUSHGATEWAY_URL }}
+      E2E_METRICS_TOKEN: ${{ secrets.E2E_METRICS_TOKEN }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: load-inputs
+          path: .e2e/runs/${{ env.RUN_ID }}/transfer
+      - uses: ./.github/actions/synthetic-run
+        with:
+          phase: worker
+          index: ${{ matrix.index }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-worker-${{ matrix.index }}
+          path: |-
+            .e2e/runs/${{ env.RUN_ID }}/transfer/inputs/results/**/samples.jsonl
+            .e2e/runs/${{ env.RUN_ID }}/transfer/inputs/results/**/exit.json
+            .e2e/runs/${{ env.RUN_ID }}/transfer/inputs/results/**/summary.json
+            .e2e/runs/${{ env.RUN_ID }}/transfer/inputs/results/**/traffic.json
+            .e2e/runs/${{ env.RUN_ID }}/transfer/inputs/results/**/dashboard.html
+          retention-days: 1
+          if-no-files-found: warn
+  report:
+    needs:
+      - prepare
+      - workers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: synthetic-${{ inputs.target }}
+    env:
+      RUNNER_IMAGE: ${{ vars.E2E_RUNNER_IMAGE }}
+      E2E_VOTER_PASSWORD: ${{ secrets.E2E_VOTER_PASSWORD }}
+      E2E_PUSHGATEWAY_URL: ${{ secrets.E2E_PUSHGATEWAY_URL }}
+      E2E_METRICS_TOKEN: ${{ secrets.E2E_METRICS_TOKEN }}
+      E2E_AUDIT_DSN: ${{ secrets.E2E_AUDIT_DSN }}
+    if: always() && needs.prepare.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: load-inputs
+          path: .e2e/runs/${{ env.RUN_ID }}/transfer
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: load-worker-*
+          path: .e2e/runs/${{ env.RUN_ID }}/transfer/inputs/results
+          merge-multiple: true
+      - uses: ./.github/actions/synthetic-run
+        with:
+          phase: report
+      - if: always()
+        run: cat ".e2e/runs/$RUN_ID/transfer/performance.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-report
+          path: |-
+            .e2e/runs/${{ env.RUN_ID }}/transfer/outcome.json
+            .e2e/runs/${{ env.RUN_ID }}/transfer/report.html
+            .e2e/runs/${{ env.RUN_ID }}/transfer/performance.md
+            .e2e/runs/${{ env.RUN_ID }}/transfer/performance.svg
+            .e2e/runs/${{ env.RUN_ID }}/transfer/results.json
+          retention-days: 1
+          if-no-files-found: warn
+  cleanup:
+    needs:
+      - prepare
+      - report
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: synthetic-${{ inputs.target }}
+    env:
+      RUNNER_IMAGE: ${{ vars.E2E_RUNNER_IMAGE }}
+      E2E_VOTER_PASSWORD: ${{ secrets.E2E_VOTER_PASSWORD }}
+      E2E_PUSHGATEWAY_URL: ${{ secrets.E2E_PUSHGATEWAY_URL }}
+      E2E_METRICS_TOKEN: ${{ secrets.E2E_METRICS_TOKEN }}
+      E2E_ADMIN_USERNAME: ${{ secrets.E2E_ADMIN_USERNAME }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
+      E2E_CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
+    if: always() && needs.prepare.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: load-inputs
+          path: .e2e/runs/${{ env.RUN_ID }}/transfer
+      - uses: actions/download-artifact@v4
+        with:
+          name: load-report
+          path: .e2e/runs/${{ env.RUN_ID }}/transfer
+        continue-on-error: true
+      - uses: ./.github/actions/synthetic-run
+        with:
+          phase: cleanup

@@ -1,0 +1,24 @@
+{
+  "name": "@sequentech/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "test:runner": "python3 -m unittest discover -s tests_runner",
+    "report": "playwright merge-reports --reporter html blob-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "babel-plugin-istanbul": "^7.0.1",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-report": "^3.0.1",
+    "istanbul-lib-source-maps": "^5.0.6",
+    "istanbul-reports": "^3.2.0",
+    "pg": "^8.16.3",
+    "typescript": "^5.9.3"
+  }
+}

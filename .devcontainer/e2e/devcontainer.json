@@ -1,0 +1,10 @@
+{
+  "name": "Step E2E",
+  "build": {"dockerfile": "Dockerfile"},
+  "workspaceFolder": "/workspaces/step",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/step,type=bind",
+  "runArgs": ["--cpus=2", "--memory=8g", "--shm-size=1g"],
+  "remoteEnv": {"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"},
+  "features": {"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}},
+  "overrideCommand": true
+}

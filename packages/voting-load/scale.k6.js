@@ -41,7 +41,7 @@ export const options = {
     },
   },
   thresholds: {
-    journey_failures: ["rate==0"],
+    journey_failures: ["rate==0", {threshold: "rate<0.1", abortOnFail: true, delayAbortEval: "10s"}],
     iterations: [`count==${count}`],
     ...(config.mode === "status"
       ? {}

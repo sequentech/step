@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+# Build after scripts/e2e run passed at this revision; environments pin its digest.
+FROM step-e2e-tools:local AS tools
+FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+RUN apt-get update && apt-get install -y --no-install-recommends python3-yaml \
+    && rm -rf /var/lib/apt/lists/* && corepack enable && corepack prepare yarn@1.22.22 --activate
+COPY --from=tools /usr/local/bin/k6 /usr/local/bin/k6
+COPY --chown=1000:1000 packages/e2e /workspaces/step/packages/e2e
+COPY --chown=1000:1000 packages/voting-portal/test/load /workspaces/step/packages/voting-portal/test/load
+COPY --chown=1000:1000 packages/voting-portal/test/e2e /workspaces/step/packages/voting-portal/test/e2e
+COPY --chown=1000:1000 packages/admin-portal/test/e2e /workspaces/step/packages/admin-portal/test/e2e
+COPY --chown=1000:1000 packages/ballot-verifier/test/e2e /workspaces/step/packages/ballot-verifier/test/e2e
+COPY --chown=1000:1000 packages/results-portal/test/e2e /workspaces/step/packages/results-portal/test/e2e
+COPY --chown=1000:1000 packages/node_modules /workspaces/step/packages/node_modules
+COPY --chown=1000:1000 .e2e/bin/normal/step-cli /workspaces/step/.e2e/bin/normal/step-cli
+COPY --chown=1000:1000 scripts/e2e /workspaces/step/scripts/e2e
+RUN mkdir -p /workspaces/step/.e2e/runs && chown -R 1000:1000 /workspaces/step/.e2e
+USER 1000
+ENV HOME=/tmp PYTHONPATH=/workspaces/step/packages
+WORKDIR /workspaces/step
+CMD ["python3", "scripts/e2e", "--help"]

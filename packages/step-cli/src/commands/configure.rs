@@ -41,8 +41,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn run(&self) {
-        match create_config(
+    pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
+        create_config(
             &self.endpoint_url,
             &self.keycloak_url,
             &self.keycloak_user,
@@ -50,12 +50,7 @@ impl Config {
             &self.keycloak_client_id,
             &self.keycloak_client_secret,
             &self.tenant_id,
-        ) {
-            Ok(_) => {}
-            Err(err) => {
-                eprintln!("Error! Failed to create configuration file: {}", err)
-            }
-        }
+        )
     }
 }
 

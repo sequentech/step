@@ -32,6 +32,15 @@ const ENGINE_ENV: &[&str] = &[
     "http_proxy",
     "https_proxy",
     "no_proxy",
+    "K6_WEB_DASHBOARD",
+    "K6_WEB_DASHBOARD_HOST",
+    "K6_WEB_DASHBOARD_PORT",
+    "K6_OUT",
+    "K6_PROMETHEUS_RW_SERVER_URL",
+    "K6_PROMETHEUS_RW_USERNAME",
+    "K6_PROMETHEUS_RW_PASSWORD",
+    "K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM",
+    "K6_PROMETHEUS_RW_PUSH_INTERVAL",
 ];
 
 /// Start an engine with only infrastructure configuration and the synthetic password.
@@ -123,6 +132,15 @@ pub fn shard(directory: &Path, shard: usize, assets: &Path) -> Result<()> {
         }
     };
     environment(&mut command, &input, &config_path)?;
+    if matches!(input.settings.workload.engine, Engine::K6) {
+        command
+            .env("K6_WEB_DASHBOARD", "true")
+            .env("K6_WEB_DASHBOARD_EXPORT", output.join("dashboard.html"));
+        // An inaccessible Actions dashboard listener must never delay worker exit.
+        if std::env::var_os("K6_WEB_DASHBOARD_PORT").is_none() {
+            command.env("K6_WEB_DASHBOARD_PORT", "-1");
+        }
+    }
     command
         .env("LOAD_SHARD", shard.to_string())
         .env("LOAD_BALLOTS", &ballot)

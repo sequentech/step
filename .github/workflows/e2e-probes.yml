@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Designated tenant probes
+on:
+  schedule:
+    - cron: "17 */12 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  targets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+      enabled: ${{ steps.targets.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: targets
+        run: |
+          python3 - <<'PY'
+          import json, os
+          entries = json.load(open('packages/e2e/targets.json'))['targets']
+          names = [entry['name'] for entry in entries if entry.get('enabled')]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps({'target': names}) + '\n')
+              output.write('enabled=' + str(bool(names)).lower() + '\n')
+          PY
+  probe:
+    needs: targets
+    if: needs.targets.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    environment: synthetic-${{ matrix.target }}
+    concurrency:
+      group: synthetic-${{ matrix.target }}
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ matrix.target }}
+      RUNNER_IMAGE: ${{ vars.E2E_RUNNER_IMAGE }}
+      E2E_ADMIN_USERNAME: ${{ secrets.E2E_ADMIN_USERNAME }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_CLIENT_ID: ${{ secrets.E2E_CLIENT_ID }}
+      E2E_CLIENT_SECRET: ${{ secrets.E2E_CLIENT_SECRET }}
+      E2E_VOTER_PASSWORD: ${{ secrets.E2E_VOTER_PASSWORD }}
+      E2E_AUDIT_DSN: ${{ secrets.E2E_AUDIT_DSN }}
+      E2E_PUSHGATEWAY_URL: ${{ secrets.E2E_PUSHGATEWAY_URL }}
+      E2E_METRICS_TOKEN: ${{ secrets.E2E_METRICS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate pinned compatible image
+        run: '[[ "$RUNNER_IMAGE" =~ @sha256:[a-f0-9]{64}$ ]]'
+      - name: Probe and reconcile receipts
+        run: |
+          docker run --name synthetic-probe --cpus 2 --memory 4g --shm-size 512m \
+            -v "$PWD/packages/e2e/targets.json:/synthetic/targets.json:ro" \
+            -e E2E_ADMIN_USERNAME -e E2E_ADMIN_PASSWORD -e E2E_CLIENT_ID -e E2E_CLIENT_SECRET \
+            -e E2E_VOTER_PASSWORD -e E2E_AUDIT_DSN -e E2E_PUSHGATEWAY_URL -e E2E_METRICS_TOKEN \
+            "$RUNNER_IMAGE" python3 scripts/e2e probe --registry /synthetic/targets.json --target "$TARGET"
+      - if: always()
+        run: docker rm -f synthetic-probe || true

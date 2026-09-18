@@ -134,6 +134,15 @@ pub enum Command {
         executor: Option<Executor>,
     },
     /// Rebuild aggregate results; optional database auditing remains coordinator-only.
+    #[command(hide = true)]
+    Worker {
+        directory: PathBuf,
+        #[arg(long)]
+        index: usize,
+        #[arg(long)]
+        workers: usize,
+    },
+    /// Rebuild aggregate results; optional database auditing remains coordinator-only.
     Report {
         /// Completed or interrupted run directory.
         directory: PathBuf,
@@ -211,6 +220,11 @@ impl Command {
     /// Dispatch a lifecycle operation without shell interpolation or implicit cast retries.
     pub fn run(&self) -> Result<()> {
         match self {
+            Self::Worker {
+                directory,
+                index,
+                workers,
+            } => worker::node(directory, *index, *workers, &runtime()?),
             Self::Reference { output } => {
                 let text = reference::markdown()?;
                 if let Some(path) = output {

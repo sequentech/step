@@ -19,6 +19,12 @@ pub use sequent_core::util::external_config::EXTERNAL_CONFIG_FILE_NAME;
 pub const CREATE_CONFIG_FILE_NAME: &str = "configuration.json";
 
 pub fn get_config_dir() -> Result<PathBuf, Box<dyn Error>> {
+    if let Some(directory) = env::var_os("STEP_CLI_CONFIG_DIR") {
+        if directory.is_empty() {
+            return Err("STEP_CLI_CONFIG_DIR cannot be empty".into());
+        }
+        return Ok(PathBuf::from(directory));
+    }
     let exe_path = env::current_exe().map_err(|_| "Failed to get current executable path")?;
     let parent_dir = exe_path
         .parent()

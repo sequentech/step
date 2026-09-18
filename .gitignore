@@ -75,6 +75,12 @@ packages/voting-portal/test-results/
 # ignore artifacts for airgapped environments
 airgapped-artifacts
 
+# Isolated E2E caches, credentials, profiles and reports.
+.e2e/
+packages/e2e/playwright-report/
+packages/e2e/test-results/
+packages/e2e/blob-report/
+
 # Locally generated voting-flow benchmark evidence
 /.cache/voting-flow/
 

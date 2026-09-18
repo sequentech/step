@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+**
+!.e2e/
+!.e2e/bin/
+!.e2e/bin/normal/
+!.e2e/bin/normal/step-cli
+!scripts/
+!scripts/e2e
+!packages/
+!packages/node_modules/
+!packages/node_modules/**
+!packages/e2e/
+!packages/e2e/**
+!packages/voting-portal/
+!packages/voting-portal/test/
+!packages/voting-portal/test/e2e/
+!packages/voting-portal/test/e2e/**
+!packages/voting-portal/test/load/
+!packages/voting-portal/test/load/**
+!packages/admin-portal/
+!packages/admin-portal/test/
+!packages/admin-portal/test/e2e/
+!packages/admin-portal/test/e2e/**
+!packages/ballot-verifier/
+!packages/ballot-verifier/test/
+!packages/ballot-verifier/test/e2e/
+!packages/ballot-verifier/test/e2e/**
+!packages/results-portal/
+!packages/results-portal/test/
+!packages/results-portal/test/e2e/
+!packages/results-portal/test/e2e/**
+**/__pycache__/
+**/downloads/
+**/playwright-report/
+**/test-results/

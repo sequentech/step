@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Synthetic load phase
+description: Run one bounded load phase in the same immutable devcontainer image
+inputs:
+  phase:
+    required: true
+    description: prepare, worker, report or cleanup
+  index:
+    default: "0"
+    description: Worker index
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PHASE: ${{ inputs.phase }}
+        INDEX: ${{ inputs.index }}
+      run: |
+        set -euo pipefail
+        [[ "$RUNNER_IMAGE" =~ @sha256:[a-f0-9]{64}$ ]]
+        mkdir -p ".e2e/runs/$RUN_ID"
+        docker run --rm --name "synthetic-$PHASE-$INDEX" --cpus 2 --memory 4g --shm-size 512m \
+          --user "$(id -u):$(id -g)" \
+          -v "$PWD/.e2e/runs/$RUN_ID:/workspaces/step/.e2e/runs/$RUN_ID" \
+          -v "$PWD/packages/e2e/targets.json:/synthetic/targets.json:ro" \
+          -e E2E_ADMIN_USERNAME -e E2E_ADMIN_PASSWORD -e E2E_CLIENT_ID -e E2E_CLIENT_SECRET \
+          -e E2E_VOTER_PASSWORD -e E2E_AUDIT_DSN -e E2E_PUSHGATEWAY_URL -e E2E_METRICS_TOKEN \
+          "$RUNNER_IMAGE" python3 scripts/e2e load --registry /synthetic/targets.json \
+          --target "$TARGET" --engine "$ENGINE" --workers "$WORKERS" --preset "$PRESET" \
+          --run-id "$RUN_ID" --phase "$PHASE" --index "$INDEX"

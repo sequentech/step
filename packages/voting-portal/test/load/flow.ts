@@ -104,12 +104,12 @@ async function selectCandidates(page: Page, candidatesPattern?: string): Promise
     }
 }
 
-async function voteElection(
+export async function prepareBallot(
     page: Page,
     electionIndex: number,
     candidatesPattern?: string,
     castTimeoutMs = defaultCastTimeoutMs
-): Promise<string> {
+): Promise<void> {
     await page.locator(".election-item").nth(electionIndex).locator(".click-to-vote-button").click()
 
     // .start-voting-button always renders (disabled or not), so it is a
@@ -163,7 +163,16 @@ async function voteElection(
             break
         }
     }
-    await castButton.click()
+}
+
+async function voteElection(
+    page: Page,
+    electionIndex: number,
+    candidatesPattern?: string,
+    castTimeoutMs = defaultCastTimeoutMs
+): Promise<string> {
+    await prepareBallot(page, electionIndex, candidatesPattern, castTimeoutMs)
+    await page.locator(".cast-ballot-button").click()
 
     // Casting may first open a confirmation dialog, depending on the election
     // event's cast_vote_confirm_modal setting — wait for whichever of the

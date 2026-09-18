@@ -92,7 +92,7 @@ fn main() {
             }
         }
         MainCommand::Step(step_cmd) => match step_cmd {
-            StepCommands::Config(cmd) => cmd.run(),
+            StepCommands::Config(cmd) => exit_on_error(cmd.run()),
             StepCommands::CreateTenant(create_tenant) => exit_on_error(create_tenant.run()),
             StepCommands::CreateElectionEvent(create_event) => create_event.run(),
             StepCommands::CreateElection(create_election) => create_election.run(),

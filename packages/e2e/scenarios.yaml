@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+# Ownership/migration inventory. "implemented" does not imply the latest CI passed.
+scenarios:
+  - id: admin-login
+    owner: admin-portal
+    implementation: packages/admin-portal/test/e2e/admin.spec.ts
+    replaces: [admin-portal/test/e2e/login.test.ts]
+    status: implemented
+  - id: authenticated-real-cast
+    owner: voting-portal
+    implementation: packages/voting-portal/test/e2e/voting.spec.ts
+    replaces: [voting-portal/test/e2e/login.test.ts, voting-portal/test/e2e/cast_ballot.test.ts]
+    status: implemented
+    evidence: [non-demo, encrypted-cast, graphql-receipt, ui-agreement, database-receipt]
+  - id: ballot-audit
+    owner: cross-package
+    implementation: packages/e2e/journeys/audit.spec.ts
+    replaces: [voting-portal/test/e2e/verify_ballot.test.ts, ballot-verifier/test/e2e/verify_ballot.test.ts]
+    status: implemented
+  - id: verifier-invalid-input
+    owner: ballot-verifier
+    implementation: packages/ballot-verifier/test/e2e/verifier.spec.ts
+    status: implemented
+  - id: unpublished-results
+    owner: results-portal
+    implementation: packages/results-portal/test/e2e/results.spec.ts
+    status: implemented
+  - id: voting-load
+    owner: step-cli
+    implementation: packages/step-cli/src/load
+    engines: [k6, chromium]
+    status: implemented
+  - id: admin-management
+    owner: admin-portal
+    implementation: packages/admin-portal/test/e2e
+    status: legacy-retained
+    remaining: [event-crud, elections-contests-candidates, areas, voters, import-export, sidebar, publication, manual-trustees]
+  - id: configurable-login-matrix
+    owner: voting-portal
+    implementation: packages/voting-portal/test/e2e/login_hints.test.ts
+    status: legacy-retained
+    remaining: [registration, redirected-registration, deferred-ignore, deferred-accept, non-chromium-matrix]
+  - id: enrollment-and-report-load
+    owner: e2e
+    implementation: packages/e2e/src/services
+    status: legacy-retained
+    remaining: [loadero-enrollment, loadero-report-scenarios]
