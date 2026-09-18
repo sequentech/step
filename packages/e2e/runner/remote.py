@@ -128,7 +128,7 @@ def run(args):
                 "adminUrl": selected["admin_url"], "verifierUrl": selected["verifier_url"], "resultsUrl": selected["results_url"],
                 "adminUsername": os.environ["E2E_ADMIN_USERNAME"], "adminPassword": os.environ["E2E_ADMIN_PASSWORD"],
                 "auditDsn": os.environ["E2E_AUDIT_DSN"]})
-            execute(["yarn", "playwright", "test", "--grep", "@probe"], cwd=ROOT / "packages/e2e", env=env, log=log, timeout=900)
+            execute(["yarn", "test", "--grep", "@probe"], cwd=ROOT / "packages/e2e", env=env, log=log, timeout=900)
         else:
             metrics_url = os.environ["E2E_PUSHGATEWAY_URL"].rstrip("/") + (
                 f"/metrics/job/step_load/environment/{selected['name']}/engine/{args.engine}/run/{run_id}/worker/coordinator")
@@ -140,7 +140,10 @@ def run(args):
         # Provisioning writes ownership immediately after importing the event,
         # before key ceremony/census. Also clean a partially prepared fixture.
         if not handed_off:
-            try: owned_cleanup(cli, prepared, env, log)
+            try:
+                if (prepared / "setup/setup-state.json").exists():
+                    authenticate(cli, selected, env, log)
+                owned_cleanup(cli, prepared, env, log)
             except Exception: cleanup_ok = passed = False
             status.finish(passed, time.monotonic() - started, cleanup_ok)
     if not passed: raise RuntimeError("Synthetic run or owned fixture cleanup failed")

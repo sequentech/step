@@ -14,10 +14,11 @@ test("a fresh browser ballot can be audited in the verifier", async ({
   });
   await expect(page.locator(".election-item").first()).toBeVisible();
   await prepareBallot(page, 0);
+  await page.getByRole("button", { name: "Your vote has not been cast", exact: true }).click();
   await page.getByRole("button", { name: "Audit ballot", exact: true }).click();
   await page
     .getByRole("button", {
-      name: "Yes, I want to DISCARD my ballot to audit it",
+      name: "Yes, discard my ballot to audit",
     })
     .click();
   const hash = page.locator(".hash-text").first();

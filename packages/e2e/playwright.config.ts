@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
+import { browserOptions } from "../voting-portal/test/load/browser";
 
 const artifacts =
   process.env.E2E_ARTIFACTS || path.resolve(__dirname, "../../.e2e/manual");
@@ -29,7 +30,10 @@ export default defineConfig({
   use: {
     ...devices["Desktop Chrome"],
     headless: true,
+    launchOptions: browserOptions(),
     locale: "en-US",
+    actionTimeout: 30_000,
+    navigationTimeout: 30_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",

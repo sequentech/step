@@ -34,6 +34,8 @@ def summary(directory, stages, success, started):
 
 
 def run(args):
+    if args.load_smoke and args.coverage != "none":
+        raise ValueError("Run load smoke separately from coverage instrumentation")
     stack = Stack(args.run_id, args.coverage)
     claim = stack.directory / "claimed"
     with claim.open("x") as file:
@@ -70,7 +72,7 @@ def run(args):
         stage("authentication", lambda: stack.up("keycloak"))
         stage("signing keys", lambda: bootstrap("jwks"))
         stage("publish signing keys", lambda: stack.compose("run", "--rm", "--no-deps", "--entrypoint", "/bin/sh", "configure-minio", "-ec",
-            'mc alias set fixture "$MINIO_PRIVATE_URI" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc cp /e2e/jwks.json fixture/public/certs.json',
+            'mc alias set fixture "$MINIO_PRIVATE_URI" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc cp --attr "Cache-Control=max-age=1" /e2e/jwks.json fixture/public/certs.json',
             log=stack.directory / "private/storage.log"))
         stage("API", lambda: stack.up("graphql-engine"))
         stage("metadata", lambda: bootstrap("metadata"))
@@ -79,27 +81,36 @@ def run(args):
         if args.coverage == "combined":
             stage("unit tests", lambda: stack.exec("bash", "packages/e2e/coverage/unit.sh", timeout=1800,
                                                    log=stack.directory / "private/unit.log"))
-        stage("Chromium", lambda: stack.exec("bash", "-c", 'cd packages/e2e && yarn playwright test --grep "$E2E_GREP"',
+        stage("Chromium", lambda: stack.exec("bash", "-c", 'cd packages/e2e && yarn test --grep "$E2E_GREP"',
             # compose exec needs explicit -e, inherited host environment is not forwarded.
             log=stack.directory / "private/browser.log", timeout=900))
+        if args.load_smoke:
+            stage("live metrics", lambda: stack.up("pushgateway"))
+            stage("two-worker load smoke", lambda: stack.exec("python3", "-m", "e2e.runner.load_smoke",
+                log=stack.directory / "private/load-driver.log", timeout=1800))
         success = True
     finally:
         # SIGINT lets Rocket/Tokio finish requests. Native continuous profiles also
         # survive a service crash; coverage reporting requires each expected service.
-        if stack.file.exists():
-            try:
-                stage("stop services", lambda: stack.compose("stop", "-t", "45", "harvest", "windmill", "beat", "b4", timeout=200,
-                                                            log=stack.directory / "private/shutdown.log"))
-                if args.coverage != "none":
-                    stage("coverage report", lambda: stack.exec("python3", "-m", "e2e.runner.coverage", log=stack.directory / "private/coverage.log"))
-            except (subprocess.SubprocessError, OSError):
-                success = False
-            try:
-                stack.compose("logs", "--no-color", log=stack.directory / "private/services.log", timeout=30)
-            finally:
-                if not args.keep:
-                    stage("cleanup", stack.down)
-        summary(stack.directory, stages, success, started)
+        try:
+            if stack.file.exists():
+                try:
+                    stage("stop services", lambda: stack.compose("stop", "-t", "45", "harvest", "windmill", "beat", "b4", timeout=200,
+                                                                log=stack.directory / "private/shutdown.log"))
+                    if args.coverage != "none":
+                        stage("coverage report", lambda: stack.exec("python3", "-m", "e2e.runner.coverage", log=stack.directory / "private/coverage.log"))
+                except (subprocess.SubprocessError, OSError):
+                    success = False
+                try:
+                    stack.compose("logs", "--no-color", log=stack.directory / "private/services.log", timeout=30)
+                finally:
+                    if not args.keep:
+                        stage("cleanup", stack.down)
+        except BaseException:
+            success = False
+            raise
+        finally:
+            summary(stack.directory, stages, success, started)
     if not success:
         raise RuntimeError(f"E2E run failed; inspect {stack.directory}/private")
 
@@ -114,6 +125,7 @@ def main():
     test.add_argument("--coverage", choices=["none", "e2e", "combined"], default="none")
     test.add_argument("--skip-build", action="store_true", help="Use already built artifacts from this checkout")
     test.add_argument("--keep", action="store_true", help="Retain this run's services for debugging")
+    test.add_argument("--load-smoke", action="store_true", help="Also audit four voters per engine with two local workers")
     cleanup = commands.add_parser("cleanup", help="Remove only an explicitly identified run")
     cleanup.add_argument("run_id")
     for name in ("probe", "load"):

@@ -58,6 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "packages/voting-portal/playwright.scale.config.ts",
         "packages/voting-portal/test/load/scale.spec.ts",
         "packages/voting-portal/test/load/flow.ts",
+        "packages/voting-portal/test/load/browser.ts",
     ] {
         let path = root.join(relative);
         println!("cargo:rerun-if-changed={}", path.display());

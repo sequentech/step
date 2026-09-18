@@ -5,6 +5,7 @@ import {chromium, test} from "@playwright/test"
 import {appendFileSync, readFileSync, writeFileSync} from "node:fs"
 import {dirname, join} from "node:path"
 import {castBallotAsVoter} from "./flow"
+import {browserOptions} from "./browser"
 
 interface Workload {
     journey_timeout_ms?: number
@@ -31,10 +32,7 @@ test("finite Chromium voting shard", async () => {
     const journeyTimeout = config.journey_timeout_ms ?? 180_000
     test.setTimeout(Math.max(journeyTimeout, Math.ceil(count / config.vus) * journeyTimeout))
     const traffic: Record<string, number> = {}
-    const browser = await chromium.launch({
-        headless: true,
-        executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
-    })
+    const browser = await chromium.launch(browserOptions())
     let next = 0
     let failures = 0
     try {

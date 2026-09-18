@@ -5,6 +5,7 @@ import {chromium, expect, Request, test} from "@playwright/test"
 import {mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {resolve} from "node:path"
 import {castBallotAsVoter} from "./flow"
+import {browserOptions} from "./browser"
 
 // HAR contains authentication material. The runner creates a private output directory;
 // only the extracted resource profile and aggregate report are publication candidates.
@@ -14,10 +15,7 @@ test("capture one real login-to-cast journey", async () => {
     mkdirSync(output, {recursive: true, mode: 0o700})
     const engine = target.engine || "chromium"
     if (engine !== "chromium") throw new Error("Full portal capture requires Chromium")
-    const browser = await chromium.launch({
-        headless: true,
-        executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
-    })
+    const browser = await chromium.launch(browserOptions())
     const context = await browser.newContext({
         recordHar: {path: resolve(output, "journey.har"), mode: "full", content: "omit"},
     })

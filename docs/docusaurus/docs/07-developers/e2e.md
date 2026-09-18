@@ -20,6 +20,7 @@ use `E2E_DOCKER_SUDO=1`. The image pins Rust, LLVM coverage tools, Playwright an
 ```sh
 scripts/e2e images
 scripts/e2e run --run-id local-smoke
+scripts/e2e run --run-id local-load --load-smoke
 scripts/e2e run --run-id local-coverage --coverage e2e
 scripts/e2e run --run-id local-combined --coverage combined
 ```
@@ -30,6 +31,13 @@ diagnosis; `scripts/e2e cleanup RUN_ID` removes only that stack and its data.
 `--skip-build` is for artifacts already built in this checkout, not a substitute
 for verifying a different revision. Two Rust build jobs, one browser worker and
 finite synthetic cohorts are the defaults.
+
+`--load-smoke` additionally provisions four voters per engine, splits them across
+two workers, validates live ingestion into an isolated Pushgateway and reconciles
+every receipt. Use it with normal builds. The browser fixture explicitly uses
+standard username login; the load fixture retains configurable authentication
+with a standard password field. The local Docker origins use a narrowly scoped
+Chromium secure-context flag; registered deployments require HTTPS.
 
 The runner creates a private `.e2e/runs/RUN_ID/` directory. `report/` contains
 publishable summaries and coverage; `private/` contains service/build logs,

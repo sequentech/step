@@ -104,6 +104,9 @@ pub fn fixture(mut event: Value, settings: &Settings) -> Result<Value> {
     let origin = settings.target.portal_url.trim_end_matches('/');
     event["election_event"]["presentation"]["logo_url"] = json!(format!("{origin}/favicon.svg"));
     let realm = &mut event["keycloak_event_realm"];
+    // The caller supplies an arbitrary synthetic password, not the exported
+    // fixture's six-digit PIN. Both protocol and browser engines must accept it.
+    realm["attributes"]["credential-input-policy"] = json!("standard");
     realm["passwordPolicy"] = json!(format!(
         "hashAlgorithm(pbkdf2-sha256) and hashIterations({})",
         settings.workload.hash_iterations

@@ -259,6 +259,10 @@ fn fixture_configures_exact_login_and_retains_one_eligible_contest() {
     let fixture = provision::fixture(fixture, &input.settings).unwrap();
     assert_eq!(fixture["elections"].as_array().unwrap().len(), 1);
     assert_eq!(fixture["contests"][0]["min_votes"], 1);
+    assert_eq!(
+        fixture["keycloak_event_realm"]["attributes"]["credential-input-policy"],
+        "standard"
+    );
     for config in fixture["keycloak_event_realm"]["authenticatorConfig"]
         .as_array()
         .unwrap()

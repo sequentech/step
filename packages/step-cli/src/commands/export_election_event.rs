@@ -189,7 +189,7 @@ pub fn export_election_event(
             )?;
             let extension = if is_encrypted { "ezip" } else { "zip" };
             let output_path = format!("{}/election_event_export.{}", output_dir, extension);
-            crate::utils::tally::download_document::download_file(&document.url, &output_path)?;
+            crate::utils::tally::download_document::download_file_plain(&document.url, &output_path)?;
 
             if let Some(password) = export_data.password {
                 println!("🔑  Export password: {password}");

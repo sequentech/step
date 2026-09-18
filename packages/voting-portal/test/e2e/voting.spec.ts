@@ -12,11 +12,13 @@ test("a real encrypted cast agrees with the UI and persisted receipt @smoke @pro
         const body = response.request().postData()
         return response.url().includes("/v1/graphql") && Boolean(body?.includes("insert_cast_vote"))
     })
-    const ballots = await castBallotAsVoter(page, {
-        loginUrl: fixture.loginUrl,
-        credentials: {username: `${fixture.usernamePrefix}0`, password: fixture.password},
-    })
-    const response = await responsePromise
+    const [ballots, response] = await Promise.all([
+        castBallotAsVoter(page, {
+            loginUrl: fixture.loginUrl,
+            credentials: {username: `${fixture.usernamePrefix}0`, password: fixture.password},
+        }),
+        responsePromise,
+    ])
     expect(response.ok()).toBe(true)
     const body = (await response.json()) as {
         errors?: unknown[]

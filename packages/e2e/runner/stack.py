@@ -66,6 +66,7 @@ class Stack:
                 "KEYCLOAK_PUBLIC_URL": "http://keycloak:8090",
                 "VOTING_PORTAL_URL": "http://portals:3000",
                 "BALLOT_VERIFIER_URL": "http://portals:3001",
+                "AWS_S3_JWKS_CACHE_POLICY": "max-age=1",
                 "AWS_EC2_METADATA_DISABLED": "true", "RAYON_NUM_THREADS": "2"})
             for volume in service.get("volumes", []):
                 if isinstance(volume, dict) and volume.get("type") == "bind":
@@ -114,6 +115,8 @@ class Stack:
                 directory.mkdir(parents=True, exist_ok=True)
                 service["environment"]["LLVM_PROFILE_FILE"] = f"/workspaces/step/{directory.relative_to(ROOT)}/%m-%p%c.profraw"
         selected["windmill"]["mem_limit"] = "2g"
+        selected["pushgateway"] = {"image": "prom/pushgateway:v1.11.2", "cpus": 0.25,
+                                   "mem_limit": "128m"}
         for i in (1, 2):
             key = f"trustee{i}"
             config = f"/workspaces/step/.devcontainer/trustees-data/{key}/{key}.toml"
@@ -126,7 +129,7 @@ class Stack:
             "shm_size": "1g", "working_dir": "/workspaces/step", "command": ["sleep", "infinity"],
             "volumes": [f"{host_path(ROOT)}:/workspaces/step", "cargo-cache:/usr/local/cargo/registry"],
             "environment": {"E2E_RUN_ID": self.run_id, "E2E_COVERAGE": self.coverage,
-                "PYTHONPATH": "/workspaces/step/packages", "E2E_GREP": "",
+                "PYTHONPATH": "/workspaces/step/packages", "E2E_GREP": "", "E2E_LOCAL_STACK": "1",
                 "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory", "GIT_CONFIG_VALUE_0": "/workspaces/step",
                 "E2E_ARTIFACTS": f"/workspaces/step/{self.directory.relative_to(ROOT)}",
                 "STEP_CLI_CONFIG_DIR": f"/workspaces/step/{self.directory.relative_to(ROOT)}/private/cli",

@@ -9,6 +9,11 @@ case "$mode" in normal|coverage) ;; *) exit 2;; esac
 export CARGO_BUILD_JOBS=2 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
 export YARN_CACHE_FOLDER=/workspaces/step/.e2e/yarn-cache
 mkdir -p ".e2e/bin/$mode" ".e2e/web/$mode" .e2e/cargo
+install_binary() {
+  # An earlier retained stack may still execute the previous inode.
+  cp "$1" "$2.tmp"
+  mv -f "$2.tmp" "$2"
+}
 if [[ "$stage" == all || "$stage" == native ]]; then
   # Build trustees outside the instrumented environment; they have a separate
   # slow cryptographic test tier and are not part of the backend coverage scope.
@@ -18,7 +23,7 @@ if [[ "$stage" == all || "$stage" == native ]]; then
       export CARGO_TARGET_DIR=/workspaces/step/.e2e/cargo/normal
       mkdir -p ../.e2e/bin/normal
       cargo build --locked -p braid --bin main --features native
-      cp "$CARGO_TARGET_DIR/debug/main" ../.e2e/bin/normal/trustee
+      install_binary "$CARGO_TARGET_DIR/debug/main" ../.e2e/bin/normal/trustee
     )
   fi
   (
@@ -29,10 +34,10 @@ if [[ "$stage" == all || "$stage" == native ]]; then
       export RUSTFLAGS="${RUSTFLAGS:-} -C llvm-args=-runtime-counter-relocation"
     fi
     cargo build --locked -p harvest --bin harvest -p step-cli --bin step-cli -p b4 --bin b4 --features b4/native
-    for binary in harvest step-cli b4; do cp "$CARGO_TARGET_DIR/debug/$binary" "../.e2e/bin/$mode/$binary"; done
+    for binary in harvest step-cli b4; do install_binary "$CARGO_TARGET_DIR/debug/$binary" "../.e2e/bin/$mode/$binary"; done
     cargo build --locked -p windmill --bin main --bin beat
-    cp "$CARGO_TARGET_DIR/debug/main" "../.e2e/bin/$mode/windmill"
-    cp "$CARGO_TARGET_DIR/debug/beat" "../.e2e/bin/$mode/beat"
+    install_binary "$CARGO_TARGET_DIR/debug/main" "../.e2e/bin/$mode/windmill"
+    install_binary "$CARGO_TARGET_DIR/debug/beat" "../.e2e/bin/$mode/beat"
   )
 fi
 if [[ "$stage" == all || "$stage" == web ]]; then

@@ -21,7 +21,9 @@ class Portal(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.split("?")[0] == "/global-settings.json":
-            settings = json.loads((Path(self.directory) / "global-settings.json").read_text())
+            # Production supplies runtime settings separately from webpack output.
+            portal = Path(self.directory).name
+            settings = json.loads((ROOT / "packages" / portal / "public/global-settings.json").read_text())
             settings.update({"KEYCLOAK_URL": "http://keycloak:8090/",
                 "HASURA_URL": "http://graphql-engine:8080/v1/graphql", "DISABLE_AUTH": False,
                 "BALLOT_VERIFIER_URL": "http://portals:3001/", "VOTING_PORTAL_URL": "http://portals:3000/",

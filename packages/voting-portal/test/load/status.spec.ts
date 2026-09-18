@@ -5,6 +5,7 @@ import {chromium, expect, test} from "@playwright/test"
 import {readFileSync, writeFileSync} from "node:fs"
 import {resolve} from "node:path"
 import {login} from "./flow"
+import {browserOptions} from "./browser"
 
 // Authenticate normally, then replay only the observed read-only status query.
 // Tokens and signed URLs stay in memory; samples never contain response bodies.
@@ -17,10 +18,7 @@ test("measure authenticated GetVoterStatus", async () => {
     }
     expect(Number.isInteger(warmup) && warmup >= 0 && warmup <= 1000).toBe(true)
     expect(concurrency).toBeLessThanOrEqual(32)
-    const browser = await chromium.launch({
-        headless: true,
-        executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
-    })
+    const browser = await chromium.launch(browserOptions())
     const context = await browser.newContext({
         recordHar: {path: resolve(output, "journey.har"), content: "omit"},
     })

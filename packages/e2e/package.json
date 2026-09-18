@@ -4,10 +4,10 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "scripts": {
-    "test": "playwright test",
+    "test": "node playwright.cjs test",
     "typecheck": "tsc --noEmit",
     "test:runner": "python3 -m unittest discover -s tests_runner",
-    "report": "playwright merge-reports --reporter html blob-report"
+    "report": "node playwright.cjs merge-reports --reporter html blob-report"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

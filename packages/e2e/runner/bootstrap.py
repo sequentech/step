@@ -89,7 +89,7 @@ def client_origins(realm, client_id, origins):
     response.raise_for_status()
 
 
-def prepare(engine="chromium", count=8):
+def authenticate():
     mode = "normal" if os.environ.get("E2E_COVERAGE", "none") == "none" else "coverage"
     cli = str(ROOT / ".e2e/bin" / mode / "step-cli")
     log = ARTIFACTS / "private/prepare.log"
@@ -101,6 +101,11 @@ def prepare(engine="chromium", count=8):
              "api-key-client", "--keycloak-client-secret", client["secret"]], log=log)
     if not list(Path(os.environ["STEP_CLI_CONFIG_DIR"]).glob("*")):
         raise RuntimeError("CLI authentication did not create an isolated session")
+    return cli, log
+
+
+def prepare(engine="chromium", count=8):
+    cli, log = authenticate()
     for name in ("trustee1", "trustee2"):
         config = tomllib.loads((ROOT / f".devcontainer/trustees-data/{name}/{name}.toml").read_text())
         execute([cli, "step", "create-trustee", "--name", name, "--public-key", config["signing_key_pk"]], log=log)
@@ -115,7 +120,24 @@ def prepare(engine="chromium", count=8):
     config_path.write_text(yaml.safe_dump(config))
     execute([cli, "load", "prepare", str(config_path), "--output", str(ARTIFACTS / "private/prepared")],
             log=log, env={"LOAD_PASSWORD": "E2e-synthetic-2026!"}, timeout=900)
+    write_fixture()
+
+
+def write_fixture():
     prepared = json.loads((ARTIFACTS / "private/prepared/inputs/config.json").read_text())
+    # This suite exercises standard username login/hints. The native load suite
+    # retains the exported realm's configurable multi-attribute browser flow.
+    token = requests.post("http://keycloak:8090/realms/master/protocol/openid-connect/token",
+        data={"client_id": "admin-cli", "username": "admin", "password": "admin", "grant_type": "password"}, timeout=30)
+    token.raise_for_status()
+    headers = {"Authorization": "Bearer " + token.json()["access_token"]}
+    url = "http://keycloak:8090/admin/realms/" + prepared["realm"]
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    realm = response.json()
+    realm["browserFlow"] = "browser"
+    realm.setdefault("attributes", {})["credential-input-policy"] = "standard"
+    requests.put(url, headers=headers, json=realm, timeout=30).raise_for_status()
     client_origins(prepared["realm"], "voting-portal", ["http://portals:3000", "http://portals:3001"])
     save(ARTIFACTS / "private/fixture.json", {
         "tenantId": TENANT, "eventId": prepared["election_event_id"],

@@ -26,6 +26,7 @@ const ENGINE_ENV: &[&str] = &[
     "FONTCONFIG_FILE",
     "FONTCONFIG_PATH",
     "PLAYWRIGHT_BROWSERS_PATH",
+    "E2E_LOCAL_STACK",
     "HTTP_PROXY",
     "HTTPS_PROXY",
     "NO_PROXY",
