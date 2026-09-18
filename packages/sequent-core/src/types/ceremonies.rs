@@ -132,6 +132,14 @@ pub enum TallyTrusteeStatus {
     KEY_RESTORED,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RestorePrivateKeyOutcome {
+    Restored,
+    Invalid,
+    AlreadyRestored,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct TallyTrustee {
     pub name: String,
