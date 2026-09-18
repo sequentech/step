@@ -49,7 +49,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#assign credentialFirst = passwordRequired
     && (realm.attributes['credential-field-position']!'LAST') == 'FIRST'
     && !explicitPasswordAnchor>
-<#assign structuredCredentialLogin = loginMode && passwordRequired && (realm.attributes['credential-input-policy']!'standard') == 'structured'>
+<#assign structuredCredentialLogin = loginMode && passwordRequired && ['structured', 'pattern']?seq_contains(realm.attributes['credential-input-policy']!'standard')>
 <#assign credentialFieldError = messagesPerField.existsError('username','password')>
 <#assign structuredCredentialHasError = structuredCredentialLogin && credentialFieldError>
 <#macro credentialFields>

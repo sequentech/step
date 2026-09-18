@@ -7,7 +7,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 <#import "template.ftl" as layout>
 <#import "match-attributes.ftl" as matchAttributeFields>
 <#import "social-providers.ftl" as socialProviders>
-<#assign structuredCredential = (realm.attributes['credential-input-policy']!'standard') == 'structured'>
+<#assign structuredCredential = ['structured', 'pattern']?seq_contains(realm.attributes['credential-input-policy']!'standard')>
 <#--  SERVER_ONLY adds novalidate, so the browser stops adjudicating field formats and the
       authenticator is the only judge of a login attempt. The constraint attributes stay in the
       DOM: required still maps to aria-required, maxlength still caps typing, and max still bounds

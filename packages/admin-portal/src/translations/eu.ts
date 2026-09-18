@@ -255,6 +255,7 @@ const basqueTranslation: TranslationType = {
                 logs: "Egunkariak",
             },
             tasksExecution: {
+                DELETE_TENANT: "Ezabatu erakundea",
                 PUBLISH_BALLOT: "Boto-papera argitaratu",
                 VOTER_INFORMATION_LETTER: "Hauteslearen informazio-gutuna",
                 EXPORT_ELECTION_EVENT: "Esportatu Hauteskunde Gertaera",
@@ -798,6 +799,10 @@ const basqueTranslation: TranslationType = {
                 statusLabel: "Egoera",
                 waitingKeys: "Giltzen Sorkuntza itxoiten..",
                 started: "Hasita:",
+                actions: {
+                    participate: "Parte hartu giltzen zeremonian",
+                    view: "Ikusi giltzen zeremonia",
+                },
                 breadCrumbs: {
                     configure: "Konfiguratu",
                     ceremony: "Zeremonia",
@@ -922,6 +927,8 @@ const basqueTranslation: TranslationType = {
                 subtitle:
                     "Esportazioa eragiketa luzea izan daiteke. Ziur zaude erregistroak esportatu nahi dituzula?",
                 encryptWithPassword: "Zifratu Pasahitzarekin",
+                passwordForcedNote:
+                    "Artxiboa pasahitzarekin babestuko da nolanahi ere: txostenak, eskaerak eta iragarki-taulako datuak beti zifratzen dira. Markatu laukia hautesleen eremu sekretu deszifratuak ere sartzeko.",
                 includeVoters: "Sartu Bozkatzaileak",
                 activityLogs: "Jarduera Egunkariak",
                 bulletinBoard: "Iragarki Taula",
@@ -1182,6 +1189,18 @@ const basqueTranslation: TranslationType = {
                 },
                 title: "Bozkatzaileak",
                 subtitle: "Ikusi eta editatu bozkatzaile datuak",
+                secretAttribute: {
+                    storedPlaceholder: "Gordetako balio zifratua",
+                    reveal: "Erakutsi",
+                    hide: "Ezkutatu",
+                    revealError: "Ezin izan da bozkatzailearen eremu zifratua erakutsi",
+                    includeInExport: "Sartu deszifratutako bozkatzailearen eremu sekretuak",
+                    exportWarning:
+                        "Esportazio sentikorra: deskargatutako CSVak eremu hauek testu arruntean izango ditu.",
+                    clear: "Garbitu",
+                    add: "Gehitu balioa",
+                    remove: "Kendu balioa",
+                },
                 review: {
                     title: "Aldaketak berrikusi",
                     subtitle: "Berretsi eguneratze hauek bidali aurretik.",
@@ -1291,6 +1310,7 @@ const basqueTranslation: TranslationType = {
                 "tenant-create": "Sortu Maizterra",
                 "tenant-read": "Irakurri Maizterra",
                 "tenant-write": "Editatu Maizterra",
+                "tenant-delete": "Ezabatu Maizterra",
                 "election-event-create": "Sortu Hauteskunde Gertaera",
                 "election-event-read": "Irakurri Hauteskunde Gertaera",
                 "election-event-write": "Editatu Hauteskunde Gertaera",
@@ -1300,6 +1320,8 @@ const basqueTranslation: TranslationType = {
                 "voter-create": "Sortu Bozkatzailea",
                 "voter-read": "Irakurri Bozkatzailea",
                 "voter-write": "Editatu Bozkatzailea",
+                "voter-secret-attribute-read": "Erakutsi Bozkatzailearen Eremu Sekretuak",
+                "voter-secret-attribute-write": "Editatu Bozkatzailearen Eremu Sekretuak",
                 "user-create": "Sortu Erabiltzailea",
                 "user-read": "Irakurri Erabiltzailea",
                 "user-write": "Editatu Erabiltzailea",
@@ -1495,6 +1517,23 @@ const basqueTranslation: TranslationType = {
                 "cloudflare-write": "Editatu Herrialde Blokeo Arauak Cloudflare-n",
                 "transmission-report-generate": "Sortu Transmisio Txostena",
                 "google-meet-link": "Google Meet Esteka Sortu",
+                "service-account": "Zerbitzu-kontua",
+                "datafix-account": "Datuak zuzentzeko kontua",
+                "gold": "Urrea",
+                "silver": "Zilarra",
+                "election-event-ivr-tab": "Ikusi hauteskunde-gertaeraren IVRa",
+                "election-event-cas-tab": "Ikusi hauteskunde-gertaeraren CASa",
+                "ca-read": "Irakurri ziurtagiri-agintaritzak",
+                "ca-write": "Editatu ziurtagiri-agintaritzak",
+                "generate-preview": "Sortu aurrebista",
+                "preview-read": "Irakurri aurrebista",
+                "tally-resolution-submit": "Bidali zenbaketa-ebazpena",
+                "phone-blacklist-read": "Irakurri telefonoen zerrenda beltza",
+                "phone-blacklist-create": "Sortu telefonoen zerrenda beltzeko sarrerak",
+                "phone-blacklist-update": "Editatu telefonoen zerrenda beltzeko sarrerak",
+                "phone-blacklist-delete": "Ezabatu telefonoen zerrenda beltzeko sarrerak",
+                "election-event-voter-list-reconciliation":
+                    "Berradiskidetu hauteskunde-gertaeraren bozkatzaile-zerrenda",
             },
         },
         generalSettingsScreen: {
@@ -2009,8 +2048,12 @@ const basqueTranslation: TranslationType = {
                 subtitle:
                     "Jarraitzeko, mesedez deskargatu eta gorde zure Zifratutako Giltza Pribatua gutxienez bi gailu desberdinetan:",
                 downloadButton: "Deskargatu zure Zifratutako Giltza Pribatua",
-                errorDownloading: "Deskarga errorea: {{error}}",
+                downloaded: "Zifratutako Giltza Pribatua behar bezala deskargatu da.",
                 errorEmptyKey: "Deskarga errorea, fitxategi hutsa",
+                unexpectedError: "Ezin izan da giltza pribatua deskargatu. Saiatu berriro.",
+                alreadyVerified: "Zure giltza pribatua deskargatuta eta egiaztatuta zegoen.",
+                unavailable:
+                    "Giltza pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
                 confirmdDialog: {
                     ok: "Berretsi Babeskopiak eta Jarraitu",
                     cancel: "Itzuli",
@@ -2025,13 +2068,13 @@ const basqueTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Egiaztatu zure Zifratutako Giltza Pribatu Babeskopiak",
+                verifyButton: "Egiaztatu gakoa",
                 subtitle:
                     "Igo Zifratutako Giltza Pribatu Babeskopia bat zuzena dela egiaztatzeko. Behar adina aldiz saia zaitezke, zure babeskopia desberdinetatik:",
                 errorUploading:
                     "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
                 errorEmptyFile: "Fitxategia hutsa edo ez da aurkitu",
                 verified: "Babeskopia arrakastaz egiaztatua.",
-                downloaded: "Zifratutako Giltza Pribatua arrakastaz sortua.",
             },
         },
         miruExport: {
