@@ -802,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "b4"
-version = "0.6.0"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "aws-config",
@@ -914,7 +914,7 @@ checksum = "38c99613cb3cd7429889a08dfcf651721ca971c86afa30798461f8eee994de47"
 
 [[package]]
 name = "braid"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "anyhow",
  "ascent",
@@ -5174,7 +5174,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vsc"
-version = "0.6.4"
+version = "0.6.5"
 dependencies = [
  "aead",
  "base64",
