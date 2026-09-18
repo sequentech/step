@@ -36,8 +36,9 @@ signatures — rather than a separate model of it:
 
 Everything else — design record, fault model, property catalog, how to run,
 and roadmap — is in `STATERIGHT.md` (per-commit measurement log:
-`STATERIGHT-log.md`). The retired vs_lift harnesses remain in-tree,
-read-only, under `crates/braid/vs_lift/` for reference.
+`STATERIGHT-log.md`). The vs_lift harnesses this work was mined from are not
+in this tree: `crates/braid/vs_lift/` was removed at import and is recoverable
+from `feat/braid-0.6.3/main` (`PROVENANCE.md`).
 
 ---
 
