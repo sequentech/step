@@ -803,6 +803,10 @@ const spanishTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a la Generación de Claves..",
                 started: "Iniciada en",
+                actions: {
+                    participate: "Participar en la ceremonia de claves",
+                    view: "Ver la ceremonia de claves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Ceremonia",
