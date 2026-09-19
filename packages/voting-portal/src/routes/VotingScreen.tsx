@@ -311,6 +311,9 @@ const VotingScreen: React.FC = () => {
     } = provideBallotService()
     const election = useAppSelector(selectElectionById(String(electionId)))
     const ballotStyle = useAppSelector(selectBallotStyleByElectionId(String(electionId)))
+    const defaultLanguageCode =
+        election?.presentation?.language_conf?.default_language_code ??
+        ballotStyle?.ballot_eml.election_event_presentation?.language_conf?.default_language_code
 
     const selectionState = useAppSelector(
         selectBallotSelectionByElectionId(ballotStyle?.election_id ?? "")
@@ -487,7 +490,9 @@ const VotingScreen: React.FC = () => {
             </Box>
             <StyledTitle variant="h4" className="title-container">
                 <Box className="selected-election-title">
-                    {translateFromPresentation(election, "name", i18n.language) ?? "-"}
+                    {translateFromPresentation(election, "name", i18n.language, {
+                        defaultLanguageCode,
+                    }) ?? "-"}
                 </Box>
                 <IconButton
                     className="title-question"
@@ -513,7 +518,9 @@ const VotingScreen: React.FC = () => {
                     sx={{color: theme.palette.customGrey.main}}
                 >
                     {stringToHtml(
-                        translateFromPresentation(election, "description", i18n.language) ?? "-"
+                        translateFromPresentation(election, "description", i18n.language, {
+                            defaultLanguageCode,
+                        }) ?? "-"
                     )}
                 </Typography>
             ) : null}
