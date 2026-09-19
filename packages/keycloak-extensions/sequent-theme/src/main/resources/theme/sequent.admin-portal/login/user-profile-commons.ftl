@@ -12,6 +12,9 @@ SPDX-License-Identifier: AGPL-3.0-only
 	<#assign disabledElements = []>
 	
 	<#list profile.attributes as attribute>
+		<#if hiddenProfileAttributes?? && hiddenProfileAttributes?seq_contains(attribute.name)>
+			<#continue>
+		</#if>
 		<#--  Check for default custom attribute and assign it the first time the form is opened  -->
 		<#if attribute.values?has_content>
 			<#assign values = attribute.values>
