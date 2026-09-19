@@ -67,6 +67,7 @@ export interface ISendTemplateBody {
     email?: IEmail
     sms?: ISmsConfig
     pdf_options?: IPdfOptions
+    pre_render?: {enabled: boolean; version: number}
     selected_methods?: IMethods
 }
 

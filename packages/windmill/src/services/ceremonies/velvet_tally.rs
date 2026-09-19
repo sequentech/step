@@ -553,7 +553,9 @@ pub async fn build_ballot_images_pipe_config(
 
     let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
+    let pre_render = ballot_images_renderer.pre_render_layout(hasura_transaction).await?;
     let ballot_images_pipe_config = PipeConfigBallotImages {
+        pre_render,
         template: user_tpl_document,
         system_template: ballot_imagest_system_template,
         extra_data: serde_json::to_value(ballot_images_extra_data)?,
@@ -611,6 +613,7 @@ async fn build_reports_pipe_config(
     ]);
 
     Ok(PipeConfigGenerateReports {
+        pre_render: None,
         enable_pdfs: false,
         report_content_template,
         execution_annotations,
@@ -625,6 +628,7 @@ async fn build_reports_pipe_config(
 #[instrument(skip_all, err)]
 pub async fn create_config_file(
     base_tally_path: PathBuf,
+    hasura_transaction: &Transaction<'_>,
     report_content_template: Option<String>,
     report_system_template: String,
     pdf_options: Option<PrintToPdfOptionsLocal>,
@@ -645,7 +649,7 @@ pub async fn create_config_file(
 
     let minio_endpoint_base = s3::get_minio_url()?;
 
-    let gen_report_pipe_config = build_reports_pipe_config(
+    let mut gen_report_pipe_config = build_reports_pipe_config(
         &tally_session,
         minio_endpoint_base,
         public_asset_path,
@@ -655,6 +659,18 @@ pub async fn create_config_file(
         tally_type,
     )
     .await?;
+
+    let prerender_report = crate::services::reports::electoral_results::ElectoralResults::new(ReportOrigins {
+        tenant_id: tally_session.tenant_id.clone(),
+        election_event_id: tally_session.election_event_id.clone(),
+        election_id: None,
+        template_alias: None,
+        voter_id: None,
+        report_origin: ReportOriginatedFrom::ExportFunction,
+        executer_username: None,
+        tally_session_id: Some(tally_session.id.clone()),
+    });
+    gen_report_pipe_config.pre_render = prerender_report.pre_render_layout(hasura_transaction).await?;
 
     let gen_db_pipe_config = PipeConfigGenerateDatabase {
         include_decoded_ballots: decoded_ballots_policy == DecodedBallotsInclusionPolicy::INCLUDED,
@@ -912,6 +928,7 @@ pub async fn run_velvet_tally(
 
     create_config_file(
         base_tally_path.clone(),
+        hasura_transaction,
         report_content_template,
         report_system_template,
         pdf_options,

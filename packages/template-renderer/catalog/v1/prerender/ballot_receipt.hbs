@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{{t "prerender_receipt"}}</title>
+<style>
+  /* All positions use PDF points. Runtime content cannot reflow this page. */
+  @page { size: 612pt 792pt; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: #151515; font-family: Arial, sans-serif; }
+  .page { position: relative; width: 612pt; height: 792pt; padding: 44pt; break-after: page; }
+  .page:last-child { break-after: auto; }
+  .eyebrow { font-size: 9pt; letter-spacing: 2pt; text-transform: uppercase; }
+  h1 { font-size: 25pt; margin: 12pt 0; }
+  .muted { color: #666; font-size: 10pt; }
+  .rule { height: 2pt; background: #151515; margin-top: 22pt; }
+  .footer { position: absolute; bottom: 36pt; font-size: 8pt; color: #666; }
+</style>
+</head>
+<body>
+  <section class="page">
+    <div class="eyebrow">[[event.name]]</div>
+    <h1>{{t "prerender_receipt"}}</h1>
+    <p class="muted">{{t "prerender_receipt_description"}}</p>
+    <div class="rule"></div>
+    <p style="position:absolute;left:44pt;top:174pt;font-size:10pt">{{t "prerender_receipt_id"}}</p>
+    <!-- Runtime fields are reserved rectangles; the PDF stays fixed. -->
+    {{pdf_text "/ballot_id" x=44 y=214 width=510 height=24 size=12}}
+    <p style="position:absolute;left:44pt;top:253pt;font-size:10pt">{{t "prerender_recorded"}}</p>
+    {{pdf_text "/timestamp" x=44 y=286 width=510 height=24 size=12}}
+    <!-- The QR code is generated natively, with a four-module quiet zone. -->
+    {{pdf_qr "/ballot_tracker_url" x=44 y=366 width=144 height=144}}
+    <p style="position:absolute;left:216pt;top:397pt;width:320pt;line-height:1.6">{{t "prerender_scan"}}</p>
+    <p class="footer">{{t "prerender_demo"}}</p>
+  </section>
+</body>
+</html>

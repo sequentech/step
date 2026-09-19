@@ -1074,6 +1074,7 @@ pub async fn send_application_communication_response(
                 alias: None,
                 pdf_options: None,
                 report_options: None,
+                pre_render: None,
             };
 
             let celery_app = get_celery_app().await;

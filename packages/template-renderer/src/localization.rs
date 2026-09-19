@@ -8,6 +8,22 @@ use regex::Regex;
 use serde_json::{json, Value};
 use std::str::FromStr;
 
+/// Override individual words without copying a report's complete language catalog.
+pub fn merge_catalogs(defaults: &Value, overrides: &Value) -> Value {
+    let mut result = defaults.as_object().cloned().unwrap_or_default();
+    if let Some(languages) = overrides.as_object() {
+        for (language, values) in languages {
+            if let Some(values) = values.as_object() {
+                let catalog = result.entry(language.clone()).or_insert_with(|| json!({}));
+                if let Some(catalog) = catalog.as_object_mut() {
+                    catalog.extend(values.clone());
+                }
+            }
+        }
+    }
+    Value::Object(result)
+}
+
 pub fn language_chain(language: &str, default: &str) -> Vec<String> {
     let mut result = Vec::new();
     for item in [

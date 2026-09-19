@@ -1,0 +1,133 @@
+{
+  "tenant_id": "00000000-0000-4000-8000-000000000100",
+  "election_event": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "name": "San Isidro · Demonstration election",
+    "description": "Synthetic dataset for template testing",
+    "tenant_id": "00000000-0000-4000-8000-000000000100",
+    "is_archived": false,
+    "encryption_protocol": "RSA256",
+    "presentation": {
+      "name": "San Isidro · Demonstration election"
+    }
+  },
+  "elections": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "name": "Municipal election",
+      "description": "Synthetic election",
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Municipal election"
+      }
+    }
+  ],
+  "contests": [
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "election_id": "00000000-0000-4000-8000-000000000002",
+      "name": "MAYOR",
+      "description": "MAYOR",
+      "max_votes": 1,
+      "min_votes": 0,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "MAYOR"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "election_id": "00000000-0000-4000-8000-000000000002",
+      "name": "VICE MAYOR",
+      "description": "VICE MAYOR",
+      "max_votes": 1,
+      "min_votes": 0,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "VICE MAYOR"
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "contest_id": "00000000-0000-4000-8000-000000000010",
+      "name": "Alma Reyes",
+      "description": "Alma Reyes",
+      "number": 1,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Alma Reyes"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000021",
+      "contest_id": "00000000-0000-4000-8000-000000000010",
+      "name": "Bruno Santos",
+      "description": "Bruno Santos",
+      "number": 2,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Bruno Santos"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000022",
+      "contest_id": "00000000-0000-4000-8000-000000000010",
+      "name": "Clara Dizon",
+      "description": "Clara Dizon",
+      "number": 3,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Clara Dizon"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000023",
+      "contest_id": "00000000-0000-4000-8000-000000000011",
+      "name": "Dario Cruz",
+      "description": "Dario Cruz",
+      "number": 1,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Dario Cruz"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000024",
+      "contest_id": "00000000-0000-4000-8000-000000000011",
+      "name": "Elena Flores",
+      "description": "Elena Flores",
+      "number": 2,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Elena Flores"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000025",
+      "contest_id": "00000000-0000-4000-8000-000000000011",
+      "name": "Fabian Lim",
+      "description": "Fabian Lim",
+      "number": 3,
+      "tenant_id": "00000000-0000-4000-8000-000000000100",
+      "election_event_id": "00000000-0000-4000-8000-000000000001",
+      "presentation": {
+        "name": "Fabian Lim"
+      }
+    }
+  ],
+  "areas": [],
+  "area_contests": [],
+  "reports": [],
+  "keycloak_event_realm": null,
+  "version": "1.0.0"
+}

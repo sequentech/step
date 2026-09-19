@@ -101,6 +101,11 @@ pub mod sync {
             pdf_options: Option<PrintToPdfOptions>,
             contains_sensitive_data: bool,
         ) -> Result<Vec<u8>> {
+            if let Some(bytes) = crate::services::reports::prerender::embedded_pdf(&html)
+                .map_err(|e| anyhow!(e))?
+            {
+                return Ok(bytes);
+            }
             let _html_sha256 = sha256::digest(&html);
             // We call our synchronous do_render_pdf
             PdfRenderer::new()?.do_render_pdf(
@@ -346,6 +351,11 @@ impl PdfRenderer {
         pdf_options: Option<PrintToPdfOptions>,
         contains_sensitive_data: bool,
     ) -> Result<Vec<u8>> {
+        if let Some(bytes) = crate::services::reports::prerender::embedded_pdf(&html)
+            .map_err(|e| anyhow!(e))?
+        {
+            return Ok(bytes);
+        }
         PdfRenderer::new()?
             .do_render_pdf(html, pdf_options, contains_sensitive_data)
             .await

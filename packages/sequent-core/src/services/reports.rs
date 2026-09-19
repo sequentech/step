@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 pub use sequent_template_renderer::helpers::*;
-pub use sequent_template_renderer::{assets, bundle, platform_csv};
+pub use sequent_template_renderer::{assets, bundle, platform_csv, prerender, sample_data};
 
 #[cfg(test)]
 mod extraction_tests {

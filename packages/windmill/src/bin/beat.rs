@@ -18,6 +18,7 @@ use windmill::tasks::review_boards::review_boards;
 use windmill::tasks::review_cast_votes::review_cast_votes;
 use windmill::tasks::scheduled_events::scheduled_events;
 use windmill::tasks::scheduled_reports::scheduled_reports;
+use windmill::tasks::prerender_reports::prerender_reports;
 
 #[derive(Debug, Parser)]
 #[command(name = "beat", about = "Windmill's periodic task scheduler.")]
@@ -44,6 +45,11 @@ async fn main() -> Result<()> {
     let mut beat = celery::beat!(
         broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://rabbitmq:5672".into()) },
         tasks = [
+            prerender_reports::NAME => {
+                prerender_reports,
+                schedule = DeltaSchedule::new(Duration::from_secs(5)),
+                args = (),
+            },
             review_boards::NAME => {
                 review_boards,
                 schedule = DeltaSchedule::new(Duration::from_secs(CeleryOpt::parse().review_boards_interval)),
@@ -71,6 +77,7 @@ async fn main() -> Result<()> {
             },
         ],
         task_routes = [
+            prerender_reports::NAME => &Queue::Reports.queue_name(&slug),
             review_boards::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),

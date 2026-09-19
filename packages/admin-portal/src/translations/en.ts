@@ -2593,6 +2593,8 @@ const englishTranslation = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                preRender: "Pre-render PDF layout",
+                preRenderHelp: "Prepare fixed PDF pages in the background when reports or election data change. Runtime values use pdf_text, pdf_qr, pdf_mark and pdf_image fields; [[ ]] expands known election data.",
                 pdfOptions: "PDF Options",
                 reportOptions: "Report Options",
                 name: "Template Name",

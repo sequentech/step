@@ -121,6 +121,7 @@ interface ISendTemplateBody {
     alias?: string;
     document?: string;
     assets?: Record<string, { mime: string; base64: string }>;
+    pre_render?: { enabled: boolean; version: number };
     extra_config?: IExtraConfig;
 }
 "#;

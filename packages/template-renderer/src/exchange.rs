@@ -63,78 +63,207 @@ fn localized_rows(input: &Value) -> Result<(Vec<Value>, Vec<Value>), String> {
     if languages.is_empty() {
         return Err("Select at least one export language".into());
     }
+    let catalog: Value = serde_json::from_str(crate::CATALOG).map_err(|e| e.to_string())?;
+    let report = catalog["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|report| report["id"] == input["reportType"]);
+    let defaults = report.map(|r| &r["translations"]).unwrap_or(&Value::Null);
+    let translations = localization::merge_catalogs(defaults, &input["translations"]);
+    let channels = export_channels(input)?;
+    if languages.len().saturating_mul(channels.len()) > 64 {
+        return Err("A bundle must contain 1–64 templates".into());
+    }
     let mut aliases = std::collections::HashSet::new();
     let mut rows = Vec::new();
     let mut diagnostics = Vec::new();
     for lang in languages {
         let language = lang.as_str().ok_or("Language must be text")?;
         let default = input["defaultLanguage"].as_str().unwrap_or("en");
-        let source = localization::language_chain(language, default)
-            .iter()
-            .find_map(|l| input["overrides"][l].as_str())
-            .unwrap_or(input["source"].as_str().ok_or("Source must be text")?);
-        let source = localization::compile(
-            source,
-            language,
-            default,
-            &input["translations"],
-            &mut diagnostics,
-        )?;
-        let alias = if languages.len() > 1 {
-            format!(
-                "{}--{}",
-                metadata["alias"].as_str().unwrap_or("template"),
-                language
-            )
-        } else {
-            metadata["alias"].as_str().unwrap_or("template").to_string()
-        };
-        if !aliases.insert(alias.clone()) {
-            return Err("Export aliases must be unique".into());
-        }
         let mut template = input["template"].as_object().cloned().unwrap_or_default();
-        let direction = if matches!(
-            language.split('-').next().unwrap_or(language),
-            "ar" | "he" | "fa" | "ur"
-        ) {
-            "rtl"
-        } else {
-            "ltr"
-        };
-        template.insert(
-            "document".into(),
-            json!(format!(
-                "<section lang=\"{}\" dir=\"{direction}\">{source}</section>",
-                handlebars::html_escape(language)
-            )),
-        );
+        // Studio's authoring fields map to the same SendTemplateBody used by Step.
+        for channel in ["email", "sms"] {
+            if !template.contains_key(channel) {
+                if let Some(config) = report.map(|r| &r["configuration"][channel]) {
+                    template.insert(channel.to_string(), config.clone());
+                }
+            }
+        }
+        if channels.contains(&"document") {
+            let source = localization::language_chain(language, default)
+                .iter()
+                .find_map(|l| input["overrides"][l].as_str())
+                .unwrap_or(input["source"].as_str().ok_or("Source must be text")?);
+            let source =
+                localization::compile(source, language, default, &translations, &mut diagnostics)?;
+            let direction = if matches!(
+                language.split('-').next().unwrap_or(language),
+                "ar" | "he" | "fa" | "ur"
+            ) {
+                "rtl"
+            } else {
+                "ltr"
+            };
+            template.insert(
+                "document".into(),
+                json!(format!(
+                    "<section lang=\"{}\" dir=\"{direction}\">{source}</section>",
+                    handlebars::html_escape(language)
+                )),
+            );
+        }
         for (section, fields) in [
             ("email", &["subject", "plaintext_body", "html_body"][..]),
             ("sms", &["message"][..]),
         ] {
             if let Some(config) = template.get_mut(section).and_then(Value::as_object_mut) {
-                for field in fields {
-                    if let Some(text) = config.get(*field).and_then(Value::as_str) {
-                        let localized = localization::compile(
-                            text,
-                            language,
-                            default,
-                            &input["translations"],
-                            &mut diagnostics,
-                        )?;
-                        config.insert((*field).to_string(), json!(localized));
-                    }
+                localize_fields(
+                    config,
+                    fields,
+                    language,
+                    default,
+                    &translations,
+                    &mut diagnostics,
+                )?;
+            }
+        }
+        if let Some(communications) = template.get_mut("communication_templates") {
+            for (section, fields) in [
+                (
+                    "email_config",
+                    &["subject", "plaintext_body", "html_body"][..],
+                ),
+                ("sms_config", &["message"][..]),
+            ] {
+                if let Some(config) = communications
+                    .get_mut(section)
+                    .and_then(Value::as_object_mut)
+                {
+                    localize_fields(
+                        config,
+                        fields,
+                        language,
+                        default,
+                        &translations,
+                        &mut diagnostics,
+                    )?;
                 }
             }
         }
-        let mut row_metadata = metadata.as_object().cloned().unwrap_or_default();
-        row_metadata.insert("alias".into(), json!(alias));
-        rows.push(json!({"metadata": row_metadata, "template": template}));
+        for channel in &channels {
+            let mut alias = metadata["alias"].as_str().unwrap_or("template").to_string();
+            if *channel != "document" {
+                alias.push_str(&format!("--{channel}"));
+            }
+            if languages.len() > 1 {
+                alias.push_str(&format!("--{language}"));
+            }
+            if !aliases.insert(alias.clone()) {
+                return Err("Export aliases must be unique".into());
+            }
+            let mut row_metadata = metadata.as_object().cloned().unwrap_or_default();
+            row_metadata.insert("alias".into(), json!(alias));
+            row_metadata.insert("communication_method".into(), json!(channel.to_uppercase()));
+            let mut channel_template = template.clone();
+            channel_template.insert("communication_method".into(), json!(channel.to_uppercase()));
+            rows.push(json!({"metadata": row_metadata, "template": channel_template}));
+        }
     }
     Ok((rows, diagnostics))
 }
+/// An explicit channel exports just that channel; otherwise export all enabled ones.
+fn export_channels(input: &Value) -> Result<Vec<&str>, String> {
+    let allowed = ["document", "email", "sms"];
+    if let Some(channel) = input["channel"].as_str() {
+        if !allowed.contains(&channel) {
+            return Err("Unsupported template channel".into());
+        }
+        if input["channels"][channel] == false {
+            return Err("Enable the selected channel before exporting".into());
+        }
+        return Ok(vec![channel]);
+    }
+    if let Some(channels) = input["channels"].as_object() {
+        let result: Vec<_> = allowed
+            .into_iter()
+            .filter(|channel| {
+                channels
+                    .get(*channel)
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
+            .collect();
+        if result.is_empty() {
+            return Err("Enable at least one template channel before exporting".into());
+        }
+        return Ok(result);
+    }
+    // Existing clients supply only communication_method; keep that exchange path usable.
+    Ok(vec![
+        match input["metadata"]["communication_method"].as_str() {
+            Some("EMAIL") => "email",
+            Some("SMS") => "sms",
+            _ => "document",
+        },
+    ])
+}
+fn localize_fields(
+    config: &mut serde_json::Map<String, Value>,
+    fields: &[&str],
+    language: &str,
+    default: &str,
+    translations: &Value,
+    diagnostics: &mut Vec<Value>,
+) -> Result<(), String> {
+    for field in fields {
+        if let Some(text) = config.get(*field).and_then(Value::as_str) {
+            let localized =
+                localization::compile(text, language, default, translations, diagnostics)?;
+            config.insert((*field).to_string(), json!(localized));
+        }
+    }
+    Ok(())
+}
+
+fn export_rows(input: &Value) -> Result<(Vec<Value>, Vec<Value>), String> {
+    let Some(templates) = input.get("templates") else {
+        return localized_rows(input);
+    };
+    let templates = templates.as_array().ok_or("Templates must be an array")?;
+    if templates.is_empty() || templates.len() > 64 {
+        return Err("Select between 1 and 64 templates to export".into());
+    }
+    let mut rows = Vec::new();
+    let mut diagnostics = Vec::new();
+    for template in templates {
+        let mut request = template
+            .as_object()
+            .cloned()
+            .ok_or("Template must be an object")?;
+        if !request.contains_key("languages") {
+            let languages = input
+                .get("languages")
+                .or_else(|| request.get("supportedLanguages"))
+                .cloned()
+                .ok_or("Select export languages")?;
+            request.insert("languages".into(), languages);
+        }
+        if let Some(channel) = input.get("channel") {
+            request.insert("channel".into(), channel.clone());
+        }
+        let (template_rows, template_diagnostics) = localized_rows(&Value::Object(request))?;
+        if rows.len() + template_rows.len() > 64 {
+            return Err("A bundle must contain 1–64 templates".into());
+        }
+        rows.extend(template_rows);
+        diagnostics.extend(template_diagnostics);
+    }
+    Ok((rows, diagnostics))
+}
+
 pub fn export(input: &Value) -> Result<Value, String> {
-    let (rows, diagnostics) = localized_rows(input)?;
+    let (rows, diagnostics) = export_rows(input)?;
     let mut writer = csv::Writer::from_writer(Vec::new());
     writer.write_record(HEADERS).map_err(|e| e.to_string())?;
     for value in rows {
@@ -151,7 +280,7 @@ pub fn export(input: &Value) -> Result<Value, String> {
 }
 pub fn export_zip(input: &Value) -> Result<Value, String> {
     use base64::{engine::general_purpose::STANDARD, Engine};
-    let (rows, diagnostics) = localized_rows(input)?;
+    let (rows, diagnostics) = export_rows(input)?;
     let rows = rows
         .into_iter()
         .map(|value| {

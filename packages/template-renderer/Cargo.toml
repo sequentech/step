@@ -28,3 +28,5 @@ uuid = { version = "1", default-features = false }
 
 base64 = "0.22"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
+
+qrcode = { version = "=0.14.1", default-features = false }

@@ -2620,6 +2620,8 @@ const spanishTranslation: TranslationType = {
             form: {
                 smsMessage: "Mensaje SMS",
                 document: "Documento",
+                preRender: "Pre-renderizar el diseño PDF",
+                preRenderHelp: "Prepare páginas PDF fijas en segundo plano cuando cambien los informes o la elección. Los campos pdf_text, pdf_qr, pdf_mark y pdf_image se completan al generar el documento; [[ ]] expande los datos conocidos.",
                 pdfOptions: "Opciones de PDF",
                 name: "Nombre de la Plantilla",
                 alias: "Alias de la Plantilla",

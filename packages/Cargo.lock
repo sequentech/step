@@ -7811,6 +7811,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "qrcode"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+
+[[package]]
 name = "query_map"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9247,6 +9253,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sequent-report-prerender"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "image",
+ "lopdf 0.38.0",
+ "qrcode",
+ "rustybuzz",
+ "sequent-template-renderer",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "ttf-parser 0.25.1",
+]
+
+[[package]]
 name = "sequent-template-renderer"
 version = "0.1.0"
 dependencies = [
@@ -9259,6 +9282,7 @@ dependencies = [
  "handlebars-chrono",
  "intl_pluralrules",
  "num-format",
+ "qrcode",
  "regex",
  "serde",
  "serde_json",
@@ -11272,6 +11296,7 @@ dependencies = [
  "rayon",
  "rusqlite",
  "sequent-core",
+ "sequent-report-prerender",
  "serde",
  "serde_json",
  "strand",
@@ -12175,6 +12200,7 @@ dependencies = [
  "rust_xlsxwriter",
  "rustls 0.23.35",
  "sequent-core",
+ "sequent-report-prerender",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -13032,8 +13058,3 @@ checksum = "29ce2c8a9384ad323cf564b67da86e21d3cfdff87908bc1223ed5c99bc792713"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "auto_generate_cdp"
-version = "0.4.4"
-source = "git+https://github.com/mdrokz/auto_generate_cdp?rev=634e636fd8edbe032d7191326527c721a2b51106#634e636fd8edbe032d7191326527c721a2b51106"

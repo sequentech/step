@@ -162,6 +162,9 @@ pub struct SendTemplateBody {
     pub alias: Option<String>,
     pub pdf_options: Option<PrintToPdfOptionsLocal>,
     pub report_options: Option<ReportOptions>,
+    /// Opt-in fixed-layout PDF cache. Election data is resolved by the worker.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_render: Option<PreRenderOptions>,
 }
 
 /// Struct for the DEFAULT extra_config JSON file.
@@ -185,3 +188,13 @@ pub struct ReportOptions {
     pub max_items_per_report: Option<usize>,
     pub max_threads: Option<usize>,
 }
+
+/// Runtime values are filled locally; a pending/failed cache never falls back to
+/// a delegated HTML renderer. Version changes require rebuilding the background.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PreRenderOptions {
+    pub enabled: bool,
+    #[serde(default = "prerender_version")]
+    pub version: u32,
+}
+fn prerender_version() -> u32 { 1 }

@@ -74,3 +74,171 @@ fn csv_preserves_runtime_bindings_and_configuration() {
         assert_eq!(row["metadata"]["labels"], "{\"x\":1}");
     }
 }
+
+#[test]
+fn every_catalog_report_shares_its_source_across_english_and_spanish_channels() {
+    let catalog = execute(json!({"op": "catalog"}));
+    for report in catalog["reports"].as_array().unwrap() {
+        assert_eq!(report["defaultLanguage"], "en");
+        assert_eq!(report["supportedLanguages"], json!(["en", "es"]));
+        assert!(report["source"].as_str().unwrap().contains("{{t \""));
+        for scenario in report["scenarios"].as_array().unwrap() {
+            for channel in ["document", "email", "sms"] {
+                let mut outputs = Vec::new();
+                for language in ["en", "es"] {
+                    let output = execute(json!({
+                        "reportType": report["id"], "source": report["source"],
+                        "data": scenario["data"], "language": language,
+                        "channel": channel, "template": report["configuration"],
+                    }));
+                    let html = output["html"].as_str().unwrap_or_else(|| {
+                        panic!(
+                            "{} / {} / {language} / {channel}: {output}",
+                            report["id"], scenario["name"]
+                        )
+                    });
+                    assert!(html.contains(&format!("lang=\"{language}\"")), "{output}");
+                    assert!(!output["diagnostics"].as_array().unwrap().iter().any(|d|
+                        d["severity"] == "error" || d["code"] == "missing-translation"
+                    ), "{} / {language} / {channel}: {output}", report["id"]);
+                    assert!(!html.contains("{{t "), "{output}");
+                    outputs.push(html.to_string());
+                }
+                // Actual translated wording changes, not just the document's lang attribute.
+                assert_ne!(
+                    outputs[0].replace("lang=\"en\"", ""),
+                    outputs[1].replace("lang=\"es\"", "")
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_single_translation_override_preserves_other_catalog_defaults() {
+    let catalog = execute(json!({"op": "catalog"}));
+    let report = catalog["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "credentials")
+        .unwrap();
+    let output = execute(json!({
+        "reportType": "credentials", "source": report["source"],
+        "data": report["scenarios"][0]["data"], "language": "es",
+        "translations": {"es": {"username": "Identificador personal"}},
+    }));
+    let html = output["html"].as_str().unwrap();
+    assert!(html.contains("Identificador personal"));
+    assert!(html.contains("Contraseña"));
+    assert!(html.contains("<title>Carta de información al votante</title>"));
+    assert!(!output["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|d| d["code"] == "missing-translation"));
+}
+
+#[test]
+fn email_and_sms_plaintext_cannot_inject_markup() {
+    let input = json!({
+        "reportType": "credentials", "language": "es", "data": {"username": "A & B <img src=x>"},
+        "template": {
+            "email": {"subject": "<script>{{username}}</script>", "plaintext_body": "{{t \"username\"}}: {{username}}"},
+            "sms": {"message": "{{t \"username\"}}: {{username}}"}
+        }
+    });
+    for channel in ["email", "sms"] {
+        let mut request = input.clone();
+        request["channel"] = json!(channel);
+        let output = execute(request);
+        let html = output["html"].as_str().unwrap();
+        assert!(
+            html.contains("Nombre de usuario: A &amp; B &lt;img src&#x3D;x&gt;"),
+            "{output}"
+        );
+        assert!(!html.contains("<img"));
+        assert!(!html.contains("<script>"));
+        assert!(!html.contains("&amp;amp;"));
+    }
+}
+
+#[test]
+fn export_emits_enabled_channels_and_localizes_without_rendering_sample_facts() {
+    let catalog = execute(json!({"op": "catalog"}));
+    let report = catalog["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == "credentials")
+        .unwrap();
+    let mut input = json!({
+        "op": "export_zip", "reportType": "credentials", "source": report["source"],
+        "template": report["configuration"], "languages": ["en", "es"],
+        "channels": {"document": true, "email": true, "sms": true},
+        "metadata": {"alias": "welcome", "tenant_id": "e978b418-b4ce-4e80-8d76-3c6d7bc78bca", "type": "CREDENTIALS"}
+    });
+    let exported = execute(input.clone());
+    assert!(exported["base64"].is_string(), "{exported}");
+    let imported = execute(json!({"op": "import_zip", "base64": exported["base64"]}));
+    let rows = imported["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 6);
+    for (index, method) in ["DOCUMENT", "EMAIL", "SMS", "DOCUMENT", "EMAIL", "SMS"]
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(rows[index]["metadata"]["communication_method"], *method);
+        assert_eq!(rows[index]["template"]["communication_method"], *method);
+    }
+    assert_eq!(rows[0]["metadata"]["alias"], "welcome--en");
+    assert_eq!(rows[4]["metadata"]["alias"], "welcome--email--es");
+    assert_eq!(rows[5]["metadata"]["alias"], "welcome--sms--es");
+    let document = rows[3]["template"]["document"].as_str().unwrap();
+    let email = rows[4]["template"]["email"]["plaintext_body"]
+        .as_str()
+        .unwrap();
+    let sms = rows[5]["template"]["sms"]["message"].as_str().unwrap();
+    assert!(document.contains("{{username}}"));
+    assert!(email.contains("{{username}}"));
+    assert!(email.contains("Contraseña"));
+    assert!(sms.contains("{{voting_portal_url}}"));
+    assert!(sms.contains("Su portal de votación:"));
+    assert!(!document.contains("{{t "));
+    input["channel"] = json!("sms");
+    let exported = execute(input.clone());
+    let imported = execute(json!({"op": "import_zip", "base64": exported["base64"]}));
+    assert_eq!(imported["rows"].as_array().unwrap().len(), 2);
+    input["channels"]["sms"] = json!(false);
+    assert!(execute(input)["diagnostics"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("Enable"));
+}
+
+#[test]
+fn project_zip_keeps_report_types_channels_and_aliases_separate() {
+    let catalog = execute(json!({"op": "catalog"}));
+    let reports = catalog["reports"].as_array().unwrap();
+    let templates: Vec<_> = ["credentials", "ballot_receipt"].iter().map(|id| {
+        let report = reports.iter().find(|r| r["id"] == *id).unwrap();
+        json!({
+            "reportType": id, "source": report["source"], "template": report["configuration"],
+            "supportedLanguages": ["en", "es"],
+            "channels": {"document": true, "email": true, "sms": false},
+            "metadata": {"alias": id, "tenant_id": "e978b418-b4ce-4e80-8d76-3c6d7bc78bca", "type": id.to_uppercase()}
+        })
+    }).collect();
+    let output = execute(json!({"op": "export_zip", "templates": templates}));
+    assert!(output["base64"].is_string(), "{output}");
+    let imported = execute(json!({"op": "import_zip", "base64": output["base64"]}));
+    let rows = imported["rows"].as_array().unwrap();
+    assert_eq!(rows.len(), 8);
+    assert_eq!(rows[0]["metadata"]["type"], "CREDENTIALS");
+    assert_eq!(rows[7]["metadata"]["type"], "BALLOT_RECEIPT");
+    assert_eq!(rows[7]["metadata"]["alias"], "ballot_receipt--email--es");
+    let duplicate = execute(json!({"op": "export_zip", "templates": [templates[0], templates[0]]}));
+    assert!(duplicate["diagnostics"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("Duplicate"));
+}

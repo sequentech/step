@@ -473,6 +473,39 @@ pub trait TemplateRenderer: Debug {
         Ok((user_tpl_document, ext_cfg))
     }
 
+    /// Resolve the same template assignment as ordinary reports, but require a
+    /// fresh immutable background when the document explicitly opts in.
+    async fn pre_render_layout(
+        &self,
+        tx: &Transaction<'_>,
+    ) -> Result<Option<sequent_report_prerender::CachedPdf>> {
+        let Some(template) = self.get_custom_user_template_data(tx).await? else {
+            return Ok(None);
+        };
+        let Some(options) = template.pre_render.filter(|options| options.enabled) else {
+            return Ok(None);
+        };
+        if options.version != 1 {
+            return Err(anyhow!("Unsupported pre-render version"));
+        }
+        let alias = get_template_alias_for_report(
+            tx,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &self.get_report_type(),
+            self.get_election_id().as_deref(),
+        )
+        .await?
+            .ok_or_else(|| anyhow!("Missing pre-render template assignment"))?;
+        Ok(Some(super::prerender::get_cached(
+            tx,
+            &self.get_tenant_id(),
+            &self.get_election_event_id(),
+            &alias,
+            self.get_election_id().as_deref(),
+        ).await?))
+    }
+
     // Inner implementation for `execute_report()` so that implementors of the
     // trait can reimplement the function while calling the parent default
     // implementation too when needed
@@ -774,6 +807,23 @@ pub trait TemplateRenderer: Debug {
         task_execution: Option<TasksExecution>,
         ext_cfg: &ReportExtraConfig,
     ) -> Result<(String, u64, String, String)> {
+        if let Some(cached) = self.pre_render_layout(hasura_transaction).await? {
+            let data = if generate_mode == GenerateReportMode::PREVIEW {
+                self.prepare_preview_data().await?
+            } else {
+                self.prepare_user_data(hasura_transaction, keycloak_transaction).await?
+            };
+            let value = serde_json::to_value(data)?;
+            let file = super::prerender::fill_to_temp(cached, &value)?;
+            let size = file.as_file().metadata()?.len();
+            let (_, path) = file.keep()?;
+            return Ok((
+                path.to_string_lossy().into_owned(),
+                size,
+                format!("{}.pdf", self.prefix()),
+                "application/pdf".into(),
+            ));
+        }
         let rendered_system_template = match self
             .generate_report(
                 generate_mode,

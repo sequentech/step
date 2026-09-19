@@ -6,6 +6,8 @@ mod exchange;
 pub mod helpers;
 pub mod localization;
 pub mod platform_csv;
+pub mod prerender;
+pub mod sample_data;
 mod schema;
 use serde_json::{json, Value};
 use wasm_bindgen::prelude::*;
@@ -33,11 +35,24 @@ pub fn execute(input: Value) -> Value {
     }
     match input["op"].as_str().unwrap_or("render") {
         "catalog" => serde_json::from_str(CATALOG).expect("embedded catalog"),
+        "prerender_prepare" => match prepare_input(&input) {
+            Ok(prepared) => serde_json::to_value(prepared).unwrap(),
+            Err(e) => failure(e),
+        },
         "render" => render(&input).unwrap_or_else(failure),
         "export" => exchange::export(&input).unwrap_or_else(failure),
         "import" => exchange::import(&input).unwrap_or_else(failure),
         "export_zip" => exchange::export_zip(&input).unwrap_or_else(failure),
         "import_zip" => exchange::import_zip(&input).unwrap_or_else(failure),
+        "import_sample_data" => {
+            use base64::Engine;
+            match base64::engine::general_purpose::STANDARD
+                .decode(input["base64"].as_str().unwrap_or(""))
+            {
+                Ok(bytes) => sample_data::import(&bytes).unwrap_or_else(failure),
+                Err(e) => failure(e),
+            }
+        }
         "validate_assets" => match assets::from_value(&input["assets"]) {
             Ok(_) => json!({"diagnostics": []}),
             Err(e) => failure(e),
@@ -55,21 +70,33 @@ fn render(input: &Value) -> Result<Value, String> {
         .ok_or("Unsupported report type")?;
     let language = input["language"].as_str().unwrap_or("en");
     let default = input["defaultLanguage"].as_str().unwrap_or("en");
-    let source = localization::language_chain(language, default)
-        .iter()
-        .find_map(|l| input["overrides"][l].as_str())
-        .unwrap_or(input["source"].as_str().ok_or("Source must be text")?);
     let mut diagnostics = Vec::new();
-    let source = localization::compile(
-        source,
-        language,
-        default,
-        &input["translations"],
-        &mut diagnostics,
-    )?;
+    let translations =
+        localization::merge_catalogs(&report["translations"], &input["translations"]);
+    let channel = input["channel"].as_str().unwrap_or("document");
+    if !matches!(channel, "document" | "email" | "sms") {
+        return Err("Unsupported template channel".into());
+    }
     let data = input["data"]
         .as_object()
         .ok_or("Scenario must be a JSON object")?;
+    if channel == "document" && input["template"]["pre_render"]["enabled"] == true {
+        let source = localization::language_chain(language, default)
+            .iter()
+            .find_map(|l| input["overrides"][l].as_str())
+            .unwrap_or(input["source"].as_str().ok_or("Source must be text")?);
+        let source =
+            localization::compile(source, language, default, &translations, &mut diagnostics)?;
+        let prepared = prerender::prepare(&source, &input["template"]["pre_render"]["known_data"])?;
+        let options = &input["template"]["pdf_options"];
+        let width = options["paper_width"].as_f64().unwrap_or(8.2677165354) * 72.0;
+        let height = options["paper_height"].as_f64().unwrap_or(11.6929133858) * 72.0;
+        let html = prerender::preview(&prepared, &input["data"], width, height)?;
+        let assets = assets::from_value(&input["template"]["assets"])?;
+        return Ok(
+            json!({"html":assets::attach(&html, &assets)?,"diagnostics":diagnostics,"language":language,"direction":"ltr"}),
+        );
+    }
     schema::validate(&report["schema"], &input["data"], "/data", &mut diagnostics);
     if diagnostics.iter().any(|d| d["severity"] == "error") {
         return Ok(json!({"html":null,"diagnostics":diagnostics}));
@@ -77,17 +104,64 @@ fn render(input: &Value) -> Result<Value, String> {
     helpers::take_diagnostics();
     let mut reg = helpers::get_registry();
     reg.set_dev_mode(false);
-    let user = bounded_render(&reg, &source, data).map_err(|e| e.to_string())?;
-    let mut system = data.clone();
-    system.insert("rendered_user_template".into(), json!(user));
-    let html = bounded_render(
-        &reg,
-        input["wrapper"]
+    let mut compile = |source: &str| {
+        localization::compile(source, language, default, &translations, &mut diagnostics)
+    };
+    let html = if channel == "document" {
+        let source = localization::language_chain(language, default)
+            .iter()
+            .find_map(|l| input["overrides"][l].as_str())
+            .unwrap_or(input["source"].as_str().ok_or("Source must be text")?);
+        let user = bounded_render(&reg, &compile(source)?, data)?;
+        let mut system = data.clone();
+        system.insert("rendered_user_template".into(), json!(user));
+        let wrapper = input["wrapper"]
             .as_str()
-            .unwrap_or(report["wrapper"].as_str().unwrap()),
-        &system,
-    )
-    .map_err(|e| e.to_string())?;
+            .unwrap_or(report["wrapper"].as_str().unwrap());
+        bounded_render(&reg, &compile(wrapper)?, &system)?
+    } else {
+        let config = input["template"]
+            .get(channel)
+            .filter(|value| value.is_object())
+            .unwrap_or(&report["configuration"][channel]);
+        // Subject and SMS text must not become markup, including through runtime data.
+        let mut plain = helpers::get_registry();
+        plain.register_escape_fn(handlebars::no_escape);
+        if channel == "email" {
+            let subject = bounded_render(
+                &plain,
+                &compile(config["subject"].as_str().unwrap_or(""))?,
+                data,
+            )?;
+            let body = if let Some(html) = config["html_body"].as_str().filter(|s| !s.is_empty()) {
+                bounded_render(&reg, &compile(html)?, data)?
+            } else {
+                let text = bounded_render(
+                    &plain,
+                    &compile(config["plaintext_body"].as_str().unwrap_or(""))?,
+                    data,
+                )?;
+                format!(
+                    "<pre style=\"white-space:pre-wrap\">{}</pre>",
+                    handlebars::html_escape(&text)
+                )
+            };
+            format!(
+                "<!doctype html><html><head><meta charset=\"utf-8\"><title>{0}</title></head><body><header style=\"font:600 16px sans-serif;padding:16px;border-bottom:1px solid #dbe1eb\">{0}</header><main>{body}</main></body></html>",
+                handlebars::html_escape(&subject)
+            )
+        } else {
+            let text = bounded_render(
+                &plain,
+                &compile(config["message"].as_str().unwrap_or(""))?,
+                data,
+            )?;
+            format!(
+                "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><pre style=\"white-space:pre-wrap;font:16px/1.6 sans-serif;padding:24px\">{}</pre></body></html>",
+                handlebars::html_escape(&text)
+            )
+        }
+    };
     if html.len() > 8_000_000 {
         return Err("Output exceeds 8 MB".into());
     }
@@ -113,7 +187,7 @@ fn render(input: &Value) -> Result<Value, String> {
     let files = assets::from_value(&input["template"]["assets"])?;
     let html = assets::attach(&html, &files)?;
     Ok(
-        json!({"html":html,"diagnostics":diagnostics,"catalogVersion":1,"language":language,"direction":direction}),
+        json!({"html":html,"diagnostics":diagnostics,"catalogVersion":1,"language":language,"direction":direction,"channel":channel}),
     )
 }
 
@@ -139,4 +213,34 @@ fn bounded_render(
     reg.render_template_to_write(source, data, &mut output)
         .map_err(|e| e.to_string())?;
     String::from_utf8(output.0).map_err(|e| e.to_string())
+}
+
+fn prepare_input(input: &Value) -> Result<prerender::Prepared, String> {
+    let language = input["language"].as_str().unwrap_or("en");
+    let default = input["defaultLanguage"].as_str().unwrap_or("en");
+    let catalog: Value = serde_json::from_str(CATALOG).map_err(|e| e.to_string())?;
+    let report = catalog["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == input["reportType"]);
+    let translations = localization::merge_catalogs(
+        &report
+            .map(|r| r["translations"].clone())
+            .unwrap_or(Value::Null),
+        &input["translations"],
+    );
+    let source = localization::language_chain(language, default)
+        .iter()
+        .find_map(|l| input["overrides"][l].as_str())
+        .unwrap_or(input["source"].as_str().unwrap_or(""));
+    let mut diagnostics = Vec::new();
+    let source = localization::compile(source, language, default, &translations, &mut diagnostics)?;
+    let known = input
+        .get("knownData")
+        .unwrap_or(&input["template"]["pre_render"]["known_data"]);
+    let mut prepared = prerender::prepare(&source, known)?;
+    let files = assets::from_value(&input["template"]["assets"])?;
+    prepared.html = assets::attach(&prepared.html, &files)?;
+    Ok(prepared)
 }
