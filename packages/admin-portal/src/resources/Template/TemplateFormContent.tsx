@@ -296,6 +296,15 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                                         </ElectionHeaderStyles.AccordionTitle>
                                     </AccordionSummary>
                                     <AccordionDetails>
+                                        <BooleanInput
+                                            source="template.pre_render.enabled"
+                                            label={t("template.form.preRender")}
+                                            helperText={t("template.form.preRenderHelp")}
+                                            onChange={() => {
+                                                setValue("template.pre_render.version", 1)
+                                                onFormChanged?.()
+                                            }}
+                                        />
                                         <EmailEditEditor sourceBodyPlainText="template.document" />
                                     </AccordionDetails>
                                 </Accordion>

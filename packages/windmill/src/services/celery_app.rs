@@ -13,7 +13,9 @@ use tracing::{event, info, instrument, Level};
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
-use crate::tasks::create_ballot_receipt::create_ballot_receipt;
+use crate::tasks::create_ballot_receipt::{
+    create_ballot_receipt, create_prerendered_ballot_receipt,
+};
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::delete_users::delete_users;
@@ -55,6 +57,7 @@ use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
 use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
+use crate::tasks::prerender_reports::prerender_reports;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::publish_results_website::publish_results_website_task;
@@ -266,6 +269,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             generate_report,
             generate_template,
             create_ballot_receipt,
+            create_prerendered_ballot_receipt,
             set_public_key,
             execute_tally_session,
             update_election_event_ballot_styles,
@@ -293,6 +297,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             delete_users,
             export_tasks_execution,
             scheduled_reports,
+            prerender_reports,
             review_cast_votes,
             export_templates,
             export_ballot_publication,
@@ -323,6 +328,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             process_board::NAME => &Queue::Beat.queue_name(&slug),
             render_report::NAME => &Queue::Reports.queue_name(&slug),
             create_ballot_receipt::NAME => &Queue::Reports.queue_name(&slug),
+            create_prerendered_ballot_receipt::NAME => &Queue::Short.queue_name(&slug),
             generate_report::NAME => &Queue::Reports.queue_name(&slug),
             generate_template::NAME => &Queue::Reports.queue_name(&slug),
             render_document_pdf::NAME => &Queue::Reports.queue_name(&slug),
@@ -343,6 +349,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             export_tenant_config::NAME => &Queue::ImportExport.queue_name(&slug),
             import_tenant_config::NAME => &Queue::ImportExport.queue_name(&slug),
             scheduled_events::NAME => &Queue::Beat.queue_name(&slug),
+            prerender_reports::NAME => &Queue::Reports.queue_name(&slug),
             scheduled_reports::NAME => &Queue::Beat.queue_name(&slug),
             review_cast_votes::NAME => &Queue::Beat.queue_name(&slug),
             manage_election_date::NAME => &Queue::Beat.queue_name(&slug),

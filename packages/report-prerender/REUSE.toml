@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+version = 1
+[[annotations]]
+path = ["fonts/DejaVuSans.ttf", "fonts/LICENSE.txt"]
+SPDX-FileCopyrightText = ["2003 Bitstream, Inc.", "DejaVu changes are in public domain"]
+SPDX-License-Identifier = "Bitstream-Vera"
+[[annotations]]
+path = ["Cargo.lock"]
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"

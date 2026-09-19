@@ -1,0 +1,37 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>{{t "prerender_ballot"}}</title>
+<style>
+  /* All positions use PDF points. Runtime content cannot reflow this page. */
+  @page { size: 612pt 792pt; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: #151515; font-family: Arial, sans-serif; }
+  .page { position: relative; width: 612pt; height: 792pt; padding: 44pt; break-after: page; }
+  .page:last-child { break-after: auto; }
+  .eyebrow { font-size: 9pt; letter-spacing: 2pt; text-transform: uppercase; }
+  h1 { font-size: 25pt; margin: 12pt 0; }
+  .muted { color: #666; font-size: 10pt; }
+  .rule { height: 2pt; background: #151515; margin-top: 22pt; }
+  .footer { position: absolute; bottom: 36pt; font-size: 8pt; color: #666; }
+</style>
+</head><body>
+[[#each contests as |contest contestIndex|]]
+  <!-- Contests and candidate labels are known before any ballot is cast. -->
+  {{pdf_page "/contests/[[id]]" page="[[add @index 1]]"}}
+  <section class="page" data-pdf-page="[[add @index 1]]">
+    <div class="eyebrow">[[../event.name]]</div>
+    <h1>{{t "prerender_ballot"}}</h1>
+    <p class="muted">{{t "prerender_ballot_description"}}</p>
+    <div class="rule"></div>
+    <h2 style="position:absolute;top:150pt;font-size:15pt">[[name]]</h2>
+    [[#each candidates]]
+      <div style="position:absolute;left:79pt;top:[[add 202 (mul @index 36)]]pt;font-size:12pt">[[add @index 1]]. [[name]]</div>
+      <div style="position:absolute;left:47pt;top:[[add 205 (mul @index 36)]]pt;width:20pt;height:11pt;border:1pt solid #000;border-radius:50%"></div>
+      <!-- Stable IDs connect the cached blank ballot to the actual selections. -->
+      {{pdf_mark "/selections/[[id]]" page="[[add contestIndex 1]]" x=49 y="[[add 207 (mul @index 36)]]" width=16 height=7}}
+    [[/each]]
+    <p style="position:absolute;left:44pt;top:660pt;font-size:9pt">{{t "prerender_ballot_id"}}</p>
+    {{pdf_text "/ballot/id" page="[[add @index 1]]" x=44 y=691 width=520 height=20 size=9}}
+    <p class="footer">{{t "prerender_demo"}}</p>
+  </section>
+[[/each]]
+</body></html>

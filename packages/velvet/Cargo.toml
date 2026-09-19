@@ -19,6 +19,7 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
+sequent-report-prerender = { path = "../report-prerender" }
 clap = { version = "4.4", features = ["derive"] }
 rand = "0.9"
 sequent-core = { path="../sequent-core", features=["reports", "reports_sync", "log", "areas", "signatures", "sqlite", "default_features"] }

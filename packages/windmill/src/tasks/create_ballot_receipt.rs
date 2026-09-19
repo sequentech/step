@@ -7,6 +7,7 @@ use crate::services::reports::ballot_receipt::{BallotData, BallotTemplate};
 use crate::services::reports::template_renderer::{
     GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
 };
+use crate::services::tasks_execution::update_fail;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::types::error::Error;
 use crate::types::error::Result;
@@ -17,7 +18,7 @@ use sequent_core::types::date_time::{DateFormat, TimeZone};
 use sequent_core::types::hasura::core::TasksExecution;
 use tracing::instrument;
 
-#[instrument(err)]
+#[instrument(err, skip_all)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn create_ballot_receipt(
@@ -33,7 +34,74 @@ pub async fn create_ballot_receipt(
     date_format: Option<DateFormat>,
     task_execution: TasksExecution,
 ) -> Result<()> {
+    create_ballot_receipt_inner(
+        document_id,
+        ballot_id,
+        ballot_tracker_url,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        voter_id,
+        time_zone,
+        date_format,
+        task_execution,
+        false,
+    )
+    .await
+}
+
+#[instrument(err, skip_all)]
+#[wrap_map_err::wrap_map_err(TaskError)]
+#[celery::task]
+pub async fn create_prerendered_ballot_receipt(
+    document_id: String,
+    ballot_id: String,
+    ballot_tracker_url: String,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+    area_id: String,
+    voter_id: String,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
+    task_execution: TasksExecution,
+) -> Result<()> {
+    create_ballot_receipt_inner(
+        document_id,
+        ballot_id,
+        ballot_tracker_url,
+        tenant_id,
+        election_event_id,
+        election_id,
+        area_id,
+        voter_id,
+        time_zone,
+        date_format,
+        task_execution,
+        true,
+    )
+    .await
+}
+
+// Both queues retain the existing authorization, document upload and task tracking.
+// Native jobs must recheck their mode because templates can change after dispatch.
+async fn create_ballot_receipt_inner(
+    document_id: String,
+    ballot_id: String,
+    ballot_tracker_url: String,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: String,
+    area_id: String,
+    voter_id: String,
+    time_zone: Option<TimeZone>,
+    date_format: Option<DateFormat>,
+    task_execution: TasksExecution,
+    require_native: bool,
+) -> Result<()> {
     let _permit = acquire_semaphore().await?;
+    let task_execution_status = task_execution.clone();
     // Spawn the task using an async block
     let handle = tokio::task::spawn_blocking({
         move || {
@@ -85,6 +153,11 @@ pub async fn create_ballot_receipt(
                     }),
                 );
 
+                if require_native && report.pre_render_layout(&hasura_transaction).await?.is_none() {
+                    return Err(anyhow!("The native ballot receipt template is no longer enabled; request a new receipt").into());
+                }
+                // The native cache check holds a shared row lock until commit,
+                // preventing a concurrent edit from switching to HTML rendering.
                 report
                     .execute_report(
                         &document_id,
@@ -112,10 +185,21 @@ pub async fn create_ballot_receipt(
     });
 
     // Await the result and handle JoinError explicitly
-    match handle.await {
-        Ok(inner_result) => Ok(inner_result.map_err(|err| format!("Task failed: {err:?}"))?),
-        Err(join_error) => Err(format!("Join error. Task panicked: {:?}", join_error)),
-    }?;
-
-    Ok(())
+    let result = match handle.await {
+        Ok(inner_result) => {
+            inner_result.map_err(|err| Error::String(format!("Task failed: {err:?}")))
+        }
+        Err(join_error) => Err(Error::String(format!(
+            "Join error. Task panicked: {join_error:?}"
+        ))),
+    };
+    if let Err(error) = &result {
+        update_fail(
+            &task_execution_status,
+            &format!("Failed to generate ballot receipt: {error:?}"),
+        )
+        .await
+        .ok();
+    }
+    result
 }

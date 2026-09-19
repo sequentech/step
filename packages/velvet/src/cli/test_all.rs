@@ -226,6 +226,7 @@ pub fn generate_mcballots_with_blank(
             for pipe_config in &mut stage.pipeline {
                 if pipe_config.pipe == PipeName::GenerateReports {
                     let gen_reports_config = PipeConfigGenerateReports {
+                        pre_render: None,
                         tally_session_configuration: Some(TallySessionConfiguration {
                             contest_encryption_policy: Some(
                                 ContestEncryptionPolicy::MULTIPLE_CONTESTS,

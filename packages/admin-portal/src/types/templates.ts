@@ -63,9 +63,11 @@ export interface ISendTemplateBody {
     name?: string
     alias?: string
     document?: string
+    assets?: Record<string, {mime: string; base64: string}>
     email?: IEmail
     sms?: ISmsConfig
     pdf_options?: IPdfOptions
+    pre_render?: {enabled: boolean; version: number}
     selected_methods?: IMethods
 }
 

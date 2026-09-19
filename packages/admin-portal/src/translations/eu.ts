@@ -2634,7 +2634,7 @@ const basqueTranslation: TranslationType = {
                 title: "Inportatu Txantiloiak",
                 subtitle: "Inportatu txantiloien datuak",
                 paragraph:
-                    "Inportatu txantiloiak Komaz Banandutako Balioen (CSV) formatuko kalkulu-orri fitxategia erabiliz. Deskargatu inportazio CSV fitxategiaren adibidea hemen.",
+                    "Inportatu txantiloiak, ezarpenak eta erantsitako fitxategiak dituen ZIP pakete bat.",
             },
         },
         materials: {

@@ -2593,6 +2593,8 @@ const englishTranslation = {
             form: {
                 smsMessage: "SMS Message",
                 document: "Document",
+                preRender: "Pre-render PDF layout",
+                preRenderHelp: "Prepare fixed PDF pages in the background when reports or election data change. Runtime values use pdf_text, pdf_qr, pdf_mark and pdf_image fields; [[ ]] expands known election data.",
                 pdfOptions: "PDF Options",
                 reportOptions: "Report Options",
                 name: "Template Name",
@@ -2619,7 +2621,7 @@ const englishTranslation = {
                 title: "Import Templates",
                 subtitle: "Import templates data",
                 paragraph:
-                    "Import templates using a spreadsheet file in Comma Separated Values (CSV) format. Download an example import CSV file here.",
+                    "Import a template ZIP bundle containing the template sources, settings, and attached files.",
             },
         },
         materials: {

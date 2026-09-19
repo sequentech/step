@@ -324,6 +324,14 @@ impl MCBallotImages {
             serde_json::to_value(&pipe_config.extra_data)?,
         );
 
+        if let Some(cached) = &pipe_config.pre_render {
+            let pdf = cached
+                .bytes(&serde_json::Value::Object(map))
+                .map_err(|e| Error::UnexpectedError(format!("Error filling ballot image: {e}")))?;
+            let html = reports::prerender::pdf_document(&pdf).into_bytes();
+            return Ok((pipe_config.enable_pdfs.then_some(pdf), html));
+        }
+
         let rendered_user_template = reports::render_template_text(&pipe_config.template, map)
             .map_err(|e| {
                 Error::UnexpectedError(format!(
