@@ -3,7 +3,7 @@
 name: Template renderer
 on:
   pull_request:
-    paths: ['packages/template-renderer/**', 'packages/sequent-core/src/services/reports.rs', 'packages/sequent-core/src/services/template_pdf.rs', 'packages/sequent-core/src/services/pdf.rs', 'packages/sequent-core/src/services/mod.rs', 'packages/sequent-core/src/lib.rs', 'packages/sequent-core/Cargo.toml', 'packages/windmill/src/tasks/import_templates.rs', 'packages/windmill/src/services/export/export_template.rs', 'packages/windmill/src/services/reports/template_renderer.rs', '.github/workflows/template-renderer.yml']
+    paths: ['packages/template-renderer/**', 'packages/report-prerender/**', 'packages/sequent-core/src/services/reports.rs', 'packages/sequent-core/src/services/template_pdf.rs', 'packages/sequent-core/src/services/pdf.rs', 'packages/sequent-core/src/services/mod.rs', 'packages/sequent-core/src/lib.rs', 'packages/sequent-core/Cargo.toml', 'packages/windmill/src/tasks/import_templates.rs', 'packages/windmill/src/services/export/export_template.rs', 'packages/windmill/src/services/reports/template_renderer.rs', '.github/workflows/template-renderer.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,9 +19,13 @@ jobs:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: packages/template-renderer
+          workspaces: |
+            packages/template-renderer
+            packages/report-prerender
       - run: cargo fmt --manifest-path packages/template-renderer/Cargo.toml -- --check
       - run: cargo test --locked --manifest-path packages/template-renderer/Cargo.toml
+      - run: cargo fmt --manifest-path packages/report-prerender/Cargo.toml -- --check
+      - run: cargo test --locked --release --manifest-path packages/report-prerender/Cargo.toml
       - run: cargo build --locked --manifest-path packages/template-renderer/Cargo.toml --target wasm32-unknown-unknown --release
       - uses: actions/setup-node@v4
         with:

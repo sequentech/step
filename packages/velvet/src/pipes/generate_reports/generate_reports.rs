@@ -313,7 +313,9 @@ impl GenerateReports {
         if let Some(cached) = &config.pre_render {
             let pdf = cached
                 .bytes(&serde_json::Value::Object(template_vars))
-                .map_err(|e| Error::UnexpectedError(format!("Error filling results report: {e}")))?;
+                .map_err(|e| {
+                    Error::UnexpectedError(format!("Error filling results report: {e}"))
+                })?;
             let html = reports::prerender::pdf_document(&pdf).into_bytes();
             return Ok((
                 GeneratedReportsBytes {

@@ -496,14 +496,17 @@ pub trait TemplateRenderer: Debug {
             self.get_election_id().as_deref(),
         )
         .await?
-            .ok_or_else(|| anyhow!("Missing pre-render template assignment"))?;
-        Ok(Some(super::prerender::get_cached(
-            tx,
-            &self.get_tenant_id(),
-            &self.get_election_event_id(),
-            &alias,
-            self.get_election_id().as_deref(),
-        ).await?))
+        .ok_or_else(|| anyhow!("Missing pre-render template assignment"))?;
+        Ok(Some(
+            super::prerender::get_cached(
+                tx,
+                &self.get_tenant_id(),
+                &self.get_election_event_id(),
+                &alias,
+                self.get_election_id().as_deref(),
+            )
+            .await?,
+        ))
     }
 
     // Inner implementation for `execute_report()` so that implementors of the
@@ -811,7 +814,8 @@ pub trait TemplateRenderer: Debug {
             let data = if generate_mode == GenerateReportMode::PREVIEW {
                 self.prepare_preview_data().await?
             } else {
-                self.prepare_user_data(hasura_transaction, keycloak_transaction).await?
+                self.prepare_user_data(hasura_transaction, keycloak_transaction)
+                    .await?
             };
             let value = serde_json::to_value(data)?;
             let file = super::prerender::fill_to_temp(cached, &value)?;

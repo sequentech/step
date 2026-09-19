@@ -13,7 +13,9 @@ use tracing::{event, info, instrument, Level};
 use crate::services::plugins_manager::plugin_manager::init_plugin_manager;
 use crate::tasks::activity_logs_report::generate_activity_logs_report;
 use crate::tasks::apply_reconciliation_patch::apply_reconciliation_patch;
-use crate::tasks::create_ballot_receipt::{create_ballot_receipt, create_prerendered_ballot_receipt};
+use crate::tasks::create_ballot_receipt::{
+    create_ballot_receipt, create_prerendered_ballot_receipt,
+};
 use crate::tasks::create_keys::create_keys;
 use crate::tasks::delete_election_event::delete_election_event_t;
 use crate::tasks::delete_users::delete_users;
@@ -55,6 +57,7 @@ use crate::tasks::miru_plugin_tasks::send_transmission_package_task;
 use crate::tasks::plugins_tasks::execute_plugin_task;
 use crate::tasks::post_tally::post_tally_task;
 use crate::tasks::prepare_publication_preview::prepare_publication_preview;
+use crate::tasks::prerender_reports::prerender_reports;
 use crate::tasks::process_board::process_board;
 use crate::tasks::process_cast_vote::process_cast_vote;
 use crate::tasks::publish_results_website::publish_results_website_task;
@@ -64,7 +67,6 @@ use crate::tasks::review_boards::review_boards;
 use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::scheduled_events::scheduled_events;
 use crate::tasks::scheduled_reports::scheduled_reports;
-use crate::tasks::prerender_reports::prerender_reports;
 use crate::tasks::send_template::send_template;
 use crate::tasks::set_public_key::set_public_key;
 use crate::tasks::update_election_event_ballot_styles::update_election_event_ballot_styles;

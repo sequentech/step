@@ -197,4 +197,6 @@ pub struct PreRenderOptions {
     #[serde(default = "prerender_version")]
     pub version: u32,
 }
-fn prerender_version() -> u32 { 1 }
+fn prerender_version() -> u32 {
+    1
+}

@@ -101,8 +101,9 @@ pub mod sync {
             pdf_options: Option<PrintToPdfOptions>,
             contains_sensitive_data: bool,
         ) -> Result<Vec<u8>> {
-            if let Some(bytes) = crate::services::reports::prerender::embedded_pdf(&html)
-                .map_err(|e| anyhow!(e))?
+            if let Some(bytes) =
+                crate::services::reports::prerender::embedded_pdf(&html)
+                    .map_err(|e| anyhow!(e))?
             {
                 return Ok(bytes);
             }
@@ -351,8 +352,9 @@ impl PdfRenderer {
         pdf_options: Option<PrintToPdfOptions>,
         contains_sensitive_data: bool,
     ) -> Result<Vec<u8>> {
-        if let Some(bytes) = crate::services::reports::prerender::embedded_pdf(&html)
-            .map_err(|e| anyhow!(e))?
+        if let Some(bytes) =
+            crate::services::reports::prerender::embedded_pdf(&html)
+                .map_err(|e| anyhow!(e))?
         {
             return Ok(bytes);
         }

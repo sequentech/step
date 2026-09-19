@@ -553,7 +553,9 @@ pub async fn build_ballot_images_pipe_config(
 
     let acm_key = get_acm_key_pair(hasura_transaction, &tenant_id, &election_event_id).await?;
 
-    let pre_render = ballot_images_renderer.pre_render_layout(hasura_transaction).await?;
+    let pre_render = ballot_images_renderer
+        .pre_render_layout(hasura_transaction)
+        .await?;
     let ballot_images_pipe_config = PipeConfigBallotImages {
         pre_render,
         template: user_tpl_document,
@@ -660,17 +662,20 @@ pub async fn create_config_file(
     )
     .await?;
 
-    let prerender_report = crate::services::reports::electoral_results::ElectoralResults::new(ReportOrigins {
-        tenant_id: tally_session.tenant_id.clone(),
-        election_event_id: tally_session.election_event_id.clone(),
-        election_id: None,
-        template_alias: None,
-        voter_id: None,
-        report_origin: ReportOriginatedFrom::ExportFunction,
-        executer_username: None,
-        tally_session_id: Some(tally_session.id.clone()),
-    });
-    gen_report_pipe_config.pre_render = prerender_report.pre_render_layout(hasura_transaction).await?;
+    let prerender_report =
+        crate::services::reports::electoral_results::ElectoralResults::new(ReportOrigins {
+            tenant_id: tally_session.tenant_id.clone(),
+            election_event_id: tally_session.election_event_id.clone(),
+            election_id: None,
+            template_alias: None,
+            voter_id: None,
+            report_origin: ReportOriginatedFrom::ExportFunction,
+            executer_username: None,
+            tally_session_id: Some(tally_session.id.clone()),
+        });
+    gen_report_pipe_config.pre_render = prerender_report
+        .pre_render_layout(hasura_transaction)
+        .await?;
 
     let gen_db_pipe_config = PipeConfigGenerateDatabase {
         include_decoded_ballots: decoded_ballots_policy == DecodedBallotsInclusionPolicy::INCLUDED,
