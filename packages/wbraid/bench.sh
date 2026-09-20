@@ -12,6 +12,8 @@
 # Usage (from packages/wbraid, in git bash or a bash shell):
 #   ./bench.sh
 #
+# Windows/PowerShell twin: bench.ps1 (same grid, same output format).
+#
 # The criterion benches (parallel_tradeoff, msm_strategy) self-calibrate; the
 # scaling examples are run over a fixed cell grid, REPS times each, so the
 # median can be taken. Adjust CELLS/REPS below to taste.
