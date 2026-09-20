@@ -672,37 +672,50 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let lhs_1 = big_a.exp(&v).mul(&commitments.big_a_prime);
         let rhs_1 = g_k_a.mul(&h_n_k_e_n_fold);
 
-        ////// Verification 2 //////
+        ////// Verification 2 (batched) //////
+        //
+        // The N elementwise checks `B_i^v · B'_i == g^{k_b_i} · B_{i-1}^{k_e_i}`
+        // (with B_0 = h_1) are combined into one random-weighted check --
+        // Bellare-Garay-Rabin small-exponent batching:
+        //
+        //   ∏ B_i^{v·t_i} · ∏ B'_i^{t_i} == g^{Σ t_i·k_b_i} · ∏ B_{i-1}^{t_i·k_e_i}
+        //
+        // The t_i are the verifier's OWN randomness -- not part of the
+        // transcript -- so this needs no prover coordination and no
+        // `ShuffleChallenges` change; it is purely verifier-internal, and the
+        // Verificatum-interop path is unaffected. Soundness error <= 1/q per
+        // failing equation (full-width t_i). This replaces 3N exponentiations
+        // with two multi-exps (sizes 2N and N).
+        let big_n = ciphertexts.len();
+        let t_n: Vec<C::Scalar> = (0..big_n).map(|_| C::random_scalar()).collect();
 
-        // We need to start this calculation at big_b_0, which is = h_1
-        let h_1_iter = rayon::iter::once(big_b_0);
-        // the last value of big_b_0_n, B_N, is not used in this calculation, it is used later when computing big_d
-        let big_b_n = &commitments.big_b_n;
+        // LHS = ∏ B_i^{v·t_i} · ∏ B'_i^{t_i} -- one multi-exp of size 2N.
+        let mut lhs2_bases: Vec<&C::Element> = commitments.big_b_n.iter().collect();
+        lhs2_bases.extend(commitments.big_b_prime_n.iter());
+        let mut lhs2_exps: Vec<C::Scalar> = t_n.iter().map(|t| v.mul(t)).collect();
+        lhs2_exps.extend(t_n.iter().cloned());
+        let lhs_2 = C::Element::vartime_multi_exp(&lhs2_bases, &lhs2_exps)?;
+
+        // RHS = g^{Σ t_i·k_b_i} · ∏ B_{i-1}^{t_i·k_e_i}, with B_{i-1} running
+        // over [h_1, B_1, ..., B_{N-1}].
+        let sum_t_kb = t_n
+            .iter()
+            .zip(responses.k_b_n.iter())
+            .map(|(t, k_b)| t.mul(k_b))
+            .fold(C::Scalar::zero(), |acc, x| acc.add(&x));
+        let mut rhs2_bases: Vec<&C::Element> = Vec::with_capacity(big_n);
+        rhs2_bases.push(big_b_0);
         // cannot underflow, ciphertexts.len() > 0
         #[allow(clippy::arithmetic_side_effects)]
-        let except_last = &big_b_n[0..big_b_n.len() - 1];
-        let big_b_0_n_minus_1 = h_1_iter.chain(except_last.into_par_iter());
-
-        let big_b_0_n_minus_1_k_e_n = big_b_0_n_minus_1.zip(responses.k_e_n.par_iter());
-        let big_b_0_n_minus_1_k_e_n_k_b_n = big_b_0_n_minus_1_k_e_n.zip(responses.k_b_n.par_iter());
-
-        let rhs_2: Vec<C::Element> = big_b_0_n_minus_1_k_e_n_k_b_n
-            .map(|((b, k_e), k_b)| {
-                let b_k_e = b.exp(k_e);
-                let g_k_b = g.exp(k_b);
-
-                g_k_b.mul(&b_k_e)
-            })
+        rhs2_bases.extend(commitments.big_b_n[..big_n - 1].iter());
+        let rhs2_exps: Vec<C::Scalar> = t_n
+            .iter()
+            .zip(responses.k_e_n.iter())
+            .map(|(t, k_e)| t.mul(k_e))
             .collect();
-
-        let big_b_prime_n = &commitments.big_b_prime_n;
-        let big_b_n_big_b_prime_n = big_b_n.par_iter().zip(big_b_prime_n.par_iter());
-        let lhs_2: Vec<C::Element> = big_b_n_big_b_prime_n
-            .map(|(big_b, big_b_prime)| {
-                let big_b_v = big_b.exp(&v);
-                big_b_v.mul(big_b_prime)
-            })
-            .collect();
+        let rhs_2 = g
+            .exp(&sum_t_kb)
+            .mul(&C::Element::vartime_multi_exp(&rhs2_bases, &rhs2_exps)?);
 
         ////// Verification 3 //////
 
@@ -1285,6 +1298,7 @@ mod tests {
     use crate::cryptosystem::elgamal::Ciphertext;
     use crate::cryptosystem::elgamal::KeyPair;
     use crate::traits::groups::CryptographicGroup;
+    use crate::traits::groups::GroupScalar;
     use crate::utils::serialization::{Deserializable, Serializable};
     use crate::zkp::shuffle::Permutation;
     use crate::zkp::shuffle::ShuffleProof;
@@ -1336,6 +1350,21 @@ mod tests {
         test_shuffle_invalid::<RCtx, 4>();
         test_shuffle_invalid::<RCtx, 5>();
         test_shuffle_invalid::<RCtx, 5>();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_shuffle_batched_v2_rejects_ristretto() {
+        test_shuffle_batched_v2_rejects::<RCtx, 2>();
+        test_shuffle_batched_v2_rejects::<RCtx, 3>();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_shuffle_batched_v2_rejects_p256() {
+        test_shuffle_batched_v2_rejects::<PCtx, 2>();
     }
 
     #[test]
@@ -1442,6 +1471,41 @@ mod tests {
         let not_ok = shuffler.verify(&ciphertexts[1..].to_vec(), &pciphertexts, &proof, &vec![]);
 
         assert!(not_ok.is_err());
+    }
+
+    /// Batched Verification 2 must reject a proof whose `k_b_n` response is
+    /// tampered. `k_b` appears *only* in V2 and does not feed the challenge
+    /// `v` (derived from the commitments alone), so corrupting it isolates the
+    /// batched check: if the random-weighted batch were unsound, this would
+    /// slip through.
+    fn test_shuffle_batched_v2_rejects<C: Context, const W: usize>() {
+        let count = 10;
+        let keypair: KeyPair<C> = KeyPair::generate();
+
+        let messages: Vec<[C::Element; W]> = (0..count)
+            .map(|_| array::from_fn(|_| C::random_element()))
+            .collect();
+        let ciphertexts: Vec<Ciphertext<C, W>> =
+            messages.iter().map(|m| keypair.encrypt(m)).collect();
+
+        let generators = C::G::ind_generators(count, &vec![]).unwrap();
+        let shuffler = Shuffler::<C, W>::new(generators, keypair.pkey);
+
+        let (pciphertexts, mut proof) = shuffler.shuffle(&ciphertexts, &vec![]).unwrap();
+        assert!(
+            shuffler
+                .verify(&ciphertexts, &pciphertexts, &proof, &vec![])
+                .unwrap()
+        );
+
+        // Tamper one V2-only response; the challenge is unaffected, so only the
+        // batched V2 equation can catch this.
+        proof.responses.k_b_n[0] = proof.responses.k_b_n[0].add(&C::Scalar::one());
+        assert!(
+            !shuffler
+                .verify(&ciphertexts, &pciphertexts, &proof, &vec![])
+                .unwrap()
+        );
     }
 
     fn test_shuffle_label<C: Context>() {

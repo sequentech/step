@@ -564,7 +564,13 @@ of stage 0, not against today's under-parallelized one.
 2. **Verifier wiring** (§5.1) + **batched V2** (§5.2). Largest win,
    verifier-only. Includes the PROTOCOL.md batching note and negative tests
    (each `test_shuffle_invalid_*` still rejects; add a corrupted-B/B′ case
-   aimed specifically at batched V2).
+   aimed specifically at batched V2). **Done** (2026-09-20): 2a wired
+   `big_a`/`big_f`/V1/V5 to `vartime_multi_exp`/`dist_vartime_multi_exp`
+   (bit-identical accept/reject); 2b batched V2 with verifier-local `t_i`
+   (full-width; `random_128` deferred), tested by `test_shuffle_batched_v2_
+   rejects_*` (tamper `k_b_n`, which only V2 uses and which does not feed the
+   challenge, so it isolates the batch). PROTOCOL.md §6.4/§9.2 batching note
+   still to write.
 3. **Prover** (§5.3, §5.4): closed form beside the loop → equality test →
    swap; fixed-base batches; CT MSMs. Byte-identity regression on seeded
    inputs.
