@@ -623,19 +623,18 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         ///////////////// Step 5 /////////////////
 
-        // A (comes from Step 1 in evs)
-        let e_n_u_n = e_n.par_iter().zip(commitments.u_n.par_iter());
-        let big_a_n = e_n_u_n.map(|(e, u)| u.exp(e));
-        let big_a: C::Element = big_a_n.reduce(C::Element::one, |acc, next| acc.mul(&next));
+        // A (comes from Step 1 in evs). Vartime multi-exp: `e_n` is public.
+        let u_refs: Vec<&C::Element> = commitments.u_n.iter().collect();
+        let big_a = C::Element::vartime_multi_exp(&u_refs, &e_n)?;
 
-        // F (comes from Step 1 in evs)
-        let e_n_w_n = e_n.par_iter().zip(ciphertexts.par_iter());
-        let big_f_n = e_n_w_n.map(|(e, w)| w.map_ref(|uv| uv.dist_exp(e)));
-        // let big_f_n = e_n_w_n.map(|(e, w)| array::from_fn(|i| w.0[i].dist_exp(&e)));
-        let big_f: [[C::Element; W]; 2] =
-            fold_values(big_f_n, <[[C::Element; W]; 2]>::one, |acc, next| {
-                acc.mul(next)
-            });
+        // F (comes from Step 1 in evs). Componentwise vartime multi-exp over
+        // the 2W ciphertext columns; `e_n` is public.
+        let f_u_bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|w| w.u().clone()).collect();
+        let f_v_bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|w| w.v().clone()).collect();
+        let big_f: [[C::Element; W]; 2] = [
+            <[C::Element; W]>::dist_vartime_multi_exp(&f_u_bases, &e_n)?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&f_v_bases, &e_n)?,
+        ];
 
         // C
         // Serial: an N-element point product folds in ~12 ms at N = 1e5, and
@@ -666,9 +665,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         ////// Verification 1 //////
 
-        let h_n_k_e_n = self.h_generators.par_iter().zip(responses.k_e_n.par_iter());
-        let h_n_k_e_n = h_n_k_e_n.map(|(h, k)| h.exp(k));
-        let h_n_k_e_n_fold = h_n_k_e_n.reduce(C::Element::one, |acc, next| acc.mul(&next));
+        // Vartime multi-exp: the responses `k_e_n` are public (part of the proof).
+        let h_refs: Vec<&C::Element> = self.h_generators.iter().collect();
+        let h_n_k_e_n_fold = C::Element::vartime_multi_exp(&h_refs, &responses.k_e_n)?;
         let g_k_a = g.exp(&responses.k_a);
         let lhs_1 = big_a.exp(&v).mul(&commitments.big_a_prime);
         let rhs_1 = g_k_a.mul(&h_n_k_e_n_fold);
@@ -723,13 +722,16 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let big_f_v = big_f.map(|uv| uv.dist_exp(&v));
         let lhs_5 = big_f_v.mul(&big_f_prime.0);
 
-        let w_prime_n = permuted_ciphertexts;
-        let w_prime_n_k_e_n = w_prime_n.par_iter().zip(responses.k_e_n.par_iter());
-        let w_prime_n_k_e_n = w_prime_n_k_e_n.map(|(w, k)| w.map_ref(|uv| uv.dist_exp(k)));
-        let w_prime_n_k_e_n_fold =
-            fold_values(w_prime_n_k_e_n, <[[C::Element; W]; 2]>::one, |acc, next| {
-                acc.mul(next)
-            });
+        // Componentwise vartime multi-exp over the 2W output-ciphertext columns;
+        // the responses `k_e_n` are public.
+        let v5_u_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.u().clone()).collect();
+        let v5_v_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.v().clone()).collect();
+        let w_prime_n_k_e_n_fold: [[C::Element; W]; 2] = [
+            <[C::Element; W]>::dist_vartime_multi_exp(&v5_u_bases, &responses.k_e_n)?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&v5_v_bases, &responses.k_e_n)?,
+        ];
 
         let one = [g, self.pk.y.clone()].map(|gy| gy.repl_exp(&responses.k_f.neg()));
         let rhs_5 = one.mul(&w_prime_n_k_e_n_fold);

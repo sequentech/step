@@ -108,6 +108,30 @@ impl<T: GroupElement, const N: usize> DistGroupOps<T> for [T; N] {
             .unwrap_or_else(|_| unreachable!("built exactly N components")))
     }
 
+    /// As [`dist_multi_exp`](Self::dist_multi_exp) but delegating per column to
+    /// the variable-time [`vartime_multi_exp`](GroupElement::vartime_multi_exp)
+    /// — public scalars only.
+    fn dist_vartime_multi_exp(
+        bases: &[Self],
+        exponents: &[T::Scalar],
+    ) -> Result<Self::Result, CryptographyError> {
+        if bases.len() != exponents.len() {
+            return Err(CryptographyError::MismatchedMultiExpLength(
+                bases.len(),
+                exponents.len(),
+            ));
+        }
+
+        let mut components: Vec<T> = Vec::with_capacity(N);
+        for i in 0..N {
+            let column: Vec<&T> = bases.iter().map(|base| &base[i]).collect();
+            components.push(T::vartime_multi_exp(&column, exponents)?);
+        }
+        Ok(components
+            .try_into()
+            .unwrap_or_else(|_| unreachable!("built exactly N components")))
+    }
+
     fn dist_equals(&self, other: &T) -> bool {
         for item in self {
             if !item.equals(other) {

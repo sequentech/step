@@ -354,6 +354,25 @@ pub trait DistGroupOps<Rhs: GroupElement>: GroupElement {
     fn dist_multi_exp(bases: &[Self], exponents: &[Rhs::Scalar]) -> Result<Self::Result, Error>;
 
     /**
+     * Variable-time [`dist_multi_exp`](DistGroupOps::dist_multi_exp).
+     *
+     * The broadcast, componentwise counterpart of
+     * [`vartime_multi_exp`](GroupElement::vartime_multi_exp): **public scalars
+     * only**, since a backend override may run in time that depends on them.
+     * This is the verifier's form of the width-`W` batched products (`big_f`,
+     * V5), where the exponents are hash-derived batching values or published
+     * proof responses.
+     *
+     * # Errors
+     *
+     * - `MismatchedMultiExpLength` if `bases` and `exponents` differ in length.
+     */
+    fn dist_vartime_multi_exp(
+        bases: &[Self],
+        exponents: &[Rhs::Scalar],
+    ) -> Result<Self::Result, Error>;
+
+    /**
      * Conjunctive evaluation of equality of the components of a product
      * group element `self` with respect to `other`
      */
