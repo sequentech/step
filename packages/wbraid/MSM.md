@@ -588,7 +588,14 @@ of stage 0, not against today's under-parallelized one.
 5. **Profile** with `shuffle_scaling` across (N, W) cells; serialization
    (S4/PERFORMANCE.md §3) if it now dominates; update PERFORMANCE.md
    (including the now-scalar-only `bounded-combine` decision); apply the §7
-   GPU decision rule and record the outcome here.
+   GPU decision rule and record the outcome here. **Done** (controlled run
+   2026-09-21, PERFORMANCE.md): MSM is now 8× at the primitive but only ~1.9×
+   end-to-end on verify — **serialization (ristretto compression in the
+   Fiat-Shamir seeds) now dominates**, not MSM. Next lever is parallel
+   serialization + hoisting `combine`'s per-contribution re-serialization
+   (PERFORMANCE.md item 3), then the deferred prover fixed-base cleanups. The
+   §7 GPU go/no-go rule (≥70% of verifier in MSM) is **not met** — GPU stays
+   deferred.
 
 Constraints that bind every step: proof bytes and transcripts unchanged
 (`VmnChallenges`/v2v unaffected — verified: batched V2 is verifier-internal);
