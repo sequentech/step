@@ -297,6 +297,24 @@ associativity); new differential tests pin `vartime_multi_exp`/`exp_many`
 against the naive default at N = 200 (multiple chunks, across dalek's
 Straus/Pippenger switch); vsc + braid suites pass.
 
+### Stage 2 — verifier wiring + batched V2 — 2026-09-20
+
+- **2a**: the four verifier products over public scalars (`big_a`, `big_f`,
+  V1, V5) now go through `vartime_multi_exp` / the new
+  `dist_vartime_multi_exp` (chunked, `vt_chunk_t` ≈ 8× the naive product at
+  N = 10⁵ per the strategy bench). Accept/reject bit-identical.
+- **2b**: Verification 2's N elementwise checks (3N exponentiations) collapse
+  to one random-weighted batch — two multi-exps of size 2N and N — with
+  verifier-local `t_i` (BGR small-exponent; no transcript/`ShuffleChallenges`
+  change, Verificatum path unaffected). `test_shuffle_batched_v2_rejects_*`
+  pins its soundness.
+
+End-to-end verify speedup at production N is **deferred to the controlled
+`bench.sh` run** (the shuffle verifier is now almost entirely vartime MSM +
+the batched V2, against a ~10.3 s interleaved-baseline verify at N = 10⁵
+W = 2); expected in the mid-single-digit ×, to be confirmed and recorded
+here as controlled.
+
 ## Related, tracked elsewhere
 
 - **Incremental fetch (monotonic cursor)** — a pure transport optimization for
