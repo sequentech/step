@@ -72,6 +72,12 @@ cargo run --release --example shuffle_scaling -- 10000 30
 cargo run --release --example shuffle_scaling --features bounded-combine -- 10000 30
 ```
 
+> **Update (2026-09-20):** items 2 and the related shuffle multi-exp review
+> are now designed in full in `MSM.md` (assessed against the implementation
+> and `PROTOCOL.md`), staged as: parallelism-completeness pass → MSM traits →
+> verifier → prover → decryption rider. Measurements for every stage are
+> recorded in the [Measurement log](#measurement-log) below.
+
 ### 2. Multi-exponentiation in batched verifiable decryption
 
 The batched decryption proof (`vsc`'s `dkgd::recipient`) computes its batched
@@ -119,8 +125,129 @@ it.
 
 | Tool | What it measures | Notes |
 | --- | --- | --- |
-| `vsc` `benches/shuffle.rs` | shuffle prove/verify micro-benchmark | fixed `N = 100`, `W = 3`; Bencher auto-calibrated |
+| `vsc` `benches/shuffle.rs` | shuffle prove/verify micro-benchmark | fixed `N = 100`, `W = 3`; Bencher auto-calibrated; nightly-only |
 | `vsc` `examples/shuffle_scaling.rs` | one `(N, W)` cell, prove + verify wall-clock | fold-strategy A/B (item 1); CSV output for sweeps |
+| `vsc` `examples/decrypt_scaling.rs` | one `(N, W)` cell of the decryption path: Naor-Yung verify-and-strip (serial and parallel), `partial_decrypt`, `combine` | fixed `T = 3, P = 5`; CSV output; covers the costs `shuffle_scaling` does not |
+| `vsc` `benches/parallel_tradeoff.rs` | serial-vs-parallel for each per-element loop shape (scalar RNG, scalar arithmetic, scalar/point products, hash-to-scalar, point-exp) | criterion (stable); decides where rayon earns its keep vs where serial is simpler for no cost |
+
+## Measurement log
+
+The optimization campaign designed in `MSM.md` lands in stages, each measured
+before the next begins so gains stay attributable to their stage (in
+particular, MSM gains are measured against the *rayon-complete* stage-0
+baseline, not the original one).
+
+Machine for all rows below: Windows x64, 16 logical cores, dalek AVX2
+backend, `--release`. Times in ms.
+
+### Methodology note (learned at stage 0)
+
+**Single-shot cross-run comparison is invalid on this machine.** Running the
+baseline sweep and the stage-0 sweep back to back, `strip_serial` — the
+*same, unchanged* serial code in both binaries — "regressed" +43% at
+N = 10⁵, purely because sustained load had warmed the machine (thermal
+throttling). Any speedup read off two separate sweeps is contaminated by that
+drift.
+
+So changed sites are measured by **interleaving** the baseline and stage-0
+binaries within one run (`base, s0, base, s0, …`), reporting the **median of
+3 reps**, with an unchanged column as a control that must match between the
+two. `decrypt_scaling`'s `strip_serial` is a perfect control (identical code
+in both binaries); a factor is trusted only when it holds. `git stash` builds
+the baseline binary from the same tree, so the two differ only by the stage's
+edits.
+
+### Baseline (branch point, pre-stage-0) — 2026-09-20
+
+`shuffle_scaling` (prove / verify), single-shot (see the caveat above — use
+for orientation, not for stage deltas):
+
+| N | W | prove | verify |
+|---|---|---|---|
+| 10³ | 2 | 144 | 110 |
+| 10⁴ | 2 | 1 355 | 1 058 |
+| 10⁴ | 5 | 2 168 | 1 943 |
+| 10⁵ | 2 | 18 535 | 13 172 |
+| 10⁵ | 5 | 22 496 | 21 197 |
+
+`decrypt_scaling` (T = 3, P = 5), single-shot:
+
+| N | W | strip serial | strip parallel | partial_decrypt | combine |
+|---|---|---|---|---|---|
+| 10⁴ | 2 | 2 716 | 462 | 1 152 | 3 519 |
+| 10⁴ | 5 | 6 506 | 1 159 | 3 351 | 11 532 |
+| 10⁵ | 2 | 27 376 | 4 594 | 12 098 | 37 020 |
+
+Two reads: the decryption path had never been measured and is *costlier than
+the shuffle* at the same size (`combine` 37 s vs verify 13.2 s at N = 10⁵,
+W = 2 — the sequential Lagrange accumulation, T·N·W exponentiations); and the
+strip columns show the braid first-mix loop's available gain directly.
+
+### Stage 0 — parallelism-completeness pass — 2026-09-20
+
+Edits: parallelized `e_n`/`b_n`/`u_n_fold`/`h_n_fold` in the shuffle;
+`partial_decrypt` factors, `batching_exponents`, `combine`'s Lagrange
+accumulation and plaintext extraction in `dkgd`; P-256 `ind_generators`;
+braid's first-mix Naor-Yung strip loop. All outputs bit-identical (vsc +
+braid suites pass, including all 17 model-check configs).
+
+Interleaved A/B, N = 10⁵ W = 2, median of 3 reps (ms):
+
+| Site | baseline | stage 0 | factor | note |
+|---|---|---|---|---|
+| `strip_serial` (control) | 35 813 | 35 829 | 1.00× | identical code — confirms the A/B is thermal-neutral |
+| Naor-Yung strip loop (braid B1) | 35 813 (serial) | 4 600 (parallel) | **~7.8×** | serial-vs-parallel measured in one run |
+| `partial_decrypt` | 15 208 | 9 602 | **~1.6×** | now bounded by the two single-threaded CT-Straus `dist_multi_exp` calls |
+| `combine` | 44 653 | 27 202 | **~1.6×** | now bounded by 2·T single-threaded CT-Straus `dist_multi_exp` calls |
+
+Shuffle prove/verify, interleaved median of 3 at N = 10⁵ W = 2: prove
+12 939 → 12 888, verify 10 663 → 10 294 — no measurable change (the stage-0
+shuffle edits — `e_n`, `b_n`, folds — are together well under 1% of shuffle
+wall-clock; the shuffle's cost is the MSM sites and the serial `big_b_n`
+chain, addressed in stages 1–3). Note these interleaved figures are well
+below the single-shot baseline table above (prove 18 535, verify 13 172),
+confirming that sweep was thermally inflated: **the ~12.9 s / ~10.3 s
+interleaved numbers are the trustworthy stage-1 starting point**, not the
+single-shot ones.
+
+**Finding that shapes stage 1:** once the trivial loops are parallel,
+`partial_decrypt` and `combine` are dominated by dalek's *single-threaded*
+`multi_exp` (CT Straus) — exactly the site stage 1's chunk-parallel +
+vartime `multi_exp` targets. The 1.6× here is the floor; stage 1 compounds
+on it.
+
+### Stage 0b — remove parallelism that doesn't pay — 2026-09-20
+
+Not every rayon site earns its overhead and visual noise. `parallel_tradeoff`
+(criterion) measured each per-element loop shape serial vs parallel; the
+decision rule is *absolute wall-clock saved in context*, not the raw speedup
+ratio (a 5× speedup on a 10 ms loop is 8 ms on a multi-second operation —
+noise).
+
+Per-shape at N = 10⁵ (serial → parallel):
+
+| Shape | serial | parallel | speedup | abs. saved | % of prove/verify | decision |
+|---|---|---|---|---|---|---|
+| point exp-map (control) | 2.76 s* | 0.46 s* | 6.0× | ~2.3 s | dominant | **parallel** |
+| hash-to-scalar | 86.7 ms | 11.1 ms | 7.8× | 75.6 ms | ~0.7% | **parallel** (real per-element work) |
+| point product | 12.5 ms | 2.6 ms | 4.8× | 9.9 ms | <0.1% | **serial** |
+| scalar RNG | 10.3 ms | 1.9 ms | 5.5× | 8.4 ms | <0.1% | **serial** |
+| scalar inner-product | 8.5 ms | 1.4 ms | 5.9× | 7.1 ms | <0.1% | **serial** |
+| scalar mul+add | 8.8 ms | 1.8 ms | 5.0× | 7.0 ms | <0.1% | **serial** |
+| scalar product | 7.0 ms | 1.2 ms | 5.8× | 5.8 ms | <0.1% | **serial** |
+
+\* point exp-map measured at N = 10⁴ (100k is seconds); it scales ~linearly.
+
+Reverted to serial (with a comment at each site citing this bench): shuffle
+`b_n`, `beta_n`/`epsilon_n`, `a`, `k_b_n`, `k_e_n`, `e_n_fold`, `u_n_fold`,
+`h_n_fold`; dkgd `combine`'s plaintext extraction. Kept parallel: everything
+point-exponentiation or hashing — the MSM sites, `g_b_n`, `big_b_prime_n`,
+F′, `apply_permutation`, `partial_decrypt`'s factors, `batching_exponents`,
+`combine`'s Lagrange accumulation, P-256 `ind_generators`, and the shuffle's
+`e_n` derivation (hashing, the one cheap-looking site that is really ~0.7%).
+Outputs bit-identical (associative ops, same order); vsc + braid suites pass.
+Total wall-clock cost of these reverts: well under 0.5% of prove/verify, for
+markedly simpler code and less committed worker-thread stack.
 
 ## Related, tracked elsewhere
 

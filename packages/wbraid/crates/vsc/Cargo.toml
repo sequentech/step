@@ -69,9 +69,16 @@ name = "shuffle"
 harness = true
 required-features = ["nightly-benches"]
 
+# Serial-vs-parallel micro-benchmark for the per-element loops. Criterion
+# (stable), so no nightly-benches gate.
+[[bench]]
+name = "parallel_tradeoff"
+harness = false
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 proptest = "1"
+criterion = "0.5"
 
 [lints.rustdoc]
 missing_crate_level_docs = "deny"
