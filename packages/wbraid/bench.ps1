@@ -24,7 +24,13 @@ param(
     [string[]]$DecryptCells = @('10000:2', '10000:5', '100000:2')
 )
 
-$ErrorActionPreference = 'Stop'
+# cargo writes progress and a harmless "patch not used" warning to stderr with
+# exit 0. Do NOT let native-command stderr become a terminating error (that is
+# what `$ErrorActionPreference = 'Stop'` + `2>&1` would do); gate on the exit
+# code instead.
+$ErrorActionPreference = 'Continue'
+$PSNativeCommandUseErrorActionPreference = $false
+
 Set-Location $PSScriptRoot
 
 $resultsDir = Join-Path $PSScriptRoot 'bench-results'
@@ -34,8 +40,19 @@ $out = Join-Path $resultsDir "bench-$stamp.txt"
 
 function Log([string]$msg) { $msg | Tee-Object -FilePath $out -Append }
 
+# Run a build/prep step untimed: discard its output unless it actually fails,
+# in which case surface the output and stop.
+function Build-Step([string[]]$cargoArgs) {
+    $log = & cargo @cargoArgs 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $log | Out-Host
+        throw "build step failed (exit $LASTEXITCODE): cargo $($cargoArgs -join ' ')"
+    }
+}
+
 # Criterion prints results to stdout; keep only the benchmark/time lines,
-# dropping the "Warming up / Collecting / Analyzing" progress chatter.
+# dropping the "Warming up / Collecting / Analyzing" progress chatter (and
+# cargo's stderr, via 2>$null).
 function Run-Criterion([string]$name) {
     cargo bench -p vsc --bench $name 2>$null |
         Where-Object { $_ -match 'Benchmarking|time:' -and $_ -notmatch 'Warming|Collecting|Analyzing' } |
@@ -50,9 +67,9 @@ Log ''
 
 # --- Build everything first (NOT timed) -------------------------------------
 Write-Host 'building (untimed)...'
-cargo build --release -p vsc --examples 2>&1 | Out-Null
-cargo bench  -p vsc --bench parallel_tradeoff --no-run 2>&1 | Out-Null
-cargo bench  -p vsc --bench msm_strategy      --no-run 2>&1 | Out-Null
+Build-Step @('build', '--release', '-p', 'vsc', '--examples')
+Build-Step @('bench', '-p', 'vsc', '--bench', 'parallel_tradeoff', '--no-run')
+Build-Step @('bench', '-p', 'vsc', '--bench', 'msm_strategy', '--no-run')
 Write-Host 'build done; starting timed run.'
 
 # --- Criterion micro-benches (statistical) ----------------------------------
