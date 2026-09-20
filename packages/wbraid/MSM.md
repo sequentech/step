@@ -573,7 +573,17 @@ of stage 0, not against today's under-parallelized one.
    still to write.
 3. **Prover** (§5.3, §5.4): closed form beside the loop → equality test →
    swap; fixed-base batches; CT MSMs. Byte-identity regression on seeded
-   inputs.
+   inputs. **Done** (2026-09-20): `bridging_commitments` computes
+   `B_i = g^{d_i}·h_1^{p_i}` via two `exp_many` batches (d_n reused as the
+   Step-4 response `d`, p_n reused for B'), replacing the serial loop; B′ is
+   its closed-form follow-on (two more `exp_many` batches); A′ uses CT
+   `multi_exp` + `g_exp`, F′ uses CT `dist_multi_exp`. Verified by
+   `test_bridging_closed_form_*` (closed form == loop for N ∈ {1,2,5,10,65})
+   and the roundtrip (which uniquely pins B/B′ via V2/V4). Still open in the
+   prover, deferred as lower-value fixed-base cleanups: `apply_permutation`'s
+   `u_n = g^r·h` and the re-encryption `(g^s, y^s)` legs still use per-element
+   `exp`/`repl_exp` rather than `exp_many`; the singleton `g.exp` sites in the
+   proof commitments were moved to `g_exp` only for A′.
 4. **Decryption rider** (§5.7).
 5. **Profile** with `shuffle_scaling` across (N, W) cells; serialization
    (S4/PERFORMANCE.md §3) if it now dominates; update PERFORMANCE.md
