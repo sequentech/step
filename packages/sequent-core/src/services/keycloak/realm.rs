@@ -459,6 +459,8 @@ impl KeycloakAdminClient {
             .send()
             .await?;
 
+        let response = error_check(response).await?;
+
         if let Some(location_header) =
             response.headers().get(reqwest::header::LOCATION)
         {
@@ -555,6 +557,7 @@ impl KeycloakAdminClient {
             .await
             .context("Failed to get groups roles")?;
 
+        let resp = error_check(resp).await?;
         let roles: Vec<RoleRepresentation> = resp.json().await?;
         Ok(roles)
     }
