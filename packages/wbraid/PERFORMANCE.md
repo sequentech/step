@@ -315,6 +315,29 @@ the batched V2, against a ~10.3 s interleaved-baseline verify at N = 10⁵
 W = 2); expected in the mid-single-digit ×, to be confirmed and recorded
 here as controlled.
 
+### Stage 3 — prover closed form + MSM — 2026-09-20
+
+- The bridging chain `B_i` moves from the serial recurrence to the closed
+  form `B_i = g^{d_i}·h_1^{p_i}` (`bridging_commitments`), two fixed-base
+  `exp_many` batches — removing the prover's one unparallelizable stretch
+  (~6 s of the ~12.9 s interleaved-baseline prove at N = 10⁵ W = 2, per the
+  stage-0 accounting). `d_n` is reused as the Step-4 response `d` (the old
+  Step-4 recurrence is deleted), `p_n` feeds B′.
+- B′ becomes its closed-form follow-on (two more `exp_many` batches, no
+  per-element variable-base exp). A′ = `g_exp(alpha) · multi_exp(h, epsilon)`
+  (CT, secret epsilon). F′ = `dist_multi_exp` over the 2W columns (CT).
+- Correctness: `test_bridging_closed_form_*` pins the closed form == loop for
+  N ∈ {1,2,5,10,65}; V2/V4 uniquely determine B/B′ so the roundtrip proves
+  bit-identity; vsc + braid suites pass (all 17 model-check configs).
+
+End-to-end prove speedup at production N is **deferred to the controlled
+`bench.sh` run**; expected ~4–6× against the ~12.9 s baseline (serial chain
+gone + fixed-base/CT-MSM batches), to be confirmed and recorded as controlled.
+
+Deferred lower-value prover items (fixed-base, already parallel): the
+`apply_permutation` `u_n = g^r·h` and re-encryption `(g^s, y^s)` legs still
+use per-element `exp`/`repl_exp` rather than `exp_many`.
+
 ## Related, tracked elsewhere
 
 - **Incremental fetch (monotonic cursor)** — a pure transport optimization for

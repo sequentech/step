@@ -346,16 +346,13 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         // Serial: sampling N scalars is too cheap for rayon to pay for — ~8 ms
         // saved at N = 1e5, under 0.1% of proving (benches/parallel_tradeoff.rs).
         let b_n: Vec<C::Scalar> = (0..big_n).map(|_| C::random_scalar()).collect();
-        // h_1 is at index 0
-        let mut big_b_previous = &self.h_generators[0];
-        let mut big_b_n = vec![];
-        let g_b_n: Vec<C::Element> = b_n.clone().into_par_iter().map(|b| g.exp(&b)).collect();
-        for (i, g_b) in g_b_n.iter().enumerate() {
-            let big_b_factor = big_b_previous.exp(e_prime_n[i]);
-            let big_b_i = g_b.mul(&big_b_factor);
-            big_b_n.push(big_b_i);
-            big_b_previous = &big_b_n[i];
-        }
+        // Bridging commitments via the closed form (§5.3), replacing the serial
+        // recurrence. d_n (the discrete-log recurrence, reused as the Step-4
+        // response `d`) and p_n (prefix products, reused for B') come back with
+        // it. h_1 is at generator index 0.
+        let e_prime_scalars: Vec<C::Scalar> = e_prime_n.iter().map(|&e| e.clone()).collect();
+        let BridgingChain { big_b_n, d_n, p_n } =
+            bridging_commitments::<C>(&g, &self.h_generators[0], &b_n, &e_prime_scalars);
 
         // b) Proof commitments
         let alpha = C::random_scalar();
@@ -368,59 +365,61 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let mut rng = C::get_rng();
         let phi = <[C::Scalar; W]>::random(&mut rng);
 
-        // A'
-        let h_n_epsilon_n = self
-            .h_generators
-            .clone()
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let h_n_epsilon_n = h_n_epsilon_n.map(|(h, e)| h.exp(&e));
-        let h_n_epsilon_n_fold = h_n_epsilon_n
-            .into_par_iter()
-            .reduce(C::Element::one, |acc, next| acc.mul(&next));
-        // let h_n_epsilon_n_fold: C::Element = h_n_epsilon_n_fold.collect();
-        let big_a_prime = g.exp(&alpha);
-        let big_a_prime = big_a_prime.mul(&h_n_epsilon_n_fold);
+        // A' = g^alpha · ∏ h_i^{epsilon_i}. epsilon is secret, so the multi-exp
+        // is the constant-time path; g^alpha uses the fixed-base table.
+        let h_refs: Vec<&C::Element> = self.h_generators.iter().collect();
+        let h_n_epsilon_n_fold = C::Element::multi_exp(&h_refs, &epsilon_n)?;
+        let big_a_prime = C::G::g_exp(&alpha).mul(&h_n_epsilon_n_fold);
 
-        // B'
-        // We need to start this calculation at big_b_0, which is = h_1
-        let h_1_iter = rayon::iter::once(&self.h_generators[0]);
-
-        // the last value of big_b_0_n, B_N, is not used in this calculation, it is used later when computing big_d
-        // cannot underflow, ciphertexts.len() > 0
-        #[allow(clippy::arithmetic_side_effects)]
-        let except_last = &big_b_n[0..big_b_n.len() - 1];
-        let big_b_0_n_minus_1 = h_1_iter.chain(except_last.into_par_iter());
-
-        let big_b_n_epsilon_n = big_b_0_n_minus_1
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let big_b_n_epsilon_n_beta_n = big_b_n_epsilon_n.zip(beta_n.clone().into_par_iter());
-        let big_b_prime_n: Vec<C::Element> = big_b_n_epsilon_n_beta_n
-            .into_par_iter()
-            .map(|((big_b, e), beta)| {
-                let g_beta = g.exp(&beta);
-                let big_b_epsilon = big_b.exp(&e);
-
-                g_beta.mul(&big_b_epsilon)
+        // B' = g^{beta_i + d_{i-1}·epsilon_i} · h_1^{p_{i-1}·epsilon_i}, the
+        // closed-form follow-on of the bridging chain (§5.4), with d_0 = 0 and
+        // p_0 = 1. Two fixed-base batches, replacing the per-element
+        // variable-base B_{i-1}^{epsilon_i}. All exponents are secret, and
+        // `exp_many` is constant-time.
+        let g_exps: Vec<C::Scalar> = (0..big_n)
+            .map(|i| {
+                let d_prev = if i == 0 {
+                    C::Scalar::zero()
+                } else {
+                    // cannot underflow, i > 0
+                    #[allow(clippy::arithmetic_side_effects)]
+                    d_n[i - 1].clone()
+                };
+                beta_n[i].add(&d_prev.mul(&epsilon_n[i]))
             })
             .collect();
+        let h1_exps: Vec<C::Scalar> = (0..big_n)
+            .map(|i| {
+                let p_prev = if i == 0 {
+                    C::Scalar::one()
+                } else {
+                    // cannot underflow, i > 0
+                    #[allow(clippy::arithmetic_side_effects)]
+                    p_n[i - 1].clone()
+                };
+                p_prev.mul(&epsilon_n[i])
+            })
+            .collect();
+        let g_part = C::generator().exp_many(&g_exps);
+        let h1_part = self.h_generators[0].exp_many(&h1_exps);
+        let big_b_prime_n: Vec<C::Element> = g_part
+            .iter()
+            .zip(h1_part.iter())
+            .map(|(a, b)| a.mul(b))
+            .collect();
 
-        // F'
-        let w_prime_n_epsilon_n = permuted_ciphertexts
-            .clone()
-            .into_par_iter()
-            .zip(epsilon_n.clone().into_par_iter());
-        let w_prime_n_epsilon_n = w_prime_n_epsilon_n
-            .into_par_iter()
-            .map(|(w, e)| w.map_ref(|uv| uv.dist_exp(&e)));
-        let w_prime_n_epsilon_n = fold_values(
-            w_prime_n_epsilon_n,
-            <[[C::Element; W]; 2]>::one,
-            |acc, next| acc.mul(next),
-        );
-        let big_f_prime = Ciphertext::<C, W>(w_prime_n_epsilon_n);
-        let big_f_prime: Ciphertext<C, W> = big_f_prime.re_encrypt(&phi.neg(), &self.pk.y);
+        // F' = Enc(1; -phi) · ∏ w'_i^{epsilon_i}. epsilon is secret, so the
+        // componentwise product is the constant-time dist multi-exp.
+        let fp_u_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.u().clone()).collect();
+        let fp_v_bases: Vec<[C::Element; W]> =
+            permuted_ciphertexts.iter().map(|w| w.v().clone()).collect();
+        let big_f_prime_prod: [[C::Element; W]; 2] = [
+            <[C::Element; W]>::dist_multi_exp(&fp_u_bases, &epsilon_n)?,
+            <[C::Element; W]>::dist_multi_exp(&fp_v_bases, &epsilon_n)?,
+        ];
+        let big_f_prime: Ciphertext<C, W> =
+            Ciphertext::<C, W>(big_f_prime_prod).re_encrypt(&phi.neg(), &self.pk.y);
 
         // C'
         let big_c_prime = g.exp(&gamma);
@@ -464,23 +463,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let s_n_e_n = s_n_e_n.map(|(s, e)| s.dist_mul(e));
         let f = fold_values(s_n_e_n, <[C::Scalar; W]>::zero, |acc, next| acc.add(next));
 
-        // d_n
-        // "sets d1 = b1 and computes di = bi + e′i*di−1 for i ∈ [N]"
-        // This means we start the computation at i = 1 (which is i = 2 in EVS)
-        // and our vector d_n has d_n[0] = b_n[0] (d1 = b1 in EVS)
-        let mut d_n = vec![b_n[0].clone()];
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("Figure out how this skip(1) behaves")
-        )]
-        for (i, b) in b_n.iter().enumerate().skip(1) {
-            // cannot underflow, skip(1) starts at 1
-            #[allow(clippy::arithmetic_side_effects)]
-            let e_prime_d = e_prime_n[i].mul(&d_n[i - 1]);
-            let sum = b.add(&e_prime_d);
-            d_n.push(sum);
-        }
-        // d
+        // d = d_N: the last of the recurrence `bridging_commitments` already
+        // computed (d_1 = b_1, d_i = b_i + e'_i·d_{i-1}), reused rather than
+        // recomputed here.
         // cannot underflow, d_n.len() > 0
         #[allow(clippy::arithmetic_side_effects)]
         let d = &d_n[d_n.len() - 1];
@@ -937,6 +922,64 @@ where
     result
 }
 
+/// The output of [`bridging_commitments`]: the commitments and the two scalar
+/// recurrences reused downstream.
+#[allow(clippy::struct_field_names)] // the `_n` suffix is the protocol's vector notation
+struct BridgingChain<C: Context> {
+    /// The bridging commitments `B_1, ..., B_N`.
+    big_b_n: Vec<C::Element>,
+    /// The discrete-log recurrence `d_i` (`d_N` is the Step-4 response `d`).
+    d_n: Vec<C::Scalar>,
+    /// The prefix products `p_i = ∏_{k≤i} e'_k` (reused for `B'`).
+    p_n: Vec<C::Scalar>,
+}
+
+/// The bridging commitments `B_i` of the shuffle proof (PROTOCOL.md §6.3), via
+/// the closed form `B_i = g^{d_i}·h_1^{p_i}` instead of the sequential
+/// recurrence `B_0 = h_1, B_i = g^{b_i}·B_{i-1}^{e'_i}`.
+///
+/// The recurrence is inherently serial (each `B_i` needs `B_{i-1}`) — the one
+/// unparallelizable stretch in the prover. The closed form is two fixed-base
+/// batches over `g` and `h_1`, fully parallel, with exponents
+///
+/// ```text
+///   d_i = b_i + e'_i·d_{i-1}   (the discrete log of B_i base g; d_1 = b_1)
+///   p_i = ∏_{k≤i} e'_k          (prefix product; p_1 = e'_1)
+/// ```
+///
+/// built by two cheap sequential scalar scans. Returns [`BridgingChain`]: `d`
+/// is also the Step-4 response `d = d_N`, so it is computed once here rather
+/// than again later, and `p` feeds the matching `big_b_prime_n` closed form.
+///
+/// `d` and `p` are as secret as `b`/`e'`, and [`exp_many`](GroupElement::exp_many)
+/// is constant-time, so nothing here leaks the permutation.
+fn bridging_commitments<C: Context>(
+    g: &C::Element,
+    h_1: &C::Element,
+    b_n: &[C::Scalar],
+    e_prime_n: &[C::Scalar],
+) -> BridgingChain<C> {
+    let n = b_n.len();
+    let mut d_n: Vec<C::Scalar> = Vec::with_capacity(n);
+    let mut p_n: Vec<C::Scalar> = Vec::with_capacity(n);
+    for i in 0..n {
+        if i == 0 {
+            d_n.push(b_n[0].clone());
+            p_n.push(e_prime_n[0].clone());
+        } else {
+            // cannot underflow, i > 0
+            #[allow(clippy::arithmetic_side_effects)]
+            let prev = i - 1;
+            d_n.push(b_n[i].add(&e_prime_n[i].mul(&d_n[prev])));
+            p_n.push(p_n[prev].mul(&e_prime_n[i]));
+        }
+    }
+    let g_d = g.exp_many(&d_n);
+    let h1_p = h_1.exp_many(&p_n);
+    let big_b_n: Vec<C::Element> = g_d.iter().zip(h1_p.iter()).map(|(a, b)| a.mul(b)).collect();
+    BridgingChain { big_b_n, d_n, p_n }
+}
+
 /// Convenience structure to hold re-encryption and permutation data
 pub(crate) struct PermutationData<C: Context, const W: usize> {
     /// Commitment exponents, private
@@ -1298,6 +1341,7 @@ mod tests {
     use crate::cryptosystem::elgamal::Ciphertext;
     use crate::cryptosystem::elgamal::KeyPair;
     use crate::traits::groups::CryptographicGroup;
+    use crate::traits::groups::GroupElement;
     use crate::traits::groups::GroupScalar;
     use crate::utils::serialization::{Deserializable, Serializable};
     use crate::zkp::shuffle::Permutation;
@@ -1506,6 +1550,47 @@ mod tests {
                 .verify(&ciphertexts, &pciphertexts, &proof, &vec![])
                 .unwrap()
         );
+    }
+
+    /// The bridging-chain closed form `B_i = g^{d_i}·h_1^{p_i}` must reproduce
+    /// the sequential recurrence `B_0 = h_1, B_i = g^{b_i}·B_{i-1}^{e'_i}`
+    /// exactly, for several N including N = 1 (MSM.md §5.3). Bit-identity here
+    /// is what keeps the proof — and Verificatum interop — unchanged.
+    fn test_bridging_closed_form_matches_loop<C: Context>() {
+        use crate::zkp::shuffle::bridging_commitments;
+        for n in [1usize, 2, 5, 10, 65] {
+            let g = C::generator();
+            let mut rng = C::get_rng();
+            let h_1 = C::Element::random(&mut rng);
+            let b_n: Vec<C::Scalar> = (0..n).map(|_| C::random_scalar()).collect();
+            let e_prime_n: Vec<C::Scalar> = (0..n).map(|_| C::random_scalar()).collect();
+
+            // Sequential recurrence (the original loop), B_0 = h_1.
+            let mut expected: Vec<C::Element> = Vec::with_capacity(n);
+            let mut prev = h_1.clone();
+            for i in 0..n {
+                let b_i = g.exp(&b_n[i]).mul(&prev.exp(&e_prime_n[i]));
+                expected.push(b_i.clone());
+                prev = b_i;
+            }
+
+            let chain = bridging_commitments::<C>(&g, &h_1, &b_n, &e_prime_n);
+            assert_eq!(chain.big_b_n, expected, "closed form disagrees at N = {n}");
+        }
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_bridging_closed_form_ristretto() {
+        test_bridging_closed_form_matches_loop::<RCtx>();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[crate::warning("Miri test fails (Stacked Borrows)")]
+    fn test_bridging_closed_form_p256() {
+        test_bridging_closed_form_matches_loop::<PCtx>();
     }
 
     fn test_shuffle_label<C: Context>() {
