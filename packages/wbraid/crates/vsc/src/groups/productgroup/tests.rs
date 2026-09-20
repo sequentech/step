@@ -750,3 +750,72 @@ fn test_multi_exp_edge_cases() {
     assert!(E::multi_exp(&two, &[S::one()]).is_err());
     assert!(<[E; 2]>::dist_multi_exp(&[[base, base]], &[]).is_err());
 }
+
+/// The constant-time and variable-time multi-exp overrides must both equal the
+/// naive product, at a size that spans several parallel chunks (the chunk floor
+/// is 64) and crosses dalek's ~190-point Straus/Pippenger switch on the vartime
+/// path — so both the chunking and the algorithm dispatch are exercised.
+#[test]
+fn test_multi_exp_overrides_match_naive_large() {
+    const N: usize = 200;
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    let bases: Vec<E> = (0..N).map(|_| E::random(&mut rng)).collect();
+    let refs: Vec<&E> = bases.iter().collect();
+    let exponents: Vec<S> = (0..N).map(|_| S::random(&mut rng)).collect();
+
+    let naive = bases
+        .iter()
+        .zip(&exponents)
+        .fold(E::one(), |acc, (b, e)| acc.mul(&b.exp(e)));
+
+    assert_eq!(E::multi_exp(&refs, &exponents).unwrap(), naive);
+    assert_eq!(E::vartime_multi_exp(&refs, &exponents).unwrap(), naive);
+}
+
+/// `vartime_multi_exp` on its degenerate shapes, mirroring `multi_exp`'s.
+#[test]
+fn test_vartime_multi_exp_edge_cases() {
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    assert_eq!(E::vartime_multi_exp(&[], &[]).unwrap(), E::one());
+
+    let base = E::random(&mut rng);
+    assert_eq!(E::vartime_multi_exp(&[&base], &[S::one()]).unwrap(), base);
+
+    let two = [&base, &base];
+    assert!(E::vartime_multi_exp(&two, &[S::one()]).is_err());
+}
+
+/// The fixed-base batch override must equal a per-scalar `exp`, and — for the
+/// group generator — the dedicated `g_exp`. Sized to span several chunks.
+#[test]
+fn test_exp_many_matches_naive() {
+    use crate::traits::groups::CryptographicGroup;
+    const N: usize = 200;
+    let mut rng = RCtx::get_rng();
+    type E = <RCtx as Context>::Element;
+    type S = <RCtx as Context>::Scalar;
+
+    let exponents: Vec<S> = (0..N).map(|_| S::random(&mut rng)).collect();
+
+    // Arbitrary base: matches a plain per-scalar exp.
+    let base = E::random(&mut rng);
+    let expected: Vec<E> = exponents.iter().map(|s| base.exp(s)).collect();
+    assert_eq!(base.exp_many(&exponents), expected);
+
+    // The generator: matches the fixed-base `g_exp` too.
+    let g = RCtx::generator();
+    let via_g_exp: Vec<E> = exponents
+        .iter()
+        .map(|s| <RCtx as Context>::G::g_exp(s))
+        .collect();
+    assert_eq!(g.exp_many(&exponents), via_g_exp);
+
+    // Empty batch is the empty vector.
+    assert!(base.exp_many(&[]).is_empty());
+}
