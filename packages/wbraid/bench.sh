@@ -61,7 +61,7 @@ cargo bench -p vsc --bench msm_strategy 2>/dev/null \
 log ""
 
 # --- Scaling sweeps (absolute, current tree) --------------------------------
-log "## shuffle_scaling  (count,width,fold,prove_ms,verify_ms,sizeof,ser_bytes)"
+log "## shuffle_scaling  (count,width,prove_ms,verify_ms,sizeof,ser_bytes)"
 for cell in $SHUFFLE_CELLS; do
   n="${cell%%:*}"; w="${cell##*:}"
   for r in $(seq 1 "$REPS"); do

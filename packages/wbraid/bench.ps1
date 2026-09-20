@@ -85,7 +85,7 @@ Log ''
 $shuffleExe = Join-Path $PSScriptRoot 'target\release\examples\shuffle_scaling.exe'
 $decryptExe = Join-Path $PSScriptRoot 'target\release\examples\decrypt_scaling.exe'
 
-Log '## shuffle_scaling  (count,width,fold,prove_ms,verify_ms,sizeof,ser_bytes)'
+Log '## shuffle_scaling  (count,width,prove_ms,verify_ms,sizeof,ser_bytes)'
 foreach ($cell in $ShuffleCells) {
     $n, $w = $cell -split ':'
     for ($r = 1; $r -le $Reps; $r++) {

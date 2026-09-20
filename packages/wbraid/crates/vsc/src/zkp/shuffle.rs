@@ -458,10 +458,15 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             .iter()
             .fold(C::Scalar::zero(), |acc, next| acc.add(next));
 
-        // f
-        let s_n_e_n = encryption_exponents.par_iter().zip(e_n.par_iter());
-        let s_n_e_n = s_n_e_n.map(|(s, e)| s.dist_mul(e));
-        let f = fold_values(s_n_e_n, <[C::Scalar; W]>::zero, |acc, next| acc.add(next));
+        // f = Σ (s_i ⊙ e_i). Serial: N width-W scalar mul+adds, too cheap for
+        // rayon to pay (benches/parallel_tradeoff.rs). This is the only
+        // remaining fold over the shuffle's width-W values — the point-valued
+        // products (A′, F′, big_f, V5) are all multi-exps now.
+        let f = encryption_exponents
+            .iter()
+            .zip(e_n.iter())
+            .map(|(s, e)| s.dist_mul(e))
+            .fold(<[C::Scalar; W]>::zero(), |acc, next| acc.add(&next));
 
         // d = d_N: the last of the recurrence `bridging_commitments` already
         // computed (d_1 = b_1, d_i = b_i + e'_i·d_{i-1}), reused rather than
@@ -818,109 +823,6 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     ];
 }
 
-/// Fold the values of a parallel iterator into one, combining with `combine`
-/// from `identity()`.
-///
-/// This is the seam between two fold strategies, selected at compile time by
-/// the `bounded-combine` feature so they can be benchmarked against each
-/// other. This definition is the default: rayon's recursive `reduce`, fused
-/// with the upstream `map` (nothing is materialized). Its stack use grows
-/// with input length, `W` and run-time work stealing, because each split
-/// dispatches a stack frame carrying `T`-sized accumulators -- measured on
-/// Windows x64 at `W = 100`, pool threads need 4 MiB at `N = 100`, 8 MiB at
-/// `N = 1,000` and 16 MiB at `N = 10,000`.
-///
-/// Both strategies combine the operands in their original order, so for the
-/// associative operations used here the result -- and therefore any proof
-/// derived from it -- is identical across the two.
-#[cfg(not(feature = "bounded-combine"))]
-fn fold_values<T, I, Ident, Combine>(items: I, identity: Ident, combine: Combine) -> T
-where
-    I: IntoParallelIterator<Item = T>,
-    T: Send + Sync,
-    Ident: Fn() -> T + Send + Sync,
-    Combine: Fn(T, &T) -> T + Send + Sync,
-{
-    items
-        .into_par_iter()
-        .reduce(identity, |acc, next| combine(acc, &next))
-}
-
-/// Fold the values of a parallel iterator into one, combining with `combine`
-/// from `identity()`.
-///
-/// This is the seam between two fold strategies, selected at compile time by
-/// the `bounded-combine` feature so they can be benchmarked against each
-/// other. This definition is the `bounded-combine` strategy: the values are
-/// materialized and handed to [`bounded_combine`], whose stack use is bounded
-/// by a small constant independent of input length and scheduling. The cost
-/// is the materialization itself, `len * size_of::<T>()` bytes of heap held
-/// for the duration of the fold.
-///
-/// Both strategies combine the operands in their original order, so for the
-/// associative operations used here the result -- and therefore any proof
-/// derived from it -- is identical across the two.
-#[cfg(feature = "bounded-combine")]
-fn fold_values<T, I, Ident, Combine>(items: I, identity: Ident, combine: Combine) -> T
-where
-    I: IntoParallelIterator<Item = T>,
-    T: Send + Sync,
-    Ident: Fn() -> T + Send + Sync,
-    Combine: Fn(T, &T) -> T + Send + Sync,
-{
-    let values: Vec<T> = items.into_par_iter().collect();
-    bounded_combine(&values, identity, combine)
-}
-
-/// Chunk-count multiplier for [`bounded_combine`]. This is used to
-/// create a number of chunks proportional to the available thread count.
-#[cfg(feature = "bounded-combine")]
-const BOUNDED_COMBINE_CHUNKS_PER_THREAD: usize = 4;
-
-/// Combine `items` via `combine`, starting from `identity()`.
-///
-/// Splits `items` into a number of chunks proportional to the available
-/// thread count (not to `items.len()`), folds each chunk with a plain
-/// sequential loop, and combines the resulting handful of partial values
-/// with another plain sequential loop. Rayon's own recursive `reduce`
-/// dispatches roughly one stack frame per split, and how many splits stay
-/// unstolen (and so execute nested, rather than unwinding first) depends on
-/// thread contention at run time, not just on `items.len()`; when combined
-/// values are large, that recursion's stack cost is not bounded independent
-/// of scheduling. Pre-chunking here bounds the recursive dispatch depth to
-/// a small constant, and each chunk's own fold uses a loop, not recursion,
-/// so no combined value is ever carried through a deep call stack.
-#[cfg(feature = "bounded-combine")]
-fn bounded_combine<T, Ident, Combine>(items: &[T], identity: Ident, combine: Combine) -> T
-where
-    T: Sync + Send,
-    Ident: Fn() -> T + Sync,
-    Combine: Fn(T, &T) -> T + Sync,
-{
-    if items.is_empty() {
-        return identity();
-    }
-    let num_chunks = rayon::current_num_threads()
-        .max(1)
-        .saturating_mul(BOUNDED_COMBINE_CHUNKS_PER_THREAD)
-        .min(items.len());
-    let chunk_size = items.len().div_ceil(num_chunks);
-    let partials: Vec<T> = items
-        .par_chunks(chunk_size)
-        .map(|chunk| {
-            let mut acc = identity();
-            for next in chunk {
-                acc = combine(acc, next);
-            }
-            acc
-        })
-        .collect();
-    let mut result = identity();
-    for partial in &partials {
-        result = combine(result, partial);
-    }
-    result
-}
 
 /// The output of [`bridging_commitments`]: the commitments and the two scalar
 /// recurrences reused downstream.
@@ -1348,32 +1250,6 @@ mod tests {
     use crate::zkp::shuffle::ShuffleProof;
     use crate::zkp::shuffle::Shuffler;
 
-    /// [`bounded_combine`](super::bounded_combine) must agree with a plain
-    /// sequential fold -- including on an empty input (identity) and on inputs
-    /// shorter than the chunk count.
-    #[cfg(feature = "bounded-combine")]
-    #[test]
-    fn test_bounded_combine_matches_sequential() {
-        use crate::traits::groups::GroupScalar;
-        type Scalar = <RCtx as Context>::Scalar;
-
-        for len in [0usize, 1, 3, 100, 1000] {
-            let values: Vec<Scalar> = (0..len)
-                .map(|i| {
-                    let i: u32 = i.try_into().expect("len < u32::MAX");
-                    Scalar::from(i)
-                })
-                .collect();
-
-            let expected = values
-                .iter()
-                .fold(Scalar::zero(), |acc, next| acc.add(next));
-            let actual = super::bounded_combine(&values, Scalar::zero, |acc, next| acc.add(next));
-
-            assert_eq!(expected, actual, "mismatch at len {len}");
-        }
-    }
-
     #[test]
     #[cfg_attr(miri, ignore)]
     #[crate::warning("Miri test fails (Stacked Borrows)")]
@@ -1554,8 +1430,8 @@ mod tests {
 
     /// The bridging-chain closed form `B_i = g^{d_i}·h_1^{p_i}` must reproduce
     /// the sequential recurrence `B_0 = h_1, B_i = g^{b_i}·B_{i-1}^{e'_i}`
-    /// exactly, for several N including N = 1 (MSM.md §5.3). Bit-identity here
-    /// is what keeps the proof — and Verificatum interop — unchanged.
+    /// exactly, for several N including N = 1 (PERFORMANCE.md §2). Bit-identity
+    /// here is what keeps the proof — and Verificatum interop — unchanged.
     fn test_bridging_closed_form_matches_loop<C: Context>() {
         use crate::zkp::shuffle::bridging_commitments;
         for n in [1usize, 2, 5, 10, 65] {
