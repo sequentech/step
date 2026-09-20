@@ -309,11 +309,10 @@ Straus/Pippenger switch); vsc + braid suites pass.
   change, Verificatum path unaffected). `test_shuffle_batched_v2_rejects_*`
   pins its soundness.
 
-End-to-end verify speedup at production N is **deferred to the controlled
-`bench.sh` run** (the shuffle verifier is now almost entirely vartime MSM +
-the batched V2, against a ~10.3 s interleaved-baseline verify at N = 10⁵
-W = 2); expected in the mid-single-digit ×, to be confirmed and recorded
-here as controlled.
+End-to-end verify speedup: **measured ~1.9× at N = 10⁵ W = 2** in the
+controlled run below (5.46 s vs the ~10.3 s baseline) — well short of the
+MSM primitive's 8× because serialization now dominates (see "The Amdahl
+wall").
 
 ### Stage 3 — prover closed form + MSM — 2026-09-20
 
@@ -330,13 +329,101 @@ here as controlled.
   N ∈ {1,2,5,10,65}; V2/V4 uniquely determine B/B′ so the roundtrip proves
   bit-identity; vsc + braid suites pass (all 17 model-check configs).
 
-End-to-end prove speedup at production N is **deferred to the controlled
-`bench.sh` run**; expected ~4–6× against the ~12.9 s baseline (serial chain
-gone + fixed-base/CT-MSM batches), to be confirmed and recorded as controlled.
+End-to-end prove speedup: **measured ~1.5× at N = 10⁵ W = 2** in the
+controlled run below (8.51 s vs the ~12.9 s baseline). The serial chain is
+gone, but the estimate of ~4–6× was optimistic: serialization, `ind_generators`,
+and the still-deferred fixed-base re-encryption legs dominate the residual
+(see "The Amdahl wall").
 
 Deferred lower-value prover items (fixed-base, already parallel): the
 `apply_permutation` `u_n = g^r·h` and re-encryption `(g^s, y^s)` legs still
 use per-element `exp`/`repl_exp` rather than `exp_many`.
+
+## Controlled run — 2026-09-21 (commit fe9ddeef32, `bench.ps1`)
+
+Machine quiesced (no other load). These are the authoritative numbers; they
+supersede the provisional tables above, whose *verdicts* they confirm. Times
+in ms unless stated; scaling cells are the median of 3 reps.
+
+### MSM strategy — confirms the design
+
+N = 10⁵, vs the naive parallel product (the old shuffle pattern):
+
+| strategy | time | vs naive |
+|---|---|---|
+| naive_par | 465 | 1.0× |
+| ct_single | 1089 | **0.43× (2.3× slower)** |
+| vt_single | 293 | 1.6× |
+| ct_chunk_t | 188 | 2.5× |
+| ct_chunk_4t | 172 | 2.7× |
+| vt_chunk_t | 57 | **8.2×** |
+| vt_chunk_4t | 62 | 7.5× |
+
+A single dalek call is single-threaded and loses to the naive product; chunked
+wins. `chunk_t` is best for vartime; `chunk_4t` is ~9% better for CT at 10⁵
+(172 vs 188) — a possible future tweak, not adopted (the implementation uses
+`chunk_t` for both for uniformity).
+
+### parallel_tradeoff — confirms stage 0b
+
+N = 10⁵ (serial → parallel): scalar_rng 10.4→2.1, scalar_mul_add 9.0→1.8,
+scalar_inner_product 8.6→1.5, scalar_product 7.1→1.2, point_product
+12.9→2.6, hash_to_scalar 69.2→11.6. All scalar/point-product reverts stand
+(<10 ms absolute); hash_to_scalar stays parallel (5.9×, 58 ms ≈ 0.7%).
+
+### End-to-end shuffle (current tree = all stages)
+
+| N | W | prove | verify |
+|---|---|---|---|
+| 10³ | 2 | 94 | 69 |
+| 10⁴ | 2 | 868 | 580 |
+| 10⁴ | 5 | 1 682 | 1 131 |
+| 10⁵ | 2 | 8 506 | 5 461 |
+| 10⁵ | 5 | 17 327 | 10 996 |
+
+Against the provisional pre-optimization baseline (interleaved, ~12.9 s prove
+/ ~10.3 s verify at 10⁵ W = 2): **verify ~1.9×, prove ~1.5×.** Far below the
+MSM primitive's 8× — see the Amdahl finding below. (An exact before/after
+awaits a clean branch-point run; the direction does not depend on it.)
+
+### Decryption path
+
+| N | W | strip serial | strip parallel | partial_decrypt | combine |
+|---|---|---|---|---|---|
+| 10⁴ | 2 | 2 563 | 428 | 314 | 952 |
+| 10⁴ | 5 | 6 359 | 1 088 | 784 | 2 380 |
+| 10⁵ | 2 | 25 742 | 4 330 | 3 246 | 9 882 |
+
+The strip columns are a same-run control: parallel NY verify-and-strip is
+**5.9×** the serial loop at 10⁵ (the braid first-mix gain, clean).
+
+### The Amdahl wall — the profiling result that redirects next work
+
+The MSM primitive is 8× faster, but shuffle **verify** improved only ~1.9×
+and `combine` sits at 9.9 s (10⁵ W = 2). Decomposition explains it: MSM is now
+a *minority* of wall-clock. The dominant residual is **serialization —
+ristretto point compression**, one inverse square root per point, done
+sequentially inside the Fiat-Shamir challenge/seed derivations (`ser()` of the
+N-element ciphertext and commitment lists). In the verifier's MSM sites the
+chunked vartime work is now only a few hundred ms of the 5.46 s; in `combine`
+the ~6 CT chunked MSMs total ~1.1 s of the 9.9 s, and the batching seed
+re-serializes the full ciphertext list once **per contribution** (×T) — the
+same bytes compressed three times.
+
+Consequences for the plan:
+
+1. **Serialization is now the top lever** (PERFORMANCE.md item 3): parallelize
+   `ser`/`deser` of large collections behind the existing wire encoding, and
+   hoist the redundant per-contribution re-serialization in `combine`. This is
+   where the next big factor lives, not in MSM.
+2. **`ind_generators`** (N ristretto hash-to-curve per prove and per verify) is
+   the other residual; already rayon-parallel, but a large fixed cost.
+3. **GPU is further de-motivated** (MSM.md §7): MSM no longer dominates the
+   verifier, so a GPU MSM would accelerate a minority of wall-clock. The §7
+   go/no-go rule ("≥70% of verifier in MSM") is now clearly *not* met — fix the
+   residual first.
+4. The **deferred prover fixed-base cleanups** (`apply_permutation` `u_n`,
+   re-encryption legs) remain and contribute to the 8.5 s prove residual.
 
 ## Related, tracked elsewhere
 
