@@ -129,6 +129,7 @@ it.
 | `vsc` `examples/shuffle_scaling.rs` | one `(N, W)` cell, prove + verify wall-clock | fold-strategy A/B (item 1); CSV output for sweeps |
 | `vsc` `examples/decrypt_scaling.rs` | one `(N, W)` cell of the decryption path: Naor-Yung verify-and-strip (serial and parallel), `partial_decrypt`, `combine` | fixed `T = 3, P = 5`; CSV output; covers the costs `shuffle_scaling` does not |
 | `vsc` `benches/parallel_tradeoff.rs` | serial-vs-parallel for each per-element loop shape (scalar RNG, scalar arithmetic, scalar/point products, hash-to-scalar, point-exp) | criterion (stable); decides where rayon earns its keep vs where serial is simpler for no cost |
+| `vsc` `benches/msm_strategy.rs` | multi-exp strategies: naive-parallel vs single/chunked dalek MSM, constant-time and variable-time | criterion (stable); selects the `multi_exp`/`vartime_multi_exp` override shape |
 
 ## Measurement log
 
@@ -139,6 +140,16 @@ baseline, not the original one).
 
 Machine for all rows below: Windows x64, 16 logical cores, dalek AVX2
 backend, `--release`. Times in ms.
+
+> **Provisional.** Every number in this log so far was taken on a machine
+> that was also compiling and doing other work. The criterion benches
+> (`parallel_tradeoff`, `msm_strategy`) self-calibrate (warmup + sampling), so
+> their *verdicts* are trustworthy; the single-shot and interleaved scaling
+> sweeps are noise-sensitive and their absolute ms should be treated as
+> directional. **An authoritative run under a quiesced machine is pending** —
+> use `./bench.sh` (builds first untimed, then runs the whole grid to a
+> timestamped `bench-results/` file) and replace the numbers here with that
+> run's, marking them controlled.
 
 ### Methodology note (learned at stage 0)
 
@@ -248,6 +259,43 @@ F′, `apply_permutation`, `partial_decrypt`'s factors, `batching_exponents`,
 Outputs bit-identical (associative ops, same order); vsc + braid suites pass.
 Total wall-clock cost of these reverts: well under 0.5% of prove/verify, for
 markedly simpler code and less committed worker-thread stack.
+
+### Stage 1 — MSM primitives — 2026-09-20
+
+Added `GroupElement::vartime_multi_exp` and `exp_many` (defaults + ristretto
+overrides), and changed the ristretto `multi_exp` override from a single dalek
+call to a chunked one. Chunk strategy chosen by `benches/msm_strategy.rs`.
+
+MSM strategy vs the naive parallel product (the current shuffle pattern), at
+N = 10⁵ (ms):
+
+| strategy | time | vs naive_par |
+|---|---|---|
+| `naive_par` (baseline) | 536 | 1.0× |
+| `ct_single` (one Straus call) | 2081 | **0.26× — 3.9× slower** |
+| `vt_single` (one vartime call) | 534 | 1.0× — no gain |
+| `ct_chunk_t` (chunked, CT) | 220 | 2.4× |
+| `vt_chunk_t` (chunked, vartime) | 66 | **8.1×** |
+
+This is the empirical core of the whole approach (MSM.md §2.2): a *single*
+dalek MSM is single-threaded and **loses** to the already-parallel naive
+product — a bare call would be a regression. Chunking into `num_threads`
+pieces (one dalek MSM per chunk on the pool, partials summed) is what wins:
+2.4× constant-time, 8.1× variable-time. `chunk_t` beat `chunk_4t` for vartime
+at large N, so the override uses `num_threads` chunks with a 64-element floor.
+
+The chunked CT `multi_exp` is already load-bearing before any shuffle wiring:
+the decryption path (`partial_decrypt`, `combine`) routes through it via
+`dist_multi_exp`, so both should speed up for free. Quantifying that
+(stage 0 vs stage 1 binaries, `partial_decrypt` and `combine` at N = 10⁵) is
+**deferred to the controlled `bench.sh` run** rather than measured on the
+busy machine — expected to compound on stage 0b's 1.6× toward the
+`ct_chunk_t` 2.4× the strategy bench showed.
+
+Correctness: outputs bit-identical (chunked = single-call Straus by
+associativity); new differential tests pin `vartime_multi_exp`/`exp_many`
+against the naive default at N = 200 (multiple chunks, across dalek's
+Straus/Pippenger switch); vsc + braid suites pass.
 
 ## Related, tracked elsewhere
 

@@ -75,6 +75,11 @@ required-features = ["nightly-benches"]
 name = "parallel_tradeoff"
 harness = false
 
+# MSM strategy micro-benchmark (naive-parallel vs single/chunked dalek MSM).
+[[bench]]
+name = "msm_strategy"
+harness = false
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 proptest = "1"
