@@ -183,15 +183,18 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
         hash::update_hasher(&mut hasher, &input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_E);
         let bytes = hasher.finalize();
 
-        let mut ret = Vec::with_capacity(ciphertexts.len());
-        for i in 0..ciphertexts.len() {
-            // Cannot use platform dependent type in random oracle
-            let i_u64 = i as u64;
-            let prefix = bytes.clone();
-            let inputs: &[&[u8]] = &[prefix.as_slice(), &i_u64.to_be_bytes()];
-            let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
-            ret.push(C::G::hash_to_scalar(inputs, ds_tags)?);
-        }
+        // Independent per-index derivations; parallelism cannot change the
+        // per-index transcript, so the output matches the sequential loop.
+        let ret = (0..ciphertexts.len())
+            .into_par_iter()
+            .map(|i| {
+                // Cannot use platform dependent type in random oracle
+                let i_u64 = i as u64;
+                let inputs: &[&[u8]] = &[bytes.as_slice(), &i_u64.to_be_bytes()];
+                let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
+                C::G::hash_to_scalar(inputs, ds_tags)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok((bytes.to_vec(), ret))
     }
 
@@ -340,6 +343,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let e_prime_n = permutation
             .apply_inverse(&e_n)
             .expect("permutation.len() == e_n.len()");
+        // Serial: sampling N scalars is too cheap for rayon to pay for — ~8 ms
+        // saved at N = 1e5, under 0.1% of proving (benches/parallel_tradeoff.rs).
         let b_n: Vec<C::Scalar> = (0..big_n).map(|_| C::random_scalar()).collect();
         // h_1 is at index 0
         let mut big_b_previous = &self.h_generators[0];
@@ -354,8 +359,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         // b) Proof commitments
         let alpha = C::random_scalar();
+        // Serial: scalar sampling, see `b_n` above (benches/parallel_tradeoff.rs).
         let (beta_n, epsilon_n): (Vec<C::Scalar>, Vec<C::Scalar>) = (0..big_n)
-            .into_par_iter()
             .map(|_| (C::random_scalar(), C::random_scalar()))
             .collect();
         let gamma = C::random_scalar();
@@ -441,9 +446,13 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         ///////////////// Step 4 /////////////////
 
         // a
-        let r_n_e_prime_n = commitment_exponents.par_iter().zip(e_prime_n.par_iter());
-        let r_n_e_prime_n = r_n_e_prime_n.map(|(r, e)| r.mul(e));
-        let a = r_n_e_prime_n.reduce(C::Scalar::zero, |acc, next| acc.add(&next));
+        // Serial: scalar inner product, too cheap for rayon to pay
+        // (benches/parallel_tradeoff.rs).
+        let a = commitment_exponents
+            .iter()
+            .zip(e_prime_n.iter())
+            .map(|(r, e)| r.mul(e))
+            .fold(C::Scalar::zero(), |acc, next| acc.add(&next));
 
         // c
         let c = commitment_exponents
@@ -480,8 +489,11 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let k_a = v.mul(&a).add(&alpha);
 
         // k_b
-        let b_n_beta_n = b_n.par_iter().zip(beta_n.par_iter());
-        let k_b_n: Vec<C::Scalar> = b_n_beta_n
+        // Serial: scalar mul+add, too cheap for rayon to pay
+        // (benches/parallel_tradeoff.rs). Same for k_e_n below.
+        let k_b_n: Vec<C::Scalar> = b_n
+            .iter()
+            .zip(beta_n.iter())
             .map(|(b, beta)| {
                 let vb = v.mul(b);
                 vb.add(beta)
@@ -489,7 +501,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             .collect();
 
         // k_e_n
-        let e_prime_n_epsilon_n = e_prime_n.par_iter().zip(epsilon_n.par_iter());
+        let e_prime_n_epsilon_n = e_prime_n.iter().zip(epsilon_n.iter());
         let k_e_n: Vec<C::Scalar> = e_prime_n_epsilon_n
             .map(|(e, epsilon)| {
                 let ve = v.mul(e);
@@ -626,6 +638,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             });
 
         // C
+        // Serial: an N-element point product folds in ~12 ms at N = 1e5, and
+        // rayon's ~10 ms saving is under 0.1% of verification
+        // (benches/parallel_tradeoff.rs); a plain fold is clearer.
         let u_n_fold = commitments
             .u_n
             .iter()
@@ -637,9 +652,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let big_c = u_n_fold.mul(&h_n_fold.inv());
 
         // D
-        let e_n_fold = e_n
-            .into_par_iter()
-            .reduce(C::Scalar::one, |acc, next| acc.mul(&next));
+        // Serial: scalar product, see the point product above.
+        let e_n_fold = e_n.iter().fold(C::Scalar::one(), |acc, next| acc.mul(next));
         let h1_e_n_fold = self.h_generators[0].exp(&e_n_fold);
         // this is B_N
         // cannot underflow, ciphertexts.len() > 0

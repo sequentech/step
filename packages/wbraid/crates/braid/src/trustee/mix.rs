@@ -5,6 +5,7 @@
 //! Mixing phase actions (§8): `ComputeMix` and `SignMix`.
 
 use anyhow::{anyhow, Result};
+use rayon::prelude::*;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
@@ -62,7 +63,7 @@ impl<C: Context> Trustee<C> {
 
                 ballots
                     .ciphertexts
-                    .into_iter()
+                    .into_par_iter()
                     .enumerate()
                     .map(|(i, c)| {
                         ny_pk.strip(c, &ctx_enc).map_err(|e| {

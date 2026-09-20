@@ -22,7 +22,9 @@ ascent = { version = "0.8", default-features = false, features = ["wasm-bindgen"
 enum_dispatch = "0.3.13"
 
 # Native-only dependencies
-rayon = { version = "1.5", optional = true }
+# Non-optional: vsc already depends on rayon unconditionally, so it is in
+# every build's tree regardless; the trustee layer uses it in all of them.
+rayon = { version = "1.5" }
 tonic = { version = "0.13", optional = true }
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio"], optional = true }
@@ -132,7 +134,6 @@ fuzzing = ["dep:vsc"]
 # Native build with gRPC, filesystem, SQLite  
 native = [
     "dep:vsc",
-    "dep:rayon",
     "dep:tonic",
     "dep:rusqlite",
     "dep:sqlx",
@@ -163,7 +164,6 @@ wasm-core = [
     "dep:wasm-bindgen-futures",
     "dep:js-sys",
     "dep:web-sys",
-    "dep:rayon",
     "dep:tracing-wasm",
     "dep:indexed_db_futures",
     "dep:futures-channel",

@@ -14,6 +14,7 @@ use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
 use crate::zkp::dlogeq::DlogEqProof;
 use canonical_derive::Canonical;
+use rayon::prelude::*;
 use std::array;
 
 /**
@@ -423,7 +424,7 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         proof_context: &[u8],
     ) -> Result<PartialDecryption<C, W>, Error> {
         let factors: Vec<[C::Element; W]> = ciphertexts
-            .iter()
+            .par_iter()
             .map(|c| c.u().dist_exp(&self.sk))
             .collect();
 
@@ -649,6 +650,7 @@ fn batching_exponents<C: Context, const W: usize>(
     let seed = hasher.finalize();
 
     (0..factors.len())
+        .into_par_iter()
         .map(|index| {
             let index: u64 = index.try_into().expect("length fits in u64");
             C::G::hash_to_scalar(&[&seed, &index.to_be_bytes()], &BATCH_EXPONENT_TAGS)
@@ -791,11 +793,17 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
         }
 
         let lagrange = lagrange::<C, T, P>(&contribution.source, &present);
-        for (divisor, factor) in divisors_acc.iter_mut().zip(factors) {
-            *divisor = divisor.mul(&factor.dist_exp(&lagrange));
-        }
+        divisors_acc
+            .par_iter_mut()
+            .zip(factors.par_iter())
+            .for_each(|(divisor, factor)| {
+                *divisor = divisor.mul(&factor.dist_exp(&lagrange));
+            });
     }
 
+    // Serial: N cheap point ops (an inverse and a multiply); rayon's saving
+    // here is under 0.1% of `combine`, which is dominated by the batched-proof
+    // multi-exponentiations above (benches/parallel_tradeoff.rs).
     Ok(divisors_acc
         .iter()
         .zip(ciphertexts.iter())
