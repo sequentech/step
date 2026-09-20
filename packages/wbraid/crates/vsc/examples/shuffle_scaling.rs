@@ -6,9 +6,7 @@
 //!
 //! Standalone (non-Bencher) tool for measuring how the Terelius-Wikstrom
 //! shuffle proof (see [`cryptography::zkp::shuffle::Shuffler`]) scales with
-//! ballot count `N` and ciphertext width `W`, and for benchmarking the two
-//! parallel fold strategies behind the crate's `bounded-combine` feature
-//! against each other.
+//! ballot count `N` and ciphertext width `W`.
 //!
 //! Unlike `benches/shuffle.rs`, this binary runs one `(count, width)` cell
 //! exactly once under direct control (no `test::Bencher` auto-calibration,
@@ -25,26 +23,16 @@
 //! - `width`: ciphertext width `W`. Must be one of the widths compiled into
 //!   [`SUPPORTED_WIDTHS`].
 //!
-//! To compare the fold strategies, run the same cell with and without the
-//! `bounded-combine` feature; the compiled-in strategy is recorded in the
-//! CSV line so result files cannot get mixed up:
-//!
-//! ```text
-//! cargo run --release --example shuffle_scaling -- 10000 30
-//! cargo run --release --example shuffle_scaling --features bounded-combine -- 10000 30
-//! ```
-//!
 //! On success, prints exactly one CSV line to stdout:
 //!
 //! ```text
-//! count,width,fold,prove_ms,verify_ms,ciphertext_size_of_bytes,ciphertext_serialized_bytes
+//! count,width,prove_ms,verify_ms,ciphertext_size_of_bytes,ciphertext_serialized_bytes
 //! ```
 //!
-//! `fold` is `reduce` (the default strategy) or `bounded`. Both byte counts
-//! are reported because they answer different questions and differ by about
-//! 5x for Ristretto: the first is in-memory footprint (what explains
-//! resident size), the second is encoded width (what explains storage and
-//! transfer). See [`run`].
+//! Both byte counts are reported because they answer different questions and
+//! differ by about 5x for Ristretto: the first is in-memory footprint (what
+//! explains resident size), the second is encoded width (what explains
+//! storage and transfer). See [`run`].
 //!
 //! All diagnostics (usage errors, unsupported width, panics) go to stderr,
 //! so a driver can rely on stdout containing only the CSV line.
@@ -70,19 +58,6 @@ use cryptography::traits::groups::CryptographicGroup;
 use cryptography::utils::serialization::Serializable;
 use cryptography::zkp::shuffle::Shuffler;
 use rayon::prelude::*;
-
-/// Stack size for rayon's pool threads.
-///
-/// The default fold strategy (rayon's recursive `reduce`) has stack use that
-/// grows with `N`, `W` and run-time work stealing: measured on Windows x64,
-/// `W = 100` needs 4 MiB at `N = 100`, 8 MiB at `N = 1,000` and 16 MiB at
-/// `N = 10,000` -- overflowing default-sized pool threads well inside this
-/// tool's parameter range. A fixed, generous reserve keeps that strategy
-/// benchmarkable at every cell without per-run tuning; thread stacks are
-/// committed page by page as touched, so the unused headroom costs address
-/// space, not resident memory. The `bounded-combine` strategy does not need
-/// it, and is unaffected by it.
-const POOL_STACK_BYTES: usize = 64 * 1024 * 1024;
 
 /// Ciphertext widths `W` that this binary is able to instantiate. `W` is a
 /// Rust const generic parameter, so it cannot be threaded through from a
@@ -205,24 +180,10 @@ fn main() {
         std::process::exit(1);
     }
 
-    // The default fold strategy's deep recursion runs on rayon's pool
-    // threads, so the pool is what needs the headroom -- see
-    // [`POOL_STACK_BYTES`].
-    rayon::ThreadPoolBuilder::new()
-        .stack_size(POOL_STACK_BYTES)
-        .build_global()
-        .expect("failed to configure rayon's global thread pool");
-
-    let fold = if cfg!(feature = "bounded-combine") {
-        "bounded"
-    } else {
-        "reduce"
-    };
-
-    eprintln!("running shuffle scaling: count={count} width={width} fold={fold}");
+    eprintln!("running shuffle scaling: count={count} width={width}");
 
     let (prove_ms, verify_ms, size_of_bytes, serialized_bytes) =
         dispatch_width!(width, count, [1, 2, 3, 5, 10, 20, 30, 50, 75, 100]);
 
-    println!("{count},{width},{fold},{prove_ms},{verify_ms},{size_of_bytes},{serialized_bytes}");
+    println!("{count},{width},{prove_ms},{verify_ms},{size_of_bytes},{serialized_bytes}");
 }

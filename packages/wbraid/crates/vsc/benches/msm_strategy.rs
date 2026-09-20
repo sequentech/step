@@ -18,7 +18,7 @@
 //! - `ct_chunk_4t` / `vt_chunk_4t` — same, `4·num_threads` chunks (finer
 //!   granularity for work-steal balance).
 //!
-//! The premise under test (MSM.md §2.2): a *single* dalek MSM may lose to the
+//! The premise under test (PERFORMANCE.md §1): a *single* dalek MSM may lose to the
 //! parallel-naive baseline on a many-core machine, while a *chunked* dalek MSM
 //! beats both. The winning (strategy, chunk-count) is what the ristretto
 //! override should adopt.
