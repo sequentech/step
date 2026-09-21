@@ -104,7 +104,12 @@ impl PartialEq for P256Scalar {
 }
 impl Eq for P256Scalar {}
 
-use crate::utils::serialization::{Deserializable, Serializable, take};
+use crate::utils::serialization::{Deserializable, FixedWidth, Serializable, take};
+
+/// P-256 scalars encode as 32 canonical bytes.
+impl FixedWidth for P256Scalar {
+    const WIDTH: usize = 32;
+}
 use p256::elliptic_curve::PrimeField;
 
 impl Serializable for P256Scalar {

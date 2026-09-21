@@ -102,7 +102,12 @@ impl PartialEq for RistrettoScalar {
 
 impl Eq for RistrettoScalar {}
 
-use crate::utils::serialization::{Deserializable, Serializable, take};
+use crate::utils::serialization::{Deserializable, FixedWidth, Serializable, take};
+
+/// ristretto255 scalars encode as 32 canonical bytes.
+impl FixedWidth for RistrettoScalar {
+    const WIDTH: usize = 32;
+}
 
 impl Serializable for RistrettoScalar {
     fn write(&self, out: &mut Vec<u8>) {

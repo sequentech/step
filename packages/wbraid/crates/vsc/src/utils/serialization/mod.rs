@@ -42,6 +42,7 @@
 //!   inconsistencies can cause otherwise valid proofs to fail.**
 
 use crate::utils::error::Error;
+use rayon::prelude::*;
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -229,6 +230,67 @@ impl<T: Deserializable> Deserializable for Vec<T> {
         }
         Ok(items)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Fixed-width elements and parallel serialization
+// ---------------------------------------------------------------------------
+
+/// A [`Serializable`] whose encoding is a fixed number of bytes, the same for
+/// every value.
+///
+/// This is the property that gives a `Vec` of these elements *computable
+/// boundaries* (SERIALIZATION.md §10): rule 4's encoding is unchanged (a `u64`
+/// count then the element encodings concatenated, no per-element framing), but
+/// because each element occupies exactly [`WIDTH`](FixedWidth::WIDTH) bytes,
+/// the elements can be written into disjoint output ranges in parallel — see
+/// [`par_ser`]. Variable-width `Serializable` types (`String`, nested `Vec`,
+/// `Option`) are self-delimiting and remain fully supported by the sequential
+/// path; they simply do not have this property.
+pub trait FixedWidth: Serializable {
+    /// The byte width of every encoding of this type.
+    const WIDTH: usize;
+}
+
+/// An array of fixed-width elements is fixed-width.
+impl<T: FixedWidth, const N: usize> FixedWidth for [T; N] {
+    const WIDTH: usize = N * T::WIDTH;
+}
+
+/// Serialize a slice of fixed-width elements in parallel, producing exactly the
+/// bytes `items.to_vec().ser()` would (rule 4).
+///
+/// Each element is encoded on the rayon pool, which parallelizes the per-element
+/// work — for group elements, the point compression that dominates the
+/// Fiat-Shamir transcript derivations. Order is preserved and the count prefix
+/// is written the same way, so the output is byte-identical to the sequential
+/// `Vec` encoding (pinned by `test_par_ser_matches_sequential_*`).
+///
+/// # Panics
+///
+/// Only if `items.len()` exceeds `u64::MAX`, which cannot happen on a 64-bit
+/// target — the same invariant the sequential `Vec` encoding relies on.
+#[must_use]
+pub fn par_ser<T: FixedWidth + Sync>(items: &[T]) -> Vec<u8> {
+    let encoded: Vec<Vec<u8>> = items
+        .par_iter()
+        .map(|item| {
+            let mut buf = Vec::with_capacity(T::WIDTH);
+            item.write(&mut buf);
+            buf
+        })
+        .collect();
+
+    let count: u64 = items.len().try_into().expect("len fits in u64");
+    // A byte length; no realistic overflow.
+    #[allow(clippy::arithmetic_side_effects)]
+    let capacity = 8 + items.len() * T::WIDTH;
+    let mut out = Vec::with_capacity(capacity);
+    count.write(&mut out);
+    for chunk in &encoded {
+        out.extend_from_slice(chunk);
+    }
+    out
 }
 
 // ---------------------------------------------------------------------------
