@@ -247,21 +247,38 @@ commitment lists). In `combine` the batching seed re-serializes the full
 ciphertext list once **per contribution** (×T) — the same bytes compressed T
 times. The chunked MSMs are only ~1.1 s of `combine`'s 9.9 s.
 
+**Addressed (2026-09-21).** `par_ser` (§1) parallelized the transcript
+serialization at both hot sites. Interleaved pre/post at N = 10⁵ W = 2:
+**shuffle verify ~2.8×** (ser was ~65% of it), **prove ~1.9×**,
+**partial_decrypt ~2.0×**, **combine ~2.0×**; `ny_strip` flat (no transcript
+ser — the control). So the wall has *moved*: verify's residual is now the MSM
+plus the five equations plus SHA3 hashing; `combine`'s is the `T·N` Lagrange
+accumulation `∏ f_{i,j}^{λ_i}` (one exponentiation per contribution per
+ciphertext — largely inherent to threshold interpolation, no MSM speedup since
+each result is separate). The `combine` per-contribution re-serialization dedup
+was measured at only ~2–4% post-`par_ser` and dropped as not worth a signature
+change.
+
 ## 5. Next levers, in priority order
 
-1. **Parallel serialization** (behind the unchanged wire encoding — a `Vec` of
-   fixed-size elements has computable boundaries, so chunk/serialize/concat
-   needs no format change; see SERIALIZATION.md), plus hoisting `combine`'s
-   redundant per-contribution re-serialization. This is where the next factor
-   lives.
-2. **`ind_generators`** — N ristretto hash-to-curve per prove and per verify,
-   already parallel. Measured ~110 ms at N = 10⁵ — ~1–2% of prove/verify, so a
-   minor contributor, not a large one; folded into the ① ② target timings
-   rather than tracked separately.
-3. **Deferred prover fixed-base cleanups** — `apply_permutation`'s
+1. **Parallel serialization — done** (2026-09-21, `par_ser`; §4 "Amdahl
+   wall"). Behind the unchanged wire encoding. Verify ~2.8×, the rest ~2×. The
+   `combine` re-serialization dedup was dropped (measured ~2–4%). Parallel
+   *deser* (the other half of SERIALIZATION.md §10) remains, but is a
+   different, colder site (message loading, not the transcript) and is
+   safety-sensitive; do it only if a profile of the loading path warrants.
+2. **Deferred prover fixed-base cleanups** — `apply_permutation`'s
    `uₙ = g^r·h` and the re-encryption `(g^s, y^s)` legs still use per-element
-   `exp`/`repl_exp` rather than `exp_many`; part of the 8.5 s prove residual.
-4. **GPU** — deferred. The go/no-go rule is: adopt only if, after the residual
+   `exp`/`repl_exp` rather than `exp_many`; part of the prove residual.
+3. **`combine`'s Lagrange accumulation** — the `T·N` exponentiations
+   `∏ f_{i,j}^{λ_i}` are now `combine`'s dominant cost, but largely inherent to
+   threshold interpolation (each `F_j` is a separate size-`T` product, no MSM
+   speedup at small `T`); flagged, not obviously reducible.
+4. **`ind_generators`** — N ristretto hash-to-curve per prove and per verify,
+   already parallel. Measured ~110 ms at N = 10⁵ — ~1–2% of prove/verify, a
+   minor contributor; folded into the ① ② target timings, not tracked
+   separately.
+5. **GPU** — deferred. The go/no-go rule is: adopt only if, after the residual
    above is fixed, MSM still holds ≥ 70% of verifier wall-clock at the
    deployment's real N *and* a latency requirement CPU scaling cannot meet
    exists. It is currently **not met** — MSM is already a minority. If it ever
@@ -274,7 +291,7 @@ times. The chunked MSMs are only ~1.1 s of `combine`'s 9.9 s.
    the verifier only (public data), CPU prover (secret ε never reaches VRAM),
    feature-gated with silent CPU fallback, CPU path normative for Verificatum
    interop.
-5. **Open question — 128-bit `e_n`.** Shortening the batching challenges from
+6. **Open question — 128-bit `e_n`.** Shortening the batching challenges from
    full-width to 128 bits would roughly halve the dominant MSM window count
    (~1.6–2× on the whole verifier, and dalek's zero-digit skipping compounds
    it). It is a transcript change (so `NativeChallenges` only, never the
