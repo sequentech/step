@@ -15,7 +15,7 @@ jest.mock("@sequentech/ui-core", () => ({isUndefined: (value: unknown) => value 
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("../LinkBehavior/LinkBehavior", () => "a")
 
-it("keeps card content and website navigation separate from Vote and Locate", async () => {
+it("opens the card once while keeping its nested actions independent", async () => {
     const vote = jest.fn()
     const locate = jest.fn()
     render(
@@ -34,7 +34,10 @@ it("keeps card content and website navigation separate from Vote and Locate", as
         </ThemeProvider>
     )
     fireEvent.click(screen.getByRole("heading", {name: "Council"}))
-    expect(vote).not.toHaveBeenCalled()
+    expect(vote).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole("heading", {name: "Council"}).closest(".election-item")!)
+    expect(vote).toHaveBeenCalledTimes(2)
+    vote.mockClear()
     fireEvent.click(screen.getAllByText("selectElection.electionWebsite")[0])
     expect(vote).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole("link", {name: "selectElection.resultsButton"}))
@@ -43,6 +46,10 @@ it("keeps card content and website navigation separate from Vote and Locate", as
     const locateButton = screen.getByRole("button", {
         name: "selectElection.ballotLocator — Council",
     })
+    await user.click(locateButton)
+    expect(locate).toHaveBeenCalledTimes(1)
+    expect(vote).not.toHaveBeenCalled()
+    locate.mockClear()
     await act(async () => locateButton.focus())
     await user.keyboard("{Enter}")
     expect(locate).toHaveBeenCalledTimes(1)
@@ -51,6 +58,10 @@ it("keeps card content and website navigation separate from Vote and Locate", as
     await act(async () => voteButton.focus())
     await user.keyboard(" ")
     expect(vote).toHaveBeenCalledTimes(1)
+    await user.keyboard("{Enter}")
+    expect(vote).toHaveBeenCalledTimes(2)
+    await user.click(voteButton)
+    expect(vote).toHaveBeenCalledTimes(3)
 })
 
 it("keeps the vote action disabled when no handler is available", async () => {
@@ -72,4 +83,23 @@ it("keeps the vote action disabled when no handler is available", async () => {
         .setup()
         .click(screen.getByRole("button", {name: "selectElection.ballotLocator — Council"}))
     expect(locate).toHaveBeenCalledTimes(1)
+})
+
+it("does not activate a closed election card even if a vote callback exists", () => {
+    const vote = jest.fn()
+    render(
+        <ThemeProvider theme={theme}>
+            <SelectElection
+                title="Council"
+                isActive={false}
+                isOpen={false}
+                isStarted
+                hasVoted={false}
+                onClickToVote={vote}
+            />
+        </ThemeProvider>
+    )
+    fireEvent.click(screen.getByRole("heading", {name: "Council"}))
+    expect(vote).not.toHaveBeenCalled()
+    expect(screen.queryByRole("button", {name: "selectElection.voteButton — Council"})).toBeNull()
 })
