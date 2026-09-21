@@ -202,6 +202,7 @@ fn check_contest_ids_match_style(
     contest_ids: &[&str],
     config: &BallotStyle,
 ) -> Result<(), BallotError> {
+    let votable_contest_count = config.votable_contests().count();
     let votable_contest_ids: HashSet<&str> = config
         .votable_contests()
         .map(|contest| contest.id.as_str())
@@ -209,6 +210,14 @@ fn check_contest_ids_match_style(
     let named_contest_ids: HashSet<&str> =
         contest_ids.iter().copied().collect();
 
+    // Contest ids are not unique by construction, so a style that repeats one
+    // would collapse to a smaller set and let a ballot cover fewer contests
+    // than the style encodes while still matching it exactly.
+    if votable_contest_ids.len() != votable_contest_count {
+        return Err(BallotError::ConsistencyCheck(String::from(
+            "Ballot style names the same contest more than once",
+        )));
+    }
     if named_contest_ids.len() != contest_ids.len() {
         return Err(BallotError::ConsistencyCheck(String::from(
             "Ballot names the same contest more than once",
@@ -1104,6 +1113,34 @@ mod tests {
             assert_consistency_check(verify_auditable_multi_ballot_ciphertext(
                 &RistrettoCtx,
                 &tampered,
+            ));
+        }
+
+        /// A ballot style that lists the same votable contest twice collapses
+        /// to a single id in the expected set, so a ballot naming it once
+        /// would otherwise cover fewer contests than the style encodes.
+        #[test]
+        fn ballot_style_with_duplicate_contest_ids_is_rejected() {
+            let mut ballot = single_ballot();
+            ballot.config.contests =
+                vec![get_test_contest(), get_test_contest()];
+
+            assert_consistency_check(verify_auditable_ballot_ciphertexts(
+                &RistrettoCtx,
+                &ballot,
+            ));
+        }
+
+        /// Same hole on the multi-contest side.
+        #[test]
+        fn multi_ballot_style_with_duplicate_contest_ids_is_rejected() {
+            let mut ballot = multi_ballot();
+            ballot.config.contests =
+                vec![get_test_contest(), get_test_contest()];
+
+            assert_consistency_check(verify_auditable_multi_ballot_ciphertext(
+                &RistrettoCtx,
+                &ballot,
             ));
         }
     }

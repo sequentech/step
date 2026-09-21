@@ -116,6 +116,7 @@ describe("HomeScreen ballot verification", () => {
             )
         )
         expect(screen.getByTestId("ciphertext-error")).not.toBeVisible()
+        expect(screen.getByTestId("import-error")).not.toBeVisible()
     })
 
     it("rejects a ballot whose ciphertext is not reproduced", async () => {
@@ -124,16 +125,18 @@ describe("HomeScreen ballot verification", () => {
         const setConfirmationBallot = await uploadBallot(service)
 
         await waitFor(() => expect(screen.getByTestId("ciphertext-error")).toBeVisible())
+        expect(screen.getByTestId("import-error")).not.toBeVisible()
         expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
         expect(service.hashBallot512).not.toHaveBeenCalled()
     })
 
-    it("rejects a ballot that cannot be checked", async () => {
+    it("rejects a ballot that cannot be checked without calling it a mismatch", async () => {
         const service = ballotService(new Error("Error checking the ballot"))
 
         const setConfirmationBallot = await uploadBallot(service)
 
-        await waitFor(() => expect(screen.getByTestId("ciphertext-error")).toBeVisible())
+        await waitFor(() => expect(screen.getByTestId("import-error")).toBeVisible())
+        expect(screen.getByTestId("ciphertext-error")).not.toBeVisible()
         expect(setConfirmationBallot).toHaveBeenLastCalledWith(null)
         expect(service.hashBallot512).not.toHaveBeenCalled()
     })
