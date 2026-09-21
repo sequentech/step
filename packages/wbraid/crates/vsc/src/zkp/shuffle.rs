@@ -17,6 +17,7 @@ use crate::utils::error::Error;
 use crate::utils::error::ErrorContext;
 use crate::utils::hash;
 use crate::utils::serialization::Serializable;
+use crate::utils::serialization::par_ser;
 
 use canonical_derive::Canonical;
 use rand::RngExt;
@@ -168,13 +169,15 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
         permuted_ciphertexts: &[Ciphertext<C, W>],
         context: &[u8],
     ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error> {
+        // The element/ciphertext lists are serialized in parallel (byte-identical
+        // to `Vec::ser`); their point compression is the dominant transcript cost.
         let a = [
             C::generator().ser(),
-            generators.to_vec().ser(),
-            pedersen_commitments.to_vec().ser(),
+            par_ser(generators),
+            par_ser(pedersen_commitments),
             pk.ser(),
-            ciphertexts.to_vec().ser(),
-            permuted_ciphertexts.to_vec().ser(),
+            par_ser(ciphertexts),
+            par_ser(permuted_ciphertexts),
             context.to_vec(),
         ];
         let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
