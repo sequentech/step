@@ -15,15 +15,14 @@
 # Windows/PowerShell twin: bench.ps1 (same grid, same output format).
 #
 # The criterion benches (parallel_tradeoff, msm_strategy) self-calibrate; the
-# scaling examples are run over a fixed cell grid, REPS times each, so the
+# targets example is run over a fixed cell grid, REPS times each, so the
 # median can be taken. Adjust CELLS/REPS below to taste.
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 REPS="${REPS:-3}"
-SHUFFLE_CELLS="${SHUFFLE_CELLS:-1000:2 10000:2 10000:5 100000:2 100000:5}"
-DECRYPT_CELLS="${DECRYPT_CELLS:-10000:2 10000:5 100000:2}"
+CELLS="${CELLS:-1000:2 10000:2 10000:5 100000:2 100000:5}"
 
 mkdir -p bench-results
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -60,21 +59,12 @@ cargo bench -p vsc --bench msm_strategy 2>/dev/null \
   | grep -E "Benchmarking|time:" | grep -v "Warming|Collecting|Analyzing" | tee -a "$OUT"
 log ""
 
-# --- Scaling sweeps (absolute, current tree) --------------------------------
-log "## shuffle_scaling  (count,width,prove_ms,verify_ms,sizeof,ser_bytes)"
-for cell in $SHUFFLE_CELLS; do
+# --- Top-level target snapshot (absolute, current tree) ---------------------
+log "## targets  (count,width,prove,verify,partial_decrypt,combine,ny_strip,sizeof,ser)"
+for cell in $CELLS; do
   n="${cell%%:*}"; w="${cell##*:}"
   for r in $(seq 1 "$REPS"); do
-    "$(ex shuffle_scaling)" "$n" "$w" 2>/dev/null | tee -a "$OUT"
-  done
-done
-log ""
-
-log "## decrypt_scaling  (count,width,strip_serial,strip_par,partial_decrypt,combine)"
-for cell in $DECRYPT_CELLS; do
-  n="${cell%%:*}"; w="${cell##*:}"
-  for r in $(seq 1 "$REPS"); do
-    "$(ex decrypt_scaling)" "$n" "$w" 2>/dev/null | tee -a "$OUT"
+    "$(ex targets)" "$n" "$w" 2>/dev/null | tee -a "$OUT"
   done
 done
 log ""

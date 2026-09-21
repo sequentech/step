@@ -214,8 +214,7 @@ Against the pre-optimization baseline (~12.9 s prove / ~10.3 s verify at
 **Decryption, plus the first-mix strip** (T = 3, P = 5). `partial_decrypt` and
 `combine` are decryption, over ElGamal ciphertexts. The strip columns are *not*
 decryption — Naor-Yung verify-and-strip is a first-mix input cost (§2.5/§6.5),
-measured here because `decrypt_scaling` builds Naor-Yung ballots and must strip
-them to ElGamal to have something to decrypt:
+reported alongside because it is the tally's other per-ballot verify cost:
 
 | N | W | strip serial | strip parallel | partial_decrypt | combine |
 |---|---|---|---|---|---|
@@ -243,8 +242,10 @@ times. The chunked MSMs are only ~1.1 s of `combine`'s 9.9 s.
    needs no format change; see SERIALIZATION.md), plus hoisting `combine`'s
    redundant per-contribution re-serialization. This is where the next factor
    lives.
-2. **`ind_generators`** — N ristretto hash-to-curve per prove and per verify;
-   already parallel, but a large fixed cost.
+2. **`ind_generators`** — N ristretto hash-to-curve per prove and per verify,
+   already parallel. Measured ~110 ms at N = 10⁵ — ~1–2% of prove/verify, so a
+   minor contributor, not a large one; folded into the ① ② target timings
+   rather than tracked separately.
 3. **Deferred prover fixed-base cleanups** — `apply_permutation`'s
    `uₙ = g^r·h` and the re-encryption `(g^s, y^s)` legs still use per-element
    `exp`/`repl_exp` rather than `exp_many`; part of the 8.5 s prove residual.
@@ -277,14 +278,16 @@ normative statement.
 
 ## 6. Benchmark inventory
 
-| Tool | What it measures |
-|---|---|
-| `benches/msm_strategy.rs` | naive-parallel vs single/chunked dalek MSM, constant-time and variable-time; selects the override shape |
-| `benches/parallel_tradeoff.rs` | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
-| `examples/shuffle_scaling.rs` | one `(N, W)` cell, prove + verify wall-clock; CSV for sweeps |
-| `examples/decrypt_scaling.rs` | one `(N, W)` cell of the tally's per-ballot crypto: threshold decryption (`partial_decrypt`, `combine`) plus the first-mix Naor-Yung verify-and-strip (serial+parallel, a mixing-input cost co-measured here); T = 3, P = 5 |
-| `benches/shuffle.rs` | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
-| `bench.ps1` / `bench.sh` | turnkey controlled run: build untimed, then the whole grid to a timestamped `bench-results/` file |
+Two layers: *guidance* benches (criterion, sub-primitive, steer implementation)
+and the *snapshot* example (the five top-level targets).
+
+| Tool | Layer | What it measures |
+|---|---|---|
+| `benches/msm_strategy.rs` | guidance | naive-parallel vs single/chunked dalek MSM, constant-time and variable-time; selects the override shape |
+| `benches/parallel_tradeoff.rs` | guidance | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
+| `benches/shuffle.rs` | guidance | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
+| `examples/targets.rs` | snapshot | one `(N, W)` cell of the five top-level targets — shuffle prove, shuffle verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — in production form; uses only fork-point public APIs, so it backports for a campaign-wide before/after; T = 3, P = 5 |
+| `bench.ps1` / `bench.sh` | — | turnkey controlled run: build untimed, then the whole grid to a timestamped `bench-results/` file |
 
 ## Related, tracked elsewhere
 

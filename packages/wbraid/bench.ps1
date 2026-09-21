@@ -14,14 +14,13 @@
 #   .\bench.ps1 -Reps 5
 #
 # The criterion benches (parallel_tradeoff, msm_strategy) self-calibrate; the
-# scaling examples run over a fixed cell grid, -Reps times each, so the median
-# can be taken. Override the grids with -ShuffleCells / -DecryptCells ("N:W").
+# targets example runs over a fixed cell grid, -Reps times each, so the median
+# can be taken. Override the grid with -Cells ("N:W").
 
 [CmdletBinding()]
 param(
     [int]$Reps = 3,
-    [string[]]$ShuffleCells = @('1000:2', '10000:2', '10000:5', '100000:2', '100000:5'),
-    [string[]]$DecryptCells = @('10000:2', '10000:5', '100000:2')
+    [string[]]$Cells = @('1000:2', '10000:2', '10000:5', '100000:2', '100000:5')
 )
 
 # cargo writes progress and a harmless "patch not used" warning to stderr with
@@ -81,24 +80,14 @@ Log '## msm_strategy (criterion)'
 Run-Criterion 'msm_strategy'
 Log ''
 
-# --- Scaling sweeps (absolute, current tree) --------------------------------
-$shuffleExe = Join-Path $PSScriptRoot 'target\release\examples\shuffle_scaling.exe'
-$decryptExe = Join-Path $PSScriptRoot 'target\release\examples\decrypt_scaling.exe'
+# --- Top-level target snapshot (absolute, current tree) ---------------------
+$targetsExe = Join-Path $PSScriptRoot 'target\release\examples\targets.exe'
 
-Log '## shuffle_scaling  (count,width,prove_ms,verify_ms,sizeof,ser_bytes)'
-foreach ($cell in $ShuffleCells) {
+Log '## targets  (count,width,prove,verify,partial_decrypt,combine,ny_strip,sizeof,ser)'
+foreach ($cell in $Cells) {
     $n, $w = $cell -split ':'
     for ($r = 1; $r -le $Reps; $r++) {
-        & $shuffleExe $n $w 2>$null | Tee-Object -FilePath $out -Append
-    }
-}
-Log ''
-
-Log '## decrypt_scaling  (count,width,strip_serial,strip_par,partial_decrypt,combine)'
-foreach ($cell in $DecryptCells) {
-    $n, $w = $cell -split ':'
-    for ($r = 1; $r -le $Reps; $r++) {
-        & $decryptExe $n $w 2>$null | Tee-Object -FilePath $out -Append
+        & $targetsExe $n $w 2>$null | Tee-Object -FilePath $out -Append
     }
 }
 Log ''
