@@ -28,20 +28,20 @@ SPDX-License-Identifier: AGPL-3.0-only
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
-			<version>6.0.3</version>
+			<version>6.1.3</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
-			<version>5.19.0</version>
+			<version>5.23.0</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- Supplies the JAX-RS RuntimeDelegate used by response-building unit tests. -->
 		<dependency>
 			<groupId>org.glassfish.jersey.core</groupId>
 			<artifactId>jersey-common</artifactId>
-			<version>3.1.6</version>
+			<version>4.0.2</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -51,7 +51,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 			<plugin>
 				<groupId>com.diffplug.spotless</groupId>
 				<artifactId>spotless-maven-plugin</artifactId>
-				<version>2.43.0</version>
+				<version>3.10.2</version>
 				<configuration>
 					<java>
 						<googleJavaFormat>
