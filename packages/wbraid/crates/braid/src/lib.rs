@@ -100,6 +100,7 @@ pub mod messages;
 pub mod protocol_manager;
 pub mod session;
 pub mod trustee;
+pub use cryptography;
 
 // Platform-specific modules
 #[cfg(feature = "native")]

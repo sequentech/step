@@ -8,27 +8,36 @@ use b4::messages::artifact::{Ballots, Channel, Configuration, DkgPublicKey, Trus
 use b4::messages::message::Message;
 use b4::messages::newtypes::BatchNumber;
 use b4::messages::newtypes::PublicKeyHash;
-use b4::messages::newtypes::{TrusteeSet, MAX_TRUSTEES, NULL_TRUSTEE};
-use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
 use b4::messages::statement::StatementType;
 use deadpool_postgres::Transaction;
-use strand::backend::ristretto::RistrettoCtx;
 use strand::context::Ctx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
 use strand::serialization::StrandSerialize;
 use strand::util::StrandError;
+use wbraid::{cryptography::context::Context, protocol_manager::ProtocolManager};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context as AnyhowCtx, Result};
 use std::env;
 use std::marker::PhantomData;
 use tracing::{event, info, instrument, Level};
 
 use crate::services::vault;
 use b4::client::pgsql::B3MessageRow;
+use b4::messages::protocol_manager::ProtocolManagerConfig;
 use electoral_log::BoardClient;
 use immudb_rs::{sql_value::Value, Client, NamedParam, SqlValue};
 use strand::signature::{StrandSignaturePk, StrandSignatureSk};
+use wbraid::cryptography::context::RistrettoCtx;
+use wbraid::cryptography::utils::signatures::SignatureScheme;
+use wbraid::messages::newtypes::{MAX_CIPHERTEXT_WIDTH, MAX_TRUSTEES};
+
+// TODO: Old strand values, will drop
+// 1-based: the elements of the array are 1-based trustee positions
+pub type TrusteeSet = [usize; MAX_TRUSTEES];
+pub const PROTOCOL_MANAGER_INDEX: usize = 1000;
+pub const VERIFIER_INDEX: usize = 2000;
+pub const NULL_TRUSTEE: usize = 1001;
 
 pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
     format!("boards/{board_name}/protocol-manager")
@@ -42,10 +51,12 @@ pub async fn create_protocol_manager_keys(
     board_name: &str,
 ) -> Result<()> {
     // create protocol manager keys
-    let protocol_manager = gen_protocol_manager::<RistrettoCtx>()?;
+    let protocol_manager = gen_protocol_manager::<RistrettoCtx>();
+
     // save protocol manager keys in vault
     let protocol_config = serialize_protocol_manager::<RistrettoCtx>(&protocol_manager)?;
     let protocol_key = get_protocol_manager_secret_path(board_name);
+
     vault::save_secret(
         hasura_transaction,
         tenant_id,
@@ -58,25 +69,19 @@ pub async fn create_protocol_manager_keys(
 }
 
 #[instrument]
-pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
-    let pmkey: StrandSignatureSk =
-        StrandSignatureSk::generate().map_err(|err| anyhow!("{:?}", err))?;
-    let pm: ProtocolManager<C> = ProtocolManager {
-        signing_key: pmkey,
-        phantom: PhantomData,
-    };
-
-    Ok(pm)
+pub fn gen_protocol_manager<C: Context>() -> ProtocolManager<C> {
+    let mut key_rng = C::get_rng();
+    ProtocolManager::<C>::new(C::SignatureScheme::gen_signing_key(&mut key_rng))
 }
 
 #[instrument]
-pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
+pub fn serialize_protocol_manager<C: Context>(pm: &ProtocolManager<C>) -> Result<String> {
     let pmc = ProtocolManagerConfig::from(&pm);
     toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
 #[instrument]
-pub fn deserialize_protocol_manager<C: Ctx>(contents: String) -> Result<ProtocolManager<C>> {
+pub fn deserialize_protocol_manager<C: Context>(contents: String) -> Result<ProtocolManager<C>> {
     let pmc: ProtocolManagerConfig =
         toml::from_str(&contents).map_err(|err| anyhow!("{:?}", err))?;
     let pmkey = pmc.get_signing_key().map_err(|err| anyhow!("{:?}", err))?;
@@ -95,6 +100,25 @@ async fn init<C: Ctx>(
     b3_client
         .insert_configuration::<C>(board_name, message)
         .await
+}
+
+fn validate_params(trustees: usize, threshold: usize, width: usize) -> Result<()> {
+    if !(1..=MAX_CIPHERTEXT_WIDTH).contains(&width) {
+        return Err(anyhow!(
+            "unsupported ciphertext width {width} (expected 1..={MAX_CIPHERTEXT_WIDTH})"
+        ));
+    }
+    if !(2..=MAX_TRUSTEES).contains(&trustees) {
+        return Err(anyhow!(
+            "unsupported trustee count {trustees} (expected 2..={MAX_TRUSTEES})"
+        ));
+    }
+    if !(2..=trustees).contains(&threshold) {
+        return Err(anyhow!(
+            "unsupported threshold {threshold} (expected 2..={trustees})"
+        ));
+    }
+    Ok(())
 }
 
 #[instrument(skip(pm), err)]

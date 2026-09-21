@@ -27,12 +27,14 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use chacha20poly1305::{
-    aead::{Aead, AeadCore, KeyInit},
+    aead::{Aead, KeyInit},
     consts::{U12, U32},
     ChaCha20Poly1305,
 };
 use hybrid_array::Array;
+use rand::RngCore as _;
 
+use crate::rng::StrandRng;
 use crate::util::StrandError;
 
 pub type SymmetricKey = Array<u8, U32>;
@@ -55,8 +57,9 @@ impl EncryptionData {
 }
 
 pub fn gen_key() -> Array<u8, U32> {
-    let key = chacha20poly1305::ChaCha20Poly1305::generate_key().unwrap();
-    key
+    let mut bytes = [0u8; 32];
+    StrandRng.fill_bytes(&mut bytes);
+    Array::from(bytes)
 }
 pub fn encrypt(
     key: Array<u8, U32>,
@@ -65,7 +68,9 @@ pub fn encrypt(
     // https://docs.rs/chacha20poly1305/latest/chacha20poly1305/trait.AeadCore.html#method.generate_nonce
     // 4,294,967,296 messages with random nonces can be encrypted under a given
     // key
-    let nonce = ChaCha20Poly1305::generate_nonce().unwrap();
+    let mut nonce_bytes = [0u8; 12];
+    StrandRng.fill_bytes(&mut nonce_bytes);
+    let nonce = Array::<u8, U12>::from(nonce_bytes);
     let cipher = ChaCha20Poly1305::new(&key);
     let encrypted = cipher
         .encrypt(&nonce, data)
