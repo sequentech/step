@@ -1,4 +1,3 @@
-import {Order_By} from "./../../../voting-portal/src/gql/graphql"
 // SPDX-FileCopyrightText: 2024 Sequent Tech <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
@@ -352,7 +351,7 @@ export const customBuildQuery =
             if (ret?.variables?.order_by) {
                 ret.variables.order_by = [
                     {tally_session_id: "asc"},
-                    {created_at: "desc"},
+                    {created_at: "desc_nulls_last"},
                     {id: "desc"},
                 ]
             }
