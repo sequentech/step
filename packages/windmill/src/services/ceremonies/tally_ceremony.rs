@@ -595,7 +595,7 @@ pub async fn update_tally_ceremony(
     Ok(())
 }
 
-#[instrument(err)]
+#[instrument(err, skip(transaction, claims, private_key_base64))]
 pub async fn set_private_key(
     transaction: &Transaction<'_>,
     claims: &JwtClaims,
