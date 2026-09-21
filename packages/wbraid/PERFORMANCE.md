@@ -211,15 +211,19 @@ quiescence.
 Against the pre-optimization baseline (~12.9 s prove / ~10.3 s verify at
 10⁵ W = 2): **verify ~1.9×, prove ~1.5×.**
 
-**Decryption path** (T = 3, P = 5):
+**Decryption, plus the first-mix strip** (T = 3, P = 5). `partial_decrypt` and
+`combine` are decryption, over ElGamal ciphertexts. The strip columns are *not*
+decryption — Naor-Yung verify-and-strip is a first-mix input cost (§2.5/§6.5),
+measured here because `decrypt_scaling` builds Naor-Yung ballots and must strip
+them to ElGamal to have something to decrypt:
 
 | N | W | strip serial | strip parallel | partial_decrypt | combine |
 |---|---|---|---|---|---|
 | 10⁴ | 2 | 2 563 | 428 | 314 | 952 |
 | 10⁵ | 2 | 25 742 | 4 330 | 3 246 | 9 882 |
 
-The strip columns are a same-run control: parallel Naor-Yung verify-and-strip
-is 5.9× the serial loop.
+The strip columns are a same-run control: parallel strip is 5.9× the serial
+loop (the braid first-mix gain).
 
 ### The Amdahl wall — the finding that redirects the next work
 
@@ -278,7 +282,7 @@ normative statement.
 | `benches/msm_strategy.rs` | naive-parallel vs single/chunked dalek MSM, constant-time and variable-time; selects the override shape |
 | `benches/parallel_tradeoff.rs` | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
 | `examples/shuffle_scaling.rs` | one `(N, W)` cell, prove + verify wall-clock; CSV for sweeps |
-| `examples/decrypt_scaling.rs` | one `(N, W)` cell of the decryption path (Naor-Yung strip serial+parallel, `partial_decrypt`, `combine`); T = 3, P = 5 |
+| `examples/decrypt_scaling.rs` | one `(N, W)` cell of the tally's per-ballot crypto: threshold decryption (`partial_decrypt`, `combine`) plus the first-mix Naor-Yung verify-and-strip (serial+parallel, a mixing-input cost co-measured here); T = 3, P = 5 |
 | `benches/shuffle.rs` | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
 | `bench.ps1` / `bench.sh` | turnkey controlled run: build untimed, then the whole grid to a timestamped `bench-results/` file |
 
