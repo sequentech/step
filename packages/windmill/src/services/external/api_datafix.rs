@@ -373,6 +373,13 @@ pub async fn replace_voter_pin(
         .generate_password(username);
     let password = Some(pin.clone());
 
+    // edit_user defaults a missing `temporary` to `true`; Datafix-issued PINs
+    // should default to `false` unless the annotation says otherwise.
+    let temporary = match datafix_annotations.password_policy.temporary {
+        Some(temporary) => Some(temporary),
+        None => Some(false),
+    };
+
     let client = KeycloakAdminClient::new().await.map_err(|e| {
         error!("Error getting KeycloakAdminClient: {e:?}");
         DatafixResponse::error(DatafixErrorCode::InternalError)
@@ -382,7 +389,7 @@ pub async fn replace_voter_pin(
         .edit_user(
             realm, &user_id, None, // Enable/disable
             None, // attributes
-            None, None, None, None, password, None,
+            None, None, None, None, password, temporary,
         )
         .await
         .map_err(|e| {
