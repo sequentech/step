@@ -301,19 +301,16 @@ products.
    the verifier only (public data), CPU prover (secret ε never reaches VRAM),
    feature-gated with silent CPU fallback, CPU path normative for Verificatum
    interop.
-6. **Open question — 128-bit `e_n`.** Shortening the batching challenges from
-   full-width to 128 bits would roughly halve the dominant MSM window count
-   (~1.6–2× on the whole verifier, and dalek's zero-digit skipping compounds
-   it). It is a transcript change (so `NativeChallenges` only, never the
-   Verificatum convention, which already uses fixed-bit-length exponents), a
-   PROTOCOL.md §2.3/§6.3 edit, and a soundness re-derivation — in Terelius–
-   Wikström `e` drives the permutation-matrix argument itself, so the
-   Schwartz–Zippel bound becomes ~N/2¹²⁸ and the extraction argument must be
-   re-checked. Decide separately; nothing above depends on it.
+6. **128-bit `e_n` — dropped** (2026-09-21). Shortening the batching
+   challenges would roughly halve the MSM window count, but in Terelius–
+   Wikström `e` drives the permutation-matrix argument itself: the
+   Schwartz–Zippel bound becomes ~N/2¹²⁸ and the extraction argument needs
+   re-deriving. That alters the protocol's soundness argument, which is not a
+   performance decision; it stays out of scope here.
 
-A PROTOCOL.md §6.4/§9.2 precision note is still to write: a verifier MAY batch
-V1–V5 with the stated error bound; the equations as written remain the
-normative statement.
+The batched-V2 verifier is now a documented, permitted check: PROTOCOL.md §6.4
+states its form and exact `1/q` error bound (§9.2 references it), with the
+per-index equations kept normative — PROTOCOL-alignment.md D7 (2026-09-21).
 
 ## 6. Benchmark inventory
 

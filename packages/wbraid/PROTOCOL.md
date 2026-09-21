@@ -1060,6 +1060,24 @@ each $w'_i$ is a re-encryption of $w_{\pi^{-1}(i)}$. Zero-knowledge follows sinc
 commitments are uniformly distributed and the responses are one-time-padded by the fresh
 randomizers.
 
+**Batched verification of V2 (permitted).** A verifier may check the $N$ instances of
+V2 as a single random linear combination. Draw independent uniform
+$t_1, \dots, t_N \in \mathbb{Z}_q$ — the verifier's own randomness, not part of the
+transcript — and accept V2 iff
+
+$$
+\prod_{i=1}^{N} B_i^{\,v\,t_i}\ \prod_{i=1}^{N} (B'_i)^{\,t_i}
+\stackrel{?}{=}
+g^{\,\sum_{i} t_i k_{B,i}}\ \prod_{i=1}^{N} B_{i-1}^{\,t_i k_{E,i}}
+$$
+
+If every instance of V2 holds, this holds identically; if any instance fails, it holds
+with probability exactly $1/q$ over the $t_i$ [BGR98]. The batched form therefore adds a
+$1/q$ soundness error and makes the verifier randomized; the equations as written above
+remain the normative statement, and a verifier that checks each instance individually is
+equally conformant. (Computationally, the batched check replaces $3N$ exponentiations
+with two multi-exponentiations, of sizes $2N$ and $N$.)
+
 ### 6.5 Mixnet chain rules
 
 The rules enforced identically by every trustee over the bulletin board are, for the
@@ -1233,7 +1251,8 @@ factors and proofs; the plaintexts $m$; the published result.
    L_{k-1}))$ and run the shuffle verifier of Section 6.4 on
    $(L_{k-1}, L_k, \text{proof}_k)$ with
    $\mathit{ctx} = \mathrm{ctx}(\texttt{"shuffle"}, L_{k-1})$, in both contexts taking
-   the posted message as the instance input (Section 6.1). Reject on any failure.
+   the posted message as the instance input (Section 6.1). Reject on any failure. The
+   V2 equations may be checked in their batched form (Section 6.4).
 5. **Decryption.** For each trustee $i \in Q$: recompute $\mathit{seed}_i$, $e_j$,
    $A_i$, $B_i$ from the posted factors and run
    $\mathsf{DleqVerify}(g, vk_i, A_i, B_i, \sigma_i, \mathit{ctx}_i)$. Reject on any
