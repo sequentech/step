@@ -2081,6 +2081,7 @@ const catalanTranslation: TranslationType = {
                     "Còpia de Seguretat de la Clau Encriptada Privada invàlida, si us plau intenta-ho de nou",
                 errorEmptyFile: "Fitxer buit o no trobat",
                 verified: "Còpia de seguretat verificada correctament.",
+                alreadyRestored: "La teva clau ja s'havia restaurat.",
                 downloaded: "Clau Encriptada Privada generada amb èxit.",
             },
         },
