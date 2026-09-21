@@ -4,8 +4,9 @@
 
 import {IAuditableBallot} from "@sequentech/ui-core"
 import {
+    EBallotCiphertextCheck,
     EBallotEncoding,
-    isAuditableBallotCiphertextConsistent,
+    checkAuditableBallotCiphertext,
 } from "./ballotCiphertextVerification"
 
 const auditableBallot = {ballot_hash: "hash"} as IAuditableBallot
@@ -15,7 +16,7 @@ const service = (single: () => boolean, multi: () => boolean) => ({
     verifyAuditableMultiBallotCiphertext: jest.fn(multi),
 })
 
-describe("isAuditableBallotCiphertextConsistent", () => {
+describe("checkAuditableBallotCiphertext", () => {
     it("accepts a single-contest ballot whose ciphertexts are reproduced", () => {
         const ballotService = service(
             () => true,
@@ -23,12 +24,12 @@ describe("isAuditableBallotCiphertextConsistent", () => {
         )
 
         expect(
-            isAuditableBallotCiphertextConsistent(
+            checkAuditableBallotCiphertext(
                 ballotService,
                 auditableBallot,
                 EBallotEncoding.SINGLE_CONTEST
             )
-        ).toBe(true)
+        ).toBe(EBallotCiphertextCheck.VERIFIED)
         expect(ballotService.verifyAuditableBallotCiphertext).toHaveBeenCalledWith(auditableBallot)
         expect(ballotService.verifyAuditableMultiBallotCiphertext).not.toHaveBeenCalled()
     })
@@ -40,12 +41,12 @@ describe("isAuditableBallotCiphertextConsistent", () => {
         )
 
         expect(
-            isAuditableBallotCiphertextConsistent(
+            checkAuditableBallotCiphertext(
                 ballotService,
                 auditableBallot,
                 EBallotEncoding.MULTI_CONTEST
             )
-        ).toBe(true)
+        ).toBe(EBallotCiphertextCheck.VERIFIED)
         expect(ballotService.verifyAuditableMultiBallotCiphertext).toHaveBeenCalledWith(
             auditableBallot
         )
@@ -53,30 +54,30 @@ describe("isAuditableBallotCiphertextConsistent", () => {
     })
 
     it.each([EBallotEncoding.SINGLE_CONTEST, EBallotEncoding.MULTI_CONTEST])(
-        "rejects a %s ballot whose ciphertext does not match",
+        "reports a %s ballot whose ciphertext does not match as a mismatch",
         (encoding) => {
             const ballotService = service(
                 () => false,
                 () => false
             )
 
-            expect(
-                isAuditableBallotCiphertextConsistent(ballotService, auditableBallot, encoding)
-            ).toBe(false)
+            expect(checkAuditableBallotCiphertext(ballotService, auditableBallot, encoding)).toBe(
+                EBallotCiphertextCheck.MISMATCH
+            )
         }
     )
 
     it.each([EBallotEncoding.SINGLE_CONTEST, EBallotEncoding.MULTI_CONTEST])(
-        "rejects a %s ballot that cannot be checked",
+        "reports a %s ballot that cannot be checked as not verifiable",
         (encoding) => {
             const fail = () => {
                 throw new Error("Error checking the ballot")
             }
             const ballotService = service(fail, fail)
 
-            expect(
-                isAuditableBallotCiphertextConsistent(ballotService, auditableBallot, encoding)
-            ).toBe(false)
+            expect(checkAuditableBallotCiphertext(ballotService, auditableBallot, encoding)).toBe(
+                EBallotCiphertextCheck.NOT_VERIFIABLE
+            )
         }
     )
 })
