@@ -73,10 +73,8 @@ async fn run_with_width<C: Context, const W: usize>(
     let n_trustees = setup_rng.random_range(2..=MAX_TRUSTEES);
     let n_threshold = setup_rng.random_range(2..=n_trustees);
     let all: Vec<TrusteeIndex> = (1..=n_trustees).collect();
-    let mixing_trustees: Vec<TrusteeIndex> = all
-        .sample(&mut setup_rng, n_threshold)
-        .cloned()
-        .collect();
+    let mixing_trustees: Vec<TrusteeIndex> =
+        all.sample(&mut setup_rng, n_threshold).cloned().collect();
 
     // Fresh board names per run so re-runs never collide on b4's persistent store.
     let run_id: u64 = setup_rng.random();

@@ -69,10 +69,8 @@ async fn run_with_width<C: Context, const W: usize>(ciphertexts: u32) -> Result<
     let n_trustees = setup_rng.random_range(2..=MAX_TRUSTEES);
     let n_threshold = setup_rng.random_range(2..=n_trustees);
     let all: Vec<TrusteeIndex> = (1..=n_trustees).collect();
-    let mixing_trustees: Vec<TrusteeIndex> = all
-        .sample(&mut setup_rng, n_threshold)
-        .cloned()
-        .collect();
+    let mixing_trustees: Vec<TrusteeIndex> =
+        all.sample(&mut setup_rng, n_threshold).cloned().collect();
 
     // A fresh board per run so re-runs never collide on b4's persistent store.
     let board = format!("protocoltest_{}", setup_rng.random::<u64>());
