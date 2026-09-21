@@ -22,7 +22,11 @@
 //! bench exists to answer is the cheap shapes (scalar arithmetic, point
 //! products), where it often does not.
 
-#![allow(clippy::unwrap_used, clippy::missing_docs_in_private_items, missing_docs)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::missing_docs_in_private_items,
+    missing_docs
+)]
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use std::hint::black_box;
@@ -58,7 +62,10 @@ fn bench_scalar_rng(c: &mut Criterion) {
         });
         g.bench_with_input(BenchmarkId::new("parallel", n), &n, |b, &n| {
             b.iter(|| {
-                let v: Vec<S> = (0..n).into_par_iter().map(|_| RCtx::random_scalar()).collect();
+                let v: Vec<S> = (0..n)
+                    .into_par_iter()
+                    .map(|_| RCtx::random_scalar())
+                    .collect();
                 black_box(v)
             });
         });
