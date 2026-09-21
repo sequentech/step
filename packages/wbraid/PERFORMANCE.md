@@ -375,5 +375,10 @@ with LocalStack pinned to `:4`, the AWS CLI):
   `test_protocol_http_union` (client-side `SqlitePersistence`), and the
   real-crypto `model_check_two_trustees`.
 - The interactive **emulator** (`TESTING.md` — the one end-to-end check of the
-  protocol under wasm with the rayon pool): infrastructure up and the atomics
-  build in progress; pending the interactive run.
+  protocol under wasm with the rayon pool) — **passes** (2026-09-21): the
+  production `wasm` build (wasm-bindgen-rayon pool, atomics), served with
+  COOP/COEP against the real b4v6 + LocalStack S3, ran create board → DKG to
+  fixpoint → tally to fixpoint → **Verify plaintexts** green → a second tally
+  on the same DKG → page refresh with automatic reconnect.
+
+Every check in this section has now run against the final tree and passed.
