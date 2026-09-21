@@ -435,9 +435,12 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         // The batched statement: `A = ∏ u_i^{e_i}` and `B = ∏ f_i^{e_i}`. Since
         // every `f_i = u_i^{sk}`, `B = A^{sk}` — the same discrete-log equality
         // the per-ciphertext proofs asserted, over one pair of bases instead of
-        // `N`.
-        let a = <[C::Element; W]>::dist_multi_exp(&bases, &exponents)?;
-        let b = <[C::Element; W]>::dist_multi_exp(&factors, &exponents)?;
+        // `N`. Vartime: the bases, factors, and exponents are all public (the
+        // secret `sk` enters only the factors, computed constant-time above, and
+        // the proof response). It is the published-factor pattern of the batched
+        // decryption proof (formerly PERFORMANCE.md item 2).
+        let a = <[C::Element; W]>::dist_vartime_multi_exp(&bases, &exponents)?;
+        let b = <[C::Element; W]>::dist_vartime_multi_exp(&factors, &exponents)?;
 
         let proof = DlogEqProof::<C, W>::prove(
             &self.sk,
@@ -753,12 +756,14 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
     // get the participants
     let present: [ParticipantPosition<P>; T] = array::from_fn(|i| contributions[i].source.clone());
     let bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|c| c.u().clone()).collect();
-    let mut divisors_acc: Vec<[C::Element; W]> = vec![<[C::Element; W]>::one(); ciphertexts.len()];
 
     #[cfg_attr(
         feature = "custom-warnings",
         crate::warning("Ensure that the contributions are from distinct participants.")
     )]
+    // Verify each contribution's batched proof. All inputs are public (the
+    // published factors, the hash-derived exponents), so the statement rebuild
+    // is variable-time.
     for contribution in contributions {
         let factors = &contribution.partial.factors;
         if factors.len() != ciphertexts.len() {
@@ -777,8 +782,8 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
             factors,
             proof_context,
         )?;
-        let a = <[C::Element; W]>::dist_multi_exp(&bases, &exponents)?;
-        let b = <[C::Element; W]>::dist_multi_exp(factors, &exponents)?;
+        let a = <[C::Element; W]>::dist_vartime_multi_exp(&bases, &exponents)?;
+        let b = <[C::Element; W]>::dist_vartime_multi_exp(factors, &exponents)?;
 
         let proof_ok = contribution.partial.proof.verify(
             &C::generator(),
@@ -793,24 +798,30 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
                 contribution.source.0
             )));
         }
-
-        let lagrange = lagrange::<C, T, P>(&contribution.source, &present);
-        divisors_acc
-            .par_iter_mut()
-            .zip(factors.par_iter())
-            .for_each(|(divisor, factor)| {
-                *divisor = divisor.mul(&factor.dist_exp(&lagrange));
-            });
     }
 
-    // Serial: N cheap point ops (an inverse and a multiply); rayon's saving
-    // here is under 0.1% of `combine`, which is dominated by the batched-proof
-    // multi-exponentiations above (benches/parallel_tradeoff.rs).
-    Ok(divisors_acc
-        .iter()
-        .zip(ciphertexts.iter())
-        .map(|(d, c)| c.v().mul(&d.inv()))
-        .collect())
+    // Lagrange coefficients for the present quorum (public evaluation points).
+    let lagranges: [C::Scalar; T] =
+        array::from_fn(|i| lagrange::<C, T, P>(&contributions[i].source, &present));
+
+    // Combine and decrypt per ciphertext, in parallel: the reconstructed factor
+    // `F_j = ∏_i f_{i,j}^{λ_i}` is a size-T variable-time multi-exp over the
+    // published factors (λ and the factors are public), and `m_j = v_j · F_j⁻¹`.
+    ciphertexts
+        .par_iter()
+        .enumerate()
+        .map(|(j, ct)| {
+            // In bounds: every contribution's factor count was checked equal to
+            // `ciphertexts.len()` in the verification loop above.
+            #[allow(clippy::indexing_slicing)]
+            let factors_at_j: Vec<[C::Element; W]> = contributions
+                .iter()
+                .map(|c| c.partial.factors[j].clone())
+                .collect();
+            let combined = <[C::Element; W]>::dist_vartime_multi_exp(&factors_at_j, &lagranges)?;
+            Ok(ct.v().mul(&combined.inv()))
+        })
+        .collect()
 }
 
 #[crate::warning("Rustdoc needs a reference to lagrange coeff. calculation")]

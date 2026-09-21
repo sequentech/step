@@ -251,13 +251,22 @@ times. The chunked MSMs are only ~1.1 s of `combine`'s 9.9 s.
 serialization at both hot sites. Interleaved pre/post at N = 10⁵ W = 2:
 **shuffle verify ~2.8×** (ser was ~65% of it), **prove ~1.9×**,
 **partial_decrypt ~2.0×**, **combine ~2.0×**; `ny_strip` flat (no transcript
-ser — the control). So the wall has *moved*: verify's residual is now the MSM
-plus the five equations plus SHA3 hashing; `combine`'s is the `T·N` Lagrange
-accumulation `∏ f_{i,j}^{λ_i}` (one exponentiation per contribution per
-ciphertext — largely inherent to threshold interpolation, no MSM speedup since
-each result is separate). The `combine` per-contribution re-serialization dedup
-was measured at only ~2–4% post-`par_ser` and dropped as not worth a signature
-change.
+ser — the control). So the wall moved to the MSM work: verify's residual is
+now the MSM plus the five equations plus SHA3 hashing. The `combine` per-
+contribution re-serialization dedup was measured at only ~2–4% post-`par_ser`
+and dropped as not worth a signature change.
+
+**Decryption vartime (2026-09-21).** `combine` and `partial_decrypt` verify and
+combine *published* factors — all public — yet were still on the constant-time
+MSM path (the un-done original "item 2"). Switched to variable-time:
+`combine`'s `a`/`b` statement rebuild → `dist_vartime_multi_exp`, and its
+Lagrange accumulation `∏ f_{i,j}^{λ_i}` → one N-parallel region where each
+`F_j` is a size-`T` `dist_vartime_multi_exp` (not inherent after all — it is
+public-data exponentiation, so vartime applies). Interleaved CT/vartime at
+N = 10⁵ W = 2: **`combine` ~2.4×** (5.96 s → 2.53 s), **`partial_decrypt`
+~1.3×** (only its `a`/`b`; the `u^{xᵢ}` factors stay constant-time, secret
+share). `combine`'s remaining cost is those vartime MSMs plus the T·N size-`T`
+products.
 
 ## 5. Next levers, in priority order
 
@@ -270,10 +279,11 @@ change.
 2. **Deferred prover fixed-base cleanups** — `apply_permutation`'s
    `uₙ = g^r·h` and the re-encryption `(g^s, y^s)` legs still use per-element
    `exp`/`repl_exp` rather than `exp_many`; part of the prove residual.
-3. **`combine`'s Lagrange accumulation** — the `T·N` exponentiations
-   `∏ f_{i,j}^{λ_i}` are now `combine`'s dominant cost, but largely inherent to
-   threshold interpolation (each `F_j` is a separate size-`T` product, no MSM
-   speedup at small `T`); flagged, not obviously reducible.
+3. **Decryption vartime — done** (2026-09-21; §4 "Decryption vartime"). The
+   public-data exps in `combine`/`partial_decrypt` moved to variable-time:
+   `combine` ~2.4×, `partial_decrypt` ~1.3×. What remains in `combine` is those
+   vartime MSMs plus the T·N size-`T` products — a smaller residual, and the
+   exp *count* there is genuinely inherent to threshold interpolation.
 4. **`ind_generators`** — N ristretto hash-to-curve per prove and per verify,
    already parallel. Measured ~110 ms at N = 10⁵ — ~1–2% of prove/verify, a
    minor contributor; folded into the ① ② target timings, not tracked
