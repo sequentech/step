@@ -2801,14 +2801,10 @@
       "username": "admin",
       "firstName": "Admin",
       "lastName": "admin",
-      "email": "edu@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
         "sequent.read-only.otp-method": [
           "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
         ],
         "permission_labels": [],
         "tenant-id": [
@@ -2842,14 +2838,10 @@
     {
       "id": "c0124bdb-1deb-4517-aa69-bf73b991e0bf",
       "username": "api-user",
-      "email": "edu+api_user@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
         "sequent.read-only.otp-method": [
           "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
         ],
         "locale": [
           "en"
@@ -2926,14 +2918,10 @@
       "id": "b2cc4af1-718d-490b-af36-66c957fea791",
       "username": "trustee1",
       "firstName": "Test Trustee",
-      "email": "edu+trustee1@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
         "sequent.read-only.otp-method": [
           "email-or-sms"
-        ],
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
         ],
         "trustee": [
           "trustee1"
@@ -2971,12 +2959,8 @@
       "id": "ac7080d2-3fd1-4150-983a-2761423f085d",
       "username": "trustee2",
       "firstName": "Trustee2",
-      "email": "edu+trustee2@sequentech.io",
-      "emailVerified": true,
+      "emailVerified": false,
       "attributes": {
-        "sequent.read-only.mobile-number": [
-          "+34666000222"
-        ],
         "trustee": [
           "trustee2"
         ],
@@ -3011,7 +2995,6 @@
       "id": "4f259070-25df-4b14-a5a6-e670311331a8",
       "username": "trustee3",
       "firstName": "trustee3",
-      "email": "felix+112@sequentech.io",
       "emailVerified": false,
       "attributes": {
         "trustee": [
@@ -6294,7 +6277,7 @@
       "alias": "UPDATE_PASSWORD",
       "name": "Update Password",
       "providerId": "UPDATE_PASSWORD",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 30,
       "config": {}
@@ -6357,7 +6340,7 @@
       "alias": "webauthn-register-passwordless",
       "name": "Webauthn Register Passwordless",
       "providerId": "webauthn-register-passwordless",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 80,
       "config": {}
@@ -6393,7 +6376,7 @@
       "alias": "mfa-method-selector",
       "name": "Configure MFA method to use",
       "providerId": "mfa-method-selector",
-      "enabled": false,
+      "enabled": true,
       "defaultAction": false,
       "priority": 1002,
       "config": {}
@@ -6405,6 +6388,33 @@
       "enabled": false,
       "defaultAction": false,
       "priority": 1003,
+      "config": {}
+    },
+    {
+      "alias": "idp_link",
+      "name": "Linking Identity Provider",
+      "providerId": "idp_link",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 100,
+      "config": {}
+    },
+    {
+      "alias": "email-otp-ra",
+      "name": "Reset and Configure Email OTP",
+      "providerId": "email-otp-ra",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 1004,
+      "config": {}
+    },
+    {
+      "alias": "mobile-otp-ra",
+      "name": "Reset and Configure Mobile OTP",
+      "providerId": "mobile-otp-ra",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 1005,
       "config": {}
     }
   ],
