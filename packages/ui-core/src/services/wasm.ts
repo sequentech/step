@@ -42,6 +42,8 @@ import {
     check_voting_error_dialog,
     verify_ballot_signature_js,
     verify_multi_ballot_signature_js,
+    verify_auditable_ballot_ciphertext_js,
+    verify_auditable_multi_ballot_ciphertext_js,
     get_default_duplicated_rank_policy_js,
     get_default_preference_gaps_policy_js,
 } from "sequent-core"
@@ -361,6 +363,30 @@ export const verifyBallotSignature = (
     try {
         let isVerified: boolean = verify_ballot_signature_js(ballot_id, election_id, content)
         return isVerified
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyAuditableBallotCiphertext = (
+    auditableBallot: IAuditableSingleBallot
+): boolean => {
+    try {
+        let isConsistent: boolean = verify_auditable_ballot_ciphertext_js(auditableBallot)
+        return isConsistent
+    } catch (error) {
+        console.log(error)
+        throw error
+    }
+}
+
+export const verifyAuditableMultiBallotCiphertext = (
+    auditableBallot: IAuditableMultiBallot
+): boolean => {
+    try {
+        let isConsistent: boolean = verify_auditable_multi_ballot_ciphertext_js(auditableBallot)
+        return isConsistent
     } catch (error) {
         console.log(error)
         throw error

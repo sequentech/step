@@ -1202,6 +1202,85 @@ pub fn verify_ballot_signature_js(
         .into_json()
 }
 
+/// Returns `true` when every ciphertext in the auditable ballot is the
+/// encryption of the plaintext and randomness the ballot carries. Returns
+/// `false` on a mismatch and fails on any ballot that cannot be checked, so
+/// callers fail closed either way.
+#[wasm_bindgen]
+pub fn verify_auditable_ballot_ciphertext_js(
+    auditable_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_ballot_json)
+            .map_err(|err| {
+                format!(
+                    "Error parsing auditable ballot javascript string: {}",
+                    err
+                )
+            })
+            .into_json()?;
+    let auditable_ballot: AuditableBallot =
+        deserialize_value(auditable_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable ballot: {err}")
+            })
+            .into_json()?;
+
+    let is_consistent =
+        ciphertext_check_result(verify_auditable_ballot_ciphertexts::<
+            RistrettoCtx,
+        >(&RistrettoCtx, &auditable_ballot))?;
+
+    serde_wasm_bindgen::to_value(&is_consistent)
+        .map_err(|err| format!("Error writing javascript string: {err}"))
+        .into_json()
+}
+
+/// Multi-contest counterpart of [`verify_auditable_ballot_ciphertext_js`].
+#[wasm_bindgen]
+pub fn verify_auditable_multi_ballot_ciphertext_js(
+    auditable_multi_ballot_json: JsValue,
+) -> Result<JsValue, JsValue> {
+    let auditable_multi_ballot_js: Value =
+        serde_wasm_bindgen::from_value(auditable_multi_ballot_json)
+            .map_err(|err| {
+                format!("Error parsing auditable multi ballot: {}", err)
+            })
+            .into_json()?;
+    let auditable_multi_ballot: AuditableMultiBallot =
+        deserialize_value(auditable_multi_ballot_js)
+            .map_err(|err| {
+                format!("Error deserializing auditable multi ballot: {err}")
+            })
+            .into_json()?;
+
+    let is_consistent =
+        ciphertext_check_result(verify_auditable_multi_ballot_ciphertext::<
+            RistrettoCtx,
+        >(
+            &RistrettoCtx, &auditable_multi_ballot
+        ))?;
+
+    serde_wasm_bindgen::to_value(&is_consistent)
+        .map_err(|err| format!("Error writing javascript string: {err}"))
+        .into_json()
+}
+
+/// A ciphertext mismatch is a verification verdict (`false`); anything else
+/// means the ballot could not be checked at all and is reported as an error.
+fn ciphertext_check_result(
+    result: Result<(), crate::error::BallotError>,
+) -> Result<bool, JsValue> {
+    match result {
+        Ok(()) => Ok(true),
+        Err(crate::error::BallotError::CryptographicCheck(_)) => Ok(false),
+        Err(err) => {
+            Err::<bool, String>(format!("Error checking the ballot: {err}"))
+                .into_json()
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub fn verify_multi_ballot_signature_js(
     ballot_id: JsValue,
