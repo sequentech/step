@@ -35,13 +35,14 @@ use serde::Serialize;
 const DERIVED: &[&str] =
     &["id", "authorized-election-ids", "enabled", "email_verified"];
 
-/// Only identity and contact fields from a SMART TD Eligibility List are kept.
+/// Only census identity, contact and area fields from a SMART TD list are kept.
 /// Membership, payroll, birth dates and addresses are deliberately not attributes.
 const SMART_FIELDS: &[(&str, &str)] = &[
     ("MemberID", "username"),
     ("EmailAddress", "email"),
     ("FirstName", "first_name"),
     ("LastName", "last_name"),
+    ("LCACode", "area.external_id"),
     ("PrimaryPhone", "mobile"),
 ];
 
@@ -70,7 +71,7 @@ impl CensusCsv {
     ///
     /// Refuses empty files or missing identity columns before replacing a census.
     /// Native CSV files preserve custom columns; recognized SMART TD lists use
-    /// the explicit allowlist above and leave ballot areas for review.
+    /// the explicit allowlist above, with LCACode as the area identifier.
     pub fn new(text: &str) -> Result<Self, String> {
         let mut reader = csv::ReaderBuilder::new()
             .flexible(true)
@@ -114,7 +115,7 @@ impl CensusCsv {
                 reader,
                 header: CensusHeader {
                     columns: mapped,
-                    notes: vec!["SMART TD Eligibility List detected. Imported member ID as username, names, email and primary phone where present; all other columns were ignored. Assign each voter an election area before building; local and committee codes are not ballot assignments.".to_owned()],
+                    notes: vec!["SMART TD Eligibility List detected. Imported member ID as username, names, email, primary phone and LCACode as the area identifier where present; all other columns were ignored. Area codes are preserved exactly and must match an area identifier in this election. Review missing or unknown areas before building.".to_owned()],
                 },
                 kept,
             });
@@ -231,11 +232,12 @@ mod tests {
     const SMART_HEADER: &str = "LastName,FirstName,LocalCode,GCACode,LCACode,EmployeeID,MemberStatus,MemberStatusReason,MemberStatusDate,MemberType,GDOptOut,CraftCd,Craft,MembershipDate,BirthDate,AddressLine1,AddressLine2,City,StateCd,ZipCode,PrimaryPhone,SecondaryPhone,EmailAddress,PACAmount,ActiveAlumni,AddressUpdateDate,MemberID,MemberStatusID";
 
     #[test]
-    fn smart_eligibility_keeps_only_census_identity_and_contact_fields() {
+    fn smart_eligibility_keeps_only_census_fields() {
         let mut row = vec!["discard-me"; 28];
         for (at, value) in [
             (0, "Example"),
             (1, "Alex"),
+            (4, "049A"),
             (20, "+12025550123"),
             (22, "alex@example.org"),
             (26, "000042"),
@@ -246,7 +248,14 @@ mod tests {
         let mut reader = CensusCsv::new(&text).expect("SMART TD roster");
         assert_eq!(
             reader.header().columns,
-            ["username", "email", "first_name", "last_name", "mobile"]
+            [
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+                "area.external_id",
+                "mobile"
+            ]
         );
         assert!(reader.header().notes.join(" ").contains("SMART TD"));
         assert!(reader.header().notes.join(" ").contains("area"));
@@ -257,6 +266,7 @@ mod tests {
                 "alex@example.org",
                 "Alex",
                 "Example",
+                "049A",
                 "+12025550123"
             ]]
         );
@@ -280,6 +290,25 @@ mod tests {
             ["", "sam@example.org", "Sam", "Example"]
         );
         assert!(reader.next_batch(1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn smart_eligibility_maps_lca_codes_exactly_and_never_uses_local_code() {
+        let text = "\u{feff} LCACode ,MemberID,LocalCode,LastName,FirstName\r\n 049A ,000042,0014,Example,Alex\r\n049a,000043,0014,Example,Sam\r\n,000044,0014,Example,Lee\r\n";
+        let mut reader = CensusCsv::new(text).unwrap();
+        assert_eq!(
+            reader.header().columns,
+            ["username", "first_name", "last_name", "area.external_id"]
+        );
+        let rows = reader.next_batch(10).unwrap();
+        assert_eq!(rows[0][3], "049A");
+        assert_eq!(rows[1][3], "049a");
+        assert_eq!(rows[2][3], "");
+    }
+
+    #[test]
+    fn smart_eligibility_refuses_ambiguous_lca_columns() {
+        assert!(CensusCsv::new("LastName,FirstName,LocalCode,MemberID,LCACode,LCACode\nExample,Alex,0014,123,049A,049B\n").is_err());
     }
 
     #[test]
