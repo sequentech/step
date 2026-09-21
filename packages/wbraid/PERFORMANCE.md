@@ -185,44 +185,56 @@ guarded is gone.
 - **wasm**: the chunked MSMs and all parallel sites run on
   `wasm-bindgen-rayon`'s pool exactly as native.
 
-## 4. Measured results (controlled run, 2026-09-21)
+## 4. Measured results (2026-09-21)
 
-Machine: Windows x64, 16 logical cores, dalek AVX2 backend, `--release`, quiesced.
-Times in ms; scaling cells are the median of 3 reps.
+Machine: Windows x64, 16 logical cores, dalek AVX2 backend, `--release`. The
+current-tree snapshot below was taken quiesced (`bench.ps1`); the campaign
+before/after differential was interleaved but agent-run (directional).
 
 **How we measure.** Single-shot cross-run comparison is unreliable here —
 sustained load warms the machine and inflates later runs (an *unchanged*
 control drifted +43% between two back-to-back sweeps). So a changed site is
-measured by interleaving the before/after binaries within one run and taking
-the median, with an unchanged column as a thermal-neutral control; the
-criterion micro-benches (`parallel_tradeoff`, `msm_strategy`) self-calibrate
-with warmup and sampling. `bench.ps1` / `bench.sh` run the whole grid under
-quiescence.
+measured by interleaving the before/after binaries within one run (shared
+conditions per rep), and the current side is cross-checked against the
+quiesced snapshot to confirm it is not itself drift-inflated; the criterion
+micro-benches (`parallel_tradeoff`, `msm_strategy`) self-calibrate with warmup
+and sampling. `bench.ps1` / `bench.sh` run the whole grid under quiescence.
 
-**End-to-end shuffle** (all optimizations):
+### Campaign before/after — the five targets
 
-| N | W | prove | verify |
+The whole effort, measured black-box with `examples/targets.rs` (§6). Because
+that tool uses only fork-point public APIs, the same source builds against the
+pre-optimization baseline (a sparse `git worktree` at the fork commit), so
+baseline and current run interleaved — a valid ratio under shared conditions.
+Directional (agent-run, not fully quiesced; the current column agrees with the
+quiesced snapshot below). N = 10⁵, W = 2:
+
+| Target | baseline | current | factor |
 |---|---|---|---|
-| 10⁴ | 2 | 868 | 580 |
-| 10⁴ | 5 | 1 682 | 1 131 |
-| 10⁵ | 2 | 8 506 | 5 461 |
-| 10⁵ | 5 | 17 327 | 10 996 |
+| ① shuffle prove | 13.8 s | 9.1 s | **~1.5×** |
+| ② shuffle verify | 10.9 s | 5.9 s | **~1.9×** |
+| ③ partial decryption | 15.8 s | 3.5 s | **~4.5×** |
+| ④ combine | 36.8 s | 10.0 s | **~3.7×** |
+| ⑤ Naor-Yung verify-and-strip | 4.4 s | 4.8 s | **~1.0× (flat)** |
 
-Against the pre-optimization baseline (~12.9 s prove / ~10.3 s verify at
-10⁵ W = 2): **verify ~1.9×, prove ~1.5×.**
+Same shape at 10⁴ W = 2 and 10⁵ W = 5. Two things this makes plain:
 
-**Decryption, plus the first-mix strip** (T = 3, P = 5). `partial_decrypt` and
-`combine` are decryption, over ElGamal ciphertexts. The strip columns are *not*
-decryption — Naor-Yung verify-and-strip is a first-mix input cost (§2.5/§6.5),
-reported alongside because it is the tally's other per-ballot verify cost:
+- **Decryption (③④) is the big win, ~3.5–4×** — it had the most headroom
+  (fully serial factor/`batching_exponents`/Lagrange loops *and* single-call
+  MSM at baseline, so it caught both stage 0's parallelization and stage 1's
+  chunked MSM). At the fork point `combine` was 37 s (130 s at W = 5); it is
+  now ~10 s.
+- **NY verify-and-strip (⑤) is flat** — the campaign parallelized *braid's*
+  first-mix loop, not vsc's `NYStrip` crypto, and `targets` calls that
+  primitive with its own `par_iter` (identical on both trees). So ⑤ is the
+  one target the campaign never actually optimized: the remaining lever
+  (§5 — it is N independent PlEq verifications, not batched).
 
-| N | W | strip serial | strip parallel | partial_decrypt | combine |
-|---|---|---|---|---|---|
-| 10⁴ | 2 | 2 563 | 428 | 314 | 952 |
-| 10⁵ | 2 | 25 742 | 4 330 | 3 246 | 9 882 |
-
-The strip columns are a same-run control: parallel strip is 5.9× the serial
-loop (the braid first-mix gain).
+Current-tree quiesced snapshot (median of 3, for reference; matches the
+current column above): shuffle prove/verify 8.5 s / 5.5 s, `partial_decrypt`
+3.2 s, `combine` 9.9 s at 10⁵ W = 2. For authoritative before/after, run
+`bench.ps1` on both trees under quiescence (build `targets` in a fork-point
+worktree, per §6).
 
 ### The Amdahl wall — the finding that redirects the next work
 
