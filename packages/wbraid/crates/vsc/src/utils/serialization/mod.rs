@@ -9,7 +9,7 @@
 //! strings: `ser` is injective (every value has exactly one encoding) and
 //! `deser` accepts exactly the image of `ser`. The full format definition —
 //! eight rules — lives in `SERIALIZATION.md` §9; property tests pinning the
-//! bijection live in [`properties`].
+//! bijection live in `properties`.
 //!
 //! The design is cursor-based: every type's `read` consumes exactly the bytes
 //! its `write` produced, from the front of a shared slice, so composition is
