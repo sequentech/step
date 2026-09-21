@@ -23,6 +23,14 @@ pub fn get_election_status(status_json_opt: Option<Value>) -> Option<ElectionSta
     status_json_opt.and_then(|status_json| deserialize_value(status_json).ok())
 }
 
+/// Who requested an event-wide voting status change. Scheduled changes only
+/// touch channels enabled for each election and never reopen closed voting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VotingStatusUpdateSource {
+    Manual,
+    Scheduled,
+}
+
 #[instrument(err)]
 pub async fn update_event_voting_status(
     hasura_transaction: &Transaction<'_>,
@@ -41,7 +49,7 @@ pub async fn update_event_voting_status(
         election_event_id,
         new_status,
         channels,
-        false,
+        VotingStatusUpdateSource::Manual,
     )
     .await
 }
@@ -64,7 +72,7 @@ pub async fn update_scheduled_event_voting_status(
         election_event_id,
         new_status,
         channels,
-        true,
+        VotingStatusUpdateSource::Scheduled,
     )
     .await
 }
@@ -78,7 +86,7 @@ async fn update_event_voting_status_impl(
     election_event_id: &str,
     new_status: &VotingStatus,
     channels: &Option<Vec<VotingStatusChannel>>,
-    enabled_only: bool,
+    source: VotingStatusUpdateSource,
 ) -> Result<ElectionEvent> {
     let election_event = get_election_event_by_id(hasura_transaction, tenant_id, election_event_id)
         .await
@@ -156,7 +164,7 @@ async fn update_event_voting_status_impl(
 
     let configured: HashMap<String, VotingChannels> = elections
         .iter()
-        .filter(|_| enabled_only)
+        .filter(|_| source == VotingStatusUpdateSource::Scheduled)
         .map(|election| {
             let channels = election
                 .voting_channels
@@ -169,7 +177,7 @@ async fn update_event_voting_status_impl(
         .collect::<Result<_>>()?;
 
     for channel in channels {
-        if enabled_only {
+        if source == VotingStatusUpdateSource::Scheduled {
             let elections_ids = apply_scheduled_event_channel(
                 &mut status,
                 &mut elections_status,
