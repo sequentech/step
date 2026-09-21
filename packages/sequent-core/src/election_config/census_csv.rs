@@ -35,6 +35,16 @@ use serde::Serialize;
 const DERIVED: &[&str] =
     &["id", "authorized-election-ids", "enabled", "email_verified"];
 
+/// Only identity and contact fields from a SMART TD Eligibility List are kept.
+/// Membership, payroll, birth dates and addresses are deliberately not attributes.
+const SMART_FIELDS: &[(&str, &str)] = &[
+    ("MemberID", "username"),
+    ("EmailAddress", "email"),
+    ("FirstName", "first_name"),
+    ("LastName", "last_name"),
+    ("PrimaryPhone", "mobile"),
+];
+
 /// The one column a census cannot do without.
 const REQUIRED: &str = "username";
 
@@ -58,10 +68,9 @@ pub struct CensusCsv {
 impl CensusCsv {
     /// Read the header and get ready for the rows.
     ///
-    /// Refuses two ways, and both are refusals rather than notes: a file nothing
-    /// can be read from, and one with no `username`. The wizard used to surface the
-    /// second as an amber "about that file" beside a census it had just emptied,
-    /// which reads as a warning rather than as "your file was not loaded".
+    /// Refuses empty files or missing identity columns before replacing a census.
+    /// Native CSV files preserve custom columns; recognized SMART TD lists use
+    /// the explicit allowlist above and leave ballot areas for review.
     pub fn new(text: &str) -> Result<Self, String> {
         let mut reader = csv::ReaderBuilder::new()
             .flexible(true)
@@ -76,7 +85,41 @@ impl CensusCsv {
 
         let columns: Vec<String> =
             headers.iter().map(|each| each.trim().to_owned()).collect();
-        if !columns.iter().any(|each| each == REQUIRED) {
+        let native = columns.iter().any(|each| each == REQUIRED);
+        let smart = !native
+            && ["LastName", "FirstName", "LocalCode"]
+                .iter()
+                .all(|name| columns.iter().any(|column| column == name));
+        if smart {
+            let mut kept = Vec::new();
+            let mut mapped = Vec::new();
+            for (source, target) in SMART_FIELDS {
+                let matches: Vec<usize> = columns
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, column)| column.as_str() == *source)
+                    .map(|(at, _)| at)
+                    .collect();
+                if matches.len() > 1 {
+                    return Err(format!("The SMART TD Eligibility List has more than one {source} column. Keep one before loading it."));
+                }
+                if let Some(at) = matches.first() {
+                    kept.push(*at);
+                    mapped.push((*target).to_owned());
+                } else if *target == REQUIRED {
+                    return Err("The SMART TD Eligibility List needs a MemberID column for voter usernames.".to_owned());
+                }
+            }
+            return Ok(Self {
+                reader,
+                header: CensusHeader {
+                    columns: mapped,
+                    notes: vec!["SMART TD Eligibility List detected. Imported member ID as username, names, email and primary phone where present; all other columns were ignored. Assign each voter an election area before building; local and committee codes are not ballot assignments.".to_owned()],
+                },
+                kept,
+            });
+        }
+        if !native {
             return Err(
                 "No `username` column. It is the one column a census cannot do \
                  without — it is what a voter signs in as."
@@ -183,6 +226,83 @@ mod tests {
             rows.extend(batch);
         }
         rows
+    }
+
+    const SMART_HEADER: &str = "LastName,FirstName,LocalCode,GCACode,LCACode,EmployeeID,MemberStatus,MemberStatusReason,MemberStatusDate,MemberType,GDOptOut,CraftCd,Craft,MembershipDate,BirthDate,AddressLine1,AddressLine2,City,StateCd,ZipCode,PrimaryPhone,SecondaryPhone,EmailAddress,PACAmount,ActiveAlumni,AddressUpdateDate,MemberID,MemberStatusID";
+
+    #[test]
+    fn smart_eligibility_keeps_only_census_identity_and_contact_fields() {
+        let mut row = vec!["discard-me"; 28];
+        for (at, value) in [
+            (0, "Example"),
+            (1, "Alex"),
+            (20, "+12025550123"),
+            (22, "alex@example.org"),
+            (26, "000042"),
+        ] {
+            row[at] = value;
+        }
+        let text = format!("{SMART_HEADER}\r\n{}\r\n", row.join(","));
+        let mut reader = CensusCsv::new(&text).expect("SMART TD roster");
+        assert_eq!(
+            reader.header().columns,
+            ["username", "email", "first_name", "last_name", "mobile"]
+        );
+        assert!(reader.header().notes.join(" ").contains("SMART TD"));
+        assert!(reader.header().notes.join(" ").contains("area"));
+        assert_eq!(
+            reader.next_batch(10).unwrap(),
+            vec![vec![
+                "000042",
+                "alex@example.org",
+                "Alex",
+                "Example",
+                "+12025550123"
+            ]]
+        );
+    }
+
+    #[test]
+    fn smart_eligibility_recognizes_reordered_bom_headers_and_keeps_missing_values(
+    ) {
+        let text = "\u{feff} MemberID , LocalCode , LastName , FirstName , EmailAddress \r\n000007,0014,\"Example, Jr.\",Alex,\r\n,0014,Example,Sam,sam@example.org\r\n";
+        let mut reader = CensusCsv::new(text).unwrap();
+        assert_eq!(
+            reader.header().columns,
+            ["username", "email", "first_name", "last_name"]
+        );
+        assert_eq!(
+            reader.next_batch(1).unwrap()[0],
+            ["000007", "", "Alex", "Example, Jr."]
+        );
+        assert_eq!(
+            reader.next_batch(1).unwrap()[0],
+            ["", "sam@example.org", "Sam", "Example"]
+        );
+        assert!(reader.next_batch(1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn smart_eligibility_does_not_guess_an_employee_identifier() {
+        assert!(CensusCsv::new(
+            "LastName,FirstName,LocalCode,EmployeeID\nExample,Alex,0014,123\n"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn smart_eligibility_refuses_ambiguous_mapped_columns() {
+        assert!(CensusCsv::new("LastName,FirstName,LocalCode,MemberID,MemberID\nExample,Alex,0014,123,456\n").is_err());
+    }
+
+    #[test]
+    fn canonical_census_retains_custom_columns_even_when_smart_headers_are_present(
+    ) {
+        let text = "username,LastName,FirstName,LocalCode,MemberID,department\na,Example,Alex,0014,000042,Operations\n";
+        let reader = CensusCsv::new(text).unwrap();
+        assert_eq!(reader.header().columns.len(), 6);
+        assert_eq!(all(text)[0][0], "a");
+        assert_eq!(all(text)[0][5], "Operations");
     }
 
     #[test]
