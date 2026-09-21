@@ -10,20 +10,21 @@
 //! - **Naor-Yung verify-and-strip** — a *first-mix* cost, not a decryption
 //!   one: every quorum trustee runs `NYVerify` and strips the ballots to
 //!   ElGamal to form `L_0` before mixing (braid's `mix_input_ciphertexts`).
-//!   It appears here only because the tool builds Naor-Yung ballots to have
-//!   something to decrypt and must strip them to ElGamal anyway, which makes
-//!   it a convenient site to time the strip loop (serial vs rayon-parallel).
+//!   It appears here because it needs Naor-Yung ballots and this tally-crypto
+//!   benchmark is a convenient home for its serial-vs-parallel comparison; the
+//!   decryption measurements below do not depend on it.
 //! - **`Recipient::partial_decrypt`** — one trustee's factors (`N·W`
-//!   exponentiations) plus its single batched proof. **Decryption**, over the
-//!   ElGamal ciphertexts.
+//!   exponentiations) plus its single batched proof. **Decryption**.
 //! - **`combine`** — verifying `T` contributions' batched proofs and
 //!   interpolating the plaintexts. **Decryption**.
 //!
 //! Decryption operates only on ElGamal ciphertexts (never Naor-Yung), and its
-//! cost is the same for `N` ciphertexts whether they are `L_0` or the mixed
-//! `L_t`, so the tool decrypts the freshly stripped ciphertexts directly
-//! rather than running a shuffle first. The DKG (fixed at `T = 3, P = 5`) is
-//! setup, not measurement: its cost does not depend on `N`.
+//! cost is the same for `N` ciphertexts under the joint key regardless of
+//! whether they came from stripping ballots (`L_0`) or a completed mix
+//! (`L_t`) — so the tool encrypts fresh ElGamal ciphertexts under the joint
+//! key and decrypts those directly, independent of the strip block above,
+//! rather than stripping ballots or running a shuffle. The DKG (fixed at
+//! `T = 3, P = 5`) is setup, not measurement: its cost does not depend on `N`.
 //!
 //! # Usage
 //!
@@ -98,7 +99,11 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64) {
     });
     let joint_pk = &recipients[0].1;
 
-    // Naor-Yung ballots under the joint key (setup, untimed).
+    // === First-mix Naor-Yung verify-and-strip (a MIXING-input cost) ===
+    // Not decryption: this is the shape of braid's `mix_input_ciphertexts`,
+    // which forms L_0 before the first mix. It is the tool's only Naor-Yung
+    // use, measured here because it needs Naor-Yung ballots and this is a
+    // convenient site for the serial-vs-parallel strip comparison.
     let ny_pk = naoryung::PublicKey::augment(joint_pk, ENC_CTX).unwrap();
     let ballots: Vec<naoryung::Ciphertext<C, W>> = (0..count)
         .into_par_iter()
@@ -108,17 +113,14 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64) {
         })
         .collect();
 
-    // Verify-and-strip, serial — the shape of braid's pre-stage-0 first-mix
-    // loop (`mix_input_ciphertexts`).
     let ballots_serial = ballots.clone();
     let start = Instant::now();
-    let stripped: Vec<elgamal::Ciphertext<C, W>> = ballots_serial
+    let stripped_serial: Vec<elgamal::Ciphertext<C, W>> = ballots_serial
         .into_iter()
         .map(|c| ny_pk.strip(c, ENC_CTX).unwrap())
         .collect();
     let strip_serial_ms = start.elapsed().as_secs_f64() * 1000.0;
 
-    // Verify-and-strip, parallel — the stage-0 shape of the same loop.
     let start = Instant::now();
     let stripped_par: Vec<elgamal::Ciphertext<C, W>> = ballots
         .into_par_iter()
@@ -126,15 +128,28 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64) {
         .collect();
     let strip_par_ms = start.elapsed().as_secs_f64() * 1000.0;
     assert!(
-        stripped == stripped_par,
+        stripped_serial == stripped_par,
         "serial and parallel strip disagree"
     );
+
+    // === Threshold decryption (ElGamal only) ===
+    // Encrypt directly under the joint ElGamal key -- no Naor-Yung, no strip.
+    // Decryption cost is identical for N ElGamal ciphertexts whether they came
+    // from stripping ballots (L_0) or a completed mix (L_t), so the tool skips
+    // the mix and decrypts fresh encryptions.
+    let ciphertexts: Vec<elgamal::Ciphertext<C, W>> = (0..count)
+        .into_par_iter()
+        .map(|_| {
+            let message: [C::Element; W] = array::from_fn(|_| C::random_element());
+            joint_pk.encrypt(&message)
+        })
+        .collect();
 
     // Partial decryption: T contributions; the first one timed.
     let mut partial_decrypt_ms = 0.0;
     let contributions: [AttributedDecryption<C, W, P>; T] = array::from_fn(|i| {
         let start = Instant::now();
-        let partial = recipients[i].0.partial_decrypt(&stripped, PROOF_CTX).unwrap();
+        let partial = recipients[i].0.partial_decrypt(&ciphertexts, PROOF_CTX).unwrap();
         if i == 0 {
             partial_decrypt_ms = start.elapsed().as_secs_f64() * 1000.0;
         }
@@ -147,7 +162,7 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64) {
 
     // Combine: verify the T batched proofs and interpolate the plaintexts.
     let start = Instant::now();
-    let plaintexts = combine::<C, T, P, W>(&stripped, &contributions, PROOF_CTX).unwrap();
+    let plaintexts = combine::<C, T, P, W>(&ciphertexts, &contributions, PROOF_CTX).unwrap();
     let combine_ms = start.elapsed().as_secs_f64() * 1000.0;
     assert_eq!(plaintexts.len(), count, "combine returned a short list");
 
