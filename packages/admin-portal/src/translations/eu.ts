@@ -2075,6 +2075,7 @@ const basqueTranslation: TranslationType = {
                     "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
                 errorEmptyFile: "Fitxategia hutsa edo ez da aurkitu",
                 verified: "Babeskopia arrakastaz egiaztatua.",
+                alreadyRestored: "Zure giltza lehendik leheneratuta zegoen.",
             },
         },
         miruExport: {
