@@ -819,3 +819,38 @@ fn test_exp_many_matches_naive() {
     // Empty batch is the empty vector.
     assert!(base.exp_many(&[]).is_empty());
 }
+
+/// `par_ser` must produce exactly the bytes the sequential `Vec` encoding does,
+/// for fixed-width leaves and their arrays, on both backends — the property the
+/// transcript wiring relies on to keep proofs bit-identical. Includes the empty
+/// and single-element cases and a size that spans several rayon chunks.
+#[test]
+fn test_par_ser_matches_sequential_ristretto() {
+    test_par_ser::<RCtx>();
+}
+
+#[test]
+fn test_par_ser_matches_sequential_p256() {
+    test_par_ser::<PCtx>();
+}
+
+fn test_par_ser<C: Context>()
+where
+    C::Element: crate::utils::serialization::FixedWidth,
+    C::Scalar: crate::utils::serialization::FixedWidth,
+{
+    use crate::utils::serialization::{Serializable, par_ser};
+    let mut rng = C::get_rng();
+    for n in [0usize, 1, 200] {
+        let elems: Vec<C::Element> = (0..n).map(|_| C::Element::random(&mut rng)).collect();
+        assert_eq!(par_ser(&elems), elems.ser(), "element par_ser at N={n}");
+
+        let scalars: Vec<C::Scalar> = (0..n).map(|_| C::Scalar::random(&mut rng)).collect();
+        assert_eq!(par_ser(&scalars), scalars.ser(), "scalar par_ser at N={n}");
+
+        // `[Element; 2]` exercises the array blanket (`Ciphertext` is arrays).
+        let arrays: Vec<[C::Element; 2]> =
+            (0..n).map(|_| <[C::Element; 2]>::random(&mut rng)).collect();
+        assert_eq!(par_ser(&arrays), arrays.ser(), "array par_ser at N={n}");
+    }
+}

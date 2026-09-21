@@ -120,7 +120,13 @@ impl std::hash::Hash for P256Element {
     }
 }
 
-use crate::utils::serialization::{Deserializable, Serializable, take};
+use crate::utils::serialization::{Deserializable, FixedWidth, Serializable, take};
+
+/// P-256 elements encode as 33 bytes (SEC1 compressed; the identity uses the
+/// reserved all-zero encoding of the same width).
+impl FixedWidth for P256Element {
+    const WIDTH: usize = 33;
+}
 
 impl Serializable for P256Element {
     fn write(&self, out: &mut Vec<u8>) {

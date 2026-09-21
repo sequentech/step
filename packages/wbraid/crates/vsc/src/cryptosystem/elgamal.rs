@@ -364,6 +364,17 @@ pub fn decrypt<C: Context, const W: usize>(
  */
 #[derive(Debug, PartialEq, Clone, Canonical)]
 pub struct Ciphertext<C: Context, const W: usize>(pub [[C::Element; W]; 2]);
+
+/// A width-`W` ciphertext is fixed-width when its group elements are: it encodes
+/// as its inner `[[Element; W]; 2]` (2·W elements), so `par_ser` applies to
+/// ciphertext lists — the shuffle transcript's hottest serialization.
+impl<C: Context, const W: usize> crate::utils::serialization::FixedWidth for Ciphertext<C, W>
+where
+    C::Element: crate::utils::serialization::FixedWidth,
+{
+    const WIDTH: usize = <[[C::Element; W]; 2] as crate::utils::serialization::FixedWidth>::WIDTH;
+}
+
 impl<C: Context, const W: usize> Ciphertext<C, W> {
     /// Construct a ciphertext with given values `u` and `v`.
     ///

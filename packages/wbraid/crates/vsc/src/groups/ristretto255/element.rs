@@ -199,7 +199,12 @@ impl std::hash::Hash for RistrettoElement {
     }
 }
 
-use crate::utils::serialization::{Deserializable, Serializable, take};
+use crate::utils::serialization::{Deserializable, FixedWidth, Serializable, take};
+
+/// ristretto255 elements encode as 32 canonical compressed bytes.
+impl FixedWidth for RistrettoElement {
+    const WIDTH: usize = 32;
+}
 
 impl Serializable for RistrettoElement {
     fn write(&self, out: &mut Vec<u8>) {
