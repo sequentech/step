@@ -330,3 +330,43 @@ and the *snapshot* example (the five top-level targets).
 - **Incremental fetch (monotonic cursor)** — a pure transport optimization for
   board clients; in the spec §12 with its constraints (never security-relevant,
   cannot certify completeness).
+
+## 7. Regression verification of the campaign (2026-09-21)
+
+Every CI gate in `.github/workflows/wbraid.yml`, run against the final tree
+with CI's exact commands:
+
+- `cargo fmt -- --check` — clean, workspace-wide.
+- `cargo clippy --workspace --exclude vsc --features sqlite,postgres
+  --all-targets --no-deps -- -D warnings` — clean.
+- `cargo clippy -p vsc --no-deps` — clean.
+- `cargo test --release --features sqlite,postgres` — all five crates green:
+  vsc 198 + 38; braid unit tests, all 17 model-check configurations, the
+  protocol harnesses on both curves, the serialization properties; b4 8;
+  rnk 51; v2v's 48 local tests.
+- `cargo build -p braid --lib --release --target wasm32-unknown-unknown
+  --no-default-features --features wasm-core` — compiles.
+
+Beyond CI:
+
+- **Verificatum interop** (`crates/v2v/TESTING.md`), with `V2V_REQUIRE_VMN=1`
+  so a pass cannot be a silent skip: **70/70 against Verificatum 3.1.0** —
+  `they_verify_ours` 8/8 (our shuffle and decryption proofs accepted by
+  `vmnv`), `we_verify_theirs` 3/3 (`vmn` corpora accepted by our verifier),
+  the transcript-match tests 7/7 (shuffle seed, challenge, decryption
+  transcript and generators byte-identical to `vmnv -t`), and the negative
+  controls in both directions. The prover's closed-form commitments and the
+  verifier's batched-V2 / variable-time path interoperate unchanged.
+- The production `wasm` feature (wasm-bindgen-rayon pool, atomics, build-std)
+  compiles: `par_ser` and every parallel site build in the pool configuration.
+  CI checks only wasm-core; this exceeds it.
+- `cargo doc -p vsc --no-deps` (broken intra-doc links denied) clean; SPDX
+  headers on every new file; `Cargo.lock` consistent under `--locked`.
+
+**Not yet run — wasm runtime**, blocked on local tooling (wasm-bindgen-cli
+0.2.128 to match the pin, a chromedriver matching the installed Chrome, Docker
+Desktop and the AWS CLI for LocalStack): the headless IndexedDB test
+(`test-wasm.ps1`), the interactive emulator (`TESTING.md` — the one end-to-end
+check of the protocol under wasm with the rayon pool), and CI's opt-in live-b4
+tests. Until then the native protocol harnesses back the emulator's protocol
+path (`TESTING.md`, Wasm).
