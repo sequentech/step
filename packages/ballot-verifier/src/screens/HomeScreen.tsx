@@ -24,8 +24,9 @@ import {useNavigate} from "react-router-dom"
 import {Box} from "@mui/material"
 import {IBallotService, IConfirmationBallot} from "../services/BallotService"
 import {
+    EBallotCiphertextCheck,
     EBallotEncoding,
-    isAuditableBallotCiphertextConsistent,
+    checkAuditableBallotCiphertext,
 } from "../services/ballotCiphertextVerification"
 import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
@@ -198,9 +199,18 @@ export const HomeScreen: React.FC<IProps> = ({
         const encoding = isMultiContest
             ? EBallotEncoding.MULTI_CONTEST
             : EBallotEncoding.SINGLE_CONTEST
-        if (!isAuditableBallotCiphertextConsistent(ballotService, auditableBallot, encoding)) {
-            setShowError(false)
-            setShowCiphertextError(true)
+        const ciphertextCheck = checkAuditableBallotCiphertext(
+            ballotService,
+            auditableBallot,
+            encoding
+        )
+        if (EBallotCiphertextCheck.VERIFIED !== ciphertextCheck) {
+            // Only a ciphertext that fails to reproduce is a failed
+            // verification. A ballot that could not be checked at all is a
+            // problem with the file, and reports the generic import error.
+            const isMismatch = EBallotCiphertextCheck.MISMATCH === ciphertextCheck
+            setShowError(!isMismatch)
+            setShowCiphertextError(isMismatch)
             setConfirmationBallot(null)
             return
         }
@@ -302,7 +312,11 @@ export const HomeScreen: React.FC<IProps> = ({
             <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
                 {t("homeScreen.description1")}
             </Typography>
-            <Alert severity="error" style={{display: showError ? undefined : "none"}}>
+            <Alert
+                severity="error"
+                style={{display: showError ? undefined : "none"}}
+                data-testid="import-error"
+            >
                 <AlertTitle>{t("homeScreen.importErrorTitle")}</AlertTitle>
                 <Typography variant="body2">{t("homeScreen.importErrorDescription")}</Typography>
                 <RouterLink
