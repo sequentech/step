@@ -849,8 +849,9 @@ where
         assert_eq!(par_ser(&scalars), scalars.ser(), "scalar par_ser at N={n}");
 
         // `[Element; 2]` exercises the array blanket (`Ciphertext` is arrays).
-        let arrays: Vec<[C::Element; 2]> =
-            (0..n).map(|_| <[C::Element; 2]>::random(&mut rng)).collect();
+        let arrays: Vec<[C::Element; 2]> = (0..n)
+            .map(|_| <[C::Element; 2]>::random(&mut rng))
+            .collect();
         assert_eq!(par_ser(&arrays), arrays.ser(), "array par_ser at N={n}");
     }
 }

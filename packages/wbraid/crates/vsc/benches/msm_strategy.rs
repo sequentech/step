@@ -27,7 +27,11 @@
 //! cargo bench -p vsc --bench msm_strategy
 //! ```
 
-#![allow(clippy::unwrap_used, clippy::missing_docs_in_private_items, missing_docs)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::missing_docs_in_private_items,
+    missing_docs
+)]
 
 use std::hint::black_box;
 use std::time::Duration;

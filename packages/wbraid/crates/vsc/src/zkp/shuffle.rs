@@ -826,7 +826,6 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     ];
 }
 
-
 /// The output of [`bridging_commitments`]: the commitments and the two scalar
 /// recurrences reused downstream.
 #[allow(clippy::struct_field_names)] // the `_n` suffix is the protocol's vector notation
