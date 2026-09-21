@@ -17,6 +17,10 @@ proposes scheduling; it changes no code.
 > classification *at the time it was made*, kept so the record stays legible —
 > none of it describes pending work. The single item left open, by choice, is D4
 > (an optional documentation note).
+>
+> **Re-verified 2026-09-21** after the performance campaign (final section):
+> alignment preserved throughout; one new description-precision item, D7
+> (batched verification of V2), found and applied.
 
 Scope: the sections of `PROTOCOL.md` that bind this repository — §2
 (preliminaries), §3 (primitives), §4 (DKG), §5.5 (tally input), §6 (mixing), §7
@@ -236,3 +240,39 @@ transcript component lists: `vsc::zkp::{schnorr, dlogeq, pleq, shuffle}`,
 and `braid::trustee::{mod, dkg, mix, decrypt}`, `braid::datalog::{dkg, mix,
 decrypt}`, `braid::messages::wire`. Board-client behavior (A14, A17) is
 additionally covered by the model-checking harnesses (`STATERIGHT.md`).
+
+## Re-verification after the performance campaign (2026-09-21)
+
+The MSM, serialization and variable-time work recorded in `PERFORMANCE.md`
+changed how several protocol values are *computed*; it must not change *what*
+is computed, hashed or encoded. Re-verified by re-reading §6.3–6.4, §7.1–7.2
+and §9.2 against the current source, and by the campaign's own pins: the
+differential tests fix `multi_exp`/`vartime_multi_exp` = the naive product,
+the closed-form bridging chain = the recurrence, and `par_ser` = the sequential
+`Vec` encoding; the shuffle and dkgd round-trips and all 17 model-check
+configurations pass on bit-identical proofs and plaintexts.
+
+| Item | Change | Alignment |
+|---|---|---|
+| A1, A3 | `FixedWidth` / `par_ser`: the transcript's element and ciphertext lists are encoded in parallel | **Preserved.** Byte-identical to the sequential encoding (pinned); every transcript hashes the same bytes in the same value‖tag order |
+| A18 prover | Bridging commitments in closed form — `B_i = g^{d_i} h_1^{p_i}` with `d_i = b_i + e′_i d_{i-1}`, `p_i = ∏ e′_k`, hence `B_0 = h_1`; `A′`, `B′`, `F′` via multi-exp and fixed-base batches | **Preserved.** Same values as §6.3's recurrence and products (`test_bridging_closed_form_*`); proofs bit-identical |
+| A18 verifier | `A`, `F`, V1, V3–V5 via variable-time multi-exp; **V2 checked as one random linear combination** | Values preserved. The *form* of the V2 check changed → **D7** |
+| A19 | `A`/`B` and the combination `F_j = ∏ f_{i,j}^{λ_i}` via variable-time multi-exp; all `t` contributions verified before combining | **Preserved.** Same seed component order (`vk`, u-list, factor-list, `ctx`), same `e_j`, `A`, `B`, `λ_i`, `F_j`, `m_j`; the verify-then-combine order now follows §7.2 steps 1→3 exactly |
+| — | Constant-time vs variable-time exponentiation | Not a protocol property (no normative text). Implementation posture: constant-time wherever a secret enters (the prover's blinders, the trustee's `u^{x_i}`), variable-time on public data only |
+
+### D7 — Batched verification of V2 (description precision fix)
+
+§6.4 states "accept iff all five equations hold" with V2 as `N` per-index
+equations, and §9.2 step 4 inherits it. The braid verifier checks the `N`
+instances of V2 as a single random linear combination with verifier-local
+uniform `t_1..t_N` (Bellare–Garay–Rabin small-exponent batching [BGR98], the
+technique §7.2 already cites for the decryption proof): identical acceptance
+for valid proofs, and a proof with any failing instance accepted with
+probability exactly `1/q`. Sound and standard — but not literally the equations
+as written, and it makes the verifier randomized rather than a pure function of
+the public data. Per the D-class convention the *document* was made precise:
+§6.4 now states the batched form as a permitted check with its error bound,
+keeping the per-index equations normative (and deterministic), and §9.2 step 4
+references it. **Applied 2026-09-21.** Negative coverage:
+`test_shuffle_batched_v2_rejects_{ristretto,p256}` tamper `k_B` — which
+appears only in V2 and does not feed the challenge `v` — and confirm rejection.
