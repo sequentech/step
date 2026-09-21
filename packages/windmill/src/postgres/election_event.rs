@@ -217,6 +217,32 @@ pub async fn get_all_tenant_election_events(
     Ok(election_events)
 }
 
+#[instrument(skip(hasura_transaction), err)]
+pub async fn count_tenant_election_events(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+) -> Result<i64> {
+    let statement = hasura_transaction
+        .prepare(
+            r#"
+                SELECT COUNT(*)
+                FROM
+                    sequent_backend.election_event
+                WHERE
+                    tenant_id = $1
+            "#,
+        )
+        .await?;
+
+    let row = hasura_transaction
+        .query_one(&statement, &[&parse_uuid_v4(tenant_id)?])
+        .await
+        .map_err(|err| anyhow!("Error counting election events: {err}"))?;
+
+    let count: i64 = row.try_get(0)?;
+    Ok(count)
+}
+
 pub async fn update_election_event_annotations(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,

@@ -84,8 +84,6 @@ const CollapseToggleButton = styled(Button)(({theme}) => ({
     },
     "&&:focus": {
         border: "none",
-        outline: `2px solid ${theme.palette.brandSuccess}`,
-        outlineOffset: "-4px",
     },
 }))
 
@@ -194,20 +192,26 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
             className="candidates-list"
         >
             <ListHeader className="candidates-list-header">
-                <ListTitleSection>
+                <ListTitleSection className="candidates-list-heading">
                     {isCollapsible ? (
                         <CollapseToggleButton
+                            className="candidates-list-toggle"
                             variant="secondary"
                             size="small"
                             startIcon={
-                                <FontAwesomeIcon icon={isExpanded ? faAngleDown : faAngleRight} />
+                                <FontAwesomeIcon
+                                    className="candidates-list-toggle-icon"
+                                    icon={isExpanded ? faAngleDown : faAngleRight}
+                                />
                             }
                             onClick={handleToggleCollapse}
                             aria-label={collapseToggleAriaLabel ?? collapseLabel}
                             aria-expanded={isExpanded}
                             aria-controls={panelId}
                         >
-                            <CollapseToggleText>{collapseLabel}</CollapseToggleText>
+                            <CollapseToggleText className="candidates-list-toggle-label">
+                                {collapseLabel}
+                            </CollapseToggleText>
                         </CollapseToggleButton>
                     ) : null}
                     <ListTitle
@@ -221,6 +225,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                     </ListTitle>
                 </ListTitleSection>
                 <Box
+                    className="candidates-list-actions"
                     sx={(muiTheme) => ({
                         display: "flex",
                         justifyContent: "flex-end",
@@ -237,16 +242,23 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                         announced; a region added at the same time as its text is
                         not reliably read out. */}
                     {isCollapsible ? (
-                        <SelectedCandidatesLabel role="status">
+                        <SelectedCandidatesLabel
+                            className="candidates-selected-count"
+                            role="status"
+                        >
                             {!isExpanded && selectedCandidatesLabel ? selectedCandidatesLabel : ""}
                         </SelectedCandidatesLabel>
                     ) : null}
                     {isActive && isCheckable ? (
                         <>
-                            <VisuallyHidden id={selectLabelId}>
+                            <VisuallyHidden
+                                className="candidates-list-checkbox-label"
+                                id={selectLabelId}
+                            >
                                 {t("a11y.selectList")}
                             </VisuallyHidden>
                             <Checkbox
+                                className="candidates-list-checkbox"
                                 checked={checked}
                                 onChange={handleChange}
                                 disabled={shouldDisable}
@@ -261,7 +273,7 @@ const CandidatesList: React.FC<CandidatesListProps> = ({
                 </Box>
             </ListHeader>
             {isCollapsible ? (
-                <Collapse in={isExpanded}>
+                <Collapse className="candidates-list-collapse" in={isExpanded}>
                     <ListChildrenContainer
                         className="candidates-list-children"
                         id={panelId}

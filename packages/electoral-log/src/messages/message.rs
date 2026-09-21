@@ -29,17 +29,27 @@ use std::fmt;
 /// a cross-event statement
 pub const GENERIC_EVENT: &'static str = "Generic Event";
 
+/// The optional fields are skipped when serializing because the JSON of a
+/// message is what the Logs tab, the CSV and the PDF export show: an entry that
+/// does not apply to an election, an area or a ballot reads better without the
+/// null placeholders. Borsh, which is what is signed and stored, is unaffected.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, std::fmt::Debug)]
 pub struct Message {
     pub sender: Sender,
     pub sender_signature: StrandSignature,
     pub system_signature: StrandSignature,
     pub statement: Statement,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artifact: Option<Vec<u8>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub election_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub area_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ballot_id: Option<String>,
 }
 
@@ -63,6 +73,7 @@ impl Message {
         direction: ExtApiRequestDirection,
         api_name: ExtApiName,
         operation: String,
+        area_id: Option<String>,
     ) -> Result<Self> {
         let subject = ExternalApiSubject {
             user_id: voter_id.clone(),
@@ -82,7 +93,7 @@ impl Message {
             voter_id.clone(),
             voter_username.clone(), /* username */
             election_id.0,
-            None,
+            area_id,
             None,
         )
     }
@@ -453,6 +464,24 @@ impl Message {
         Self::from_body(event, body, sd, user_id, username, election_id, None, None)
     }
 
+    pub fn ballot_publication_failure_message(
+        event: EventIdString,
+        details: BallotPublicationFailure,
+        sd: &SigningData,
+        username: Option<String>,
+    ) -> Result<Self> {
+        Self::from_body(
+            event,
+            StatementBody::BallotPublicationFailure(details),
+            sd,
+            None,
+            username,
+            None,
+            None,
+            None,
+        )
+    }
+
     pub fn send_template(
         event: EventIdString,
         _election: ElectionIdString,
@@ -708,6 +737,63 @@ mod tests {
     use super::*;
 
     #[test]
+    fn publication_failures_are_signed_errors_with_task_and_publication_context() -> Result<()> {
+        let system_sk = StrandSignatureSk::r#gen()?;
+        let system_pk = StrandSignaturePk::from_sk(&system_sk)?;
+        let signing_data = SigningData::new(system_sk.clone(), "", system_sk);
+        for stage in [
+            BallotPublicationStage::Generate,
+            BallotPublicationStage::Publish,
+        ] {
+            let mut message = Message::ballot_publication_failure_message(
+                EventIdString("event-id".to_string()),
+                BallotPublicationFailure {
+                    publication_id: BallotPublicationIdString("publication-id".to_string()),
+                    task_id: "task-id".to_string(),
+                    stage,
+                    error: ErrorMessageString("Publication failure reason".to_string()),
+                },
+                &signing_data,
+                Some("Admin".to_string()),
+            )?;
+            message.verify(&system_pk)?;
+            assert_eq!(message.statement.head.log_type.to_string(), "ERROR");
+            assert_eq!(
+                message.statement.head.kind.to_string(),
+                "BallotPublicationFailure"
+            );
+            assert_eq!(message.username.as_deref(), Some("Admin"));
+            assert!(message.statement.head.description.contains("task-id"));
+            assert!(message
+                .statement
+                .head
+                .description
+                .contains("publication-id"));
+            assert!(message
+                .statement
+                .head
+                .description
+                .contains("Publication failure reason"));
+            let encoded = borsh::to_vec(&message)?;
+            let decoded: Message = borsh::from_slice(&encoded)?;
+            decoded.verify(&system_pk)?;
+            let row: ElectoralLogMessage = (&message).try_into()?;
+            let persisted: Message = borsh::from_slice(&row.message)?;
+            persisted.verify(&system_pk)?;
+            assert!(persisted
+                .statement
+                .head
+                .description
+                .contains("Publication failure reason"));
+            if let StatementBody::BallotPublicationFailure(details) = &mut message.statement.body {
+                details.error.0 = "Changed error".to_string();
+            }
+            assert!(message.verify(&system_pk).is_err());
+        }
+        Ok(())
+    }
+
+    #[test]
     fn results_publication_message_keeps_actor_and_action_details() -> Result<()> {
         let signing_data = SigningData::new(
             StrandSignatureSk::r#gen()?,
@@ -741,6 +827,72 @@ mod tests {
                 ..
             })
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn external_api_request_message_carries_the_voter_area() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen()?,
+            "windmill",
+            StrandSignatureSk::r#gen()?,
+        );
+        let message = Message::external_api_request_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(None),
+            &signing_data,
+            Some("voter-id".to_string()),
+            Some("voter-name".to_string()),
+            ExtApiRequestDirection::Inbound,
+            ExtApiName::Datafix,
+            "voter_id=voter-name; ReplacePin Succeeded (temporary=false)".to_string(),
+            Some("area-id".to_string()),
+        )?;
+
+        assert_eq!(message.area_id.as_deref(), Some("area-id"));
+        assert_eq!(message.election_id, None);
+        let row: ElectoralLogMessage = (&message).try_into()?;
+        assert_eq!(row.area_id.as_deref(), Some("area-id"));
+        assert_eq!(
+            message.statement.head.description,
+            "Inbound request ReplacePin Succeeded."
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn message_json_omits_the_fields_the_entry_has_no_value_for() -> Result<()> {
+        let signing_data = SigningData::new(
+            StrandSignatureSk::r#gen()?,
+            "windmill",
+            StrandSignatureSk::r#gen()?,
+        );
+        let message = Message::external_api_request_message(
+            EventIdString("event-id".to_string()),
+            ElectionIdString(None),
+            &signing_data,
+            None, /* voter_id: the voter does not exist yet */
+            Some("voter-name".to_string()),
+            ExtApiRequestDirection::Inbound,
+            ExtApiName::Datafix,
+            "voter_id=voter-name; AddVoter Failed: Area not found for W-1 (error_code=area-not-found)"
+                .to_string(),
+            None, /* area_id */
+        )?;
+
+        let json: serde_json::Value = serde_json::from_str(&message.to_string())?;
+        let object = json.as_object().expect("the message is a JSON object");
+        for field in ["artifact", "user_id", "election_id", "area_id", "ballot_id"] {
+            assert!(!object.contains_key(field), "{field} should not be written");
+        }
+        assert_eq!(object["username"], "voter-name");
+
+        let subject = &json["statement"]["body"]["ExternalApiRequest"][1];
+        assert!(!subject
+            .as_object()
+            .expect("the subject is a JSON object")
+            .contains_key("user_id"));
+        assert_eq!(subject["username"], "voter-name");
         Ok(())
     }
 

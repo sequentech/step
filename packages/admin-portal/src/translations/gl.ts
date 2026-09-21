@@ -254,6 +254,7 @@ const galegoTranslation: TranslationType = {
                 logs: "Rexistros",
             },
             tasksExecution: {
+                DELETE_TENANT: "Eliminar organización",
                 PUBLISH_BALLOT: "Publicar papeleta",
                 VOTER_INFORMATION_LETTER: "Carta de información para o votante",
                 EXPORT_ELECTION_EVENT: "Exportar evento electoral",
@@ -802,6 +803,10 @@ const galegoTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a Xeración de Chaves...",
                 started: "Iniciado o",
+                actions: {
+                    participate: "Participar na cerimonia de chaves",
+                    view: "Ver a cerimonia de chaves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Cerimonia",
@@ -925,6 +930,8 @@ const galegoTranslation: TranslationType = {
                 subtitle:
                     "A exportación pode ser unha operación longa. ¿Estás seguro de que queres exportar os rexistros?",
                 encryptWithPassword: "Cifrar con Contrasinal",
+                passwordForcedNote:
+                    "O arquivo protexerase con contrasinal de todos os xeitos: os informes, as solicitudes e os datos do taboleiro cífranse sempre. Marca a caixa para incluír tamén os campos secretos de votante descifrados.",
                 includeVoters: "Incluir Votantes",
                 activityLogs: "Rexistros de Actividade",
                 bulletinBoard: "Taboleiro de Anuncios",
@@ -1187,6 +1194,18 @@ const galegoTranslation: TranslationType = {
                 },
                 title: "Votantes",
                 subtitle: "Ver e editar datos de votantes",
+                secretAttribute: {
+                    storedPlaceholder: "Valor cifrado almacenado",
+                    reveal: "Mostrar",
+                    hide: "Ocultar",
+                    revealError: "Non se puido mostrar o campo cifrado do votante",
+                    includeInExport: "Incluír campos secretos descifrados do votante",
+                    exportWarning:
+                        "Exportación sensible: o CSV descargado conterá estes campos en texto plano.",
+                    clear: "Borrar",
+                    add: "Engadir valor",
+                    remove: "Eliminar valor",
+                },
                 review: {
                     title: "Revisar cambios",
                     subtitle: "Confirma estas actualizacións antes de envialas.",
@@ -1296,6 +1315,7 @@ const galegoTranslation: TranslationType = {
                 "tenant-create": "Crear Inquilino",
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
+                "tenant-delete": "Eliminar Inquilino",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",
@@ -1305,6 +1325,8 @@ const galegoTranslation: TranslationType = {
                 "voter-create": "Crear Votante",
                 "voter-read": "Leer Votante",
                 "voter-write": "Editar Votante",
+                "voter-secret-attribute-read": "Mostrar Campos Secretos do Votante",
+                "voter-secret-attribute-write": "Editar Campos Secretos do Votante",
                 "user-create": "Crear Usuario",
                 "user-read": "Leer Usuario",
                 "user-write": "Editar Usuario",
@@ -1503,6 +1525,23 @@ const galegoTranslation: TranslationType = {
                 "cloudflare-write": "Editar las reglas de bloqueo por país en Cloudflare",
                 "transmission-report-generate": "Generar Informe de Transmisión",
                 "google-meet-link": "Xerar Ligazón de Google Meet",
+                "service-account": "Conta de servizo",
+                "datafix-account": "Conta de corrección de datos",
+                "gold": "Ouro",
+                "silver": "Prata",
+                "election-event-ivr-tab": "Ver IVR do evento electoral",
+                "election-event-cas-tab": "Ver CAS do evento electoral",
+                "ca-read": "Consultar autoridades de certificación",
+                "ca-write": "Editar autoridades de certificación",
+                "generate-preview": "Xerar vista previa",
+                "preview-read": "Consultar vista previa",
+                "tally-resolution-submit": "Enviar resolución do escrutinio",
+                "phone-blacklist-read": "Consultar lista negra de teléfonos",
+                "phone-blacklist-create": "Crear entradas na lista negra de teléfonos",
+                "phone-blacklist-update": "Editar entradas da lista negra de teléfonos",
+                "phone-blacklist-delete": "Eliminar entradas da lista negra de teléfonos",
+                "election-event-voter-list-reconciliation":
+                    "Reconciliar a lista de votantes do evento electoral",
             },
         },
         generalSettingsScreen: {
@@ -2015,8 +2054,12 @@ const galegoTranslation: TranslationType = {
                 subtitle:
                     "Para continuar, por favor descarga e almacena a túa Chave Privada Cifrada en polo menos dous dispositivos diferentes:",
                 downloadButton: "Descargar a túa Chave Privada Cifrada",
-                errorDownloading: "Erro de descarga: {{error}}",
+                downloaded: "Chave Privada Cifrada descargada correctamente.",
                 errorEmptyKey: "Erro de descarga, ficheiro baleiro",
+                unexpectedError: "Non se puido descargar a chave privada. Téntao de novo.",
+                alreadyVerified: "A túa chave privada xa se descargara e verificara.",
+                unavailable:
+                    "A descarga da chave privada xa non está dispoñible porque a cerimonia avanzou.",
                 confirmdDialog: {
                     ok: "Confirmar Copias de Seguridade e Continuar",
                     cancel: "Volver Atrás",
@@ -2031,13 +2074,13 @@ const galegoTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verificar as túas Copias de Seguridade da Chave Privada Cifrada",
+                verifyButton: "Verificar a chave",
                 subtitle:
                     "Carga unha Copia de Seguridade da Chave Privada Cifrada para comprobar que é correcta. Podes probar tantas veces como necesites, desde as túas diferentes copias de seguridade:",
                 errorUploading:
                     "Copia de Seguridade da Chave Privada Cifrada inválida, por favor intenta de novo",
                 errorEmptyFile: "Ficheiro baleiro ou non atopado",
                 verified: "Copia de seguridade verificada correctamente.",
-                downloaded: "Chave Privada Cifrada xerada correctamente.",
             },
         },
         miruExport: {

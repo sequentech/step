@@ -255,6 +255,7 @@ const frenchTranslation: TranslationType = {
                 logs: "Journaux",
             },
             tasksExecution: {
+                DELETE_TENANT: "Supprimer l’organisation",
                 PUBLISH_BALLOT: "Publier le bulletin",
                 VOTER_INFORMATION_LETTER: "Lettre d'information de l'électeur",
                 EXPORT_ELECTION_EVENT: "Exporter l'événement électoral",
@@ -803,6 +804,10 @@ const frenchTranslation: TranslationType = {
                 statusLabel: "État",
                 waitingKeys: "En attente de la Génération de Clés..",
                 started: "Commencée à",
+                actions: {
+                    participate: "Participer à la cérémonie des clés",
+                    view: "Voir la cérémonie des clés",
+                },
                 breadCrumbs: {
                     configure: "Configurer",
                     ceremony: "Cérémonie",
@@ -928,6 +933,8 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "L'exportation peut être une opération longue. Êtes-vous sûr de vouloir exporter les enregistrements ?",
                 encryptWithPassword: "Chiffrer avec Mot de Passe",
+                passwordForcedNote:
+                    "L'archive sera protégée par mot de passe de toute façon : les rapports, les demandes et les données du tableau d'affichage sont toujours chiffrés. Cochez la case pour inclure aussi les champs secrets des électeurs déchiffrés.",
                 includeVoters: "Inclure les Électeurs",
                 activityLogs: "Journaux d'Activité",
                 bulletinBoard: "Tableau d'Affichage",
@@ -1190,6 +1197,18 @@ const frenchTranslation: TranslationType = {
                 },
                 title: "Électeurs",
                 subtitle: "Voir et éditer les données de l'électeur",
+                secretAttribute: {
+                    storedPlaceholder: "Valeur chiffrée enregistrée",
+                    reveal: "Afficher",
+                    hide: "Masquer",
+                    revealError: "Le champ chiffré de l'électeur n'a pas pu être affiché",
+                    includeInExport: "Inclure les champs secrets déchiffrés de l'électeur",
+                    exportWarning:
+                        "Exportation sensible : le CSV téléchargé contiendra ces champs en texte clair.",
+                    clear: "Effacer",
+                    add: "Ajouter une valeur",
+                    remove: "Supprimer la valeur",
+                },
                 review: {
                     title: "Vérifier les modifications",
                     subtitle: "Confirmez ces mises à jour avant de les soumettre.",
@@ -1301,6 +1320,7 @@ const frenchTranslation: TranslationType = {
                 "tenant-create": "Créer Locataire",
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
+                "tenant-delete": "Supprimer Locataire",
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",
@@ -1310,6 +1330,8 @@ const frenchTranslation: TranslationType = {
                 "voter-create": "Créer Électeur",
                 "voter-read": "Lire Électeur",
                 "voter-write": "Éditer Électeur",
+                "voter-secret-attribute-read": "Afficher les Champs Secrets de l'Électeur",
+                "voter-secret-attribute-write": "Éditer les Champs Secrets de l'Électeur",
                 "user-create": "Créer Utilisateur",
                 "user-read": "Lire Utilisateur",
                 "user-write": "Éditer Utilisateur",
@@ -1510,6 +1532,23 @@ const frenchTranslation: TranslationType = {
                 "cloudflare-write": "Modifier les règles de blocage par pays dans Cloudflare",
                 "transmission-report-generate": "Générer un rapport de transmission",
                 "google-meet-link": "Générer un Lien Google Meet",
+                "service-account": "Compte de service",
+                "datafix-account": "Compte de correction des données",
+                "gold": "Or",
+                "silver": "Argent",
+                "election-event-ivr-tab": "Afficher l’IVR de l’événement électoral",
+                "election-event-cas-tab": "Afficher le CAS de l’événement électoral",
+                "ca-read": "Consulter les autorités de certification",
+                "ca-write": "Modifier les autorités de certification",
+                "generate-preview": "Générer l’aperçu",
+                "preview-read": "Consulter l’aperçu",
+                "tally-resolution-submit": "Soumettre la résolution du dépouillement",
+                "phone-blacklist-read": "Consulter la liste noire téléphonique",
+                "phone-blacklist-create": "Créer des entrées dans la liste noire téléphonique",
+                "phone-blacklist-update": "Modifier des entrées de la liste noire téléphonique",
+                "phone-blacklist-delete": "Supprimer des entrées de la liste noire téléphonique",
+                "election-event-voter-list-reconciliation":
+                    "Rapprocher la liste électorale de l’événement",
             },
         },
         generalSettingsScreen: {
@@ -2029,8 +2068,12 @@ const frenchTranslation: TranslationType = {
                 subtitle:
                     "Pour continuer, veuillez télécharger et sauvegarder votre Clé Privée Cryptée sur au moins deux appareils différents :",
                 downloadButton: "Télécharger votre Clé Privée Cryptée",
-                errorDownloading: "Erreur de téléchargement : {{error}}",
+                downloaded: "Clé Privée Cryptée téléchargée avec succès.",
                 errorEmptyKey: "Erreur de téléchargement, fichier vide",
+                unexpectedError: "La clé privée n'a pas pu être téléchargée. Veuillez réessayer.",
+                alreadyVerified: "Votre clé privée a déjà été téléchargée et vérifiée.",
+                unavailable:
+                    "Le téléchargement de la clé privée n'est plus disponible car la cérémonie a progressé.",
                 confirmdDialog: {
                     ok: "Confirmer les copies de sauvegarde et Continuer",
                     cancel: "Revenir",
@@ -2045,13 +2088,13 @@ const frenchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Vérifiez vos Copies de Sauvegarde de votre Clé Privée Cryptée",
+                verifyButton: "Vérifier la clé",
                 subtitle:
                     "Chargez la Copie de Sauvegarde de votre Clé Privée Cryptée pour vérifier qu'elle est correcte. Vous pouvez essayer autant de fois que nécessaire, depuis vos différentes copies de sauvegarde :",
                 errorUploading:
                     "Copa de Sauvegarde de la Clé Privée Cryptée invalide, veuillez réessayer",
                 errorEmptyFile: "Fichier vide ou non trouvé",
                 verified: "Copie de sauvegarde vérifiée avec succès.",
-                downloaded: "Clé Privée Cryptée générée avec succès.",
             },
         },
         miruExport: {

@@ -32,7 +32,18 @@ import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import UploadIcon from "@mui/icons-material/Upload"
 import {ListActions} from "@/components/ListActions"
-import {Box, Button, Chip, Menu, MenuItem, Skeleton, Stack, Typography} from "@mui/material"
+import {
+    Box,
+    Button,
+    Checkbox,
+    Chip,
+    FormControlLabel,
+    Menu,
+    MenuItem,
+    Skeleton,
+    Stack,
+    Typography,
+} from "@mui/material"
 import {Dialog, theme} from "@sequentech/ui-essentials"
 import {useTranslation} from "react-i18next"
 import {Action} from "@/components/ActionButons"
@@ -90,6 +101,8 @@ import {
     getAttributeLabel,
     getTranslationLabel,
     isHiddenAttribute,
+    isSecretAttribute,
+    getConfiguredSecretAttributeNames,
     userBasicInfo,
 } from "@/services/UserService"
 import CustomDateField from "./CustomDateField"
@@ -200,6 +213,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const [open, setOpen] = useState(false)
     const [openExport, setOpenExport] = useState(false)
+    const [includeSecretAttributes, setIncludeSecretAttributes] = useState(false)
     const [exporting, setExporting] = useState(false)
     const [userType, setUserType] = useState<string | null>(null)
     const [exportDocumentId, setExportDocumentId] = useState<string | undefined>()
@@ -274,6 +288,11 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const userAttributeGroups =
         userProfileConfiguration?.get_user_profile_configuration.groups ?? []
 
+    const secretAttributeNames = useMemo(
+        () => getConfiguredSecretAttributeNames(userAttributes?.get_user_profile_attributes),
+        [userAttributes]
+    )
+
     const visibleUserAttributes = useMemo(() => {
         // Attributes hidden from the voter-facing forms are also kept out of
         // the admin columns, filters, and forms. Username is the exception: it
@@ -300,7 +319,10 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             filters = visibleUserAttributes
                 // Has its own dedicated boolean column/handling, not a generic
                 // text filter.
-                .filter((attr) => attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED)
+                .filter(
+                    (attr) =>
+                        !isSecretAttribute(attr) && attr.name !== SUPPORT_MATERIALS_ACKNOWLEDGED
+                )
                 .map((attr) => {
                     //covert to valid source string (if attr name is for example sequent.read-only.otp-method)
                     const source = attr.name?.replaceAll(".", "%")
@@ -383,6 +405,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         canImportUsers,
         canCreateVoters,
         canEditVoters,
+        canReadVoterSecretAttributes,
         canEditVotersEmailTlf,
         canDeleteVoters,
         canImportVoters,
@@ -817,6 +840,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const handleExport = () => {
         setExporting(false)
         setExportDocumentId(undefined)
+        setIncludeSecretAttributes(false)
         setOpenExport(true)
     }
 
@@ -829,7 +853,12 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
             if (electionEventId) {
                 currWidget = addWidget(ETasksExecution.EXPORT_VOTERS, true)
                 const {data: exportUsersData, errors} = await exportUsers({
-                    variables: {tenantId, electionEventId, electionId},
+                    variables: {
+                        tenantId,
+                        electionEventId,
+                        electionId,
+                        includeSecretAttributes,
+                    },
                 })
                 if (errors || !exportUsersData) {
                     setExporting(false)
@@ -1163,6 +1192,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
 
     const renderFields = (fields: UserProfileAttribute[]) => {
         const allFields = fields.map((attr) => {
+            if (isSecretAttribute(attr)) return null
             if (attr.name === AUTHORIZED_ELECTION_IDS) return null
             if (attr.name === DISABLE_COMMENT) return null
             if (attr.name === VOTED_CHANNEL) return null
@@ -1551,6 +1581,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                     audienceSelection={audienceSelection}
                     electionEventId={electionEventId}
                     close={handleClose}
+                    secretAttributeNames={secretAttributeNames}
                 />
             </ResourceListStyles.Drawer>
             <ResourceListStyles.Drawer anchor="right" open={openNew} onClose={handleClose}>
@@ -1717,22 +1748,48 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 }}
             >
                 {t("common.export")}
-                <FormStyles.ReservedProgressSpace>
-                    {exporting ? <FormStyles.ShowProgress /> : null}
-                    {exporting && exportDocumentId ? (
-                        <DownloadDocument
-                            documentId={exportDocumentId}
-                            electionEventId={electionEventId ?? ""}
-                            fileName={`users-export.csv`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                setExportDocumentId(undefined)
-                                setExporting(false)
-                                setOpenExport(false)
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
+                {electionEventId &&
+                    canReadVoterSecretAttributes &&
+                    secretAttributeNames.length > 0 && (
+                        <Box sx={{mt: 2}}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={includeSecretAttributes}
+                                        onChange={(event) =>
+                                            setIncludeSecretAttributes(event.target.checked)
+                                        }
+                                    />
+                                }
+                                label={String(
+                                    t("usersAndRolesScreen.voters.secretAttribute.includeInExport")
+                                )}
+                            />
+                            {includeSecretAttributes && (
+                                <Typography color="warning.main" variant="body2">
+                                    {t("usersAndRolesScreen.voters.secretAttribute.exportWarning")}
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
+                {exporting ? (
+                    <FormStyles.ReservedProgressSpace>
+                        <FormStyles.ShowProgress />
+                        {exportDocumentId ? (
+                            <DownloadDocument
+                                documentId={exportDocumentId}
+                                electionEventId={electionEventId ?? ""}
+                                fileName={`users-export.csv`}
+                                onDownload={() => {
+                                    console.log("onDownload called")
+                                    setExportDocumentId(undefined)
+                                    setExporting(false)
+                                    setOpenExport(false)
+                                }}
+                            />
+                        ) : null}
+                    </FormStyles.ReservedProgressSpace>
+                ) : null}
             </Dialog>
 
             <Dialog

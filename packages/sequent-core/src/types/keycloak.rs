@@ -108,6 +108,8 @@ pub const PERMISSION_TO_EDIT: &str = "admin";
 pub const MOBILE_PHONE_ATTR_NAME: &str = "sequent.read-only.mobile-number";
 pub const FIRST_NAME: &str = "firstName";
 pub const LAST_NAME: &str = "lastName";
+pub const FIRST_NAME_ATTRIBUTE: &str = "first_name";
+pub const LAST_NAME_ATTRIBUTE: &str = "last_name";
 pub const PERMISSION_LABELS: &str = "permission_labels";
 pub const REALM_ATTR_VOTER_CERTIFICATE_POLICY: &str =
     "voter-certificate-policy";
@@ -142,9 +144,38 @@ pub enum CredentialInputPolicy {
     #[strum(serialize = "standard")]
     #[serde(rename = "standard")]
     STANDARD,
-    #[strum(serialize = "structured")]
-    #[serde(rename = "structured")]
+    #[strum(
+        serialize = "structured",
+        serialize = "pattern",
+        to_string = "structured"
+    )]
+    #[serde(rename = "structured", alias = "pattern")]
     STRUCTURED,
+}
+
+#[cfg(test)]
+mod credential_input_policy_tests {
+    use super::CredentialInputPolicy;
+
+    #[test]
+    fn pattern_is_an_input_alias_with_unchanged_canonical_serialization() {
+        for value in ["structured", "pattern"] {
+            let policy: CredentialInputPolicy = value.parse().unwrap();
+            assert_eq!(policy, CredentialInputPolicy::STRUCTURED);
+            assert_eq!(policy.to_string(), "structured");
+            assert_eq!(
+                serde_json::to_string(&policy).unwrap(),
+                "\"structured\""
+            );
+            assert_eq!(
+                serde_json::from_value::<CredentialInputPolicy>(
+                    serde_json::json!(value)
+                )
+                .unwrap(),
+                policy
+            );
+        }
+    }
 }
 
 /// Where the password or PIN field is rendered relative to the identity fields
@@ -222,12 +253,17 @@ pub const REALM_ATTR_SMARTLINK_CLOCK_SKEW_SECS: &str =
     "smart-link-clock-skew-secs";
 /// OIDC client the voter is logged into (default `voting-portal`).
 pub const REALM_ATTR_SMARTLINK_CLIENT_ID: &str = "smart-link-client-id";
+/// Public election identifier used in the Smart Link URL and HMAC message.
+/// When absent, the internal election event id from the realm name is used.
+pub const REALM_ATTR_SMARTLINK_ELECTION_ID: &str = "smart-link-election-id";
 /// Comma-separated request/user attributes that must match after HMAC validation.
 pub const REALM_ATTR_SMARTLINK_REQUIRED_ATTRIBUTES: &str =
     "smart-link-required-attributes";
 
 /// Maximum accepted length of the Smart Link shared secret.
 pub const SMARTLINK_SHARED_SECRET_MAX_LEN: usize = 1000;
+/// Maximum accepted length of the public Smart Link election id.
+pub const SMARTLINK_ELECTION_ID_MAX_LEN: usize = 255;
 /// Maximum accepted length of the comma-separated Smart Link required attributes.
 pub const SMARTLINK_REQUIRED_ATTRIBUTES_MAX_LEN: usize = 1000;
 
