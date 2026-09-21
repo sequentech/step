@@ -37,6 +37,27 @@ cargo test -p braid --release
   - `test_protocol_memory_union_batches` — one DKG reused by several tallies, each
     on its own child board (the union-as-batch mechanism).
 
+### Whole workspace — what CI runs
+
+```sh
+# From the repo root (wbraid/). The features are not optional — see below.
+cargo test --release --features sqlite,postgres
+```
+
+This is the command CI's test job runs (`.github/workflows/wbraid.yml`) and the
+one to use before calling a change green: it covers all five crates. The
+features matter because `b4`'s server dependencies (`tokio`, `axum`, `sqlx`,
+the AWS SDK) sit behind its `native` feature, which has **no default** — so a
+plain `cargo test`, or `cargo test -p b4`, fails to compile b4's tests with
+"unresolved import `b4::app`" / "cannot find crate `tokio`". That is an
+invocation error, not a regression; `sqlite` and `postgres` each imply
+`native`. To test b4 on its own: `cargo test -p b4 --release --features sqlite`.
+
+CI's other gates, runnable the same way: `cargo fmt -- --check`;
+`cargo clippy --workspace --exclude vsc --features sqlite,postgres --all-targets --no-deps -- -D warnings`;
+`cargo clippy -p vsc --no-deps`; and the wasm-core build (Wasm, below). The
+Verificatum interop suite is opt-in and documented in `crates/v2v/TESTING.md`.
+
 ### Live-b4 tests (opt-in)
 
 Two harnesses talk to a real `b4` over HTTP and are `#[ignore]`d so the default
