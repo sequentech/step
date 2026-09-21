@@ -1,23 +1,29 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Decryption-path scaling benchmark
+//! Tally per-ballot crypto scaling benchmark
 //!
-//! Standalone companion to `shuffle_scaling`: measures how the tally's
-//! *decryption-side* costs scale with ballot count `N` and ciphertext width
-//! `W` — the costs `shuffle_scaling` deliberately does not cover:
+//! Standalone companion to `shuffle_scaling`, covering the two per-`N` tally
+//! costs the shuffle benchmark does not — one from the mixing phase, two from
+//! decryption:
 //!
-//! - **Naor-Yung verify-and-strip** — what every quorum trustee runs over the
-//!   ballot list before the first mix (braid's `mix_input_ciphertexts`).
-//!   Timed twice, serial and rayon-parallel, so the gain from parallelizing
-//!   braid's loop is measured rather than asserted.
+//! - **Naor-Yung verify-and-strip** — a *first-mix* cost, not a decryption
+//!   one: every quorum trustee runs `NYVerify` and strips the ballots to
+//!   ElGamal to form `L_0` before mixing (braid's `mix_input_ciphertexts`).
+//!   It appears here only because the tool builds Naor-Yung ballots to have
+//!   something to decrypt and must strip them to ElGamal anyway, which makes
+//!   it a convenient site to time the strip loop (serial vs rayon-parallel).
 //! - **`Recipient::partial_decrypt`** — one trustee's factors (`N·W`
-//!   exponentiations) plus its single batched proof.
+//!   exponentiations) plus its single batched proof. **Decryption**, over the
+//!   ElGamal ciphertexts.
 //! - **`combine`** — verifying `T` contributions' batched proofs and
-//!   interpolating the plaintexts.
+//!   interpolating the plaintexts. **Decryption**.
 //!
-//! The DKG itself (fixed at `T = 3, P = 5`) is setup, not measurement: its
-//! cost does not depend on `N`.
+//! Decryption operates only on ElGamal ciphertexts (never Naor-Yung), and its
+//! cost is the same for `N` ciphertexts whether they are `L_0` or the mixed
+//! `L_t`, so the tool decrypts the freshly stripped ciphertexts directly
+//! rather than running a shuffle first. The DKG (fixed at `T = 3, P = 5`) is
+//! setup, not measurement: its cost does not depend on `N`.
 //!
 //! # Usage
 //!
