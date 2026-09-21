@@ -12,7 +12,7 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::utils::hash::Hasher;
 use crate::utils::rng::Rng;
-use crate::utils::serialization::{Deserializable, Serializable};
+use crate::utils::serialization::{Deserializable, FixedWidth, Serializable};
 use crate::utils::signatures::Ed25519;
 use crate::utils::signatures::SignatureScheme;
 
@@ -73,12 +73,20 @@ where
     type Element: GroupElement<Scalar = Self::Scalar>
         + Serializable
         + Deserializable
+        + FixedWidth
         + Clone
         + Send
         + Sync;
 
     /// The group scalar type.
-    type Scalar: GroupScalar + Serializable + Deserializable + Clone + Send + Sync + From<u32>;
+    type Scalar: GroupScalar
+        + Serializable
+        + Deserializable
+        + FixedWidth
+        + Clone
+        + Send
+        + Sync
+        + From<u32>;
 
     /// The hashing function.
     type Hasher: Hasher;

@@ -628,7 +628,7 @@ fn batching_exponents<C: Context, const W: usize>(
 ) -> Result<Vec<C::Scalar>, Error> {
     use crate::traits::groups::CryptographicGroup;
     use crate::utils::hash::{Hasher, update_hasher};
-    use crate::utils::serialization::Serializable as _;
+    use crate::utils::serialization::{Serializable as _, par_ser};
     use sha3::Digest as _;
 
     if ciphertexts.len() != factors.len() {
@@ -638,10 +638,12 @@ fn batching_exponents<C: Context, const W: usize>(
         ));
     }
 
+    // The two N-element lists are serialized in parallel (byte-identical to
+    // `Vec::ser`); their point compression dominates the seed derivation.
     let seed_input = [
         verification_key.ser(),
-        ciphertexts.to_vec().ser(),
-        factors.to_vec().ser(),
+        par_ser(ciphertexts),
+        par_ser(factors),
         proof_context.to_vec(),
     ];
     let slices: Vec<&[u8]> = seed_input.iter().map(Vec::as_slice).collect();
