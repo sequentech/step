@@ -363,10 +363,17 @@ Beyond CI:
 - `cargo doc -p vsc --no-deps` (broken intra-doc links denied) clean; SPDX
   headers on every new file; `Cargo.lock` consistent under `--locked`.
 
-**Not yet run — wasm runtime**, blocked on local tooling (wasm-bindgen-cli
-0.2.128 to match the pin, a chromedriver matching the installed Chrome, Docker
-Desktop and the AWS CLI for LocalStack): the headless IndexedDB test
-(`test-wasm.ps1`), the interactive emulator (`TESTING.md` — the one end-to-end
-check of the protocol under wasm with the rayon pool), and CI's opt-in live-b4
-tests. Until then the native protocol harnesses back the emulator's protocol
-path (`TESTING.md`, Wasm).
+**Wasm runtime** (tooling installed 2026-09-21: wasm-bindgen-cli 0.2.128 to
+match the pin, a chromedriver matching the installed Chrome, Docker Desktop
+with LocalStack pinned to `:4`, the AWS CLI):
+
+- `test-wasm.ps1`, the headless IndexedDB test — **passes**: the `wasm-core`
+  build (the feature the campaign's braid `rayon` change touches) compiles for
+  wasm32 and `indexeddb_round_trips_predicates` runs green in headless Chrome.
+- CI's opt-in **live-b4** tests (`cargo test -p braid --release -- --ignored`
+  against the real b4v6 + LocalStack S3) — **pass**: `test_protocol_http`,
+  `test_protocol_http_union` (client-side `SqlitePersistence`), and the
+  real-crypto `model_check_two_trustees`.
+- The interactive **emulator** (`TESTING.md` — the one end-to-end check of the
+  protocol under wasm with the rayon pool): infrastructure up and the atomics
+  build in progress; pending the interactive run.
