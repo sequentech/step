@@ -101,7 +101,7 @@ impl GroupElement for RistrettoElement {
     /// Constant-time in the scalars, matching [`Self::exp`] and the contract on
     /// [`GroupElement::multi_exp`], so it is sound for the prover's secret
     /// blinding scalars. The chunking preserves that: chunk boundaries depend
-    /// only on the input length (see [`msm_chunk_size`]), never on the scalars,
+    /// only on the input length (see `msm_chunk_size`), never on the scalars,
     /// and each chunk's Straus is itself constant-time — so neither the work
     /// done nor the number of partial-sum additions varies with the exponents.
     ///

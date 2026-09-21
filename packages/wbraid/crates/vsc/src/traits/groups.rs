@@ -267,6 +267,11 @@ pub trait GroupElement: Sized + Debug + Eq + std::hash::Hash {
      *
      * Constant-time in the exponents, like [`exp`](GroupElement::exp): callers
      * may pass secret scalars.
+     *
+     * This is the *large-N* batch, where the precomputed table pays. For the
+     * small fixed-width broadcast (one base to a width-`W` ciphertext's
+     * scalars) use [`ReplGroupOps::repl_exp`], which is a plain per-element
+     * `exp` — a table would not amortize at that size.
      */
     fn exp_many(&self, exponents: &[Self::Scalar]) -> Vec<Self> {
         exponents.iter().map(|s| self.exp(s)).collect()
@@ -406,6 +411,10 @@ pub trait ReplGroupOps<Rhs: GroupElement>: GroupElement {
     /**
      * Component-wise application of exponentation of replicated `self`
      * with the elements of `other`
+     *
+     * This is the fixed-width broadcast (one base to a ciphertext's `W`
+     * randomizers). For a large runtime-length fixed-base batch that amortizes
+     * a precomputed table, use [`GroupElement::exp_many`].
      */
     fn repl_exp(&self, other: &Rhs::Scalar) -> Self::Result;
 
