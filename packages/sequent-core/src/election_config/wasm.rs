@@ -1691,7 +1691,8 @@ pub struct CensusCsvReader {
 
 #[wasm_bindgen(js_class = CensusCsvReader)]
 impl CensusCsvReader {
-    /// Read the header. Throws on a file with nothing in it or no `username`.
+    /// Read a native census or a recognized source format. Throws if the file is
+    /// empty or its required identity column is missing.
     #[wasm_bindgen(constructor)]
     pub fn new(text: &str) -> Result<CensusCsvReader, JsError> {
         census_csv::CensusCsv::new(text)

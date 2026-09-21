@@ -51,7 +51,7 @@ const REQUIRED: &str = "username";
 /// What a census file says about itself, before any rows are read.
 #[derive(Debug, Serialize)]
 pub struct CensusHeader {
-    /// The columns, trimmed, in file order.
+    /// Output columns, after source mapping, aligned to the values in each batch.
     pub columns: Vec<String>,
     /// What was odd about the file without being wrong with it.
     pub notes: Vec<String>,
