@@ -181,7 +181,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: quay.io/minio/minio
     volumes:
       - minio_storage:/data
     environment:

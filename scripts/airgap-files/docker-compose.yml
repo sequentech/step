@@ -53,7 +53,7 @@ services:
   minio:
     profiles: ["full", "base"]
     container_name: minio
-    image: minio/minio
+    image: quay.io/minio/minio
     pull_policy: never
     ports:
       - "9000:9000"
