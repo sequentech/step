@@ -337,8 +337,10 @@ per-index equations kept normative — PROTOCOL-alignment.md D7 (2026-09-21).
 
 ## 6. Benchmark inventory
 
-Two layers: *guidance* benches (criterion, sub-primitive, steer implementation)
-and the *snapshot* example (the five top-level targets).
+Three layers: *guidance* benches (criterion, sub-primitive, steer
+implementation), the *snapshot* example (the five top-level targets), and the
+*reference* run that takes the snapshot — and a before/after — on a fixed
+machine.
 
 | Tool | Layer | What it measures |
 |---|---|---|
@@ -346,7 +348,8 @@ and the *snapshot* example (the five top-level targets).
 | `benches/parallel_tradeoff.rs` | guidance | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
 | `benches/shuffle.rs` | guidance | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
 | `examples/targets.rs` | snapshot | one `(N, W)` cell of the five top-level targets — shuffle prove, shuffle verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — in production form; uses only fork-point public APIs, so it backports for a campaign-wide before/after; T = 3, P = 5 |
-| `bench.ps1` / `bench.sh` | — | turnkey controlled run: build untimed, then the whole grid to a timestamped `bench-results/` file |
+| `bench.ps1` / `bench.sh` | — | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on) and the whole grid to a timestamped `bench-results/` file |
+| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after of the five targets — on a temporary EC2 instance of a fixed type (BENCH-EC2.md): quiesced by construction and the same hardware every session, so numbers are comparable across time. The remote script owns its grid loops, so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files — the key results without opening a CSV. The authoritative layer (§4) |
 
 ## Related, tracked elsewhere
 
