@@ -794,6 +794,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -2029,8 +2033,12 @@ const englishTranslation = {
                 subtitle:
                     "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
-                errorDownloading: "Download error: {{error}}",
+                downloaded: "Encrypted Private Key downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The private key could not be downloaded. Please try again.",
+                alreadyVerified: "Your private key was already downloaded and verified.",
+                unavailable:
+                    "Private key download is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
@@ -2045,12 +2053,13 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
+                verifyButton: "Verify key",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
-                downloaded: "Encrypted Private Key generated successfully.",
+                alreadyRestored: "Your key was already restored.",
             },
         },
         miruExport: {

@@ -799,6 +799,10 @@ const basqueTranslation: TranslationType = {
                 statusLabel: "Egoera",
                 waitingKeys: "Giltzen Sorkuntza itxoiten..",
                 started: "Hasita:",
+                actions: {
+                    participate: "Parte hartu giltzen zeremonian",
+                    view: "Ikusi giltzen zeremonia",
+                },
                 breadCrumbs: {
                     configure: "Konfiguratu",
                     ceremony: "Zeremonia",
@@ -2046,8 +2050,12 @@ const basqueTranslation: TranslationType = {
                 subtitle:
                     "Jarraitzeko, mesedez deskargatu eta gorde zure Zifratutako Giltza Pribatua gutxienez bi gailu desberdinetan:",
                 downloadButton: "Deskargatu zure Zifratutako Giltza Pribatua",
-                errorDownloading: "Deskarga errorea: {{error}}",
+                downloaded: "Zifratutako Giltza Pribatua behar bezala deskargatu da.",
                 errorEmptyKey: "Deskarga errorea, fitxategi hutsa",
+                unexpectedError: "Ezin izan da giltza pribatua deskargatu. Saiatu berriro.",
+                alreadyVerified: "Zure giltza pribatua deskargatuta eta egiaztatuta zegoen.",
+                unavailable:
+                    "Giltza pribatuaren deskarga jada ez dago erabilgarri, zeremoniak aurrera egin duelako.",
                 confirmdDialog: {
                     ok: "Berretsi Babeskopiak eta Jarraitu",
                     cancel: "Itzuli",
@@ -2062,13 +2070,14 @@ const basqueTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Egiaztatu zure Zifratutako Giltza Pribatu Babeskopiak",
+                verifyButton: "Egiaztatu gakoa",
                 subtitle:
                     "Igo Zifratutako Giltza Pribatu Babeskopia bat zuzena dela egiaztatzeko. Behar adina aldiz saia zaitezke, zure babeskopia desberdinetatik:",
                 errorUploading:
                     "Zifratutako Giltza Pribatu Babeskopia baliogabea, mesedez saiatu berriro",
                 errorEmptyFile: "Fitxategia hutsa edo ez da aurkitu",
                 verified: "Babeskopia arrakastaz egiaztatua.",
-                downloaded: "Zifratutako Giltza Pribatua arrakastaz sortua.",
+                alreadyRestored: "Zure giltza lehendik leheneratuta zegoen.",
             },
         },
         miruExport: {

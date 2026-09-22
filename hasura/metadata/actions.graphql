@@ -1495,8 +1495,15 @@ type GetBallotPublicationChangesOutput {
     previous: BallotPublicationStyles
 }
 
+enum RestorePrivateKeyOutcome {
+    RESTORED
+    INVALID
+    ALREADY_RESTORED
+}
+
 type RestorePrivateKeyOutput {
     is_valid: Boolean!
+    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {
