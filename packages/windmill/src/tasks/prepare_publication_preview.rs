@@ -8,6 +8,7 @@ use crate::services::ballot_styles::ballot_publication::get_publication_json;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_status::get_election_status;
+use crate::services::external::utils::remove_datafix_annotations_json;
 use crate::{
     services::tasks_execution::{update_complete, update_fail},
     types::error::Result,
@@ -31,6 +32,21 @@ pub struct PublicationPreview {
     elections: Value,
     support_materials: Value,
     documents: Value,
+}
+
+impl PublicationPreview {
+    /// The preview payload is uploaded to the public bucket, so it must carry
+    /// no Datafix annotations: they hold the VoterView credentials. Ballot
+    /// styles are already sanitized when they are stored, the event and its
+    /// elections are not.
+    pub fn remove_datafix_annotations(&mut self) {
+        remove_datafix_annotations_json(&mut self.election_event);
+        if let Some(elections) = self.elections.as_array_mut() {
+            for election in elections {
+                remove_datafix_annotations_json(election);
+            }
+        }
+    }
 }
 
 #[instrument(err)]
@@ -108,13 +124,14 @@ pub async fn prepare_publication_preview_task(
     let (support_materials_json, documents_json) =
         get_support_material_documents_json(&hasura_transaction, &tenant_id, &election_event_id)
             .await?;
-    let pub_preview = PublicationPreview {
+    let mut pub_preview = PublicationPreview {
         ballot_styles: ballot_styles_json,
         election_event: election_event_json,
         elections: elections_json,
         support_materials: support_materials_json,
         documents: documents_json,
     };
+    pub_preview.remove_datafix_annotations();
 
     let pub_preview_data: Vec<u8> = serde_json::to_value(pub_preview)
         .with_context(|| "Error serializing publication preview")?
@@ -187,4 +204,65 @@ pub async fn get_elections_json_with_open_status(
         serde_json::to_value(open_elections).with_context(|| "Error serializing open elections")?;
 
     Ok(open_elections_json)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::external::utils::{DATAFIX_ID_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
+    use serde_json::json;
+
+    fn preview_with_annotations(
+        event_annotations: Value,
+        election_annotations: Value,
+    ) -> PublicationPreview {
+        PublicationPreview {
+            ballot_styles: json!([{"id": "style", "area_id": "area"}]),
+            election_event: json!({"id": "event", "annotations": event_annotations}),
+            elections: json!([{"id": "election", "annotations": election_annotations}]),
+            support_materials: json!([]),
+            documents: json!([]),
+        }
+    }
+
+    #[test]
+    fn preview_payload_drops_datafix_annotations_from_event_and_elections() {
+        let mut preview = preview_with_annotations(
+            json!({
+                DATAFIX_ID_KEY: "external-event",
+                DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret"}"#,
+                "miru:election-event-id": "miru-event",
+            }),
+            json!({DATAFIX_ID_KEY: "external-event", "miru:election-id": "miru-election"}),
+        );
+
+        preview.remove_datafix_annotations();
+
+        assert_eq!(
+            preview.election_event["annotations"],
+            json!({"miru:election-event-id": "miru-event"})
+        );
+        assert_eq!(
+            preview.elections[0]["annotations"],
+            json!({"miru:election-id": "miru-election"})
+        );
+        assert_eq!(preview.election_event["id"], "event");
+        assert_eq!(preview.ballot_styles[0]["id"], "style");
+    }
+
+    #[test]
+    fn preview_payload_sanitization_tolerates_missing_annotations() {
+        let mut preview = PublicationPreview {
+            ballot_styles: json!([]),
+            election_event: json!({"id": "event"}),
+            elections: Value::Null,
+            support_materials: json!([]),
+            documents: json!([]),
+        };
+
+        preview.remove_datafix_annotations();
+
+        assert_eq!(preview.election_event, json!({"id": "event"}));
+        assert_eq!(preview.elections, Value::Null);
+    }
 }

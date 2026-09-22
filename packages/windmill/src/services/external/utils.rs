@@ -63,6 +63,20 @@ pub fn remove_datafix_annotations(annotations: &mut Option<serde_json::Value>) {
     }
 }
 
+/// Field holding the annotations of a serialized `election_event` or
+/// `election` row.
+const ANNOTATIONS_FIELD: &str = "annotations";
+
+/// Strips Datafix annotations from a serialized `election_event` or `election`
+/// row, for publication payloads assembled as JSON rather than from the typed
+/// struct.
+pub fn remove_datafix_annotations_json(row: &mut serde_json::Value) {
+    let Some(serde_json::Value::Object(annotations)) = row.get_mut(ANNOTATIONS_FIELD) else {
+        return;
+    };
+    annotations.retain(|key, _| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX));
+}
+
 /// Returns true if the voter has voted via Sequent´s system -
 /// this is if VOTED_CHANNEL attribute is set to VOTED_CHANNEL_INTERNET_VALUE.
 #[instrument(skip_all)]
@@ -397,6 +411,41 @@ mod tests {
         let mut annotations = Some(json!(["datafix:id"]));
         remove_datafix_annotations(&mut annotations);
         assert_eq!(annotations, Some(json!(["datafix:id"])));
+    }
+
+    #[test]
+    fn remove_datafix_annotations_json_strips_only_datafix_keys_from_a_row() {
+        let mut row = json!({
+            "id": "event",
+            "annotations": {
+                DATAFIX_ID_KEY: "external-event",
+                DATAFIX_VOTERVIEW_REQ_KEY: "secret",
+                "miru:election-event-id": "miru-event",
+            },
+        });
+
+        remove_datafix_annotations_json(&mut row);
+
+        assert_eq!(
+            row,
+            json!({
+                "id": "event",
+                "annotations": {"miru:election-event-id": "miru-event"},
+            })
+        );
+    }
+
+    #[test]
+    fn remove_datafix_annotations_json_ignores_rows_without_object_annotations() {
+        for mut row in [
+            json!({"id": "event"}),
+            json!({"id": "event", "annotations": null}),
+            json!({"id": "event", "annotations": [DATAFIX_ID_KEY]}),
+        ] {
+            let original = row.clone();
+            remove_datafix_annotations_json(&mut row);
+            assert_eq!(row, original);
+        }
     }
 
     #[test]
