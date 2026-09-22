@@ -62,6 +62,7 @@ export const Tabs: React.FC<{
         <TabStyles.Wrapper>
             <Box
                 sx={{
+                    width: "100%",
                     bgcolor: "background.paper",
                     borderBottom: 1,
                     borderColor: "divider",
