@@ -55,7 +55,7 @@ if [ -n "$rows" ]; then
         for (m = 3; m <= 7; m++) v[k, m, n] = $m + 0
     }
     END {
-        print "| N : W | reps | prove | verify | partial | combine | strip |"
+        print "| N : W | reps | prove (ms) | verify (ms) | partial (ms) | combine (ms) | strip (ms) |"
         print "|---|---|---|---|---|---|---|"
         for (i = 1; i <= nk; i++) {
             k = order[i]; split(k, p, ":")
@@ -103,6 +103,33 @@ if [ -n "$drows" ]; then
         }
     }'
     echo
+fi
+
+# --- the snapshot and the "after" column are independent runs of the same tip
+# binary (standalone vs interleaved with the baseline); their disagreement is the
+# machine's run-to-run spread -- the resolution of every number above.
+if [ -n "$rows" ] && [ -n "$drows" ]; then
+    { printf '%s\n' "$rows" | sed 's/^/snap,/'; printf '%s\n' "$drows"; } | awk -F, "$AWK_COMMON"'
+    $1 == "snap" || $1 == "curr" {
+        k = $2 ":" $3 ":" $1; c = $2 ":" $3
+        if (!(c in cseen)) { cseen[c] = 1; corder[++nc] = c }
+        if (!(k in seen)) { seen[k] = 1; cnt[k] = 0 }
+        n = ++cnt[k]
+        for (m = 4; m <= 8; m++) v[k, m, n] = $m + 0
+    }
+    END {
+        worst = -1
+        for (i = 1; i <= nc; i++) {
+            c = corder[i]; ks = c ":snap"; kc = c ":curr"
+            if (!(ks in seen) || !(kc in seen)) continue
+            for (m = 4; m <= 8; m++) {
+                s = median(ks, m); a = median(kc, m)
+                if (a > 0) { d = (s > a ? s - a : a - s) / a; if (d > worst) worst = d }
+            }
+        }
+        if (worst >= 0)
+            printf "_The snapshot and the \"after\" column are independent runs of the same tip binary — standalone vs interleaved with the baseline. Across the cells present in both they agree within **%.1f%%**: the machine'"'"'s run-to-run spread, and the resolution of every number above._\n\n", worst * 100
+    }'
 fi
 
 [ -n "$rows$drows" ] || echo "_No snapshot or differential rows found in $DIR._"
