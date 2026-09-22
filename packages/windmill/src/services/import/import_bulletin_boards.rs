@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::election::get_elections;
+use crate::services::ceremonies::old_core_board::get_b3_pgsql_client;
+use crate::services::electoral_log_board::{get_election_board, get_event_board};
 use crate::services::export::export_bulletin_boards::*;
 use crate::services::protocol_manager::get_b3_pgsql_client;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;

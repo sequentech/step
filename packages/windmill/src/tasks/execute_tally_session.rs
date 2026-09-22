@@ -24,9 +24,10 @@ use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
 use crate::services::ceremonies::keys_ceremony::get_keys_ceremony_board;
+use crate::services::ceremonies::old_core_board::{self, generate_logs, print_messages};
 use crate::services::ceremonies::results::populate_results_tables;
 use crate::services::ceremonies::serialize_logs::{
-    append_tally_finished, append_tally_updated, generate_logs, print_messages, sort_logs,
+    append_tally_finished, append_tally_updated, sort_logs,
 };
 use crate::services::ceremonies::tally_ceremony::find_last_tally_session_execution_and_all_related_data;
 use crate::services::ceremonies::tally_ceremony::{
@@ -45,7 +46,6 @@ use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
 use crate::services::pg_lock::PgLock;
-use crate::services::protocol_manager;
 use crate::services::reports::electoral_results::ElectoralResults;
 use crate::services::reports::initialization::InitializationTemplate;
 use crate::services::reports::template_renderer::{
@@ -819,12 +819,12 @@ async fn map_plaintext_data(
     let last_message_id: i64 = tally_session_execution.current_message_id as i64;
 
     // get board messages
-    let board_client = protocol_manager::get_b3_pgsql_client().await?;
+    let board_client = old_core_board::get_b3_pgsql_client().await?;
     let board_messages = board_client.get_messages(&bulletin_board, -1).await?;
     event!(Level::INFO, "Num board_messages {}", board_messages.len());
 
     // convert board messages into messages
-    let messages: Vec<Message> = protocol_manager::convert_board_messages(&board_messages)?;
+    let messages: Vec<Message> = old_core_board::convert_board_messages(&board_messages)?;
     print_messages(&messages, &bulletin_board)?;
 
     // `create_tally_ceremony` refuses this combination when a session is

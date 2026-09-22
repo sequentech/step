@@ -8,13 +8,13 @@ use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
 use crate::services::electoral_log::ElectoralLogAdminContext;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
 use crate::services::keycloak::read_realm_config_from_s3;
-use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
@@ -88,6 +88,7 @@ use crate::postgres::election::insert_elections;
 use crate::postgres::election_event::insert_election_event;
 use crate::postgres::keys_ceremony;
 use crate::postgres::scheduled_event::insert_scheduled_event;
+use crate::services::ceremonies::old_core_board::get_b3_pgsql_client;
 use crate::services::certificate_authority::{parse_certificate_pem, split_pem_bundle};
 use crate::services::consolidation::aes_256_cbc_encrypt::decrypt_file_aes_256_cbc;
 use crate::services::documents;
@@ -95,13 +96,12 @@ use crate::services::documents::upload_and_return_document;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::create_protocol_manager_keys;
+use crate::services::electoral_log_board::get_board_client;
+use crate::services::electoral_log_board::get_election_board;
 use crate::services::import::import_bulletin_boards::*;
 use crate::services::jwks::upsert_realm_jwks;
-use crate::services::protocol_manager::get_election_board;
 use crate::services::protocol_manager::get_protocol_manager_secret_path;
-use crate::services::protocol_manager::{
-    create_protocol_manager_keys, get_b3_pgsql_client, get_board_client,
-};
 use crate::tasks::import_election_event::ImportElectionEventBody;
 use crate::types::documents::EDocuments;
 use regex::Regex;

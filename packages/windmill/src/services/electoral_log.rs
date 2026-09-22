@@ -6,10 +6,12 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::celery_app::get_celery_app;
 use crate::services::database::{get_hasura_pool, PgConfig};
 use crate::services::election_event_board::get_election_event_board;
+use crate::services::electoral_log_board::create_named_param;
+use crate::services::electoral_log_board::get_board_client;
+use crate::services::electoral_log_board::get_event_board;
+use crate::services::electoral_log_board::get_immudb_client;
+use crate::services::electoral_log_board::get_protocol_manager;
 use crate::services::insert_cast_vote::hash_voter_id;
-use crate::services::protocol_manager::get_event_board;
-use crate::services::protocol_manager::get_protocol_manager;
-use crate::services::protocol_manager::{create_named_param, get_board_client, get_immudb_client};
 use crate::services::vault;
 use crate::tasks::electoral_log::{
     enqueue_electoral_log_event, LogEventBody, LogEventInput, LogMessageType,

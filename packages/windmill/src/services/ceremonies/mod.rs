@@ -5,6 +5,7 @@
 pub mod encrypter;
 pub mod insert_ballots;
 pub mod keys_ceremony;
+pub mod old_core_board;
 pub mod renamer;
 pub mod result_documents;
 pub mod results;

@@ -11,8 +11,7 @@ use strand::serialization::StrandSerialize;
 use strand::signature::StrandSignaturePk;
 use tracing::instrument;
 
-use super::protocol_manager;
-use super::public_keys::deserialize_public_key;
+use super::ceremonies::old_core_board::{self, deserialize_public_key};
 
 #[instrument(err)]
 pub async fn get_trustee_encrypted_private_key(
@@ -21,7 +20,7 @@ pub async fn get_trustee_encrypted_private_key(
 ) -> Result<String> {
     let trustee_deserialized_pub_key: StrandSignaturePk =
         deserialize_public_key(trustee_pub_key.to_string())?;
-    let private_key = protocol_manager::get_trustee_encrypted_private_key::<RistrettoCtx>(
+    let private_key = old_core_board::get_trustee_encrypted_private_key::<RistrettoCtx>(
         board_name,
         &trustee_deserialized_pub_key,
     )

@@ -6,7 +6,8 @@ use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
 use crate::services::documents::upload_and_return_document;
 use crate::services::electoral_log::{ElectoralLogRow, IMMUDB_ROWS_LIMIT};
-use crate::services::protocol_manager::{get_board_client, get_event_board};
+use crate::services::electoral_log_board::get_board_client;
+use crate::services::electoral_log_board::get_event_board;
 use crate::services::providers::email_sender::{Attachment, EmailSender};
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -481,7 +482,7 @@ pub async fn generate_export_data(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::services::protocol_manager::get_event_board;
+    use crate::services::electoral_log_board::get_event_board;
     use crate::services::reports::template_renderer::ReportOriginatedFrom;
     use chrono::Utc;
     use electoral_log::BoardClient;
