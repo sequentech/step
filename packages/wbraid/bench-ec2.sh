@@ -206,7 +206,7 @@ package() {
     tr -d '\r' < "$HERE/bench-ec2/remote-bench.sh" > "$tmp/remote-bench.sh"
     aws s3 cp "$(winpath "$tmp/remote-bench.sh")" "s3://$BUCKET/$session/remote-bench.sh" --only-show-errors
     rm -rf "$tmp"
-    printf '%s %s %s' "$session" "$sha" "$bsha"
+    printf '%s %s %s\n' "$session" "$sha" "$bsha"
 }
 
 collect() {
@@ -262,8 +262,9 @@ sweep() {
 cleanup_trap() {
     local rc=$?
     trap - EXIT
+    log "exit (rc=$rc)"
     if [ -n "$(state_instance)" ]; then
-        log "exit (rc=$rc): making sure the instance is terminated"
+        log "making sure the instance is terminated"
         terminate || true
     fi
     sweep || log "SWEEP FOUND LIVE RESOURCES -- investigate now"
@@ -287,7 +288,10 @@ session() {
     trap cleanup_trap EXIT
     local ref="${1:-HEAD}" base="${2:-}"
     local session sha bsha
-    read -r session sha bsha < <(package "$ref" "$base")
+    # `read` returns non-zero at EOF even after filling its variables, which
+    # under set -e would silently abort here; check the result explicitly.
+    read -r session sha bsha < <(package "$ref" "$base") || true
+    { [ -n "$session" ] && [ -n "$sha" ]; } || die "packaging failed (no session id returned)"
     local iid; iid="$(launch)"
     log "session $session: running remote-bench.sh on $iid (lifetime cap ${LIFETIME_MIN} min)"
     # POSIX sh lines (AWS-RunShellScript runs them under sh). The benchmark's own
