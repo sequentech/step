@@ -3414,6 +3414,7 @@ mod tests {
         max_votes: i64,
     ) -> Contest {
         Contest {
+            external_id: None,
             id,
             tenant_id: s(),
             election_event_id: s(),
