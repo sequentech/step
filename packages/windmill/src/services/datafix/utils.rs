@@ -51,8 +51,10 @@ pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 
-/// Strips Datafix annotations so they are not published in ballot styles.
-pub fn remove_datafix_annotations(annotations: &mut Option<serde_json::Value>) {
+/// Strips Datafix annotations so they are not published. Takes the
+/// annotations themselves, so it serves both a typed row and one held as JSON
+/// in a publication payload.
+pub fn remove_datafix_annotations(annotations: Option<&mut serde_json::Value>) {
     if let Some(serde_json::Value::Object(map)) = annotations {
         map.retain(|key, _| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX));
     }
@@ -485,7 +487,7 @@ mod tests {
             "miru:election-event-id": "miru-event",
         }));
 
-        remove_datafix_annotations(&mut annotations);
+        remove_datafix_annotations(annotations.as_mut());
 
         assert_eq!(
             annotations,
@@ -495,15 +497,15 @@ mod tests {
 
     #[test]
     fn remove_datafix_annotations_handles_missing_annotations() {
-        let mut annotations = None;
-        remove_datafix_annotations(&mut annotations);
+        let mut annotations: Option<serde_json::Value> = None;
+        remove_datafix_annotations(annotations.as_mut());
         assert_eq!(annotations, None);
     }
 
     #[test]
     fn remove_datafix_annotations_leaves_non_object_values_untouched() {
         let mut annotations = Some(json!(["datafix:id"]));
-        remove_datafix_annotations(&mut annotations);
+        remove_datafix_annotations(annotations.as_mut());
         assert_eq!(annotations, Some(json!(["datafix:id"])));
     }
 

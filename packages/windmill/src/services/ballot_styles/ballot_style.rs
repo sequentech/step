@@ -173,7 +173,7 @@ pub async fn create_ballot_style_postgres(
             get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
 
         let mut voter_election_event = election_event.clone();
-        remove_datafix_annotations(&mut voter_election_event.annotations);
+        remove_datafix_annotations(voter_election_event.annotations.as_mut());
 
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
