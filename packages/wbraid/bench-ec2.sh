@@ -193,12 +193,17 @@ package() {
         git -C "$top" cat-file -e "$ref:$tc" 2>/dev/null && extra="$extra $tc"
     done
     log "packaging $ref ($sha)${bsha:+ and baseline $base ($bsha)} -> s3://$BUCKET/$session/"
+    # git archive applies the archived tree's attributes AND this machine's
+    # core.autocrlf: on Windows that emits CRLF for commits that predate the
+    # `*.sh eol=lf` attribute, and bash on the instance then dies on '\r'.
+    # Disable the conversion for the archive so the tarball carries the repo's
+    # LF bytes whatever commit is being packaged.
     # shellcheck disable=SC2086
-    git -C "$top" archive --format=tar.gz -o "$tmp/src-$sha.tar.gz" "$ref" packages/wbraid $extra
+    git -C "$top" -c core.autocrlf=false -c core.eol=lf archive --format=tar.gz -o "$tmp/src-$sha.tar.gz" "$ref" packages/wbraid $extra
     aws s3 cp "$(winpath "$tmp/src-$sha.tar.gz")" "s3://$BUCKET/$session/src-$sha.tar.gz" --only-show-errors
     if [ -n "$bsha" ]; then
         # shellcheck disable=SC2086
-        git -C "$top" archive --format=tar.gz -o "$tmp/src-$bsha.tar.gz" "$base" packages/wbraid $extra
+        git -C "$top" -c core.autocrlf=false -c core.eol=lf archive --format=tar.gz -o "$tmp/src-$bsha.tar.gz" "$base" packages/wbraid $extra
         aws s3 cp "$(winpath "$tmp/src-$bsha.tar.gz")" "s3://$BUCKET/$session/src-$bsha.tar.gz" --only-show-errors
     fi
     # Strip any CR before upload: the script runs under Linux bash, and a
@@ -274,13 +279,23 @@ cleanup_trap() {
 smoke() {
     trap cleanup_trap EXIT
     LIFETIME_MIN="${LIFETIME_MIN_SMOKE:-25}"
+    # Rehearse the session's packaging path as well as the lifecycle: both early
+    # session failures (read at EOF, CRLF in the tarball) lived in code the
+    # original smoke never touched.
+    local session sha bsha
+    read -r session sha bsha < <(package HEAD) || true
+    { [ -n "$session" ] && [ -n "$sha" ]; } || die "packaging failed (no session id returned)"
     local iid; iid="$(launch t3.micro)"
-    log "smoke: waiting for the bootstrap, then identifying the machine"
+    log "smoke: waiting for the bootstrap, identifying the machine, rehearsing the fetch"
     ssm_run "$iid" 900 \
         'until [ -f /var/tmp/wbraid-bootstrap-done ]; do sleep 5; done' \
         'uname -a; nproc; lscpu | grep -E "Model name|^CPU\(s\)"' \
         '/usr/local/bin/aws --version; /root/.cargo/bin/rustc --version' \
-        "/usr/local/bin/aws s3 ls s3://$BUCKET/ >/dev/null && echo 'bucket access from the instance: ok'"
+        "mkdir -p /work/smoke && /usr/local/bin/aws s3 cp s3://$BUCKET/$session/src-$sha.tar.gz - --only-show-errors | tar -xz -C /work/smoke && echo 'tarball fetched and extracted: ok'" \
+        "/usr/local/bin/aws s3 cp s3://$BUCKET/$session/remote-bench.sh /work/smoke/remote-bench.sh --only-show-errors" \
+        "cd /work/smoke/packages/wbraid && bash -n bench.sh && bash -n /work/smoke/remote-bench.sh && echo 'bench.sh and remote-bench.sh parse under bash: ok'" \
+        "if [ \"\$(tr -cd '\\r' < /work/smoke/packages/wbraid/bench.sh | wc -c)\" -eq 0 ]; then echo 'bench.sh line endings: LF ok'; else echo 'ERROR: bench.sh in the tarball has CRLF line endings'; exit 3; fi"
+    aws s3 rm "s3://$BUCKET/$session/" --recursive --only-show-errors || true
     log "smoke run complete"
 }
 
@@ -293,6 +308,7 @@ session() {
     read -r session sha bsha < <(package "$ref" "$base") || true
     { [ -n "$session" ] && [ -n "$sha" ]; } || die "packaging failed (no session id returned)"
     local iid; iid="$(launch)"
+    local remote_rc=0
     log "session $session: running remote-bench.sh on $iid (lifetime cap ${LIFETIME_MIN} min)"
     # POSIX sh lines (AWS-RunShellScript runs them under sh). The benchmark's own
     # exit code is what the invocation reports, not the log upload's.
@@ -304,8 +320,9 @@ session() {
         "tail -n 25 /tmp/remote-bench.log" \
         "aws s3 cp /tmp/remote-bench.log s3://$BUCKET/$session/results/remote-bench.log --only-show-errors" \
         "exit \$rc" \
-      || log "remote run reported failure -- collecting whatever was uploaded (see remote-bench.log)"
+      || { remote_rc=1; log "remote run reported failure -- collecting whatever was uploaded (see remote-bench.log)"; }
     collect "$session"
+    return $remote_rc
 }
 
 case "${1:-}" in
