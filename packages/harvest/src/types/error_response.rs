@@ -47,6 +47,8 @@ pub enum ErrorCode {
     ConfirmPolicyShowCastVoteLogsFailed,
     BallotIdMismatch,
     BallotPublicationValidation,
+    TallyValidation,
+    InvalidVotingChannels,
     // Add any other needed error codes
 }
 
