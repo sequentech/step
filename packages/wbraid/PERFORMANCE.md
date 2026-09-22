@@ -314,7 +314,7 @@ products.
 5. **GPU** — deferred. The go/no-go rule is: adopt only if, after the residual
    above is fixed, MSM still holds ≥ 70% of verifier wall-clock at the
    deployment's real N *and* a latency requirement CPU scaling cannot meet
-   exists. It is currently **not met** — MSM is already a minority. If it ever
+   exists. **Evaluated 2026-09-22 against the reference-machine numbers (§4): not met.** At N = 10⁵ W = 2 the verifier takes 2.2 s, of which its roughly a dozen MSM-equivalents — at ~48 ms each for a chunked variable-time MSM of 10⁵ on that machine — are ~0.6 s: a quarter to a third, not 70%. Even a free GPU MSM would buy at most ~1.4× on verify, while the untouched Naor-Yung verify-and-strip (⑤, 3.7 s) is a larger, CPU-side lever. The *G and VT* instance quota is granted (8 vCPUs), so a feasibility session is possible whenever it is wanted. If it ever
    is: Anza's `curve25519-cuda` (sppark-based, in `anza-xyz/cryptography`,
    companion to the `solana-ed25519` dalek fork) is the one candidate GPU MSM
    for this curve — variable-time, with a GPU→CPU fallback — but as of 2026-09
