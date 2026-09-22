@@ -13,6 +13,7 @@ use crate::services::ceremonies::serialize_logs::*;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_event_status;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_board::get_election_board;
 use crate::services::private_keys::get_trustee_encrypted_private_key;
 use crate::services::protocol_manager::get_election_board;
 use crate::tasks::create_keys::{create_keys, CreateKeysBody};

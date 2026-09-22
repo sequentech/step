@@ -24,6 +24,7 @@ pub mod election_event_statistics;
 pub mod election_event_status;
 pub mod election_statistics;
 pub mod electoral_log;
+pub mod electoral_log_board;
 pub mod ess_xml_converter;
 pub mod event_list;
 pub mod export;

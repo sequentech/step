@@ -26,7 +26,7 @@ use crate::services::ceremonies::serialize_logs::{
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::protocol_manager::get_event_board;
+use crate::services::electoral_log_board::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;

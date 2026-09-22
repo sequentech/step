@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::database::get_hasura_pool;
-use crate::services::protocol_manager::get_immudb_client;
+use crate::services::electoral_log_board::get_immudb_client;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;

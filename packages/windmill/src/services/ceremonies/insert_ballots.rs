@@ -8,12 +8,15 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
+use crate::services::ceremonies::old_core_board::{
+    add_ballots_to_board, deserialize_public_key, generate_trustee_set, get_b3_pgsql_client,
+    get_board_messages, get_configuration, get_public_key_hash,
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
+use crate::services::electoral_log_board::get_protocol_manager;
 use crate::services::join::merge_join_csv;
 use crate::services::join::MultiplicitySource;
-use crate::services::protocol_manager::*;
-use crate::services::public_keys::deserialize_public_key;
 use crate::services::users::{
     list_keycloak_enabled_users_by_area_id_and_authorized_elections, VoterMultiplicityColumn,
 };
