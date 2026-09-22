@@ -18,7 +18,8 @@ use crate::{
     types::{
         ceremonies::{
             AutomaticRecountPolicy, CeremoniesPolicy,
-            KeysCeremonyExecutionStatus, KeysCeremonyStatus, TallyRunReason,
+            KeysCeremonyExecutionStatus, KeysCeremonyStatus, ProtocolBoardKind,
+            ProtocolBoardLifecycle, TallyRunReason,
         },
         participation::VotesByChannel,
         tally_sheets::{AreaContestResults, TallySheetStatus},
@@ -623,13 +624,51 @@ pub struct TasksExecution {
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct Trustee {
     pub id: String,
+    /// Ed25519 verifying key the trustee signs board messages with, as
+    /// base64 of the raw 32 key bytes.
     pub public_key: Option<String>,
+    /// ElGamal public key the other trustees encrypt this trustee's DKG
+    /// shares to (`Configuration.share_encryption_keys`), as base64 of the
+    /// canonical group element bytes.
+    #[serde(default)]
+    pub share_encryption_public_key: Option<String>,
     pub name: Option<String>,
     pub created_at: Option<DateTime<Local>>,
     pub last_updated_at: Option<DateTime<Local>>,
     pub labels: Option<Value>,
     pub annotations: Option<Value>,
     pub tenant_id: String,
+}
+
+/// A bulletin board the platform created on the b4 board service. Trustees
+/// learn which boards to join, and which DKG board a tally board unions
+/// with, from these rows and never from the board service, which is
+/// untrusted.
+#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+pub struct ProtocolBoard {
+    pub id: String,
+    pub tenant_id: String,
+    pub election_event_id: String,
+    /// The board name on the board service (`[A-Za-z0-9_-]{1,255}`).
+    pub name: String,
+    pub kind: ProtocolBoardKind,
+    pub lifecycle: ProtocolBoardLifecycle,
+    /// The DKG board a tally board is unioned with; `None` for a DKG board.
+    pub parent_id: Option<String>,
+    pub keys_ceremony_id: Option<String>,
+    /// `H(Configuration body)`, hex encoded: the per-execution domain every
+    /// later message names. Kept so the platform can check that the board
+    /// still serves the Configuration it posted.
+    pub configuration_hash: String,
+    /// The trustees taking part, in `Configuration.trustees` order (the
+    /// 1-based trustee index is the position plus one).
+    pub trustee_ids: Vec<String>,
+    /// Per-trustee status reports from the trustee daemons, keyed by trustee
+    /// id.
+    pub trustee_reports: Option<Value>,
+    pub created_at: Option<DateTime<Local>>,
+    pub last_updated_at: Option<DateTime<Local>>,
+    pub annotations: Option<Value>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]

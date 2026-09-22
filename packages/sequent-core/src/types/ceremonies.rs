@@ -38,14 +38,25 @@ pub struct Log {
     pub log_text: String,
 }
 
+/// What the platform has observed of a trustee during a keys ceremony. The
+/// protocol states come from the messages the trustee posted on the DKG
+/// board; `HALTED` comes from the trustee's own report.
 #[derive(
     Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
 )]
 pub enum TrusteeStatus {
     WAITING,
+    /// Posted its DKG dealing (`Shares`), which is also how a trustee accepts
+    /// the board's Configuration.
+    SHARES_POSTED,
+    /// Posted its derivation of the joint public key (`PublicKey`).
     KEY_GENERATED,
+    /// The trustee downloaded their private key material.
     KEY_RETRIEVED,
+    /// The trustee re-uploaded their private key material and it matched.
     KEY_CHECKED,
+    /// Detected an invalid or equivocating board and stopped.
+    HALTED,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -57,9 +68,37 @@ pub struct Trustee {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KeysCeremonyStatus {
     pub stop_date: Option<String>,
+    /// The joint ElGamal public key `y`, as base64 of its canonical bytes.
     pub public_key: Option<String>,
+    /// `H(DkgPublicKey body)`, hex encoded. The `Ballots` head of every
+    /// tally under this key names it.
+    #[serde(default)]
+    pub public_key_hash: Option<String>,
     pub logs: Vec<Log>,
     pub trustees: Vec<Trustee>,
+}
+
+/// Which protocol phase a bulletin board carries.
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+pub enum ProtocolBoardKind {
+    /// The distributed key generation of one keys ceremony. Every tally of
+    /// that key is a child board unioned with it.
+    DKG,
+    /// One mix-and-decrypt run over a ballot set.
+    TALLY,
+}
+
+/// Whether trustees should still attach to a bulletin board.
+#[derive(
+    Display, Serialize, Deserialize, Debug, PartialEq, Eq, Clone, EnumString,
+)]
+pub enum ProtocolBoardLifecycle {
+    ACTIVE,
+    /// The platform has consumed the board's output; trustees may drop their
+    /// local state for it.
+    CONSUMED,
 }
 
 #[derive(

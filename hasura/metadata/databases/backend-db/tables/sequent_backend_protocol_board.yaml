@@ -1,0 +1,103 @@
+table:
+    name: protocol_board
+    schema: sequent_backend
+object_relationships:
+    - name: parent
+      using:
+          foreign_key_constraint_on: parent_id
+insert_permissions:
+    - comment: ""
+      permission:
+          check: {}
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - name
+              - kind
+              - lifecycle
+              - parent_id
+              - keys_ceremony_id
+              - configuration_hash
+              - trustee_ids
+              - trustee_reports
+              - created_at
+              - last_updated_at
+              - annotations
+      role: service-account
+select_permissions:
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - name
+              - kind
+              - lifecycle
+              - parent_id
+              - keys_ceremony_id
+              - configuration_hash
+              - trustee_ids
+              - trustee_reports
+              - created_at
+              - last_updated_at
+              - annotations
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-user
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - name
+              - kind
+              - lifecycle
+              - parent_id
+              - keys_ceremony_id
+              - configuration_hash
+              - trustee_ids
+              - trustee_reports
+              - created_at
+              - last_updated_at
+              - annotations
+          filter:
+              tenant_id:
+                  _eq: X-Hasura-Tenant-Id
+      role: admin-ceremony
+    - comment: ""
+      permission:
+          allow_aggregations: true
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - name
+              - kind
+              - lifecycle
+              - parent_id
+              - keys_ceremony_id
+              - configuration_hash
+              - trustee_ids
+              - trustee_reports
+              - created_at
+              - last_updated_at
+              - annotations
+          filter: {}
+      role: service-account
+update_permissions:
+    - comment: ""
+      permission:
+          check: null
+          columns:
+              - lifecycle
+              - trustee_reports
+              - last_updated_at
+              - annotations
+          filter: {}
+      role: service-account
