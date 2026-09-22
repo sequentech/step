@@ -17,6 +17,8 @@ const TRUSTEE: &str = "trustee1";
 const ELECTION_EVENT_ID: &str = "synthetic-event";
 const KEY_CEREMONY_ID: &str = "synthetic-ceremony";
 const DOWNLOAD_UNAVAILABLE: &str = r#"{"errors":[{"message":"Private key download is no longer available","extensions":{"code":"PrivateKeyDownloadUnavailable"}}]}"#;
+/// The same answer when Hasura could not parse it and kept it as text.
+const DOWNLOAD_UNAVAILABLE_UNPARSED: &str = r#"{"errors":[{"message":"unexpected","extensions":{"code":"unexpected","internal":{"response":{"status":409,"body":"{\"message\":\"Private key download is no longer available\",\"extensions\":{\"code\":\"PrivateKeyDownloadUnavailable\"}}"}}}}]}"#;
 
 struct Request {
     operation: String,
@@ -232,6 +234,21 @@ fn checks_the_ceremony_key_once_it_can_no_longer_be_downloaded() {
         Some("stored-key")
     );
     assert_eq!(cli.stored(None).as_deref(), Some("stored-key"));
+}
+
+#[test]
+fn checks_the_ceremony_key_when_hasura_could_not_parse_the_unavailable_answer() {
+    let cli = Cli::new();
+    cli.store(Some(KEY_CEREMONY_ID), "stored-key");
+
+    let run = cli.complete(
+        KEY_CEREMONY_ID,
+        vec![DOWNLOAD_UNAVAILABLE_UNPARSED.to_string(), checked(true)],
+    );
+
+    assert!(run.output.contains("Success!"), "{}", run.output);
+    assert_eq!(run.operations(), ["GetPrivateKey", "CheckPrivateKey"]);
+    assert_eq!(run.requests[1].variables["privateKeyBase64"], "stored-key");
 }
 
 #[test]
