@@ -64,6 +64,8 @@ pub struct CensusCsv {
     header: CensusHeader,
     /// Which of the header's columns survive into a voter, by position.
     kept: Vec<usize>,
+    /// SMART TD source column whose code becomes an `lca-` area identifier.
+    lca_column: Option<usize>,
 }
 
 impl CensusCsv {
@@ -71,7 +73,7 @@ impl CensusCsv {
     ///
     /// Refuses empty files or missing identity columns before replacing a census.
     /// Native CSV files preserve custom columns; recognized SMART TD lists use
-    /// the explicit allowlist above, with LCACode as the area identifier.
+    /// the explicit allowlist above, mapping LCACode to `lca-<lowercase code>`.
     pub fn new(text: &str) -> Result<Self, String> {
         let mut reader = csv::ReaderBuilder::new()
             .flexible(true)
@@ -94,6 +96,7 @@ impl CensusCsv {
         if smart {
             let mut kept = Vec::new();
             let mut mapped = Vec::new();
+            let mut lca_column = None;
             for (source, target) in SMART_FIELDS {
                 let matches: Vec<usize> = columns
                     .iter()
@@ -106,6 +109,9 @@ impl CensusCsv {
                 }
                 if let Some(at) = matches.first() {
                     kept.push(*at);
+                    if *source == "LCACode" {
+                        lca_column = Some(*at);
+                    }
                     mapped.push((*target).to_owned());
                 } else if *target == REQUIRED {
                     return Err("The SMART TD Eligibility List needs a MemberID column for voter usernames.".to_owned());
@@ -115,9 +121,10 @@ impl CensusCsv {
                 reader,
                 header: CensusHeader {
                     columns: mapped,
-                    notes: vec!["SMART TD Eligibility List detected. Imported member ID as username, names, email, primary phone and LCACode as the area identifier where present; all other columns were ignored. Area codes are preserved exactly and must match an area identifier in this election. Review missing or unknown areas before building.".to_owned()],
+                    notes: vec!["SMART TD Eligibility List detected. Imported member ID as username, names, email, primary phone and LCACode as the area identifier where present; all other columns were ignored. LCACode 049A becomes area lca-049a: lowercase with the lca- prefix, keeping leading zeros. The resulting identifier must match an area in this election. Review missing or unknown areas before building.".to_owned()],
                 },
                 kept,
+                lca_column,
             });
         }
         if !native {
@@ -162,6 +169,7 @@ impl CensusCsv {
             reader,
             header,
             kept,
+            lca_column: None,
         })
     }
 
@@ -203,7 +211,14 @@ impl CensusCsv {
             batch.push(
                 self.kept
                     .iter()
-                    .map(|at| record.get(*at).unwrap_or("").trim().to_owned())
+                    .map(|at| {
+                        let value = record.get(*at).unwrap_or("").trim();
+                        if self.lca_column == Some(*at) && !value.is_empty() {
+                            format!("lca-{}", value.to_ascii_lowercase())
+                        } else {
+                            value.to_owned()
+                        }
+                    })
                     .collect(),
             );
         }
@@ -266,7 +281,7 @@ mod tests {
                 "alex@example.org",
                 "Alex",
                 "Example",
-                "049A",
+                "lca-049a",
                 "+12025550123"
             ]]
         );
@@ -293,7 +308,8 @@ mod tests {
     }
 
     #[test]
-    fn smart_eligibility_maps_lca_codes_exactly_and_never_uses_local_code() {
+    fn smart_eligibility_maps_lca_codes_to_area_ids_and_never_uses_local_code()
+    {
         let text = "\u{feff} LCACode ,MemberID,LocalCode,LastName,FirstName\r\n 049A ,000042,0014,Example,Alex\r\n049a,000043,0014,Example,Sam\r\n,000044,0014,Example,Lee\r\n";
         let mut reader = CensusCsv::new(text).unwrap();
         assert_eq!(
@@ -301,9 +317,19 @@ mod tests {
             ["username", "first_name", "last_name", "area.external_id"]
         );
         let rows = reader.next_batch(10).unwrap();
-        assert_eq!(rows[0][3], "049A");
-        assert_eq!(rows[1][3], "049a");
+        assert_eq!(rows[0][3], "lca-049a");
+        assert_eq!(rows[1][3], "lca-049a");
         assert_eq!(rows[2][3], "");
+    }
+
+    #[test]
+    fn native_census_area_ids_are_not_normalized() {
+        let mut reader = CensusCsv::new(
+            "username,area.external_id,LCACode\n000042,lca-049a,049A\n000043,049A,049A\n",
+        ).unwrap();
+        let rows = reader.next_batch(10).unwrap();
+        assert_eq!(rows[0], ["000042", "lca-049a", "049A"]);
+        assert_eq!(rows[1], ["000043", "049A", "049A"]);
     }
 
     #[test]
