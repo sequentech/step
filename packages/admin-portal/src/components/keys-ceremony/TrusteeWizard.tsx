@@ -5,6 +5,7 @@
 import {BreadCrumbSteps, BreadCrumbStepsVariant} from "@sequentech/ui-essentials"
 import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
 import {
+    canTrusteeRecheckPrivateKey,
     IKeysCeremonyExecutionStatus as EStatus,
     IKeysCeremonyTrusteeStatus as TStatus,
     IExecutionStatus,
@@ -67,6 +68,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
 }) => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
+    const [recheckingPrivateKey, setRecheckingPrivateKey] = useState(false)
     const trusteeParticipating =
         currentCeremony && isTrusteeParticipating(currentCeremony, authContext)
     const trusteeCheckedKeys = hasTrusteeCheckedKeys(currentCeremony, authContext)
@@ -75,6 +77,18 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         status.public_key !== undefined &&
         currentCeremony.execution_status === EStatus.IN_PROGRESS &&
         !status.trustees.find((trustee) => trustee.status === TStatus.WAITING)
+    const isAutomaticCeremony =
+        electionEvent?.presentation?.ceremonies_policy ===
+            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
+        currentCeremony.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+    const trusteeStatus = status.trustees.find(
+        (trustee) => trustee.name === authContext.trustee
+    )?.status
+    const canRecheckPrivateKey = canTrusteeRecheckPrivateKey({
+        executionStatus: currentCeremony.execution_status as EStatus,
+        trusteeStatus,
+        isAutomaticCeremony,
+    })
 
     const calculateCurrentStep: () => WizardStep = () => {
         // If trustee is not participating, show status step
@@ -103,14 +117,16 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
     const [currentStep, setCurrentStep] = useState<WizardStep>(calculateCurrentStep())
 
     useEffect(() => {
-        if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
+        if (canRecheckPrivateKey) {
+            setCurrentStep(WizardStep.Status)
+        } else if (!trusteeCheckedKeys && trusteeParticipating && keysGenerated) {
             setCurrentStep(WizardStep.Start)
         } else if (!keysGenerated) {
             setCurrentStep(WizardStep.Not_Generated)
         } else {
             setCurrentStep(WizardStep.Status)
         }
-    }, [trusteeCheckedKeys, trusteeParticipating, keysGenerated])
+    }, [canRecheckPrivateKey, trusteeCheckedKeys, trusteeParticipating, keysGenerated])
 
     const checkKeysGenerated = () => {
         return !trusteeCheckedKeys && trusteeParticipating && !keysGenerated
@@ -120,17 +136,22 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
         return <CircularProgress />
     }
 
-    const isAutomaticCeremony =
-        electionEvent.presentation?.ceremonies_policy ===
-            EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES &&
-        currentCeremony?.settings?.policy === EElectionEventCeremoniesPolicy.AUTOMATED_CEREMONIES
+    const startPrivateKeyRecheck = () => {
+        setRecheckingPrivateKey(true)
+        setCurrentStep(WizardStep.Check)
+    }
+
+    const finishPrivateKeyRecheck = () => {
+        setRecheckingPrivateKey(false)
+        setCurrentStep(WizardStep.Status)
+    }
 
     const canProceedToDownload = canTrusteeProceedToDownload(trusteeParticipating, keysGenerated)
     return (
         <WizardStyles.WizardWrapper>
             <BreadCrumbSteps
                 labels={
-                    trusteeParticipating
+                    trusteeParticipating || recheckingPrivateKey
                         ? [
                               "electionEventScreen.keys.breadCrumbs.start",
                               "electionEventScreen.keys.breadCrumbs.download",
@@ -159,8 +180,16 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                 <CheckStep
                     currentCeremony={currentCeremony}
                     electionEvent={electionEvent}
-                    goBack={() => setCurrentStep(WizardStep.Download)}
-                    goNext={() => setCurrentStep(WizardStep.Success)}
+                    goBack={
+                        recheckingPrivateKey
+                            ? finishPrivateKeyRecheck
+                            : () => setCurrentStep(WizardStep.Download)
+                    }
+                    goNext={
+                        recheckingPrivateKey
+                            ? finishPrivateKeyRecheck
+                            : () => setCurrentStep(WizardStep.Success)
+                    }
                 />
             )}
             {currentStep === WizardStep.Success && (
@@ -168,6 +197,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                     currentCeremonyId={currentCeremony?.id}
                     electionEvent={electionEvent}
                     goBack={goBack}
+                    verifyPrivateKey={canRecheckPrivateKey ? startPrivateKeyRecheck : undefined}
                 />
             )}
             {(currentStep === WizardStep.Status || currentStep === WizardStep.Not_Generated) && (
@@ -182,6 +212,7 @@ export const TrusteeWizard: React.FC<TrusteeWizardProps> = ({
                             : undefined
                     }
                     isNextDisabled={!canProceedToDownload || isAutomaticCeremony}
+                    verifyPrivateKey={canRecheckPrivateKey ? startPrivateKeyRecheck : undefined}
                     message={
                         checkKeysGenerated() ? (
                             <>

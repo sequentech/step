@@ -2058,6 +2058,7 @@ const basqueTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Egiaztatu zure Zifratutako Giltza Pribatu Babeskopiak",
+                verifyButton: "Egiaztatu gakoa",
                 subtitle:
                     "Igo Zifratutako Giltza Pribatu Babeskopia bat zuzena dela egiaztatzeko. Behar adina aldiz saia zaitezke, zure babeskopia desberdinetatik:",
                 errorUploading:
