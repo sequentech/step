@@ -65,9 +65,9 @@ jobs:
             context: packages
             file: packages/windmill/Dockerfile.prod
 
-          - service: hasura-migrate
+          - service: hasura
             context: .
-            file: packages/Dockerfile.hasura-migrate
+            file: packages/Dockerfile.hasura
 
           - service: immudb-init
             context: packages
