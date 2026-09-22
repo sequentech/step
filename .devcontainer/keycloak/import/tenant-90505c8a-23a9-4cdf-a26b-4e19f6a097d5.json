@@ -4721,7 +4721,10 @@
     "xXSSProtection": "1; mode=block",
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
-  "smtpServer": {},
+  "smtpServer": {
+    "from": "no-reply@sequent.vote",
+    "host": "localhost"
+  },
   "loginTheme": "sequent.admin-portal",
   "accountTheme": "sequent.admin-portal",
   "adminTheme": "",
@@ -5452,7 +5455,7 @@
         },
         {
           "authenticatorFlow": true,
-          "requirement": "DISABLED",
+          "requirement": "CONDITIONAL",
           "priority": 4,
           "autheticatorFlow": true,
           "flowAlias": "WebAuthn Passwordless - silver conditional",
