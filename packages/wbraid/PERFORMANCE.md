@@ -233,8 +233,10 @@ Same shape at 10⁴ W = 2 and 10⁵ W = 5. Two things this makes plain:
 Current-tree quiesced snapshot (median of 3, for reference; matches the
 current column above): shuffle prove/verify 8.5 s / 5.5 s, `partial_decrypt`
 3.2 s, `combine` 9.9 s at 10⁵ W = 2. For authoritative before/after, run
-`bench.ps1` on both trees under quiescence (build `targets` in a fork-point
-worktree, per §6).
+`bench-ec2.sh session <tip> <fork-point>` (BENCH-EC2.md): a temporary EC2
+instance of a fixed reference type — quiesced by construction and the same
+hardware every session — builds `targets` at both commits and runs them
+interleaved, then `bench.sh`'s full grid.
 
 ### The Amdahl wall — the finding that redirects the next work
 
