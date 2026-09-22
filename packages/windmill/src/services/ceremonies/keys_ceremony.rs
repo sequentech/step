@@ -114,8 +114,9 @@ pub async fn get_private_key(
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
-    // get the keys ceremonies for this election event
-    let keys_ceremony = keys_ceremony::get_keys_ceremony_by_id(
+    // Lock the ceremony until the status update below is committed, so a
+    // check committed meanwhile cannot be overwritten
+    let keys_ceremony = keys_ceremony::lock_keys_ceremony_by_id(
         transaction,
         &tenant_id,
         &election_event_id,
@@ -221,8 +222,9 @@ pub async fn check_private_key(
     // The trustee name is simply the username of the user
     let trustee_name = claims.trustee.ok_or(anyhow!("trustee name not found"))?;
 
-    // get the keys ceremonies for this election event
-    let keys_ceremony: KeysCeremony = keys_ceremony::get_keys_ceremony_by_id(
+    // Lock the ceremony until the status update below is committed, so a
+    // download committed meanwhile cannot overwrite the check
+    let keys_ceremony: KeysCeremony = keys_ceremony::lock_keys_ceremony_by_id(
         transaction,
         &tenant_id,
         &election_event_id,

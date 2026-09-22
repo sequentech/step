@@ -16,6 +16,32 @@ describe("isPrivateKeyDownloadUnavailableError", () => {
         ).toBe(true)
     })
 
+    it("recognizes the code inside the body Hasura could not parse", () => {
+        expect(
+            isPrivateKeyDownloadUnavailableError({
+                graphQLErrors: [
+                    {
+                        message: "unexpected",
+                        extensions: {
+                            code: "unexpected",
+                            internal: {
+                                response: {
+                                    status: 409,
+                                    body: JSON.stringify({
+                                        message: "Private key download is no longer available",
+                                        extensions: {
+                                            code: PRIVATE_KEY_DOWNLOAD_UNAVAILABLE_ERROR_CODE,
+                                        },
+                                    }),
+                                },
+                            },
+                        },
+                    },
+                ],
+            })
+        ).toBe(true)
+    })
+
     it("rejects unrelated and malformed errors", () => {
         expect(
             isPrivateKeyDownloadUnavailableError({
