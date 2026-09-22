@@ -26,8 +26,7 @@ use serde_json::Value;
 use tempfile::TempPath;
 use tracing::{info, instrument};
 
-/// Field holding the annotations of a serialized `election_event` or
-/// `election` row.
+/// Field holding the annotations of a serialized `election_event` row.
 const ANNOTATIONS_FIELD: &str = "annotations";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,12 +43,10 @@ impl PublicationPreview {
     /// preview upload goes through here, so the Datafix annotations are
     /// dropped here too: they hold the VoterView credentials and the preview
     /// is uploaded to the public bucket. Ballot styles are already sanitized
-    /// when they are stored, the event and its elections are not.
+    /// when they are stored, the event is not. Elections never carry Datafix
+    /// annotations: they only live on the election event.
     pub fn into_temp_file(mut self, prefix: &str) -> AnyhowResult<(TempPath, String, u64)> {
         remove_datafix_annotations(self.election_event.get_mut(ANNOTATIONS_FIELD));
-        for election in self.elections.as_array_mut().into_iter().flatten() {
-            remove_datafix_annotations(election.get_mut(ANNOTATIONS_FIELD));
-        }
 
         let preview_data =
             serde_json::to_vec(&self).with_context(|| "Error serializing publication preview")?;
@@ -212,11 +209,11 @@ mod tests {
     use crate::services::external::utils::{DATAFIX_ID_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
     use serde_json::json;
 
-    fn preview_with_annotations(election_event: Value, elections: Value) -> PublicationPreview {
+    fn preview_with_annotations(election_event: Value) -> PublicationPreview {
         PublicationPreview {
             ballot_styles: json!([{"id": "style", "area_id": "area"}]),
             election_event,
-            elections,
+            elections: json!([{"id": "election"}]),
             support_materials: json!([]),
             documents: json!([]),
         }
@@ -231,21 +228,15 @@ mod tests {
     }
 
     #[test]
-    fn the_written_preview_drops_datafix_annotations_from_event_and_elections() {
-        let preview = preview_with_annotations(
-            json!({
-                "id": "event",
-                "annotations": {
-                    DATAFIX_ID_KEY: "external-event",
-                    DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret"}"#,
-                    "miru:election-event-id": "miru-event",
-                },
-            }),
-            json!([{
-                "id": "election",
-                "annotations": {DATAFIX_ID_KEY: "external-event", "miru:election-id": "miru-election"},
-            }]),
-        );
+    fn the_written_preview_drops_datafix_annotations_from_the_event() {
+        let preview = preview_with_annotations(json!({
+            "id": "event",
+            "annotations": {
+                DATAFIX_ID_KEY: "external-event",
+                DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret"}"#,
+                "miru:election-event-id": "miru-event",
+            },
+        }));
 
         let written = written_preview(preview);
 
@@ -253,31 +244,21 @@ mod tests {
             written["election_event"]["annotations"],
             json!({"miru:election-event-id": "miru-event"})
         );
-        assert_eq!(
-            written["elections"][0]["annotations"],
-            json!({"miru:election-id": "miru-election"})
-        );
         assert_eq!(written["election_event"]["id"], "event");
+        assert_eq!(written["elections"][0]["id"], "election");
         assert_eq!(written["ballot_styles"][0]["id"], "style");
     }
 
     #[test]
     fn the_written_preview_tolerates_annotations_that_are_absent_or_not_an_object() {
-        let preview = preview_with_annotations(
+        for election_event in [
             json!({"id": "event"}),
-            json!([
-                {"id": "null-annotations", "annotations": null},
-                {"id": "array-annotations", "annotations": [DATAFIX_ID_KEY]},
-            ]),
-        );
+            json!({"id": "event", "annotations": null}),
+            json!({"id": "event", "annotations": [DATAFIX_ID_KEY]}),
+        ] {
+            let written = written_preview(preview_with_annotations(election_event.clone()));
 
-        let written = written_preview(preview);
-
-        assert_eq!(written["election_event"], json!({"id": "event"}));
-        assert_eq!(written["elections"][0]["annotations"], Value::Null);
-        assert_eq!(
-            written["elections"][1]["annotations"],
-            json!([DATAFIX_ID_KEY])
-        );
+            assert_eq!(written["election_event"], election_event);
+        }
     }
 }
