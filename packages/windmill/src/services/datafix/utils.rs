@@ -51,25 +51,13 @@ pub fn datafix_voter_lock_key(tenant_id: &str, election_event_id: &str, voter_id
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
 }
 
-/// Strips Datafix annotations so they are not published in ballot styles.
-pub fn remove_datafix_annotations(annotations: &mut Option<serde_json::Value>) {
+/// Strips Datafix annotations so they are not published. Takes the
+/// annotations themselves, so it serves both a typed row and one held as JSON
+/// in a publication payload.
+pub fn remove_datafix_annotations(annotations: Option<&mut serde_json::Value>) {
     if let Some(serde_json::Value::Object(map)) = annotations {
         map.retain(|key, _| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX));
     }
-}
-
-/// Field holding the annotations of a serialized `election_event` or
-/// `election` row.
-const ANNOTATIONS_FIELD: &str = "annotations";
-
-/// Strips Datafix annotations from a serialized `election_event` or `election`
-/// row, for publication payloads assembled as JSON rather than from the typed
-/// struct.
-pub fn remove_datafix_annotations_json(row: &mut serde_json::Value) {
-    let Some(serde_json::Value::Object(annotations)) = row.get_mut(ANNOTATIONS_FIELD) else {
-        return;
-    };
-    annotations.retain(|key, _| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX));
 }
 
 /// Returns true if the voter has voted via Sequent´s system -
@@ -499,7 +487,7 @@ mod tests {
             "miru:election-event-id": "miru-event",
         }));
 
-        remove_datafix_annotations(&mut annotations);
+        remove_datafix_annotations(annotations.as_mut());
 
         assert_eq!(
             annotations,
@@ -509,51 +497,16 @@ mod tests {
 
     #[test]
     fn remove_datafix_annotations_handles_missing_annotations() {
-        let mut annotations = None;
-        remove_datafix_annotations(&mut annotations);
+        let mut annotations: Option<serde_json::Value> = None;
+        remove_datafix_annotations(annotations.as_mut());
         assert_eq!(annotations, None);
     }
 
     #[test]
     fn remove_datafix_annotations_leaves_non_object_values_untouched() {
         let mut annotations = Some(json!(["datafix:id"]));
-        remove_datafix_annotations(&mut annotations);
+        remove_datafix_annotations(annotations.as_mut());
         assert_eq!(annotations, Some(json!(["datafix:id"])));
-    }
-
-    #[test]
-    fn remove_datafix_annotations_json_strips_only_datafix_keys_from_a_row() {
-        let mut row = json!({
-            "id": "event",
-            "annotations": {
-                DATAFIX_ID_KEY: "external-event",
-                DATAFIX_VOTERVIEW_REQ_KEY: "secret",
-                "miru:election-event-id": "miru-event",
-            },
-        });
-
-        remove_datafix_annotations_json(&mut row);
-
-        assert_eq!(
-            row,
-            json!({
-                "id": "event",
-                "annotations": {"miru:election-event-id": "miru-event"},
-            })
-        );
-    }
-
-    #[test]
-    fn remove_datafix_annotations_json_ignores_rows_without_object_annotations() {
-        for mut row in [
-            json!({"id": "event"}),
-            json!({"id": "event", "annotations": null}),
-            json!({"id": "event", "annotations": [DATAFIX_ID_KEY]}),
-        ] {
-            let original = row.clone();
-            remove_datafix_annotations_json(&mut row);
-            assert_eq!(row, original);
-        }
     }
 
     #[test]

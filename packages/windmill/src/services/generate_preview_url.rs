@@ -13,7 +13,6 @@ use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::{
     serialization::deserialize_with_path::deserialize_value, types::hasura::core::BallotStyle,
-    util::temp_path::write_into_named_temp_file,
 };
 use serde_json::Value;
 use std::fs::File;
@@ -39,19 +38,13 @@ pub fn construct_preview_url(
 }
 
 /// Reads an uploaded preview payload, returning it alongside the identifiers
-/// the preview URL is built from. The payload is sanitized here because it is
-/// re-uploaded to the public bucket: a preview generated before the event
-/// annotations were sanitized would otherwise publish the Datafix credentials
-/// it still carries.
+/// the preview URL is built from.
 #[instrument(err)]
-pub fn read_sanitized_preview(
-    preview_file_path: &str,
-) -> Result<(PublicationPreview, String, String)> {
+pub fn read_preview(preview_file_path: &str) -> Result<(PublicationPreview, String, String)> {
     let file = File::open(preview_file_path)
         .map_err(|e| anyhow::anyhow!("Failed to open preview file: {}", e))?;
-    let mut parsed: PublicationPreview = serde_json::from_reader(file)
+    let parsed: PublicationPreview = serde_json::from_reader(file)
         .map_err(|e| anyhow!("Error reading uploaded preview file: {}", e))?;
-    parsed.remove_datafix_annotations();
 
     let ballot_styles = parsed
         .ballot_styles
@@ -94,21 +87,18 @@ pub async fn generate_preview_url(
     let temp_path = preview_temp_file.into_temp_path();
     let temp_path_string = temp_path.to_string_lossy().to_string();
 
-    let (preview, ballot_style_id, area_id) = read_sanitized_preview(&temp_path_string)?;
+    let (preview, ballot_style_id, area_id) = read_preview(&temp_path_string)?;
     let doc_name = format!("{ballot_style_id}.json");
 
-    let preview_data: Vec<u8> =
-        serde_json::to_vec(&preview).with_context(|| "Error serializing publication preview")?;
-    let (_sanitized_temp_path, sanitized_path_string, file_size) = write_into_named_temp_file(
-        &preview_data,
-        &format!("preview-{ballot_style_id}-"),
-        ".json",
-    )
-    .with_context(|| "Error writing sanitized preview to file")?;
+    // Re-uploaded to the public bucket, so it is written out through the same
+    // sanitizing path as a freshly generated preview: one uploaded before the
+    // Datafix annotations were stripped still carries the credentials.
+    let (_preview_temp_path, preview_path_string, file_size) =
+        preview.into_temp_file(&format!("preview-{ballot_style_id}-"))?;
 
     let document = upload_and_return_document(
         hasura_transaction,
-        &sanitized_path_string,
+        &preview_path_string,
         file_size,
         "application/json",
         &tenant_id,
@@ -150,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn reading_an_uploaded_preview_strips_datafix_annotations() {
+    fn a_re_uploaded_preview_is_written_back_without_datafix_annotations() {
         let file = preview_file(json!({
             "ballot_styles": [{"id": "style-id", "area_id": "area-id"}],
             "election_event": {
@@ -166,13 +156,20 @@ mod tests {
         }));
 
         let (preview, ballot_style_id, area_id) =
-            read_sanitized_preview(&file.path().to_string_lossy()).expect("preview read");
-
+            read_preview(&file.path().to_string_lossy()).expect("preview read");
         assert_eq!(ballot_style_id, "style-id");
         assert_eq!(area_id, "area-id");
-        let sanitized = serde_json::to_value(&preview).expect("preview serialization");
+
+        let (_temp_path, written_path, _size) = preview
+            .into_temp_file("preview-test-")
+            .expect("preview file");
+        let written: Value = serde_json::from_str(
+            &std::fs::read_to_string(&written_path).expect("read written preview"),
+        )
+        .expect("parse written preview");
+
         assert_eq!(
-            sanitized["election_event"]["annotations"],
+            written["election_event"]["annotations"],
             json!({"miru:election-event-id": "miru-event"})
         );
     }
@@ -187,6 +184,6 @@ mod tests {
             "documents": [],
         }));
 
-        assert!(read_sanitized_preview(&file.path().to_string_lossy()).is_err());
+        assert!(read_preview(&file.path().to_string_lossy()).is_err());
     }
 }
