@@ -1698,8 +1698,7 @@ impl Default for ContestPresentation {
 )]
 pub struct Contest {
     pub id: String,
-    /// Display-only CSS identifier; keep signed ballot-style bytes unchanged.
-    #[borsh(skip)]
+    /// Stable CSS identifier, included in the signed ballot-style bytes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
     pub tenant_id: String,

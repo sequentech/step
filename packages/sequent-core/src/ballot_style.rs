@@ -320,7 +320,7 @@ mod contest_external_id_tests {
     use super::*;
 
     #[test]
-    fn contest_external_id_is_published_without_changing_signed_bytes() {
+    fn contest_external_id_is_published_and_serialized_in_signed_bytes() {
         let legacy = serde_json::json!({
             "id": "contest-id", "tenant_id": "tenant-id",
             "election_event_id": "event-id", "election_id": "election-id",
@@ -354,9 +354,10 @@ mod contest_external_id_tests {
             serde_json::to_value(&roundtrip).unwrap()["external_id"],
             "1001"
         );
-        assert_eq!(
-            borsh::to_vec(&roundtrip).unwrap(),
-            borsh::to_vec(&old_contest).unwrap()
-        );
+        let signed_bytes = borsh::to_vec(&roundtrip).unwrap();
+        assert_ne!(signed_bytes, borsh::to_vec(&old_contest).unwrap());
+        let restored: ballot::Contest =
+            borsh::from_slice(&signed_bytes).unwrap();
+        assert_eq!(restored.external_id.as_deref(), Some("1001"));
     }
 }
