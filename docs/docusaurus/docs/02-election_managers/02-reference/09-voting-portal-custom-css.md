@@ -87,9 +87,13 @@ UUID. It does **not** come from `election.external_id`, and can change with lang
 Thus `.e-Senat .c-1001 .candidate-item` applies when the election's resolved
 alias/name is `Senat` and the contest's external ID is `1001`.
 
-Existing publications remain compatible but must be republished after upgrading
-to include contest external IDs. No database migration or new configuration field
-is required. These classes provide styling hooks only, not integrity identifiers.
+The external ID is included in the Borsh representation used to sign ballot
+styles. This changes the signed format even when the external ID is absent.
+Upgrade and republish before voting begins; do not introduce this change during
+an active election. Republishing does not update signatures on already-cast
+ballots, which require verification software compatible with the old format.
+Older JSON without the field still loads. No database migration or new
+configuration field is required.
 
 ## Screen-specific components
 
