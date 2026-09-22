@@ -3,7 +3,7 @@
 
 use sequent_core::ballot::{AllowTallyStatus, ElectionStatus, InitReport};
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::hasura::core::Election;
+use sequent_core::types::hasura::core::{Election, VotingChannels};
 use std::collections::HashSet;
 use thiserror::Error;
 
@@ -61,11 +61,34 @@ pub fn validate_tally_elections(
                         Some("tallying is disabled by its configuration")
                     }
                     AllowTallyStatus::REQUIRES_VOTING_PERIOD_END => {
-                        if status.voting_status.is_closed()
-                            && status.kiosk_voting_status.is_closed_or_never_started()
-                            && status.early_voting_status.is_closed_or_never_started()
-                            && status.telephone_voting_status.is_closed_or_never_started()
-                        {
+                        let channels = election
+                            .voting_channels
+                            .clone()
+                            .map(serde_json::from_value::<VotingChannels>)
+                            .transpose()
+                            .map_err(|error| {
+                                TallyValidationError::new(format!(
+                                    "Election {id} has invalid voting_channels: {error}"
+                                ))
+                            })?;
+                        let secondary_closed = match channels {
+                            None => {
+                                status.kiosk_voting_status.is_closed_or_never_started()
+                                    && status.early_voting_status.is_closed_or_never_started()
+                                    && status.telephone_voting_status.is_closed_or_never_started()
+                            }
+                            Some(channels) => {
+                                (channels.kiosk != Some(true)
+                                    || status.kiosk_voting_status.is_closed_or_never_started())
+                                    && (channels.early_voting != Some(true)
+                                        || status.early_voting_status.is_closed_or_never_started())
+                                    && (channels.telephone != Some(true)
+                                        || status
+                                            .telephone_voting_status
+                                            .is_closed_or_never_started())
+                            }
+                        };
+                        if status.voting_status.is_closed() && secondary_closed {
                             None
                         } else {
                             Some("end its voting period and stop all active voting channels before tallying")
@@ -136,6 +159,67 @@ mod tests {
                     .contains("Election selected: end its voting period"));
             }
         }
+    }
+
+    #[test]
+    fn secondary_channels_only_block_tally_when_enabled() {
+        for (channel, status_field) in [
+            ("kiosk", "kiosk_voting_status"),
+            ("early_voting", "early_voting_status"),
+            ("telephone", "telephone_voting_status"),
+        ] {
+            for status in ["OPEN", "PAUSED"] {
+                for enabled in [Some(true), Some(false), None] {
+                    let mut selected = election("selected", "CLOSED");
+                    selected.status.as_mut().unwrap()[status_field] = json!(status);
+                    selected.voting_channels = Some(json!({channel: enabled}));
+                    assert_eq!(
+                        validate_tally_elections(
+                            &[selected.clone()],
+                            &["selected".into()],
+                            TallyType::ELECTORAL_RESULTS,
+                        )
+                        .is_ok(),
+                        enabled != Some(true),
+                        "{channel}: {status}, enabled={enabled:?}"
+                    );
+                    selected.voting_channels = Some(json!({}));
+                    assert!(validate_tally_elections(
+                        &[selected],
+                        &["selected".into()],
+                        TallyType::ELECTORAL_RESULTS,
+                    )
+                    .is_ok());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn disabled_secondary_channels_do_not_bypass_online_status() {
+        let mut selected = election("selected", "OPEN");
+        selected.voting_channels = Some(json!({}));
+        assert!(validate_tally_elections(
+            &[selected],
+            &["selected".into()],
+            TallyType::ELECTORAL_RESULTS,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn malformed_channel_configuration_returns_election_context() {
+        let mut selected = election("selected", "CLOSED");
+        selected.voting_channels = Some(json!({"telephone": "true"}));
+        let error = validate_tally_elections(
+            &[selected],
+            &["selected".into()],
+            TallyType::ELECTORAL_RESULTS,
+        )
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Election selected has invalid voting_channels"));
     }
 
     #[test]
