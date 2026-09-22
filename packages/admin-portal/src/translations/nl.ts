@@ -1552,6 +1552,8 @@ const dutchTranslation: TranslationType = {
                 createError: "Fout bij aanmaken geplande gebeurtenis",
                 editSuccess: "Geplande gebeurtenis succesvol bewerkt",
                 editError: "Fout bij bewerken geplande gebeurtenis",
+                onlineWithEarlyVoting:
+                    "Een startplanning kan online stemmen en vervroegd stemmen niet tegelijk openen: vervroegd stemmen moet vóór online stemmen beginnen.",
             },
             eventType: {
                 label: "Type",
@@ -2234,6 +2236,14 @@ const dutchTranslation: TranslationType = {
             generalInfoTitle: "Algemene Informatie",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status import sleutelfragment",
+            eligibility: {
+                selectElection: "Selecteer ten minste één verkiezing.",
+                publishElection:
+                    "Publiceer elke geselecteerde verkiezing voordat u de telling aanmaakt.",
+                tallyDisallowed: "Tellen is uitgeschakeld voor een geselecteerde verkiezing.",
+                endVoting:
+                    "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
+            },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
             startTallySuccess: "Telling gestart",

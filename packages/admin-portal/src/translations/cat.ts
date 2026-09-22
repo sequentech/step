@@ -1566,6 +1566,8 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'Esdeveniment Programat",
                 editSuccess: "Esdeveniment Programat editat amb èxit",
                 editError: "Error en editar l'Esdeveniment Programat",
+                onlineWithEarlyVoting:
+                    "Una programació d'inici no pot obrir alhora el vot en línia i el vot anticipat: el vot anticipat ha de començar abans que el vot en línia.",
             },
             eventType: {
                 label: "Tipus",
@@ -2248,6 +2250,13 @@ const catalanTranslation: TranslationType = {
             generalInfoTitle: "Informació General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat d'importació del fragment de clau",
+            eligibility: {
+                selectElection: "Selecciona almenys una elecció.",
+                publishElection: "Publica cada elecció seleccionada abans de crear-ne el recompte.",
+                tallyDisallowed: "El recompte està deshabilitat per a una elecció seleccionada.",
+                endVoting:
+                    "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
+            },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
             startTallySuccess: "Recompte iniciat",
