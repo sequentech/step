@@ -20,7 +20,10 @@
 [CmdletBinding()]
 param(
     [int]$Reps = 3,
-    [string[]]$Cells = @('1000:2', '10000:2', '10000:5', '100000:2', '100000:5')
+    [string[]]$Cells = @('1000:2', '10000:2', '10000:5', '100000:2', '100000:5'),
+    # 0 skips the criterion guidance benches and runs only the targets grid
+    # (bench.sh's GUIDANCE=0).
+    [int]$Guidance = 1
 )
 
 # cargo writes progress and a harmless "patch not used" warning to stderr with
@@ -67,18 +70,25 @@ Log ''
 # --- Build everything first (NOT timed) -------------------------------------
 Write-Host 'building (untimed)...'
 Build-Step @('build', '--release', '-p', 'vsc', '--examples')
-Build-Step @('bench', '-p', 'vsc', '--bench', 'parallel_tradeoff', '--no-run')
-Build-Step @('bench', '-p', 'vsc', '--bench', 'msm_strategy', '--no-run')
+if ($Guidance -eq 1) {
+    Build-Step @('bench', '-p', 'vsc', '--bench', 'parallel_tradeoff', '--no-run')
+    Build-Step @('bench', '-p', 'vsc', '--bench', 'msm_strategy', '--no-run')
+}
 Write-Host 'build done; starting timed run.'
 
-# --- Criterion micro-benches (statistical) ----------------------------------
-Log '## parallel_tradeoff (criterion)'
-Run-Criterion 'parallel_tradeoff'
-Log ''
+# --- Criterion micro-benches (statistical; guidance, not snapshot) ------------
+if ($Guidance -eq 1) {
+    Log '## parallel_tradeoff (criterion)'
+    Run-Criterion 'parallel_tradeoff'
+    Log ''
 
-Log '## msm_strategy (criterion)'
-Run-Criterion 'msm_strategy'
-Log ''
+    Log '## msm_strategy (criterion)'
+    Run-Criterion 'msm_strategy'
+    Log ''
+} else {
+    Log '# guidance benches skipped (-Guidance 0)'
+    Log ''
+}
 
 # --- Top-level target snapshot (absolute, current tree) ---------------------
 $targetsExe = Join-Path $PSScriptRoot 'target\release\examples\targets.exe'

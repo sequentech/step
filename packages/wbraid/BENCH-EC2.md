@@ -127,6 +127,7 @@ From `packages/wbraid`:
 ./bench-ec2.sh session HEAD 657cb05c20       # HEAD, plus interleaved before/after vs a baseline commit
 CELLS="10000:2 100000:2" REPS=3 ./bench-ec2.sh session
 DIFF_CELLS="100000:2 100000:5" DIFF_REPS=3 ./bench-ec2.sh session HEAD 657cb05c20
+GUIDANCE=1 ./bench-ec2.sh session            # also run the criterion guidance benches (off by default here)
 ./bench-ec2.sh sweep                         # any time: proves nothing tagged is alive
 ```
 
