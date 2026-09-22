@@ -12,14 +12,13 @@
 #   remote-bench.sh SESSION BUCKET SHA [BASE_SHA]
 #
 # Environment: CELLS, REPS (bench.sh's grid); DIFF_CELLS (before/after grid,
-# default "10000:2 100000:2"), DIFF_REPS (default 3).
+# default "10000:2 100000:2"), DIFF_REPS (default 3); GUIDANCE (default 0:
+# the criterion guidance benches are design inputs, not part of a snapshot).
 set -euo pipefail
 
 SESSION="$1"; BUCKET="$2"; SHA="$3"; BASE_SHA="${4:-}"
 export PATH=/root/.cargo/bin:/usr/local/bin:$PATH
 export CARGO_TERM_COLOR=never
-# A reference session is about the targets; the criterion guidance benches are
-# design inputs already recorded in PERFORMANCE.md, so they are off unless asked.
 export GUIDANCE="${GUIDANCE:-0}"
 DIFF_CELLS="${DIFF_CELLS:-10000:2 100000:2}"
 DIFF_REPS="${DIFF_REPS:-3}"
@@ -32,23 +31,10 @@ log() { printf '[remote %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 log "waiting for the user-data bootstrap to finish"
 until [ -f /var/tmp/wbraid-bootstrap-done ]; do sleep 5; done
-
-# --- machine header: every number is quoted with these --------------------------
-TOKEN="$(curl -sX PUT http://169.254.169.254/latest/api/token \
-           -H 'X-aws-ec2-metadata-token-ttl-seconds: 300' || true)"
-md() { curl -sH "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/$1" || echo unknown; }
-{
-    echo "# wbraid EC2 benchmark session $SESSION"
-    echo "# date:          $(date -u +%FT%TZ)"
-    echo "# commit:        $SHA${BASE_SHA:+   baseline: $BASE_SHA}"
-    echo "# instance-type: $(md instance-type)"
-    echo "# ami:           $(md ami-id)"
-    echo "# az:            $(md placement/availability-zone)"
-    echo "# cpu:           $(lscpu | awk -F: '/Model name/ {gsub(/^ +/, "", $2); print $2}')"
-    echo "# vcpus:         $(nproc)   threads/core: $(lscpu | awk -F: '/Thread\(s\) per core/ {gsub(/ /, "", $2); print $2}')"
-    echo "# kernel:        $(uname -r)"
-    echo "# rustc:         $(rustc --version)"
-} | tee "$RESULTS/machine.txt"
+if [ -f /var/tmp/wbraid-bootstrap-FAILED ]; then
+    log "ERROR: bootstrap failed -- see /var/log/cloud-init-output.log"
+    exit 5
+fi
 
 # --- source: the exact commits, straight from S3 --------------------------------
 fetch_src() { # fetch_src SHA DIR
@@ -62,7 +48,32 @@ log "fetching source $SHA"
 fetch_src "$SHA" "$WORK/cur"
 CUR="$WORK/cur/packages/wbraid"
 
-# --- bench.sh: builds untimed first, then criterion benches + the targets grid --
+# --- toolchain: the tarball carries the repo-root pin; make sure it is usable ----
+TC="$(sed -n 's/^channel *= *"\([^"]*\)".*/\1/p' "$WORK/cur/rust-toolchain.toml" 2>/dev/null || true)"
+if ! rustc --version >/dev/null 2>&1; then
+    log "rustc unusable after bootstrap; installing toolchain ${TC:-stable}"
+    rustup toolchain install "${TC:-stable}" --profile minimal
+    rustup default "${TC:-stable}"
+fi
+
+# --- machine header: every number is quoted with these --------------------------
+TOKEN="$(curl -sX PUT http://169.254.169.254/latest/api/token \
+           -H 'X-aws-ec2-metadata-token-ttl-seconds: 300' || true)"
+md() { curl -sH "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/$1" || echo unknown; }
+{
+    echo "# wbraid EC2 benchmark session $SESSION"
+    echo "# date:          $(date -u +%FT%TZ)"
+    echo "# commit:        $SHA${BASE_SHA:+   baseline: $BASE_SHA}"
+    echo "# instance-type: $(md instance-type)"
+    echo "# ami:           $(md ami-id)"
+    echo "# az:            $(md placement/availability-zone)"
+    echo "# cpu:           $(lscpu | awk -F: '/^Model name/ {gsub(/^ +/, "", $2); print $2; exit}')"
+    echo "# vcpus:         $(nproc)   threads/core: $(lscpu | awk -F: '/Thread\(s\) per core/ {gsub(/ /, "", $2); print $2}')"
+    echo "# kernel:        $(uname -r)"
+    echo "# rustc:         $(rustc --version)"
+} | tee "$RESULTS/machine.txt"
+
+# --- bench.sh: builds untimed first, then the targets grid (guidance off) ------
 log "running bench.sh (CELLS='${CELLS:-<default>}' REPS='${REPS:-<default>}' GUIDANCE=$GUIDANCE)"
 ( cd "$CUR" && bash bench.sh )
 cp "$CUR"/bench-results/*.txt "$RESULTS/"
