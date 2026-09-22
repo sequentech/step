@@ -803,6 +803,10 @@ const frenchTranslation: TranslationType = {
                 statusLabel: "État",
                 waitingKeys: "En attente de la Génération de Clés..",
                 started: "Commencée à",
+                actions: {
+                    participate: "Participer à la cérémonie des clés",
+                    view: "Voir la cérémonie des clés",
+                },
                 breadCrumbs: {
                     configure: "Configurer",
                     ceremony: "Cérémonie",
