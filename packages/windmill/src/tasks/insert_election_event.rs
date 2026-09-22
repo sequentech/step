@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::postgres::election_event::update_bulletin_board;
+use crate::postgres::tenant::get_tenant_by_id;
 use crate::services::database::get_hasura_pool;
 use crate::services::election_event_board::BoardSerializable;
 use crate::services::import::import_election_event::insert_election_event_db;
@@ -54,7 +55,17 @@ pub async fn insert_election_event_anyhow(
 
     final_object.id = Some(id.clone());
     if final_object.voting_channels.is_none() {
-        final_object.voting_channels = serde_json::to_value(VotingChannels::default()).ok();
+        // Seed a new event's channels from its tenant, so a channel the tenant
+        // has disabled is not silently re-enabled on every event it creates.
+        // This runs only when the caller supplied none, which is the create
+        // path; existing events keep whatever they already store. META-12778.
+        let tenant_channels = get_tenant_by_id(&hasura_transaction, tenant_id.as_str())
+            .await
+            .ok()
+            .and_then(|tenant| tenant.voting_channels)
+            .and_then(|channels| serde_json::from_value::<VotingChannels>(channels).ok())
+            .unwrap_or_default();
+        final_object.voting_channels = serde_json::to_value(tenant_channels).ok();
     }
 
     match upsert_keycloak_realm(tenant_id.as_str(), &id.as_ref(), None, None).await {
