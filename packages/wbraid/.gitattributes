@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The shell scripts here run under Linux bash (the devcontainer; EC2 sessions
+# via bench-ec2.sh) but are routinely edited from Windows checkouts with
+# core.autocrlf=true. Keep them LF so a CR-terminated line never reaches a
+# Linux shell ("$'\r': command not found").
+*.sh text eol=lf

@@ -201,7 +201,10 @@ package() {
         git -C "$top" archive --format=tar.gz -o "$tmp/src-$bsha.tar.gz" "$base" packages/wbraid $extra
         aws s3 cp "$(winpath "$tmp/src-$bsha.tar.gz")" "s3://$BUCKET/$session/src-$bsha.tar.gz" --only-show-errors
     fi
-    aws s3 cp "$(winpath "$HERE/bench-ec2/remote-bench.sh")" "s3://$BUCKET/$session/remote-bench.sh" --only-show-errors
+    # Strip any CR before upload: the script runs under Linux bash, and a
+    # Windows checkout with autocrlf could hand us CR-terminated lines.
+    tr -d '\r' < "$HERE/bench-ec2/remote-bench.sh" > "$tmp/remote-bench.sh"
+    aws s3 cp "$(winpath "$tmp/remote-bench.sh")" "s3://$BUCKET/$session/remote-bench.sh" --only-show-errors
     rm -rf "$tmp"
     printf '%s %s %s' "$session" "$sha" "$bsha"
 }
