@@ -128,6 +128,9 @@ From `packages/wbraid`:
 CELLS="10000:2 100000:2" REPS=3 ./bench-ec2.sh session
 DIFF_CELLS="100000:2 100000:5" DIFF_REPS=3 ./bench-ec2.sh session HEAD 657cb05c20
 GUIDANCE=1 ./bench-ec2.sh session            # also run the criterion guidance benches (off by default here)
+# NB: CELLS/REPS/GUIDANCE are read by the *packaged* commit's bench.sh. Commits
+# before 83ab20ca75 do not know GUIDANCE and run the guidance benches anyway
+# (~10 extra minutes); the 2026-09-22 session of 185dbbede2 did exactly that.
 ./bench-ec2.sh sweep                         # any time: proves nothing tagged is alive
 ```
 

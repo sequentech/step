@@ -187,9 +187,12 @@ guarded is gone.
 
 ## 4. Measured results (2026-09-21)
 
-Machine: Windows x64, 16 logical cores, dalek AVX2 backend, `--release`. The
-current-tree snapshot below was taken quiesced (`bench.ps1`); the campaign
-before/after differential was interleaved but agent-run (directional).
+Two kinds of measurement. **Authoritative**: the reference-machine run of
+`bench-ec2.sh` (BENCH-EC2.md) — a fresh EC2 instance of a fixed type,
+quiesced by construction, both commits built and run interleaved.
+**Stage-wise (directional)**: the laptop runs (Windows x64, 16 logical cores,
+dalek AVX2 backend, `--release`) that guided each lever — interleaved A/B
+where they compare, and noted as agent-run where not quiesced.
 
 **How we measure.** Single-shot cross-run comparison is unreliable here —
 sustained load warms the machine and inflates later runs (an *unchanged*
@@ -200,43 +203,61 @@ quiesced snapshot to confirm it is not itself drift-inflated; the criterion
 micro-benches (`parallel_tradeoff`, `msm_strategy`) self-calibrate with warmup
 and sampling. `bench.ps1` / `bench.sh` run the whole grid under quiescence.
 
-### Campaign before/after — the five targets
+### Campaign before/after — the five targets (authoritative)
 
-The whole effort, measured black-box with `examples/targets.rs` (§6). Because
-that tool uses only fork-point public APIs, the same source builds against the
-pre-optimization baseline (a sparse `git worktree` at the fork commit), so
-baseline and current run interleaved — a valid ratio under shared conditions.
-Directional (agent-run, not fully quiesced; the current column agrees with the
-quiesced snapshot below). N = 10⁵, W = 2:
+Measured 2026-09-22 with `bench-ec2.sh session 185dbbede2 657cb05c20`
+(BENCH-EC2.md) on a fresh **`c7i.4xlarge`** — Intel Xeon Platinum 8488C, 16
+vCPU (8 cores × 2 threads), 32 GiB; Ubuntu 24.04 `ami-0526a6499f6470118`,
+kernel 7.0.0-1012-aws, rustc 1.96.0, `eu-west-1b` — quiesced by construction.
+`examples/targets.rs` (§6) was built against both the **fork point**
+`657cb05c20` (the parent branch before the campaign; the tool uses only
+fork-point public APIs precisely so it drops into that tree) and the **merged
+milestone** `185dbbede2`, and the two binaries ran **interleaved**, three reps
+per cell. Reps agree within ~1%. Medians, N = 10⁵:
 
-| Target | baseline | current | factor |
-|---|---|---|---|
-| ① shuffle prove | 13.8 s | 9.1 s | **~1.5×** |
-| ② shuffle verify | 10.9 s | 5.9 s | **~1.9×** |
-| ③ partial decryption | 15.8 s | 3.5 s | **~4.5×** |
-| ④ combine | 36.8 s | 10.0 s | **~3.7×** |
-| ⑤ Naor-Yung verify-and-strip | 4.4 s | 4.8 s | **~1.0× (flat)** |
+| Target | W = 2: fork → milestone | | W = 5: fork → milestone | |
+|---|---|---|---|---|
+| ① shuffle prove | 13.85 s → 4.92 s | **2.8×** | 23.5 s → 8.76 s | **2.7×** |
+| ② shuffle verify | 10.26 s → 2.23 s | **4.6×** | 19.8 s → 3.57 s | **5.6×** |
+| ③ partial decryption | 15.3 s → 1.19 s | **12.8×** | 38.2 s → 2.98 s | **12.8×** |
+| ④ combine | 45.9 s → 1.99 s | **23×** | 114.8 s → 4.94 s | **23×** |
+| ⑤ Naor-Yung verify-and-strip | 3.64 s → 3.70 s | flat | 8.82 s → 8.87 s | flat |
 
-Same shape at 10⁴ W = 2 and 10⁵ W = 5. Two things this makes plain:
+Raw files: `bench-results/ec2-20260922-012110-185dbbede2/` (differential CSV,
+full grid, `machine.txt`). What it says:
 
-- **Decryption (③④) is the big win, ~3.5–4×** — it had the most headroom
-  (fully serial factor/`batching_exponents`/Lagrange loops *and* single-call
-  MSM at baseline, so it caught both stage 0's parallelization and stage 1's
-  chunked MSM). At the fork point `combine` was 37 s (130 s at W = 5); it is
-  now ~10 s.
-- **NY verify-and-strip (⑤) is flat** — the campaign parallelized *braid's*
-  first-mix loop, not vsc's `NYStrip` crypto, and `targets` calls that
-  primitive with its own `par_iter` (identical on both trees). So ⑤ is the
-  one target the campaign never actually optimized: the remaining lever
-  (§5 — it is N independent PlEq verifications, not batched).
+- **The decryption path is the headline: ~13× and ~23×.** It had the most
+  headroom — fully serial factor/`batching_exponents`/Lagrange loops *and*
+  single-call MSM at the fork point — and it caught every stage:
+  parallelization, chunked MSM, parallel transcript serialization, and the
+  variable-time combine/verify path. At W = 5, `combine` went from 115 s to
+  under 5 s.
+- **The shuffle is ~2.7–2.8× (prove) and ~4.6–5.6× (verify).** Verify gains
+  more because its MSMs are variable-time and V2 is batched; the prover's
+  remaining cost is constant-time by necessity (§1).
+- **⑤ is flat, exactly as predicted** — the campaign parallelized *braid's*
+  first-mix loop, not vsc's `NYStrip` crypto, which `targets` calls with its
+  own `par_iter` on both trees. On the reference machine ⑤ is now the
+  **slowest target at both widths** (3.7 s vs verify's 2.2 s at W = 2): the
+  unambiguous next lever (§5 — N independent PlEq verifications, not batched).
 
-Current-tree quiesced snapshot (median of 3, for reference; matches the
-current column above): shuffle prove/verify 8.5 s / 5.5 s, `partial_decrypt`
-3.2 s, `combine` 9.9 s at 10⁵ W = 2. For authoritative before/after, run
-`bench-ec2.sh session <tip> <fork-point>` (BENCH-EC2.md): a temporary EC2
-instance of a fixed reference type — quiesced by construction and the same
-hardware every session — builds `targets` at both commits and runs them
-interleaved, then `bench.sh`'s full grid.
+Milestone snapshot on the reference machine (median of 3, ms):
+
+| N : W | prove | verify | partial_decrypt | combine | ny_strip |
+|---|---|---|---|---|---|
+| 10³ : 2 | 62 | 38 | 17 | 36 | 39 |
+| 10⁴ : 2 | 490 | 249 | 128 | 228 | 368 |
+| 10⁴ : 5 | 887 | 414 | 322 | 563 | 892 |
+| 10⁵ : 2 | 4 919 | 2 234 | 1 194 | 1 989 | 3 718 |
+| 10⁵ : 5 | 8 811 | 3 563 | 2 970 | 4 923 | 8 842 |
+
+The criterion guidance benches also ran on this machine (the packaged
+milestone's `bench.sh` predates the `GUIDANCE` flag) and reproduce §1's
+strategy findings at N = 10⁵: a single constant-time dalek call is 4.3×
+*slower* than the naive parallel product, chunked constant-time 2.6× faster,
+chunked variable-time **8.0×** faster (47.8 ms). The laptop's stage-by-stage
+runs below told the same story directionally and are kept as the record of
+how each lever was found.
 
 ### The Amdahl wall — the finding that redirects the next work
 
