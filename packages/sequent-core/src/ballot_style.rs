@@ -286,6 +286,7 @@ fn create_contest(
 
     Ok(ballot::Contest {
         id: contest.id.clone(),
+        external_id: contest.external_id,
         tenant_id: (contest.tenant_id),
         election_event_id: (contest.election_event_id),
         election_id: (contest.election_id.clone()),
@@ -312,4 +313,50 @@ fn create_contest(
             .transpose()?,
         tie_breaking_policy,
     })
+}
+
+#[cfg(test)]
+mod contest_external_id_tests {
+    use super::*;
+
+    #[test]
+    fn contest_external_id_is_published_without_changing_signed_bytes() {
+        let legacy = serde_json::json!({
+            "id": "contest-id", "tenant_id": "tenant-id",
+            "election_event_id": "event-id", "election_id": "election-id",
+            "counting_algorithm": "plurality-at-large"
+        });
+        let old_contest = create_contest(
+            serde_json::from_value(legacy.clone()).unwrap(),
+            vec![],
+            "en".into(),
+        )
+        .unwrap();
+        let old_json = serde_json::to_value(&old_contest).unwrap();
+        assert!(old_json.get("external_id").is_none());
+        let old_roundtrip: ballot::Contest =
+            serde_json::from_value(old_json.clone()).unwrap();
+        assert_eq!(serde_json::to_value(old_roundtrip).unwrap(), old_json);
+
+        let mut imported = legacy;
+        imported["external_id"] = serde_json::json!("1001");
+        let published = create_contest(
+            serde_json::from_value(imported).unwrap(),
+            vec![],
+            "en".into(),
+        )
+        .unwrap();
+        let published_json = serde_json::to_value(&published).unwrap();
+        assert_eq!(published_json["external_id"], "1001");
+        let roundtrip: ballot::Contest =
+            serde_json::from_value(published_json).unwrap();
+        assert_eq!(
+            serde_json::to_value(&roundtrip).unwrap()["external_id"],
+            "1001"
+        );
+        assert_eq!(
+            borsh::to_vec(&roundtrip).unwrap(),
+            borsh::to_vec(&old_contest).unwrap()
+        );
+    }
 }
