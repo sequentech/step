@@ -18,6 +18,9 @@ set -euo pipefail
 SESSION="$1"; BUCKET="$2"; SHA="$3"; BASE_SHA="${4:-}"
 export PATH=/root/.cargo/bin:/usr/local/bin:$PATH
 export CARGO_TERM_COLOR=never
+# A reference session is about the targets; the criterion guidance benches are
+# design inputs already recorded in PERFORMANCE.md, so they are off unless asked.
+export GUIDANCE="${GUIDANCE:-0}"
 DIFF_CELLS="${DIFF_CELLS:-10000:2 100000:2}"
 DIFF_REPS="${DIFF_REPS:-3}"
 S3="s3://$BUCKET/$SESSION"
@@ -57,7 +60,7 @@ fetch_src "$SHA" "$WORK/cur"
 CUR="$WORK/cur/packages/wbraid"
 
 # --- bench.sh: builds untimed first, then criterion benches + the targets grid --
-log "running bench.sh (CELLS='${CELLS:-<default>}' REPS='${REPS:-<default>}')"
+log "running bench.sh (CELLS='${CELLS:-<default>}' REPS='${REPS:-<default>}' GUIDANCE=$GUIDANCE)"
 ( cd "$CUR" && bash bench.sh )
 cp "$CUR"/bench-results/*.txt "$RESULTS/"
 
