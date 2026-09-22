@@ -18,6 +18,7 @@
 #   ./bench-ec2.sh sweep                     # list anything tagged that is still alive (exit 1 if so)
 #   ./bench-ec2.sh terminate                 # terminate the instance in .bench-ec2/state
 #   ./bench-ec2.sh terminate --all-tagged    # terminate every non-terminated tagged instance
+#   ./bench-ec2.sh summarize DIR             # render a results dir (bench-results/ec2-*) as Markdown
 #
 # Overrides (environment): AWS_PROFILE_NAME=wbraid-bench REGION=eu-west-1
 #   BUCKET=wbraid-bench-bucket INSTANCE_PROFILE=wbraid-bench-instance-role
@@ -227,6 +228,11 @@ collect() {
     aws s3 sync "s3://$BUCKET/$session/results/" "$(winpath "$dest")" --only-show-errors
     log "results -> $dest"
     ls -1 "$dest" | sed 's/^/  /' >&2
+    # The key results as Markdown, beside the raw files and in the log.
+    if bash "$HERE/bench-ec2/summarize.sh" "$dest" > "$dest/SUMMARY.md" 2>/dev/null; then
+        log "summary -> $dest/SUMMARY.md"
+        cat "$dest/SUMMARY.md"
+    fi
     # The bucket expires objects after a day; remove this session's now anyway.
     aws s3 rm "s3://$BUCKET/$session/" --recursive --only-show-errors || true
 }
@@ -338,5 +344,6 @@ case "${1:-}" in
     sweep)      sweep ;;
     terminate)  shift; terminate "$@" ;;
     launch)     launch "${2:-}" >/dev/null ;;
-    *) sed -n '5,26p' "$0"; exit 2 ;;
+    summarize)  shift; bash "$HERE/bench-ec2/summarize.sh" "$@" ;;
+    *) sed -n '5,27p' "$0"; exit 2 ;;
 esac

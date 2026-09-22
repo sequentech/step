@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# summarize.sh RESULTS_DIR -- render the key results of one benchmark session as
+# Markdown on stdout: the machine header, the snapshot medians per (N, W) cell
+# for the five targets, and -- when a differential is present -- the
+# before/after medians with speedup factors. The guidance benches are left out
+# on purpose: they steer implementation, they are not the result.
+#
+# Reads snapshot rows from snapshot-*.csv and from bench.sh's bench-*.txt (same
+# columns), and differential rows from differential-<base>-vs-<tip>.csv. One
+# session per directory. Portable bash + awk (no gawk extensions).
+set -euo pipefail
+DIR="${1:?usage: summarize.sh RESULTS_DIR}"
+[ -d "$DIR" ] || { echo "summarize.sh: not a directory: $DIR" >&2; exit 2; }
+
+snap_rows() { cat "$DIR"/snapshot-*.csv "$DIR"/bench-*.txt 2>/dev/null | grep -E '^[0-9]+,[0-9]+,' || true; }
+diff_rows() { cat "$DIR"/differential-*.csv 2>/dev/null | grep -E '^(base|curr),[0-9]+,' || true; }
+
+# Shared awk: cell formatting and a median over the values collected for a key.
+AWK_COMMON='
+function fmtn(n) { if (n == 1000) return "10³"; if (n == 10000) return "10⁴"; if (n == 100000) return "10⁵"; if (n == 1000000) return "10⁶"; return n }
+function median(k, m,   n, i, j, t, a) {
+    n = cnt[k]
+    for (i = 1; i <= n; i++) a[i] = v[k, m, i]
+    for (i = 2; i <= n; i++) { t = a[i]; j = i - 1; while (j >= 1 && a[j] > t) { a[j + 1] = a[j]; j-- } a[j + 1] = t }
+    if (n % 2) return a[(n + 1) / 2]
+    return (a[n / 2] + a[n / 2 + 1]) / 2
+}
+function ms(x) { return sprintf("%d", x + 0.5) }
+'
+
+echo "# Benchmark summary — $(basename "$DIR")"
+echo
+if [ -f "$DIR/machine.txt" ]; then
+    echo '```'
+    sed -n 's/^# //p' "$DIR/machine.txt"
+    echo '```'
+    echo
+fi
+echo "**Targets** (median of the reps in each cell, milliseconds): **prove** / **verify** — shuffle proof generation / verification, each including the generator derivation; **partial** — one trustee's partial decryption; **combine** — verify every trustee's partial and combine to plaintexts; **strip** — the first mix's Naor-Yung verify-and-strip. N = ciphertexts, W = ciphertext width; T = 3 of P = 5 trustees."
+echo
+
+# --- snapshot -----------------------------------------------------------------------
+rows="$(snap_rows)"
+if [ -n "$rows" ]; then
+    echo "## Snapshot"
+    echo
+    printf '%s\n' "$rows" | awk -F, "$AWK_COMMON"'
+    {
+        k = $1 ":" $2
+        if (!(k in seen)) { seen[k] = 1; order[++nk] = k; cnt[k] = 0 }
+        n = ++cnt[k]
+        for (m = 3; m <= 7; m++) v[k, m, n] = $m + 0
+    }
+    END {
+        print "| N : W | reps | prove | verify | partial | combine | strip |"
+        print "|---|---|---|---|---|---|---|"
+        for (i = 1; i <= nk; i++) {
+            k = order[i]; split(k, p, ":")
+            printf "| %s : %s | %d |", fmtn(p[1]), p[2], cnt[k]
+            for (m = 3; m <= 7; m++) printf " %s |", ms(median(k, m))
+            printf "\n"
+        }
+    }'
+    echo
+fi
+
+# --- differential -------------------------------------------------------------------
+drows="$(diff_rows)"
+if [ -n "$drows" ]; then
+    base=""; tip=""
+    for f in "$DIR"/differential-*.csv; do
+        b="$(basename "$f" .csv)"; b="${b#differential-}"
+        base="${b%%-vs-*}"; tip="${b##*-vs-}"
+        break
+    done
+    echo "## Before / after — ${base:-baseline} → ${tip:-tip}"
+    echo
+    echo "Both binaries ran interleaved, rep by rep, on the same machine; medians and the speedup factor."
+    printf '%s\n' "$drows" | awk -F, "$AWK_COMMON"'
+    {
+        k = $2 ":" $3 ":" $1
+        c = $2 ":" $3
+        if (!(c in cseen)) { cseen[c] = 1; corder[++nc] = c }
+        if (!(k in seen)) { seen[k] = 1; cnt[k] = 0 }
+        n = ++cnt[k]
+        for (m = 4; m <= 8; m++) v[k, m, n] = $m + 0
+    }
+    END {
+        names[4] = "prove"; names[5] = "verify"; names[6] = "partial"; names[7] = "combine"; names[8] = "strip"
+        for (i = 1; i <= nc; i++) {
+            c = corder[i]; split(c, p, ":")
+            kb = c ":base"; kc = c ":curr"
+            printf "\n### N = %s, W = %s (%d reps)\n\n", fmtn(p[1]), p[2], cnt[kb]
+            print "| target | before (ms) | after (ms) | speedup |"
+            print "|---|---|---|---|"
+            for (m = 4; m <= 8; m++) {
+                b = median(kb, m); a = median(kc, m)
+                printf "| %s | %s | %s | %.1f× |\n", names[m], ms(b), ms(a), (a > 0 ? b / a : 0)
+            }
+        }
+    }'
+    echo
+fi
+
+[ -n "$rows$drows" ] || echo "_No snapshot or differential rows found in $DIR._"
