@@ -57,6 +57,9 @@ impl Drop for Environment {
 }
 
 const REALM_PATH: &str = "/admin/realms/tenant-north-event-mayor";
+const ADMIN_TOKEN_PATH: &str = "/realms/master/protocol/openid-connect/token";
+const TENANT_TOKEN_PATH: &str =
+    "/realms/tenant-north/protocol/openid-connect/token";
 
 #[test]
 fn realm_names_and_copy_replacements_keep_cross_references_consistent() {
@@ -405,7 +408,7 @@ async fn password_policy_updates_preserve_unmanaged_rules_and_validate_before_ht
 #[rocket::async_test]
 async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and_reuses_valid_tokens(
 ) {
-    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let token_endpoint = ADMIN_TOKEN_PATH;
     let mut expiring_token = http::token_json();
     expiring_token["expires_in"] = json!(5);
     let peer = HttpServer::start(vec![
@@ -565,7 +568,7 @@ async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and
 
 #[rocket::async_test]
 async fn fresh_admin_clients_propagate_denied_authentication() {
-    let endpoint = "/realms/master/protocol/openid-connect/token";
+    let endpoint = ADMIN_TOKEN_PATH;
     let peer = HttpServer::start(vec![
         Exchange::json(
             "POST",
@@ -599,7 +602,7 @@ async fn fresh_admin_clients_propagate_denied_authentication() {
 #[rocket::async_test]
 async fn malformed_successful_token_responses_fail_without_returning_secret_material(
 ) {
-    let endpoint = "/realms/tenant-north/protocol/openid-connect/token";
+    let endpoint = TENANT_TOKEN_PATH;
     let malformed = json!({"access_token": "synthetic-private-token", "expires_in": "invalid"});
     let peer = HttpServer::start(vec![
         Exchange::json("POST", endpoint, 200, malformed.clone()),
@@ -634,7 +637,7 @@ async fn malformed_successful_token_responses_fail_without_returning_secret_mate
 #[rocket::async_test]
 async fn interrupted_token_response_body_is_a_transport_error_not_a_token() {
     const TEST_CLIENT_SECRET: &str = "synthetic-secret";
-    let endpoint = "/realms/tenant-north/protocol/openid-connect/token";
+    let endpoint = TENANT_TOKEN_PATH;
     let peer = HttpServer::start(vec![
         Exchange::json("POST", endpoint, 200, http::token_json()),
         Exchange::json("POST", endpoint, 200, http::token_json())
@@ -661,7 +664,7 @@ async fn interrupted_token_response_body_is_a_transport_error_not_a_token() {
 
 #[rocket::async_test]
 async fn group_update_and_creation_use_the_server_assigned_user_id() {
-    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let token_endpoint = ADMIN_TOKEN_PATH;
     let peer = HttpServer::start(vec![
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
         Exchange::json("PUT", "/admin/realms/tenant-north/groups/group-1", 204, Value::Null),
@@ -704,7 +707,7 @@ async fn group_update_and_creation_use_the_server_assigned_user_id() {
 #[rocket::async_test]
 async fn rejected_user_creation_preserves_validation_errors_and_stops_before_lookup(
 ) {
-    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let token_endpoint = ADMIN_TOKEN_PATH;
     let users = "/admin/realms/tenant-north/users";
     let peer = HttpServer::start(vec![
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
@@ -761,7 +764,7 @@ async fn rejected_user_creation_preserves_validation_errors_and_stops_before_loo
 #[rocket::async_test]
 async fn user_creation_requires_a_valid_location_before_reading_back_the_user()
 {
-    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let token_endpoint = ADMIN_TOKEN_PATH;
     let users = "/admin/realms/tenant-north/users";
     let locations = [
         None,
@@ -811,7 +814,7 @@ async fn user_creation_requires_a_valid_location_before_reading_back_the_user()
 
 #[rocket::async_test]
 async fn group_updates_report_rejection_and_require_an_identifier() {
-    let token_endpoint = "/realms/master/protocol/openid-connect/token";
+    let token_endpoint = ADMIN_TOKEN_PATH;
     let group_path = "/admin/realms/tenant-north/groups/group-1";
     let peer = HttpServer::start(vec![
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
@@ -951,7 +954,7 @@ impl std::io::Write for LogWriter {
 async fn tenant_credentials_are_encoded_correctly_and_never_disclosed_in_logs_or_errors(
 ) {
     use tracing::instrument::WithSubscriber;
-    let endpoint = "/realms/tenant-north/protocol/openid-connect/token";
+    let endpoint = TENANT_TOKEN_PATH;
     let peer = HttpServer::start(vec![
         Exchange::json("POST", endpoint, 200, http::token_json()),
         Exchange::json("POST", endpoint, 200, http::token_json()),
@@ -1032,7 +1035,7 @@ async fn tenant_credentials_are_encoded_correctly_and_never_disclosed_in_logs_or
 async fn a_token_shaped_error_response_is_still_an_authentication_failure() {
     let peer = HttpServer::start(vec![Exchange::json(
         "POST",
-        "/realms/tenant-north/protocol/openid-connect/token",
+        TENANT_TOKEN_PATH,
         401,
         http::token_json(),
     )]);
@@ -1081,7 +1084,7 @@ async fn datafix_cache_is_bound_to_credentials_and_tenant_and_renews_before_expi
         local::asynchronous::Client,
     };
     use sequent_core::services::connection::LastDatafixAccessToken;
-    let north = "/realms/tenant-north/protocol/openid-connect/token";
+    let north = TENANT_TOKEN_PATH;
     let south = "/realms/tenant-south/protocol/openid-connect/token";
     let peer = HttpServer::start(vec![
         Exchange::json("POST", north, 200, datafix_token("first", 300)),
@@ -1174,7 +1177,7 @@ async fn request_guard_diagnostics_never_log_authorization_headers_or_client_sec
     use tracing::instrument::WithSubscriber;
     let peer = HttpServer::start(vec![Exchange::json(
         "POST",
-        "/realms/tenant-north/protocol/openid-connect/token",
+        TENANT_TOKEN_PATH,
         200,
         datafix_token("voter", 300),
     )]);
