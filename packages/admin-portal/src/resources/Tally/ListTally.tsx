@@ -42,11 +42,12 @@ import {StatusChip} from "@/components/StatusChip"
 import KeyIcon from "@mui/icons-material/Key"
 import DoNotDisturbOnIcon from "@mui/icons-material/DoNotDisturbOn"
 import {theme, IconButton, Dialog} from "@sequentech/ui-essentials"
-import {AuthContext, AuthContextValues} from "@/providers/AuthContextProvider"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {ResourceListStyles} from "@/components/styles/ResourceListStyles"
 import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {EAllowTally} from "@sequentech/ui-core"
 import {
+    ETallyKeyRestoreEligibility,
     ETallyType,
     IExecutionStatus,
     ITallyCeremonyStatus,
@@ -65,6 +66,8 @@ import {useKeysPermissions} from "../ElectionEvent/useKeysPermissions"
 import {GET_TRUSTEES_NAMES} from "@/queries/GetTrusteesNames"
 import {StyledChip} from "@/components/StyledChip"
 import {ThreeStateDatagridHeader} from "@/components/ThreeStateDatagridHeader"
+import {getTallyTrusteeStatus} from "@/services/tallyCeremonyParticipation"
+import {getTallyKeyRestoreEligibility} from "./utils"
 
 const OMIT_FIELDS = ["ballot_eml", "trustees"]
 
@@ -187,15 +190,24 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         }
     )
 
+    const tallySessionIds = useMemo(
+        () => tallySessions?.map((tallySession) => tallySession.id) ?? [],
+        [tallySessions]
+    )
+
     const {data: tallySessionExecutions} = useGetList<Sequent_Backend_Tally_Session_Execution>(
         "sequent_backend_tally_session_execution",
         {
-            pagination: {page: 1, perPage: 1},
+            pagination: {page: 1, perPage: Math.max(tallySessionIds.length, 1)},
             sort: {field: "created_at", order: "DESC"},
             filter: {
-                tally_session_id: tallySessions?.[0]?.id,
+                tally_session_id: {
+                    format: "hasura-raw-query",
+                    value: {_in: tallySessionIds},
+                },
                 tenant_id: tenantId,
             },
+            meta: {latestPerTallySession: true},
         },
         {
             refetchOnWindowFocus: false,
@@ -203,6 +215,16 @@ export const ListTally: React.FC<ListAreaProps> = () => {
             refetchOnMount: false,
         }
     )
+
+    const latestExecutionByTallySessionId = useMemo(() => {
+        const executions = new Map<string, Sequent_Backend_Tally_Session_Execution>()
+        for (const execution of tallySessionExecutions ?? []) {
+            if (!executions.has(execution.tally_session_id)) {
+                executions.set(execution.tally_session_id, execution)
+            }
+        }
+        return executions
+    }, [tallySessionExecutions])
 
     const {data: trusteeNames} = useQuery<TrusteeNamesQuery>(GET_TRUSTEES_NAMES, {
         variables: {
@@ -296,6 +318,15 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         openRecountTallySet(true)
     }
 
+    const trusteeKeyRestoreEligibility = (record: RaRecord): ETallyKeyRestoreEligibility =>
+        getTallyKeyRestoreEligibility(
+            getTallyTrusteeStatus(
+                latestExecutionByTallySessionId.get(String(record.id)),
+                authContext.trustee
+            ),
+            record.execution_status
+        )
+
     const actions = (record: RaRecord) => [
         {
             icon: isTrustee ? (
@@ -337,9 +368,7 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         },
         {
             icon:
-                record.execution_status === ITallyExecutionStatus.NOT_STARTED ||
-                record.execution_status === ITallyExecutionStatus.STARTED ||
-                record.execution_status === ITallyExecutionStatus.CONNECTED ? (
+                trusteeKeyRestoreEligibility(record) === ETallyKeyRestoreEligibility.ALLOWED ? (
                     <Tooltip title={String(t("tallysheet.common.tallyCeremony.addKey"))}>
                         <TrusteeKeyIcon />
                     </Tooltip>
@@ -409,37 +438,27 @@ export const ListTally: React.FC<ListAreaProps> = () => {
         }
     }
 
-    const isTrusteeParticipating = (
-        tally_session: Sequent_Backend_Tally_Session,
-        ceremony: Sequent_Backend_Tally_Session_Execution | undefined,
-        authContext: AuthContextValues
-    ) => {
-        if (ceremony) {
-            let ret =
-                tally_session.execution_status === ITallyExecutionStatus.STARTED &&
-                !!ceremony.status.trustees.find(
-                    (trustee: any) => trustee.name === authContext.trustee
-                )
-            return ret
-        }
-        return false
-    }
-
-    // Returns a keys ceremony if there's any in which we have been required to
-    // participate and is active
+    // Returns an active tally ceremony in which the current trustee must restore a key.
     const getActiveCeremony = (
         tallySessions: Sequent_Backend_Tally_Session[] | undefined,
-        authContext: AuthContextValues
+        trusteeName: string | null | undefined
     ) => {
         if (!tallySessions) {
             return
         } else {
-            return tallySessions.find((tallySession) =>
-                isTrusteeParticipating(tallySession, tallySessionExecutions?.[0], authContext)
+            return tallySessions.find(
+                (tallySession) =>
+                    getTallyKeyRestoreEligibility(
+                        getTallyTrusteeStatus(
+                            latestExecutionByTallySessionId.get(tallySession.id),
+                            trusteeName
+                        ),
+                        tallySession.execution_status
+                    ) === ETallyKeyRestoreEligibility.ALLOWED
             )
         }
     }
-    let activeCeremony = getActiveCeremony(tallySessions, authContext)
+    const activeCeremony = getActiveCeremony(tallySessions, authContext.trustee)
 
     if (errorCeremonies) {
         return (
@@ -453,16 +472,14 @@ export const ListTally: React.FC<ListAreaProps> = () => {
 
     return (
         <>
-            {canTrusteeCeremony &&
-            activeCeremony &&
-            tallySessions?.[0]?.execution_status === "STARTED" ? (
+            {canTrusteeCeremony && activeCeremony ? (
                 <Alert severity="info">
                     <Trans i18nKey="electionEventScreen.tally.notify.participateNow">
                         {t("tally.invited")}
                         <NotificationLink
                             onClick={(e: any) => {
                                 e.preventDefault()
-                                viewTrusteeTally(tallySessions?.[0]?.id)
+                                viewTrusteeTally(activeCeremony.id)
                             }}
                         >
                             click on the tally Key Action
