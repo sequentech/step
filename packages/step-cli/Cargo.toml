@@ -46,6 +46,3 @@ url = "2"
 [[bin]]
 name = "step-cli"
 path = "src/main.rs"
-
-[dev-dependencies]
-tempfile = "3"
