@@ -74,7 +74,7 @@ class CliContractTest {
         cli("unknown-operation").failure("Unknown command: unknown-operation");
         for (String command : Arrays.asList("create-keys", "encrypt", "decrypt", "sign", "sign-bulk",
                 "verify", "sign-ec", "verify-ec", "sign-rsa", "verify-rsa", "public-key")) {
-            cli(command).failure("Usage: " + command);
+            cli(command).failure("Usage: " + command + " <");
         }
     }
 
@@ -120,14 +120,17 @@ class CliContractTest {
         Provider provider = new BouncyCastleProvider();
         KeyFactory factory = KeyFactory.getInstance("EC", provider);
         IESParameterSpec spec = new IESParameterSpec(null, null, 256, 256, null, false);
-        byte[] clear = "literal UTF-8 text: ñ".getBytes(StandardCharsets.UTF_8);
+        // The documented argument is Base64 text. The CLI reads argv and writes stdout
+        // in the platform charset, so ASCII keeps this contract locale-independent.
+        String plaintext = Base64.getEncoder().encodeToString("synthetic secret: \u00f1".getBytes(StandardCharsets.UTF_8));
+        byte[] clear = plaintext.getBytes(StandardCharsets.US_ASCII);
         Cipher reference = Cipher.getInstance("ECIES", provider);
         reference.init(Cipher.DECRYPT_MODE, factory.generatePrivate(new PKCS8EncodedKeySpec(pair.getPrivate().getEncoded())), spec);
-        byte[] encrypted = Base64.getDecoder().decode(cli("encrypt", pub.toString(), new String(clear, StandardCharsets.UTF_8)).success());
+        byte[] encrypted = Base64.getDecoder().decode(cli("encrypt", pub.toString(), plaintext).success());
         assertArrayEquals(clear, reference.doFinal(encrypted));
         reference.init(Cipher.ENCRYPT_MODE, factory.generatePublic(new X509EncodedKeySpec(pair.getPublic().getEncoded())), spec);
         byte[] independent = reference.doFinal(clear);
-        assertEquals(new String(clear, StandardCharsets.UTF_8), cli("decrypt", priv.toString(), Base64.getEncoder().encodeToString(independent)).success());
+        assertEquals(plaintext, cli("decrypt", priv.toString(), Base64.getEncoder().encodeToString(independent)).success());
         independent[independent.length - 1] ^= 1;
         cli("decrypt", priv.toString(), Base64.getEncoder().encodeToString(independent)).failure("invalid MAC");
         cli("decrypt", priv.toString(), "!").failure("IllegalArgumentException");

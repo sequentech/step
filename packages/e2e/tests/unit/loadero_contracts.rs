@@ -46,7 +46,12 @@ fn fixture(
             let deadline = Instant::now() + Duration::from_secs(5);
             let mut stream = loop {
                 match listener.accept() {
-                    Ok((stream, _)) => break stream,
+                    Ok((stream, _)) => {
+                        // Accepted sockets inherit the listener's nonblocking
+                        // mode on macOS and the BSDs; the reads need blocking.
+                        stream.set_nonblocking(false).unwrap();
+                        break stream;
+                    }
                     Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
                         assert!(
                             Instant::now() < deadline,
@@ -241,8 +246,9 @@ fn malformed_poll_response_is_returned_instead_of_retried() {
     let (url, server) = fixture(vec![
         ("POST /tests/23/runs/ HTTP/1.1", 201, r#"{"id":41}"#),
         ("GET /tests/23/runs/41/ HTTP/1.1", 200, "not JSON"),
-        // The old loop retries and returns this different error. The fixed loop
-        // returns the decode error; the explicit request below drains the sentinel.
+        // The old loop retried, then swallowed this HTTP error and returned
+        // Ok(()). The fixed loop returns the decode error; the explicit request
+        // below drains the sentinel.
         ("GET /tests/23/runs/41/ HTTP/1.1", 503, "unexpected retry"),
     ]);
     let _env = Environment::set(&[
