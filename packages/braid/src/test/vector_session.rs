@@ -6,7 +6,9 @@ use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use b3::messages::artifact::{DkgPublicKey, Plaintexts};
 use b3::messages::message::Message;
+use b3::messages::statement::StatementType;
 use log::{error, info};
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use strand::context::Ctx;
 
@@ -62,6 +64,18 @@ impl<C: Ctx> VectorSession<C> {
     }
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee._get_dkg_public_key_nohash()
+    }
+    /// Trustees whose plaintext signatures for `batch` are on this local board.
+    pub(crate) fn plaintexts_signers(&self, batch: BatchNumber) -> HashSet<TrusteePosition> {
+        self.trustee
+            .local_board
+            .get_statement_entries()
+            .into_iter()
+            .filter(|entry| {
+                entry.key.kind == StatementType::PlaintextsSigned && entry.key.batch == batch
+            })
+            .map(|entry| entry.key.signer_position)
+            .collect()
     }
 }
 

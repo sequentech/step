@@ -6,6 +6,7 @@ use crate::postgres::document::{get_document, get_support_material_documents};
 use crate::postgres::election::get_elections;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::ballot_styles::ballot_publication::get_publication_json;
+use crate::services::datafix::utils::remove_datafix_annotations;
 use crate::services::documents::upload_and_return_document;
 use crate::services::providers::transactions_provider::provide_hasura_transaction;
 use crate::{
@@ -21,7 +22,11 @@ use sequent_core::types::hasura::core::{Document, SupportMaterial};
 use sequent_core::util::temp_path::write_into_named_temp_file;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tempfile::TempPath;
 use tracing::{info, instrument};
+
+/// Field holding the annotations of a serialized `election_event` row.
+const ANNOTATIONS_FIELD: &str = "annotations";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PublicationPreview {
@@ -30,6 +35,23 @@ pub struct PublicationPreview {
     elections: Value,
     support_materials: Value,
     documents: Value,
+}
+
+impl PublicationPreview {
+    /// Serializes the preview into a temporary file ready to upload. Every
+    /// preview upload goes through here, so the Datafix annotations are
+    /// dropped here too: they hold the VoterView credentials and the preview
+    /// is uploaded to the public bucket. Ballot styles are already sanitized
+    /// when they are stored, the event is not. Elections never carry Datafix
+    /// annotations: they only live on the election event.
+    pub fn into_temp_file(mut self, prefix: &str) -> AnyhowResult<(TempPath, String, u64)> {
+        remove_datafix_annotations(self.election_event.get_mut(ANNOTATIONS_FIELD));
+
+        let preview_data =
+            serde_json::to_vec(&self).with_context(|| "Error serializing publication preview")?;
+        write_into_named_temp_file(&preview_data, prefix, ".json")
+            .with_context(|| "Error writing publication preview to file")
+    }
 }
 
 #[instrument(err)]
@@ -157,17 +179,9 @@ pub async fn prepare_publication_preview_task(
         documents: documents_json,
     };
 
-    let pub_preview_data: Vec<u8> = serde_json::to_value(pub_preview)
-        .with_context(|| "Error serializing publication preview")?
-        .to_string()
-        .as_bytes()
-        .to_vec();
-
     let doc_name_s3 = format!("{ballot_publication_id}.json");
     let temp_name = format!("publication-preview-{document_id}-");
-    let (_temp_path, temp_path_string, file_size) =
-        write_into_named_temp_file(&pub_preview_data, &temp_name, ".json")
-            .with_context(|| "Error writing to file")?;
+    let (_temp_path, temp_path_string, file_size) = pub_preview.into_temp_file(&temp_name)?;
 
     let _document = upload_and_return_document(
         hasura_transaction,
@@ -234,6 +248,61 @@ fn open_preview_election(election: &mut Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::datafix::utils::{DATAFIX_ID_KEY, DATAFIX_VOTERVIEW_REQ_KEY};
+    use serde_json::json;
+
+    fn preview_with_annotations(election_event: Value) -> PublicationPreview {
+        PublicationPreview {
+            ballot_styles: json!([{"id": "style", "area_id": "area"}]),
+            election_event,
+            elections: json!([{"id": "election"}]),
+            support_materials: json!([]),
+            documents: json!([]),
+        }
+    }
+
+    fn written_preview(preview: PublicationPreview) -> Value {
+        let (_temp_path, path, _size) = preview
+            .into_temp_file("publication-preview-test-")
+            .expect("preview file");
+        serde_json::from_str(&std::fs::read_to_string(&path).expect("read written preview"))
+            .expect("parse written preview")
+    }
+
+    #[test]
+    fn the_written_preview_drops_datafix_annotations_from_the_event() {
+        let preview = preview_with_annotations(json!({
+            "id": "event",
+            "annotations": {
+                DATAFIX_ID_KEY: "external-event",
+                DATAFIX_VOTERVIEW_REQ_KEY: r#"{"url":"https://example.invalid","usr":"user","psw":"secret"}"#,
+                "miru:election-event-id": "miru-event",
+            },
+        }));
+
+        let written = written_preview(preview);
+
+        assert_eq!(
+            written["election_event"]["annotations"],
+            json!({"miru:election-event-id": "miru-event"})
+        );
+        assert_eq!(written["election_event"]["id"], "event");
+        assert_eq!(written["elections"][0]["id"], "election");
+        assert_eq!(written["ballot_styles"][0]["id"], "style");
+    }
+
+    #[test]
+    fn the_written_preview_tolerates_annotations_that_are_absent_or_not_an_object() {
+        for election_event in [
+            json!({"id": "event"}),
+            json!({"id": "event", "annotations": null}),
+            json!({"id": "event", "annotations": [DATAFIX_ID_KEY]}),
+        ] {
+            let written = written_preview(preview_with_annotations(election_event.clone()));
+
+            assert_eq!(written["election_event"], election_event);
+        }
+    }
 
     #[test]
     fn publication_preview_opens_closed_and_missing_status_without_changing_metadata() {

@@ -138,9 +138,17 @@ let breakpoints: BreakpointsOptions = {
     },
 }
 
+// A two-tone ring stays visible on light and dark tenant backgrounds.
+const keyboardFocusStyle = {
+    outline: `2px solid ${palette.black}`,
+    outlineOffset: "2px",
+    boxShadow: `0 0 0 2px ${palette.white}`,
+}
+
 let MuiButton: Components["MuiButton"] = {
     styleOverrides: {
         root: {
+            "&&.Mui-focusVisible": keyboardFocusStyle,
             "padding": "6px 12px",
             "display": "flex",
             "flexDirection": "row",
@@ -600,13 +608,6 @@ let MuiDialog: Components["MuiDialog"] = {
             }
         },
     },
-}
-
-// A two-tone ring stays visible on light and dark tenant backgrounds.
-const keyboardFocusStyle = {
-    outline: `2px solid ${palette.black}`,
-    outlineOffset: "2px",
-    boxShadow: `0 0 0 2px ${palette.white}`,
 }
 
 let MuiIconButton: Components["MuiIconButton"] = {
