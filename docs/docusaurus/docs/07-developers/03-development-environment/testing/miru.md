@@ -10,6 +10,7 @@ Use Rust 1.96.0, its `wasm32-wasip2` target and WASI SDK 27.0. The pinned downlo
 and checksum are in `.github/workflows/miru-unit-tests.yml`. From `packages/`:
 
 ```sh
+export WASI_SDK_PATH=/path/to/wasi-sdk-27.0-x86_64-linux
 export PATH="$WASI_SDK_PATH/bin:$PATH"
 export CC_wasm32_wasip2="$WASI_SDK_PATH/bin/clang"
 export AR_wasm32_wasip2="$WASI_SDK_PATH/bin/llvm-ar"
