@@ -33,10 +33,10 @@ accessibility tests remain part of the suite. New interaction tests use real
 MUI components; selected tests stub translation copy or a UI Core utility
 boundary explicitly.
 
-The four Chromium tests use actual shared components and browser APIs. They
+The five Chromium tests use actual shared components and browser APIs. They
 exercise keyboard activation of the native file picker, asynchronous JSON
-failure and retry, drag-and-drop through a real `DataTransfer`, checkbox
-callback counts and the countdown clock. This is component integration, not
+failure and retry, the drop target's rendered size, drag-and-drop through a
+real `DataTransfer`, checkbox callback counts and the countdown clock. This is component integration, not
 an authenticated voter journey. Browser execution is separate from the Jest
 coverage totals.
 

@@ -117,7 +117,6 @@ const dutchTranslation: TranslationType = {
             openDialog: "Dialoogvenster openen",
         },
         dragNDrop: {
-            importError: "Dit bestand kon niet worden geïmporteerd. Probeer het opnieuw.",
             firstLine: "Sleep bestanden hierheen of",
             browse: "Bladeren",
             format: "Ondersteund formaat: txt",

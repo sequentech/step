@@ -117,7 +117,6 @@ const frenchTranslation: TranslationType = {
             openDialog: "Ouvrir la boîte de dialogue",
         },
         dragNDrop: {
-            importError: "Impossible d’importer ce fichier. Veuillez réessayer.",
             firstLine: "Glissez-déposez des fichiers ou",
             browse: "Sélectionner un fichier",
             format: "Formats pris en charge : txt",

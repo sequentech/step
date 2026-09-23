@@ -33,7 +33,7 @@ fn message(id: i64, batch: usize, mix: usize) -> GrpcB3Message {
         &signer,
     )
     .unwrap();
-    // Deliberately inconsistent envelope fields: signed bytes are authoritative.
+    // The v10 envelope carries no statement metadata; identity comes from the signed bytes.
     GrpcB3Message {
         id,
         message: signed.strand_serialize().unwrap(),

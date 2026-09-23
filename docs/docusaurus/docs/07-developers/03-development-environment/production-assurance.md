@@ -68,7 +68,10 @@ inherit it automatically: the aggregate POM is not their parent.
 The truststore's fallback catches its own loading exception, which retains the
 original I/O or certificate cause. Unrelated programming errors must not be
 mistaken for a temporary certificate-service outage. Invalid hostname policy
-configuration also retains its cause.
+configuration also retains its cause. The scheduled refresh logs any other
+failure as unexpected and keeps its schedule: a periodic task that throws is
+otherwise cancelled without a log entry. That wrapper is the module's only
+suppressed finding.
 
 The pinned engine override follows the
 [Maven PMD instructions](https://maven.apache.org/plugins/maven-pmd-plugin/examples/upgrading-PMD-at-runtime.html).
