@@ -4,7 +4,7 @@
 //! Exercise the SQL escape helpers against PostgreSQL's parser, not a second
 //! string-replacement implementation. Use the same local fixture as Rust CI.
 
-use windmill::services::database::generate_hasura_pool;
+use windmill::services::database::{generate_hasura_pool, PgConfig};
 use windmill::services::sql_utils::{
     assert_standard_conforming_strings, escape_sql_identifier, escape_sql_literal,
 };
@@ -15,15 +15,13 @@ async fn escaped_literals_round_trip_through_postgres_without_executing_sql_text
     assert_standard_conforming_strings(&pool).await.unwrap();
     let mut client = pool.get().await.unwrap();
     let transaction = client.transaction().await.unwrap();
-    transaction
-        .batch_execute("CREATE TEMP TABLE literal_control (value INTEGER);")
-        .await
-        .unwrap();
-
+    // query_one prepares the statement, and PostgreSQL rejects a prepared
+    // statement with several commands: a payload that escaped its literal
+    // fails the query or changes the returned text.
     for value in [
         "",
         "O'Connor",
-        "'; DROP TABLE literal_control; --",
+        "'; DROP TABLE election; --",
         "\\'; SELECT 1; --",
         "éλ中\nsecond line",
     ] {
@@ -31,11 +29,6 @@ async fn escaped_literals_round_trip_through_postgres_without_executing_sql_text
         let row = transaction.query_one(&sql, &[]).await.unwrap();
         assert_eq!(row.get::<_, String>(0), value);
     }
-    // If a payload had become a second SQL statement, this table could vanish.
-    transaction
-        .query_one("SELECT COUNT(*) FROM literal_control", &[])
-        .await
-        .unwrap();
     transaction.rollback().await.unwrap();
 }
 
@@ -46,6 +39,7 @@ async fn quoted_identifiers_remain_one_identifier_even_with_quotes_and_semicolon
     let transaction = client.transaction().await.unwrap();
     for name in [
         "normal",
+        "MixedCase",
         "name with spaces",
         "a\"; SELECT 1; --",
         "élection",
@@ -62,12 +56,7 @@ async fn quoted_identifiers_remain_one_identifier_even_with_quotes_and_semicolon
 async fn unsafe_postgres_string_mode_is_rejected_before_literal_interpolation() {
     // Give this pool its own session option. Altering a shared database default
     // would race other tests and could make their escaping checks meaningless.
-    let mut config = deadpool_postgres::Config::new();
-    config.host = Some("127.0.0.1".into());
-    config.port = Some(3322);
-    config.user = Some("test".into());
-    config.password = Some("test".into());
-    config.dbname = Some("test".into());
+    let mut config = PgConfig::from_env().unwrap().hasura_db;
     config.options = Some("-c standard_conforming_strings=off".into());
     let pool = config
         .create_pool(

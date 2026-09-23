@@ -8,9 +8,11 @@ use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use windmill::services::password::generate_random_string_with_charset;
 
+const HEX_ALPHABET: &str = "0123456789abcdef";
+
 #[test]
 fn generated_passwords_have_the_requested_length_and_only_approved_characters() {
-    for (length, alphabet) in [(1, "x"), (64, "0123456789abcdef"), (17, "éλ中")] {
+    for (length, alphabet) in [(1, "x"), (64, HEX_ALPHABET), (17, "éλ中")] {
         let password = generate_random_string_with_charset(length, alphabet);
         assert_eq!(password.chars().count(), length);
         assert!(password
@@ -18,6 +20,17 @@ fn generated_passwords_have_the_requested_length_and_only_approved_characters() 
             .all(|character| alphabet.contains(character)));
     }
     assert_eq!(generate_random_string_with_charset(0, ""), "");
+}
+
+#[test]
+fn consecutive_passwords_are_not_repeated() {
+    // A constant generator, or one reseeded with a fixed seed on each call,
+    // repeats itself. Two random 64-digit hex strings collide with
+    // probability 16^-64.
+    assert_ne!(
+        generate_random_string_with_charset(64, HEX_ALPHABET),
+        generate_random_string_with_charset(64, HEX_ALPHABET)
+    );
 }
 
 #[derive(Clone)]
@@ -49,7 +62,7 @@ fn generated_encryption_passwords_never_enter_application_logs() {
         // A positive control proves that an empty/misconfigured capture cannot
         // make the absence-of-secrets assertion pass vacuously.
         tracing::info!("password-log-capture-control");
-        generate_random_string_with_charset(64, "0123456789abcdef")
+        generate_random_string_with_charset(64, HEX_ALPHABET)
     });
     let logs = String::from_utf8(bytes.lock().unwrap().clone()).unwrap();
     assert!(logs.contains("password-log-capture-control"));
