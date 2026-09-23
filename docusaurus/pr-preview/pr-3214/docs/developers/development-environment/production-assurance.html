@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Assurance lint policy | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/production-assurance"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Assurance lint policy | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3214/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/production-assurance"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/production-assurance" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/production-assurance" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Assurance lint policy","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3214/docs/developers/development-environment/production-assurance"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3214/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3214/assets/js/runtime~main.578f3477.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3214/assets/js/runtime~main.36c7c14c.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3214/assets/js/main.3f2e7b41.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -47,7 +47,10 @@ inherit it automatically: the aggregate POM is not their parent.</p>
 <p>The truststore&#x27;s fallback catches its own loading exception, which retains the
 original I/O or certificate cause. Unrelated programming errors must not be
 mistaken for a temporary certificate-service outage. Invalid hostname policy
-configuration also retains its cause.</p>
+configuration also retains its cause. The scheduled refresh logs any other
+failure as unexpected and keeps its schedule: a periodic task that throws is
+otherwise cancelled without a log entry. That wrapper is the module&#x27;s only
+suppressed finding.</p>
 <p>The pinned engine override follows the
 <a href="https://maven.apache.org/plugins/maven-pmd-plugin/examples/upgrading-PMD-at-runtime.html" target="_blank" rel="noopener noreferrer" class="">Maven PMD instructions</a>.
 Rules live in <code>java.xml</code>; do not suppress a finding just to obtain a passing build.</p>
