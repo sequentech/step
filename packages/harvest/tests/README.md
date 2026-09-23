@@ -12,9 +12,11 @@ external services belong in these tests.
 
 `support/request_boundaries.rs` includes a valid forwarded-claims control before
 checking missing/malformed credentials, document permissions, role mutation
-permissions, tenant separation and Datafix error responses. Synthetic JWTs model
-claims already verified by the identity gateway. They are not a test of JWT
-signature verification or a substitute for deployment access controls.
+permissions, tenant separation and Datafix error responses. Datafix requests
+carry valid bodies, so only the missing credentials can produce their error.
+Synthetic JWTs model claims already verified by the identity gateway. They are
+not a test of JWT signature verification or a substitute for deployment access
+controls.
 
 `support/error_contracts.rs` checks the error JSON consumed by the portals,
 including password-policy counts and truncated profile-validation totals.

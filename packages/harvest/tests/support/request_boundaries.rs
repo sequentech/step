@@ -12,6 +12,7 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
+use windmill::services::datafix::types::{MarkVotedBody, VoterInformationBody};
 
 // Reuse Core's bounded HTTP protocol fixture, not its client implementation.
 #[path = "../../../sequent-core/tests/support/http.rs"]
@@ -423,18 +424,30 @@ async fn document_and_ceremony_reads_require_their_specific_permissions() {
 async fn datafix_missing_credentials_use_the_documented_json_error_on_every_operation(
 ) {
     let client = client().await;
-    for path in [
-        "add-voter",
-        "update-voter",
-        "delete-voter",
-        "unmark-voted",
-        "mark-voted",
-        "replace-pin",
+    const VOTER_ID: &str = "synthetic-voter";
+    let voter = json!({"voter_id": VOTER_ID, "ward": "synthetic-ward"});
+    let voted = json!({"voter_id": VOTER_ID, "channel": "online"});
+    let voter_id = json!({ "voter_id": VOTER_ID });
+    // Each body is valid, so a malformed-body 422 (mapped to the same 400)
+    // cannot stand in for the missing-credentials response.
+    serde_json::from_value::<VoterInformationBody>(voter.clone()).unwrap();
+    serde_json::from_value::<MarkVotedBody>(voted.clone()).unwrap();
+    serde_json::from_value::<crate::routes::api_datafix::VoterIdBody>(
+        voter_id.clone(),
+    )
+    .unwrap();
+    for (path, body) in [
+        ("add-voter", &voter),
+        ("update-voter", &voter),
+        ("delete-voter", &voter_id),
+        ("unmark-voted", &voter_id),
+        ("mark-voted", &voted),
+        ("replace-pin", &voter_id),
     ] {
         let response = client
             .post(format!("/api/datafix/{path}"))
             .header(ContentType::JSON)
-            .body("{}")
+            .body(body.to_string())
             .dispatch()
             .await;
         assert_eq!(response.status(), Status::BadRequest, "{path}");
