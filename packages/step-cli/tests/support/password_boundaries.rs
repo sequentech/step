@@ -181,9 +181,12 @@ async fn a_destination_that_is_a_directory_is_preserved_without_temporary_files(
     let marker = std::path::Path::new(&fixture.command.output_file).join("keep.txt");
     fs::write(&marker, "keep this directory").unwrap();
 
-    assert!(fixture.command.run_hash_password().await.is_err());
+    // main.rs prints and exits while still holding the error, and
+    // process::exit runs no destructors, so the error must not own the file.
+    let error = fixture.command.run_hash_password().await.unwrap_err();
     assert_eq!(fs::read_to_string(marker).unwrap(), "keep this directory");
     assert_eq!(fs::read_dir(fixture.directory.path()).unwrap().count(), 2);
+    drop(error);
 }
 
 #[test]
