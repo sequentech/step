@@ -13,6 +13,9 @@ function decodeCookiePart(value: string): string {
 }
 
 export function getValueFromCookie(cookieName: string): string | undefined {
+    // Browsers list more specific paths first, then older cookies. Keep the
+    // last same-name entry: the most recent Path=/ cookie that setCookie writes.
+    let value: string | undefined
     for (const entry of document.cookie.split(";")) {
         const separator = entry.indexOf("=")
         if (separator < 0) continue
@@ -20,10 +23,10 @@ export function getValueFromCookie(cookieName: string): string | undefined {
         if (name === cookieName) {
             // Only the first equals sign separates name from value. Opaque
             // tokens may contain further equals signs as base64 padding.
-            return decodeCookiePart(entry.slice(separator + 1)) || undefined
+            value = decodeCookiePart(entry.slice(separator + 1))
         }
     }
-    return undefined
+    return value || undefined
 }
 
 export function setCookie(name: string, value: string) {

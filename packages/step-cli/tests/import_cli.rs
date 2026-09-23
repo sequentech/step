@@ -63,6 +63,9 @@ fn import_kind(error_stage: Option<&str>, tally_command: Option<&str>) -> (Outpu
                 }
                 Err(error) => panic!("local accept failed: {error}"),
             };
+            // Accepted sockets inherit the listener's nonblocking mode on
+            // macOS and the BSDs; the reads below rely on their timeouts.
+            stream.set_nonblocking(false).unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(3)))
                 .unwrap();

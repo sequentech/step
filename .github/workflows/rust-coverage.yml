@@ -32,7 +32,7 @@ concurrency:
 
 env:
   BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before || inputs.base_ref }}
-  HEAD_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+  HEAD_REF: ${{ github.sha }}
 
 jobs:
   reporter-tests:
