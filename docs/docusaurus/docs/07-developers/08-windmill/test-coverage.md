@@ -20,10 +20,13 @@ It never changes shared database defaults. The coverage profile provides these
 public fixture settings; it must run in the isolated worker, not on production.
 
 The existing ignored voter-channel PostgreSQL regression is run explicitly as
-separate evidence. The other ignored activity-log test requires a fuller
-service fixture and must remain visible in the report. Native default-feature
-coverage does not certify cloud transports, full election services, optional
-features or branches. Keep untested workers in the measured source scope.
+separate evidence. The other ignored tests need fuller fixtures and must remain
+visible in the report: the activity-log export, the ballot publication files
+test (disposable PostgreSQL and private S3, run by `scripts/test_ballot_files.py`)
+and the three cast-vote insertion tests in `insert_cast_vote_database_tests.rs`
+(the disposable devenv database). Native default-feature coverage does not
+certify cloud transports, full election services, optional features or
+branches. Keep untested workers in the measured source scope.
 
 With PostgreSQL running, measure from the repository root:
 
