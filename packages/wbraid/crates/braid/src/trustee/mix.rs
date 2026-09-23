@@ -5,7 +5,6 @@
 //! Mixing phase actions (§8): `ComputeMix` and `SignMix`.
 
 use anyhow::{anyhow, Result};
-use rayon::prelude::*;
 
 use cryptography::context::Context;
 use cryptography::cryptosystem::elgamal::Ciphertext;
@@ -61,16 +60,9 @@ impl<C: Context> Trustee<C> {
                 let ny_pk = naoryung::PublicKey::augment(&eg_pk, &ctx_enc)
                     .map_err(|e| anyhow!("failed to derive the ballot auxiliary key: {:?}", e))?;
 
-                ballots
-                    .ciphertexts
-                    .into_par_iter()
-                    .enumerate()
-                    .map(|(i, c)| {
-                        ny_pk.strip(c, &ctx_enc).map_err(|e| {
-                            anyhow!("ballot {} failed Naor-Yung verification: {:?}", i, e)
-                        })
-                    })
-                    .collect()
+                ny_pk
+                    .strip_all(ballots.ciphertexts, &ctx_enc)
+                    .map_err(|e| anyhow!("ballots failed Naor-Yung verification: {:?}", e))
             }
             MixSource::PriorMix => {
                 let body = view.mix_body_by_output(input_hash).ok_or_else(|| {

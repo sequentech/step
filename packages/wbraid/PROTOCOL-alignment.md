@@ -20,7 +20,8 @@ proposes scheduling; it changes no code.
 >
 > **Re-verified 2026-09-21** after the performance campaign (final section):
 > alignment preserved throughout; one new description-precision item, D7
-> (batched verification of V2), found and applied.
+> (batched verification of V2), found and applied. **D8** (batched verification
+> of the ballot well-formedness proofs) followed on 2026-09-23, same class.
 
 Scope: the sections of `PROTOCOL.md` that bind this repository — §2
 (preliminaries), §3 (primitives), §4 (DKG), §5.5 (tally input), §6 (mixing), §7
@@ -276,3 +277,26 @@ keeping the per-index equations normative (and deterministic), and §9.2 step 4
 references it. **Applied 2026-09-21.** Negative coverage:
 `test_shuffle_batched_v2_rejects_{ristretto,p256}` tamper `k_B` — which
 appears only in V2 and does not feed the challenge `v` — and confirm rejection.
+
+### D8 — Batched verification of the ballot well-formedness proofs (description precision fix)
+
+§3.6 defines `NYVerify` per ciphertext, and §5.5 / §9.2 step 3 apply it to
+every `C_i` of the ballot list. braid's first mix now verifies the `N` PlEq
+proofs of the list as a single random linear combination with verifier-local
+uniform weights (`PlEqProof::verify_batch`, reached through
+`naoryung::PublicKey::strip_all` — the same [BGR98] technique as D7): identical
+acceptance for valid lists; a list with any invalid proof is accepted with
+probability exactly `1/q`. What is hashed is unchanged — each challenge `v_i`
+is recomputed by the same function, over the same inputs and tags, as the
+per-item check; the weights are never hashed. On rejection the failing ballots
+are attributed by individual verification, and a batch that rejects while every
+proof verifies individually is treated as an internal error and fails closed
+(`Error::BatchVerificationInconsistent`). Per the D-class convention the
+*document* was made precise: §3.5 states the batched form as a permitted check
+with its error bound, keeping `PlEqVerify` normative; §5.5 and §9.2 step 3
+reference it. **Applied 2026-09-23.** Negative coverage:
+`test_pleq_verify_batch_attributes_failures_{ristretto,p256}` (a tampered
+response, a pair of proofs swapped between ballots, a foreign context — the
+batch names exactly the per-item failures) and
+`test_strip_all_rejects_invalid_ballot_{ristretto,p256}`; braid's tampered-ballot
+protocol test still halts the tally.
