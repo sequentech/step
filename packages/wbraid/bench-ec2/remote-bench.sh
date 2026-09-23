@@ -20,8 +20,10 @@
 #
 # Environment: CELLS (snapshot grid, default "1000:2 10000:2 10000:5 100000:2
 # 100000:5") and REPS (3); DIFF_CELLS (before/after grid, default "10000:2
-# 100000:2") and DIFF_REPS (3); GUIDANCE (default 0 -- the criterion guidance
-# benches are design inputs recorded in PERFORMANCE.md, not part of a snapshot).
+# 100000:2") and DIFF_REPS (3); TALLY_CELLS (the global target's grid of
+# "N:W:Q" cells, default "100000:2:3 100000:5:3"; empty skips it) and
+# TALLY_REPS (3); GUIDANCE (default 0 -- the criterion guidance benches are
+# design inputs recorded in PERFORMANCE.md, not part of a snapshot).
 #
 # Outputs, under the session's results/ prefix: snapshot-<sha>.csv,
 # differential-<base>-vs-<sha>.csv (with a baseline), guidance-<sha>.txt (with
@@ -35,6 +37,9 @@ CELLS="${CELLS:-1000:2 10000:2 10000:5 100000:2 100000:5}"
 REPS="${REPS:-3}"
 DIFF_CELLS="${DIFF_CELLS:-10000:2 100000:2}"
 DIFF_REPS="${DIFF_REPS:-3}"
+TALLY_CELLS="${TALLY_CELLS-100000:2:3 100000:5:3}"
+TALLY_REPS="${TALLY_REPS:-3}"
+TALLY_HEADER="count,width,quorum,ser,strip_prod_ms,strip_ver_ms,prove_ms,verify_ms,partial_ms,combine_ms,ser_ms,t_ms,v_ms"
 GUIDANCE="${GUIDANCE:-0}"
 S3="s3://$BUCKET/$SESSION"
 WORK=/work
@@ -80,6 +85,21 @@ run_grid() {
     done
 }
 
+# run_tally_grid BIN CELLS REPS OUT -- the global target's loop over "N:W:Q"
+# cells; the stage breakdown the example prints on stderr goes to the log.
+run_tally_grid() {
+    local bin="$1" cells="$2" reps="$3" out="$4" cell n w q r line
+    for cell in $cells; do
+        IFS=: read -r n w q <<EOF
+$cell
+EOF
+        for r in $(seq 1 "$reps"); do
+            line="$("$bin" "$n" "$w" "$q")"
+            echo "$line" | tee -a "$out"
+        done
+    done
+}
+
 # --- source: the exact commits, straight from S3 --------------------------------
 log "fetching source $SHA"
 fetch_src "$SHA" "$WORK/cur"
@@ -108,7 +128,7 @@ md() { curl -sH "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/lates
     echo "# vcpus:         $(nproc)   threads/core: $(lscpu | awk -F: '/Thread\(s\) per core/ {gsub(/ /, "", $2); print $2}')"
     echo "# kernel:        $(uname -r)"
     echo "# rustc:         $(rustc --version)"
-    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   GUIDANCE=$GUIDANCE"
+    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS   GUIDANCE=$GUIDANCE"
 } | tee "$RESULTS/machine.txt"
 
 # --- tip: build, then the snapshot grid --------------------------------------------
@@ -120,6 +140,20 @@ SNAP="$RESULTS/snapshot-$SHA.csv"
 echo "$CSV_HEADER" > "$SNAP"
 log "snapshot grid over '$CELLS' x $REPS reps"
 run_grid "$TIP_BIN" "$CELLS" "$REPS" "$SNAP"
+
+# --- the global target: the tally's critical path, per "N:W:Q" cell -------------
+if [ -n "$TALLY_CELLS" ]; then
+    if [ -f "$CUR/crates/vsc/examples/tally.rs" ]; then
+        log "building the tip's tally"
+        ( cd "$CUR" && cargo build --release -p vsc --example tally >/dev/null 2>&1 )
+        TALLY="$RESULTS/tally-$SHA.csv"
+        echo "$TALLY_HEADER" > "$TALLY"
+        log "tally grid over '$TALLY_CELLS' x $TALLY_REPS reps"
+        run_tally_grid "$CUR/target/release/examples/tally" "$TALLY_CELLS" "$TALLY_REPS" "$TALLY"
+    else
+        log "examples/tally.rs is not present in $SHA; tally grid skipped"
+    fi
+fi
 
 # --- optional: the criterion guidance benches, straight from cargo ---------------
 if [ "$GUIDANCE" = 1 ]; then

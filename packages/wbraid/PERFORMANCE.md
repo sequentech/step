@@ -280,26 +280,22 @@ In priority order; nothing here is done.
    CPU prover (secret `ε` never reaches VRAM), feature-gated with silent CPU
    fallback, CPU path normative for Verificatum interop. The EC2 *G and VT*
    quota is granted, so a feasibility session is possible.
-6. **A global target, then two scheduling levers it would measure — recorded,
-   not decided.** The five targets are stages; the sixth measurement is the
-   **critical-path latency of one tally** for a quorum of N, each party acting
-   in turn and concurrent work off the path:
+6. **Two scheduling levers, measurable only on the global target — recorded,
+   not decided.** The global target (`examples/tally.rs`, Tooling and method;
+   its numbers in Status) is the **critical-path latency of one tally** for a
+   quorum of Q, each party acting in turn and concurrent work off the path:
 
    ```
-   T(N) = 2·Strip + N·(Prove + Verify) + PartialDecrypt + N·PartialDecryptVerify
-   V(N) =   Strip + N·Verify                            + N·PartialDecryptVerify   (external verifier)
+   T(Q) = 2·Strip + Q·(Prove + Verify) + PartialDecrypt + Q·PartialDecryptVerify
+   V(Q) =   Strip + Q·Verify                            + Q·PartialDecryptVerify   (external verifier)
    ```
 
    The first mix costs its producer Strip + Prove and its verifier Strip +
    Verify (the verifier recomputes L₀ itself); every later mix adds Prove +
    Verify; the partials are computed concurrently but verified in series by
-   whoever combines. To be implemented as a *replay* — the stages run with
-   real data flow, N a parameter, each stage timed and the totals composed,
-   stage shares printed so the formula is checked rather than assumed; a
-   separate example with its own CSV; network out, serialization behind a
-   flag that is off. On the tip at N = 3, 10⁵/W2, T ≈ 27 s, of which N·Prove
-   is ~55% and strip ~7% (before batching: 32 s and 23%). Two levers change
-   no single target and register only on T(N), so they wait for it:
+   whoever combines. It is a replay of braid's *current* schedule over vsc's
+   primitives, so a scheduling change in braid changes the composition with
+   it. Two levers change no single target and register only on T(Q):
    - **Eager strip.** The trustee verifying the first mix strips the ballot
      list only when that mix arrives (`mix_input_ciphertexts`), which is the
      second Strip on the path; stripping when the ballots arrive removes it
@@ -345,8 +341,9 @@ Three layers:
 | `benches/parallel_tradeoff.rs` | guidance | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
 | `benches/shuffle.rs` | guidance | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
 | `examples/targets.rs` | snapshot | one `(N, W)` cell of the five targets in production form — shuffle prove and verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — as a CSV line, in production form — so it uses `strip_all` and builds against commits at or after `009b443add`; the fork-point differential is on record from `185dbbede2` (whose `targets.rs` built against the fork-point API), and older baselines chain through it; T = 3, P = 5 |
-| `bench.ps1` / `bench.sh` | local | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on) and the whole grid (`CELLS`, `REPS`) to a timestamped `bench-results/` file |
-| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops, so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
+| `examples/tally.rs` | global | the **global target**: one tally's critical-path latency for a quorum of Q, replayed with real data flow — both strips of the first mix, Q rounds of prove and verify, the slowest partial decryption, combine — each stage timed and composed into `T(Q)` and the external verifier's `V(Q)`, with the stage shares on stderr; `--ser` adds the encoding/decoding of each posted message (off by default); the plaintexts are checked against the encrypted messages; N, W, Q parameters (`N:W:Q` cells) |
+| `bench.ps1` / `bench.sh` | local | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on), the whole targets grid (`CELLS`, `REPS`) and the tally grid (`TALLY_CELLS`) to a timestamped `bench-results/` file |
+| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops (targets and `TALLY_CELLS`), so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
 
 ## Log
 
