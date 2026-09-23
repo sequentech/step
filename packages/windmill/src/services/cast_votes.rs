@@ -53,6 +53,8 @@ pub struct CastVote {
     pub created_at: Option<DateTime<Utc>>,
     pub last_updated_at: Option<DateTime<Utc>>,
     pub content: Option<String>,
+    /// The voter's Keycloak user id, not the identifier an external voter
+    /// registry such as Datafix uses (that one is the Keycloak username).
     pub voter_id_string: Option<String>,
     pub election_event_id: String,
     pub ballot_id: Option<String>,
