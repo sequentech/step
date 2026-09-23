@@ -56,6 +56,17 @@ impl Drop for Environment {
     }
 }
 
+fn admin_environment(url: &str) -> Environment {
+    Environment::set(&[
+        ("KEYCLOAK_URL", Some(url)),
+        ("KEYCLOAK_ADMIN_CLIENT_ID", Some(ADMIN_CLIENT_ID)),
+        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some(ADMIN_CLIENT_SECRET)),
+        ("SUPER_ADMIN_TENANT_ID", Some("north")),
+    ])
+}
+
+const ADMIN_CLIENT_ID: &str = "admin-client";
+const ADMIN_CLIENT_SECRET: &str = "synthetic-secret";
 const REALM_PATH: &str = "/admin/realms/tenant-north-event-mayor";
 const ADMIN_TOKEN_PATH: &str = "/realms/master/protocol/openid-connect/token";
 const TENANT_TOKEN_PATH: &str =
@@ -467,12 +478,7 @@ async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and
         Exchange::json("GET", REALM_PATH, 403, json!({})),
         Exchange::json("GET", REALM_PATH, 403, json!({})),
     ]);
-    let _environment = Environment::set(&[
-        ("KEYCLOAK_URL", Some(&peer.url)),
-        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
-        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
-        ("SUPER_ADMIN_TENANT_ID", Some("north")),
-    ]);
+    let _environment = admin_environment(&peer.url);
     assert!(KeycloakAdminClient::new().await.is_err());
     // Failed authentication must reach every convenience API, before any realm
     // request. The successful calls below control the same APIs after login.
@@ -560,8 +566,8 @@ async fn admin_credentials_cache_retries_failed_login_renews_expiring_tokens_and
             serde_urlencoded::from_str(&request.body).unwrap();
         // Admin construction uses master/admin-cli username/password login.
         assert_eq!(form["client_id"], "admin-cli");
-        assert_eq!(form["username"], "admin-client");
-        assert_eq!(form["password"], "synthetic-secret");
+        assert_eq!(form["username"], ADMIN_CLIENT_ID);
+        assert_eq!(form["password"], ADMIN_CLIENT_SECRET);
         assert_eq!(form["grant_type"], "password");
     }
 }
@@ -585,12 +591,7 @@ async fn fresh_admin_clients_propagate_denied_authentication() {
         Exchange::json("POST", endpoint, 200, http::token_json()),
         Exchange::json("POST", endpoint, 200, http::token_json()),
     ]);
-    let _environment = Environment::set(&[
-        ("KEYCLOAK_URL", Some(&peer.url)),
-        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
-        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
-        ("SUPER_ADMIN_TENANT_ID", Some("north")),
-    ]);
+    let _environment = admin_environment(&peer.url);
     assert!(KeycloakAdminClient::new_requested().await.is_err());
     assert!(KeycloakAdminClient::pub_new().await.is_err());
     KeycloakAdminClient::new_requested().await.unwrap();
@@ -673,12 +674,7 @@ async fn group_update_and_creation_use_the_server_assigned_user_id() {
             .header("Location", "https://identity.invalid/admin/realms/tenant-north/users/server-id"),
         Exchange::json("GET", "/admin/realms/tenant-north/users/server-id", 200, json!({"id": "server-id", "username": "new-voter"})),
     ]);
-    let _environment = Environment::set(&[
-        ("KEYCLOAK_URL", Some(&peer.url)),
-        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
-        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
-        ("SUPER_ADMIN_TENANT_ID", Some("north")),
-    ]);
+    let _environment = admin_environment(&peer.url);
     let group: GroupRepresentation =
         serde_json::from_value(json!({"id": "group-1", "name": "Clerks"}))
             .unwrap();
@@ -723,12 +719,7 @@ async fn rejected_user_creation_preserves_validation_errors_and_stops_before_loo
         Exchange::json("POST", users, 503, Value::Null)
             .body("identity provider unavailable"),
     ]);
-    let _environment = Environment::set(&[
-        ("KEYCLOAK_URL", Some(&peer.url)),
-        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
-        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
-        ("SUPER_ADMIN_TENANT_ID", Some("north")),
-    ]);
+    let _environment = admin_environment(&peer.url);
     let user = serde_json::from_value(
         json!({"username": "new-voter", "email": "bad-email"}),
     )
@@ -789,12 +780,7 @@ async fn user_creation_requires_a_valid_location_before_reading_back_the_user()
         exchanges.push(response);
     }
     let peer = HttpServer::start(exchanges);
-    let _environment = Environment::set(&[
-        ("KEYCLOAK_URL", Some(&peer.url)),
-        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
-        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
-        ("SUPER_ADMIN_TENANT_ID", Some("north")),
-    ]);
+    let _environment = admin_environment(&peer.url);
     let user =
         serde_json::from_value(json!({"username": "new-voter"})).unwrap();
     for location in locations {
@@ -824,12 +810,7 @@ async fn group_updates_report_rejection_and_require_an_identifier() {
         // The current implementation authenticates before validating the id.
         Exchange::json("POST", token_endpoint, 200, http::token_json()),
     ]);
-    let _environment = Environment::set(&[
-        ("KEYCLOAK_URL", Some(&peer.url)),
-        ("KEYCLOAK_ADMIN_CLIENT_ID", Some("admin-client")),
-        ("KEYCLOAK_ADMIN_CLIENT_SECRET", Some("synthetic-secret")),
-        ("SUPER_ADMIN_TENANT_ID", Some("north")),
-    ]);
+    let _environment = admin_environment(&peer.url);
     let mut group: GroupRepresentation =
         serde_json::from_value(json!({"id": "group-1", "name": "Clerks"}))
             .unwrap();
