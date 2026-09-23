@@ -129,7 +129,6 @@ DOC_RENDERER_BACKEND = "inplace"
 [profiles.wrap-map-err]
 package = "wrap-map-err"
 consumer_packages = ["windmill"]
-compiler_coverage = true
 features = []
 limitations = [
     "Macro parser/expansion tests plus existing Windmill tests and compiled Celery consumers; no source exclusions.",
