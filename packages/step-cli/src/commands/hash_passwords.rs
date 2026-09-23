@@ -120,6 +120,9 @@ impl HashPasswords {
         temporary.as_file().sync_all()?;
         temporary
             .persist(output_path)
+            // PersistError owns the temporary file. Keep only the I/O error so
+            // the unfinished export is removed before the error propagates.
+            .map_err(|error| error.error)
             .context("Unable to replace credential export")?;
         Ok(())
     }
