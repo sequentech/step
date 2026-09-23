@@ -1516,67 +1516,58 @@ pub async fn manage_dates(
         return Ok(());
     };
 
-    //Manage election event
-    let election_event_dates = generate_voting_period_dates(
-        scheduled_events.clone(),
-        data.tenant_id.to_string().as_str(),
-        &data.election_event.id,
-        None,
-    )?;
-    if let Some(start_date) = election_event_dates.start_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::START_VOTING_PERIOD,
-            start_date,
-            None,
-        )
-        .await?;
-    }
-    if let Some(end_date) = election_event_dates.end_date {
-        maybe_create_scheduled_event(
-            hasura_transaction,
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            EventProcessors::END_VOTING_PERIOD,
-            end_date,
-            None,
-        )
-        .await?;
-    }
-    //Manage elections
-    let elections = &data.elections;
-    for election in elections {
-        let dates = generate_voting_period_dates(
-            scheduled_events.clone(),
-            data.tenant_id.to_string().as_str(),
-            &data.election_event.id,
-            Some(&election.id),
+    for scheduled_event in scheduled_events {
+        let Some(
+            processor @ (EventProcessors::START_VOTING_PERIOD | EventProcessors::END_VOTING_PERIOD),
+        ) = scheduled_event.event_processor
+        else {
+            continue;
+        };
+        let payload: ManageElectionDatePayload = serde_json::from_value(
+            scheduled_event
+                .event_payload
+                .unwrap_or_else(|| serde_json::json!({})),
         )?;
-        if let Some(start_date) = dates.start_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::START_VOTING_PERIOD,
-                start_date,
-                Some(&election.id),
-            )
-            .await?;
+        if scheduled_event.tenant_id.as_deref() != Some(data.tenant_id.to_string().as_str())
+            || scheduled_event.election_event_id.as_deref() != Some(data.election_event.id.as_str())
+            || scheduled_event.task_id.as_deref()
+                != Some(
+                    generate_manage_date_task_name(
+                        &data.tenant_id.to_string(),
+                        &data.election_event.id,
+                        payload.election_id.as_deref(),
+                        &processor,
+                    )
+                    .as_str(),
+                )
+        {
+            continue;
         }
-        if let Some(end_date) = dates.end_date {
-            maybe_create_scheduled_event(
-                hasura_transaction,
-                data.tenant_id.to_string().as_str(),
-                &data.election_event.id,
-                EventProcessors::END_VOTING_PERIOD,
-                end_date,
-                Some(&election.id),
-            )
-            .await?;
+        if payload
+            .election_id
+            .as_ref()
+            .is_some_and(|id| !data.elections.iter().any(|election| &election.id == id))
+        {
+            continue;
         }
+        let Some(date) = scheduled_event
+            .cron_config
+            .and_then(|config| config.scheduled_date)
+        else {
+            continue;
+        };
+        maybe_create_scheduled_event(
+            hasura_transaction,
+            &data.tenant_id.to_string(),
+            &data.election_event.id,
+            processor,
+            date,
+            payload.election_id.as_deref(),
+            payload.voting_channels,
+        )
+        .await?;
     }
+
     Ok(())
 }
 
@@ -1588,14 +1579,13 @@ pub async fn maybe_create_scheduled_event(
     event_processor: EventProcessors,
     start_date: String,
     election_id: Option<&str>,
+    voting_channels: Option<Vec<sequent_core::ballot::VotingStatusChannel>>,
 ) -> Result<()> {
     let start_task_id =
         generate_manage_date_task_name(tenant_id, election_event_id, election_id, &event_processor);
     let payload = ManageElectionDatePayload {
-        election_id: match election_id {
-            Some(id) => Some(id.to_string()),
-            None => None,
-        },
+        election_id: election_id.map(str::to_string),
+        voting_channels,
     };
     let cron_config = CronConfig {
         cron: None,
