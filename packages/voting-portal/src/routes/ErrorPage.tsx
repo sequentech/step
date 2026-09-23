@@ -8,6 +8,7 @@ import {isRouteErrorResponse, Link, useRouteError} from "react-router-dom"
 import {useTranslation} from "react-i18next"
 import {Button, Typography} from "@mui/material"
 import {Header, HeaderErrorVariant} from "@sequentech/ui-essentials"
+import {stringToHtml} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import {useRootBackLink} from "../hooks/root-back-link"
 import {VotingPortalError, VotingPortalErrorType} from "../services/VotingPortalError"
@@ -50,10 +51,10 @@ export function ErrorPage() {
             <Typography
                 className="error-description"
                 variant="h6"
-                component="p"
+                component="div"
                 sx={{marginBottom: "24px"}}
             >
-                {t("errors.page.somethingWrong")}
+                {stringToHtml(t("errors.page.somethingWrong"))}
             </Typography>
         </>
     )
@@ -101,10 +102,10 @@ export function ErrorPage() {
                 <Typography
                     className="error-description"
                     variant="h6"
-                    component="p"
+                    component="div"
                     sx={{marginBottom: "24px"}}
                 >
-                    {t("errors.page.certAuthFailedMessage")}
+                    {stringToHtml(t("errors.page.certAuthFailedMessage"))}
                 </Typography>
             </>
         )
@@ -125,10 +126,10 @@ export function ErrorPage() {
                 <Typography
                     className="error-description"
                     variant="h6"
-                    component="p"
+                    component="div"
                     sx={{marginBottom: "24px"}}
                 >
-                    {t("errors.page.invalidLoginHintParametersMessage")}
+                    {stringToHtml(t("errors.page.invalidLoginHintParametersMessage"))}
                 </Typography>
             </>
         )
@@ -146,10 +147,10 @@ export function ErrorPage() {
                 <Typography
                     className="error-description"
                     variant="h6"
-                    component="p"
+                    component="div"
                     sx={{marginBottom: "24px"}}
                 >
-                    {t("errors.page.somethingWrong")}
+                    {stringToHtml(t("errors.page.somethingWrong"))}
                 </Typography>
                 <Typography className="error-description">
                     <i className="error-detail">{error.message}</i>

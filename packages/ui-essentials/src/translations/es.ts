@@ -118,7 +118,6 @@ const spanishTranslation: TranslationType = {
             openDialog: "Abrir Diálogo",
         },
         dragNDrop: {
-            importError: "No se pudo importar este archivo. Inténtalo de nuevo.",
             firstLine: "Arrastrar y soltar ficheros o",
             browse: "Cargar fichero",
             format: "Formatos soportados: txt",

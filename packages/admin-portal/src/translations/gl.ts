@@ -803,6 +803,10 @@ const galegoTranslation: TranslationType = {
                 statusLabel: "Estado",
                 waitingKeys: "Esperando a Xeración de Chaves...",
                 started: "Iniciado o",
+                actions: {
+                    participate: "Participar na cerimonia de chaves",
+                    view: "Ver a cerimonia de chaves",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Cerimonia",
@@ -1552,6 +1556,8 @@ const galegoTranslation: TranslationType = {
                 createError: "Erro ao crear o Evento Programado",
                 editSuccess: "Evento Programado editado correctamente",
                 editError: "Erro ao editar o Evento Programado",
+                onlineWithEarlyVoting:
+                    "Unha programación de inicio non pode abrir á vez o voto en liña e o voto anticipado: o voto anticipado debe comezar antes ca o voto en liña.",
             },
             eventType: {
                 label: "Tipo",
@@ -2050,8 +2056,12 @@ const galegoTranslation: TranslationType = {
                 subtitle:
                     "Para continuar, por favor descarga e almacena a túa Chave Privada Cifrada en polo menos dous dispositivos diferentes:",
                 downloadButton: "Descargar a túa Chave Privada Cifrada",
-                errorDownloading: "Erro de descarga: {{error}}",
+                downloaded: "Chave Privada Cifrada descargada correctamente.",
                 errorEmptyKey: "Erro de descarga, ficheiro baleiro",
+                unexpectedError: "Non se puido descargar a chave privada. Téntao de novo.",
+                alreadyVerified: "A túa chave privada xa se descargara e verificara.",
+                unavailable:
+                    "A descarga da chave privada xa non está dispoñible porque a cerimonia avanzou.",
                 confirmdDialog: {
                     ok: "Confirmar Copias de Seguridade e Continuar",
                     cancel: "Volver Atrás",
@@ -2066,13 +2076,14 @@ const galegoTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verificar as túas Copias de Seguridade da Chave Privada Cifrada",
+                verifyButton: "Verificar a chave",
                 subtitle:
                     "Carga unha Copia de Seguridade da Chave Privada Cifrada para comprobar que é correcta. Podes probar tantas veces como necesites, desde as túas diferentes copias de seguridade:",
                 errorUploading:
                     "Copia de Seguridade da Chave Privada Cifrada inválida, por favor intenta de novo",
                 errorEmptyFile: "Ficheiro baleiro ou non atopado",
                 verified: "Copia de seguridade verificada correctamente.",
-                downloaded: "Chave Privada Cifrada xerada correctamente.",
+                alreadyRestored: "A túa chave xa fora restaurada.",
             },
         },
         miruExport: {
@@ -2231,6 +2242,14 @@ const galegoTranslation: TranslationType = {
             generalInfoTitle: "Información Xeral",
             trusteeTallyTitle: "Fiduciarios",
             trusteeTallySubTitle: "Estado de importación do fragmento de chave",
+            eligibility: {
+                selectElection: "Selecciona polo menos unha elección.",
+                publishElection:
+                    "Publica cada elección seleccionada antes de crear o seu escrutinio.",
+                tallyDisallowed: "O escrutinio está desactivado para unha elección seleccionada.",
+                endVoting:
+                    "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
+            },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
             startTallySuccess: "Escrutinio iniciado",
