@@ -110,3 +110,21 @@ fn bootstrap_cursor_keeps_the_highest_id_when_remaining_messages_are_older() {
         (2, 10)
     );
 }
+
+#[test]
+fn a_step_without_new_messages_keeps_the_message_cursor() {
+    // Parallel sessions sometimes step before any peer has posted again. That
+    // step must not move the cursor used to request the next messages.
+    let (mut trustee, bootstrap, ack) = fixture();
+    assert_eq!(
+        trustee
+            .update_local_board(vec![(bootstrap, 1), (ack, 2)])
+            .unwrap(),
+        (2, 2)
+    );
+    trustee.last_message_id = 2;
+    let result = trustee.step(&vec![]).unwrap();
+    assert_eq!(result._added_messages, 0);
+    assert_eq!(trustee.last_message_id, 2);
+    assert_eq!(trustee.local_board.get_statement_entries().len(), 1);
+}
