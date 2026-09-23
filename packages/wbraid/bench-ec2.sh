@@ -23,7 +23,9 @@
 # Overrides (environment): AWS_PROFILE_NAME=wbraid-bench REGION=eu-west-1
 #   BUCKET=wbraid-bench-bucket INSTANCE_PROFILE=wbraid-bench-instance-role
 #   INSTANCE_TYPE=c7i.4xlarge LIFETIME_MIN=120 ROOT_GB=30 RUST_TOOLCHAIN=1.96.0
-#   CELLS / REPS / DIFF_CELLS / DIFF_REPS / GUIDANCE (default 0 on EC2) pass through.
+#   CELLS / REPS / DIFF_CELLS / DIFF_REPS / GUIDANCE (default 0 on EC2) pass through,
+#   as do TALLY_CELLS (forwarded only when set, so an empty value skips the tally
+#   grid and an unset one takes the remote default) and TALLY_REPS.
 set -euo pipefail
 
 PROFILE="${AWS_PROFILE_NAME:-wbraid-bench}"
@@ -327,7 +329,7 @@ session() {
     # exit code is what the invocation reports, not the log upload's.
     ssm_run "$iid" $(( LIFETIME_MIN * 60 )) \
         'i=0; until [ -f /var/tmp/wbraid-bootstrap-done ]; do sleep 5; i=$((i+5)); [ "$i" -ge 900 ] && { echo "ERROR: bootstrap did not finish within 15 min"; exit 6; }; done; [ -f /var/tmp/wbraid-bootstrap-FAILED ] && { echo "ERROR: bootstrap failed -- see /var/log/cloud-init-output.log"; exit 5; }; echo "bootstrap: done"' \
-        "export PATH=/root/.cargo/bin:/usr/local/bin:\$PATH CELLS='${CELLS:-}' REPS='${REPS:-}' DIFF_CELLS='${DIFF_CELLS:-}' DIFF_REPS='${DIFF_REPS:-}' GUIDANCE='${GUIDANCE:-}'" \
+        "export PATH=/root/.cargo/bin:/usr/local/bin:\$PATH CELLS='${CELLS:-}' REPS='${REPS:-}' DIFF_CELLS='${DIFF_CELLS:-}' DIFF_REPS='${DIFF_REPS:-}' GUIDANCE='${GUIDANCE:-}' ${TALLY_CELLS+TALLY_CELLS='${TALLY_CELLS}'} TALLY_REPS='${TALLY_REPS:-}'" \
         "aws s3 cp s3://$BUCKET/$session/remote-bench.sh /tmp/remote-bench.sh --only-show-errors" \
         "bash /tmp/remote-bench.sh '$session' '$BUCKET' '$sha' '$bsha' > /tmp/remote-bench.log 2>&1; rc=\$?" \
         "tail -n 25 /tmp/remote-bench.log" \

@@ -71,6 +71,23 @@ had touched vsc's `NYStrip` crypto** (only braid's loop around it was
 parallelized) — the follow-up batched it, and ⑤ went from the slowest target
 at both widths to the fastest at 10⁵.
 
+**The global target** (`examples/tally.rs`; same machine, 2026-09-23, tip
+`2d23452f05`): one tally's **critical-path latency** `T(Q)` for a quorum of Q
+acting in turn, and the external verifier's `V(Q)`, N = 10⁵, median of 3, each
+stage with its share of T:
+
+| N : W : Q | T | V | strip ×2 | prove ×Q | verify ×Q | partial | combine |
+|---|---|---|---|---|---|---|---|
+| 10⁵ : 2 : 3 | **27.2 s** | 10.0 s | 2.0 s (7%) | 15.0 s (55%) | 6.9 s (25%) | 1.2 s (4%) | 2.0 s (7%) |
+| 10⁵ : 5 : 3 | **50.5 s** | 18.3 s | 4.6 s (9%) | 26.9 s (53%) | 11.0 s (22%) | 3.0 s (6%) | 5.0 s (10%) |
+
+The replay agrees with the formula over the isolated targets above —
+`2·strip + Q·(prove + verify) + partial + combine` gives 27.0 s and 50.2 s —
+within 0.6%, the machine's resolution: the five targets compose additively, and
+the path is what the formula says it is. More than half of it is shuffle
+proving; strip, the slowest single target before batching, is under a tenth.
+Raw files: `bench-results/ec2-20260923-234858-2d23452f05/`.
+
 ## Design, as implemented
 
 Five operator-facing targets, each a site where the techniques apply:
@@ -428,3 +445,13 @@ things stand.
   (strip + verify) 1.8×/2.1×, production (strip + prove) 1.5×/1.6× — the
   Status tables. `targets.rs` follows production form and needs `strip_all`
   from this commit on (Tooling and method).
+- **The global target** (`2d23452f05`, 2026-09-23). `examples/tally.rs`
+  replays one tally — both strips of the first mix, Q rounds of prove and
+  verify, the slowest partial, combine — and composes the stage times into
+  the critical-path latency `T(Q)` and the verifier's `V(Q)`; `TALLY_CELLS`
+  grids in the remote and local scripts, `SUMMARY.md` renders T and V with
+  stage shares. First measurement (`ec2-20260923-234858-2d23452f05`, 7 min):
+  T(3) = 27.2 s at W2 and 50.5 s at W5, matching the formula over the
+  isolated targets within 0.6% — the Status table. Two scheduling levers
+  (eager strip, eager partial verification) recorded under Remaining levers
+  as measurable only on it, undecided.
