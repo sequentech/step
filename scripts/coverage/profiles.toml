@@ -129,7 +129,6 @@ DOC_RENDERER_BACKEND = "inplace"
 [profiles.wrap-map-err]
 package = "wrap-map-err"
 consumer_packages = ["windmill"]
-compiler_coverage = true
 features = []
 limitations = [
     "Macro parser/expansion tests plus existing Windmill tests and compiled Celery consumers; no source exclusions.",
@@ -174,7 +173,7 @@ package = "windmill"
 features = []
 limitations = [
     "Native default FIPS profile with local synthetic PostgreSQL 16 on port 3322, matching the Rust CI service fixture.",
-    "The ignored voter-channel PostgreSQL regression is run separately; ignored full-service activity-log coverage remains open.",
+    "The ignored voter-channel PostgreSQL regression is run separately; the ignored activity-log, ballot publication (PostgreSQL and S3) and cast-vote insertion (devenv database) cases remain open.",
     "Cloud transports, complete election workflows, optional features and branch coverage require separate evidence.",
     "Existing inline tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
