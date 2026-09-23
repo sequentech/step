@@ -129,6 +129,16 @@ test(
     }
 )
 
+test("the drop target spans its form", {timeout: 20_000}, async () => {
+    // A native button uses its content width unless it is sized explicitly.
+    const form = await page.locator("form.drop-file-dropzone").boundingBox()
+    const target = await page.getByTestId("drop-label-file").boundingBox()
+    assert(form && target)
+    assert.equal(target.width, form.width)
+    assert.equal(target.height, form.height)
+    assert.deepEqual(browserErrors, [])
+})
+
 test("native drag-and-drop forwards the file to the importer", {timeout: 20_000}, async () => {
     const transfer = await page.evaluateHandle(() => {
         const data = new DataTransfer()
