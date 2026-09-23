@@ -43,10 +43,10 @@ python3 scripts/coverage/run.py harvest --baseline --offline
 ```
 
 The package profile supplies public local SQL configuration for the existing
-query-builder tests; no database is contacted by this Harvest slice. Coverage
-clears runtime counters while retaining compiled dependencies for fast repeats.
-Proc-macro profiles request a rebuild because their counters also run during
-compilation. Never store deployment secrets in `test_environment`.
+query-builder tests; no database is contacted by this Harvest slice. Each run
+clears old LLVM counters and workspace binaries, so compile-time macro counters
+are collected again; external dependencies stay cached. Never store deployment
+secrets in `test_environment`.
 
 Role creation has a local HTTP integration control: the real route and Keycloak
 client create the synthetic role with `ROLE_CREATE`, while read-only and
