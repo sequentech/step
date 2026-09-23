@@ -5724,7 +5724,7 @@
     lz-string "^1.5.0"
     pretty-format "^27.0.2"
 
-"@testing-library/dom@10.4.1", "@testing-library/dom@^10.4.1":
+"@testing-library/dom@10.4.1":
   version "10.4.1"
   resolved "https://registry.yarnpkg.com/@testing-library/dom/-/dom-10.4.1.tgz#d444f8a889e9a46e9a3b4f3b88e0fcb3efb6cf95"
   integrity sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==
@@ -8085,7 +8085,7 @@ boxen@5.1.2:
     widest-line "^3.1.0"
     wrap-ansi "^7.0.0"
 
-brace-expansion@^1.1.7, brace-expansion@^2.0.1, brace-expansion@^2.1.4, brace-expansion@^5.0.8:
+brace-expansion@^1.1.7, brace-expansion@^2.0.1, brace-expansion@^2.1.4:
   version "2.1.4"
   resolved "https://registry.yarnpkg.com/brace-expansion/-/brace-expansion-2.1.4.tgz#589dab11c0018d0366be64cd8bf12c8dbecc8326"
   integrity sha512-hGfVzPxthbf3+2yjg/RBs60cB0FhqBS/zvdV/4wn4/BmN0bNMMHPc4V/BbFieqf1TKAGGAHnY4eSjajCl0f2Xg==
@@ -18114,10 +18114,6 @@ sentence-case@^3.0.4:
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#b6de306f6426af39b2b81850c7ab54bbc7d5a09f"
 
-"sequent-core@file:./ui-core/rust/sequent-core-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./ui-core/rust/sequent-core-0.1.0.tgz#ef13fc378bde75e1753e576b1fb3cb8f9bc37b0c"
-
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#b6de306f6426af39b2b81850c7ab54bbc7d5a09f"
@@ -19095,16 +19091,7 @@ terser@^5.51.0:
     commander "^2.20.0"
     source-map-support "~0.5.20"
 
-test-exclude@^6.0.0, test-exclude@^7.0.2:
-  version "7.0.2"
-  resolved "https://registry.yarnpkg.com/test-exclude/-/test-exclude-7.0.2.tgz#482392077630bc57d5630c13abe908bb910dfc65"
-  integrity sha512-u9E6A+ZDYdp7a4WnarkXPZOx8Ilz46+kby6p1yZ8zsGTz9gYa6FIS7lj2oezzNKmtdyyJNNmmXDppga5GB7kSw==
-  dependencies:
-    "@istanbuljs/schema" "^0.1.2"
-    glob "^10.4.1"
-    minimatch "^10.2.2"
-
-test-exclude@^7.0.1:
+test-exclude@^6.0.0, test-exclude@^7.0.1, test-exclude@^7.0.2:
   version "7.0.2"
   resolved "https://registry.yarnpkg.com/test-exclude/-/test-exclude-7.0.2.tgz#482392077630bc57d5630c13abe908bb910dfc65"
   integrity sha512-u9E6A+ZDYdp7a4WnarkXPZOx8Ilz46+kby6p1yZ8zsGTz9gYa6FIS7lj2oezzNKmtdyyJNNmmXDppga5GB7kSw==
