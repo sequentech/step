@@ -561,6 +561,7 @@ const ConfirmationScreen: React.FC = () => {
                 <Typography
                     className="blank-ballot-description"
                     variant="body2"
+                    component="div"
                     sx={{color: theme.palette.customGrey.main}}
                 >
                     {stringToHtml(t("confirmationScreen.blankBallot.description"))}
@@ -689,6 +690,7 @@ const ConfirmationScreen: React.FC = () => {
                     <Typography
                         className="ballot-verification-description"
                         variant="body2"
+                        component="div"
                         sx={{color: theme.palette.customGrey.main}}
                         id="qr-code-description"
                     >

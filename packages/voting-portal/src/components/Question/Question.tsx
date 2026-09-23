@@ -425,7 +425,7 @@ export const Question: React.FC<IQuestionProps> = ({
                     ) : null}
                     <CandidatesWrapper
                         className="candidates-container"
-                        aria-describedby={contestErrorsId(question.id)}
+                        aria-describedby={isAcclaimed ? undefined : contestErrorsId(question.id)}
                     >
                         <VisuallyHidden className="candidates-legend" component="legend">
                             {[translate(question, "name", i18n.language), selectionInstruction]

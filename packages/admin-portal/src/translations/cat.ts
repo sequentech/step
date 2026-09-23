@@ -805,6 +805,10 @@ const catalanTranslation: TranslationType = {
                 statusLabel: "Estat",
                 waitingKeys: "Esperant a la Generació de Claus..",
                 started: "Iniciada en",
+                actions: {
+                    participate: "Participa en la cerimònia de claus",
+                    view: "Mostra la cerimònia de claus",
+                },
                 breadCrumbs: {
                     configure: "Configurar",
                     ceremony: "Cerimònia",
@@ -1564,6 +1568,8 @@ const catalanTranslation: TranslationType = {
                 createError: "Error en crear l'Esdeveniment Programat",
                 editSuccess: "Esdeveniment Programat editat amb èxit",
                 editError: "Error en editar l'Esdeveniment Programat",
+                onlineWithEarlyVoting:
+                    "Una programació d'inici no pot obrir alhora el vot en línia i el vot anticipat: el vot anticipat ha de començar abans que el vot en línia.",
             },
             eventType: {
                 label: "Tipus",
@@ -2061,8 +2067,12 @@ const catalanTranslation: TranslationType = {
                 subtitle:
                     "Per continuar, si us plau descarrega i guarda la teva Clau Privada Encriptada en almenys dos dispositius diferents:",
                 downloadButton: "Descarregar la teva Clau Privada Encriptada",
-                errorDownloading: "Error de descàrrega: {{error}}",
+                downloaded: "Clau Privada Encriptada descarregada correctament.",
                 errorEmptyKey: "Error de descàrrega, fitxer buit",
+                unexpectedError: "No s'ha pogut descarregar la clau privada. Torna-ho a provar.",
+                alreadyVerified: "La teva clau privada ja s'havia descarregat i verificat.",
+                unavailable:
+                    "La descàrrega de la clau privada ja no està disponible perquè la cerimònia ha avançat.",
                 confirmdDialog: {
                     ok: "Confirmar còpies de seguretat i Continuar",
                     cancel: "Tornar",
@@ -2077,13 +2087,14 @@ const catalanTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Verifica les teves Còpies de Seguretat de la teva Clau Privada Encriptada",
+                verifyButton: "Verifica la clau",
                 subtitle:
                     "Puja la Còpia de Seguretat de la teva Clau Privada Encriptada per verificar que sigui correcta. Pots intentar-ho tantes vegades com sigui necessari, des de les teves diferents còpies de seguretat:",
                 errorUploading:
                     "Còpia de Seguretat de la Clau Encriptada Privada invàlida, si us plau intenta-ho de nou",
                 errorEmptyFile: "Fitxer buit o no trobat",
                 verified: "Còpia de seguretat verificada correctament.",
-                downloaded: "Clau Encriptada Privada generada amb èxit.",
+                alreadyRestored: "La teva clau ja s'havia restaurat.",
             },
         },
         miruExport: {
@@ -2242,6 +2253,13 @@ const catalanTranslation: TranslationType = {
             generalInfoTitle: "Informació General",
             trusteeTallyTitle: "Trustee",
             trusteeTallySubTitle: "Estat d'importació del fragment de clau",
+            eligibility: {
+                selectElection: "Selecciona almenys una elecció.",
+                publishElection: "Publica cada elecció seleccionada abans de crear-ne el recompte.",
+                tallyDisallowed: "El recompte està deshabilitat per a una elecció seleccionada.",
+                endVoting:
+                    "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
+            },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
             startTallySuccess: "Recompte iniciat",
