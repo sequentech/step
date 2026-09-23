@@ -213,15 +213,15 @@ describe("overwriteTranslations", () => {
             Reflect.deleteProperty(Object.prototype, "translationPollutionProbe")
         }
     })
-})
 
-it("ignores malformed legacy leaves before traversing a later dotted key", () => {
-    // JSON can violate the TypeScript interface; a null parent used to throw
-    // while constructing the next key, discarding otherwise valid translations.
-    const config = JSON.parse(
-        '{"i18n":{"en":{"reviewBoundary":null,"reviewBoundary.title":"Readable"}}}'
-    )
-    // The boolean reports a language change, not whether resources were written.
-    expect(overwriteTranslations(config, false)).toBe(false)
-    expect(i18n.getResource("en", "translations", "reviewBoundary.title")).toBe("Readable")
+    it("ignores malformed legacy leaves before traversing a later dotted key", () => {
+        // JSON can violate the TypeScript interface; a null parent used to throw
+        // while constructing the next key, discarding otherwise valid translations.
+        const config = JSON.parse(
+            '{"i18n":{"en":{"reviewBoundary":null,"reviewBoundary.title":"Readable"}}}'
+        )
+        // The boolean reports a language change, not whether resources were written.
+        expect(overwriteTranslations(config, false)).toBe(false)
+        expect(i18n.getResource("en", "translations", "reviewBoundary.title")).toBe("Readable")
+    })
 })
