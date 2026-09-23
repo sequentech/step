@@ -50,6 +50,18 @@ test("finite Chromium voting shard", async () => {
                     let castMs: number | null = null
                     let statusMs: number | null = null
                     const pending: Promise<void>[] = []
+                    const timings: Record<string, number> = {}
+                    const publicationNames = new Map<string, string>()
+                    const requests: {url: string; start: number; duration: number}[] = []
+                    context.on("requestfinished", (request) => {
+                        const timing = request.timing()
+                        if (timing.responseEnd >= 0)
+                            requests.push({
+                                url: request.url(),
+                                start: timing.startTime,
+                                duration: timing.responseEnd,
+                            })
+                    })
                     await context.route("**/*", async (route) => {
                         const allowed = config.allowed_origins.includes(
                             new URL(route.request().url()).origin
@@ -76,7 +88,26 @@ test("finite Chromium voting shard", async () => {
                         const name = operation || `${request.method()} ${url.origin}${url.pathname}`
                         traffic[name] = (traffic[name] || 0) + 1
                         if (operation === "GetVoterStatus")
-                            statusMs = request.timing().responseStart
+                            pending.push(
+                                (async () => {
+                                    const body = await response.json()
+                                    await response.finished()
+                                    statusMs =
+                                        request.timing().responseEnd >= 0
+                                            ? request.timing().responseEnd
+                                            : null
+                                    for (const file of body.data?.get_ballot_files_urls?.files ??
+                                        [])
+                                        for (const name of [
+                                            "event_url",
+                                            "election_url",
+                                            "summary_url",
+                                            "style_url",
+                                        ])
+                                            if (file.urls?.[name])
+                                                publicationNames.set(file.urls[name], name)
+                                })()
+                            )
                         if (operation === "InsertCastVote")
                             pending.push(
                                 (async () => {
@@ -90,6 +121,11 @@ test("finite Chromium voting shard", async () => {
                                             }
                                         }
                                     } = await response.json()
+                                    await response.finished()
+                                    castMs =
+                                        request.timing().responseEnd >= 0
+                                            ? request.timing().responseEnd
+                                            : null
                                     const cast = body.data?.insert_cast_vote
                                     if (
                                         response.ok() &&
@@ -98,7 +134,6 @@ test("finite Chromium voting shard", async () => {
                                         cast.election_event_id === config.election_event_id
                                     ) {
                                         receipt = cast.id
-                                        castMs = request.timing().responseStart
                                     }
                                 })()
                             )
@@ -122,6 +157,31 @@ test("finite Chromium voting shard", async () => {
                     } finally {
                         await Promise.allSettled(pending)
                         await context.close()
+                        let authStart: number | undefined
+                        let tokenEnd: number | undefined
+                        for (const request of requests) {
+                            const path = new URL(request.url).pathname
+                            const phase =
+                                publicationNames.get(request.url) ??
+                                (path.endsWith("/protocol/openid-connect/auth")
+                                    ? "auth"
+                                    : path.includes("/login-actions/authenticate")
+                                      ? "login"
+                                      : path.endsWith("/protocol/openid-connect/token")
+                                        ? "token"
+                                        : undefined)
+                            if (phase) timings[phase] = (timings[phase] ?? 0) + request.duration
+                            if (phase === "auth")
+                                authStart = Math.min(authStart ?? request.start, request.start)
+                            if (phase === "token")
+                                tokenEnd = Math.max(tokenEnd ?? 0, request.start + request.duration)
+                        }
+                        if (
+                            authStart !== undefined &&
+                            tokenEnd !== undefined &&
+                            tokenEnd >= authStart
+                        )
+                            timings.keycloak_ms = tokenEnd - authStart
                         if (!passed) failures++
                         appendFileSync(
                             process.env.LOAD_RESULTS!,
@@ -132,6 +192,7 @@ test("finite Chromium voting shard", async () => {
                                 end: Date.now(),
                                 cast_ms: castMs,
                                 status_ms: statusMs,
+                                timings,
                                 receipt,
                             }) + "\n"
                         )

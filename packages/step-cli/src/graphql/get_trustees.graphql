@@ -6,5 +6,6 @@ query GetTrustees(
             })
     {
     name
+    public_key
   }
 }
