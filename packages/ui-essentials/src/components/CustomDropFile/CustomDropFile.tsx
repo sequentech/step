@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {
     PropsWithChildren,
+    useEffect,
     useState,
     useRef,
     DragEventHandler,
@@ -30,7 +31,11 @@ const StyledInput = styled("input")`
 const StyledLabel = styled("button", {
     shouldForwardProp: (prop) => prop !== "dragActive",
 })<{dragActive: boolean}>`
+    width: 100%;
     height: 100%;
+    padding: 0;
+    font: inherit;
+    color: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -101,6 +106,22 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 setBusy(false)
             }
         }
+
+        useEffect(() => {
+            const preventFileNavigation = (event: DragEvent) => {
+                if (Array.from(event.dataTransfer?.types ?? []).includes("Files")) {
+                    event.preventDefault()
+                }
+            }
+
+            document.addEventListener("dragover", preventFileNavigation)
+            document.addEventListener("drop", preventFileNavigation)
+
+            return () => {
+                document.removeEventListener("dragover", preventFileNavigation)
+                document.removeEventListener("drop", preventFileNavigation)
+            }
+        }, [])
 
         // handle drag events
         const handleDrag: DragEventHandler<HTMLElement> = (e) => {
