@@ -5,217 +5,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 # Performance — braid v0.6
 
 The performance record for the shuffle and threshold-decryption cryptography
-(`vsc`) and its `braid` callers: the design and rationale of the
-multi-exponentiation and parallelism work, the constraints that bind it, the
-measured results, and the levers that remain. Performance is a first-class
-*future* concern for v0.6 (large ballot sets, browser-hosted trustees), which
-prioritized correctness and clarity; this document is where the optimization
-work and its measurements live.
+(`vsc`) and its `braid` callers. It describes **what is implemented now** —
+the numbers, the techniques and where each is applied, the invariants they
+must respect and how those are verified, what remains, and how to measure —
+and keeps the **history of how it got there** in the Log at the end.
+Performance is a first-class *future* concern for v0.6 (large ballot sets,
+browser-hosted trustees), which prioritized correctness and clarity.
 
-## Ground rules
+## Status
 
-- **Optimize from benchmarks, not speculation.** Every decision below is
-  backed by a measurement in the benchmark inventory.
-- **Parallelism lives in the crypto/action layer.** `ascent` runs
-  sequential-only (spec §7.8), so the datalog is not a parallelism site; rayon
-  is used natively and `wasm-bindgen-rayon` in the browser. `rayon` is a
-  non-optional dependency of both `vsc` and `braid` — it is in every build's
-  tree regardless.
-- **`jemalloc`** is available behind a `braid` feature as a
-  higher-performance allocator and profiling tool; not yet wired into the
-  runtime.
-- **`--features custom-warnings`** surfaces the `#[crate::warning("…")]`
-  annotations on known-unoptimized paths as compiler warnings.
+Authoritative numbers come from the reference machine (BENCH-EC2.md): a fresh
+**`c7i.4xlarge`** — Intel Xeon Platinum 8488C, 16 vCPU (8 cores × 2 threads),
+32 GiB; Ubuntu 24.04, rustc 1.96.0, `eu-west-1` — quiesced by construction,
+with both commits built and run **interleaved**, three reps per cell, medians.
+Measured 2026-09-22, fork point `657cb05c20` (the parent branch before the
+optimization work) → merged milestone `185dbbede2`, N = 10⁵:
 
-## 1. Multi-exponentiation: the design
-
-The shuffle's dominant cost is multi-exponentiation — products `∏ bases_i^{e_i}`.
-These run through a small seam on the group traits rather than a backend object.
-
-### The seam
-
-- `GroupElement::multi_exp` — constant-time, for **secret** scalars.
-- `GroupElement::vartime_multi_exp` — variable-time, **public scalars only**.
-- `GroupElement::exp_many` — fixed-base batch (`self^{s_i}` for many `s_i`),
-  constant-time.
-- `DistGroupOps::dist_multi_exp` / `dist_vartime_multi_exp` — the broadcast,
-  componentwise counterparts for width-`W` ciphertext columns.
-
-P-256 and the product group inherit naive defaults; ristretto255 overrides all
-of them (`groups/ristretto255/element.rs`).
-
-**Why a seam of methods and not a `MsmBackend` object with prepared bases.**
-The independent generators `h` are derived per mix from the input ciphertext
-list (PROTOCOL.md §2.5/§6.2; `braid::trustee::mix` re-derives them for every
-link). Within one verification every base vector is used in exactly one MSM,
-and across mixes the bases differ — so there is nothing for a "prepared bases"
-abstraction to amortize. The design therefore collapses to a constant-time /
-variable-time pair on the existing trait, plus a fixed-base batch. (An
-offline/online split that precomputes commitments before ballots arrive is
-impossible for the same reason: the commitments depend on `h`, which depends
-on the ballots.)
-
-### Constant-time vs variable-time is a per-call-site property
-
-Not a global mode. The prover's MSMs consume the secret blinding scalars
-(`epsilon`, `beta`) — leaking them damages zero-knowledge — so they use the
-constant-time `multi_exp` / `exp_many` / `dist_multi_exp`. The verifier's MSMs
-consume only public data (hash-derived batching values, published responses),
-so they use the variable-time variants, which are faster. Getting this
-backwards in either direction is a real bug; every call site is annotated with
-why its timing class is correct.
-
-### Chunked, not single — the load-bearing choice
-
-curve25519-dalek's `multiscalar_mul` / `vartime_multiscalar_mul` are
-single-threaded. A single call **loses** to the current `map(exp).reduce(mul)`
-product, which is already spread across the rayon pool. The overrides instead
-split the input into `num_threads` chunks (floor 64), run one dalek MSM per
-chunk on the pool, and sum the partials. Chunk boundaries depend only on input
-length, never on the scalars, so the constant-time path stays constant-time.
-Measured at N = 10⁵ vs the naive parallel product (`benches/msm_strategy.rs`):
-
-| strategy | vs naive |
-|---|---|
-| single constant-time call | **2.3× slower** |
-| single variable-time call | 1.6× |
-| chunked constant-time | 2.5× |
-| chunked variable-time | **8.2×** |
-
-`chunk_t` (= thread count) is best for the variable-time path; `chunk_4t` is
-~9% better for constant-time at large N but not worth diverging for.
-
-### Where MSM applies in the shuffle
-
-Prover (`shuffle_with`): `A′ = g^α·∏ hᵢ^{εᵢ}` (secret ε), `F′` over the 2W
-output columns (secret ε). Verifier (`verify_with`): `big_a = ∏ uᵢ^{eᵢ}`,
-`big_f` over the 2W input columns, V1's `∏ hᵢ^{k_Eᵢ}`, V5 over the 2W output
-columns (all public). The adjacent products that are *not* MSMs — the Pedersen
-commitments `uᵢ`, re-encryption, `g^{bᵢ}` — are fixed-base batches, served by
-`exp_many`, and must not be routed through `multi_exp`.
-
-## 2. The shuffle changes
-
-All of these preserve **bit-identical proofs and accept/reject behaviour**
-(except V2's documented batching error): they change how values are computed,
-never what they are.
-
-### Verifier
-
-- `big_a`, V1 → `vartime_multi_exp`; `big_f`, V5 → `dist_vartime_multi_exp`
-  over the ciphertext columns.
-- **Verification 2 is batched.** The N elementwise checks
-  `Bᵢ^v·B′ᵢ == g^{k_Bᵢ}·B_{i−1}^{k_Eᵢ}` (with `B₀ = h₁`), formerly 3N
-  exponentiations, collapse to one random-weighted check (Bellare–Garay–Rabin
-  small-exponent batching):
-
-  ```
-  ∏ Bᵢ^{v·tᵢ} · ∏ B′ᵢ^{tᵢ} == g^{Σ tᵢ·k_Bᵢ} · ∏ B_{i−1}^{tᵢ·k_Eᵢ}
-  ```
-
-  evaluated as two variable-time multi-exps (sizes 2N and N). The `tᵢ` are the
-  **verifier's own randomness, drawn after the proof is fixed** — not part of
-  the transcript — so there is no prover coordination, no change to
-  `ShuffleChallenges`, and the Verificatum-interop path is unaffected.
-  Soundness error ≤ 1/q per failing equation.
-  `test_shuffle_batched_v2_rejects_*` pins it by tampering `k_b_n`, which
-  appears only in V2 and does not feed the challenge, isolating the batch.
-
-### Prover
-
-- **The bridging chain uses a closed form.** The recurrence
-  `B₀ = h₁, Bᵢ = g^{bᵢ}·B_{i−1}^{e′ᵢ}` is inherently serial — the one
-  unparallelizable stretch in the prover. `bridging_commitments` computes the
-  equivalent closed form `Bᵢ = g^{dᵢ}·h₁^{pᵢ}` as two fixed-base `exp_many`
-  batches, fully parallel, with
-
-  ```
-  dᵢ = bᵢ + e′ᵢ·d_{i−1}   (d₁ = b₁)   -- the discrete log; also the response d = d_N
-  pᵢ = ∏_{k≤i} e′_k        (p₁ = e′₁)   -- prefix products; reused for B′
-  ```
-
-  from two cheap sequential scalar scans. `d_N` is the Step-4 response `d`, so
-  it is computed once here (the old Step-4 recurrence is gone), and `p` feeds
-  `B′`'s own closed form. Bit-identity is guaranteed by the algebra and pinned
-  two ways: `test_bridging_closed_form_*` checks closed form == loop for
-  N ∈ {1,2,5,10,65}, and V2/V4 uniquely determine `B`/`B′` given the rest, so a
-  passing roundtrip implies byte-identical commitments.
-- `A′ = g_exp(α)·multi_exp(h, ε)` and `F′` via `dist_multi_exp` over the output
-  columns — both constant-time (ε is secret).
-
-### Parallelism policy
-
-Rayon is applied where it earns its overhead and not where it does not, decided
-by `benches/parallel_tradeoff.rs` on **absolute wall-clock saved in context**
-(not the raw speedup ratio: a 5× speedup on a 10 ms loop is noise on a
-multi-second operation). Kept parallel: everything point-exponentiation or
-hashing (the MSM sites, `partial_decrypt` factors, `batching_exponents`,
-`combine`'s Lagrange step, `ind_generators`, the shuffle's `e_n` derivation —
-hashing, ~0.7%). Kept serial: the scalar loops (`b_n`, `beta`/`epsilon`, `a`,
-`k_b_n`, `k_e_n`, `e_n_fold`) and the point-product folds (`u_n_fold`,
-`h_n_fold`, `combine`'s plaintext extraction) — each under 0.1% of
-prove/verify, so serial is simpler for no measurable cost. braid's first-mix
-Naor-Yung verify-and-strip loop is parallel (5.9× at N = 10⁵).
-
-### Fold strategy — resolved
-
-The shuffle once routed its width-`W` products through a `fold_values` seam
-with a `bounded-combine` cargo feature, whose two strategies (rayon `reduce`
-vs. chunked plain loops) traded off stack growth against materialization —
-the deep recursion of folding large *point* accumulators (`[[Element;W];2]`,
-~32 KB at W = 100) could overflow default thread stacks. The MSM work removed
-all three point-valued folds (`A′`, `F′`, `big_f`, V5 are multi-exps now), so
-the sole survivor is the scalar `f = Σ(sᵢ⊙eᵢ)` fold, now a plain serial fold
-(scalar work, too cheap for rayon). The `bounded-combine` feature and the
-`fold_values`/`bounded_combine` seam are removed; the stack hazard they
-guarded is gone.
-
-## 3. Constraints that bind this work
-
-- **Bit-identical proofs, no transcript or wire-format change.** The
-  `test_shuffle_*` suites and the `v2v`/Verificatum interop (which reproves
-  through `VmnChallenges`) require the produced proofs to be unchanged. The
-  §2 changes alter how values are computed, not what they are; batched V2 is
-  verifier-internal.
-- **Constant-time contract** on `multi_exp`/`exp_many`/`dist_multi_exp` for the
-  prover's secret scalars.
-- **`vsc` lint levels** are strict (`unsafe_code = forbid`; `unwrap_used`,
-  `panic`, `arithmetic_side_effects`, pedantic/complexity denied) — new curve
-  arithmetic and indexing carry justified, localized `#[allow]`s.
-- **wasm**: the chunked MSMs and all parallel sites run on
-  `wasm-bindgen-rayon`'s pool exactly as native.
-
-## 4. Measured results (2026-09-21)
-
-Two kinds of measurement. **Authoritative**: the reference-machine run of
-`bench-ec2.sh` (BENCH-EC2.md) — a fresh EC2 instance of a fixed type,
-quiesced by construction, both commits built and run interleaved.
-**Stage-wise (directional)**: the laptop runs (Windows x64, 16 logical cores,
-dalek AVX2 backend, `--release`) that guided each lever — interleaved A/B
-where they compare, and noted as agent-run where not quiesced.
-
-**How we measure.** Single-shot cross-run comparison is unreliable here —
-sustained load warms the machine and inflates later runs (an *unchanged*
-control drifted +43% between two back-to-back sweeps). So a changed site is
-measured by interleaving the before/after binaries within one run (shared
-conditions per rep), and the current side is cross-checked against the
-quiesced snapshot to confirm it is not itself drift-inflated; the criterion
-micro-benches (`parallel_tradeoff`, `msm_strategy`) self-calibrate with warmup
-and sampling. `bench.ps1` / `bench.sh` run the whole grid under quiescence.
-
-### Campaign before/after — the five targets (authoritative)
-
-Measured 2026-09-22 with `bench-ec2.sh session 185dbbede2 657cb05c20`
-(BENCH-EC2.md) on a fresh **`c7i.4xlarge`** — Intel Xeon Platinum 8488C, 16
-vCPU (8 cores × 2 threads), 32 GiB; Ubuntu 24.04 `ami-0526a6499f6470118`,
-kernel 7.0.0-1012-aws, rustc 1.96.0, `eu-west-1b` — quiesced by construction.
-`examples/targets.rs` (§6) was built against both the **fork point**
-`657cb05c20` (the parent branch before the campaign; the tool uses only
-fork-point public APIs precisely so it drops into that tree) and the **merged
-milestone** `185dbbede2`, and the two binaries ran **interleaved**, three reps
-per cell. Reps agree within ~1%. Medians, N = 10⁵:
-
-| Target | W = 2: fork → milestone | | W = 5: fork → milestone | |
+| Target | W = 2: before → after | | W = 5: before → after | |
 |---|---|---|---|---|
 | ① shuffle prove | 13.85 s → 4.92 s | **2.8×** | 23.5 s → 8.76 s | **2.7×** |
 | ② shuffle verify | 10.26 s → 2.23 s | **4.6×** | 19.8 s → 3.57 s | **5.6×** |
@@ -223,25 +29,7 @@ per cell. Reps agree within ~1%. Medians, N = 10⁵:
 | ④ combine | 45.9 s → 1.99 s | **23×** | 114.8 s → 4.94 s | **23×** |
 | ⑤ Naor-Yung verify-and-strip | 3.64 s → 3.70 s | flat | 8.82 s → 8.87 s | flat |
 
-Raw files: `bench-results/ec2-20260922-012110-185dbbede2/` (differential CSV,
-full grid, `machine.txt`). What it says:
-
-- **The decryption path is the headline: ~13× and ~23×.** It had the most
-  headroom — fully serial factor/`batching_exponents`/Lagrange loops *and*
-  single-call MSM at the fork point — and it caught every stage:
-  parallelization, chunked MSM, parallel transcript serialization, and the
-  variable-time combine/verify path. At W = 5, `combine` went from 115 s to
-  under 5 s.
-- **The shuffle is ~2.7–2.8× (prove) and ~4.6–5.6× (verify).** Verify gains
-  more because its MSMs are variable-time and V2 is batched; the prover's
-  remaining cost is constant-time by necessity (§1).
-- **⑤ is flat, exactly as predicted** — the campaign parallelized *braid's*
-  first-mix loop, not vsc's `NYStrip` crypto, which `targets` calls with its
-  own `par_iter` on both trees. On the reference machine ⑤ is now the
-  **slowest target at both widths** (3.7 s vs verify's 2.2 s at W = 2): the
-  unambiguous next lever (§5 — N independent PlEq verifications, not batched).
-
-Milestone snapshot on the reference machine (median of 3, ms):
+Where the milestone stands, same machine (median of 3, ms):
 
 | N : W | prove | verify | partial_decrypt | combine | ny_strip |
 |---|---|---|---|---|---|
@@ -251,160 +39,302 @@ Milestone snapshot on the reference machine (median of 3, ms):
 | 10⁵ : 2 | 4 919 | 2 234 | 1 194 | 1 989 | 3 718 |
 | 10⁵ : 5 | 8 811 | 3 563 | 2 970 | 4 923 | 8 842 |
 
-The criterion guidance benches also ran on this machine (the packaged
-milestone's `bench.sh` predates the `GUIDANCE` flag) and reproduce §1's
-strategy findings at N = 10⁵: a single constant-time dalek call is 4.3×
-*slower* than the naive parallel product, chunked constant-time 2.6× faster,
-chunked variable-time **8.0×** faster (47.8 ms). The laptop's stage-by-stage
-runs below told the same story directionally and are kept as the record of
-how each lever was found.
+Resolution: reps agree within ~1%, and the same binary run standalone vs
+interleaved agrees within 0.6% — differences below that are noise. Raw files:
+`bench-results/ec2-20260922-012110-185dbbede2/` (`SUMMARY.md`, differential
+CSV, full grid, `machine.txt`).
 
-### The Amdahl wall — the finding that redirects the next work
+Reading it: the **decryption path is the headline** (~13× and ~23×) — it had
+the most headroom and every technique below applies to it; the **shuffle**
+gains more on verify than prove because the verifier may use variable-time
+multi-exponentiation and batch V2 while the prover's remaining cost is
+constant-time by necessity; and **⑤ is flat because nothing below touches
+vsc's `NYStrip` crypto** (only braid's loop around it was parallelized). On
+this machine ⑤ is now the slowest target at both widths — the next lever.
 
-The MSM primitive is 8× faster, but end-to-end shuffle **verify improved only
-~1.9×** and `combine` sits at ~9.9 s (10⁵ W = 2). MSM is now a *minority* of
-wall-clock. The dominant residual is **serialization — ristretto point
-compression** (one inverse square root per point), run sequentially inside the
-Fiat-Shamir seed derivations (`ser()` of the N-element ciphertext and
-commitment lists). In `combine` the batching seed re-serializes the full
-ciphertext list once **per contribution** (×T) — the same bytes compressed T
-times. The chunked MSMs are only ~1.1 s of `combine`'s 9.9 s.
+## Design, as implemented
 
-**Addressed (2026-09-21).** `par_ser` (§1) parallelized the transcript
-serialization at both hot sites. Interleaved pre/post at N = 10⁵ W = 2:
-**shuffle verify ~2.8×** (ser was ~65% of it), **prove ~1.9×**,
-**partial_decrypt ~2.0×**, **combine ~2.0×**; `ny_strip` flat (no transcript
-ser — the control). So the wall moved to the MSM work: verify's residual is
-now the MSM plus the five equations plus SHA3 hashing. The `combine` per-
-contribution re-serialization dedup was measured at only ~2–4% post-`par_ser`
-and dropped as not worth a signature change.
+Five operator-facing targets, each a site where the techniques apply:
+**shuffle prover** and **verifier** (`vsc::zkp::shuffle`), **partial
+decryption** and **combine** (`vsc::dkgd`), and the first mix's **Naor-Yung
+verify-and-strip** (`vsc::cryptosystem::naoryung`, driven by
+`braid::trustee::mix`). What goes where:
 
-**Decryption vartime (2026-09-21).** `combine` and `partial_decrypt` verify and
-combine *published* factors — all public — yet were still on the constant-time
-MSM path (the un-done original "item 2"). Switched to variable-time:
-`combine`'s `a`/`b` statement rebuild → `dist_vartime_multi_exp`, and its
-Lagrange accumulation `∏ f_{i,j}^{λ_i}` → one N-parallel region where each
-`F_j` is a size-`T` `dist_vartime_multi_exp` (not inherent after all — it is
-public-data exponentiation, so vartime applies). Interleaved CT/vartime at
-N = 10⁵ W = 2: **`combine` ~2.4×** (5.96 s → 2.53 s), **`partial_decrypt`
-~1.3×** (only its `a`/`b`; the `u^{xᵢ}` factors stay constant-time, secret
-share). `combine`'s remaining cost is those vartime MSMs plus the T·N size-`T`
-products.
+| technique | shuffle prover | shuffle verifier | partial_decrypt | combine | NY strip |
+|---|---|---|---|---|---|
+| chunked constant-time MSM (secret scalars) | A′, F′ | | | | |
+| chunked variable-time MSM (public data) | | A, F, V1, V5, V2 | a, b | a, b; Lagrange F_j | |
+| fixed-base batch (`exp_many`) | bridging B_i, B′ | | | | |
+| closed-form bridging chain | ✓ | | | | |
+| small-exponent batching of V2 | | ✓ | | | |
+| parallel transcript serialization (`par_ser`) | seed | seed | seed | seed (×T) | |
+| rayon per-element loops | e_n, generators | generators | factors u^{xᵢ} | per ciphertext | braid's loop only |
 
-## 5. Next levers, in priority order
+Read the columns and the Status table follows: `combine` and `partial_decrypt`
+collect the most entries; the strip column is empty below braid's loop.
 
-1. **Parallel serialization — done** (2026-09-21, `par_ser`; §4 "Amdahl
-   wall"). Behind the unchanged wire encoding. Verify ~2.8×, the rest ~2×. The
-   `combine` re-serialization dedup was dropped (measured ~2–4%). Parallel
-   *deser* (the other half of SERIALIZATION.md §10) remains, but is a
-   different, colder site (message loading, not the transcript) and is
-   safety-sensitive; do it only if a profile of the loading path warrants.
-2. **Deferred prover fixed-base cleanups** — `apply_permutation`'s
-   `uₙ = g^r·h` and the re-encryption `(g^s, y^s)` legs still use per-element
-   `exp`/`repl_exp` rather than `exp_many`; part of the prove residual.
-3. **Decryption vartime — done** (2026-09-21; §4 "Decryption vartime"). The
-   public-data exps in `combine`/`partial_decrypt` moved to variable-time:
-   `combine` ~2.4×, `partial_decrypt` ~1.3×. What remains in `combine` is those
-   vartime MSMs plus the T·N size-`T` products — a smaller residual, and the
-   exp *count* there is genuinely inherent to threshold interpolation.
-4. **`ind_generators`** — N ristretto hash-to-curve per prove and per verify,
-   already parallel. Measured ~110 ms at N = 10⁵ — ~1–2% of prove/verify, a
-   minor contributor; folded into the ① ② target timings, not tracked
-   separately.
-5. **GPU** — deferred. The go/no-go rule is: adopt only if, after the residual
-   above is fixed, MSM still holds ≥ 70% of verifier wall-clock at the
-   deployment's real N *and* a latency requirement CPU scaling cannot meet
-   exists. **Evaluated 2026-09-22 against the reference-machine numbers (§4): not met.** At N = 10⁵ W = 2 the verifier takes 2.2 s, of which its roughly a dozen MSM-equivalents — at ~48 ms each for a chunked variable-time MSM of 10⁵ on that machine — are ~0.6 s: a quarter to a third, not 70%. Even a free GPU MSM would buy at most ~1.4× on verify, while the untouched Naor-Yung verify-and-strip (⑤, 3.7 s) is a larger, CPU-side lever. The *G and VT* instance quota is granted (8 vCPUs), so a feasibility session is possible whenever it is wanted. If it ever
-   is: Anza's `curve25519-cuda` (sppark-based, in `anza-xyz/cryptography`,
-   companion to the `solana-ed25519` dalek fork) is the one candidate GPU MSM
-   for this curve — variable-time, with a GPU→CPU fallback — but as of 2026-09
-   it is unpublished (crates.io holds a v0.0.0 placeholder) and unaudited, so
-   adopting it would be integrate-and-validate against an immature dependency
-   in an election verifier's trust chain. The security posture if built: GPU on
-   the verifier only (public data), CPU prover (secret ε never reaches VRAM),
-   feature-gated with silent CPU fallback, CPU path normative for Verificatum
-   interop.
-6. **128-bit `e_n` — dropped** (2026-09-21). Shortening the batching
-   challenges would roughly halve the MSM window count, but in Terelius–
-   Wikström `e` drives the permutation-matrix argument itself: the
-   Schwartz–Zippel bound becomes ~N/2¹²⁸ and the extraction argument needs
-   re-deriving. That alters the protocol's soundness argument, which is not a
-   performance decision; it stays out of scope here.
+### Chunked multi-exponentiation, constant-time and variable-time
 
-The batched-V2 verifier is now a documented, permitted check: PROTOCOL.md §6.4
-states its form and exact `1/q` error bound (§9.2 references it), with the
-per-index equations kept normative — PROTOCOL-alignment.md D7 (2026-09-21).
+Products `∏ bases_i^{e_i}` run through a small seam on the group traits:
+`GroupElement::multi_exp` (constant-time, for **secret** scalars),
+`GroupElement::vartime_multi_exp` (variable-time, **public data only**), and
+their componentwise counterparts `DistGroupOps::dist_multi_exp` /
+`dist_vartime_multi_exp` for width-`W` ciphertext columns. P-256 and the
+product group inherit naive defaults; ristretto255 overrides all of them
+(`groups/ristretto255/element.rs`).
 
-## 6. Benchmark inventory
+**Chunked, not a single dalek call.** curve25519-dalek's `multiscalar_mul` /
+`vartime_multiscalar_mul` are single-threaded, and a single call *loses* to the
+naive `map(exp).reduce(mul)` product already spread over the rayon pool. The
+overrides split the input into `num_threads` chunks (floor 64), run one dalek
+MSM per chunk on the pool and sum the partials. Chunk boundaries depend only on
+input length, never on the scalars, so the constant-time path stays
+constant-time. On the reference machine at N = 10⁵ (`benches/msm_strategy.rs`),
+relative to the naive parallel product: a single constant-time call is **4.3×
+slower**, chunked constant-time 2.6× faster, chunked variable-time **8.0×**
+faster (47.8 ms).
 
-Three layers: *guidance* benches (criterion, sub-primitive, steer
-implementation), the *snapshot* example (the five top-level targets), and the
-*reference* run that takes the snapshot — and a before/after — on a fixed
-machine.
+**Why a seam of methods and not an `MsmBackend` with prepared bases.** The
+independent generators `h` are derived per mix from the input ciphertext list
+(PROTOCOL.md §2.5/§6.2; `braid::trustee::mix` re-derives them for every link).
+Within one verification every base vector is used in exactly one MSM, and
+across mixes the bases differ — there is nothing for prepared bases to
+amortize, and for the same reason no offline/online split can precompute
+commitments before the ballots exist.
+
+**Constant-time vs variable-time is a per-call-site property, not a mode.**
+The prover's MSMs consume the secret blinders `ε`, `β` — leaking them damages
+zero-knowledge — so `A′ = g^α·∏ hᵢ^{εᵢ}` and `F′` over the 2W output columns
+use the constant-time variants. The verifier's `A = ∏ uᵢ^{eᵢ}`, `F`, V1's
+`∏ hᵢ^{k_Eᵢ}`, V5 and the batched V2 consume only hash-derived batching values
+and published responses, so they use the variable-time variants. In
+decryption the same rule gives: the batched-statement rebuild `A = ∏ uᵢ^{eᵢ}`,
+`B = ∏ fᵢ^{eᵢ}` is public in both `partial_decrypt` and `combine`
+(variable-time), and `combine`'s Lagrange combination `F_j = ∏_i f_{i,j}^{λ_i}`
+is a size-`T` variable-time multi-exp per ciphertext over published factors;
+only the trustee's own factors `u_j^{x_i}` involve the secret share and stay
+constant-time. Every call site is annotated with why its timing class is
+correct; getting it wrong in either direction is a bug.
+
+### Fixed-base batches
+
+`GroupElement::exp_many` computes `self^{s_i}` for many `s_i` from one
+precomputed basepoint table, constant-time per multiply, in parallel. The
+prover's bridging commitments are two such batches (below). The adjacent
+prover products with the same shape — the Pedersen commitments `uᵢ = g^{rᵢ}·hᵢ`
+and the re-encryption legs `(g^s, y^s)` — are fixed-base work and must never be
+routed through `multi_exp`; they are not yet batched (Remaining levers).
+
+### Closed-form bridging chain
+
+The recurrence `B₀ = h₁, Bᵢ = g^{bᵢ}·B_{i−1}^{e′ᵢ}` is inherently serial — the
+one unparallelizable stretch of the prover. `bridging_commitments` computes the
+equivalent closed form `Bᵢ = g^{dᵢ}·h₁^{pᵢ}` as two `exp_many` batches, with
+
+```
+dᵢ = bᵢ + e′ᵢ·d_{i−1}   (d₁ = b₁)   -- also the Step-4 response d = d_N
+pᵢ = ∏_{k≤i} e′_k        (p₁ = e′₁)   -- prefix products; reused for B′
+```
+
+from two cheap sequential scalar scans; `B′` has its own closed form on `p`.
+Bit-identity with the recurrence is pinned by `test_bridging_closed_form_*`
+(N ∈ {1,2,5,10,65}) and by V2/V4, which uniquely determine `B`/`B′` given the
+rest, so a passing roundtrip implies byte-identical commitments.
+
+### Batched Verification 2
+
+The `N` per-index checks `Bᵢ^v·B′ᵢ = g^{k_Bᵢ}·B_{i−1}^{k_Eᵢ}` (with `B₀ = h₁`)
+collapse to one random-weighted check (Bellare–Garay–Rabin small-exponent
+batching), evaluated as two variable-time multi-exps of sizes 2N and N:
+
+```
+∏ Bᵢ^{v·tᵢ} · ∏ B′ᵢ^{tᵢ} == g^{Σ tᵢ·k_Bᵢ} · ∏ B_{i−1}^{tᵢ·k_Eᵢ}
+```
+
+The `tᵢ` are the **verifier's own randomness, drawn after the proof is
+fixed** — not transcript values — so there is no prover coordination, no
+change to `ShuffleChallenges`, and Verificatum interop is untouched. A proof
+with any failing instance passes with probability exactly 1/q; PROTOCOL.md
+§6.4 states the batched form as a permitted check with that bound, keeping the
+per-index equations normative (PROTOCOL-alignment.md D7).
+`test_shuffle_batched_v2_rejects_*` tampers `k_B`, which appears only in V2 and
+does not feed the challenge, isolating the batch.
+
+### Parallel transcript serialization
+
+The Fiat-Shamir seeds hash the N-element generator, commitment and ciphertext
+lists, and ristretto point compression (one inverse square root per point)
+dominates that work. `FixedWidth` (a `const WIDTH` on the group leaves, arrays
+and `Ciphertext`) marks the encodings with computable element boundaries, and
+`par_ser` encodes such a slice on the rayon pool, byte-identical to `Vec::ser`
+(pinned by `test_par_ser_matches_sequential_*`). It is wired into the shuffle's
+`batching_challenges` and dkgd's `batching_exponents`. The wire format itself
+requires only *self-delimitation*, which variable-width types (`String`,
+nested `Vec`, `Option`) also satisfy on the sequential path; fixed width is the
+special case that enables parallel boundaries (SERIALIZATION.md §10).
+Deserialization is not parallelized (Remaining levers).
+
+### Parallel loops, and what deliberately stays serial
+
+Rayon is applied where it earns its overhead, decided by
+`benches/parallel_tradeoff.rs` on **absolute wall-clock saved in context**, not
+the raw ratio (a 5× speedup on a 10 ms loop is noise on a multi-second
+operation). Parallel: every per-element point exponentiation or hash — the
+MSM sites, `partial_decrypt`'s factors, `batching_exponents`, `combine`'s
+per-ciphertext combination, `ind_generators` (both curves), the shuffle's
+`e_n` derivation, and braid's first-mix Naor-Yung verify-and-strip loop.
+Serial: the scalar loops (`b_n`, `β`/`ε`, `a`, `k_b_n`, `k_e_n`, `e_n_fold`)
+and the point-product folds (`u_n_fold`, `h_n_fold`) — each under 0.1% of
+prove/verify, so serial is simpler at no measurable cost. Parallelism lives in
+the crypto/action layer only: `ascent` is sequential-only (spec §7.8), so the
+datalog is not a parallelism site; `rayon` is a non-optional dependency of
+`vsc` and `braid`, native and via `wasm-bindgen-rayon` in the browser.
+
+## Constraints and how they are verified
+
+| invariant | enforced / evidenced by |
+|---|---|
+| **Proofs, transcripts and wire format are unchanged** — the techniques change how values are computed, never what they are | `par_ser` == `Vec::ser` and closed form == recurrence differential tests; shuffle and dkgd round-trips; all 17 model-check configurations; **Verificatum interop 70/70** (`V2V_REQUIRE_VMN=1`) with seed, challenge, decryption transcript and generators byte-identical to `vmnv -t`; PROTOCOL-alignment.md re-verification |
+| **Accept/reject is unchanged**, except V2's documented 1/q | batched-V2 negative tests; PROTOCOL.md §6.4 permits the batched form (D7) |
+| **Constant-time wherever a secret enters** (`ε`, `β`, `bᵢ`; `u^{xᵢ}`); variable-time only on public data | no test proves timing: the evidence is the per-site classification — the trait contract, the call-site annotations, and that every variable-time site consumes only hash-derived or published values |
+| **Parallelism only in the crypto/action layer; identical behaviour on the wasm pool** | production `wasm` (wasm-bindgen-rayon, atomics) and `wasm-core` both compile; headless IndexedDB test, the interactive emulator (full protocol under wasm) and the live-b4 protocol tests pass |
+| **`vsc` lint posture** (`unsafe_code = forbid`; `unwrap_used`, `panic`, `arithmetic_side_effects`, pedantic/complexity denied) | CI clippy with `-D warnings`; new curve arithmetic and indexing carry justified, localized `#[allow]`s |
+| **CI gates** — `fmt -- --check`, workspace clippy (`--all-targets -D warnings`), vsc clippy, `cargo test --release --features sqlite,postgres`, the wasm-core build | all green on the milestone tree (Log, 2026-09-21) |
+
+## Remaining levers
+
+In priority order; nothing here is done.
+
+1. **Naor-Yung verify-and-strip batching.** N independent PlEq verifications of
+   public data — the same shape V2 had before batching, and the same
+   variable-time opportunity. Now the slowest target on the reference machine
+   (3.7 s vs verify's 2.2 s at 10⁵/W2; 8.9 s at W5).
+2. **Prover fixed-base batches.** `apply_permutation`'s `uᵢ = g^{rᵢ}·hᵢ` and
+   the re-encryption `(g^s, y^s)` legs still use per-element `exp`/`repl_exp`;
+   `exp_many` applies (constant-time). Prove is the least-improved target.
+3. **Parallel deserialization** — the other half of SERIALIZATION.md §10, on
+   `FixedWidth`'s computable boundaries. A colder site (message loading, not
+   the transcript) and safety-sensitive: only if a profile of the loading path
+   warrants it.
+4. **`jemalloc`** is available behind a `braid` feature as a higher-performance
+   allocator and profiling aid; not wired into the runtime.
+5. **Marked unoptimized paths.** `--features custom-warnings` surfaces the
+   `#[crate::warning("…")]` annotations on known-unoptimized code as compiler
+   warnings — the in-code map of what is left.
+6. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
+   ≥ 70% of verifier wall-clock at the deployment's real N *and* a latency
+   requirement CPU scaling cannot meet exists. On the reference machine at
+   10⁵/W2 the verifier's ~dozen MSM-equivalents (~48 ms each) are ~0.6 s of
+   2.2 s — a quarter to a third — so even a free GPU MSM buys ≤ ~1.4× on verify
+   while lever 1 is larger and CPU-side. If it is ever revisited: Anza's
+   `curve25519-cuda` (sppark-based, in `anza-xyz/cryptography`) is the one
+   candidate for this curve — variable-time, GPU→CPU fallback — but unpublished
+   and unaudited as of 2026-09; the posture would be GPU on the verifier only,
+   CPU prover (secret `ε` never reaches VRAM), feature-gated with silent CPU
+   fallback, CPU path normative for Verificatum interop. The EC2 *G and VT*
+   quota is granted, so a feasibility session is possible.
+
+Not levers: `ind_generators` (~110 ms at 10⁵, 1–2% of prove/verify, folded
+into those targets); `combine`'s per-contribution re-serialization dedup
+(~2–4% after `par_ser`); 128-bit `e_n` (halves the MSM window count but alters
+the Terelius–Wikström soundness argument — a protocol decision, out of scope).
+
+## Tooling and method
+
+**Optimize from benchmarks, not speculation** — every decision above is backed
+by a measurement. Single-shot cross-run comparison is unreliable: sustained
+load warms a laptop and inflates later runs (an unchanged control drifted +43%
+between two back-to-back sweeps). So a change is measured by running the
+before and after binaries **interleaved** within one session, taking the
+**median** of reps, and — for authoritative numbers — on the **reference
+machine**, which is quiet by construction and the same hardware every time;
+`SUMMARY.md` reports the snapshot-vs-interleaved spread of the same binary as
+the resolution of the run. The criterion benches self-calibrate with warmup and
+sampling.
+
+Three layers:
 
 | Tool | Layer | What it measures |
 |---|---|---|
 | `benches/msm_strategy.rs` | guidance | naive-parallel vs single/chunked dalek MSM, constant-time and variable-time; selects the override shape |
 | `benches/parallel_tradeoff.rs` | guidance | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
 | `benches/shuffle.rs` | guidance | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
-| `examples/targets.rs` | snapshot | one `(N, W)` cell of the five top-level targets — shuffle prove, shuffle verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — in production form; uses only fork-point public APIs, so it backports for a campaign-wide before/after; T = 3, P = 5 |
-| `bench.ps1` / `bench.sh` | — | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on) and the whole grid to a timestamped `bench-results/` file |
-| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after of the five targets — on a temporary EC2 instance of a fixed type (BENCH-EC2.md): quiesced by construction and the same hardware every session, so numbers are comparable across time. The remote script owns its grid loops, so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files — the key results without opening a CSV. The authoritative layer (§4) |
+| `examples/targets.rs` | snapshot | one `(N, W)` cell of the five targets in production form — shuffle prove and verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — as a CSV line; uses only fork-point public APIs, so it builds against any commit in the comparable range for a before/after; T = 3, P = 5 |
+| `bench.ps1` / `bench.sh` | local | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on) and the whole grid (`CELLS`, `REPS`) to a timestamped `bench-results/` file |
+| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops, so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
 
-## Related, tracked elsewhere
+Related, tracked elsewhere: **incremental fetch (monotonic cursor)** — a pure
+transport optimization for board clients, in the spec §12 with its constraints
+(never security-relevant, cannot certify completeness).
 
-- **Incremental fetch (monotonic cursor)** — a pure transport optimization for
-  board clients; in the spec §12 with its constraints (never security-relevant,
-  cannot certify completeness).
+## Log
 
-## 7. Regression verification of the campaign (2026-09-21)
+How the above came to be, in order. Laptop numbers are interleaved A/B on a
+Windows x64 / 16-thread / AVX2 machine and are directional; the
+reference-machine numbers in Status supersede them as the record of where
+things stand.
 
-Every CI gate in `.github/workflows/wbraid.yml`, run against the final tree
-with CI's exact commands:
-
-- `cargo fmt -- --check` — clean, workspace-wide.
-- `cargo clippy --workspace --exclude vsc --features sqlite,postgres
-  --all-targets --no-deps -- -D warnings` — clean.
-- `cargo clippy -p vsc --no-deps` — clean.
-- `cargo test --release --features sqlite,postgres` — all five crates green:
-  vsc 198 + 38; braid unit tests, all 17 model-check configurations, the
-  protocol harnesses on both curves, the serialization properties; b4 8;
-  rnk 51; v2v's 48 local tests.
-- `cargo build -p braid --lib --release --target wasm32-unknown-unknown
-  --no-default-features --features wasm-core` — compiles.
-
-Beyond CI:
-
-- **Verificatum interop** (`crates/v2v/TESTING.md`), with `V2V_REQUIRE_VMN=1`
-  so a pass cannot be a silent skip: **70/70 against Verificatum 3.1.0** —
-  `they_verify_ours` 8/8 (our shuffle and decryption proofs accepted by
-  `vmnv`), `we_verify_theirs` 3/3 (`vmn` corpora accepted by our verifier),
-  the transcript-match tests 7/7 (shuffle seed, challenge, decryption
-  transcript and generators byte-identical to `vmnv -t`), and the negative
-  controls in both directions. The prover's closed-form commitments and the
-  verifier's batched-V2 / variable-time path interoperate unchanged.
-- The production `wasm` feature (wasm-bindgen-rayon pool, atomics, build-std)
-  compiles: `par_ser` and every parallel site build in the pool configuration.
-  CI checks only wasm-core; this exceeds it.
-- `cargo doc -p vsc --no-deps` (broken intra-doc links denied) clean; SPDX
-  headers on every new file; `Cargo.lock` consistent under `--locked`.
-
-**Wasm runtime** (tooling installed 2026-09-21: wasm-bindgen-cli 0.2.128 to
-match the pin, a chromedriver matching the installed Chrome, Docker Desktop
-with LocalStack pinned to `:4`, the AWS CLI):
-
-- `test-wasm.ps1`, the headless IndexedDB test — **passes**: the `wasm-core`
-  build (the feature the campaign's braid `rayon` change touches) compiles for
-  wasm32 and `indexeddb_round_trips_predicates` runs green in headless Chrome.
-- CI's opt-in **live-b4** tests (`cargo test -p braid --release -- --ignored`
-  against the real b4v6 + LocalStack S3) — **pass**: `test_protocol_http`,
-  `test_protocol_http_union` (client-side `SqlitePersistence`), and the
-  real-crypto `model_check_two_trustees`.
-- The interactive **emulator** (`TESTING.md` — the one end-to-end check of the
-  protocol under wasm with the rayon pool) — **passes** (2026-09-21): the
-  production `wasm` build (wasm-bindgen-rayon pool, atomics), served with
-  COOP/COEP against the real b4v6 + LocalStack S3, ran create board → DKG to
-  fixpoint → tally to fixpoint → **Verify plaintexts** green → a second tally
-  on the same DKG → page refresh with automatic reconnect.
-
-Every check in this section has now run against the final tree and passed.
+- **Assessment of the original MSM note.** It assumed prepared-bases
+  amortization and a serial baseline; both were wrong — generators are derived
+  per mix, and the baseline was already the parallel naive product, which a
+  single dalek call loses to. The design collapsed to the seam of methods
+  above. GPU deferred behind a go/no-go rule.
+- **Stage 0 — rayon completeness.** Parallelized the under-parallelized sites:
+  `partial_decrypt` factors, `batching_exponents`, `combine`'s Lagrange step,
+  P-256 `ind_generators`, and braid's first-mix Naor-Yung strip loop (5.9× at
+  10⁵). Removed parallelism where `parallel_tradeoff` showed no absolute gain
+  (the scalar loops and point folds), with the policy recorded above.
+- **Stage 1 — chunked MSM primitives** (`multi_exp`, `vartime_multi_exp`,
+  `exp_many`, `dist_vartime_multi_exp`). Laptop `msm_strategy` at 10⁵ vs the
+  naive product: single constant-time 2.3× *slower*, single variable-time
+  1.6×, chunked constant-time 2.5×, chunked variable-time 8.2×.
+- **Stage 2 — shuffle** (`88af78733e` verifier vartime MSMs, `6b51e641c2`
+  batched V2, closed-form bridging and `A′`/`B′`/`F′` via MSM and `exp_many`).
+  The old `fold_values`/`bounded-combine` seam — two strategies trading stack
+  growth against materialization for large point folds — became moot once the
+  point-valued folds were MSMs; only the scalar `f` fold survives, serial, and
+  the feature was removed. Laptop controlled run vs the pre-optimization tree
+  at 10⁵/W2: verify ~1.9×, prove ~1.5×.
+- **The Amdahl finding.** The MSM primitive was 8× faster yet verify only
+  ~1.9×: MSM had become a minority of wall-clock and **serialization** — point
+  compression inside the Fiat-Shamir seed derivations — dominated (~65% of
+  verify); `combine` re-serialized the ciphertext list once per contribution.
+- **Serialization** (`e01343dbaf` `FixedWidth` + `par_ser`; `2e3407606f`
+  wired into both transcript sites). Laptop, interleaved pre/post at 10⁵/W2:
+  verify 2.8×, prove 1.9×, `partial_decrypt` 2.0×, `combine` 2.0×, strip flat
+  (the control). The per-contribution dedup measured 2–4% afterwards and was
+  dropped.
+- **Decryption vartime** (`0fa48cab26`). `combine`'s `a`/`b` and Lagrange
+  combination and `partial_decrypt`'s `a`/`b` moved to variable-time — public
+  data that had been on the constant-time path. Laptop, interleaved: `combine`
+  2.4× (5.96 → 2.53 s), `partial_decrypt` 1.3×.
+- **Tooling** (`dba5a1d84e`). `examples/targets.rs` replaced the two scaling
+  tools; `bench.ps1`/`bench.sh` rewired; the fork-point differential method
+  (sparse worktree at the fork, same `targets.rs` on both trees). Laptop
+  campaign differential after the MSM stages: verify 1.9×, prove 1.5×,
+  `partial_decrypt` 4.5×, `combine` 3.7×.
+- **Protocol alignment re-verified** (`040356605f`, 2026-09-21). All certified
+  items preserved at the value, transcript and byte level; one new
+  description-precision item, D7: batched V2 documented in PROTOCOL.md §6.4 and
+  referenced from §9.2, per-index equations kept normative. 128-bit `e_n`
+  dropped as a soundness matter.
+- **Regression verification of the milestone** (2026-09-21, `418cabba92`,
+  `59f055e3ed`, `4c70b6bcd9`). Every CI gate with CI's exact commands (fmt,
+  workspace clippy `-D warnings --all-targets`, vsc clippy, the
+  `sqlite,postgres` workspace test across all five crates, wasm-core build);
+  Verificatum interop 70/70 with `V2V_REQUIRE_VMN=1`; both wasm builds; the
+  headless IndexedDB test, the live-b4 protocol tests and the interactive
+  emulator (DKG → tally → verify plaintexts → second tally → reconnect). Two
+  environment traps recorded in TESTING.md (`cargo test -p b4` mis-invocation;
+  the Windows `VMN_JAVA` shim). Merged into `feat/meta-13385/main` at
+  `185dbbede2`.
+- **EC2 reference rig** (`237a2d6004`, 2026-09-22; BENCH-EC2.md). The smoke
+  lifecycle caught three defects before any real spend: `read` at EOF under
+  `set -e` (`4e48cb147d`), CRLF from `git archive` on Windows for commits
+  predating `.gitattributes` (`aa0a387d93`), a rustup download flake in
+  user-data (`4d5cdde28c`). **Authoritative run** `185dbbede2` vs `657cb05c20`
+  on `c7i.4xlarge`, 45 min, ~$0.60 (`ad700d64bf`) — the Status tables. GPU rule
+  evaluated against those numbers: not met (`76cacb49c2`). `SUMMARY.md`
+  renderer (`c58e9eb5d1`, `2dfa570a20`); the remote script made to own its
+  grids after the milestone's packaged `bench.sh` ignored `GUIDANCE`
+  (`762fe5d24f`).
