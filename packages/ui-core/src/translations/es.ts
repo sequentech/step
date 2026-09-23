@@ -156,6 +156,7 @@ const spanishTranslation: TranslationType = {
             firstLine: "Arrastrar y soltar ficheros o",
             browse: "Cargar fichero",
             format: "Formatos soportados: txt",
+            importError: "No se pudo importar este archivo. Inténtalo de nuevo.",
         },
         selectElection: {
             electionWebsite: "Sitio web electoral",
