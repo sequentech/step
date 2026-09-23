@@ -36,7 +36,7 @@ jobs:
         working-directory: packages
         run: |
           if [ '${{ matrix.package }}' = immu-board ]; then
-            cargo clippy --locked -p immu-board --lib
+            cargo clippy --locked -p immu-board --lib --bins
           else
             cargo clippy --locked -p '${{ matrix.package }}' --bins
           fi
