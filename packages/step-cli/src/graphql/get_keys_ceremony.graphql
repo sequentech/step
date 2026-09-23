@@ -1,0 +1,9 @@
+query GetKeysCeremony($id: uuid!, $electionEventId: uuid!, $tenantId: uuid!) {
+  sequent_backend_keys_ceremony_by_pk(
+    id: $id
+    election_event_id: $electionEventId
+    tenant_id: $tenantId
+  ) {
+    execution_status
+  }
+}
