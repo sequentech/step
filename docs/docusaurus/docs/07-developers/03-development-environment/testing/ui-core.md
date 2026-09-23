@@ -6,7 +6,7 @@ title: UI Core tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Test file paths in this guide are relative to [`packages/ui-core/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/release-10.0/packages/ui-core/tests). Commands state their working directory.
+Test file paths in this guide are relative to [`packages/ui-core/tests/`](https://github.com/sequentech/step/blob/release/10.0/packages/ui-core/tests). Commands state their working directory.
 
 Run from `packages/` after installing the workspace dependencies:
 
