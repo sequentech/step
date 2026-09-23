@@ -54,7 +54,10 @@ write-only claims cannot create it. The HTTP fixture is shared with Core. A fres
 child process clears ambient settings and isolates the global token cache;
 its wait and socket operations are bounded, and LLVM instrumentation is retained.
 This verifies the client protocol and authorization adapter, not a deployed
-identity provider or JWT signatures.
+identity provider or JWT signatures. A second child sends each guarded route's
+complete permission set with no backend configured: the request must pass
+authorization and stop at the backend with HTTP 500, so a route that required
+a different permission would fail its control.
 
 Audit row tests include complete and reordered controls for both table names,
 every missing/duplicated field, null/wrong types, malformed count row shapes,
@@ -63,8 +66,9 @@ while replacing internal details with a generic 500 message. Use existing interf
 service architecture solely for testability.
 
 Most route bodies require configured database
-transactions, Keycloak, brokers, storage or worker state; the current denial
-checks exercise their entry guards, not complete service workflows. Functions
+transactions, Keycloak, brokers, storage or worker state; the denial checks and
+complete-permission controls exercise their entry guards, not complete service
+workflows. Functions
 also include generated routing and error closures. The successful role-creation
 protocol control adds assurance even though its containing function was already
 entered by denial tests. Keep generated functions and uncovered service modules in the source inventory.
@@ -73,6 +77,6 @@ Further service-backed coverage needs explicit bounded local fixtures. Actual
 branches, deployed JWT validation and optional feature/target configurations
 remain separate obligations; this native LLVM result does not close them.
 
-The role fixture rejects stale child markers. A private temporary nonce selects
+The child fixtures reject stale markers. A private temporary nonce selects
 its child path, the parent owns cleanup, and unrelated ambient credentials must
 not cause the fixture to skip its valid-control requests.
