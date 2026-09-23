@@ -522,8 +522,10 @@ fn external_requests_bind_subjects_while_descriptions_omit_private_details() -> 
             direction,
             ExtApiName::Other,
             "SetVoted Failed: private details".into(),
+            Some("area".into()),
         )?;
         assert_record(&message, &public, "ExternalApiRequest", Some(ELECTION))?;
+        assert_eq!(message.area_id.as_deref(), Some("area"));
         assert_eq!(
             message.statement.head.description,
             format!("{name} request SetVoted Failed.")
