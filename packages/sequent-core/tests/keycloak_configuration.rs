@@ -70,13 +70,19 @@ fn realm_names_and_copy_replacements_keep_cross_references_consistent() {
         parse_realm("tenant-north-event-mayor"),
         Some(("north".into(), Some("mayor".into())))
     );
+    // Copying a realm replaces the parsed IDs throughout its JSON, so an empty
+    // ID segment must not parse: "" or "-" would match every position or dash.
     for malformed in [
         "master",
         "event-mayor",
         "tenant-event-mayor",
         "tenant-north-event",
+        "tenant-",
+        "tenant--",
+        "tenant--event-mayor",
+        "tenant-north-event-",
     ] {
-        assert_eq!(parse_realm(malformed), None);
+        assert_eq!(parse_realm(malformed), None, "{malformed}");
     }
     let realm: RealmRepresentation =
         serde_json::from_value(json!({"realm": "tenant-north-event-mayor"}))
