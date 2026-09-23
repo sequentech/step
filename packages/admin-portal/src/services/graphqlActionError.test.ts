@@ -2,7 +2,66 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {getGraphQLActionErrorMessage, getGraphQLActionErrorReason} from "./graphqlActionError"
+import {
+    getGraphQLActionErrorMessage,
+    getGraphQLActionErrorReason,
+    hasGraphQLActionErrorCode,
+} from "./graphqlActionError"
+
+describe("hasGraphQLActionErrorCode", () => {
+    const code = "PasswordPolicyNotConfigured"
+
+    it("recognizes the code Hasura promoted", () => {
+        expect(hasGraphQLActionErrorCode({graphQLErrors: [{extensions: {code}}]}, code)).toBe(true)
+    })
+
+    it("recognizes the code inside the body Hasura could not parse", () => {
+        expect(
+            hasGraphQLActionErrorCode(
+                {
+                    graphQLErrors: [
+                        {
+                            message: "unexpected",
+                            extensions: {
+                                code: "unexpected",
+                                internal: {
+                                    response: {
+                                        body: JSON.stringify({
+                                            message: "Password Policy is not configured.",
+                                            extensions: {code},
+                                        }),
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+                code
+            )
+        ).toBe(true)
+    })
+
+    it("recognizes an error code in a GraphQL error message", () => {
+        expect(
+            hasGraphQLActionErrorCode({graphQLErrors: [{message: `Request failed: ${code}`}]}, code)
+        ).toBe(true)
+    })
+
+    it("rejects unrelated and malformed errors", () => {
+        expect(
+            hasGraphQLActionErrorCode(
+                {
+                    graphQLErrors: [
+                        {extensions: {code: "InternalServerError"}},
+                        {extensions: {internal: {response: {body: "not json"}}}},
+                    ],
+                },
+                code
+            )
+        ).toBe(false)
+        expect(hasGraphQLActionErrorCode(new Error("Network error"), code)).toBe(false)
+    })
+})
 
 describe("getGraphQLActionErrorReason", () => {
     it("reads the Harvest message Hasura forwarded", () => {

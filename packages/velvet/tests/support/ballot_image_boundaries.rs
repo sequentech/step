@@ -16,6 +16,7 @@ use uuid::Uuid;
 
 const STAGE_ID: &str = "main";
 const PIPE_ID: &str = "images";
+const ZERO_BATCH_ERROR: &str = "Receipt max_items_per_report must be greater than zero";
 
 fn candidate(id: &str, name: &str) -> Candidate {
     Candidate {
@@ -430,7 +431,7 @@ fn zero_batch_size_is_a_configuration_error_instead_of_a_panic() {
     config["report_options"]["max_items_per_report"] = json!(0);
     config["enable_pdfs"] = json!(false);
     assert!(matches!(pipe.exec(), Err(Error::UnexpectedError(message))
-        if message == "Receipt max_items_per_report must be greater than zero"));
+        if message == ZERO_BATCH_ERROR));
 }
 
 #[test]
@@ -457,6 +458,6 @@ fn receipt_batch_configuration_is_validated_even_without_input_files() {
         pipe.pipe_inputs.stage.pipeline[0].config.as_mut().unwrap()["report_options"]
             ["max_items_per_report"] = json!(0);
         assert!(matches!(pipe.exec(), Err(Error::UnexpectedError(message))
-            if message == "Receipt max_items_per_report must be greater than zero"));
+            if message == ZERO_BATCH_ERROR));
     }
 }
