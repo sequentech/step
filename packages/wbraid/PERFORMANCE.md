@@ -264,10 +264,6 @@ Three layers:
 | `bench.ps1` / `bench.sh` | local | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on) and the whole grid (`CELLS`, `REPS`) to a timestamped `bench-results/` file |
 | `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops, so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
 
-Related, tracked elsewhere: **incremental fetch (monotonic cursor)** — a pure
-transport optimization for board clients, in the spec §12 with its constraints
-(never security-relevant, cannot certify completeness).
-
 ## Log
 
 How the above came to be, in order. Laptop numbers are interleaved A/B on a
