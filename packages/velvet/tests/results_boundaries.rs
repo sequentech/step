@@ -20,6 +20,11 @@ use velvet::pipes::do_tally::{
 };
 use velvet::pipes::mark_winners::{MarkWinners, OUTPUT_WINNERS};
 
+// Both overflow cases merge PAPER counts. Velvet's error Display delegates to
+// Debug, so the counting-algorithm message wraps the pipe error; match the
+// overflow and its channel rather than that wrapper.
+const PAPER_CHANNEL_OVERFLOW: &str = "Voting channel count overflow for PAPER";
+
 fn election_result(counts: &[(&str, u64)]) -> ContestResult {
     let contest = contest();
     ContestResult {
@@ -83,7 +88,7 @@ fn area_result_aggregation_rejects_channel_overflow_before_combining_totals() {
     let error = tally.aggregate_results().unwrap_err();
     assert!(matches!(error,
         velvet::pipes::do_tally::counting_algorithm::Error::UnexpectedError(message)
-        if message.contains("Voting channel count overflow")));
+        if message.contains(PAPER_CHANNEL_OVERFLOW)));
     assert_eq!(tally.tally_results[0].total_votes, u64::MAX - 1);
 }
 
@@ -140,7 +145,7 @@ fn counting_algorithms_reject_overflow_when_merging_paper_sheets() {
             } else {
                 assert!(
                     matches!(combined.unwrap_err(), Error::UnexpectedError(message)
-                    if message.contains("Voting channel count overflow"))
+                    if message.contains(PAPER_CHANNEL_OVERFLOW))
                 );
             }
         }
