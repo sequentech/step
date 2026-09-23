@@ -94,13 +94,14 @@ relative to the naive parallel product: a single constant-time call is **4.3×
 slower**, chunked constant-time 2.6× faster, chunked variable-time **8.0×**
 faster (47.8 ms).
 
-**Why a seam of methods and not an `MsmBackend` with prepared bases.** The
+**Stateless by necessity: no prepared bases, no offline precomputation.** The
 independent generators `h` are derived per mix from the input ciphertext list
 (PROTOCOL.md §2.5/§6.2; `braid::trustee::mix` re-derives them for every link).
 Within one verification every base vector is used in exactly one MSM, and
-across mixes the bases differ — there is nothing for prepared bases to
-amortize, and for the same reason no offline/online split can precompute
-commitments before the ballots exist.
+across mixes the bases differ — so there is nothing for a precomputed table to
+amortize across calls, and commitments cannot be computed before the ballots
+exist. That is why the seam is plain methods on the group traits rather than
+a stateful backend object.
 
 **Constant-time vs variable-time is a per-call-site property, not a mode.**
 The prover's MSMs consume the secret blinders `ε`, `β` — leaking them damages
@@ -274,11 +275,12 @@ Windows x64 / 16-thread / AVX2 machine and are directional; the
 reference-machine numbers in Status supersede them as the record of where
 things stand.
 
-- **Assessment of the original MSM note.** It assumed prepared-bases
-  amortization and a serial baseline; both were wrong — generators are derived
-  per mix, and the baseline was already the parallel naive product, which a
-  single dalek call loses to. The design collapsed to the seam of methods
-  above. GPU deferred behind a go/no-go rule.
+- **Assessment of the original MSM note.** It proposed an `MsmBackend` object
+  holding prepared bases, and assumed a serial baseline; both premises were
+  wrong — generators are derived per mix (nothing to amortize), and the
+  baseline was already the parallel naive product, which a single dalek call
+  loses to. The design collapsed to the stateless seam of methods above. GPU
+  deferred behind a go/no-go rule.
 - **Stage 0 — rayon completeness.** Parallelized the under-parallelized sites:
   `partial_decrypt` factors, `batching_exponents`, `combine`'s Lagrange step,
   P-256 `ind_generators`, and braid's first-mix Naor-Yung strip loop (5.9× at
