@@ -27,6 +27,14 @@ it("retains equals signs and accepts optional whitespace between cookies", () =>
     expect(getValueFromCookie("missing")).toBeUndefined()
 })
 
+it("reads the last same-name cookie, which is the Path=/ value this module writes", () => {
+    // An earlier empty or more specific duplicate must not hide the value.
+    jest.spyOn(Document.prototype, "cookie", "get").mockReturnValue(
+        "lang=; lang=eu; theme=dark; lang=es"
+    )
+    expect(getValueFromCookie("lang")).toBe("es")
+})
+
 it("keeps a malformed percent escape readable instead of throwing", () => {
     jest.spyOn(Document.prototype, "cookie", "get").mockReturnValue("legacy=%ZZ")
     expect(getValueFromCookie("legacy")).toBe("%ZZ")
