@@ -6,6 +6,10 @@
 # hasura/migrations and hasura/metadata. On start the upstream entrypoint
 # (docker-entrypoint.sh) applies metadata then migrations, then serves.
 #
+# Build context must be the repo-root `hasura/` directory (CI matrix
+# `context: hasura`), so COPY paths below are relative to that dir — not
+# repo root (avoid `context: .`).
+#
 # PG source backend-db comes from metadata databases.yaml:
 #   database_url.from_env: PG_DATABASE_URL
 # Action handlers use {{HARVEST_DOMAIN}} resolved by the engine from env
@@ -15,5 +19,5 @@
 ARG HASURA_VERSION=v2.33.1
 FROM hasura/graphql-engine:${HASURA_VERSION}.cli-migrations-v3
 
-COPY hasura/migrations /hasura-migrations
-COPY hasura/metadata /hasura-metadata
+COPY migrations /hasura-migrations
+COPY metadata /hasura-metadata

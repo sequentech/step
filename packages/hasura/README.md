@@ -3,6 +3,10 @@
 Thin packaging of upstream `hasura/graphql-engine:<ver>.cli-migrations-v3` with
 this repo's `hasura/migrations` and `hasura/metadata` baked in.
 
+CI build context is `hasura/` (not repo root `.`); Dockerfile `COPY`s
+`migrations` and `metadata` from that directory. Dockerfile path remains
+`packages/Dockerfile.hasura`.
+
 ## Runtime
 
 Upstream `docker-entrypoint.sh` on start:
