@@ -18,6 +18,8 @@ in
 {
   # https://devenv.sh/basics/
   env = {
+    FONTCONFIG_FILE = pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; };
+    CHROMIUM_EXECUTABLE_PATH = "${pkgs.chromium}/bin/chromium";
     REGISTRY = "localhost:5000";
     OPENWHISK_BASIC_AUTH = "23bc46b1-71f6-4ed5-8c54-816aa4f8c502:123zO3xZCLrMN6v2BKK1dXYFpXlPkccOFqm12CdAsMgRU4VrNZ9lyGVCGuMDGIwP";
     # NOTE(ereslibre): You will find this Base Image duplicated in
@@ -45,7 +47,6 @@ in
     glibc
     openssh
     postgresql_18
-    python3
     openssh
 
     # immudb
@@ -58,6 +59,9 @@ in
     ack
 
     # docker utilities
+    docker-client
+    docker-buildx
+    docker-compose
     dive
 
     # wget and curl
@@ -74,6 +78,8 @@ in
     iputils
     geckodriver
     firefox
+    k6 # HTTP cast load generator, pinned by devenv.lock.
+    chromium # Browser for full voting-portal journeys.
 
     # to build the rug backend in strand/braid
     gcc
@@ -93,8 +99,9 @@ in
     wasm-pack
     wasm-bindgen-cli
 
-    python3
+    (python3.withPackages (ps: [ ps.psycopg ps.black ps.matplotlib ps.pyyaml ]))
     python3Packages.virtualenvwrapper
+    python3Packages.pyyaml
 
     # for parsing docker-compose.yml
     yq

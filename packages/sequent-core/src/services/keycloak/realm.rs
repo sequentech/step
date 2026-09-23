@@ -95,8 +95,13 @@ pub fn parse_realm(realm: &str) -> Option<(String, Option<String>)> {
     // Expected formats:
     // - Tenant realm: "tenant-{tenant_id}"
     // - Event realm: "tenant-{tenant_id}-event-{election_event_id}"
-
-    if parts.len() >= 2 && parts[0] == "tenant" {
+    //
+    // Copies replace these IDs throughout the realm JSON, so an empty ID
+    // segment is malformed rather than a match for every position or dash.
+    if parts.len() >= 2
+        && parts[0] == "tenant"
+        && parts[1..].iter().all(|part| !part.is_empty())
+    {
         // Check if this is an event realm
         if let Some(event_idx) = parts.iter().position(|&p| p == "event") {
             if event_idx > 1 && event_idx < parts.len() - 1 {
