@@ -54,6 +54,29 @@ pub struct GenerateBallotPublicationOutput {
 pub async fn generate_ballot_publication(
     body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
+) -> Result<Json<GenerateBallotPublicationOutput>, JsonError> {
+    generate_ballot_publication_response(body, claims)
+        .await
+        .map_err(|(status, message)| {
+            let code = if status == Status::Forbidden
+                || status == Status::Unauthorized
+            {
+                ErrorCode::Unauthorized
+            } else {
+                tracing::error!("Ballot publication request failed: {message}");
+                return ErrorResponse::new(
+                    status,
+                    "Could not generate the ballot publication.",
+                    ErrorCode::InternalServerError,
+                );
+            };
+            ErrorResponse::new(status, &message, code)
+        })
+}
+
+async fn generate_ballot_publication_response(
+    body: Json<GenerateBallotPublicationInput>,
+    claims: JwtClaims,
 ) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
     if !has_gold_permission(&claims) {
         return Err((Status::Forbidden, "Insufficient privileges".into()));
