@@ -230,7 +230,6 @@ def measure(
                 "features": profile["features"],
                 "consumer_packages": profile.get("consumer_packages", []),
                 "test_environment": profile.get("test_environment", {}),
-                "compiler_coverage": profile.get("compiler_coverage", False),
                 "tools": {"rust": rust, "cargo_llvm_cov": tool},
                 "limitations": profile["limitations"],
                 "issue": profile["issue"],
