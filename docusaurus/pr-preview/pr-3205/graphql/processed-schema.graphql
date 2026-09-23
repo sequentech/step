@@ -2564,7 +2564,7 @@ type mutation_root {
     on_conflict: trustee_on_conflict
   ): trustee
   limit_access_by_countries(enroll_countries: [String!]!, voting_countries: [String!]!): LimitAccessByCountriesOutput
-  manage_election_dates(election_event_id: String!, election_id: String, event_processor: String!, scheduled_date: String): ManageElectionDatesOutput
+  manage_election_dates(election_event_id: String!, election_id: String, event_processor: String!, scheduled_date: String, voting_channels: [VotingStatusChannel!]): ManageElectionDatesOutput
   prepare_ballot_publication_preview(ballot_publication_id: String!, election_event_id: String!): PrepareBallotPublicationPreviewOutput
   """preview_tally_sheet_import"""
   preview_tally_sheet_import(document_id: String!, election_event_id: String!, selected_channel: String!, sha256: String, source_format: String!): TallySheetImportPreviewActionOutput
