@@ -280,6 +280,44 @@ In priority order; nothing here is done.
    CPU prover (secret `ε` never reaches VRAM), feature-gated with silent CPU
    fallback, CPU path normative for Verificatum interop. The EC2 *G and VT*
    quota is granted, so a feasibility session is possible.
+6. **A global target, then two scheduling levers it would measure — recorded,
+   not decided.** The five targets are stages; the sixth measurement is the
+   **critical-path latency of one tally** for a quorum of N, each party acting
+   in turn and concurrent work off the path:
+
+   ```
+   T(N) = 2·Strip + N·(Prove + Verify) + PartialDecrypt + N·PartialDecryptVerify
+   V(N) =   Strip + N·Verify                            + N·PartialDecryptVerify   (external verifier)
+   ```
+
+   The first mix costs its producer Strip + Prove and its verifier Strip +
+   Verify (the verifier recomputes L₀ itself); every later mix adds Prove +
+   Verify; the partials are computed concurrently but verified in series by
+   whoever combines. To be implemented as a *replay* — the stages run with
+   real data flow, N a parameter, each stage timed and the totals composed,
+   stage shares printed so the formula is checked rather than assumed; a
+   separate example with its own CSV; network out, serialization behind a
+   flag that is off. On the tip at N = 3, 10⁵/W2, T ≈ 27 s, of which N·Prove
+   is ~55% and strip ~7% (before batching: 32 s and 23%). Two levers change
+   no single target and register only on T(N), so they wait for it:
+   - **Eager strip.** The trustee verifying the first mix strips the ballot
+     list only when that mix arrives (`mix_input_ciphertexts`), which is the
+     second Strip on the path; stripping when the ballots arrive removes it
+     (~1.0 s, ~4% at N = 3 — batching already took most of this lever's
+     value).
+   - **Eager partial-decryption verification.** `ComputePlaintexts` runs
+     `combine` once all N partials are posted, and `combine` verifies them in
+     series (`recipient.rs`, the contribution loop); verifying each on
+     arrival, as mixes are, takes N − 1 verifications off the path (~1.2 s,
+     ~4% at N = 3, growing with N).
+
+   Both are braid datalog/action changes with no protocol or transcript
+   consequence; whether either is worth its complexity is undecided and will
+   be judged on T(N). The replay is a model of braid's schedule over vsc's
+   primitives, so when a scheduling lever lands the composition changes with
+   it; braid's in-process protocol test at scale would be the empirical
+   cross-check, with the caveat that it puts every trustee's work on one box
+   and so measures total work, not per-party latency.
 
 Not levers: `ind_generators` (~110 ms at 10⁵, 1–2% of prove/verify, folded
 into those targets); `combine`'s per-contribution re-serialization dedup
