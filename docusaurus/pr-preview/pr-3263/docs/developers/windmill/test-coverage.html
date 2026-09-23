@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Windmill boundary tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3263/docs/developers/windmill/test-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Windmill boundary tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3263/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3263/docs/developers/windmill/test-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3263/docs/developers/windmill/test-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3263/docs/developers/windmill/test-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Windmill boundary tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3263/docs/developers/windmill/test-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3263/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3263/assets/js/runtime~main.857f4219.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3263/assets/js/runtime~main.47fb55a3.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3263/assets/js/main.27086ea0.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -22,10 +22,13 @@ own transaction; the unsafe-string-mode test uses a separate connection option.
 It never changes shared database defaults. The coverage profile provides these
 public fixture settings; it must run in the isolated worker, not on production.</p>
 <p>The existing ignored voter-channel PostgreSQL regression is run explicitly as
-separate evidence. The other ignored activity-log test requires a fuller
-service fixture and must remain visible in the report. Native default-feature
-coverage does not certify cloud transports, full election services, optional
-features or branches. Keep untested workers in the measured source scope.</p>
+separate evidence. The other ignored tests need fuller fixtures and must remain
+visible in the report: the activity-log export, the ballot publication files
+test (disposable PostgreSQL and private S3, run by <code>scripts/test_ballot_files.py</code>)
+and the three cast-vote insertion tests in <code>insert_cast_vote_database_tests.rs</code>
+(the disposable devenv database). Native default-feature coverage does not
+certify cloud transports, full election services, optional features or
+branches. Keep untested workers in the measured source scope.</p>
 <p>With PostgreSQL running, measure from the repository root:</p>
 <div class="language-bash codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-bash codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">python3 scripts/coverage/run.py windmill </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--baseline</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--offline</span><br></span></code></pre></div></div>
 <p>Run the existing voter-channel regression explicitly from <code>packages/</code>:</p>
