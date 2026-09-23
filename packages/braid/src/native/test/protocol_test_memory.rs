@@ -158,6 +158,26 @@ fn run_protocol_test<C: Ctx + 'static>(
         panic!();
     }
 
+    // Every other trustee verifies and signs the published plaintexts. Wait
+    // until the decryptor has read all of those signatures, instead of stopping
+    // at whatever the parallel step that produced the plaintexts happened to see.
+    let decryptor = selected_trustees[0] - 1;
+    let signers: HashSet<usize> = (0..sessions.len()).filter(|t| *t != decryptor).collect();
+    let signed = |sessions: &[VectorSession<C, _>]| {
+        (0..batches).all(|b| sessions[decryptor].plaintexts_signers((b + 1) as u64) == signers)
+    };
+    for i in 0..30 {
+        if signed(&sessions) {
+            break;
+        }
+        info!("Cycle {}", i);
+
+        sessions.par_iter_mut().for_each(|t| {
+            t.step();
+        });
+    }
+    assert!(signed(&sessions), "Not every trustee signed the plaintexts");
+
     info!("***************************************************************");
     info!("* Completed");
     info!("* Trustees = {}", sessions.len());
