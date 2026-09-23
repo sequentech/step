@@ -47,6 +47,24 @@ pub struct ElectoralLogMessage {
     pub username: Option<String>,
 }
 
+// Columns every electoral log row must carry; user_id and username are optional.
+const ID_COLUMN: &str = "id";
+const CREATED_COLUMN: &str = "created";
+const SENDER_PK_COLUMN: &str = "sender_pk";
+const STATEMENT_TIMESTAMP_COLUMN: &str = "statement_timestamp";
+const STATEMENT_KIND_COLUMN: &str = "statement_kind";
+const MESSAGE_COLUMN: &str = "message";
+const VERSION_COLUMN: &str = "version";
+const REQUIRED_COLUMNS: [&str; 7] = [
+    ID_COLUMN,
+    CREATED_COLUMN,
+    SENDER_PK_COLUMN,
+    STATEMENT_TIMESTAMP_COLUMN,
+    STATEMENT_KIND_COLUMN,
+    MESSAGE_COLUMN,
+    VERSION_COLUMN,
+];
+
 impl TryFrom<&Row> for ElectoralLogMessage {
     type Error = anyhow::Error;
 
@@ -82,15 +100,15 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             }
 
             match bare_column {
-                "id" => assign_value!(Value::N, value, id),
-                "created" => assign_value!(Value::Ts, value, created),
-                "sender_pk" => assign_value!(Value::S, value, sender_pk),
-                "statement_timestamp" => {
+                ID_COLUMN => assign_value!(Value::N, value, id),
+                CREATED_COLUMN => assign_value!(Value::Ts, value, created),
+                SENDER_PK_COLUMN => assign_value!(Value::S, value, sender_pk),
+                STATEMENT_TIMESTAMP_COLUMN => {
                     assign_value!(Value::Ts, value, statement_timestamp)
                 }
-                "statement_kind" => assign_value!(Value::S, value, statement_kind),
-                "message" => assign_value!(Value::Bs, value, message),
-                "version" => assign_value!(Value::S, value, version),
+                STATEMENT_KIND_COLUMN => assign_value!(Value::S, value, statement_kind),
+                MESSAGE_COLUMN => assign_value!(Value::Bs, value, message),
+                VERSION_COLUMN => assign_value!(Value::S, value, version),
                 "user_id" => match value.value.as_ref() {
                     Some(Value::S(inner)) => user_id = Some(inner.clone()),
                     None | Some(Value::Null(_)) => user_id = None,
@@ -105,15 +123,7 @@ impl TryFrom<&Row> for ElectoralLogMessage {
             }
         }
 
-        for required in [
-            "id",
-            "created",
-            "sender_pk",
-            "statement_timestamp",
-            "statement_kind",
-            "message",
-            "version",
-        ] {
+        for required in REQUIRED_COLUMNS {
             if !seen.contains(required) {
                 return Err(anyhow!("missing column '{}'", required));
             }
