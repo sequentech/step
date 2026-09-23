@@ -12,6 +12,9 @@ use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
+use windmill::services::external::datafix_types::{
+    MarkVotedBody, VoterInformationBody,
+};
 
 // Reuse Core's bounded HTTP protocol fixture, not its client implementation.
 #[path = "../../../sequent-core/tests/support/http.rs"]
@@ -24,12 +27,12 @@ const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
 const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 115;
 
-#[rocket::async_test]
-async fn role_creation_requires_create_permission_and_preserves_the_role() {
-    const CHILD: &str = "HARVEST_ROLE_TEST_CHILD";
-    // A leftover environment flag must not bypass the clean child environment.
-    // Only this parent's private, short-lived nonce can select the child branch.
-    let is_child = std::env::var(CHILD)
+const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
+
+// A leftover environment flag must not bypass the clean child environment.
+// Only the parent's private, short-lived nonce can select the child branch.
+fn is_isolated_child() -> bool {
+    std::env::var(CHILD)
         .ok()
         .and_then(|value| {
             serde_json::from_str::<(std::path::PathBuf, String)>(&value).ok()
@@ -37,10 +40,64 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
         .is_some_and(|(path, nonce)| {
             std::fs::read_to_string(&path).ok().as_deref()
                 == Some(nonce.as_str())
-        });
-    if !is_child {
-        use std::process::{Command, Stdio};
-        use std::time::{Duration, Instant};
+        })
+}
+
+// Keycloak's token cache and environment are process-global. A fresh child
+// isolates them from all other tests and from developer settings; its only
+// identity provider is the local peer and it has no database settings.
+fn run_isolated(test: &str, keycloak_url: &str) {
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+    let marker = tempfile::NamedTempFile::new().unwrap();
+    let nonce = uuid::Uuid::new_v4().to_string();
+    std::fs::write(marker.path(), &nonce).unwrap();
+    let log = tempfile::NamedTempFile::new().unwrap();
+    let output = log.reopen().unwrap();
+    let mut command = Command::new(std::env::current_exe().unwrap());
+    command
+        .args(["--exact", test, "--nocapture"])
+        .env_clear()
+        .env(CHILD, json!([marker.path(), nonce]).to_string())
+        .env("KEYCLOAK_URL", keycloak_url)
+        .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
+        .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
+        .env("SUPER_ADMIN_TENANT_ID", "fixture-super-admin")
+        .stdin(Stdio::null())
+        .stdout(output.try_clone().unwrap())
+        .stderr(output);
+    // Preserve instrumentation and native library lookup, never credentials.
+    for name in ["LLVM_PROFILE_FILE", "LD_LIBRARY_PATH"] {
+        if let Some(value) = std::env::var_os(name) {
+            command.env(name, value);
+        }
+    }
+    let mut child = command.spawn().unwrap();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!(
+                "{test} timed out: {}",
+                std::fs::read_to_string(log.path()).unwrap()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    };
+    assert!(
+        status.success(),
+        "{}",
+        std::fs::read_to_string(log.path()).unwrap()
+    );
+}
+
+#[rocket::async_test]
+async fn role_creation_requires_create_permission_and_preserves_the_role() {
+    if !is_isolated_child() {
         // KeycloakAdminClient uses KeycloakAdminToken::acquire: the pinned
         // client's admin-password flow authenticates in master. The separate
         // get_credentials_inner tenant-client flow is not used by this route.
@@ -64,50 +121,9 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
                 json!([{"id":"new-role", "name":"Election observer"}]),
             ),
         ]);
-        let marker = tempfile::NamedTempFile::new().unwrap();
-        let nonce = uuid::Uuid::new_v4().to_string();
-        std::fs::write(marker.path(), &nonce).unwrap();
-        let log = tempfile::NamedTempFile::new().unwrap();
-        // Keycloak's token cache and environment are process-global. A fresh
-        // child isolates them from all other tests and from developer settings.
-        let output = log.reopen().unwrap();
-        let mut command = Command::new(std::env::current_exe().unwrap());
-        command.args(["--exact", "request_boundaries::role_creation_requires_create_permission_and_preserves_the_role", "--nocapture"])
-            .env_clear()
-            .env(CHILD, json!([marker.path(), nonce]).to_string())
-            .env("KEYCLOAK_URL", &peer.url)
-            .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
-            .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
-            .env("SUPER_ADMIN_TENANT_ID", "fixture-super-admin")
-            .stdin(Stdio::null())
-            .stdout(output.try_clone().unwrap())
-            .stderr(output);
-        // Preserve instrumentation and native library lookup, never credentials.
-        for name in ["LLVM_PROFILE_FILE", "LD_LIBRARY_PATH"] {
-            if let Some(value) = std::env::var_os(name) {
-                command.env(name, value);
-            }
-        }
-        let mut child = command.spawn().unwrap();
-        let deadline = Instant::now() + Duration::from_secs(30);
-        let status = loop {
-            if let Some(status) = child.try_wait().unwrap() {
-                break status;
-            }
-            if Instant::now() >= deadline {
-                child.kill().unwrap();
-                child.wait().unwrap();
-                panic!(
-                    "role fixture timed out: {}",
-                    std::fs::read_to_string(log.path()).unwrap()
-                );
-            }
-            std::thread::sleep(Duration::from_millis(25));
-        };
-        assert!(
-            status.success(),
-            "{}",
-            std::fs::read_to_string(log.path()).unwrap()
+        run_isolated(
+            "request_boundaries::role_creation_requires_create_permission_and_preserves_the_role",
+            &peer.url,
         );
         let requests = peer.finish();
         let created = requests
@@ -149,6 +165,89 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
             .dispatch()
             .await;
         assert_eq!(response.status(), Status::Unauthorized, "{permissions:?}");
+    }
+}
+
+#[rocket::async_test]
+async fn complete_permission_sets_pass_each_authorization_check() {
+    if !is_isolated_child() {
+        // Nothing is scripted, so every Keycloak call gets HTTP 500.
+        let peer = http::HttpServer::start(vec![]);
+        run_isolated(
+            "request_boundaries::complete_permission_sets_pass_each_authorization_check",
+            &peer.url,
+        );
+        peer.finish();
+        return;
+    }
+    // The denial tests below remove one of these permissions or change the
+    // tenant. Here the complete set must get past authorization and stop at
+    // the unavailable backend, so a route that required a different
+    // permission would answer 401 or 403 instead.
+    let client = client().await;
+    let user_role =
+        json!({"tenant_id":TENANT_ID,"user_id":USER_ID,"role_id":"test-role"});
+    let document = json!({"document_id":"test-document"});
+    let ceremony = json!({"election_event_id":"test-event","keys_ceremony_id":"test-ceremony"});
+    let mut key_check = ceremony.clone();
+    key_check["private_key_base64"] = json!("not-a-key");
+    for (path, body, permissions) in [
+        (
+            "/get-document-password",
+            &document,
+            vec![
+                Permissions::DOCUMENT_DOWNLOAD,
+                Permissions::DOCUMENT_PASSWORD_READ,
+            ],
+        ),
+        (
+            "/set-user-role",
+            &user_role,
+            vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
+        ),
+        (
+            "/delete-user-role",
+            &user_role,
+            vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
+        ),
+        (
+            "/delete-role",
+            &json!({"tenant_id":TENANT_ID,"role_id":"test-role"}),
+            vec![Permissions::ROLE_WRITE],
+        ),
+        (
+            "/fetch-document",
+            &document,
+            vec![Permissions::DOCUMENT_DOWNLOAD],
+        ),
+        (
+            "/get-private-key",
+            &ceremony,
+            vec![Permissions::TRUSTEE_CEREMONY],
+        ),
+        (
+            "/check-private-key",
+            &key_check,
+            vec![Permissions::TRUSTEE_CEREMONY],
+        ),
+        (
+            "/create-election",
+            &json!({"election_event_id":"test-event","external_id":"test-election","presentation":{}}),
+            vec![Permissions::ELECTION_EVENT_WRITE],
+        ),
+    ] {
+        let response = client
+            .post(path)
+            .header(ContentType::JSON)
+            .header(authorization(&permissions))
+            .body(body.to_string())
+            .dispatch()
+            .await;
+        assert_eq!(
+            response.status(),
+            Status::InternalServerError,
+            "{path}: {permissions:?}"
+        );
     }
 }
 
@@ -423,18 +522,30 @@ async fn document_and_ceremony_reads_require_their_specific_permissions() {
 async fn datafix_missing_credentials_use_the_documented_json_error_on_every_operation(
 ) {
     let client = client().await;
-    for path in [
-        "add-voter",
-        "update-voter",
-        "delete-voter",
-        "unmark-voted",
-        "mark-voted",
-        "replace-pin",
+    const VOTER_ID: &str = "synthetic-voter";
+    let voter = json!({"voter_id": VOTER_ID, "ward": "synthetic-ward"});
+    let voted = json!({"voter_id": VOTER_ID, "channel": "online"});
+    let voter_id = json!({ "voter_id": VOTER_ID });
+    // Each body is valid, so a malformed-body 422 (mapped to the same 400)
+    // cannot stand in for the missing-credentials response.
+    serde_json::from_value::<VoterInformationBody>(voter.clone()).unwrap();
+    serde_json::from_value::<MarkVotedBody>(voted.clone()).unwrap();
+    serde_json::from_value::<crate::routes::api_datafix::VoterIdBody>(
+        voter_id.clone(),
+    )
+    .unwrap();
+    for (path, body) in [
+        ("add-voter", &voter),
+        ("update-voter", &voter),
+        ("delete-voter", &voter_id),
+        ("unmark-voted", &voter_id),
+        ("mark-voted", &voted),
+        ("replace-pin", &voter_id),
     ] {
         let response = client
             .post(format!("/api/datafix/{path}"))
             .header(ContentType::JSON)
-            .body("{}")
+            .body(body.to_string())
             .dispatch()
             .await;
         assert_eq!(response.status(), Status::BadRequest, "{path}");
