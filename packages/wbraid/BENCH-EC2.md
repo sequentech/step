@@ -32,7 +32,7 @@ Every results file records these, so a number is never quoted without them.
 Comparability note: cloud vCPUs are hyperthreads, and the laptop's 16 logical
 cores are similar — so absolute numbers differ from the laptop but are
 consistent *with each other* session after session, which is what "reference"
-means. Keep the methodology of `PERFORMANCE.md` §4 (interleaved A/B, median of
+means. Keep the methodology of `PERFORMANCE.md` (Tooling and method: interleaved A/B, median of
 reps).
 
 ## One-time account setup
@@ -160,7 +160,7 @@ and prints it, so the key results are readable without opening a CSV;
 `aws s3 sync` the results to `bench-results/ec2-<session>/` (git-ignored) →
 terminate → sweep. Budget ~45–60 min; the lifetime cap is 120.
 
-Results are then written into `PERFORMANCE.md` §4 by hand, with the reference
+Results are then written into the Status section of `PERFORMANCE.md` by hand, with the reference
 configuration quoted.
 
 ## Guardrails — why nothing can be left behind
@@ -198,7 +198,7 @@ Same lifecycle with `INSTANCE_TYPE=g4dn.xlarge` (T4) or `g5.xlarge` (A10G),
 ~$0.6–1.1/h, once the *G and VT* quota is granted. The CUDA toolkit is the
 extra prerequisite (an NVIDIA/Deep Learning AMI, or a driver install step in
 user-data); the candidate GPU MSM and its security posture are discussed in
-`PERFORMANCE.md` §5.
+`PERFORMANCE.md`, Remaining levers.
 
 ## End of a campaign
 
