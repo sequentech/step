@@ -2491,7 +2491,10 @@
     "xXSSProtection": "1; mode=block",
     "strictTransportSecurity": "max-age=31536000; includeSubDomains"
   },
-  "smtpServer": {},
+  "smtpServer": {
+    "from": "no-reply@sequent.vote",
+    "host": "localhost"
+  },
   "loginTheme": "sequent.voting-portal",
   "accountTheme": "sequent.voting-portal",
   "adminTheme": "",

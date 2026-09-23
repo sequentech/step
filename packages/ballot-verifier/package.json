@@ -29,7 +29,7 @@
   "scripts": {
     "start": "PORT=3001 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
     "build": "DISABLE_ESLINT_PLUGIN=false NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
-    "test": "react-scripts test",
+    "test": "jest",
     "eject": "react-scripts eject",
     "prettify": "prettier --check . --ignore-path .prettierignore",
     "prettify:fix": "prettier --write . --ignore-path .prettierignore",
@@ -56,6 +56,9 @@
     ]
   },
   "devDependencies": {
+    "@babel/preset-env": "7.22.4",
+    "@babel/preset-react": "7.22.3",
+    "@babel/preset-typescript": "7.21.5",
     "@storybook/addon-actions": "^9.0.8",
     "@storybook/addon-essentials": "^8.6.15",
     "@storybook/addon-interactions": "^8.6.15",
@@ -79,6 +82,7 @@
     "@types/react-dom": "^19.1.9",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
+    "babel-jest": "30",
     "babel-loader": "10.0.0",
     "babel-plugin-named-exports-order": "^0.0.2",
     "clean-webpack-plugin": "4.0.0",
@@ -92,6 +96,7 @@
     "globals": "^15.9.0",
     "html-webpack-plugin": "^5.5.4",
     "jest": "30",
+    "jest-environment-jsdom": "30",
     "prettier": "^3.6.2",
     "prop-types": "^15.8.1",
     "style-loader": "^3.3.3",
