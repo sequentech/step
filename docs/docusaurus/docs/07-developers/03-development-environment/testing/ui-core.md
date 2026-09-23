@@ -47,6 +47,14 @@ full voter journeys need authentication and service fixtures.
 When changing the WASM dependency, rerun both suites. The test runner must fail
 on an incompatible or missing binary rather than silently substitute a mock.
 
+Some counted service paths have no test. In `src/services/votingPortalDateTime.ts`,
+`tokenValue` keeps a defensive default that the parser cannot reach: it only
+passes tokens matched by the supported-token pattern. Revisit it if the accepted
+tokens change. `resolvePreset` runs only when a resolved formatter throws while
+formatting, which the suite does not exercise. The remaining uncovered branch
+alternatives in `i18n.ts`, `presentationOrder.ts`, `translate.ts` and
+`translationScopes.ts` are reachable test gaps, not accepted exclusions.
+
 ## Assurance lint policy
 
 Run `yarn lint` from this package. The existing frontend workflow runs it too.
