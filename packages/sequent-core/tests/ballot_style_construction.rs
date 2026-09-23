@@ -118,9 +118,12 @@ fn a_style_keeps_only_its_election_and_orders_candidates_by_identity() {
         Some(TieBreakingPolicy::EXTERNAL_PROCEDURE)
     );
     assert!(council.is_encrypted);
+    // Hasura timestamps deserialize into the process's local zone, so compare
+    // the instant instead of an offset that depends on the host's TZ setting.
+    let created_at = council.created_at.as_deref().unwrap();
     assert_eq!(
-        council.created_at.as_deref(),
-        Some("2026-09-13T12:30:00+00:00")
+        chrono::DateTime::parse_from_rfc3339(created_at).unwrap(),
+        chrono::DateTime::parse_from_rfc3339("2026-09-13T12:30:00Z").unwrap()
     );
     assert!(style.contests[1].candidates.is_empty());
     assert_eq!(style.contests[1].winning_candidates_num, 1);
