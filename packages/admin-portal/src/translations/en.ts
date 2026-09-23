@@ -794,6 +794,10 @@ const englishTranslation = {
                 statusLabel: "Status",
                 waitingKeys: "Waiting for Keys Generation..",
                 started: "Started at",
+                actions: {
+                    participate: "Participate in Keys Ceremony",
+                    view: "View Keys Ceremony",
+                },
                 breadCrumbs: {
                     configure: "Configure",
                     ceremony: "Ceremony",
@@ -1531,6 +1535,8 @@ const englishTranslation = {
                 createError: "Error creating Scheduled Event",
                 editSuccess: "Scheduled Event edited successfully",
                 editError: "Error editing Scheduled Event",
+                onlineWithEarlyVoting:
+                    "A start schedule cannot open Online and Early voting together: early voting has to start before online voting.",
             },
             eventType: {
                 label: "Type",
@@ -2027,8 +2033,12 @@ const englishTranslation = {
                 subtitle:
                     "To continue, please download and store your Encrypted Private Key at least into two different devices:",
                 downloadButton: "Download your Encrypted Private Key",
-                errorDownloading: "Download error: {{error}}",
+                downloaded: "Encrypted Private Key downloaded successfully.",
                 errorEmptyKey: "Download error, empty file",
+                unexpectedError: "The private key could not be downloaded. Please try again.",
+                alreadyVerified: "Your private key was already downloaded and verified.",
+                unavailable:
+                    "Private key download is no longer available because the ceremony has moved on.",
                 confirmdDialog: {
                     ok: "Confirm Backups and Continue",
                     cancel: "Go Back",
@@ -2043,12 +2053,13 @@ const englishTranslation = {
             },
             checkStep: {
                 title: "Check your Encrypted Private Key Backups",
+                verifyButton: "Verify key",
                 subtitle:
                     "Upload a Encrypted Private Key Backup to check that it's correct. You can try as many times as needed, from your different backups:",
                 errorUploading: "Invalid Encrypted Private Key Backup, please try again",
                 errorEmptyFile: "File empty or not found",
                 verified: "Backup verified successfully.",
-                downloaded: "Encrypted Private Key generated successfully.",
+                alreadyRestored: "Your key was already restored.",
             },
         },
         miruExport: {
@@ -2206,6 +2217,13 @@ const englishTranslation = {
             generalInfoTitle: "General Information",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Key fragment import status",
+            eligibility: {
+                selectElection: "Select at least one election.",
+                publishElection: "Publish each selected election before creating its tally.",
+                tallyDisallowed: "Tallying is disabled for a selected election.",
+                endVoting:
+                    "End voting in each selected election and stop its active voting channels before creating the tally.",
+            },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
             startTallySuccess: "Tally started",

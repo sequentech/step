@@ -209,7 +209,7 @@ const Candidate: React.FC<CandidateProps> = ({
             isSelectable={!!isSelectable}
             hasCategory={!!hasCategory}
             isInvalidVote={!!isInvalidVote}
-            isDisabled={!!shouldDisable}
+            isDisabled={!!isSelectable && !!shouldDisable}
             onClick={onClick}
             className={`candidate-item ${className}`}
         >
