@@ -6,7 +6,7 @@ title: Harvest request boundary tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Test file paths in this guide are relative to [`packages/harvest/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/release-10.0/packages/harvest/tests). Commands state their working directory.
+Test file paths in this guide are relative to [`packages/harvest/tests/`](https://github.com/sequentech/step/blob/release/10.0/packages/harvest/tests). Commands state their working directory.
 
 This coverage slice exercises actual Rocket routes, request guards and
 error catchers with the local HTTP client. It uses the same route builder as production while avoiding startup of
