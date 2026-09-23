@@ -379,7 +379,9 @@ impl<P: RugCtxParams> Exponent<RugCtx<P>> for IntegerX<P> {
     }
     #[inline(always)]
     fn modulo(&self, modulus: &Self) -> Self {
-        let (_, rem) = self.0.clone().div_rem(modulus.0.clone());
+        // Euclidean remainder: exp_sub_mod subtracts before reducing, and
+        // div_rem would keep that negative sign, which serialization drops.
+        let rem = self.0.clone().modulo(&modulus.0);
 
         IntegerX::new(rem)
     }
