@@ -273,13 +273,24 @@ fn malformed_count_rows_cannot_silently_become_zero_or_the_last_value() {
 
 #[test]
 fn multiple_sort_fields_have_stable_precedence() {
+    // The request map has no order, so an unsorted rendering matches the
+    // alphabetical precedence of all nine fields only by a 1 in 9! chance.
     for order in [
-        json!({"id": "desc", "class": "asc"}),
-        json!({"class": "asc", "id": "desc"}),
+        json!({"user": "desc", "statement": "asc", "session_id": "desc",
+            "server_timestamp": "asc", "id": "desc", "dbname": "asc",
+            "command": "desc", "class": "asc", "audit_type": "desc"}),
+        json!({"audit_type": "desc", "class": "asc", "command": "desc",
+            "dbname": "asc", "id": "desc", "server_timestamp": "asc",
+            "session_id": "desc", "statement": "asc", "user": "desc"}),
     ] {
         let (sql, _) = request(json!({"order_by": order, "limit": 7}))
             .as_sql(false)
             .unwrap();
-        assert_eq!(sql, "ORDER BY class asc, id desc LIMIT @limit");
+        assert_eq!(
+            sql,
+            "ORDER BY audit_type desc, class asc, command desc, dbname asc, \
+             id desc, server_timestamp asc, session_id desc, statement asc, \
+             user desc LIMIT @limit"
+        );
     }
 }
