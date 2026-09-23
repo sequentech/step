@@ -155,6 +155,7 @@ const dutchTranslation: TranslationType = {
             firstLine: "Drag & drop files or",
             browse: "Browse",
             format: "Supported format: txt",
+            importError: "Dit bestand kon niet worden geïmporteerd. Probeer het opnieuw.",
         },
         selectElection: {
             electionWebsite: "Ballot Website",

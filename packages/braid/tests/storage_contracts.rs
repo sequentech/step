@@ -188,7 +188,11 @@ fn blob_storage_reads_persisted_bytes_and_reports_missing_or_corrupt_files() {
         0
     );
     fs::write(&blob, [0]).unwrap();
-    assert!(store.retrieve_messages(-1).is_err());
+    let corrupt = store.retrieve_messages(-1).unwrap_err();
+    assert!(matches!(
+        corrupt.downcast_ref::<strand::util::StrandError>(),
+        Some(strand::util::StrandError::SerializationError(_))
+    ));
     fs::remove_file(&blob).unwrap();
     assert!(store
         .retrieve_messages(-1)

@@ -5586,7 +5586,7 @@
     lz-string "^1.5.0"
     pretty-format "^27.0.2"
 
-"@testing-library/dom@10.4.1", "@testing-library/dom@^10.4.1":
+"@testing-library/dom@10.4.1":
   version "10.4.1"
   resolved "https://registry.yarnpkg.com/@testing-library/dom/-/dom-10.4.1.tgz#d444f8a889e9a46e9a3b4f3b88e0fcb3efb6cf95"
   integrity sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==
@@ -17866,10 +17866,6 @@ sentence-case@^3.0.4:
 "sequent-core@file:./ballot-verifier/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
   resolved "file:./ballot-verifier/rust/sequent-core-0.1.0.tgz#2bad3d25c59ca320796d9705fd088f816f2b0c35"
-
-"sequent-core@file:./ui-core/rust/sequent-core-0.1.0.tgz":
-  version "0.1.0"
-  resolved "file:./ui-core/rust/sequent-core-0.1.0.tgz#2bad3d25c59ca320796d9705fd088f816f2b0c35"
 
 "sequent-core@file:./voting-portal/rust/sequent-core-0.1.0.tgz":
   version "0.1.0"
