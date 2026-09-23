@@ -12715,6 +12715,7 @@ dependencies = [
  "unicode-normalization",
  "uuid",
  "velvet",
+ "vsc",
  "walkdir",
  "wasmtime",
  "wasmtime-wasi",
