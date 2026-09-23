@@ -71,8 +71,9 @@ its measurement runs. Keep output outside both checkouts when comparing revision
 
 ## Compare revisions in CI or locally
 
-The **Package coverage** workflow measures the exact PR base and head, using each
-revision's own tests with matching instrumentation. Each metric must stay the
+The **Package coverage** workflow measures the exact PR base and the PR merged with
+that base, using each revision's own tests with matching instrumentation. Base
+changes a PR has not merged yet are therefore neither credited nor blamed to it. Each metric must stay the
 same or increase. Comparisons use exact fractions: a line increase cannot offset
 a function decrease, and rounded display percentages do not determine the result.
 
