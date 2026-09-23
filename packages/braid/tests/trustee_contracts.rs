@@ -97,3 +97,20 @@ fn modified_signatures_are_rejected_without_adding_statements() {
     assert_eq!(trustee.update_local_board(vec![(ack, 2)]).unwrap(), 1);
     assert_eq!(trustee.local_board.get_statement_entries().len(), 1);
 }
+
+#[test]
+fn a_step_without_new_messages_leaves_the_local_board_unchanged() {
+    // Parallel sessions sometimes step before any peer has posted again. That
+    // step must neither add statements nor move the local board cursor.
+    let (mut trustee, bootstrap, ack) = fixture();
+    assert_eq!(
+        trustee
+            .update_local_board(vec![(bootstrap, 1), (ack, 2)])
+            .unwrap(),
+        2
+    );
+    let result = trustee.step(&vec![]).unwrap();
+    assert_eq!(result.added_messages, 0);
+    assert_eq!(result.last_id, 2);
+    assert_eq!(trustee.local_board.get_statement_entries().len(), 1);
+}
