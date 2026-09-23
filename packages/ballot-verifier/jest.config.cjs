@@ -1,17 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
 // SPDX-License-Identifier: AGPL-3.0-only
+
+/** @type {import('jest').Config} */
 module.exports = {
+    testEnvironment: "jsdom",
+    testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
+    setupFiles: ["<rootDir>/src/test/polyfills.cjs"],
+    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     moduleNameMapper: {
         "^@sequentech/ui-core$": "<rootDir>/../ui-core/src/index.tsx",
         "^@sequentech/ui-essentials$": "<rootDir>/../ui-essentials/src/index.tsx",
+        "\\.(png|jpg|jpeg|gif|svg)$": "<rootDir>/src/test/fileMock.cjs",
+        "\\.(css|less|scss)$": "<rootDir>/src/test/styleMock.cjs",
     },
-    // This profile exercises service, store and provider contracts. Browser app
-    // routing is a separate scope; src/App.test.tsx is an obsolete CRA scaffold.
-    testMatch: [
-        "<rootDir>/src/services/**/*.test.ts",
-        "<rootDir>/src/store/**/*.test.ts",
-        "<rootDir>/src/providers/**/*.test.tsx",
-    ],
     collectCoverageFrom: [
         "src/**/*.{ts,tsx}",
         "!src/**/*.d.ts",
@@ -21,8 +23,6 @@ module.exports = {
     ],
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
-    testEnvironment: "node",
-    setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
     transform: {
         "^.+\\.[jt]sx?$": [
             "babel-jest",

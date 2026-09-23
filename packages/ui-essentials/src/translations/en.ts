@@ -114,7 +114,6 @@ const englishTranslation = {
             openDialog: "Open Dialog",
         },
         dragNDrop: {
-            importError: "Could not import this file. Please try again.",
             firstLine: "Drag & drop files or",
             browse: "Browse",
             format: "Supported format: txt",
