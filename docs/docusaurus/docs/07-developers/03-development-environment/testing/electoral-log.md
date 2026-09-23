@@ -17,9 +17,11 @@ cargo test -p electoral-log --locked
 
 For the complete profile, install [ImmuDB 1.9.6](https://github.com/codenotary/immudb/releases/tag/v1.9.6),
 the version used by this repository. Put `immudb` on PATH, or set
-`ELECTORAL_LOG_TEST_IMMUDB_BINARY` to the executable's absolute path. Then run:
+`ELECTORAL_LOG_TEST_IMMUDB_BINARY` to the executable's absolute path. From the
+repository root, run:
 
 ```bash
+cd packages
 cargo test -p electoral-log --features immudb-tests --locked
 cd ..
 python3 scripts/coverage/run.py electoral-log
