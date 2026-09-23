@@ -7,6 +7,7 @@ use crate::postgres::election_event::{get_election_event_by_id_if_exist, update_
 use crate::postgres::reports::insert_reports;
 use crate::postgres::reports::Report;
 use crate::postgres::trustee::get_all_trustees;
+use crate::services::ceremonies::auditable_ballots::AUDITABLE_BALLOTS_FILE;
 use crate::services::electoral_log::ElectoralLogAdminContext;
 use crate::services::import::import_publications::{
     import_ballot_publications, import_election_event_config_file,
@@ -1181,7 +1182,7 @@ pub async fn process_document(
 
     let may_write_secret_attributes = object.may_write_secret_attributes;
     let secret_write_initiator = object.secret_write_initiator.clone();
-    let (election_event_schema, replacement_map) = process_election_event_file(
+    let (election_event_schema, mut replacement_map) = process_election_event_file(
         hasura_transaction,
         &document_type,
         &file_election_event_schema,
@@ -1192,6 +1193,19 @@ pub async fn process_document(
     )
     .await
     .map_err(|err| anyhow!("Error processing election event file: {err}"))?;
+
+    // Audit snapshots are referenced by the tally CSV, not the event JSON.
+    for (name, _) in &zip_entries {
+        if name.starts_with(&format!("{}/", EDocuments::S3_FILES.to_file_name()))
+            && name.ends_with(&format!("_{AUDITABLE_BALLOTS_FILE}"))
+        {
+            if let Some(id) = extract_document_uuid(name).await? {
+                replacement_map
+                    .entry(id.to_string())
+                    .or_insert_with(|| Uuid::new_v4().to_string());
+            }
+        }
+    }
 
     // Zip file processing
     if document_type == "application/ezip" || matches_mime("zip", &document_type) {

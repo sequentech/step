@@ -8,6 +8,7 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
+use crate::services::ceremonies::auditable_ballots::save_auditable_ballots;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
@@ -293,6 +294,7 @@ pub async fn insert_ballots_messages(
                         ballots_output_index,
                         Some(ballots_channel_index),
                         multiplicity_source,
+                        Some(3), // cast-vote status
                     )?;
 
                     // Checked before anything is posted, so a run that would
@@ -385,9 +387,18 @@ pub async fn insert_ballots_messages(
                         None
                     };
 
+                    let auditable_ballots_document_id = save_auditable_ballots(
+                        &hasura_transaction_clone,
+                        &tally_session_contest,
+                        &merge_result.auditable_ballot_contents,
+                        contest_encryption_policy_clone.clone(),
+                    )
+                    .await?;
+
                     let annotations = TallySessionContestAnnotations {
                         elegible_voters: merge_result.eligible_voters,
                         ballots_without_voter: merge_result.ballots_without_voter,
+                        auditable_ballots_document_id,
                         casted_ballots: merge_result.casted_ballots,
                         votes_by_channel: Some(merge_result.casted_ballots_by_channel),
                         weight_bit_mask,
@@ -594,6 +605,7 @@ pub async fn insert_ballots_messages(
                         }
                     }
 
+                    hasura_transaction_clone.commit().await?;
                     Ok(updated_tally_session_contest)
                 })
             });

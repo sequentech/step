@@ -98,15 +98,14 @@ pub struct InProgressCastVote {
     pub voter_id: String,
 }
 
-#[instrument(skip(hasura_transaction), err)]
-pub async fn find_area_ballots(
-    hasura_transaction: &Transaction<'_>,
+// Keep the latest valid revote when one exists; otherwise retain the latest
+// discarded ballot for auditing. In-progress ballots must never enter either set.
+fn area_ballots_query(
     tenant_id: &str,
     election_event_id: &str,
     area_id: &str,
     election_id: &str,
-    output_file: &PathBuf,
-) -> Result<()> {
+) -> Result<String> {
     // COPY does not support parameters so we have to add them using format.
     // Validate as v4 UUIDs before interpolating into SQL.
     parse_uuid_v4(tenant_id)?;
@@ -117,6 +116,7 @@ pub async fn find_area_ballots(
     let election_event_id = escape_sql_literal(election_event_id);
     let area_id = escape_sql_literal(area_id);
     let election_id = escape_sql_literal(election_id);
+    let discarded_status = escape_sql_literal(&CastVoteStatus::Discarded.to_string());
     let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
     let default_channel = escape_sql_literal(&VotingStatusChannel::ONLINE.to_string());
     let areas_statement = format!(
@@ -124,21 +124,37 @@ pub async fn find_area_ballots(
                     SELECT DISTINCT ON (election_id, voter_id_string)
                         voter_id_string,
                         content,
-                        COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel
+                        COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel,
+                        status
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
                         election_event_id = '{election_event_id}' AND
                         area_id = '{area_id}' AND
                         election_id = '{election_id}' AND
-                        status = '{status}'
+                        status IN ('{status}', '{discarded_status}')
                     ORDER BY
                         election_id,
                         voter_id_string,
+                        (status = '{status}') DESC,
                         created_at DESC NULLS LAST,
                         id DESC
                 "#
     );
+
+    Ok(areas_statement)
+}
+
+#[instrument(skip(hasura_transaction), err)]
+pub async fn find_area_ballots(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    area_id: &str,
+    election_id: &str,
+    output_file: &PathBuf,
+) -> Result<()> {
+    let areas_statement = area_ballots_query(tenant_id, election_event_id, area_id, election_id)?;
 
     let tokio_temp_file = File::create(output_file)
         .await
@@ -1035,6 +1051,71 @@ mod tests {
         rows.into_iter()
             .map(|row| ((row.day, row.channel), row.day_count))
             .collect()
+    }
+
+    #[tokio::test]
+    #[ignore = "requires PostgreSQL configured through HASURA_DB__*"]
+    async fn audit_extraction_keeps_latest_valid_or_discarded_ballot_in_scope() -> Result<()> {
+        let pool = generate_hasura_pool().await?;
+        let mut client = pool.get().await?;
+        let transaction = client.transaction().await?;
+        transaction.batch_execute(r#"
+            CREATE TEMP TABLE audit_ballots_test (
+                id UUID, tenant_id UUID, election_event_id UUID, election_id UUID,
+                area_id UUID, voter_id_string TEXT, content TEXT, annotations JSONB,
+                status TEXT, created_at TIMESTAMPTZ
+            );
+            INSERT INTO audit_ballots_test
+            SELECT ('10000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+                '10000000-0000-4000-8000-000000000001',
+                '10000000-0000-4000-8000-000000000002',
+                '10000000-0000-4000-8000-000000000003',
+                '10000000-0000-4000-8000-000000000004',
+                voter, content, '{}', status, '2026-09-01'::timestamptz + n * interval '1 second'
+            FROM (VALUES
+                (10, 'A', 'old discarded', 'discarded'),
+                (11, 'A', 'latest discarded', 'discarded'),
+                (12, 'B', 'old valid', 'valid'),
+                (13, 'B', 'latest valid', 'valid'),
+                (14, 'B', 'newer rejected revote', 'discarded'),
+                (15, 'C', 'unresolved', 'in-progress'),
+                (16, 'D', 'other tenant', 'discarded'),
+                (17, 'E', 'other event', 'discarded'),
+                (18, 'F', 'other election', 'discarded'),
+                (19, 'G', 'other area', 'discarded')
+            ) AS ballots(n, voter, content, status);
+            UPDATE audit_ballots_test SET tenant_id = '20000000-0000-4000-8000-000000000001' WHERE voter_id_string = 'D';
+            UPDATE audit_ballots_test SET election_event_id = '20000000-0000-4000-8000-000000000002' WHERE voter_id_string = 'E';
+            UPDATE audit_ballots_test SET election_id = '20000000-0000-4000-8000-000000000003' WHERE voter_id_string = 'F';
+            UPDATE audit_ballots_test SET area_id = '20000000-0000-4000-8000-000000000004' WHERE voter_id_string = 'G';
+        "#).await?;
+        let query = area_ballots_query(
+            TENANT_ID,
+            ELECTION_EVENT_ID,
+            "10000000-0000-4000-8000-000000000004",
+            ELECTION_ID,
+        )?
+        .replace("\"sequent_backend\".cast_vote", "audit_ballots_test");
+        let rows = transaction.query(&query, &[]).await?;
+        let actual: Vec<(String, String, String)> = rows
+            .into_iter()
+            .map(|row| {
+                (
+                    row.get("voter_id_string"),
+                    row.get("content"),
+                    row.get("status"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            actual,
+            vec![
+                ("A".into(), "latest discarded".into(), "discarded".into()),
+                ("B".into(), "latest valid".into(), "valid".into()),
+            ]
+        );
+        transaction.rollback().await?;
+        Ok(())
     }
 
     #[test]

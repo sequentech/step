@@ -20,6 +20,7 @@ use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
 use crate::postgres::template::get_template_by_alias;
 use crate::services::cast_votes::{count_cast_votes_election, ElectionCastVotes};
 use crate::services::celery_app::get_celery_app;
+use crate::services::ceremonies::auditable_ballots::export_auditable_ballots;
 use crate::services::ceremonies::insert_ballots::{
     get_elections_end_dates, insert_ballots_messages,
 };
@@ -1361,6 +1362,12 @@ pub async fn execute_tally_session_wrapped(
 
     // base temp folder
     let base_tempdir = tempdir()?;
+    export_auditable_ballots(
+        hasura_transaction,
+        base_tempdir.path(),
+        &tally_session_contests,
+    )
+    .await?;
 
     let areas: Vec<Area> =
         get_event_areas(hasura_transaction, &tenant_id, &election_event_id).await?;
