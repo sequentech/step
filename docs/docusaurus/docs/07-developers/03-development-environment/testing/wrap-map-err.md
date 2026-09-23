@@ -6,7 +6,7 @@ title: Error conversion macro tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Test file paths in this guide are relative to [`packages/wrap-map-err/tests/`](https://github.com/sequentech/step/blob/feat/meta-13302-ui-essentials-coverage/main/packages/wrap-map-err/tests). Commands state their working directory.
+Test file paths in this guide are relative to [`packages/wrap-map-err/tests/`](https://github.com/sequentech/step/blob/main/packages/wrap-map-err/tests). Commands state their working directory.
 
 `behavior.rs` compiles functions through the public attribute macro and calls
 them. These controls check actual generated Rust: default-error Result aliases,
