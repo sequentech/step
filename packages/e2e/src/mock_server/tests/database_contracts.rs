@@ -89,9 +89,17 @@ async fn csv_mapping_and_http_results_preserve_the_selected_synthetic_identity()
         .into_json()
         .await
         .unwrap();
+    // Keycloak's Inetum flow also reads the MRZ copy, the document type and
+    // both scores, so compare the whole deterministic response.
     assert_eq!(
-        result["response"]["ocr"],
-        serde_json::json!({"issuing_state_code":"PHL", "given_names":"Ada", "middle_name":"M", "surname":"Lovelace", "personal_number":"SYN-17", "date_of_birth":"29/02/2000"})
+        result,
+        serde_json::json!({"code":0, "response":{
+            "docVerification":{"documentIdentification":[{"type":"Identity Card"}]},
+            "ocr":{"issuing_state_code":"PHL", "given_names":"Ada", "middle_name":"M", "surname":"Lovelace", "personal_number":"SYN-17", "date_of_birth":"29/02/2000"},
+            "mrz":{"issuing_state_code":"PHL", "given_names":"Ada", "surname":"Lovelace", "personal_number":"SYN-17", "document_number":"SYN-17", "date_of_birth":"29/02/2000"},
+            "resultData":{"scoreDocumental":75, "scoreFacial":80, "scoreValCamposCriticos":60},
+            "idStatus":"verificationOK"
+        }})
     );
     let absent = client.get("/results?country=missing").dispatch().await;
     assert_eq!(absent.status(), rocket::http::Status::InternalServerError);
