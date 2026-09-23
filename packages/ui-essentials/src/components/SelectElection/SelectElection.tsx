@@ -40,14 +40,6 @@ const BorderBox = styled(Box)<{isopen: string; isactive: string}>`
             }
         `
             : ""}
-    ${({isactive}) =>
-        "true" === isactive
-            ? `
-            &:hover {
-                cursor: pointer;
-            }
-        `
-            : ""}
     @media (max-width: ${({theme}) => theme.breakpoints.values.md}px) {
         position: relative;
         flex-direction: column;
@@ -279,22 +271,21 @@ const SelectElection: React.FC<SelectElectionProps> = ({
     const closeDate = hasDate(endVotingDate) && formatElectionDate(endVotingDate)
     const timeLeft = useSelectElectionCountdown({date: startVotingDate ?? ""})
 
-    const handleClickToVote: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
-        event
-    ) => {
-        event.stopPropagation()
-
+    const handleClickToVote: React.MouseEventHandler<HTMLButtonElement> = () => {
         if (!isUndefined(onClickToVote)) {
             onClickToVote()
         }
     }
 
-    const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement | HTMLDivElement> = (
-        event
-    ) => {
-        event.stopPropagation()
+    const handleClickBallotLocator: React.MouseEventHandler<HTMLButtonElement> = () => {
         if (!isUndefined(onClickBallotLocator)) {
             onClickBallotLocator()
+        }
+    }
+
+    const handleClickCard: React.MouseEventHandler<HTMLDivElement> = (event) => {
+        if (isOpen && !(event.target as Element).closest("a, button")) {
+            onClickToVote?.()
         }
     }
 
@@ -308,7 +299,8 @@ const SelectElection: React.FC<SelectElectionProps> = ({
         // <ul>, so the semantics need to be explicit.
         <Box className="election-list-item" role="listitem">
             <BorderBox
-                onClick={handleClickToVote}
+                onClick={handleClickCard}
+                sx={{cursor: isOpen && onClickToVote ? "pointer" : undefined}}
                 isopen={String(!!isOpen)}
                 isactive={String(!!isActive)}
                 className={className ? `election-item ${className}` : "election-item"}
@@ -428,7 +420,6 @@ const SelectElection: React.FC<SelectElectionProps> = ({
                             href={resultsUrl}
                             target="_blank"
                             rel="noreferrer"
-                            onClick={(event) => event.stopPropagation()}
                         >
                             {t("selectElection.resultsButton")}
                         </Button>

@@ -90,3 +90,4 @@ Each trustee follows this procedure to download, backup, and verify their key. O
 8. **Completion**
    - Once all trustees have downloaded, backed up, and verified their keys, the Key Ceremony is successfully completed.
    - The Election Event status will update to indicate that keys have been distributed and verified.
+   - A participating trustee can reopen the ceremony and select **Verify key** to check an existing backup again. This remains available after the ceremony completes and does not generate or download a new key.
