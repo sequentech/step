@@ -64,6 +64,14 @@ macro_rules! backend {
                 );
                 let minus_one =
                     ctx.exp_sub_mod(&ctx.exp_from_u64(2), &ctx.exp_from_u64(3));
+                // The wire format carries only the magnitude, so a negative
+                // representative of q - 1 would come back as 1.
+                assert_eq!(
+                    X::strand_deserialize(&minus_one.strand_serialize().unwrap())
+                        .unwrap(),
+                    minus_one,
+                    "exp_sub_mod must return the canonical residue q - 1"
+                );
                 assert_eq!(
                     minus_one.add(&ctx.exp_from_u64(1)).modq(&ctx),
                     ctx.exp_from_u64(0)
