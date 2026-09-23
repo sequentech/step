@@ -9,12 +9,14 @@ export const MANAGE_ELECTION_DATES = gql`
         $electionId: String
         $scheduledDate: String
         $eventProcessor: String!
+        $votingChannels: [VotingStatusChannel!]
     ) {
         manage_election_dates(
             election_event_id: $electionEventId
             election_id: $electionId
             scheduled_date: $scheduledDate
             event_processor: $eventProcessor
+            voting_channels: $votingChannels
         ) {
             error_msg
         }
