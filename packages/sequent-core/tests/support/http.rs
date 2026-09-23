@@ -104,6 +104,9 @@ impl HttpServer {
             while !peer_stop.load(Ordering::Relaxed) {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted sockets inherit the listener's nonblocking
+                        // mode on macOS and the BSDs; the timeouts need blocking.
+                        stream.set_nonblocking(false).unwrap();
                         // A broken client must fail quickly, never hang the suite.
                         stream
                             .set_read_timeout(Some(Duration::from_secs(3)))
