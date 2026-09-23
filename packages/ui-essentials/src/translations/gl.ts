@@ -116,7 +116,6 @@ const galegoTranslation = {
             openDialog: "Abrir Diálogo",
         },
         dragNDrop: {
-            importError: "Non se puido importar este ficheiro. Téntao de novo.",
             firstLine: "Arrastrar e soltar ficheiros ou",
             browse: "Buscar",
             format: "Formato soportado: txt",

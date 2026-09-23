@@ -31,7 +31,11 @@ const StyledInput = styled("input")`
 const StyledLabel = styled("button", {
     shouldForwardProp: (prop) => prop !== "dragActive",
 })<{dragActive: boolean}>`
+    width: 100%;
     height: 100%;
+    padding: 0;
+    font: inherit;
+    color: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
