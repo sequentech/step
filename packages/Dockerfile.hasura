@@ -19,5 +19,13 @@
 ARG HASURA_VERSION=v2.33.1
 FROM hasura/graphql-engine:${HASURA_VERSION}.cli-migrations-v3
 
-COPY migrations /hasura-migrations
-COPY metadata /hasura-metadata
+# Upstream image includes user/group hasura (UID/GID 1001). Prefer non-root
+# for the long-running server (Hasura container security guidance).
+# cli-migrations entrypoint stages under /tmp and uses /.hasura — ensure
+# those paths are writable by hasura before dropping privileges.
+COPY --chown=hasura:hasura migrations /hasura-migrations
+COPY --chown=hasura:hasura metadata /hasura-metadata
+RUN mkdir -p /.hasura /tmp/hasura-project \
+    && chown -R hasura:hasura /.hasura /tmp \
+    && chmod -R g=u /.hasura /tmp
+USER hasura
