@@ -37,6 +37,9 @@ macro_rules! backend {
             type E = <C as Ctx>::E;
             type X = <C as Ctx>::X;
             type P = <C as Ctx>::P;
+            // Proof labels bind a key proof to one election.
+            const ELECTION_A: &[u8] = b"election-a";
+            const ELECTION_B: &[u8] = b"election-b";
 
             #[test]
             fn known_integers_pin_wire_order_and_arithmetic() {
@@ -207,7 +210,7 @@ macro_rules! backend {
             fn restored_proofs_bind_the_label_and_public_key() {
                 let ctx = C::default();
                 let sk = PrivateKey::from(&ctx.exp_from_u64(7), &ctx);
-                let (pk, proof) = sk.get_pk_and_proof(b"election-a").unwrap();
+                let (pk, proof) = sk.get_pk_and_proof(ELECTION_A).unwrap();
                 let proof = strand::zkp::Schnorr::<C>::strand_deserialize(
                     &proof.strand_serialize().unwrap(),
                 )
@@ -217,19 +220,19 @@ macro_rules! backend {
                     pk.element(),
                     None,
                     &proof,
-                    b"election-a"
+                    ELECTION_A
                 ));
                 assert!(!verifier.schnorr_verify(
                     pk.element(),
                     None,
                     &proof,
-                    b"election-b"
+                    ELECTION_B
                 ));
                 assert!(!verifier.schnorr_verify(
                     &ctx.gmod_pow(&ctx.exp_from_u64(8)),
                     None,
                     &proof,
-                    b"election-a"
+                    ELECTION_A
                 ));
                 let four = E::strand_deserialize(&[1, 0, 0, 0, 4]).unwrap();
                 let ciphertext =

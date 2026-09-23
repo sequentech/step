@@ -4,6 +4,10 @@
 #[path = "support/postgres.rs"]
 mod postgres;
 
+// Two boards isolate reads and deletes; every fixture uses these names.
+const BOARD: &str = "poll";
+const OTHER_BOARD: &str = "other";
+
 #[cfg(feature = "client")]
 #[tokio::test]
 async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
@@ -12,9 +16,9 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
     let connection = server.parameters();
     let mut client = PgsqlB3Client::new(&connection).await.unwrap();
     client.create_index_ine().await.unwrap();
-    client.create_board_ine("poll").await.unwrap();
-    client.create_board_ine("poll").await.unwrap();
-    client.create_board_ine("other").await.unwrap();
+    client.create_board_ine(BOARD).await.unwrap();
+    client.create_board_ine(BOARD).await.unwrap();
+    client.create_board_ine(OTHER_BOARD).await.unwrap();
     assert!(client
         .create_board_ine("poll; DROP TABLE boards")
         .await
@@ -73,8 +77,8 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
     }
 
     assert!(client.delete_board("poll, other").await.is_err());
-    assert_eq!(client.get_message_count("poll").await.unwrap(), 0);
-    assert_eq!(client.get_message_count("other").await.unwrap(), 0);
+    assert_eq!(client.get_message_count(BOARD).await.unwrap(), 0);
+    assert_eq!(client.get_message_count(OTHER_BOARD).await.unwrap(), 0);
 
     let row = B3MessageRow {
         id: 0,
@@ -95,17 +99,21 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
             .to_string(),
         "Invalid board SQL identifier"
     );
-    client.insert_messages("poll", &vec![row]).await.unwrap();
-    let messages = client.get_messages("poll", 0).await.unwrap();
+    client.insert_messages(BOARD, &vec![row]).await.unwrap();
+    let messages = client.get_messages(BOARD, 0).await.unwrap();
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].created, 123);
     assert_eq!(messages[0].statement_timestamp, 124);
     assert_eq!(messages[0].message, [0, 255, 16]);
     assert_eq!(messages[0].batch, 7);
-    assert_eq!(client.get_message_count("poll").await.unwrap(), 1);
-    assert!(client.get_messages("other", 0).await.unwrap().is_empty());
+    assert_eq!(client.get_message_count(BOARD).await.unwrap(), 1);
     assert!(client
-        .get_messages("poll", messages[0].id)
+        .get_messages(OTHER_BOARD, 0)
+        .await
+        .unwrap()
+        .is_empty());
+    assert!(client
+        .get_messages(BOARD, messages[0].id)
         .await
         .unwrap()
         .is_empty());
@@ -113,11 +121,11 @@ async fn postgres_client_creates_reads_and_deletes_only_its_named_board() {
     let mut next = messages[0].clone();
     next.batch = 8;
     assert!(client
-        .insert_messages("poll", &vec![next, messages[0].clone()])
+        .insert_messages(BOARD, &vec![next, messages[0].clone()])
         .await
         .is_err());
-    assert_eq!(client.get_message_count("poll").await.unwrap(), 1);
-    client.delete_board("poll").await.unwrap();
-    assert!(client.get_board("poll").await.unwrap().is_none());
-    assert!(client.get_board("other").await.unwrap().is_some());
+    assert_eq!(client.get_message_count(BOARD).await.unwrap(), 1);
+    client.delete_board(BOARD).await.unwrap();
+    assert!(client.get_board(BOARD).await.unwrap().is_none());
+    assert!(client.get_board(OTHER_BOARD).await.unwrap().is_some());
 }
