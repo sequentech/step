@@ -54,12 +54,19 @@ export const TallyCeremonyTrustees: React.FC = () => {
     const {globalSettings} = useContext(SettingsContext)
     const [isTallyCompleted, setIsTallyCompleted] = useState<boolean>(false)
 
+    // The execution status decides whether the key upload step is offered, so
+    // the session is polled while the ceremony is open. Otherwise a trustee
+    // who is still waiting keeps the upload step after the tally moves past
+    // key collection, and the backend rejects the key they upload there.
     const {data: tally, isPending: isTallyPending} = useGetOne<Sequent_Backend_Tally_Session>(
         "sequent_backend_tally_session",
         {
             id: tallyId,
         },
         {
+            refetchInterval: isTallyCompleted
+                ? undefined
+                : globalSettings.QUERY_FAST_POLL_INTERVAL_MS,
             refetchOnWindowFocus: false,
             refetchOnReconnect: false,
             refetchOnMount: false,
