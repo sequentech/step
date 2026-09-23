@@ -145,8 +145,11 @@ the **snapshot grid** itself (`CELLS × REPS`, default the five cells × 3);
 with `GUIDANCE=1` also the criterion guidance benches straight from cargo
 (skipping any the packaged commit lacks); with a baseline, the **before/after**
 (grid `DIFF_CELLS`, default `10000:2 100000:2`, `DIFF_REPS` 3; a baseline that
-predates `examples/targets.rs` gets the tip's copy, which builds against the
-fork-point API by design). The remote script owns every grid loop rather than
+predates `examples/targets.rs` gets the tip's copy, which must build against
+that baseline's API — the tip's `targets.rs` measures production form, so it
+follows the API forward: since `009b443add` it needs `strip_all`, and a
+baseline older than that is compared through a tip that still built against
+it, e.g. the recorded `185dbbede2` vs `657cb05c20`). The remote script owns every grid loop rather than
 calling the packaged commit's `bench.sh`, so the knobs work for any commit;
 `bench.sh`/`bench.ps1` remain the local tools. It uploads
 `snapshot-<sha>.csv`, `differential-<base>-vs-<sha>.csv`, `guidance-<sha>.txt`,

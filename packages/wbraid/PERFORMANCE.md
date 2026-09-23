@@ -29,28 +29,47 @@ optimization work) → merged milestone `185dbbede2`, N = 10⁵:
 | ④ combine | 45.9 s → 1.99 s | **23×** | 114.8 s → 4.94 s | **23×** |
 | ⑤ Naor-Yung verify-and-strip | 3.64 s → 3.70 s | flat | 8.82 s → 8.87 s | flat |
 
-Where the milestone stands, same machine (median of 3, ms):
+**Follow-up, 2026-09-23** — milestone `185dbbede2` → `009b443add` (batched
+Naor-Yung verification), same machine and method, N = 10⁵:
+
+| Target | W = 2: before → after | | W = 5: before → after | |
+|---|---|---|---|---|
+| ⑤ Naor-Yung verify-and-strip | 3.74 s → 1.00 s | **3.8×** | 8.96 s → 2.26 s | **4.0×** |
+| ①–④ (controls) | unchanged within 0.5% | | unchanged within 0.5% | |
+
+Strip is paid once per tally, in the first mix, by its producer and by everyone
+who checks it, so its weight is read against those totals (same session, same
+reps):
+
+| First mix, N = 10⁵ | W = 2 | | W = 5 | |
+|---|---|---|---|---|
+| as verified: strip + shuffle verify | 6.01 s → 3.27 s | **1.84×**; strip 62% → 30% | 12.61 s → 5.89 s | **2.14×**; strip 71% → 38% |
+| as produced: strip + shuffle prove | 8.76 s → 6.01 s | **1.46×**; strip 43% → 17% | 17.96 s → 11.22 s | **1.60×**; strip 50% → 20% |
+
+Where the tip (`009b443add`) stands, same machine (median of 3, ms):
 
 | N : W | prove | verify | partial_decrypt | combine | ny_strip |
 |---|---|---|---|---|---|
-| 10³ : 2 | 62 | 38 | 17 | 36 | 39 |
-| 10⁴ : 2 | 490 | 249 | 128 | 228 | 368 |
-| 10⁴ : 5 | 887 | 414 | 322 | 563 | 892 |
-| 10⁵ : 2 | 4 919 | 2 234 | 1 194 | 1 989 | 3 718 |
-| 10⁵ : 5 | 8 811 | 3 563 | 2 970 | 4 923 | 8 842 |
+| 10³ : 2 | 61 | 39 | 18 | 37 | 14 |
+| 10⁴ : 2 | 503 | 256 | 131 | 231 | 104 |
+| 10⁴ : 5 | 892 | 419 | 323 | 565 | 229 |
+| 10⁵ : 2 | 5 009 | 2 265 | 1 208 | 2 016 | 988 |
+| 10⁵ : 5 | 8 957 | 3 616 | 3 008 | 4 989 | 2 258 |
 
 Resolution: reps agree within ~1%, and the same binary run standalone vs
-interleaved agrees within 0.6% — differences below that are noise. Raw files:
-`bench-results/ec2-20260922-012110-185dbbede2/` (`SUMMARY.md`, differential
-CSV, full grid, `machine.txt`).
+interleaved agrees within 0.6–0.7% — differences below that are noise. Raw
+files: `bench-results/ec2-20260922-012110-185dbbede2/` (fork → milestone) and
+`bench-results/ec2-20260923-155859-009b443add/` (milestone → tip), each with
+`SUMMARY.md`, the differential CSV, the full grid and `machine.txt`.
 
 Reading it: the **decryption path is the headline** (~13× and ~23×) — it had
 the most headroom and every technique below applies to it; the **shuffle**
 gains more on verify than prove because the verifier may use variable-time
 multi-exponentiation and batch V2 while the prover's remaining cost is
-constant-time by necessity; and **⑤ is flat because nothing below touches
-vsc's `NYStrip` crypto** (only braid's loop around it was parallelized). On
-this machine ⑤ is now the slowest target at both widths — the next lever.
+constant-time by necessity; and **⑤ was flat at the milestone because nothing
+had touched vsc's `NYStrip` crypto** (only braid's loop around it was
+parallelized) — the follow-up batched it, and ⑤ went from the slowest target
+at both widths to the fastest at 10⁵.
 
 ## Design, as implemented
 
@@ -63,15 +82,16 @@ verify-and-strip** (`vsc::cryptosystem::naoryung`, driven by
 | technique | shuffle prover | shuffle verifier | partial_decrypt | combine | NY strip |
 |---|---|---|---|---|---|
 | chunked constant-time MSM (secret scalars) | A′, F′ | | | | |
-| chunked variable-time MSM (public data) | | A, F, V1, V5, V2 | a, b | a, b; Lagrange F_j | |
+| chunked variable-time MSM (public data) | | A, F, V1, V5, V2 | a, b | a, b; Lagrange F_j | the batched PlEq check (size 4WN) |
 | fixed-base batch (`exp_many`) | bridging B_i, B′ | | | | |
 | closed-form bridging chain | ✓ | | | | |
-| small-exponent batching of V2 | | ✓ | | | |
+| small-exponent batching (verifier-local weights) | | V2 | | | all N well-formedness proofs |
 | parallel transcript serialization (`par_ser`) | seed | seed | seed | seed (×T) | |
-| rayon per-element loops | e_n, generators | generators | factors u^{xᵢ} | per ciphertext | braid's loop only |
+| rayon per-element loops | e_n, generators | generators | factors u^{xᵢ} | per ciphertext | challenges vᵢ, strip |
 
 Read the columns and the Status table follows: `combine` and `partial_decrypt`
-collect the most entries; the strip column is empty below braid's loop.
+collect the most entries; the strip column was filled last (the batched check
+of `009b443add`), which is why ⑤ was flat at the milestone.
 
 ### Chunked multi-exponentiation, constant-time and variable-time
 
@@ -142,24 +162,53 @@ Bit-identity with the recurrence is pinned by `test_bridging_closed_form_*`
 (N ∈ {1,2,5,10,65}) and by V2/V4, which uniquely determine `B`/`B′` given the
 rest, so a passing roundtrip implies byte-identical commitments.
 
-### Batched Verification 2
+### Small-exponent batching: V2 and the ballot proofs
 
-The `N` per-index checks `Bᵢ^v·B′ᵢ = g^{k_Bᵢ}·B_{i−1}^{k_Eᵢ}` (with `B₀ = h₁`)
-collapse to one random-weighted check (Bellare–Garay–Rabin small-exponent
-batching), evaluated as two variable-time multi-exps of sizes 2N and N:
+Two sites check `N` independent equations over public data with the same
+fixed bases, and both collapse to one random-weighted check
+(Bellare–Garay–Rabin small-exponent batching) whose weights are the
+**verifier's own randomness, drawn after the proofs are fixed** — never
+hashed, never in a transcript, so nothing the prover sees changes.
+
+**Shuffle V2.** The `N` per-index checks `Bᵢ^v·B′ᵢ = g^{k_Bᵢ}·B_{i−1}^{k_Eᵢ}`
+(with `B₀ = h₁`) become two variable-time multi-exps of sizes 2N and N:
 
 ```
 ∏ Bᵢ^{v·tᵢ} · ∏ B′ᵢ^{tᵢ} == g^{Σ tᵢ·k_Bᵢ} · ∏ B_{i−1}^{tᵢ·k_Eᵢ}
 ```
 
-The `tᵢ` are the **verifier's own randomness, drawn after the proof is
-fixed** — not transcript values — so there is no prover coordination, no
-change to `ShuffleChallenges`, and Verificatum interop is untouched. A proof
-with any failing instance passes with probability exactly 1/q; PROTOCOL.md
-§6.4 states the batched form as a permitted check with that bound, keeping the
-per-index equations normative (PROTOCOL-alignment.md D7).
+No prover coordination, no change to `ShuffleChallenges`, Verificatum interop
+untouched. A proof with any failing instance passes with probability exactly
+1/q; PROTOCOL.md §6.4 states the batched form as a permitted check with that
+bound, keeping the per-index equations normative (PROTOCOL-alignment.md D7).
 `test_shuffle_batched_v2_rejects_*` tampers `k_B`, which appears only in V2 and
 does not feed the challenge, isolating the batch.
+
+**Naor-Yung well-formedness** (`PlEqProof::verify_batch`, reached through
+`naoryung::PublicKey::strip_all`). Each ballot's PlEq proof states, per
+component `w`, `g^{k} = A_g·u_b^{v}` and `z^{k} = A_z·u_a^{v}` with its own
+challenge `vᵢ`; per item that is `4W` exponentiations. With independent
+weights `t`, `s` per `(i, w)` the `2WN` equations become one check:
+
+```
+g^{Σ t·k} · z^{Σ s·k} == ∏ A_g^{t} · ∏ u_b^{t·vᵢ} · ∏ A_z^{s} · ∏ u_a^{s·vᵢ}
+```
+
+— two fixed-base exponentiations and **one variable-time multi-exp of size
+4WN**, so the exponentiation cost of the whole list is one MSM. What is
+hashed does not change: every `vᵢ` is recomputed by the same
+`challenge_input`/`hash_to_scalar` as the per-item `verify`, over the same
+inputs and tags, and these `N` hashes (in parallel) are the floor the target
+cannot go below. On rejection the failing ballots are attributed by per-item
+verification; a batch that rejects while every proof verifies individually
+cannot happen for correct arithmetic and fails closed
+(`Error::BatchVerificationInconsistent`). PROTOCOL.md §3.5 states the form
+as permitted with its 1/q bound, `PlEqVerify` normative, referenced from §5.5
+and §9.2 step 3 (PROTOCOL-alignment.md D8). Tests: batch == per-item
+acceptance across sizes and widths; a tampered response, a swapped pair of
+proofs and a foreign context attributed to exactly the per-item failures;
+`strip_all` equals per-item `strip`; braid halts the tally on a tampered
+ballot as before.
 
 ### Parallel transcript serialization
 
@@ -183,7 +232,8 @@ the raw ratio (a 5× speedup on a 10 ms loop is noise on a multi-second
 operation). Parallel: every per-element point exponentiation or hash — the
 MSM sites, `partial_decrypt`'s factors, `batching_exponents`, `combine`'s
 per-ciphertext combination, `ind_generators` (both curves), the shuffle's
-`e_n` derivation, and braid's first-mix Naor-Yung verify-and-strip loop.
+`e_n` derivation, and the Naor-Yung batch's challenge hashes and strip
+(`strip_all`; braid's own loop around per-item `strip` is gone).
 Serial: the scalar loops (`b_n`, `β`/`ε`, `a`, `k_b_n`, `k_e_n`, `e_n_fold`)
 and the point-product folds (`u_n_fold`, `h_n_fold`) — each under 0.1% of
 prove/verify, so serial is simpler at no measurable cost. Parallelism lives in
@@ -206,28 +256,24 @@ datalog is not a parallelism site; `rayon` is a non-optional dependency of
 
 In priority order; nothing here is done.
 
-1. **Naor-Yung verify-and-strip batching.** N independent PlEq verifications of
-   public data — the same shape V2 had before batching, and the same
-   variable-time opportunity. Now the slowest target on the reference machine
-   (3.7 s vs verify's 2.2 s at 10⁵/W2; 8.9 s at W5).
-2. **Prover fixed-base batches.** `apply_permutation`'s `uᵢ = g^{rᵢ}·hᵢ` and
+1. **Prover fixed-base batches.** `apply_permutation`'s `uᵢ = g^{rᵢ}·hᵢ` and
    the re-encryption `(g^s, y^s)` legs still use per-element `exp`/`repl_exp`;
    `exp_many` applies (constant-time). Prove is the least-improved target.
-3. **Parallel deserialization** — the other half of SERIALIZATION.md §10, on
+2. **Parallel deserialization** — the other half of SERIALIZATION.md §10, on
    `FixedWidth`'s computable boundaries. A colder site (message loading, not
    the transcript) and safety-sensitive: only if a profile of the loading path
    warrants it.
-4. **`jemalloc`** is available behind a `braid` feature as a higher-performance
+3. **`jemalloc`** is available behind a `braid` feature as a higher-performance
    allocator and profiling aid; not wired into the runtime.
-5. **Marked unoptimized paths.** `--features custom-warnings` surfaces the
+4. **Marked unoptimized paths.** `--features custom-warnings` surfaces the
    `#[crate::warning("…")]` annotations on known-unoptimized code as compiler
    warnings — the in-code map of what is left.
-6. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
+5. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
    ≥ 70% of verifier wall-clock at the deployment's real N *and* a latency
    requirement CPU scaling cannot meet exists. On the reference machine at
    10⁵/W2 the verifier's ~dozen MSM-equivalents (~48 ms each) are ~0.6 s of
-   2.2 s — a quarter to a third — so even a free GPU MSM buys ≤ ~1.4× on verify
-   while lever 1 is larger and CPU-side. If it is ever revisited: Anza's
+   2.2 s — a quarter to a third — so even a free GPU MSM buys ≤ ~1.4× on
+   verify. If it is ever revisited: Anza's
    `curve25519-cuda` (sppark-based, in `anza-xyz/cryptography`) is the one
    candidate for this curve — variable-time, GPU→CPU fallback — but unpublished
    and unaudited as of 2026-09; the posture would be GPU on the verifier only,
@@ -260,7 +306,7 @@ Three layers:
 | `benches/msm_strategy.rs` | guidance | naive-parallel vs single/chunked dalek MSM, constant-time and variable-time; selects the override shape |
 | `benches/parallel_tradeoff.rs` | guidance | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
 | `benches/shuffle.rs` | guidance | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
-| `examples/targets.rs` | snapshot | one `(N, W)` cell of the five targets in production form — shuffle prove and verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — as a CSV line; uses only fork-point public APIs, so it builds against any commit in the comparable range for a before/after; T = 3, P = 5 |
+| `examples/targets.rs` | snapshot | one `(N, W)` cell of the five targets in production form — shuffle prove and verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — as a CSV line, in production form — so it uses `strip_all` and builds against commits at or after `009b443add`; the fork-point differential is on record from `185dbbede2` (whose `targets.rs` built against the fork-point API), and older baselines chain through it; T = 3, P = 5 |
 | `bench.ps1` / `bench.sh` | local | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on) and the whole grid (`CELLS`, `REPS`) to a timestamped `bench-results/` file |
 | `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops, so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
 
@@ -336,3 +382,14 @@ things stand.
   renderer (`c58e9eb5d1`, `2dfa570a20`); the remote script made to own its
   grids after the milestone's packaged `bench.sh` ignored `GUIDANCE`
   (`762fe5d24f`).
+- **Naor-Yung batching** (`009b443add`, 2026-09-23). `PlEqProof::verify_batch`
+  behind `naoryung::PublicKey::strip_all`: the first mix's N well-formedness
+  proofs checked as one random linear combination with verifier-local weights
+  (exactly 1/q), nothing hashed changed; landed in braid's
+  `mix_input_ciphertexts`; PROTOCOL.md §3.5 permission note, alignment D8.
+  Reference machine, interleaved vs the milestone
+  (`ec2-20260923-155859-009b443add`, 13 min): strip 3.8× at W2, 4.0× at W5,
+  the other four targets unchanged within 0.5%; first-mix verification
+  (strip + verify) 1.8×/2.1×, production (strip + prove) 1.5×/1.6× — the
+  Status tables. `targets.rs` follows production form and needs `strip_all`
+  from this commit on (Tooling and method).
