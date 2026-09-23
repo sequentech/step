@@ -7,6 +7,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
+use tracing::error;
 use windmill::services::results_publication::{
     configure_results_website_policy_request, fetch_results_artifact_request,
     refresh_results_publication_index_request,
@@ -33,7 +34,9 @@ fn map_service_error(
         ResultsPublicationServiceError::Forbidden(_) => Status::Forbidden,
         ResultsPublicationServiceError::NotFound(_) => Status::NotFound,
         ResultsPublicationServiceError::Conflict(_) => Status::Conflict,
-        ResultsPublicationServiceError::Internal(_) => {
+        ResultsPublicationServiceError::Internal(internal) => {
+            // Clients get a generic message; keep the cause for operators.
+            error!("Results publication failed: {internal:#}");
             return (
                 Status::InternalServerError,
                 "Internal server error".into(),
