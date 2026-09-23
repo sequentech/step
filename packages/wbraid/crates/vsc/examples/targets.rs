@@ -157,10 +157,7 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
         })
         .collect();
     let start = Instant::now();
-    let stripped: Vec<elgamal::Ciphertext<C, W>> = ballots
-        .into_par_iter()
-        .map(|c| ny_pk.strip(c, ENC_CTX).unwrap())
-        .collect();
+    let stripped: Vec<elgamal::Ciphertext<C, W>> = ny_pk.strip_all(ballots, ENC_CTX).unwrap();
     let ny_strip_ms = start.elapsed().as_secs_f64() * 1000.0;
     assert_eq!(stripped.len(), count, "strip returned a short list");
 

@@ -12,8 +12,14 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::utils::error::Error;
+use crate::zkp::pleq::PlEqInstance;
 use crate::zkp::pleq::PlEqProof;
 use canonical_derive::Canonical;
+use rayon::prelude::*;
+
+/// How many failing indices a [`Error::NaorYungStripError`] from
+/// [`PublicKey::strip_all`] spells out before summarizing the rest.
+const STRIP_ALL_REPORTED_FAILURES: usize = 16;
 
 /**
  * A Naor-Yung key pair.
@@ -252,6 +258,24 @@ impl<C: Context> KeyPair<C> {
         context: &[u8],
     ) -> Result<elgamal::Ciphertext<C, W>, Error> {
         self.pkey.strip(c, context)
+    }
+
+    /// Strip a list of Naor-Yung ciphertexts, verifying their proofs of
+    /// well-formedness as one batch.
+    ///
+    /// See [`PublicKey::strip_all`].
+    ///
+    /// # Errors
+    ///
+    /// - `HashToElementError` if challenge generation for [`PlEqProof`] verification returns error
+    /// - `NaorYungStripError` if any proof of well-formedness fails; the message names the failing indices
+    /// - `BatchVerificationInconsistent` if the batched check and the per-item checks disagree
+    pub fn strip_all<const W: usize>(
+        &self,
+        cs: Vec<Ciphertext<C, W>>,
+        context: &[u8],
+    ) -> Result<Vec<elgamal::Ciphertext<C, W>>, Error> {
+        self.pkey.strip_all(cs, context)
     }
 
     /// Decrypt the given ciphertext with this key pair.
@@ -558,6 +582,84 @@ impl<C: Context> PublicKey<C> {
             ))
         }
     }
+
+    /// Strip a list of Naor-Yung ciphertexts, verifying their proofs of
+    /// well-formedness as one batch.
+    ///
+    /// Equivalent to [`strip`](Self::strip) applied to every ciphertext: the
+    /// same list is accepted, and the same `ElGamal` ciphertexts are returned
+    /// in the same order. The proofs are verified together by
+    /// [`PlEqProof::verify_batch`], one random linear combination whose cost
+    /// is a single multi-exponentiation instead of `4W` exponentiations per
+    /// ciphertext, at a `1/q` soundness error. A list with any invalid proof
+    /// is rejected as a whole, and the error names the failing indices.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cryptography::cryptosystem::naoryung::{PublicKey, KeyPair};
+    /// use cryptography::cryptosystem::elgamal;
+    /// use cryptography::context::Context;
+    /// use cryptography::context::RistrettoCtx as RCtx;
+    ///
+    /// let keypair: KeyPair<RCtx> = KeyPair::generate(&[]).unwrap();
+    /// let public_key: &PublicKey<RCtx> = &keypair.pkey;
+    /// let encryption_context = &[];
+    /// let ciphertexts: Vec<_> = (0..10)
+    ///     .map(|_| public_key.encrypt(&[RCtx::random_element(); 2], encryption_context).unwrap())
+    ///     .collect();
+    ///
+    /// let stripped: Vec<elgamal::Ciphertext<RCtx, 2>> =
+    ///     public_key.strip_all(ciphertexts, encryption_context).unwrap();
+    /// assert_eq!(stripped.len(), 10);
+    /// ```
+    ///
+    /// # Parameters
+    ///
+    /// - `cs`: The ciphertexts to strip.
+    /// - `context`: proof context label (ZKP CONTEXT), shared by all ciphertexts
+    ///
+    /// # Errors
+    ///
+    /// - `HashToElementError` if challenge generation for [`PlEqProof`] verification returns error
+    /// - `NaorYungStripError` if any proof of well-formedness fails; the message names the failing indices
+    /// - `BatchVerificationInconsistent` if the batched check and the per-item checks disagree
+    pub fn strip_all<const W: usize>(
+        &self,
+        cs: Vec<Ciphertext<C, W>>,
+        context: &[u8],
+    ) -> Result<Vec<elgamal::Ciphertext<C, W>>, Error> {
+        let instances: Vec<PlEqInstance<'_, C, W>> = cs
+            .iter()
+            .map(|c| PlEqInstance {
+                u_b: &c.u_b,
+                v_b: &c.v_b,
+                u_a: &c.u_a,
+                proof: &c.proof,
+            })
+            .collect();
+        let failing = PlEqProof::<C, W>::verify_batch(&self.pk_b, &self.pk_a, &instances, context)?;
+        if !failing.is_empty() {
+            let shown: Vec<usize> = failing
+                .iter()
+                .copied()
+                .take(STRIP_ALL_REPORTED_FAILURES)
+                .collect();
+            let more = failing.len().saturating_sub(STRIP_ALL_REPORTED_FAILURES);
+            let suffix = if more > 0 {
+                format!(" and {more} more")
+            } else {
+                String::new()
+            };
+            return Err(Error::NaorYungStripError(format!(
+                "Proof failed to validate for Naor-Yung ciphertexts at indices {shown:?}{suffix}"
+            )));
+        }
+        Ok(cs
+            .into_par_iter()
+            .map(|c| elgamal::Ciphertext::<C, W>::new(c.u_b, c.v_b))
+            .collect())
+    }
 }
 
 /**
@@ -634,6 +736,70 @@ mod tests {
     use crate::cryptosystem::naoryung::KeyPair as NYKeyPair;
     use crate::cryptosystem::naoryung::PublicKey as NYPublicKey;
     use crate::utils::serialization::{Deserializable, Serializable};
+
+    use crate::traits::groups::DistScalarOps;
+    use crate::utils::error::Error;
+    use crate::zkp::pleq::PlEqProof;
+
+    #[test]
+    fn test_strip_all_matches_per_item_ristretto() {
+        test_strip_all_matches_per_item::<RCtx>();
+    }
+
+    #[test]
+    fn test_strip_all_matches_per_item_p256() {
+        test_strip_all_matches_per_item::<PCtx>();
+    }
+
+    #[test]
+    fn test_strip_all_rejects_invalid_ballot_ristretto() {
+        test_strip_all_rejects_invalid_ballot::<RCtx>();
+    }
+
+    #[test]
+    fn test_strip_all_rejects_invalid_ballot_p256() {
+        test_strip_all_rejects_invalid_ballot::<PCtx>();
+    }
+
+    /// The batched strip yields exactly the per-item strips, in order, and
+    /// accepts the empty list.
+    fn test_strip_all_matches_per_item<Ctx: Context>() {
+        let ny: NYKeyPair<Ctx> = NYKeyPair::generate(b"ctx").unwrap();
+        let cs: Vec<Ciphertext<Ctx, 2>> = (0..17)
+            .map(|_| {
+                ny.encrypt(&[Ctx::random_element(), Ctx::random_element()], b"ctx")
+                    .unwrap()
+            })
+            .collect();
+        let expected: Vec<elgamal::Ciphertext<Ctx, 2>> = cs
+            .iter()
+            .cloned()
+            .map(|c| ny.pkey.strip(c, b"ctx").unwrap())
+            .collect();
+        let got = ny.pkey.strip_all(cs, b"ctx").unwrap();
+        assert_eq!(got, expected);
+        assert!(ny.pkey.strip_all::<2>(vec![], b"ctx").unwrap().is_empty());
+    }
+
+    /// One invalid ballot fails the whole list, and the error names its index.
+    fn test_strip_all_rejects_invalid_ballot<Ctx: Context>() {
+        let ny: NYKeyPair<Ctx> = NYKeyPair::generate(b"ctx").unwrap();
+        let mut cs: Vec<Ciphertext<Ctx, 2>> = (0..5)
+            .map(|_| {
+                ny.encrypt(&[Ctx::random_element(), Ctx::random_element()], b"ctx")
+                    .unwrap()
+            })
+            .collect();
+        let bad = cs.get_mut(2).unwrap();
+        bad.proof = PlEqProof::new(
+            bad.proof.big_a.clone(),
+            bad.proof.k.dist_add(&Ctx::Scalar::one()),
+        );
+        match ny.pkey.strip_all(cs, b"ctx") {
+            Err(Error::NaorYungStripError(msg)) => assert!(msg.contains("[2]"), "message: {msg}"),
+            other => panic!("expected NaorYungStripError, got {other:?}"),
+        }
+    }
 
     #[test]
     fn test_naoryung_from_elgamal_ristretto() {

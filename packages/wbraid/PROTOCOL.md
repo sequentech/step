@@ -430,6 +430,31 @@ $$
 For width $W$, $r \in \mathbb{Z}_q^W$ and the proof is applied componentwise with a
 single challenge over the full transcript.
 
+**Batched verification (permitted).** A verifier holding $N$ proofs under the same
+$(y, z, \mathit{ctx})$ — the ballot list before mixing (Section 5.5) and its
+recomputation in Section 9.2 — may check them as a single random linear combination.
+Recompute every challenge $v_i$ exactly as above (the same inputs, the same hash; nothing
+is added to or removed from the transcript). Draw independent uniform
+$t_{i,w},\, s_{i,w} \in \mathbb{Z}_q$ for $i = 1..N$, $w = 1..W$ — the verifier's own
+randomness, not part of any transcript — and accept iff
+
+$$
+g^{\,\sum_{i,w} t_{i,w}\, k_{i,w}}\ \cdot\ z^{\,\sum_{i,w} s_{i,w}\, k_{i,w}}
+\stackrel{?}{=}
+\prod_{i,w} A_{1,i,w}^{\,t_{i,w}}\ u_{b,i,w}^{\,t_{i,w} v_i}
+\ \cdot\
+\prod_{i,w} A_{2,i,w}^{\,s_{i,w}}\ u_{a,i,w}^{\,s_{i,w} v_i}
+$$
+
+If every proof is valid this holds identically; if any proof is invalid, it holds with
+probability exactly $1/q$ over the weights [BGR98]. As in Section 6.4, the batched form
+adds a $1/q$ soundness error and makes the verifier randomized; $\mathsf{PlEqVerify}$ as
+written remains the normative statement, and a verifier that checks each proof
+individually is equally conformant. A rejected batch is attributed to individual proofs
+by verifying them individually. (Computationally, $4WN$ exponentiations become one
+multi-exponentiation of size $4WN$ and two fixed-base exponentiations; the $N$ challenge
+hashes are unchanged.)
+
 ### 3.6 Naor-Yung ballot encryption
 
 Ballots are encrypted under a **Naor-Yung-style double ciphertext** [NY90]: an ElGamal
@@ -860,6 +885,9 @@ $$
 L_0 = \bigl(\mathsf{NYStrip}(C_1),\ \dots,\ \mathsf{NYStrip}(C_N)\bigr)
 $$
 
+The $N$ well-formedness proofs may be verified in their batched form (Section 3.5); a
+list with any invalid proof is rejected.
+
 From this point on, correctness no longer depends on the ballot box: the mixing and
 decryption evidence (Sections 6, 7) is verifiable against $B$ by anyone.
 
@@ -1242,7 +1270,8 @@ factors and proofs; the plaintexts $m$; the published result.
    the public key derivation.)
 3. **Ballot list.** For each $C_i$ in $B$: check $\mathsf{NYVerify}_{(y,z)}(C_i)$ and
    that there are no duplicate ciphertexts. Recompute
-   $L_0 = (\mathsf{NYStrip}(C_1), \dots, \mathsf{NYStrip}(C_N))$.
+   $L_0 = (\mathsf{NYStrip}(C_1), \dots, \mathsf{NYStrip}(C_N))$. The well-formedness
+   proofs may be checked in their batched form (Section 3.5).
 4. **Mix chain.** Check that $Q$ has exactly $t$ distinct members in the configured
    order and that the chain from $B$ to the final mix is consecutive, complete and
    counter-signed by all of $Q$ (the links are hashes of the posted messages,
