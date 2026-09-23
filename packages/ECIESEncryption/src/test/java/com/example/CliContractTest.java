@@ -25,11 +25,12 @@ class CliContractTest {
             "-cp", System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
             ECIESEncryptionTool.class.getName()));
         command.addAll(Arrays.asList(args));
-        Path output = Files.createTempFile(dir, "cli-", ".log");
-        Process child = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(output.toFile()).start();
+        Path output = Files.createTempFile(dir, "cli-", ".out");
+        Path errors = Files.createTempFile(dir, "cli-", ".err");
+        Process child = new ProcessBuilder(command).redirectOutput(output.toFile()).redirectError(errors.toFile()).start();
         try {
             assertTrue(child.waitFor(20, TimeUnit.SECONDS), "CLI timed out");
-            return new Result(child.exitValue(), new String(Files.readAllBytes(output), StandardCharsets.UTF_8).trim());
+            return new Result(child.exitValue(), read(output), read(errors));
         } finally {
             if (child.isAlive()) {
                 child.destroyForcibly();
@@ -37,11 +38,20 @@ class CliContractTest {
             }
         }
     }
+    private static String read(Path path) throws Exception {
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).trim();
+    }
+    // A result is the exact stdout; JVM notices such as JAVA_TOOL_OPTIONS go to stderr.
+    // Usage is printed on stdout and uncaught exceptions on stderr, so failures search both.
     private static class Result {
-        final int status; final String output;
-        Result(int status, String output) { this.status = status; this.output = output; }
-        String success() { assertEquals(0, status, output); return output; }
-        void failure(String message) { assertNotEquals(0, status, output); assertTrue(output.contains(message), output); }
+        final int status; final String output; final String errors;
+        Result(int status, String output, String errors) { this.status = status; this.output = output; this.errors = errors; }
+        String success() { assertEquals(0, status, output + "\n" + errors); return output; }
+        void failure(String message) {
+            String both = output + "\n" + errors;
+            assertNotEquals(0, status, both);
+            assertTrue(both.contains(message), both);
+        }
     }
     private Path write(String name, byte[] bytes) throws Exception { return Files.write(dir.resolve(name), bytes); }
     private Path pem(String name, String kind, byte[] bytes) throws Exception {
