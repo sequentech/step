@@ -16,7 +16,8 @@
 #
 # The criterion benches (parallel_tradeoff, msm_strategy) self-calibrate; the
 # targets example is run over a fixed cell grid, REPS times each, so the
-# median can be taken. Adjust CELLS/REPS below to taste. GUIDANCE=0 skips the
+# median can be taken; the tally example (the global target) runs over
+# TALLY_CELLS ("N:W:Q", empty skips it). Adjust CELLS/REPS below to taste. GUIDANCE=0 skips the
 # criterion guidance benches and runs only the targets grid -- what a reference
 # snapshot (bench-ec2.sh) wants; the guidance results are design inputs
 # recorded in PERFORMANCE.md, not part of the snapshot.
@@ -26,6 +27,7 @@ cd "$(dirname "$0")"
 
 REPS="${REPS:-3}"
 CELLS="${CELLS:-1000:2 10000:2 10000:5 100000:2 100000:5}"
+TALLY_CELLS="${TALLY_CELLS-10000:2:3 100000:2:3}"
 GUIDANCE="${GUIDANCE:-1}"
 
 mkdir -p bench-results
@@ -79,5 +81,19 @@ for cell in $CELLS; do
   done
 done
 log ""
+
+# --- The global target: one tally's critical path, per N:W:Q cell -----------
+if [ -n "$TALLY_CELLS" ]; then
+  log "## tally  (count,width,quorum,ser,strip_prod,strip_ver,prove,verify,partial,combine,ser_ms,t,v)"
+  for cell in $TALLY_CELLS; do
+    IFS=: read -r n w q <<EOF
+$cell
+EOF
+    for r in $(seq 1 "$REPS"); do
+      "$(ex tally)" "$n" "$w" "$q" 2>/dev/null | tee -a "$OUT"
+    done
+  done
+  log ""
+fi
 
 log "# done -> $OUT"

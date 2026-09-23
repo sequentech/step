@@ -4,18 +4,21 @@
 #
 # summarize.sh RESULTS_DIR -- render the key results of one benchmark session as
 # Markdown on stdout: the machine header, the snapshot medians per (N, W) cell
-# for the five targets, and -- when a differential is present -- the
-# before/after medians with speedup factors. The guidance benches are left out
-# on purpose: they steer implementation, they are not the result.
+# for the five targets, the global target's T and V per (N, W, Q) cell with
+# each stage's share, and -- when a differential is present -- the before/after
+# medians with speedup factors. The guidance benches are left out on purpose:
+# they steer implementation, they are not the result.
 #
-# Reads snapshot rows from snapshot-*.csv and from bench.sh's bench-*.txt (same
-# columns), and differential rows from differential-<base>-vs-<tip>.csv. One
-# session per directory. Portable bash + awk (no gawk extensions).
+# Reads snapshot rows (9 fields) from snapshot-*.csv and from bench.sh's
+# bench-*.txt, tally rows (13 fields) from tally-*.csv and bench-*.txt, and
+# differential rows from differential-<base>-vs-<tip>.csv. One session per
+# directory. Portable bash + awk (no gawk extensions).
 set -euo pipefail
 DIR="${1:?usage: summarize.sh RESULTS_DIR}"
 [ -d "$DIR" ] || { echo "summarize.sh: not a directory: $DIR" >&2; exit 2; }
 
-snap_rows() { cat "$DIR"/snapshot-*.csv "$DIR"/bench-*.txt 2>/dev/null | grep -E '^[0-9]+,[0-9]+,' || true; }
+snap_rows()  { cat "$DIR"/snapshot-*.csv "$DIR"/bench-*.txt 2>/dev/null | grep -E '^[0-9]+,[0-9]+,' | awk -F, 'NF == 9' || true; }
+tally_rows() { cat "$DIR"/tally-*.csv    "$DIR"/bench-*.txt 2>/dev/null | grep -E '^[0-9]+,[0-9]+,' | awk -F, 'NF == 13' || true; }
 diff_rows() { cat "$DIR"/differential-*.csv 2>/dev/null | grep -E '^(base|curr),[0-9]+,' || true; }
 
 # Shared awk: cell formatting and a median over the values collected for a key.
@@ -29,6 +32,7 @@ function median(k, m,   n, i, j, t, a) {
     return (a[n / 2] + a[n / 2 + 1]) / 2
 }
 function ms(x) { return sprintf("%d", x + 0.5) }
+function secs(x) { return sprintf("%.2f s", x / 1000) }
 '
 
 echo "# Benchmark summary — $(basename "$DIR")"
@@ -62,6 +66,35 @@ if [ -n "$rows" ]; then
             printf "| %s : %s | %d |", fmtn(p[1]), p[2], cnt[k]
             for (m = 3; m <= 7; m++) printf " %s |", ms(median(k, m))
             printf "\n"
+        }
+    }'
+    echo
+fi
+
+# --- the global target ------------------------------------------------------------------
+trows="$(tally_rows)"
+if [ -n "$trows" ]; then
+    echo "## Tally — the global target"
+    echo
+    echo "One tally's critical path for a quorum of Q, replayed with real data flow (\`examples/tally.rs\`): **T** = 2·strip + Σ(prove + verify) + slowest partial + combine, each party's concurrent work counted once; **V** = strip + Σ verify + combine is the external verifier's path. Medians; each stage with its share of T."
+    echo
+    printf '%s\n' "$trows" | awk -F, "$AWK_COMMON"'
+    {
+        k = $1 ":" $2 ":" $3 ":" $4
+        if (!(k in seen)) { seen[k] = 1; order[++nk] = k; cnt[k] = 0 }
+        n = ++cnt[k]
+        for (m = 5; m <= 13; m++) v[k, m, n] = $m + 0
+    }
+    END {
+        print "| N : W : Q | reps | T | V | strip ×2 | prove ×Q | verify ×Q | partial | combine | ser/deser |"
+        print "|---|---|---|---|---|---|---|---|---|---|"
+        for (i = 1; i <= nk; i++) {
+            k = order[i]; split(k, p, ":")
+            t = median(k, 12); strip = median(k, 5) + median(k, 6)
+            printf "| %s : %s : %s | %d | **%s** | %s |", fmtn(p[1]), p[2], p[3], cnt[k], secs(t), secs(median(k, 13))
+            printf " %s (%d%%) |", secs(strip), 100 * strip / t + 0.5
+            for (m = 7; m <= 10; m++) { x = median(k, m); printf " %s (%d%%) |", secs(x), 100 * x / t + 0.5 }
+            if (p[4] == "1") { x = median(k, 11); printf " %s (%d%%) |\n", secs(x), 100 * x / t + 0.5 } else printf " off |\n"
         }
     }'
     echo
@@ -132,4 +165,4 @@ if [ -n "$rows" ] && [ -n "$drows" ]; then
     }'
 fi
 
-[ -n "$rows$drows" ] || echo "_No snapshot or differential rows found in $DIR._"
+[ -n "$rows$trows$drows" ] || echo "_No snapshot, tally or differential rows found in $DIR._"
