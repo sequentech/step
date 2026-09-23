@@ -664,6 +664,7 @@ type Mutation {
         election_id: String
         scheduled_date: String
         event_processor: String!
+        voting_channels: [VotingStatusChannel!]
     ): ManageElectionDatesOutput
 }
 
@@ -1494,8 +1495,15 @@ type GetBallotPublicationChangesOutput {
     previous: BallotPublicationStyles
 }
 
+enum RestorePrivateKeyOutcome {
+    RESTORED
+    INVALID
+    ALREADY_RESTORED
+}
+
 type RestorePrivateKeyOutput {
     is_valid: Boolean!
+    outcome: RestorePrivateKeyOutcome!
 }
 
 type InsertCastVoteOutput {

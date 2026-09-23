@@ -25,7 +25,8 @@ jobs:
         with:
           distribution: temurin
           # https://github.com/adoptium/temurin17-binaries/releases/tag/jdk-17.0.20.1%2B1
-          java-version: '17.0.20.1+1'
+          # setup-java matches Adoptium's SemVer, which encodes update .1 build 1 as +101.
+          java-version: '17.0.20+101'
       - name: Install Maven 3.9.9
         run: |
           curl --fail --location --retry 3 -o "$RUNNER_TEMP/maven.tar.gz" https://archive.apache.org/dist/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz

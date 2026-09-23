@@ -3617,6 +3617,7 @@ export type Mutation_RootManage_Election_DatesArgs = {
     election_id?: InputMaybe<Scalars["String"]["input"]>
     event_processor: Scalars["String"]["input"]
     scheduled_date?: InputMaybe<Scalars["String"]["input"]>
+    voting_channels?: InputMaybe<Array<VotingStatusChannel>>
 }
 
 /** mutation root */

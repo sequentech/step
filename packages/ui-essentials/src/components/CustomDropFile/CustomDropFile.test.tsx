@@ -11,7 +11,8 @@ import theme from "../../services/theme"
 import CustomDropFile, {type DropFileProps} from "./CustomDropFile"
 import DropFile from "../DropFile/DropFile"
 import DropJsonFile from "../../../../admin-portal/src/components/DropJsonFile"
-import mockSpanish from "../../translations/es"
+// Portals and Storybook resolve these keys from UI Core's runtime dictionaries.
+import mockSpanish from "../../../../ui-core/src/translations/es"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({

@@ -17,7 +17,7 @@ export enum ESyncChangeCategory {
     VOTED_OTHER_CHANNEL = "VOTED_OTHER_CHANNEL", // B: Datafix reports a non-INTERNET channel
     DISABLED_DELETE_CALL = "DISABLED_DELETE_CALL", // C: Deleted=true in the reconciliation file
     DELETION_REVERTED = "DELETION_REVERTED", // C exception: voter has voted, deletion is not applied
-    PROFILE_UPDATE = "PROFILE_UPDATE", // C: Ward/Poll/SchoolSupportCode/DoB changed
+    PROFILE_UPDATE = "PROFILE_UPDATE", // C: Ward/SchoolSupportCode/DoB changed
     VOTER_ADDED = "VOTER_ADDED", // D: voter missing on one side
     REENABLED = "REENABLED", // re-enabled after a Datafix delete-call disable is undone
     VOTED_UNMARKED = "VOTED_UNMARKED", // file-driven equivalent of /unmark-voted
