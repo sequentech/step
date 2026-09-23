@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">UI Core tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3276/docs/developers/development-environment/testing/ui-core"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="UI Core tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3276/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3276/docs/developers/development-environment/testing/ui-core"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3276/docs/developers/development-environment/testing/ui-core" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3276/docs/developers/development-environment/testing/ui-core" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"UI Core tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3276/docs/developers/development-environment/testing/ui-core"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3276/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3276/assets/js/runtime~main.94d322d7.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3276/assets/js/runtime~main.b19f2d40.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3276/assets/js/main.b88bef1d.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -40,6 +40,13 @@ cookies and sanitized HTML in Chromium. This is package integration coverage;
 full voter journeys need authentication and service fixtures.</p>
 <p>When changing the WASM dependency, rerun both suites. The test runner must fail
 on an incompatible or missing binary rather than silently substitute a mock.</p>
+<p>Some counted service paths have no test. In <code>src/services/votingPortalDateTime.ts</code>,
+<code>tokenValue</code> keeps a defensive default that the parser cannot reach: it only
+passes tokens matched by the supported-token pattern. Revisit it if the accepted
+tokens change. <code>resolvePreset</code> runs only when a resolved formatter throws while
+formatting, which the suite does not exercise. The remaining uncovered branch
+alternatives in <code>i18n.ts</code>, <code>presentationOrder.ts</code>, <code>translate.ts</code> and
+<code>translationScopes.ts</code> are reachable test gaps, not accepted exclusions.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="assurance-lint-policy">Assurance lint policy<a href="#assurance-lint-policy" class="hash-link" aria-label="Direct link to Assurance lint policy" title="Direct link to Assurance lint policy" translate="no">​</a></h2>
 <p>Run <code>yarn lint</code> from this package. The existing frontend workflow runs it too.
 Production source rejects explicit <code>any</code>, non-null assertions (<code>!</code>), TypeScript
