@@ -11,6 +11,11 @@ import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.security.auth.x500.X500Principal;
 import org.junit.jupiter.api.Test;
 import org.keycloak.Config;
@@ -35,6 +40,32 @@ class UrlTruststoreProviderFactoryTest {
 
     assertTrue(error.getMessage().contains("invalid-policy"));
     assertInstanceOf(IllegalArgumentException.class, error.getCause());
+  }
+
+  @Test
+  void unexpectedRefreshFailureDoesNotCancelLaterRefreshes() throws Exception {
+    // scheduleAtFixedRate cancels a task after its first exception and keeps that
+    // exception in a future nobody reads. The refresh worker must run again.
+    AtomicInteger runs = new AtomicInteger();
+    CountDownLatch retried = new CountDownLatch(1);
+    Runnable failingOnce =
+        () -> {
+          if (runs.incrementAndGet() == 1) {
+            throw new IllegalStateException("synthetic refresh defect");
+          }
+          retried.countDown();
+        };
+    ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    try {
+      scheduler.scheduleAtFixedRate(
+          UrlTruststoreProviderFactory.reportingUnexpectedFailures(failingOnce),
+          0,
+          10,
+          TimeUnit.MILLISECONDS);
+      assertTrue(retried.await(5, TimeUnit.SECONDS), "refresh stopped after an unexpected failure");
+    } finally {
+      scheduler.shutdownNow();
+    }
   }
 
   private static String certUrl(String filename) {
