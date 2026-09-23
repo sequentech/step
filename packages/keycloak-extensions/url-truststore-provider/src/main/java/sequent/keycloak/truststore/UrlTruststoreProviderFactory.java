@@ -180,7 +180,10 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
                 return t;
               });
       scheduler.scheduleAtFixedRate(
-          this::refresh, refreshIntervalSeconds, refreshIntervalSeconds, TimeUnit.SECONDS);
+          reportingUnexpectedFailures(this::refresh),
+          refreshIntervalSeconds,
+          refreshIntervalSeconds,
+          TimeUnit.SECONDS);
       log.infof(
           "URL TruststoreProvider refresh scheduled every %d seconds", refreshIntervalSeconds);
     }
@@ -296,6 +299,23 @@ public class UrlTruststoreProviderFactory implements TruststoreProviderFactory {
   @Override
   public String getId() {
     return PROVIDER_ID;
+  }
+
+  /**
+   * Keeps periodic refreshes scheduled after an unexpected failure. A task that throws from
+   * scheduleAtFixedRate is cancelled and its exception only reaches the discarded future, so a
+   * defect would otherwise stop every later refresh without a log entry. Known loading failures are
+   * handled by refresh; anything else is reported as unexpected rather than as an outage.
+   */
+  @SuppressWarnings("PMD.AvoidCatchingGenericException")
+  static Runnable reportingUnexpectedFailures(Runnable task) {
+    return () -> {
+      try {
+        task.run();
+      } catch (RuntimeException e) {
+        log.errorf(e, "Unexpected URL truststore refresh failure; retrying at the next interval");
+      }
+    };
   }
 
   /** Retries known loading failures without discarding the last usable provider. */
