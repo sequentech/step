@@ -93,8 +93,16 @@ fn change_classification_distinguishes_new_unchanged_and_each_material_edit() {
         TallySheetImportChangeType::UNCHANGED
     );
 
-    // Every field participates in a reviewed import. A dropped field would
-    // incorrectly label one of these changes as already approved.
+    // Every count and identifier participates in a reviewed import. A dropped
+    // field would incorrectly label one of these changes as already approved.
+    // Annotations and the redundant inner candidate ID are not hashed, which
+    // keeps the digests persisted for approved sheets stable.
+    let mut annotated = original.clone();
+    annotated.annotations = Some(serde_json::json!({"note": "synthetic"}));
+    assert_eq!(
+        classify_change(Some(&original), &annotated).unwrap(),
+        TallySheetImportChangeType::UNCHANGED
+    );
     let mutations: &[fn(&mut AreaContestResults)] = &[
         |s| s.area_id = "other-area".into(),
         |s| s.contest_id = "other-contest".into(),
@@ -209,33 +217,50 @@ fn review_requires_approval_when_a_known_zero_becomes_unavailable() {
 
 #[test]
 fn review_candidate_rows_have_stable_identifier_order_independent_of_labels() {
+    // Names and external IDs sort in the reverse order of the candidate IDs,
+    // so ordering rows by either label is detected. Six map entries make an
+    // unsorted iteration match the identifier order only once in 720 runs.
+    let candidates = [
+        (CANDIDATE_ID, "ext-6", "Zulu", 3),
+        ("candidate-b", "ext-5", "Yankee", 9),
+        ("candidate-c", "ext-4", "X-ray", 1),
+        ("candidate-d", "ext-3", "Whiskey", 7),
+        ("candidate-e", "ext-2", "Victor", 0),
+        ("candidate-f", "ext-1", "Uniform", 4),
+    ];
     let mut content = sheet();
-    content.candidate_results.insert(
-        "candidate-z".into(),
-        CandidateResults {
-            candidate_id: "candidate-z".into(),
-            total_votes: Some(9),
-        },
-    );
-    let names = HashMap::from([
-        (CANDIDATE_ID.into(), "Zulu".into()),
-        ("candidate-z".into(), "Alpha".into()),
-    ]);
-    let external_ids = HashMap::from([
-        (CANDIDATE_ID.into(), "first".into()),
-        ("candidate-z".into(), "last".into()),
-    ]);
+    let mut names = HashMap::new();
+    let mut external_ids = HashMap::new();
+    for (id, external_id, name, votes) in candidates {
+        content.candidate_results.insert(
+            id.into(),
+            CandidateResults {
+                candidate_id: id.into(),
+                total_votes: Some(votes),
+            },
+        );
+        names.insert(id.to_string(), name.to_string());
+        external_ids.insert(id.to_string(), external_id.to_string());
+    }
     let csv = render_ballot_box_csv(&content, &names, &external_ids);
     let rows = csv::Reader::from_reader(csv.as_bytes())
         .records()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
-    assert_eq!(
-        rows[7].iter().collect::<Vec<_>>(),
-        ["candidate_votes", "first", "Zulu", "3"]
-    );
-    assert_eq!(
-        rows[8].iter().collect::<Vec<_>>(),
-        ["candidate_votes", "last", "Alpha", "9"]
-    );
+    let candidate_rows: Vec<Vec<String>> = rows[7..]
+        .iter()
+        .map(|row| row.iter().map(str::to_owned).collect())
+        .collect();
+    let expected: Vec<Vec<String>> = candidates
+        .iter()
+        .map(|(_, external_id, name, votes)| {
+            vec![
+                "candidate_votes".to_owned(),
+                external_id.to_string(),
+                name.to_string(),
+                votes.to_string(),
+            ]
+        })
+        .collect();
+    assert_eq!(candidate_rows, expected);
 }
