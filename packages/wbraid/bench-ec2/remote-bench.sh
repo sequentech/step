@@ -22,8 +22,13 @@
 # 100000:5") and REPS (3); DIFF_CELLS (before/after grid, default "10000:2
 # 100000:2") and DIFF_REPS (3); TALLY_CELLS (the global target's grid of
 # "N:W:Q" cells, default "100000:2:3 100000:5:3"; empty skips it) and
-# TALLY_REPS (3); GUIDANCE (default 0 -- the criterion guidance benches are
-# design inputs recorded in PERFORMANCE.md, not part of a snapshot).
+# TALLY_REPS (3); TALLY_SER_CELLS (tally cells run again with --ser, default
+# none); with a baseline, TALLY_DIFF_CELLS (interleaved tally before/after,
+# default "100000:2:3"; empty skips it) and TALLY_DIFF_REPS (3); PROFILE=1
+# builds targets with --features profile and writes each PROFILE_CELLS cell's
+# stage breakdown (default "100000:2"); GUIDANCE (default 0 -- the criterion
+# guidance benches are design inputs recorded in PERFORMANCE.md, not part of a
+# snapshot).
 #
 # Outputs, under the session's results/ prefix: snapshot-<sha>.csv,
 # differential-<base>-vs-<sha>.csv (with a baseline), guidance-<sha>.txt (with
@@ -39,6 +44,11 @@ DIFF_CELLS="${DIFF_CELLS:-10000:2 100000:2}"
 DIFF_REPS="${DIFF_REPS:-3}"
 TALLY_CELLS="${TALLY_CELLS-100000:2:3 100000:5:3}"
 TALLY_REPS="${TALLY_REPS:-3}"
+TALLY_SER_CELLS="${TALLY_SER_CELLS-}"
+TALLY_DIFF_CELLS="${TALLY_DIFF_CELLS-100000:2:3}"
+TALLY_DIFF_REPS="${TALLY_DIFF_REPS:-3}"
+PROFILE="${PROFILE:-0}"
+PROFILE_CELLS="${PROFILE_CELLS:-100000:2}"
 TALLY_HEADER="count,width,quorum,ser,strip_prod_ms,strip_ver_ms,prove_ms,verify_ms,partial_ms,combine_ms,ser_ms,t_ms,v_ms"
 GUIDANCE="${GUIDANCE:-0}"
 S3="s3://$BUCKET/$SESSION"
@@ -85,20 +95,25 @@ run_grid() {
     done
 }
 
-# run_tally_grid BIN CELLS REPS OUT -- the global target's loop over "N:W:Q"
-# cells; the stage breakdown the example prints on stderr goes to the log.
+# run_tally_grid BIN CELLS REPS OUT [FLAG] -- the global target's loop over
+# "N:W:Q" cells (FLAG, e.g. --ser, is passed through); the stage breakdown the
+# example prints on stderr goes to the log.
 run_tally_grid() {
-    local bin="$1" cells="$2" reps="$3" out="$4" cell n w q r line
+    local bin="$1" cells="$2" reps="$3" out="$4" flag="${5:-}" cell n w q r line
     for cell in $cells; do
         IFS=: read -r n w q <<EOF
 $cell
 EOF
         for r in $(seq 1 "$reps"); do
-            line="$("$bin" "$n" "$w" "$q")"
+            # shellcheck disable=SC2086
+            line="$("$bin" "$n" "$w" "$q" $flag)"
             echo "$line" | tee -a "$out"
         done
     done
 }
+
+has_tally() { [ -f "$1/crates/vsc/examples/tally.rs" ]; }
+build_tally() { ( cd "$1" && cargo build --release -p vsc --example tally >/dev/null 2>&1 ); }
 
 # --- source: the exact commits, straight from S3 --------------------------------
 log "fetching source $SHA"
@@ -128,7 +143,7 @@ md() { curl -sH "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/lates
     echo "# vcpus:         $(nproc)   threads/core: $(lscpu | awk -F: '/Thread\(s\) per core/ {gsub(/ /, "", $2); print $2}')"
     echo "# kernel:        $(uname -r)"
     echo "# rustc:         $(rustc --version)"
-    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS   GUIDANCE=$GUIDANCE"
+    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS${TALLY_SER_CELLS:+   TALLY_SER_CELLS='$TALLY_SER_CELLS'}${BASE_SHA:+   TALLY_DIFF_CELLS='$TALLY_DIFF_CELLS' TALLY_DIFF_REPS=$TALLY_DIFF_REPS}   PROFILE=$PROFILE${PROFILE_CELLS:+ ($PROFILE_CELLS)}   GUIDANCE=$GUIDANCE"
 } | tee "$RESULTS/machine.txt"
 
 # --- tip: build, then the snapshot grid --------------------------------------------
@@ -142,16 +157,45 @@ log "snapshot grid over '$CELLS' x $REPS reps"
 run_grid "$TIP_BIN" "$CELLS" "$REPS" "$SNAP"
 
 # --- the global target: the tally's critical path, per "N:W:Q" cell -------------
-if [ -n "$TALLY_CELLS" ]; then
-    if [ -f "$CUR/crates/vsc/examples/tally.rs" ]; then
+TIP_TALLY="$CUR/target/release/examples/tally"
+if [ -n "$TALLY_CELLS$TALLY_SER_CELLS" ]; then
+    if has_tally "$CUR"; then
         log "building the tip's tally"
-        ( cd "$CUR" && cargo build --release -p vsc --example tally >/dev/null 2>&1 )
+        build_tally "$CUR"
         TALLY="$RESULTS/tally-$SHA.csv"
         echo "$TALLY_HEADER" > "$TALLY"
-        log "tally grid over '$TALLY_CELLS' x $TALLY_REPS reps"
-        run_tally_grid "$CUR/target/release/examples/tally" "$TALLY_CELLS" "$TALLY_REPS" "$TALLY"
+        if [ -n "$TALLY_CELLS" ]; then
+            log "tally grid over '$TALLY_CELLS' x $TALLY_REPS reps"
+            run_tally_grid "$TIP_TALLY" "$TALLY_CELLS" "$TALLY_REPS" "$TALLY"
+        fi
+        if [ -n "$TALLY_SER_CELLS" ]; then
+            log "tally grid with --ser over '$TALLY_SER_CELLS' x $TALLY_REPS reps"
+            run_tally_grid "$TIP_TALLY" "$TALLY_SER_CELLS" "$TALLY_REPS" "$TALLY" --ser
+        fi
     else
         log "examples/tally.rs is not present in $SHA; tally grid skipped"
+    fi
+fi
+
+# --- optional: the stage breakdown, from a profile build of targets -------------
+if [ "$PROFILE" = 1 ]; then
+    if [ -f "$CUR/crates/vsc/src/utils/profile.rs" ]; then
+        log "building targets with --features profile (separate target dir)"
+        ( cd "$CUR" && CARGO_TARGET_DIR="$CUR/target-profile" \
+            cargo build --release -p vsc --example targets --features profile >/dev/null 2>&1 )
+        PROF="$RESULTS/profile-$SHA.txt"
+        : > "$PROF"
+        for cell in $PROFILE_CELLS; do
+            n="${cell%%:*}"; w="${cell##*:}"
+            log "stage breakdown at $cell"
+            {
+                echo "## cell $n:$w"
+                "$CUR/target-profile/release/examples/targets" "$n" "$w" 2>&1 >/dev/null
+                echo
+            } >> "$PROF"
+        done
+    else
+        log "utils/profile.rs is not present in $SHA; stage breakdown skipped"
     fi
 fi
 
@@ -196,6 +240,30 @@ if [ -n "$BASE_SHA" ]; then
             line="$(cell_line "$TIP_BIN" "$n" "$w")";  echo "curr,$line" | tee -a "$DIFF"
         done
     done
+
+    # --- the global target, before/after: both commits must carry the example ----
+    if [ -n "$TALLY_DIFF_CELLS" ]; then
+        if has_tally "$CUR" && has_tally "$BASE"; then
+            [ -x "$TIP_TALLY" ] || { log "building the tip's tally"; build_tally "$CUR"; }
+            log "building the baseline's tally"
+            build_tally "$BASE"
+            BASE_TALLY="$BASE/target/release/examples/tally"
+            TDIFF="$RESULTS/tally-differential-$BASE_SHA-vs-$SHA.csv"
+            echo "tree,$TALLY_HEADER" > "$TDIFF"
+            log "interleaved tally before/after over '$TALLY_DIFF_CELLS' x $TALLY_DIFF_REPS reps"
+            for cell in $TALLY_DIFF_CELLS; do
+                IFS=: read -r n w q <<EOF
+$cell
+EOF
+                for r in $(seq 1 "$TALLY_DIFF_REPS"); do
+                    line="$("$BASE_TALLY" "$n" "$w" "$q")"; echo "base,$line" | tee -a "$TDIFF"
+                    line="$("$TIP_TALLY" "$n" "$w" "$q")";  echo "curr,$line" | tee -a "$TDIFF"
+                done
+            done
+        else
+            log "examples/tally.rs is not present in both $SHA and $BASE_SHA; tally before/after skipped"
+        fi
+    fi
 fi
 
 # --- upload, then end the instance -----------------------------------------------

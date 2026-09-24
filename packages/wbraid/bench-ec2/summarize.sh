@@ -19,7 +19,8 @@ DIR="${1:?usage: summarize.sh RESULTS_DIR}"
 
 snap_rows()  { cat "$DIR"/snapshot-*.csv "$DIR"/bench-*.txt 2>/dev/null | grep -E '^[0-9]+,[0-9]+,' | awk -F, 'NF == 9' || true; }
 tally_rows() { cat "$DIR"/tally-*.csv    "$DIR"/bench-*.txt 2>/dev/null | grep -E '^[0-9]+,[0-9]+,' | awk -F, 'NF == 13' || true; }
-diff_rows() { cat "$DIR"/differential-*.csv 2>/dev/null | grep -E '^(base|curr),[0-9]+,' || true; }
+diff_rows()  { cat "$DIR"/differential-*.csv 2>/dev/null | grep -E '^(base|curr),[0-9]+,' | awk -F, 'NF == 10' || true; }
+tdiff_rows() { cat "$DIR"/tally-differential-*.csv 2>/dev/null | grep -E '^(base|curr),[0-9]+,' | awk -F, 'NF == 14' || true; }
 
 # Shared awk: cell formatting and a median over the values collected for a key.
 AWK_COMMON='
@@ -100,6 +101,63 @@ if [ -n "$trows" ]; then
     echo
 fi
 
+# --- the global target, before/after ----------------------------------------------------
+tdrows="$(tdiff_rows)"
+if [ -n "$tdrows" ]; then
+    tbase=""; ttip=""
+    for f in "$DIR"/tally-differential-*.csv; do
+        b="$(basename "$f" .csv)"; b="${b#tally-differential-}"
+        tbase="${b%%-vs-*}"; ttip="${b##*-vs-}"
+        break
+    done
+    echo "## Tally before / after — ${tbase:-baseline} → ${ttip:-tip}"
+    echo
+    echo "Both tally binaries ran interleaved, rep by rep, on the same machine; medians and the speedup factor."
+    printf '%s\n' "$tdrows" | awk -F, "$AWK_COMMON"'
+    {
+        c = $2 ":" $3 ":" $4 ":" $5
+        k = c ":" $1
+        if (!(c in cseen)) { cseen[c] = 1; corder[++nc] = c }
+        if (!(k in seen)) { seen[k] = 1; cnt[k] = 0 }
+        n = ++cnt[k]
+        for (m = 6; m <= 14; m++) v[k, m, n] = $m + 0
+    }
+    END {
+        for (i = 1; i <= nc; i++) {
+            c = corder[i]; split(c, p, ":")
+            kb = c ":base"; kc = c ":curr"
+            printf "\n### N = %s, W = %s, Q = %s%s (%d reps)\n\n", fmtn(p[1]), p[2], p[3], (p[4] == "1" ? ", with --ser" : ""), cnt[kb]
+            print "| | before | after | speedup |"
+            print "|---|---|---|---|"
+            tb = median(kb, 13); tc = median(kc, 13)
+            printf "| **T** | **%s** | **%s** | **%.2f×** |\n", secs(tb), secs(tc), (tc > 0 ? tb / tc : 0)
+            vb = median(kb, 14); vc = median(kc, 14)
+            printf "| V (external verifier) | %s | %s | %.2f× |\n", secs(vb), secs(vc), (vc > 0 ? vb / vc : 0)
+            sb = median(kb, 6) + median(kb, 7); sc = median(kc, 6) + median(kc, 7)
+            printf "| strip ×2 | %s | %s | %.2f× |\n", secs(sb), secs(sc), (sc > 0 ? sb / sc : 0)
+            names[8] = "prove ×Q"; names[9] = "verify ×Q"; names[10] = "partial"; names[11] = "combine"; names[12] = "ser/deser"
+            for (m = 8; m <= 12; m++) {
+                if (m == 12 && p[4] != "1") continue
+                b = median(kb, m); a = median(kc, m)
+                printf "| %s | %s | %s | %.2f× |\n", names[m], secs(b), secs(a), (a > 0 ? b / a : 0)
+            }
+        }
+    }'
+    echo
+fi
+
+# --- the stage breakdown, from a profile build ----------------------------------------
+if ls "$DIR"/profile-*.txt >/dev/null 2>&1; then
+    echo "## Stage breakdown (profile build of targets)"
+    echo
+    echo "Wall-clock per cost category at each stage's outer call sites (\`vsc::utils::profile\`, \`--features profile\`), its share of the stage, and the unattributed remainder. One run per cell; the profile build is separate from the snapshot binaries."
+    echo
+    echo '```'
+    cat "$DIR"/profile-*.txt | grep -E '^## cell|breakdown of|^    [a-z]'
+    echo '```'
+    echo
+fi
+
 # --- differential -------------------------------------------------------------------
 drows="$(diff_rows)"
 if [ -n "$drows" ]; then
@@ -165,4 +223,4 @@ if [ -n "$rows" ] && [ -n "$drows" ]; then
     }'
 fi
 
-[ -n "$rows$trows$drows" ] || echo "_No snapshot, tally or differential rows found in $DIR._"
+[ -n "$rows$trows$drows$tdrows" ] || echo "_No snapshot, tally or differential rows found in $DIR._"
