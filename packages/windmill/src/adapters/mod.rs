@@ -6,6 +6,7 @@
 //! `crate::postgres` queries and service clients; `memory` holds the
 //! in-memory adapters used by unit tests.
 
+pub mod datafix_cast_vote;
 #[cfg(test)]
 pub mod memory;
 pub mod system;
