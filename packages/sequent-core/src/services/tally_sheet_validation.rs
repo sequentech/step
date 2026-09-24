@@ -83,8 +83,9 @@ pub const UNKNOWN_COUNTING_ALGORITHM: &str = "unknown_counting_algorithm";
 /// Error code for a blank-vote count that exceeds the bucket containing it.
 pub const INVALID_TOTAL_BLANK_VOTES: &str = "invalid_total_blank_votes";
 
-/// Message parameters that name the exceeded field and its upper bound.
+/// Message parameter naming the field whose bound was exceeded.
 const LIMIT_FIELD: &str = "limitField";
+/// Message parameter carrying that field's upper bound.
 const UPPER_BOUND: &str = "upperBound";
 
 /// Resolves the mark bound for a contest from its stored
