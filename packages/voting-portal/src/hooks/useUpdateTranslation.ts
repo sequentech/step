@@ -19,11 +19,14 @@ const useUpdateTranslation = (
     // So search param "lang" > user selected locale (saved in cookie) >
     // language detection policy (force default) > browser settings
     useEffect(() => {
-        const hasSetDefaultLanguage = overwriteTranslations(electionEvent?.presentation, {
-            scope: ETranslationScope.VOTING_PORTAL,
-            legacyScope: ETranslationScope.VOTING_PORTAL,
-            changeDefaultLanguage: !defaultLanguageTouched,
-        })
+        const hasSetDefaultLanguage = overwriteTranslations(
+            electionEvent?.presentation ?? undefined,
+            {
+                scope: ETranslationScope.VOTING_PORTAL,
+                legacyScope: ETranslationScope.VOTING_PORTAL,
+                changeDefaultLanguage: !defaultLanguageTouched,
+            }
+        )
         if (hasSetDefaultLanguage) {
             setDefaultLanguageTouched(true)
         }
