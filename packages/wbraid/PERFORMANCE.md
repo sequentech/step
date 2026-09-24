@@ -46,26 +46,37 @@ reps):
 | as verified: strip + shuffle verify | 6.01 s → 3.27 s | **1.84×**; strip 62% → 30% | 12.61 s → 5.89 s | **2.14×**; strip 71% → 38% |
 | as produced: strip + shuffle prove | 8.76 s → 6.01 s | **1.46×**; strip 43% → 17% | 17.96 s → 11.22 s | **1.60×**; strip 50% → 20% |
 
-Where the tip (`009b443add`) stands, same machine (median of 3, ms):
+**Follow-up, 2026-09-24** — `2d23452f05` → `6f4c995c22` (the shuffle's second
+challenge serializes its two commitment lists in parallel; found by the stage
+breakdown below), same machine and method, N = 10⁵:
+
+| Target | W = 2: before → after | | W = 5: before → after | |
+|---|---|---|---|---|
+| ① shuffle prove | 4.97 s → 4.27 s | **1.17×** | 8.93 s → 8.21 s | **1.09×** |
+| ② shuffle verify | 2.26 s → 1.53 s | **1.48×** | 3.62 s → 2.88 s | **1.26×** |
+| ③ ④ ⑤ (controls) | unchanged within 1% | | unchanged within 1% | |
+| T(3), V(3) at W2 | 27.07 s → 22.53 s, 9.88 s → 7.63 s | **1.20×**, **1.30×** | | |
+
+Where the tip stands at N = 10⁵, same machine at reference speed (median of 3,
+ms; the smaller cells scale linearly and are on record in the raw files):
 
 | N : W | prove | verify | partial_decrypt | combine | ny_strip |
 |---|---|---|---|---|---|
-| 10³ : 2 | 61 | 39 | 18 | 37 | 14 |
-| 10⁴ : 2 | 503 | 256 | 131 | 231 | 104 |
-| 10⁴ : 5 | 892 | 419 | 323 | 565 | 229 |
-| 10⁵ : 2 | 5 009 | 2 265 | 1 208 | 2 016 | 988 |
-| 10⁵ : 5 | 8 957 | 3 616 | 3 008 | 4 989 | 2 258 |
+| 10⁵ : 2 | 4 292 | 1 521 | 1 199 | 2 011 | 982 |
+| 10⁵ : 5 | 8 214 | 2 878 | 3 013 | 5 012 | 2 252 |
 
 Resolution: reps agree within ~1%, and the same binary run standalone vs
 interleaved agrees within 0.6–0.7% — differences below that are noise **within
-a session**. Across sessions the host varies: two sessions on the same instance
-type an hour apart (2026-09-23) differed by ~20% on every stage, so a
-before/after is only trustworthy interleaved in one session — which is how the
-differential runs — and snapshots from different sessions compare only to
-that tolerance (each session's 10³ cell is its calibration). Raw
-files: `bench-results/ec2-20260922-012110-185dbbede2/` (fork → milestone) and
-`bench-results/ec2-20260923-155859-009b443add/` (milestone → tip), each with
-`SUMMARY.md`, the differential CSV, the full grid and `machine.txt`.
+a session**. Across sessions the host varies: sessions on the same instance
+type hours apart (2026-09-23, 2026-09-24) differed by ~20–25% on every stage,
+so a before/after is only trustworthy interleaved in one session — which is
+how the differential runs — and snapshots from different sessions compare
+only to that tolerance (each session's 10³ cell is its calibration). Raw
+files: `bench-results/ec2-20260922-012110-185dbbede2/` (fork → milestone),
+`bench-results/ec2-20260923-155859-009b443add/` (milestone → batched NY) and
+`bench-results/ec2-20260924-015429-6f4c995c22/` (→ the second-challenge fix,
+with the tally before/after and the `--ser` cell), each with `SUMMARY.md`, the
+differential CSVs, the grid and `machine.txt`.
 
 Reading it: the **decryption path is the headline** (~13× and ~23×) — it had
 the most headroom and every technique below applies to it; the **shuffle**
@@ -75,6 +86,27 @@ constant-time by necessity; and **⑤ was flat at the milestone because nothing
 had touched vsc's `NYStrip` crypto** (only braid's loop around it was
 parallelized) — the follow-up batched it, and ⑤ went from the slowest target
 at both widths to the fastest at 10⁵.
+
+**Where the time goes** (`vsc --features profile`, reference machine,
+2026-09-24, tip `3e5c25e86c`, N = 10⁵; share of each stage's wall-clock, W2 /
+W5). Categories are wall-clock at the stages' outer call sites, so a
+category's share is what removing it would save:
+
+| stage | MSM | per-element exps | fixed-base | transcript ser | hashing | generators | unattributed |
+|---|---|---|---|---|---|---|---|
+| prove | 18% / 20% (constant-time) | **42% / 48%** | 15% / 8% | 13% / 13% | 5% / 5% | 2% / 1% | 6% / 5% |
+| verify | **36% / 38%** | | | **34% / 35%** | 14% / 14% | 6% / 3% | 10% / 10% |
+| partial_decrypt | 16% / 16% | **61% / 61%** | | 15% / 15% | 7% / 6% | | 1% / 2% |
+| combine | **61% / 62%** | | | 26% / 27% | 12% / 11% | | 1% / 1% |
+| ny_strip | 37% / 41% | | | | **58% / 53%** † | | 5% / 6% |
+
+† the per-ballot challenge derivations, which include each ballot's
+serialization. Over one mix (prove + verify) at W2: per-element
+exponentiations 30%, MSM 23%, transcript serialization 18%, fixed-base 11%,
+hashing 7%, generators 3%, unattributed 8% — the analytic estimates that
+preceded this measurement (MSM ~20%, serialization ~20%) were right; what they
+could not see was that the prover's *unbatched* exponentiations are the
+largest single item, and that message encoding/decoding dwarfs all of it.
 
 **The global target** (`examples/tally.rs`; same machine, 2026-09-23, tip
 `2d23452f05`): one tally's **critical-path latency** `T(Q)` for a quorum of Q
@@ -104,6 +136,20 @@ Q-scaling *within* that session: every mix cost the same (prove 4.03 s, verify
 two rows fit `T(Q) ≈ 2.8 s + 6.4 s·Q` to 0.2% — linear in the quorum size, with
 the intercept the two strips, the partial and the Lagrange step. On the
 reference-speed host of the first rows the slope is ~7.9 s per trustee.
+
+These rows predate the second-challenge fix (`6f4c995c22`), which was
+measured on the tally as T(3) 27.07 s → 22.53 s and V(3) 9.88 s → 7.63 s at
+10⁵/W2 (the follow-up table above); the other cells shift by the same
+prove/verify ratios.
+
+**Message encoding and decoding, measured** (`tally --ser`, 10⁵/W2/Q3, same
+session as the fix): with each posted message encoded by its producer and
+decoded by its consumer, T is **62.4 s, of which 39.8 s (64%) is
+encoding/decoding** and 22.5 s the cryptography above. Both directions are
+sequential today — `Vec::ser` when a list is posted, `deser` when it is read
+— about seven million point compressions and decompressions per tally on one
+core. It is the largest single term on the path, and it is not in T's default
+composition (Remaining levers, 1).
 
 The 10⁶ : 1 : 2 row is the scenario measured on older implementations, for
 comparison with them. Its session ran the 10⁵ : 2 : 3 cell alongside as an
@@ -305,18 +351,32 @@ datalog is not a parallelism site; `rayon` is a non-optional dependency of
 
 In priority order; nothing here is done.
 
-1. **Prover fixed-base batches.** `apply_permutation`'s `uᵢ = g^{rᵢ}·hᵢ` and
-   the re-encryption `(g^s, y^s)` legs still use per-element `exp`/`repl_exp`;
-   `exp_many` applies (constant-time). Prove is the least-improved target.
-2. **Transcript bytes reused, not recompressed.** Every Fiat–Shamir input is
+1. **Parallel message encoding and decoding.** Measured, not estimated:
+   39.8 s of the 62.4 s critical path at 10⁵/W2/Q3 (Status, `tally --ser`) is
+   producers encoding posted lists with the sequential `Vec::ser` and
+   consumers decoding them with the sequential `deser`. `FixedWidth` gives
+   both directions computable element boundaries, so the `par_ser` technique
+   applies to encoding as is, and decoding parallelizes over the same
+   boundaries — with the strictness of each element's decode unchanged
+   (SERIALIZATION.md §10; decoding is safety-sensitive: a parallel decoder
+   must reject exactly what the sequential one rejects, pinned by a
+   differential test). Formerly "parallel deserialization", ranked by the
+   number: nothing else on the path comes close.
+2. **Prover fixed-base batches.** Measured 42% of prove at W2 and 48% at W5
+   (Status, "per-element exps"): `apply_permutation`'s `uᵢ = g^{rᵢ}·hᵢ` and
+   the re-encryption `(g^s, y^s)` legs use per-element `exp`/`repl_exp` on
+   the fixed bases `g` and `y`; `exp_many` applies and is constant-time. The
+   bridging batches it already replaced run at about a third of the
+   per-element cost, so roughly 1 s of a 4.3 s prove.
+3. **Transcript bytes reused, not recompressed.** Every Fiat–Shamir input is
    the canonical `ser` encoding of group elements (SERIALIZATION.md §6), and
    compressing a point costs a field inversion. The verifier already holds
    those bytes: the posted lists and proofs *are* that encoding, so it decodes
    them to points and then, inside `verify`, recompresses the same points for
-   the transcript — about 10⁶ compressions per mix at 10⁵/W2, an estimated
-   0.6–0.7 s of its 2.27 s. The prover compresses its output list and
-   commitments twice, once for the transcript and once for posting — about
-   half its transcript cost, ~0.5 s of 5 s. Carrying the canonical bytes
+   the transcript — measured 34–35% of verify (Status, "transcript ser":
+   0.42 s of 1.26 s at W2). The prover compresses its output list and
+   commitments twice, once for the transcript and once for posting — 13% of
+   prove is transcript serialization, about half of it this. Carrying the canonical bytes
    alongside decoded values (a `deser` that returns both, a transcript builder
    that takes bytes when offered, one compression shared with message
    serialization on the prover) removes that work **without changing a single
@@ -324,19 +384,11 @@ In priority order; nothing here is done.
    decoding is strict — a non-canonical encoding is rejected, so received
    bytes ≡ re-serialized bytes, which turns from a format property into a
    soundness requirement once relied upon — and the transcript and message
-   framings of a list are byte-identical or sliceable. Estimated ~3.5 s of
-   T(3) = 27 s, on a par with lever 1; the same plumbing is what lever 3
-   needs. Native transcripts only: the Verificatum-compatible challenge
-   derivation encodes ByteTree through `VmnChallenges` (SERIALIZATION.md §6)
-   and keeps its own serialization. Sized by estimate only: an instrumented
-   stage breakdown (timers around the MSM seam methods and the transcript
-   serialization, one rig session) should confirm the compression share
-   before this or lever 1 is picked.
-3. **Parallel deserialization** — the other half of SERIALIZATION.md §10, on
-   `FixedWidth`'s computable boundaries. Decoding is serial today and on the
-   critical path between parties (`tally --ser` measures it; at N = 1000 it
-   already added 0.84 s to T). Safety-sensitive: only with a profile of the
-   loading path, and naturally combined with lever 2's byte-carrying `deser`.
+   framings of a list are byte-identical or sliceable. About 0.6 s per mix,
+   ~1.9 s of T(3) = 22.5 s; the byte-carrying `deser` it needs is the same
+   plumbing as lever 1's. Native transcripts only: the Verificatum-compatible
+   challenge derivation encodes ByteTree through `VmnChallenges`
+   (SERIALIZATION.md §6) and keeps its own serialization.
 4. **`jemalloc`** is available behind a `braid` feature as a higher-performance
    allocator and profiling aid; not wired into the runtime.
 5. **Marked unoptimized paths.** `--features custom-warnings` surfaces the
@@ -345,9 +397,10 @@ In priority order; nothing here is done.
 6. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
    ≥ 70% of verifier wall-clock at the deployment's real N *and* a latency
    requirement CPU scaling cannot meet exists. On the reference machine at
-   10⁵/W2 the verifier's ~dozen MSM-equivalents (~48 ms each) are ~0.6 s of
-   2.2 s — a quarter to a third — so even a free GPU MSM buys ≤ ~1.4× on
-   verify. If it is ever revisited: Anza's
+   10⁵/W2 the verifier's MSMs are a measured 36% of verify and 23% of a
+   whole mix (Status, "Where the time goes"), so even a free GPU MSM buys
+   ≤ ~1.6× on verify and ≤ ~1.3× on a mix, while levers 1–3 are larger and
+   CPU-side. If it is ever revisited: Anza's
    `curve25519-cuda` (sppark-based, in `anza-xyz/cryptography`) is the one
    candidate for this curve — variable-time, GPU→CPU fallback — but unpublished
    and unaudited as of 2026-09; the posture would be GPU on the verifier only,
@@ -520,5 +573,19 @@ things stand.
   A third session (`ec2-20260924-005233-196bc5c947`, 12 min) added the
   historical comparison cell 10⁶ : 1 : 2 — T = 138 s, V = 51 s — with the
   10⁵ : 2 : 3 anchor reproducing 27.1 s, host at reference speed.
+- **Task 1 of the parking milestone: measurement before levers**
+  (2026-09-24). The tally before/after (`TALLY_DIFF_CELLS`), `--ser` cells
+  and a `profile` feature (`233f484655`: `vsc::utils::profile`, wall-clock
+  per cost category at the stages' outer call sites, printed by `targets`,
+  `BREAKDOWN=1` on the rig — after a first session lost it to a knob named
+  like the driver's AWS profile, `3e5c25e86c`). The breakdown's first result
+  was a fix: the shuffle's second challenge still encoded `B_n`/`B′_n`
+  sequentially (`6f4c995c22`, `par_ser`, byte-identical) — verify 1.48×,
+  prove 1.17× at 10⁵/W2 on the rig, T(3) 1.20×
+  (`ec2-20260924-015429-6f4c995c22`). Its second result re-ranked the
+  levers: `--ser` put message encoding/decoding at 64% of the critical path,
+  and the measured shares (`ec2-20260924-021429-3e5c25e86c`, a fast host,
+  shares only) put the prover's unbatched exponentiations at 42–48% of prove
+  and transcript serialization at a third of verify — the Status tables.
   Two scheduling levers (eager strip, eager partial verification) recorded
   under Remaining levers as measurable only on the global target, undecided.
