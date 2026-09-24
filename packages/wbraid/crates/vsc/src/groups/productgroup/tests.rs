@@ -834,11 +834,7 @@ fn test_par_ser_matches_sequential_p256() {
     test_par_ser::<PCtx>();
 }
 
-fn test_par_ser<C: Context>()
-where
-    C::Element: crate::utils::serialization::FixedWidth,
-    C::Scalar: crate::utils::serialization::FixedWidth,
-{
+fn test_par_ser<C: Context>() {
     use crate::utils::serialization::{Serializable, par_ser};
     let mut rng = C::get_rng();
     for n in [0usize, 1, 200] {

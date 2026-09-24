@@ -23,8 +23,10 @@
 # 100000:2") and DIFF_REPS (3); TALLY_CELLS (the global target's grid of
 # "N:W:Q" cells, default "100000:2:3 100000:5:3"; empty skips it) and
 # TALLY_REPS (3); TALLY_SER_CELLS (tally cells run again with --ser, default
-# none); with a baseline, TALLY_DIFF_CELLS (interleaved tally before/after,
-# default "100000:2:3"; empty skips it) and TALLY_DIFF_REPS (3); BREAKDOWN=1
+# none); a cell may also carry the suffix ":ser" ("N:W:Q:ser") to run with
+# --ser wherever cells are accepted; with a baseline, TALLY_DIFF_CELLS
+# (interleaved tally before/after, default "100000:2:3"; empty skips it) and
+# TALLY_DIFF_REPS (3); BREAKDOWN=1
 # builds targets with --features profile and writes each BREAKDOWN_CELLS cell's
 # stage breakdown (default "100000:2"); GUIDANCE (default 0 -- the criterion
 # guidance benches are design inputs recorded in PERFORMANCE.md, not part of a
@@ -99,16 +101,18 @@ run_grid() {
 # "N:W:Q" cells (FLAG, e.g. --ser, is passed through); the stage breakdown the
 # example prints on stderr goes to the log.
 run_tally_grid() {
-    local bin="$1" cells="$2" reps="$3" out="$4" flag="${5:-}" cell n w q r line
+    local bin="$1" cells="$2" reps="$3" out="$4" flag="${5:-}" cell n w q f r line
     for cell in $cells; do
-        IFS=: read -r n w q <<EOF
+        IFS=: read -r n w q f <<EOF
 $cell
 EOF
+        [ "$f" = ser ] && flag=--ser
         for r in $(seq 1 "$reps"); do
             # shellcheck disable=SC2086
             line="$("$bin" "$n" "$w" "$q" $flag)"
             echo "$line" | tee -a "$out"
         done
+        [ "$f" = ser ] && flag="${5:-}"
     done
 }
 
@@ -252,12 +256,15 @@ if [ -n "$BASE_SHA" ]; then
             echo "tree,$TALLY_HEADER" > "$TDIFF"
             log "interleaved tally before/after over '$TALLY_DIFF_CELLS' x $TALLY_DIFF_REPS reps"
             for cell in $TALLY_DIFF_CELLS; do
-                IFS=: read -r n w q <<EOF
+                IFS=: read -r n w q f <<EOF
 $cell
 EOF
+                flag=""; [ "$f" = ser ] && flag=--ser
                 for r in $(seq 1 "$TALLY_DIFF_REPS"); do
-                    line="$("$BASE_TALLY" "$n" "$w" "$q")"; echo "base,$line" | tee -a "$TDIFF"
-                    line="$("$TIP_TALLY" "$n" "$w" "$q")";  echo "curr,$line" | tee -a "$TDIFF"
+                    # shellcheck disable=SC2086
+                    line="$("$BASE_TALLY" "$n" "$w" "$q" $flag)"; echo "base,$line" | tee -a "$TDIFF"
+                    # shellcheck disable=SC2086
+                    line="$("$TIP_TALLY" "$n" "$w" "$q" $flag)";  echo "curr,$line" | tee -a "$TDIFF"
                 done
             done
         else
