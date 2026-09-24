@@ -30,10 +30,17 @@ Every results file records these, so a number is never quoted without them.
 | Lifetime cap | 120 min (`LIFETIME_MIN`), 25 min for `smoke` |
 
 Comparability note: cloud vCPUs are hyperthreads, and the laptop's 16 logical
-cores are similar — so absolute numbers differ from the laptop but are
-consistent *with each other* session after session, which is what "reference"
-means. Keep the methodology of `PERFORMANCE.md` (Tooling and method: interleaved A/B, median of
-reps).
+cores are similar — so absolute numbers differ from the laptop. **The same
+instance type is not always the same speed**: on 2026-09-23 two sessions an
+hour apart, same type, AZ, CPU model and kernel, differed by ~20% on every
+stage (host placement; PERFORMANCE.md, Status → Resolution). Within one session
+numbers agree to under 1%, so a before/after is exact only **interleaved in one
+session** — which is how the differential runs — and snapshots from different
+sessions compare only to that ~20% tolerance. Every session therefore keeps at
+least one small snapshot cell (the default grid has `1000:2`) as its host
+calibration, and a comparison that matters is re-run interleaved rather than
+read across sessions. Keep the methodology of `PERFORMANCE.md` (Tooling and
+method: interleaved A/B, median of reps).
 
 ## One-time account setup
 
