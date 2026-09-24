@@ -15,178 +15,108 @@ browser-hosted trustees), which prioritized correctness and clarity.
 ## Status
 
 Authoritative numbers come from the reference machine (BENCH-EC2.md): a fresh
-**`c7i.4xlarge`** — Intel Xeon Platinum 8488C, 16 vCPU (8 cores × 2 threads),
-32 GiB; Ubuntu 24.04, rustc 1.96.0, `eu-west-1` — quiesced by construction,
-with both commits built and run **interleaved**, three reps per cell, medians.
-Measured 2026-09-22, fork point `657cb05c20` (the parent branch before the
-optimization work) → merged milestone `185dbbede2`, N = 10⁵:
+**`c7i.8xlarge`** — Intel Xeon Platinum 8488C, 32 vCPU; Ubuntu 24.04, rustc 1.96.0, `eu-west-1` —
+quiesced by construction, every number below from **one session** on
+2026-09-24 (136 min, `ec2-20260924-151248-6eb56bd8eb`), medians of three
+reps. The before/afters build the fork point `657cb05c20` — the parent branch
+before any of this work — and the tip `6eb56bd8eb` on that machine and run them
+**interleaved**, rep by rep; the fork point runs the frozen measurement
+programs of `bench-ec2/forkpoint/` (Tooling and method).
 
-| Target | W = 2: before → after | | W = 5: before → after | |
-|---|---|---|---|---|
-| ① shuffle prove | 13.85 s → 4.92 s | **2.8×** | 23.5 s → 8.76 s | **2.7×** |
-| ② shuffle verify | 10.26 s → 2.23 s | **4.6×** | 19.8 s → 3.57 s | **5.6×** |
-| ③ partial decryption | 15.3 s → 1.19 s | **12.8×** | 38.2 s → 2.98 s | **12.8×** |
-| ④ combine | 45.9 s → 1.99 s | **23×** | 114.8 s → 4.94 s | **23×** |
-| ⑤ Naor-Yung verify-and-strip | 3.64 s → 3.70 s | flat | 8.82 s → 8.87 s | flat |
-
-**Follow-up, 2026-09-23** — milestone `185dbbede2` → `009b443add` (batched
-Naor-Yung verification), same machine and method, N = 10⁵:
-
-| Target | W = 2: before → after | | W = 5: before → after | |
-|---|---|---|---|---|
-| ⑤ Naor-Yung verify-and-strip | 3.74 s → 1.00 s | **3.8×** | 8.96 s → 2.26 s | **4.0×** |
-| ①–④ (controls) | unchanged within 0.5% | | unchanged within 0.5% | |
-
-Strip is paid once per tally, in the first mix, by its producer and by everyone
-who checks it, so its weight is read against those totals (same session, same
-reps):
-
-| First mix, N = 10⁵ | W = 2 | | W = 5 | |
-|---|---|---|---|---|
-| as verified: strip + shuffle verify | 6.01 s → 3.27 s | **1.84×**; strip 62% → 30% | 12.61 s → 5.89 s | **2.14×**; strip 71% → 38% |
-| as produced: strip + shuffle prove | 8.76 s → 6.01 s | **1.46×**; strip 43% → 17% | 17.96 s → 11.22 s | **1.60×**; strip 50% → 20% |
-
-**Follow-up, 2026-09-24** — `2d23452f05` → `6f4c995c22` (the shuffle's second
-challenge serializes its two commitment lists in parallel; found by the stage
-breakdown below), same machine and method, N = 10⁵:
-
-| Target | W = 2: before → after | | W = 5: before → after | |
-|---|---|---|---|---|
-| ① shuffle prove | 4.97 s → 4.27 s | **1.17×** | 8.93 s → 8.21 s | **1.09×** |
-| ② shuffle verify | 2.26 s → 1.53 s | **1.48×** | 3.62 s → 2.88 s | **1.26×** |
-| ③ ④ ⑤ (controls) | unchanged within 1% | | unchanged within 1% | |
-| T(3), V(3) at W2 | 27.07 s → 22.53 s, 9.88 s → 7.63 s | **1.20×**, **1.30×** | | |
-
-**Follow-up, 2026-09-24 (lever 2)** — `0ae4a48ea3` → `81c3a768a5` (the prover's
-permutation commitments and re-encryption legs as fixed-base batches,
-`cae05fe816`), same machine and method, N = 10⁵:
-
-| Target | W = 2: before → after | | W = 5: before → after | |
-|---|---|---|---|---|
-| ① shuffle prove | 4.22 s → 3.05 s | **1.38×** | 8.13 s → 5.53 s | **1.47×** |
-| ② ③ ④ ⑤ (controls) | unchanged within 1% | | unchanged within 1% | |
-| T(3), V(3) at W2 | 22.57 s → 18.83 s, 7.69 s → 7.67 s | **1.20×**, 1.00× | | |
-
-Where the tip stands at N = 10⁵, same machine at reference speed (median of 3,
-ms, the "after" column of that session; the smaller cells scale linearly and are
-on record in the raw files):
+**The five targets at the tip** (ms):
 
 | N : W | prove | verify | partial_decrypt | combine | ny_strip |
 |---|---|---|---|---|---|
-| 10⁵ : 2 | 3 053 | 1 532 | 1 205 | 2 029 | 998 |
-| 10⁵ : 5 | 5 527 | 2 929 | 3 025 | 5 029 | 2 301 |
+| 10³ : 2 | 79 | 73 | 28 | 75 | 8 |
+| 10⁴ : 2 | 187 | 123 | 76 | 143 | 57 |
+| 10⁴ : 5 | 321 | 223 | 182 | 336 | 121 |
+| 10⁵ : 2 | 1 720 | 939 | 644 | 1 128 | 518 |
+| 10⁵ : 5 | 3 094 | 1 784 | 1 623 | 2 813 | 1 179 |
+| 10⁶ : 1 | 13 220 | 6 729 | 3 281 | 5 754 | 2 955 |
 
-Resolution: reps agree within ~1%, and the same binary run standalone vs
-interleaved agrees within 0.6–0.7% — differences below that are noise **within
-a session**. Across sessions the host varies: sessions on the same instance
-type hours apart (2026-09-23, 2026-09-24) differed by ~20–25% on every stage,
-so a before/after is only trustworthy interleaved in one session — which is
-how the differential runs — and snapshots from different sessions compare
-only to that tolerance (each session's 10³ cell is its calibration). Raw
-files: `bench-results/ec2-20260922-012110-185dbbede2/` (fork → milestone),
-`bench-results/ec2-20260923-155859-009b443add/` (milestone → batched NY) and
-`bench-results/ec2-20260924-015429-6f4c995c22/` (→ the second-challenge fix,
-with the tally before/after and the `--ser` cell),
-`bench-results/ec2-20260924-025652-0ae4a48ea3/` (→ parallel lists, with and
-without `--ser`) and `bench-results/ec2-20260924-031018-81c3a768a5/` (→ the
-fixed-base batches, with the breakdown), each with `SUMMARY.md`, the
-differential CSVs, the grid and `machine.txt`.
+**The five targets, fork point → tip** (N as marked; W2 and W5 at 10⁵, W1 at 10⁶):
 
-Reading it: the **decryption path is the headline** (~13× and ~23×) — it had
-the most headroom and every technique below applies to it; the **shuffle**
-gains more on verify than prove because the verifier may use variable-time
-multi-exponentiation and batch V2 while the prover's remaining cost is
-constant-time by necessity; and **⑤ was flat at the milestone because nothing
-had touched vsc's `NYStrip` crypto** (only braid's loop around it was
-parallelized) — the follow-up batched it, and ⑤ went from the slowest target
-at both widths to the fastest at 10⁵.
+| Target | 10⁵ : W2: fork → tip |  | 10⁵ : W5: fork → tip |  | 10⁶ : W1: fork → tip | |
+|---|---|---|---|---|---|---|
+| ① shuffle prove | 10.78 s → 1.72 s | **6.3×** | 18.08 s → 3.11 s | **5.8×** | 83.40 s → 13.21 s | **6.3×** |
+| ② shuffle verify | 7.61 s → 0.928 s | **8.2×** | 14.85 s → 1.78 s | **8.3×** | 51.76 s → 6.71 s | **7.7×** |
+| ③ partial decryption | 13.99 s → 0.643 s | **21.8×** | 35.06 s → 1.62 s | **21.6×** | 73.90 s → 3.27 s | **22.6×** |
+| ④ combine | 42.29 s → 1.13 s | **37.5×** | 105.34 s → 2.81 s | **37.5×** | 219.89 s → 5.74 s | **38.3×** |
+| ⑤ Naor-Yung verify-and-strip | 1.85 s → 0.515 s | **3.6×** | 4.48 s → 1.19 s | **3.8×** | 9.71 s → 2.96 s | **3.3×** |
 
-**Where the time goes** (`vsc --features profile`, reference machine,
-2026-09-24, after both levers — tip `81c3a768a5`, N = 10⁵; share of each
-stage's wall-clock, W2 / W5). Categories are wall-clock at the stages' outer
-call sites, so a category's share is what removing it would save:
+**The global target at the tip** — one tally's critical-path latency `T(Q)`
+for a quorum of Q acting in turn, and the external verifier's `V(Q)`
+(`examples/tally.rs`; each stage with its share of T; "messages" is the
+encoding and decoding of every posted message, on the path only where marked):
 
-| stage | MSM | per-element exps | fixed-base | transcript ser | hashing | generators | unattributed |
-|---|---|---|---|---|---|---|---|
-| prove | 24% / 29% (constant-time) | — | **41% / 37%** | 17% / 18% | 6% / 7% | 3% / 2% | 9% / 7% |
-| verify | **41% / 42%** | | | **32% / 34%** | 13% / 13% | 6% / 3% | 9% / 8% |
-| partial_decrypt | 16% / 16% | **64% / 64%** | | 14% / 13% | 6% / 5% | | 1% / 1% |
-| combine | **65% / 65%** | | | 24% / 24% | 11% / 10% | | 0% / 1% |
-| ny_strip | 39% / 44% | | | | **56% / 52%** † | | 5% / 5% |
+| N : W : Q | T | V | strip ×2 | prove ×Q | verify ×Q | partial | combine | messages |
+|---|---|---|---|---|---|---|---|---|
+| 10⁵ : 2 : 3 | **10.72 s** | 4.51 s | 1.06 s (10%) | 5.03 s (47%) | 2.85 s (27%) | 0.644 s (6%) | 1.14 s (11%) | off |
+| 10⁵ : 2 : 3 (+ messages) | **12.94 s** | 4.50 s | 1.06 s (8%) | 5.07 s (39%) | 2.84 s (22%) | 0.652 s (5%) | 1.14 s (9%) | 2.18 s (17%) |
+| 10⁵ : 5 : 3 | **21.39 s** | 9.37 s | 2.43 s (11%) | 9.17 s (43%) | 5.37 s (25%) | 1.62 s (8%) | 2.82 s (13%) | off |
+| 10⁶ : 1 : 2 | **52.94 s** | 20.72 s | 6.01 s (11%) | 25.91 s (49%) | 13.42 s (25%) | 3.26 s (6%) | 4.35 s (8%) | off |
 
-† the per-ballot challenge derivations, which include each ballot's
-serialization. Over one mix (prove + verify) at W2: MSM 30%, fixed-base
-batches 27%, transcript serialization 22%, hashing 9%, generators 4%,
-unattributed 9%. Before the levers (tip `3e5c25e86c`, same method) the
-prover's *unbatched* exponentiations were the largest single item at 42–48%
-of prove; they are gone, the fixed-base batches that replaced them cost about
-half as much, and the constant-time MSMs `A′`/`F′` are now the prover's
-largest item after them (the accepted premium, Constraints). The analytic
-estimates that preceded the measurement (MSM ~20%, serialization ~20% of a
-mix) were right for what they could see; what they could not see was the
-unbatched exponentiation, and that message encoding/decoding dwarfed all of
-it until `0ae4a48ea3`.
+**The global target, fork point → tip:**
 
-**The global target** (`examples/tally.rs`; same machine, 2026-09-23, tip
-`2d23452f05`): one tally's **critical-path latency** `T(Q)` for a quorum of Q
-acting in turn, and the external verifier's `V(Q)`, N = 10⁵, median of 3, each
-stage with its share of T:
+| N : W : Q | T: fork → tip | | V: fork → tip | | messages: fork → tip | |
+|---|---|---|---|---|---|---|
+| 10⁵ : 2 : 3 | 115.04 s → 10.73 s | **10.7×** | 66.79 s → 4.52 s | **14.8×** | off |  |
+| 10⁵ : 2 : 3 (+ messages) | 152.62 s → 12.95 s | **11.8×** | 66.83 s → 4.51 s | **14.8×** | 37.37 s → 2.18 s | **17.1×** |
+| 10⁵ : 5 : 3 | 248.50 s → 21.41 s | **11.6×** | 154.61 s → 9.38 s | **16.5×** | off |  |
+| 10⁶ : 1 : 2 | 509.54 s → 52.92 s | **9.6×** | 259.79 s → 20.76 s | **12.5×** | off |  |
 
-| N : W : Q | T | V | strip ×2 | prove ×Q | verify ×Q | partial | combine |
-|---|---|---|---|---|---|---|---|
-| 10⁵ : 2 : 3 | **27.2 s** | 10.0 s | 2.0 s (7%) | 15.0 s (55%) | 6.9 s (25%) | 1.2 s (4%) | 2.0 s (7%) |
-| 10⁵ : 5 : 3 | **50.5 s** | 18.3 s | 4.6 s (9%) | 26.9 s (53%) | 11.0 s (22%) | 3.0 s (6%) | 5.0 s (10%) |
-| 10⁵ : 2 : 5 † | **34.8 s** | 12.9 s | 1.7 s (5%) | 20.2 s (58%) | 9.7 s (28%) | 0.9 s (3%) | 2.4 s (7%) |
-| 10⁵ : 2 : 7 † | **47.6 s** | 17.6 s | 1.6 s (3%) | 28.3 s (59%) | 13.6 s (28%) | 1.0 s (2%) | 3.2 s (7%) |
-| 10⁶ : 1 : 2 | **138.3 s** | 51.0 s | 11.5 s (8%) | 75.2 s (54%) | 37.4 s (27%) | 6.2 s (5%) | 7.9 s (6%) |
+**Where the time goes** (`vsc --features profile` via `bench-ec2/breakdown.patch`,
+same session and host; share of each stage's wall-clock at 10⁵, W2 / W5;
+categories are wall-clock at the stages' outer call sites, so a share is what
+removing it would save):
 
-The replay agrees with the formula over the isolated targets above —
-`2·strip + Q·(prove + verify) + partial + combine` gives 27.0 s and 50.2 s —
-within 0.6%, the machine's resolution: the five targets compose additively, and
-the path is what the formula says it is. More than half of it is shuffle
-proving; strip, the slowest single target before batching, is under a tenth.
+| stage (W2 / W5) | MSM (CT) | MSM (VT) | fixed-base | per-element exps | transcript ser | hashing | generators | unattributed |
+|---|---|---|---|---|---|---|---|---|
+| prove | 21% / 26% |  | 37% / 34% |  | 15% / 17% | 10% / 11% | 3% / 2% | 14% / 11% |
+| verify |  | 35% / 37% |  |  | 28% / 29% | 19% / 19% | 5% / 3% | 13% / 13% |
+| partial_decrypt |  | 16% / 16% |  | 60% / 59% | 13% / 13% | 10% / 9% |  | 1% / 2% |
+| combine |  | 60% / 60% |  |  | 23% / 23% | 17% / 16% |  | 1% / 1% |
+| ny_strip |  | 38% / 42% |  |  |  | 55% / 50% |  | 7% / 8% |
 
-† The Q = 5 and Q = 7 rows come from a second session an hour later whose host
-ran **~20% faster on every stage** — same instance type, AZ, CPU model and
-kernel; the 10³ calibration cell 50 ms vs 62 ms for prove — so their absolute
-values are not comparable with the rows above (see Resolution). Read the
-Q-scaling *within* that session: every mix cost the same (prove 4.03 s, verify
-1.94 s, all 12 within 1%), each extra partial's verification 0.42 s, and the
-two rows fit `T(Q) ≈ 2.8 s + 6.4 s·Q` to 0.2% — linear in the quorum size, with
-the intercept the two strips, the partial and the Lagrange step. On the
-reference-speed host of the first rows the slope is ~7.9 s per trustee.
+Hashing in `ny_strip` is the per-ballot challenge derivation, which includes
+each ballot's serialization. Over one mix (prove + verify) at W2: MSM 26%
+(constant-time 14%, variable-time 12%), fixed-base batches 24%, transcript
+serialization 20%, hashing 13%, generators 3%, unattributed 13%.
 
-These rows predate the day's levers. On the tally at 10⁵/W2/Q3, measured
-interleaved step by step: T(3) 27.07 s → 22.53 s (the second-challenge fix) →
-18.83 s (the fixed-base batches), **1.44× in all**, and V(3) 9.88 s → 7.63 s;
-with message encoding/decoding on the path, 56.9 s → 23.7 s after the parallel
-lists, before the fixed-base batches. The other cells shift by the same
-per-stage ratios.
+Reading it. The **decryption path is the headline** — partial decryption 22×
+and combine 37× at every cell — because it had the most headroom and every
+technique in Design applies to it; the shuffle **verifier** gains 8× because it
+may use variable-time multi-exponentiation and batch V2, the **prover** 6×
+because its remaining cost is constant-time by decision (Constraints); strip
+gains 3.6× from the batched check alone. Composed, one tally's critical path
+at 10⁵/W2 is **10.7× shorter** than at the fork point, 9.6× at a million
+ballots of width 1, and the external verifier's path 12–16× — the verifier
+side, which scales with the number of checkers, improved most. With the
+posted messages' encoding and decoding on the path the gain is 11.8×: that
+term went 37.4 s → 2.2 s (17×) and is now 17% of the path where it was 24%.
+The replay agrees with the formula over the isolated targets —
+`2·strip + Q·(prove + verify) + partial + combine` = 10.79 s against T(3) =
+10.72 s at 10⁵/W2 — within 0.6%: the five targets compose additively, and
+the path is what the formula says it is.
 
-**Message encoding and decoding, measured and fixed** (`tally --ser`,
-10⁵/W2/Q3): with each posted message encoded by its producer and decoded by
-its consumer, T was **62.4 s, of which 39.8 s (64%) was encoding/decoding**
-and 22.5 s the cryptography — both directions ran sequentially, `Vec::ser`
-when a list was posted and `deser` when it was read, about seven million
-point compressions and decompressions per tally on one core. `0ae4a48ea3`
-(parallel lists behind the unchanged encoding, Design) measured interleaved
-against `6f4c995c22` on the same machine: **encoding/decoding 36.9 s → 3.7 s
-(10.0×)**, T with messages on the path 56.9 s → 23.7 s (**2.40×**); every
-crypto stage, and T without `--ser`, unchanged within 1%
-(`bench-results/ec2-20260924-025652-0ae4a48ea3/`). Message handling is now
-~16% of the path instead of 64%; it is not in T's default composition.
+Two things to know when reading the fork-point column. Its strip is measured
+with the frozen program's parallel loop over per-item `strip` (the same form
+the targets have always used, vsc's crypto in production shape); braid's own
+loop at the fork point was serial, so the first mix as braid actually ran it
+then cost more than the column shows, and gained correspondingly more. And
+this machine is not the one the earlier sessions ran on: `c7i.8xlarge` has
+twice the cores of the `c7i.4xlarge` the Log's tables come from, and the tip
+runs ~1.8× faster here (prove 1.72 s vs 3.05 s at 10⁵/W2), so absolute
+values are comparable only within this Status; the earlier ratios stand.
 
-The 10⁶ : 1 : 2 row is the scenario measured on older implementations, for
-comparison with them. Its session ran the 10⁵ : 2 : 3 cell alongside as an
-anchor and reproduced 27.1 s, so that host was at the reference speed and the
-row is comparable with the Q = 3 rows. Per mix at a million ballots of width
-1: prove 37.6 s, verify 18.7 s (reps within 0.1%); strip 5.7 s per party;
-combine over two partials 7.9 s. Against 10⁵/W2 that is 7.5× for 10× the
-ballots at half the width — linear in N, with the per-ciphertext costs
-(permutation commitments, bridging, transcript) outweighing the per-component
-ones. Raw files: `bench-results/ec2-20260923-234858-2d23452f05/`,
-`bench-results/ec2-20260923-235827-a3a46a5640/` and
-`bench-results/ec2-20260924-005233-196bc5c947/`.
+Resolution: reps agree within ~1% and the same binary standalone vs
+interleaved within under 1% — differences below that are noise **within a
+session**. Across sessions the host varies (~20–25% between sessions on one
+instance type has been observed), so before/afters are only ever read
+interleaved within one session, as above, and snapshots from different
+sessions compare only to that tolerance. Raw files: `bench-results/ec2-20260924-151248-6eb56bd8eb/`
+(`SUMMARY.md`, the four CSVs, `profile-*.txt`, `machine.txt`). Earlier
+sessions and their tables are in the Log.
 
 ## Design, as implemented
 
@@ -388,9 +318,9 @@ constant time wherever the exponent is a secret, variable time wherever every
 operand is public.** Nothing in the protocol text speaks to timing; this is an
 implementation posture, and it costs something measurable: after the
 fixed-base batches, the prover's two constant-time multi-exponentiations
-(`A′`, `F′`) are ~27–30% of prove, and a variable-time multi-exponentiation
-runs about three times faster (`msm_strategy`), so going variable-time there
-would save roughly a fifth of prove and a tenth of T. It is not taken. The
+(`A′`, `F′`) are a measured 21–26% of prove (Status), and a variable-time
+multi-exponentiation runs about three times faster (`msm_strategy`), so going
+variable-time there would save roughly a sixth of prove and 8% of T. It is not taken. The
 exponents in question are the prover's blinders `ε`: the response
 `k_E = v·e′ + ε` hides the permuted challenge `e′` behind them, so a timing
 channel on `ε` is a channel on the permutation — the one secret a mixnet
@@ -441,9 +371,9 @@ In priority order; nothing here is done.
    compressing a point costs a field inversion. The verifier already holds
    those bytes: the posted lists and proofs *are* that encoding, so it decodes
    them to points and then, inside `verify`, recompresses the same points for
-   the transcript — measured 32–34% of verify (Status, "transcript ser":
-   0.49 s of 1.52 s at W2). The prover compresses its output list and
-   commitments twice, once for the transcript and once for posting — 17–18%
+   the transcript — measured 28–29% of verify (Status, "transcript ser":
+   0.26 s of 0.93 s at 10⁵/W2). The prover compresses its output list and
+   commitments twice, once for the transcript and once for posting — 15–17%
    of prove is transcript serialization, about half of it this. Carrying the canonical bytes
    alongside decoded values (a `deser` that returns both, a transcript builder
    that takes bytes when offered, one compression shared with message
@@ -452,10 +382,11 @@ In priority order; nothing here is done.
    decoding is strict — a non-canonical encoding is rejected, so received
    bytes ≡ re-serialized bytes, which turns from a format property into a
    soundness requirement once relied upon — and the transcript and message
-   framings of a list are byte-identical or sliceable. About 0.7 s per mix,
-   ~2 s of T(3) = 18.8 s (~11%); the byte-carrying `deser` it needs is the
-   plumbing the parallel lists already have. Deferred at the parking
-   milestone, by decision. Native transcripts only: the Verificatum-compatible
+   framings of a list are byte-identical or sliceable. About 0.4 s per mix
+   on the reference machine, ~1.2 s of T(3) = 10.7 s (~11%); the
+   byte-carrying `deser` it needs is the plumbing the parallel lists already
+   have. Deferred at the parking milestone, by decision. Native transcripts
+   only: the Verificatum-compatible
    challenge derivation encodes ByteTree through `VmnChallenges`
    (SERIALIZATION.md §6) and keeps its own serialization.
 2. **`jemalloc`** is available behind a `braid` feature as a higher-performance
@@ -466,10 +397,10 @@ In priority order; nothing here is done.
 4. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
    ≥ 70% of verifier wall-clock at the deployment's real N *and* a latency
    requirement CPU scaling cannot meet exists. On the reference machine at
-   10⁵/W2 the verifier's MSMs are a measured 41% of verify and 30% of a
-   whole mix (Status, "Where the time goes"), so even a free GPU MSM buys
-   ≤ ~1.7× on verify and ≤ ~1.4× on a mix, and the prover's share is
-   constant-time by decision (Constraints). If it is ever revisited: Anza's
+   10⁵/W2 the verifier's MSMs are a measured 35% of verify and 12% of a
+   whole mix (Status, "Where the time goes"; the prover's constant-time MSMs
+   are another 14% and stay on the CPU by decision, Constraints), so even a
+   free GPU MSM buys ≤ ~1.5× on verify and ≤ ~1.15× on a mix. If it is ever revisited: Anza's
    `curve25519-cuda` (sppark-based, in `anza-xyz/cryptography`) is the one
    candidate for this curve — variable-time, GPU→CPU fallback — but unpublished
    and unaudited as of 2026-09; the posture would be GPU on the verifier only,
@@ -495,13 +426,13 @@ In priority order; nothing here is done.
    - **Eager strip.** The trustee verifying the first mix strips the ballot
      list only when that mix arrives (`mix_input_ciphertexts`), which is the
      second Strip on the path; stripping when the ballots arrive removes it
-     (~1.0 s, ~5% of T(3) = 18.8 s — batching already took most of this
+     (~0.5 s, ~5% of T(3) = 10.7 s — batching already took most of this
      lever's value).
    - **Eager partial-decryption verification.** `ComputePlaintexts` runs
      `combine` once all N partials are posted, and `combine` verifies them in
      series (`recipient.rs`, the contribution loop); verifying each on
-     arrival, as mixes are, takes N − 1 verifications off the path (~1.2 s,
-     ~6% of T(3) = 18.8 s, growing with N).
+     arrival, as mixes are, takes N − 1 verifications off the path (~0.7 s,
+     ~6% of T(3) = 10.7 s, growing with N).
 
    Both are braid datalog/action changes with no protocol or transcript
    consequence; whether either is worth its complexity is undecided and will
@@ -690,3 +621,156 @@ things stand.
   seeded from the workspace's, ASSURANCE.md §3).
   Two scheduling levers (eager strip, eager partial verification) recorded
   under Remaining levers as measurable only on the global target, undecided.
+- **Status reset on the fork point** (`f9f3576282`, `6eb56bd8eb`,
+  2026-09-24). Status now holds only the current state, all from one session
+  against the fork point on a new reference machine, `c7i.8xlarge`
+  (`ec2-20260924-151248-6eb56bd8eb`, 136 min, ~$3.60): the tip's targets and
+  tally, both fork → tip differentials, the breakdown. Two rig additions made
+  the direct fork-point comparison possible again: `bench-ec2/forkpoint/`,
+  frozen `targets.rs`/`tally.rs` that build against `657cb05c20`
+  (`BASE_EXAMPLES_DIR`), and `bench-ec2/breakdown.patch`, the stage timers
+  applied to a scratch copy of the tip by `BREAKDOWN=1` so the production
+  code stays uninstrumented. The smoke of the knobs caught a `set -e` trap in
+  `run_tally_grid` (`6eb56bd8eb`). Headline: T(3) at 10⁵/W2 115 s → 10.7 s
+  (10.7×), with messages 153 s → 12.9 s (11.8×); 10⁶/W1/Q2 510 s → 52.9 s
+  (9.6×); V(3) 12–16×. The tables that were Status before this are below.
+
+### Session tables, in order
+
+The tables that were the Status of their day, kept with the entry that
+produced them. Absolute values are comparable only within one session
+(Status → Resolution); ratios are exact.
+
+**2026-09-22 — fork point `657cb05c20` → milestone `185dbbede2`** (`c7i.4xlarge`,
+interleaved, median of 3, N = 10⁵; `bench-results/ec2-20260922-012110-185dbbede2/`):
+
+| Target | W = 2: before → after | | W = 5: before → after | |
+|---|---|---|---|---|
+| ① shuffle prove | 13.85 s → 4.92 s | **2.8×** | 23.5 s → 8.76 s | **2.7×** |
+| ② shuffle verify | 10.26 s → 2.23 s | **4.6×** | 19.8 s → 3.57 s | **5.6×** |
+| ③ partial decryption | 15.3 s → 1.19 s | **12.8×** | 38.2 s → 2.98 s | **12.8×** |
+| ④ combine | 45.9 s → 1.99 s | **23×** | 114.8 s → 4.94 s | **23×** |
+| ⑤ Naor-Yung verify-and-strip | 3.64 s → 3.70 s | flat | 8.82 s → 8.87 s | flat |
+
+**2026-09-23 — milestone → batched Naor-Yung verification `009b443add`**
+(`bench-results/ec2-20260923-155859-009b443add/`), and strip as a share of the
+first mix in the same session:
+
+| Target | W = 2: before → after | | W = 5: before → after | |
+|---|---|---|---|---|
+| ⑤ Naor-Yung verify-and-strip | 3.74 s → 1.00 s | **3.8×** | 8.96 s → 2.26 s | **4.0×** |
+| ①–④ (controls) | unchanged within 0.5% | | unchanged within 0.5% | |
+
+Strip is paid once per tally, in the first mix, by its producer and by everyone
+who checks it, so its weight is read against those totals (same session, same
+reps):
+
+| First mix, N = 10⁵ | W = 2 | | W = 5 | |
+|---|---|---|---|---|
+| as verified: strip + shuffle verify | 6.01 s → 3.27 s | **1.84×**; strip 62% → 30% | 12.61 s → 5.89 s | **2.14×**; strip 71% → 38% |
+| as produced: strip + shuffle prove | 8.76 s → 6.01 s | **1.46×**; strip 43% → 17% | 17.96 s → 11.22 s | **1.60×**; strip 50% → 20% |
+
+**2026-09-23 — the global target at `2d23452f05`** (three sessions, see the
+entry; `bench-results/ec2-20260923-234858-2d23452f05/`,
+`ec2-20260923-235827-a3a46a5640/`, `ec2-20260924-005233-196bc5c947/`):
+
+| N : W : Q | T | V | strip ×2 | prove ×Q | verify ×Q | partial | combine |
+|---|---|---|---|---|---|---|---|
+| 10⁵ : 2 : 3 | **27.2 s** | 10.0 s | 2.0 s (7%) | 15.0 s (55%) | 6.9 s (25%) | 1.2 s (4%) | 2.0 s (7%) |
+| 10⁵ : 5 : 3 | **50.5 s** | 18.3 s | 4.6 s (9%) | 26.9 s (53%) | 11.0 s (22%) | 3.0 s (6%) | 5.0 s (10%) |
+| 10⁵ : 2 : 5 † | **34.8 s** | 12.9 s | 1.7 s (5%) | 20.2 s (58%) | 9.7 s (28%) | 0.9 s (3%) | 2.4 s (7%) |
+| 10⁵ : 2 : 7 † | **47.6 s** | 17.6 s | 1.6 s (3%) | 28.3 s (59%) | 13.6 s (28%) | 1.0 s (2%) | 3.2 s (7%) |
+| 10⁶ : 1 : 2 | **138.3 s** | 51.0 s | 11.5 s (8%) | 75.2 s (54%) | 37.4 s (27%) | 6.2 s (5%) | 7.9 s (6%) |
+
+The replay agrees with the formula over the isolated targets above —
+`2·strip + Q·(prove + verify) + partial + combine` gives 27.0 s and 50.2 s —
+within 0.6%, the machine's resolution: the five targets compose additively, and
+the path is what the formula says it is. More than half of it is shuffle
+proving; strip, the slowest single target before batching, is under a tenth.
+
+† The Q = 5 and Q = 7 rows come from a second session an hour later whose host
+ran **~20% faster on every stage** — same instance type, AZ, CPU model and
+kernel; the 10³ calibration cell 50 ms vs 62 ms for prove — so their absolute
+values are not comparable with the rows above (see Resolution). Read the
+Q-scaling *within* that session: every mix cost the same (prove 4.03 s, verify
+1.94 s, all 12 within 1%), each extra partial's verification 0.42 s, and the
+two rows fit `T(Q) ≈ 2.8 s + 6.4 s·Q` to 0.2% — linear in the quorum size, with
+the intercept the two strips, the partial and the Lagrange step. On the
+reference-speed host of the first rows the slope is ~7.9 s per trustee.
+
+These rows predate the day's levers. On the tally at 10⁵/W2/Q3, measured
+interleaved step by step: T(3) 27.07 s → 22.53 s (the second-challenge fix) →
+18.83 s (the fixed-base batches), **1.44× in all**, and V(3) 9.88 s → 7.63 s;
+with message encoding/decoding on the path, 56.9 s → 23.7 s after the parallel
+lists, before the fixed-base batches. The other cells shift by the same
+per-stage ratios.
+
+The 10⁶ : 1 : 2 row is the scenario measured on older implementations, for
+comparison with them. Its session ran the 10⁵ : 2 : 3 cell alongside as an
+anchor and reproduced 27.1 s, so that host was at the reference speed and the
+row is comparable with the Q = 3 rows. Per mix at a million ballots of width
+1: prove 37.6 s, verify 18.7 s (reps within 0.1%); strip 5.7 s per party;
+combine over two partials 7.9 s. Against 10⁵/W2 that is 7.5× for 10× the
+ballots at half the width — linear in N, with the per-ciphertext costs
+(permutation commitments, bridging, transcript) outweighing the per-component
+ones. Raw files: `bench-results/ec2-20260923-234858-2d23452f05/`,
+`bench-results/ec2-20260923-235827-a3a46a5640/` and
+`bench-results/ec2-20260924-005233-196bc5c947/`.
+
+**2026-09-24 — the second challenge's parallel encoding, `2d23452f05` →
+`6f4c995c22`** (`bench-results/ec2-20260924-015429-6f4c995c22/`):
+
+| Target | W = 2: before → after | | W = 5: before → after | |
+|---|---|---|---|---|
+| ① shuffle prove | 4.97 s → 4.27 s | **1.17×** | 8.93 s → 8.21 s | **1.09×** |
+| ② shuffle verify | 2.26 s → 1.53 s | **1.48×** | 3.62 s → 2.88 s | **1.26×** |
+| ③ ④ ⑤ (controls) | unchanged within 1% | | unchanged within 1% | |
+| T(3), V(3) at W2 | 27.07 s → 22.53 s, 9.88 s → 7.63 s | **1.20×**, **1.30×** | | |
+
+**2026-09-24 — parallel lists `0ae4a48ea3`, message handling on the path:**
+
+**Message encoding and decoding, measured and fixed** (`tally --ser`,
+10⁵/W2/Q3): with each posted message encoded by its producer and decoded by
+its consumer, T was **62.4 s, of which 39.8 s (64%) was encoding/decoding**
+and 22.5 s the cryptography — both directions ran sequentially, `Vec::ser`
+when a list was posted and `deser` when it was read, about seven million
+point compressions and decompressions per tally on one core. `0ae4a48ea3`
+(parallel lists behind the unchanged encoding, Design) measured interleaved
+against `6f4c995c22` on the same machine: **encoding/decoding 36.9 s → 3.7 s
+(10.0×)**, T with messages on the path 56.9 s → 23.7 s (**2.40×**); every
+crypto stage, and T without `--ser`, unchanged within 1%
+(`bench-results/ec2-20260924-025652-0ae4a48ea3/`). Message handling is now
+~16% of the path instead of 64%; it is not in T's default composition.
+
+**2026-09-24 — the prover's fixed-base batches, `0ae4a48ea3` → `81c3a768a5`**
+(`bench-results/ec2-20260924-031018-81c3a768a5/`), and the stage breakdown
+after both levers on that host (`vsc --features profile`, tip `81c3a768a5`,
+share of each stage's wall-clock, W2 / W5):
+
+| Target | W = 2: before → after | | W = 5: before → after | |
+|---|---|---|---|---|
+| ① shuffle prove | 4.22 s → 3.05 s | **1.38×** | 8.13 s → 5.53 s | **1.47×** |
+| ② ③ ④ ⑤ (controls) | unchanged within 1% | | unchanged within 1% | |
+| T(3), V(3) at W2 | 22.57 s → 18.83 s, 7.69 s → 7.67 s | **1.20×**, 1.00× | | |
+
+| stage | MSM | per-element exps | fixed-base | transcript ser | hashing | generators | unattributed |
+|---|---|---|---|---|---|---|---|
+| prove | 24% / 29% (constant-time) | — | **41% / 37%** | 17% / 18% | 6% / 7% | 3% / 2% | 9% / 7% |
+| verify | **41% / 42%** | | | **32% / 34%** | 13% / 13% | 6% / 3% | 9% / 8% |
+| partial_decrypt | 16% / 16% | **64% / 64%** | | 14% / 13% | 6% / 5% | | 1% / 1% |
+| combine | **65% / 65%** | | | 24% / 24% | 11% / 10% | | 0% / 1% |
+| ny_strip | 39% / 44% | | | | **56% / 52%** † | | 5% / 5% |
+
+† the per-ballot challenge derivations, which include each ballot's
+serialization. Over one mix (prove + verify) at W2: MSM 30%, fixed-base
+batches 27%, transcript serialization 22%, hashing 9%, generators 4%,
+unattributed 9%. Before the levers (tip `3e5c25e86c`, same method) the
+prover's *unbatched* exponentiations were the largest single item at 42–48%
+of prove; they are gone, the fixed-base batches that replaced them cost about
+half as much, and the constant-time MSMs `A′`/`F′` are now the prover's
+largest item after them (the accepted premium, Constraints). The analytic
+estimates that preceded the measurement (MSM ~20%, serialization ~20% of a
+mix) were right for what they could see; what they could not see was the
+unbatched exponentiation, and that message encoding/decoding dwarfed all of
+it until `0ae4a48ea3`.
+
