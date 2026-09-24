@@ -142,14 +142,18 @@ measured on the tally as T(3) 27.07 s → 22.53 s and V(3) 9.88 s → 7.63 s at
 10⁵/W2 (the follow-up table above); the other cells shift by the same
 prove/verify ratios.
 
-**Message encoding and decoding, measured** (`tally --ser`, 10⁵/W2/Q3, same
-session as the fix): with each posted message encoded by its producer and
-decoded by its consumer, T is **62.4 s, of which 39.8 s (64%) is
-encoding/decoding** and 22.5 s the cryptography above. Both directions are
-sequential today — `Vec::ser` when a list is posted, `deser` when it is read
-— about seven million point compressions and decompressions per tally on one
-core. It is the largest single term on the path, and it is not in T's default
-composition (Remaining levers, 1).
+**Message encoding and decoding, measured and fixed** (`tally --ser`,
+10⁵/W2/Q3): with each posted message encoded by its producer and decoded by
+its consumer, T was **62.4 s, of which 39.8 s (64%) was encoding/decoding**
+and 22.5 s the cryptography — both directions ran sequentially, `Vec::ser`
+when a list was posted and `deser` when it was read, about seven million
+point compressions and decompressions per tally on one core. `0ae4a48ea3`
+(parallel lists behind the unchanged encoding, Design) measured interleaved
+against `6f4c995c22` on the same machine: **encoding/decoding 36.9 s → 3.7 s
+(10.0×)**, T with messages on the path 56.9 s → 23.7 s (**2.40×**); every
+crypto stage, and T without `--ser`, unchanged within 1%
+(`bench-results/ec2-20260924-025652-0ae4a48ea3/`). Message handling is now
+~16% of the path instead of 64%; it is not in T's default composition.
 
 The 10⁶ : 1 : 2 row is the scenario measured on older implementations, for
 comparison with them. Its session ran the 10⁵ : 2 : 3 cell alongside as an
@@ -647,5 +651,15 @@ things stand.
   and the measured shares (`ec2-20260924-021429-3e5c25e86c`, a fast host,
   shares only) put the prover's unbatched exponentiations at 42–48% of prove
   and transcript serialization at a third of verify — the Status tables.
+- **Parallel lists** (`0ae4a48ea3`, 2026-09-24; lever 1 of the parking
+  milestone). `Vec<T>` encodes in parallel from 1024 elements for any element
+  type and decodes in parallel when the element width is known — the
+  `FIXED_WIDTH` hint on `Deserializable`, summed by the derive, replacing the
+  `FixedWidth` trait; `par_ser` became the same encoder for a slice. Bytes
+  produced and accepted unchanged, pinned against a sequential reference on
+  valid, corrupted, truncated, extended and mis-counted lists; braid's
+  message bodies inherit it untouched. Reference machine, interleaved
+  (`ec2-20260924-025652-0ae4a48ea3`): message encoding/decoding 36.9 s →
+  3.7 s (10.0×), T with messages 56.9 s → 23.7 s (2.40×), crypto stages flat.
   Two scheduling levers (eager strip, eager partial verification) recorded
   under Remaining levers as measurable only on the global target, undecided.
