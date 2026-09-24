@@ -1,0 +1,157 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Backend database contracts
+
+on:
+  pull_request:
+    paths:
+      - 'hasura/**'
+      - 'scripts/voting_flow/**'
+      - 'scripts/test_*.py'
+      - 'scripts/postgres/**'
+      - 'packages/windmill/src/postgres/**'
+      - 'packages/windmill/src/services/**'
+      - 'packages/voting-load/**'
+      - '.devcontainer/postgresql/init.sh'
+      - '.github/actions/setup-rust-tests/**'
+      - '.github/workflows/backend-database-contracts.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hasura/**'
+      - 'scripts/voting_flow/**'
+      - 'scripts/test_*.py'
+      - 'scripts/postgres/**'
+      - 'packages/windmill/src/postgres/**'
+      - 'packages/windmill/src/services/**'
+      - 'packages/voting-load/**'
+      - '.devcontainer/postgresql/init.sh'
+      - '.github/actions/setup-rust-tests/**'
+      - '.github/workflows/backend-database-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-database-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  migrations:
+    name: Migrations apply, roll back and reapply
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check every backend-db migration on a fresh PostgreSQL 18 database
+        run: >-
+          docker run --rm --user postgres --volume "$PWD:/step:ro" --workdir /step
+          postgres:18-bookworm scripts/postgres/check_migrations.sh
+
+  hasura-metadata:
+    name: Hasura metadata is consistent
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Start Hasura on a fresh database and check its metadata
+        run: scripts/postgres/check_hasura_metadata.sh
+
+  database-suites:
+    name: Voting-flow and ballot database suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build the PostgreSQL 18 harness image
+        run: docker build --tag voting-flow-harness scripts/voting_flow
+      - name: Voting-flow regressions
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_cast_vote_scalability.py
+      - name: Scheduled voting channels
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_scheduled_voting_channels.py
+      - name: Ballot publication lifecycle
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_ballot_publication_lifecycle.py
+      - name: Voting-load capture diagnostics
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 -m unittest discover -s packages/voting-load
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+      - name: Document access permissions
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd hasura install --frozen-lockfile --non-interactive
+          node --test hasura/tests/document-access.test.cjs
+
+  windmill-database:
+    name: Windmill PostgreSQL tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      CARGO_BUILD_JOBS: '2'
+      CAST_VOTE_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --host=127.0.0.1 --username=postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust-tests
+        with:
+          cargo-build-name: database-contracts-windmill
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+      # The fixture that scripts/voting_flow/database.py builds for the
+      # regressions and for test_cast_vote_scalability.py --rust-tests.
+      - name: Load the voting-flow database fixture
+        env:
+          DATABASE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          fixture() {
+            docker exec --interactive "$DATABASE_CONTAINER" \
+              psql --username=postgres --no-psqlrc --quiet --set=ON_ERROR_STOP=1 "$@"
+          }
+          migrations=hasura/migrations/backend-db
+          fixture < scripts/voting_flow/schema.sql
+          fixture --single-transaction < "$migrations/1788765000000_serialize_cast_vote_area_checks/up.sql"
+          fixture --command='CREATE TRIGGER check_revote_limit_trigger
+            BEFORE INSERT ON sequent_backend.cast_vote
+            FOR EACH ROW EXECUTE FUNCTION check_revote_limit()'
+          fixture --single-transaction < "$migrations/1788765000002_materialize_voting_windows/up.sql"
+          fixture --single-transaction < "$migrations/1789420000001_voting_windows_follow_channels/up.sql"
+      - name: Run the ignored insert_cast_vote PostgreSQL tests
+        working-directory: packages
+        run: |
+          cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored \
+            | tee "$RUNNER_TEMP/windmill-database.log"
+          # An empty filter also succeeds; require that the tests actually ran.
+          grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/windmill-database.log"
