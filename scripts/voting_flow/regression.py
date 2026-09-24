@@ -14,6 +14,7 @@ from psycopg.types.json import Jsonb
 
 from database import (
     AREA_MIGRATION,
+    ONLINE_WINDOW_MIGRATION,
     CONFIGURATION_QUERY,
     STORAGE_MIGRATION,
     WINDOW_MIGRATION,
@@ -89,9 +90,11 @@ class VotingFlowTests(unittest.TestCase):
 
     def test_backfill_and_rollback(self):
         """Verify projection backfill and eligibility migration reapplication preserve valid schedules."""
+        self.db.apply(ONLINE_WINDOW_MIGRATION, "down")
         self.db.apply(WINDOW_MIGRATION, "down")
         self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
         self.db.apply(WINDOW_MIGRATION)
+        self.db.apply(ONLINE_WINDOW_MIGRATION)
         self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
         self.db.apply(AREA_MIGRATION, "down")
         self.db.apply(AREA_MIGRATION)
@@ -121,6 +124,26 @@ class VotingFlowTests(unittest.TestCase):
         # Matching names alone must not admit a mismatched or extended payload.
         self.election.schedule(self.connection, "START", "2026-10-01T10:00:00Z")
         self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
+
+    def test_online_window_follows_schedule_channels(self):
+        """Count only schedules that include ONLINE; no channel list means ONLINE and KIOSK."""
+        start = self.election.schedule(self.connection, "START", "2026-10-01T10:00:00Z")
+        end = self.election.schedule(self.connection, "END", "2026-10-01T12:00:00Z")
+
+        def select_channels(schedule, channels):
+            payload = {"election_id": str(self.election.election), "voting_channels": channels}
+            self.connection.execute(
+                "UPDATE sequent_backend.scheduled_event SET event_payload = %s WHERE id = %s",
+                (Jsonb(payload), schedule),
+            )
+
+        select_channels(start, ["KIOSK", "ONLINE"])
+        select_channels(end, ["KIOSK"])
+        self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", None))
+        select_channels(end, [])
+        self.assertEqual(self.dates(), ("2026-10-01T10:00:00Z", "2026-10-01T12:00:00Z"))
+        select_channels(start, ["TELEPHONE"])
+        self.assertEqual(self.dates(), (None, "2026-10-01T12:00:00Z"))
 
     def test_bounded_concurrent_revotes(self):
         """Allow exactly the configured number of ballots when twelve requests race for one voter."""
@@ -422,6 +445,7 @@ class VotingFlowTests(unittest.TestCase):
 def run_regressions(database):
     """Apply the projection migration, run its database invariants and exit nonzero on failure."""
     database.apply(WINDOW_MIGRATION)
+    database.apply(ONLINE_WINDOW_MIGRATION)
     VotingFlowTests.database = database
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(VotingFlowTests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
