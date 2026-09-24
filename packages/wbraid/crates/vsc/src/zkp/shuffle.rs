@@ -13,6 +13,8 @@ use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::traits::groups::ReplScalarOps;
+use std::array;
+
 use crate::utils::error::Error;
 use crate::utils::error::ErrorContext;
 use crate::utils::hash;
@@ -798,39 +800,39 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
     ) -> Result<PermutationData<C, W>, Error> {
         let (r_n, s_n) = Self::gen_private_exponents(ciphertexts.len());
 
-        let r_permuted = permutation.apply(&r_n)?;
+        let r_permuted: Vec<C::Scalar> = permutation.apply(&r_n)?.into_iter().cloned().collect();
         let h_permuted = permutation.apply(&self.h_generators)?;
         let w_permuted = permutation.apply_inverse(ciphertexts)?;
         let s_permuted = permutation.apply_inverse(&s_n)?;
 
-        let r_h_permuted = r_permuted.into_par_iter().zip(h_permuted.into_par_iter());
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("The following code is not optimized. Parallelize with rayon")
-        )]
-        let u_n: Vec<C::Element> = timed(Category::ElementExp, || {
-            r_h_permuted
-                .into_par_iter()
-                .map(|(r, h)| {
-                    let g = C::generator();
-                    let g_r = g.exp(r);
-                    g_r.mul(h)
-                })
-                .collect()
-        });
+        // u_i = g^{r_π(i)} · h_π(i): one fixed-base batch over the permuted
+        // commitment exponents (secret — `exp_many` is constant-time), then a
+        // multiplication per element.
+        let g = C::generator();
+        let g_r = timed(Category::FixedBase, || g.exp_many(&r_permuted));
+        let u_n: Vec<C::Element> = g_r
+            .par_iter()
+            .zip(h_permuted.par_iter())
+            .map(|(g_r, h)| g_r.mul(h))
+            .collect();
 
-        let s_w_permuted = w_permuted.into_par_iter().zip(s_permuted.into_par_iter());
-
-        #[cfg_attr(
-            feature = "custom-warnings",
-            crate::warning("The following code is not optimized. Parallelize with rayon")
-        )]
-        let w_prime_n: Vec<Ciphertext<C, W>> = timed(Category::ElementExp, || {
-            s_w_permuted
-                .into_par_iter()
-                .map(|(c, s)| c.re_encrypt(s, &self.pk.y))
-                .collect()
-        });
+        // w'_i = w_π⁻¹(i) · (g^{s_i}, y^{s_i}) componentwise: the N·W
+        // re-encryption exponents flattened, one fixed-base batch per leg (both
+        // secret, constant-time), reassembled per ciphertext.
+        let s_flat: Vec<C::Scalar> = s_permuted.iter().flat_map(|s| s.iter().cloned()).collect();
+        let g_s = timed(Category::FixedBase, || g.exp_many(&s_flat));
+        let y_s = timed(Category::FixedBase, || self.pk.y.exp_many(&s_flat));
+        let leg = |chunk: &[C::Element]| -> [C::Element; W] {
+            // `par_chunks_exact(W)` yields exactly W elements per chunk.
+            #[allow(clippy::indexing_slicing)]
+            array::from_fn(|k| chunk[k].clone())
+        };
+        let w_prime_n: Vec<Ciphertext<C, W>> = w_permuted
+            .par_iter()
+            .zip(g_s.par_chunks_exact(W))
+            .zip(y_s.par_chunks_exact(W))
+            .map(|((c, g_s), y_s)| Ciphertext::<C, W>(c.0.mul(&[leg(g_s), leg(y_s)])))
+            .collect();
 
         let ret = PermutationData::new(r_n, s_n, u_n, w_prime_n);
         Ok(ret)
@@ -1288,6 +1290,59 @@ mod tests {
     use crate::zkp::shuffle::Permutation;
     use crate::zkp::shuffle::ShuffleProof;
     use crate::zkp::shuffle::Shuffler;
+
+    #[test]
+    fn test_apply_permutation_matches_definition_ristretto() {
+        test_apply_permutation_matches_definition::<RCtx>();
+    }
+
+    #[test]
+    fn test_apply_permutation_matches_definition_p256() {
+        test_apply_permutation_matches_definition::<PCtx>();
+    }
+
+    /// The batched permutation step equals its per-element definition over
+    /// the exponents it reports: `uᵢ = g^{r_π(i)} · h_π(i)` and
+    /// `w′ᵢ = ReEnc(w_π⁻¹(i); s_π⁻¹(i))`.
+    fn test_apply_permutation_matches_definition<Ctx: Context>() {
+        let n = 37;
+        let keypair = KeyPair::<Ctx>::generate();
+        let ciphertexts: Vec<Ciphertext<Ctx, 3>> = (0..n)
+            .map(|_| {
+                keypair
+                    .pkey
+                    .encrypt(&array::from_fn(|_| Ctx::random_element()))
+            })
+            .collect();
+        let generators = Ctx::G::ind_generators(n, b"apply_permutation test").unwrap();
+        let shuffler = Shuffler::<Ctx, 3>::new(generators.clone(), keypair.pkey.clone());
+        let permutation = Permutation::generate::<Ctx>(n);
+
+        let data = shuffler
+            .apply_permutation(&permutation, &ciphertexts)
+            .unwrap();
+
+        let g = Ctx::generator();
+        let r_perm = permutation.apply(&data.commitment_exponents).unwrap();
+        let h_perm = permutation.apply(&generators).unwrap();
+        let expected_u: Vec<Ctx::Element> = r_perm
+            .iter()
+            .zip(h_perm.iter())
+            .map(|(r, h)| g.exp(r).mul(h))
+            .collect();
+        assert_eq!(data.pedersen_commitments, expected_u);
+
+        let w_perm = permutation.apply_inverse(&ciphertexts).unwrap();
+        let s_perm = permutation
+            .apply_inverse(&data.encryption_exponents)
+            .unwrap();
+        let expected_w: Vec<Ciphertext<Ctx, 3>> = w_perm
+            .iter()
+            .zip(s_perm.iter())
+            .map(|(c, s)| c.re_encrypt(s, &keypair.pkey.y))
+            .collect();
+        assert_eq!(data.permuted_ciphertexts, expected_w);
+    }
 
     #[test]
     #[cfg_attr(miri, ignore)]
