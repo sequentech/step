@@ -104,6 +104,11 @@ latest version whenever you change the `ECIESEncryption` project, since
 this is the file used during the generation of the windmill dockerfile in
 `/workspaces/step/packages/windmill/Dockerfile.prod`.
 
+`mvn clean package` also runs the CLI tests, including one against the shipped
+`packages/windmill/external-bin/ecies-tool.jar`. While that jar is stale, build
+with `mvn clean package -DskipTests`, replace the shipped jar as in option b
+above, and then run `mvn test`.
+
 ## Tests
 
 See the [CLI testing guide](../../docs/docusaurus/docs/07-developers/03-development-environment/testing/ecies-encryption.md).
