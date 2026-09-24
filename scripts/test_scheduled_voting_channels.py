@@ -12,7 +12,13 @@ import unittest
 sys.path.insert(0, str(Path(__file__).parent / "voting_flow"))
 import psycopg
 from psycopg.types.json import Jsonb
-from database import CONFIGURATION_QUERY, MIGRATIONS, SCHEDULE_MIGRATION, local_database
+from database import (
+    CONFIGURATION_QUERY,
+    MIGRATIONS,
+    ONLINE_WINDOW_MIGRATION,
+    WINDOW_MIGRATION,
+    local_database,
+)
 from fixtures import Election
 
 CHANNELS_MIGRATION = MIGRATIONS / "1789420000000_scheduled_voting_channels"
@@ -64,12 +70,13 @@ class ScheduledChannelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     with local_database() as database:
-        database.apply(SCHEDULE_MIGRATION)
+        database.apply(WINDOW_MIGRATION)
         election = Election()
         election.create(database.connection)
         legacy = election.schedule(database.connection, "END", "2027-01-01T12:00:00Z")
         original = database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone()
         database.apply(CHANNELS_MIGRATION)
+        database.apply(ONLINE_WINDOW_MIGRATION)
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
         ScheduledChannelTests.database = database
         result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(ScheduledChannelTests))
@@ -80,6 +87,7 @@ if __name__ == "__main__":
             "UPDATE sequent_backend.scheduled_event SET event_payload = %s WHERE id = %s",
             (Jsonb({"election_id": str(explicit.election), "voting_channels": ["KIOSK", "EARLY_VOTING"]}), explicit_schedule),
         )
+        database.apply(ONLINE_WINDOW_MIGRATION, "down")
         database.apply(CHANNELS_MIGRATION, "down")
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
         # Rolled-back schedules return to the legacy payload, so the restored
@@ -94,5 +102,6 @@ if __name__ == "__main__":
             "SELECT convalidated FROM pg_constraint WHERE conname = 'scheduled_event_voting_period_valid'"
         ).fetchone()[0]
         database.apply(CHANNELS_MIGRATION)
+        database.apply(ONLINE_WINDOW_MIGRATION)
         if not result.wasSuccessful():
             raise SystemExit(1)
