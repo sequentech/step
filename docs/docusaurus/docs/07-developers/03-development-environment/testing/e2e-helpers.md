@@ -18,7 +18,9 @@ identity mock server. They do not run paid Loadero scenarios. The HTTP fixture
 owns its loopback port, bounds accepts and reads, inspects request paths and
 payloads, and returns scripted status/body pairs. Tests restore serialized
 environment changes. HTTP polling failures must propagate to the caller instead
-of returning success.
+of returning success. A run that Loadero ends without results, such as `aborted`
+or `timeout-exceeded`, must fail the poll; in-progress and unknown statuses are
+polled again.
 
 Mock-server fixtures own a temporary working directory because the helper opens
 `voters.db` relative to the process directory. The suite serializes and restores

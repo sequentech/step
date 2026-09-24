@@ -22,6 +22,11 @@ to check literal plaintext bytes and reject modified authentication tags.
 Bulk-signing tests verify binary-file signatures and preserve existing signature
 files and directories. Usage checks assert both exit status and diagnostic text.
 
+The RSA verification and encryption contracts also run against the shipped
+`packages/windmill/external-bin/ecies-tool.jar`, which the Windmill and Harvest
+images copy. After changing the CLI, rebuild it with `mvn package` and replace
+that jar with `target/ECIESEncryption-1.0-SNAPSHOT.jar`.
+
 These are command-line integration contracts, not a cryptographic primitive
 certification. PKCS12 certificate-chain and expiry handling need additional
 certificate fixtures. No source coverage percentage is published: subprocess JVM
