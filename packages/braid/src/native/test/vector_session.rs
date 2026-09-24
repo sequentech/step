@@ -6,7 +6,7 @@ use crate::native::test::vector_board::VectorBoard;
 use crate::protocol::trustee::Trustee;
 use b4::messages::artifact::{DkgPublicKey, Plaintexts};
 use b4::messages::message::Message;
-use b4::messages::statement::StatementType;
+use b4::messages::statement::Statement;
 use log::{error, info};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -65,14 +65,20 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee._get_dkg_public_key_nohash()
     }
-    /// Trustees whose plaintext signatures for `batch` are on this local board.
+    /// Trustees whose signatures on this local board are for its `batch` plaintexts.
     pub(crate) fn plaintexts_signers(&self, batch: BatchNumber) -> HashSet<TrusteePosition> {
-        self.trustee
-            .local_board
-            .get_statement_entries()
-            .into_iter()
-            .filter(|entry| {
-                entry.key.kind == StatementType::PlaintextsSigned && entry.key.batch == batch
+        let entries = self.trustee.local_board.get_statement_entries();
+        let plaintexts_h = entries.iter().find_map(|entry| match entry.value.1 {
+            Statement::Plaintexts(_, _, b, h, ..) if b == batch => Some(h),
+            _ => None,
+        });
+        entries
+            .iter()
+            .filter(|entry| match entry.value.1 {
+                Statement::PlaintextsSigned(_, _, b, h, ..) => {
+                    b == batch && Some(h) == plaintexts_h
+                }
+                _ => false,
             })
             .map(|entry| entry.key.signer_position)
             .collect()
