@@ -25,7 +25,7 @@ const TENANT_ID: &str = "tenant-a";
 const OTHER_TENANT_ID: &str = "tenant-b";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 115;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 117;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
