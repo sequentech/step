@@ -137,7 +137,7 @@ DIFF_CELLS="100000:2 100000:5" DIFF_REPS=3 ./bench-ec2.sh session HEAD 657cb05c2
 TALLY_CELLS="100000:2:3 100000:2:5" ./bench-ec2.sh session   # the global target's N:W:Q grid (default 100000:2:3 100000:5:3; "" skips)
 TALLY_SER_CELLS="100000:2:3" ./bench-ec2.sh session          # tally cells run again with --ser (message encode/decode on the path)
 TALLY_DIFF_CELLS="100000:2:3" ./bench-ec2.sh session HEAD 2d23452f05   # interleaved tally before/after (both commits need examples/tally.rs)
-PROFILE=1 PROFILE_CELLS="100000:2 100000:5" ./bench-ec2.sh session     # stage breakdown from a --features profile build of targets
+BREAKDOWN=1 BREAKDOWN_CELLS="100000:2 100000:5" ./bench-ec2.sh session # stage breakdown from a --features profile build of targets
 GUIDANCE=1 ./bench-ec2.sh session            # also run the criterion guidance benches (off by default here)
 CELLS="1000:2" REPS=1 ./bench-ec2.sh session  # a minimal session: validates the rig end to end for cents
 ./bench-ec2.sh sweep                         # any time: proves nothing tagged is alive
@@ -156,8 +156,8 @@ the **snapshot grid** itself (`CELLS × REPS`, default the five cells × 3), the
 the **global target** (`examples/tally.rs`, one tally's critical path for a
 quorum of Q) over `TALLY_CELLS × TALLY_REPS` (default `100000:2:3
 100000:5:3` × 3; skipped for a commit that predates the example), and again
-with `--ser` over `TALLY_SER_CELLS` (default none); with `PROFILE=1`, a
-separate `--features profile` build of `targets` writes each `PROFILE_CELLS`
+with `--ser` over `TALLY_SER_CELLS` (default none); with `BREAKDOWN=1`, a
+separate `--features profile` build of `targets` writes each `BREAKDOWN_CELLS`
 cell's **stage breakdown** (wall-clock per cost category, `profile-<sha>.txt`);
 with `GUIDANCE=1` also the criterion guidance benches straight from cargo
 (skipping any the packaged commit lacks); with a baseline, the **before/after**

@@ -264,7 +264,10 @@ dominates that work. `FixedWidth` (a `const WIDTH` on the group leaves, arrays
 and `Ciphertext`) marks the encodings with computable element boundaries, and
 `par_ser` encodes such a slice on the rayon pool, byte-identical to `Vec::ser`
 (pinned by `test_par_ser_matches_sequential_*`). It is wired into the shuffle's
-`batching_challenges` and dkgd's `batching_exponents`. The wire format itself
+`batching_challenges`, dkgd's `batching_exponents` and — since `6f4c995c22`,
+found by the stage breakdown — the shuffle's second challenge (`challenge`,
+which encodes the N-length `B_n` and `B′_n` commitment lists), the last
+transcript site that had stayed on the sequential `ser`. The wire format itself
 requires only *self-delimitation*, which variable-width types (`String`,
 nested `Vec`, `Option`) also satisfy on the sequential path; fixed width is the
 special case that enables parallel boundaries (SERIALIZATION.md §10).
@@ -292,7 +295,7 @@ datalog is not a parallelism site; `rayon` is a non-optional dependency of
 | invariant | enforced / evidenced by |
 |---|---|
 | **Proofs, transcripts and wire format are unchanged** — the techniques change how values are computed, never what they are | `par_ser` == `Vec::ser` and closed form == recurrence differential tests; shuffle and dkgd round-trips; all 17 model-check configurations; **Verificatum interop 70/70** (`V2V_REQUIRE_VMN=1`) with seed, challenge, decryption transcript and generators byte-identical to `vmnv -t`; PROTOCOL-alignment.md re-verification |
-| **Accept/reject is unchanged**, except V2's documented 1/q | batched-V2 negative tests; PROTOCOL.md §6.4 permits the batched form (D7) |
+| **Accept/reject is unchanged**, except the documented exactly-1/q of the two batched checks | batched-V2 negative tests and PROTOCOL.md §6.4 (D7); `verify_batch` attribution tests, `strip_all` rejection tests and PROTOCOL.md §3.5 (D8) |
 | **Constant-time wherever a secret enters** (`ε`, `β`, `bᵢ`; `u^{xᵢ}`); variable-time only on public data | no test proves timing: the evidence is the per-site classification — the trait contract, the call-site annotations, and that every variable-time site consumes only hash-derived or published values |
 | **Parallelism only in the crypto/action layer; identical behaviour on the wasm pool** | production `wasm` (wasm-bindgen-rayon, atomics) and `wasm-core` both compile; headless IndexedDB test, the interactive emulator (full protocol under wasm) and the live-b4 protocol tests pass |
 | **`vsc` lint posture** (`unsafe_code = forbid`; `unwrap_used`, `panic`, `arithmetic_side_effects`, pedantic/complexity denied) | CI clippy with `-D warnings`; new curve arithmetic and indexing carry justified, localized `#[allow]`s |
@@ -411,10 +414,11 @@ Three layers:
 | `benches/msm_strategy.rs` | guidance | naive-parallel vs single/chunked dalek MSM, constant-time and variable-time; selects the override shape |
 | `benches/parallel_tradeoff.rs` | guidance | serial vs parallel for each per-element loop shape; decides where rayon earns its keep |
 | `benches/shuffle.rs` | guidance | fixed N = 100 / W = 3 prove/verify micro-benchmark; nightly-only libtest harness |
+| `vsc --features profile` (`utils/profile.rs`) | breakdown | wall-clock per cost category — constant-time MSM, variable-time MSM, fixed-base batches, per-element exponentiations, transcript serialization, hashing, generators — accumulated at the stages' outer, sequential call sites (no nested regions, never a sum over workers); the identity when the feature is off, so the production build carries no timers; read through `targets.rs`, which prints each target's breakdown and the unattributed remainder, and the rig's `BREAKDOWN=1` |
 | `examples/targets.rs` | snapshot | one `(N, W)` cell of the five targets in production form — shuffle prove and verify (both incl. `ind_generators`), `partial_decrypt`, `combine`, Naor-Yung verify-and-strip — as a CSV line, in production form — so it uses `strip_all` and builds against commits at or after `009b443add`; the fork-point differential is on record from `185dbbede2` (whose `targets.rs` built against the fork-point API), and older baselines chain through it; T = 3, P = 5 |
 | `examples/tally.rs` | global | the **global target**: one tally's critical-path latency for a quorum of Q, replayed with real data flow — both strips of the first mix, Q rounds of prove and verify, the slowest partial decryption, combine — each stage timed and composed into `T(Q)` and the external verifier's `V(Q)`, with the stage shares on stderr; `--ser` adds the encoding/decoding of each posted message (off by default); the plaintexts are checked against the encrypted messages; N, W, Q parameters (`N:W:Q` cells) |
 | `bench.ps1` / `bench.sh` | local | turnkey local run: build untimed, then the guidance benches (`GUIDANCE`, default on), the whole targets grid (`CELLS`, `REPS`) and the tally grid (`TALLY_CELLS`) to a timestamped `bench-results/` file |
-| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops (targets and `TALLY_CELLS`), so it measures any commit that builds `targets`; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
+| `bench-ec2.sh` + `bench-ec2/remote-bench.sh` | reference | the snapshot grid — and, given a baseline commit, an interleaved before/after — on a temporary EC2 instance of a fixed type (BENCH-EC2.md), which cannot outlive the session; the remote script owns its grid loops — targets, `TALLY_CELLS`, `TALLY_SER_CELLS` (with `--ser`), and with a baseline the interleaved tally before/after over `TALLY_DIFF_CELLS` — and with `BREAKDOWN=1` writes the stage breakdown from a separate `--features profile` build; `collect` renders `SUMMARY.md` (`bench-ec2/summarize.sh`) beside the raw files. The authoritative layer |
 
 ## Log
 
