@@ -475,9 +475,9 @@ impl KeycloakAdminClient {
                     text: e.to_string(),
                 }
             })?;
-            // Keycloak may advertise a public origin behind a reverse proxy.
-            // Only consume an ID for this realm's exact groups resource; never
-            // follow the advertised host or accept a different resource path.
+            // Keycloak may advertise a public origin, with its own path prefix
+            // such as `/auth`, behind a reverse proxy. Only consume an ID for
+            // this realm's groups resource; never follow the advertised host.
             let base = reqwest::Url::parse(&url).map_err(|e| {
                 KeycloakError::HttpFailure {
                     status: response.status().into(),
@@ -492,11 +492,18 @@ impl KeycloakAdminClient {
                     text: e.to_string(),
                 }
             })?;
-            let prefix = format!("{}/", base.path());
-            let id = location
-                .path()
-                .strip_prefix(&prefix)
-                .filter(|id| !id.is_empty() && !id.contains('/'));
+            let segments: Vec<&str> = location
+                .path_segments()
+                .map(Iterator::collect)
+                .unwrap_or_default();
+            let id = match segments.as_slice() {
+                [.., "admin", "realms", location_realm, "groups", id]
+                    if *location_realm == realm && !id.is_empty() =>
+                {
+                    Some(*id)
+                }
+                _ => None,
+            };
             return id.map(|id| Some(id.to_string())).ok_or_else(|| {
                 KeycloakError::HttpFailure {
                     status: response.status().into(),
