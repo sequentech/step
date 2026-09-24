@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Velvet | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Velvet | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3314/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Velvet","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3314/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3314/assets/js/runtime~main.e781c744.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3314/assets/js/runtime~main.2e1e532e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3314/assets/js/main.d9ae6fc0.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -19,8 +19,11 @@ The tally archive contains <code>auditable-ballots/election__&lt;id&gt;/contest_
 for single-contest encryption, or <code>auditable-ballots/election__&lt;id&gt;/area__&lt;id&gt;/</code>
 for multiple-contest encryption. Both original and renamed archives include it.
 Each directory contains <code>summary.json</code> (count and <code>ballots_available</code>) and, when
-available, <code>encrypted-ballots.jsonl</code> with one unsigned encrypted ballot per line.
-Voter IDs, voter signing keys and voter signatures are not exported in this folder.</p>
+available, <code>encrypted-ballots.jsonl</code> (JSON Lines, not CSV) with one record per ballot.
+Each record includes <code>cast_vote_id</code> (the cast-vote UUID) and <code>voter_id</code> (the stored
+Keycloak voter ID, not the username), alongside the unsigned encrypted ballot fields
+<code>version</code>, <code>issue_date</code>, <code>contests</code>, <code>config</code>, and <code>ballot_style_hash</code>. Voter signing
+keys and signatures are omitted; excluded ballots are never decrypted.</p>
 <p>The count adds ballots marked <code>discarded</code> (including voter-disable releases) to
 existing ballots without an enabled, authorized voter. Extraction keeps the latest
 valid revote when present, otherwise the latest discarded ballot for each voter in
@@ -28,8 +31,10 @@ the election/area. Discarded ballots never enter the mix, even after re-enabling
 voter. Disabled voters remain outside the eligible census. These audit counts do
 not replace the existing invalid/incorrectly encoded vote classifications or
 Velvet&#x27;s decoded-ballot outputs.</p>
-<p>Recounts reuse the stored snapshot. Sessions extracted before audit snapshots were
-introduced retain their recorded count, with <code>ballots_available: false</code> when the
+<p>Recounts reuse the stored snapshot, including its original identifiers. Snapshots
+created before identifiers were included are not retroactively enriched. Sessions
+extracted before audit snapshots were introduced retain their recorded count,
+with <code>ballots_available: false</code> when the
 count is nonzero and no snapshot exists. Start a new tally session to apply the new
 extraction rules; rerunning an old session does not reconstruct a historical
 snapshot from the current voter database. Event imports remap snapshot references
