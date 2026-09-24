@@ -57,7 +57,12 @@ Where the tip (`009b443add`) stands, same machine (median of 3, ms):
 | 10⁵ : 5 | 8 957 | 3 616 | 3 008 | 4 989 | 2 258 |
 
 Resolution: reps agree within ~1%, and the same binary run standalone vs
-interleaved agrees within 0.6–0.7% — differences below that are noise. Raw
+interleaved agrees within 0.6–0.7% — differences below that are noise **within
+a session**. Across sessions the host varies: two sessions on the same instance
+type an hour apart (2026-09-23) differed by ~20% on every stage, so a
+before/after is only trustworthy interleaved in one session — which is how the
+differential runs — and snapshots from different sessions compare only to
+that tolerance (each session's 10³ cell is its calibration). Raw
 files: `bench-results/ec2-20260922-012110-185dbbede2/` (fork → milestone) and
 `bench-results/ec2-20260923-155859-009b443add/` (milestone → tip), each with
 `SUMMARY.md`, the differential CSV, the full grid and `machine.txt`.
@@ -80,13 +85,26 @@ stage with its share of T:
 |---|---|---|---|---|---|---|---|
 | 10⁵ : 2 : 3 | **27.2 s** | 10.0 s | 2.0 s (7%) | 15.0 s (55%) | 6.9 s (25%) | 1.2 s (4%) | 2.0 s (7%) |
 | 10⁵ : 5 : 3 | **50.5 s** | 18.3 s | 4.6 s (9%) | 26.9 s (53%) | 11.0 s (22%) | 3.0 s (6%) | 5.0 s (10%) |
+| 10⁵ : 2 : 5 † | **34.8 s** | 12.9 s | 1.7 s (5%) | 20.2 s (58%) | 9.7 s (28%) | 0.9 s (3%) | 2.4 s (7%) |
+| 10⁵ : 2 : 7 † | **47.6 s** | 17.6 s | 1.6 s (3%) | 28.3 s (59%) | 13.6 s (28%) | 1.0 s (2%) | 3.2 s (7%) |
 
 The replay agrees with the formula over the isolated targets above —
 `2·strip + Q·(prove + verify) + partial + combine` gives 27.0 s and 50.2 s —
 within 0.6%, the machine's resolution: the five targets compose additively, and
 the path is what the formula says it is. More than half of it is shuffle
 proving; strip, the slowest single target before batching, is under a tenth.
-Raw files: `bench-results/ec2-20260923-234858-2d23452f05/`.
+
+† The Q = 5 and Q = 7 rows come from a second session an hour later whose host
+ran **~20% faster on every stage** — same instance type, AZ, CPU model and
+kernel; the 10³ calibration cell 50 ms vs 62 ms for prove — so their absolute
+values are not comparable with the rows above (see Resolution). Read the
+Q-scaling *within* that session: every mix cost the same (prove 4.03 s, verify
+1.94 s, all 12 within 1%), each extra partial's verification 0.42 s, and the
+two rows fit `T(Q) ≈ 2.8 s + 6.4 s·Q` to 0.2% — linear in the quorum size, with
+the intercept the two strips, the partial and the Lagrange step. On the
+reference-speed host of the first rows the slope is ~7.9 s per trustee. Raw
+files: `bench-results/ec2-20260923-234858-2d23452f05/` and
+`bench-results/ec2-20260923-235827-a3a46a5640/`.
 
 ## Design, as implemented
 
@@ -452,6 +470,12 @@ things stand.
   grids in the remote and local scripts, `SUMMARY.md` renders T and V with
   stage shares. First measurement (`ec2-20260923-234858-2d23452f05`, 7 min):
   T(3) = 27.2 s at W2 and 50.5 s at W5, matching the formula over the
-  isolated targets within 0.6% — the Status table. Two scheduling levers
-  (eager strip, eager partial verification) recorded under Remaining levers
-  as measurable only on it, undecided.
+  isolated targets within 0.6% — the Status table. A second session
+  (`ec2-20260923-235827-a3a46a5640`, 7 min; the driver had not been
+  forwarding `TALLY_CELLS`, fixed in `a3a46a5640`) measured Q = 5 and 7 at
+  W2: linear in Q as the formula says (`T ≈ 2.8 + 6.4·Q` s on that host), but
+  its host ran ~20% faster than the previous two sessions' on every stage —
+  the first observed **host variance** on the rig, recorded in Status and
+  BENCH-EC2.md: interleaved within a session is the only exact comparison.
+  Two scheduling levers (eager strip, eager partial verification) recorded
+  under Remaining levers as measurable only on the global target, undecided.
