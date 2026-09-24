@@ -104,12 +104,8 @@ impl PartialEq for P256Scalar {
 }
 impl Eq for P256Scalar {}
 
-use crate::utils::serialization::{Deserializable, FixedWidth, Serializable, take};
+use crate::utils::serialization::{Deserializable, Serializable, take};
 
-/// P-256 scalars encode as 32 canonical bytes.
-impl FixedWidth for P256Scalar {
-    const WIDTH: usize = 32;
-}
 use p256::elliptic_curve::PrimeField;
 
 impl Serializable for P256Scalar {
@@ -118,7 +114,10 @@ impl Serializable for P256Scalar {
     }
 }
 
+/// P-256 scalars encode as 32 canonical bytes.
 impl Deserializable for P256Scalar {
+    const FIXED_WIDTH: Option<usize> = Some(32);
+
     fn read(input: &mut &[u8]) -> Result<Self, CryptographyError> {
         let bytes = take(input, 32)?;
         let array: [u8; 32] = bytes.try_into().expect("take returns exactly 32 bytes");

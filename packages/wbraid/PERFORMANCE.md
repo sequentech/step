@@ -178,7 +178,7 @@ verify-and-strip** (`vsc::cryptosystem::naoryung`, driven by
 | fixed-base batch (`exp_many`) | bridging B_i, B′ | | | | |
 | closed-form bridging chain | ✓ | | | | |
 | small-exponent batching (verifier-local weights) | | V2 | | | all N well-formedness proofs |
-| parallel transcript serialization (`par_ser`) | seed | seed | seed | seed (×T) | |
+| parallel serialization (transcripts `par_ser`; message lists `Vec<T>`) | seed, posting | seed, reading | seed, posting | seed (×T), reading | reading |
 | rayon per-element loops | e_n, generators | generators | factors u^{xᵢ} | per ciphertext | challenges vᵢ, strip |
 
 Read the columns and the Status table follows: `combine` and `partial_decrypt`
@@ -302,22 +302,31 @@ proofs and a foreign context attributed to exactly the per-item failures;
 `strip_all` equals per-item `strip`; braid halts the tally on a tampered
 ballot as before.
 
-### Parallel transcript serialization
+### Parallel serialization: transcripts and messages
 
-The Fiat-Shamir seeds hash the N-element generator, commitment and ciphertext
-lists, and ristretto point compression (one inverse square root per point)
-dominates that work. `FixedWidth` (a `const WIDTH` on the group leaves, arrays
-and `Ciphertext`) marks the encodings with computable element boundaries, and
-`par_ser` encodes such a slice on the rayon pool, byte-identical to `Vec::ser`
-(pinned by `test_par_ser_matches_sequential_*`). It is wired into the shuffle's
-`batching_challenges`, dkgd's `batching_exponents` and — since `6f4c995c22`,
-found by the stage breakdown — the shuffle's second challenge (`challenge`,
-which encodes the N-length `B_n` and `B′_n` commitment lists), the last
-transcript site that had stayed on the sequential `ser`. The wire format itself
-requires only *self-delimitation*, which variable-width types (`String`,
-nested `Vec`, `Option`) also satisfy on the sequential path; fixed width is the
-special case that enables parallel boundaries (SERIALIZATION.md §10).
-Deserialization is not parallelized (Remaining levers).
+Ristretto point compression (one inverse square root per point) and
+decompression dominate two kinds of work: the Fiat-Shamir seeds, which hash the
+N-element generator, commitment and ciphertext lists, and the posted messages,
+which every party encodes once and every reader decodes. Both run on the rayon
+pool behind the unchanged encoding (SERIALIZATION.md §2, §5):
+
+- **Lists** — `Vec<T>::write` encodes the elements in parallel from
+  `PAR_MIN_ELEMENTS` (1024) up, for any element type; `Vec<T>::read` decodes
+  them in parallel when the element width is known, which `Deserializable`'s
+  `FIXED_WIDTH` hint states for the group leaves, arrays and structs of them
+  (`Ciphertext`, via the derive). The bytes produced and accepted are the
+  sequential loops' exactly — pinned against a sequential reference on valid,
+  corrupted, truncated, extended and mis-counted lists — and each element
+  still goes through the same strict `read`. braid's `Mix`, `Ballots` and
+  `PartialDecryption` bodies inherit it with no change.
+- **Transcripts** — `par_ser` is that list encoding for a borrowed slice,
+  used by the shuffle's `batching_challenges` and second `challenge` (the
+  `B_n`/`B′_n` lists, the last sequential site, found by the stage breakdown:
+  `6f4c995c22`) and dkgd's `batching_exponents`.
+
+The wire format itself requires only *self-delimitation*, which variable-width
+types (`String`, nested `Vec`, `Option`) also satisfy; a known width is the
+extra property that makes a list's boundaries computable before decoding.
 
 ### Parallel loops, and what deliberately stays serial
 
@@ -506,7 +515,7 @@ things stand.
   ~1.9×: MSM had become a minority of wall-clock and **serialization** — point
   compression inside the Fiat-Shamir seed derivations — dominated (~65% of
   verify); `combine` re-serialized the ciphertext list once per contribution.
-- **Serialization** (`e01343dbaf` `FixedWidth` + `par_ser`; `2e3407606f`
+- **Serialization** (`e01343dbaf` `FixedWidth` — since replaced by the `FIXED_WIDTH` hint — + `par_ser`; `2e3407606f`
   wired into both transcript sites). Laptop, interleaved pre/post at 10⁵/W2:
   verify 2.8×, prove 1.9×, `partial_decrypt` 2.0×, `combine` 2.0×, strip flat
   (the control). The per-contribution dedup measured 2–4% afterwards and was

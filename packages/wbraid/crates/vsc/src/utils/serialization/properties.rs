@@ -33,7 +33,7 @@ use proptest::prelude::*;
 
 use crate::context::{Context, P256Ctx, RistrettoCtx};
 use crate::traits::groups::CryptographicGroup;
-use crate::utils::serialization::{Deserializable, Serializable};
+use crate::utils::serialization::{Deserializable, PAR_MIN_ELEMENTS, Serializable};
 use canonical_derive::Canonical;
 
 /// Variable-tier kitchen sink: every generic composition rule across a
@@ -253,6 +253,27 @@ macro_rules! bijection_properties {
 
                     let mutated = apply(&m, x.ser());
                     if let Ok(v) = FSink::<$ctx>::deser(&mutated) {
+                        prop_assert_eq!(v.ser(), mutated);
+                    }
+                }
+            }
+
+            proptest! {
+                #![proptest_config(ProptestConfig::with_cases(16))]
+
+                /// P1/P2 for a list long enough to take the parallel decode
+                /// path (fixed-width elements, `PAR_MIN_ELEMENTS` and above).
+                #[test]
+                #[cfg_attr(miri, ignore)]
+                fn large_fixed_list_p1_roundtrip_p2_strict(
+                    x in proptest::collection::vec(element::<$ctx>(), PAR_MIN_ELEMENTS..PAR_MIN_ELEMENTS + 40),
+                    m in mutation(),
+                ) {
+                    let bytes = x.ser();
+                    prop_assert_eq!(Vec::<<$ctx as Context>::Element>::deser(&bytes).unwrap(), x.clone());
+
+                    let mutated = apply(&m, x.ser());
+                    if let Ok(v) = Vec::<<$ctx as Context>::Element>::deser(&mutated) {
                         prop_assert_eq!(v.ser(), mutated);
                     }
                 }
