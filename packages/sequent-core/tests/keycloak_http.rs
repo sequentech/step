@@ -997,6 +997,12 @@ async fn group_creation_requires_the_requested_realm_and_group_resource() {
             "https://public.example/admin/realms/tenant-north/groups/group-1",
             Some("group-1"),
         ),
+        // A proxy can also advertise its own path prefix, such as `/auth`.
+        (
+            "https://public.example/auth/admin/realms/tenant-north/groups/group-3",
+            Some("group-3"),
+        ),
+        ("/auth/admin/realms/tenant-other/groups/group-1", None),
         ("/admin/realms/tenant-north/users/user-1", None),
         ("/admin/realms/tenant-other/groups/group-1", None),
         (
