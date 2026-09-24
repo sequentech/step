@@ -115,20 +115,17 @@ impl CryptographicGroup for Ristretto255Group {
             feature = "custom-warnings",
             crate::warning("The following code is not optimized. Parallelize with rayon")
         )]
-        let ret: Vec<RistrettoElement> =
-            crate::utils::profile::timed(crate::utils::profile::Category::Generators, || {
-                (0..count)
-                    .into_par_iter()
-                    .map(|i| {
-                        let mut hasher = hasher.clone();
-                        // Cannot use platform dependent type in random oracle
-                        let i_u64 = i as u64;
-                        hasher.update(i_u64.to_be_bytes());
-                        let point = RistrettoPoint::from_hash(hasher);
-                        RistrettoElement(point)
-                    })
-                    .collect()
-            });
+        let ret: Vec<RistrettoElement> = (0..count)
+            .into_par_iter()
+            .map(|i| {
+                let mut hasher = hasher.clone();
+                // Cannot use platform dependent type in random oracle
+                let i_u64 = i as u64;
+                hasher.update(i_u64.to_be_bytes());
+                let point = RistrettoPoint::from_hash(hasher);
+                RistrettoElement(point)
+            })
+            .collect();
 
         Ok(ret)
     }

@@ -16,6 +16,14 @@
 //! and the categories' sum is the unattributed remainder. With the feature
 //! off, [`timed`] is the identity and [`snapshot`] is empty: no cost, and the
 //! production build carries no timers.
+//!
+//! The crypto code carries **no call sites** at present: the instrumentation
+//! that produced PERFORMANCE.md's "Where the time goes" (2026-09-24) was
+//! removed once measured, so that it does not clutter the implementation.
+//! To measure again, wrap the outer, sequential call sites in
+//! `timed(Category::…, || …)` — the per-site audit in PERFORMANCE.md
+//! (Constraints) lists them — build with `--features profile`, and run
+//! `targets`.
 
 /// A coarse cost category of the crypto stages.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

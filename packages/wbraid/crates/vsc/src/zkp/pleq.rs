@@ -12,7 +12,6 @@ use crate::traits::groups::GroupScalar;
 use crate::traits::groups::ReplGroupOps;
 use crate::traits::groups::ReplScalarOps;
 use crate::utils::error::Error;
-use crate::utils::profile::{Category, timed};
 use crate::utils::serialization::Serializable;
 use canonical_derive::Canonical;
 use rayon::prelude::*;
@@ -241,25 +240,23 @@ impl<C: Context, const W: usize> PlEqProof<C, W> {
         }
         let g = C::generator();
 
-        let challenges: Vec<C::Scalar> = timed(Category::Hash, || {
-            instances
-                .par_iter()
-                .map(|inst| {
-                    let (input, dsts) = Self::challenge_input(
-                        &g,
-                        y,
-                        z,
-                        inst.u_b,
-                        inst.v_b,
-                        inst.u_a,
-                        &inst.proof.big_a,
-                        context,
-                    );
-                    let input: Vec<&[u8]> = input.iter().map(Vec::as_slice).collect();
-                    C::G::hash_to_scalar(&input, &dsts)
-                })
-                .collect::<Result<_, _>>()
-        })?;
+        let challenges: Vec<C::Scalar> = instances
+            .par_iter()
+            .map(|inst| {
+                let (input, dsts) = Self::challenge_input(
+                    &g,
+                    y,
+                    z,
+                    inst.u_b,
+                    inst.v_b,
+                    inst.u_a,
+                    &inst.proof.big_a,
+                    context,
+                );
+                let input: Vec<&[u8]> = input.iter().map(Vec::as_slice).collect();
+                C::G::hash_to_scalar(&input, &dsts)
+            })
+            .collect::<Result<_, _>>()?;
 
         // Per instance: the two summed fixed-base exponents (Σ t k, Σ s k) and
         // the 4W (base, exponent) pairs of the right-hand side.
@@ -302,9 +299,7 @@ impl<C: Context, const W: usize> PlEqProof<C, W> {
             terms.into_par_iter().flatten_iter().unzip();
 
         let lhs = g.exp(&sum_g).mul(&z.exp(&sum_z));
-        let rhs = timed(Category::MsmVarTime, || {
-            C::Element::vartime_multi_exp(&bases, &exponents)
-        })?;
+        let rhs = C::Element::vartime_multi_exp(&bases, &exponents)?;
         if lhs.equals(&rhs) {
             return Ok(vec![]);
         }

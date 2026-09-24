@@ -158,7 +158,10 @@ quorum of Q) over `TALLY_CELLS × TALLY_REPS` (default `100000:2:3
 100000:5:3` × 3; skipped for a commit that predates the example), and again
 with `--ser` over `TALLY_SER_CELLS` (default none); with `BREAKDOWN=1`, a
 separate `--features profile` build of `targets` writes each `BREAKDOWN_CELLS`
-cell's **stage breakdown** (wall-clock per cost category, `profile-<sha>.txt`);
+cell's **stage breakdown** (wall-clock per cost category, `profile-<sha>.txt`)
+— which reports categories only while the code carries `timed` call sites;
+they were removed after the 2026-09-24 measurement, see PERFORMANCE.md's
+tooling table;
 with `GUIDANCE=1` also the criterion guidance benches straight from cargo
 (skipping any the packaged commit lacks); with a baseline, the **before/after**
 (grid `DIFF_CELLS`, default `10000:2 100000:2`, `DIFF_REPS` 3; a baseline that

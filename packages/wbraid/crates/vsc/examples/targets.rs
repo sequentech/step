@@ -203,7 +203,7 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
 /// otherwise (the snapshot is empty).
 fn breakdown(stage: &str, stage_ms: f64) {
     let samples = profile::snapshot();
-    if samples.is_empty() {
+    if samples.iter().all(|sample| sample.calls == 0) {
         return;
     }
     eprintln!("  breakdown of {stage} ({stage_ms:.0} ms):");
