@@ -34,8 +34,8 @@ impl Drop for Environment {
 
 // Owned loopback port, bounded reads/accepts, explicit HTTP and JSON expectations.
 // No request can reach a paid Loadero account.
-fn fixture(
-    replies: Vec<(&'static str, u16, &'static str)>,
+fn fixture<B: AsRef<str> + Send + 'static>(
+    replies: Vec<(&'static str, u16, B)>,
 ) -> (String, std::thread::JoinHandle<Vec<Value>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
@@ -98,6 +98,7 @@ fn fixture(
             } else {
                 serde_json::from_slice(&request[end..]).unwrap()
             });
+            let body = body.as_ref();
             write!(stream, "HTTP/1.1 {status} Fixture\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
         }
         bodies
@@ -265,5 +266,97 @@ fn malformed_poll_response_is_returned_instead_of_retried() {
         .unwrap_err()
         .to_string()
         .contains("HTTP Status: 503"));
+    server.join().unwrap();
+}
+
+#[test]
+fn terminal_failure_status_ends_polling_with_an_error() {
+    let _lock = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let (url, server) = fixture(vec![
+        ("POST /tests/23/runs/ HTTP/1.1", 201, r#"{"id":41}"#),
+        (
+            "GET /tests/23/runs/41/ HTTP/1.1",
+            200,
+            r#"{"status":"initializing"}"#,
+        ),
+        (
+            "GET /tests/23/runs/41/ HTTP/1.1",
+            200,
+            r#"{"status":"aborted"}"#,
+        ),
+        // The old loop treated "aborted" as pending and polled forever; the
+        // explicit request below drains this sentinel.
+        ("GET /tests/23/runs/41/ HTTP/1.1", 503, "unexpected retry"),
+    ]);
+    let _env = Environment::set(&[
+        ("LOADERO_API_KEY", "synthetic-key"),
+        ("LOADERO_INTERVAL_POLLING_TIME", "0"),
+    ]);
+    let error = run_test(&url, "23").unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Test 23 (run ID 41) ended with status aborted"
+    );
+    assert!(check_test_status(&url, "23", "41")
+        .unwrap_err()
+        .to_string()
+        .contains("HTTP Status: 503"));
+    server.join().unwrap();
+}
+
+#[test]
+fn only_terminal_statuses_stop_polling() {
+    let _lock = ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    // Loadero's run statuses, from its own client's classificator. Like that
+    // client, polling continues for a status it does not know.
+    let terminal = [
+        "aborted",
+        "aws-error",
+        "db-error",
+        "insufficient-resources",
+        "no-users",
+        "server-error",
+        "timeout-exceeded",
+    ];
+    let polled_again = [
+        "pending",
+        "initializing",
+        "running",
+        "stopping",
+        "waiting-results",
+        "collecting-results",
+        "unknown-future-status",
+    ];
+    let (url, server) = fixture(
+        terminal
+            .iter()
+            .chain(&polled_again)
+            .map(|status| {
+                (
+                    "GET /tests/23/runs/41/ HTTP/1.1",
+                    200,
+                    format!(r#"{{"status":"{status}"}}"#),
+                )
+            })
+            .collect(),
+    );
+    let _env = Environment::set(&[("LOADERO_API_KEY", "synthetic-key")]);
+    for status in terminal {
+        assert_eq!(
+            check_test_status(&url, "23", "41").unwrap_err().to_string(),
+            format!("Test 23 (run ID 41) ended with status {status}")
+        );
+    }
+    for status in polled_again {
+        assert_eq!(
+            check_test_status(&url, "23", "41").unwrap(),
+            None,
+            "{status}"
+        );
+    }
     server.join().unwrap();
 }
