@@ -325,8 +325,15 @@ question is unchanged.
 | Stage-breakdown instrumentation added and removed (`233f484655`, `2ad569ecae`) | — | No protocol effect; the crypto code is back to its uninstrumented text (three files byte-identical, `shuffle.rs` differing only by the two changes above) |
 
 Re-read this pass, against the current source: §6.2–6.3 (`apply_permutation`,
-`shuffle_with`), §7.1–7.2 (`partial_decrypt`, `combine`), §3.5–3.6 (`pleq`,
-`naoryung`), §2.3's list encoding (`serialization`). The description itself
+`shuffle_with`), §6.4 (`verify_with`), §7.1–7.2 (`partial_decrypt`, `combine`),
+§3.5–3.6 (`pleq`, `naoryung`), §2.3's list encoding (`serialization`). The
+shuffle code carries step markers (`Step 1`–`Step 4` in the prover, `Step 5` and
+`Verification 1`–`5` in the verifier) and uses the description's variable names
+(`big_a_prime`, `k_e_n`, `e_prime_n`, …); walking them formula by formula
+against §6.3–6.4 — batching challenges, `e′ = e ∘ π⁻¹`, bridging chain, the
+five proof commitments, the challenge, the six responses, `C`, `D`, `B_0 = h_1`,
+V1–V5 — every formula is the description's, with `A` and `F` computed by the
+verifier (they do not enter the transcript) and V2 in the Appendix C.2 form. The description itself
 changed only by the Appendix C move (D7, D8 above), which restored the main
 text to the unoptimized form; the comparison of that text against the
 reference it was originally verified against was repeated the same day and
