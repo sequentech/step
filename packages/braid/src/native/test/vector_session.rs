@@ -65,18 +65,21 @@ impl<C: Ctx, S: crate::protocol::board::LocalBoardStorage> VectorSession<C, S> {
     pub(crate) fn get_dkg_public_key_nohash(&self) -> Option<DkgPublicKey<C>> {
         self.trustee._get_dkg_public_key_nohash()
     }
-    /// Trustees whose signatures on this local board are for its `batch` plaintexts.
+    /// Trustees whose signatures on this local board match every field of its
+    /// published `batch` plaintexts statement except the timestamp.
     pub(crate) fn plaintexts_signers(&self, batch: BatchNumber) -> HashSet<TrusteePosition> {
         let entries = self.trustee.local_board.get_statement_entries();
-        let plaintexts_h = entries.iter().find_map(|entry| match entry.value.1 {
-            Statement::Plaintexts(_, _, b, h, ..) if b == batch => Some(h),
+        let plaintexts = entries.iter().find_map(|entry| match entry.value.1 {
+            Statement::Plaintexts(_, cfg_h, b, h, df_hs, c_h, pk_h) if b == batch => {
+                Some((cfg_h, b, h, df_hs, c_h, pk_h))
+            }
             _ => None,
         });
         entries
             .iter()
             .filter(|entry| match entry.value.1 {
-                Statement::PlaintextsSigned(_, _, b, h, ..) => {
-                    b == batch && Some(h) == plaintexts_h
+                Statement::PlaintextsSigned(_, cfg_h, b, h, df_hs, c_h, pk_h) => {
+                    Some((cfg_h, b, h, df_hs, c_h, pk_h)) == plaintexts
                 }
                 _ => false,
             })
