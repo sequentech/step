@@ -32,7 +32,7 @@ jobs:
           ref: ${{ github.event.pull_request.base.sha || github.event.before }}
           path: base
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22.22.0'
       - name: Install locked dependencies in both checkouts
