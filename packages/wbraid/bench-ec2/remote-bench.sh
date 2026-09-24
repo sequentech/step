@@ -106,18 +106,20 @@ run_grid() {
 # "N:W:Q" cells (FLAG, e.g. --ser, is passed through); the stage breakdown the
 # example prints on stderr goes to the log.
 run_tally_grid() {
-    local bin="$1" cells="$2" reps="$3" out="$4" flag="${5:-}" cell n w q f r line
+    local bin="$1" cells="$2" reps="$3" out="$4" cell n w q f r line flag
     for cell in $cells; do
         IFS=: read -r n w q f <<EOF
 $cell
 EOF
-        [ "$f" = ser ] && flag=--ser
+        # Under set -e a bare `[ … ] && …` as the loop's last command would
+        # return 1 for a cell without the suffix and end the function -- and
+        # the session. Plain if.
+        if [ "$f" = ser ]; then flag=--ser; else flag="${5:-}"; fi
         for r in $(seq 1 "$reps"); do
             # shellcheck disable=SC2086
             line="$("$bin" "$n" "$w" "$q" $flag)"
             echo "$line" | tee -a "$out"
         done
-        [ "$f" = ser ] && flag="${5:-}"
     done
 }
 
@@ -282,7 +284,7 @@ if [ -n "$BASE_SHA" ]; then
                 IFS=: read -r n w q f <<EOF
 $cell
 EOF
-                flag=""; [ "$f" = ser ] && flag=--ser
+                if [ "$f" = ser ]; then flag=--ser; else flag=""; fi
                 for r in $(seq 1 "$TALLY_DIFF_REPS"); do
                     # shellcheck disable=SC2086
                     line="$("$BASE_TALLY" "$n" "$w" "$q" $flag)"; echo "base,$line" | tee -a "$TDIFF"
