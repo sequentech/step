@@ -79,7 +79,7 @@ fetch_src() { # fetch_src SHA DIR
     aws s3 cp "$S3/src-$1.tar.gz" - --only-show-errors | tar -xz -C "$2"
     # Second line of defence against CRLF from a Windows-side git archive:
     # bash dies on '\r', cargo does not care.
-    find "$2" -name '*.sh' -exec sed -i 's/\r$//' {} +
+    find "$2" \( -name '*.sh' -o -name '*.patch' \) -exec sed -i 's/\r$//' {} +
 }
 
 build_targets() { # build_targets WBRAID_DIR
