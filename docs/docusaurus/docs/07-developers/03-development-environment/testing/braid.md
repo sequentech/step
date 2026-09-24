@@ -36,10 +36,11 @@ python3 scripts/coverage/run.py braid --baseline
 The native profile optimizes test builds to keep cryptographic protocol runs bounded.
 It counts inline helpers and generated protocol logic. CI compares
 lines, functions and LLVM regions separately against the actual PR base. Regions
-are not branches. The full protocol test chooses trustee counts randomly. It runs
-until the decryptor has every other trustee's plaintext signature, so the final
-signing phase is always measured; inspect per-file differences if the random
-trustee counts cause measurement variance.
+are not branches. The full protocol test runs two fixed trustee configurations:
+two of three trustees, which leaves an unselected trustee and empty trustee set
+slots, and all twelve. Each run continues until the decryptor has every other
+trustee's plaintext signature, so the final signing phase is always measured;
+inspect per-file differences if parallel step order causes measurement variance.
 
 The HTTP protocol test needs a synthetic bulletin-board service and object store.
 Browser IndexedDB/OPFS, concurrent long-running sessions, interactive commands and
