@@ -18,7 +18,6 @@ use std::array;
 use crate::utils::error::Error;
 use crate::utils::error::ErrorContext;
 use crate::utils::hash;
-use crate::utils::profile::{Category, timed};
 use crate::utils::serialization::Serializable;
 use crate::utils::serialization::par_ser;
 
@@ -174,39 +173,33 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
     ) -> Result<(Vec<u8>, Vec<C::Scalar>), Error> {
         // The element/ciphertext lists are serialized in parallel (byte-identical
         // to `Vec::ser`); their point compression is the dominant transcript cost.
-        let a = timed(Category::TranscriptSer, || {
-            [
-                C::generator().ser(),
-                par_ser(generators),
-                par_ser(pedersen_commitments),
-                pk.ser(),
-                par_ser(ciphertexts),
-                par_ser(permuted_ciphertexts),
-                context.to_vec(),
-            ]
-        });
+        let a = [
+            C::generator().ser(),
+            par_ser(generators),
+            par_ser(pedersen_commitments),
+            pk.ser(),
+            par_ser(ciphertexts),
+            par_ser(permuted_ciphertexts),
+            context.to_vec(),
+        ];
         let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
 
-        let bytes = timed(Category::Hash, || {
-            let mut hasher = C::get_hasher();
-            hash::update_hasher(&mut hasher, &input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_E);
-            hasher.finalize()
-        });
+        let mut hasher = C::get_hasher();
+        hash::update_hasher(&mut hasher, &input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_E);
+        let bytes = hasher.finalize();
 
         // Independent per-index derivations; parallelism cannot change the
         // per-index transcript, so the output matches the sequential loop.
-        let ret = timed(Category::Hash, || {
-            (0..ciphertexts.len())
-                .into_par_iter()
-                .map(|i| {
-                    // Cannot use platform dependent type in random oracle
-                    let i_u64 = i as u64;
-                    let inputs: &[&[u8]] = &[bytes.as_slice(), &i_u64.to_be_bytes()];
-                    let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
-                    C::G::hash_to_scalar(inputs, ds_tags)
-                })
-                .collect::<Result<Vec<_>, _>>()
-        })?;
+        let ret = (0..ciphertexts.len())
+            .into_par_iter()
+            .map(|i| {
+                // Cannot use platform dependent type in random oracle
+                let i_u64 = i as u64;
+                let inputs: &[&[u8]] = &[bytes.as_slice(), &i_u64.to_be_bytes()];
+                let ds_tags: &[&[u8]; 2] = &[b"prefix", b"shuffle_proof_challenge_e_counter"];
+                C::G::hash_to_scalar(inputs, ds_tags)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok((bytes.to_vec(), ret))
     }
 
@@ -216,22 +209,18 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
         commitments: &ShuffleCommitments<C, W>,
         context: &[u8],
     ) -> Result<C::Scalar, Error> {
-        let a = timed(Category::TranscriptSer, || {
-            [
-                seed.to_vec(),
-                par_ser(&commitments.big_b_n),
-                commitments.big_a_prime.ser(),
-                par_ser(&commitments.big_b_prime_n),
-                commitments.big_c_prime.ser(),
-                commitments.big_d_prime.ser(),
-                commitments.big_f_prime.ser(),
-                context.to_vec(),
-            ]
-        });
+        let a = [
+            seed.to_vec(),
+            par_ser(&commitments.big_b_n),
+            commitments.big_a_prime.ser(),
+            par_ser(&commitments.big_b_prime_n),
+            commitments.big_c_prime.ser(),
+            commitments.big_d_prime.ser(),
+            commitments.big_f_prime.ser(),
+            context.to_vec(),
+        ];
         let input: Vec<&[u8]> = a.iter().map(Vec::as_slice).collect();
-        timed(Category::Hash, || {
-            C::G::hash_to_scalar(&input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_V)
-        })
+        C::G::hash_to_scalar(&input, &Shuffler::<C, W>::DS_TAGS_CHALLENGE_V)
     }
 }
 
@@ -384,9 +373,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         // A' = g^alpha · ∏ h_i^{epsilon_i}. epsilon is secret, so the multi-exp
         // is the constant-time path; g^alpha uses the fixed-base table.
         let h_refs: Vec<&C::Element> = self.h_generators.iter().collect();
-        let h_n_epsilon_n_fold = timed(Category::MsmConstTime, || {
-            C::Element::multi_exp(&h_refs, &epsilon_n)
-        })?;
+        let h_n_epsilon_n_fold = C::Element::multi_exp(&h_refs, &epsilon_n)?;
         let big_a_prime = C::G::g_exp(&alpha).mul(&h_n_epsilon_n_fold);
 
         // B' = g^{beta_i + d_{i-1}·epsilon_i} · h_1^{p_{i-1}·epsilon_i}, the
@@ -418,10 +405,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
                 p_prev.mul(&epsilon_n[i])
             })
             .collect();
-        let g_part = timed(Category::FixedBase, || C::generator().exp_many(&g_exps));
-        let h1_part = timed(Category::FixedBase, || {
-            self.h_generators[0].exp_many(&h1_exps)
-        });
+        let g_part = C::generator().exp_many(&g_exps);
+        let h1_part = self.h_generators[0].exp_many(&h1_exps);
         let big_b_prime_n: Vec<C::Element> = g_part
             .iter()
             .zip(h1_part.iter())
@@ -435,12 +420,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let fp_v_bases: Vec<[C::Element; W]> =
             permuted_ciphertexts.iter().map(|w| w.v().clone()).collect();
         let big_f_prime_prod: [[C::Element; W]; 2] = [
-            timed(Category::MsmConstTime, || {
-                <[C::Element; W]>::dist_multi_exp(&fp_u_bases, &epsilon_n)
-            })?,
-            timed(Category::MsmConstTime, || {
-                <[C::Element; W]>::dist_multi_exp(&fp_v_bases, &epsilon_n)
-            })?,
+            <[C::Element; W]>::dist_multi_exp(&fp_u_bases, &epsilon_n)?,
+            <[C::Element; W]>::dist_multi_exp(&fp_v_bases, &epsilon_n)?,
         ];
         let big_f_prime: Ciphertext<C, W> =
             Ciphertext::<C, W>(big_f_prime_prod).re_encrypt(&phi.neg(), &self.pk.y);
@@ -639,21 +620,15 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         // A (comes from Step 1 in evs). Vartime multi-exp: `e_n` is public.
         let u_refs: Vec<&C::Element> = commitments.u_n.iter().collect();
-        let big_a = timed(Category::MsmVarTime, || {
-            C::Element::vartime_multi_exp(&u_refs, &e_n)
-        })?;
+        let big_a = C::Element::vartime_multi_exp(&u_refs, &e_n)?;
 
         // F (comes from Step 1 in evs). Componentwise vartime multi-exp over
         // the 2W ciphertext columns; `e_n` is public.
         let f_u_bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|w| w.u().clone()).collect();
         let f_v_bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|w| w.v().clone()).collect();
         let big_f: [[C::Element; W]; 2] = [
-            timed(Category::MsmVarTime, || {
-                <[C::Element; W]>::dist_vartime_multi_exp(&f_u_bases, &e_n)
-            })?,
-            timed(Category::MsmVarTime, || {
-                <[C::Element; W]>::dist_vartime_multi_exp(&f_v_bases, &e_n)
-            })?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&f_u_bases, &e_n)?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&f_v_bases, &e_n)?,
         ];
 
         // C
@@ -687,9 +662,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
 
         // Vartime multi-exp: the responses `k_e_n` are public (part of the proof).
         let h_refs: Vec<&C::Element> = self.h_generators.iter().collect();
-        let h_n_k_e_n_fold = timed(Category::MsmVarTime, || {
-            C::Element::vartime_multi_exp(&h_refs, &responses.k_e_n)
-        })?;
+        let h_n_k_e_n_fold = C::Element::vartime_multi_exp(&h_refs, &responses.k_e_n)?;
         let g_k_a = g.exp(&responses.k_a);
         let lhs_1 = big_a.exp(&v).mul(&commitments.big_a_prime);
         let rhs_1 = g_k_a.mul(&h_n_k_e_n_fold);
@@ -716,9 +689,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         lhs2_bases.extend(commitments.big_b_prime_n.iter());
         let mut lhs2_exps: Vec<C::Scalar> = t_n.iter().map(|t| v.mul(t)).collect();
         lhs2_exps.extend(t_n.iter().cloned());
-        let lhs_2 = timed(Category::MsmVarTime, || {
-            C::Element::vartime_multi_exp(&lhs2_bases, &lhs2_exps)
-        })?;
+        let lhs_2 = C::Element::vartime_multi_exp(&lhs2_bases, &lhs2_exps)?;
 
         // RHS = g^{Σ t_i·k_b_i} · ∏ B_{i-1}^{t_i·k_e_i}, with B_{i-1} running
         // over [h_1, B_1, ..., B_{N-1}].
@@ -737,9 +708,9 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
             .zip(responses.k_e_n.iter())
             .map(|(t, k_e)| t.mul(k_e))
             .collect();
-        let rhs_2 = g.exp(&sum_t_kb).mul(&timed(Category::MsmVarTime, || {
-            C::Element::vartime_multi_exp(&rhs2_bases, &rhs2_exps)
-        })?);
+        let rhs_2 = g
+            .exp(&sum_t_kb)
+            .mul(&C::Element::vartime_multi_exp(&rhs2_bases, &rhs2_exps)?);
 
         ////// Verification 3 //////
 
@@ -766,12 +737,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         let v5_v_bases: Vec<[C::Element; W]> =
             permuted_ciphertexts.iter().map(|w| w.v().clone()).collect();
         let w_prime_n_k_e_n_fold: [[C::Element; W]; 2] = [
-            timed(Category::MsmVarTime, || {
-                <[C::Element; W]>::dist_vartime_multi_exp(&v5_u_bases, &responses.k_e_n)
-            })?,
-            timed(Category::MsmVarTime, || {
-                <[C::Element; W]>::dist_vartime_multi_exp(&v5_v_bases, &responses.k_e_n)
-            })?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&v5_u_bases, &responses.k_e_n)?,
+            <[C::Element; W]>::dist_vartime_multi_exp(&v5_v_bases, &responses.k_e_n)?,
         ];
 
         let one = [g, self.pk.y.clone()].map(|gy| gy.repl_exp(&responses.k_f.neg()));
@@ -809,7 +776,7 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         // commitment exponents (secret — `exp_many` is constant-time), then a
         // multiplication per element.
         let g = C::generator();
-        let g_r = timed(Category::FixedBase, || g.exp_many(&r_permuted));
+        let g_r = g.exp_many(&r_permuted);
         let u_n: Vec<C::Element> = g_r
             .par_iter()
             .zip(h_permuted.par_iter())
@@ -820,8 +787,8 @@ impl<C: Context, const W: usize> Shuffler<C, W> {
         // re-encryption exponents flattened, one fixed-base batch per leg (both
         // secret, constant-time), reassembled per ciphertext.
         let s_flat: Vec<C::Scalar> = s_permuted.iter().flat_map(|s| s.iter().cloned()).collect();
-        let g_s = timed(Category::FixedBase, || g.exp_many(&s_flat));
-        let y_s = timed(Category::FixedBase, || self.pk.y.exp_many(&s_flat));
+        let g_s = g.exp_many(&s_flat);
+        let y_s = self.pk.y.exp_many(&s_flat);
         let leg = |chunk: &[C::Element]| -> [C::Element; W] {
             // `par_chunks_exact(W)` yields exactly W elements per chunk.
             #[allow(clippy::indexing_slicing)]
@@ -917,8 +884,8 @@ fn bridging_commitments<C: Context>(
             p_n.push(p_n[prev].mul(&e_prime_n[i]));
         }
     }
-    let g_d = timed(Category::FixedBase, || g.exp_many(&d_n));
-    let h1_p = timed(Category::FixedBase, || h_1.exp_many(&p_n));
+    let g_d = g.exp_many(&d_n);
+    let h1_p = h_1.exp_many(&p_n);
     let big_b_n: Vec<C::Element> = g_d.iter().zip(h1_p.iter()).map(|(a, b)| a.mul(b)).collect();
     BridgingChain { big_b_n, d_n, p_n }
 }
