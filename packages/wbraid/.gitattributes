@@ -7,3 +7,4 @@
 # core.autocrlf=true. Keep them LF so a CR-terminated line never reaches a
 # Linux shell ("$'\r': command not found").
 *.sh text eol=lf
+*.patch text eol=lf
