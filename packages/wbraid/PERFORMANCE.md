@@ -379,7 +379,7 @@ datalog is not a parallelism site; `rayon` is a non-optional dependency of
 | **Constant-time wherever a secret enters**; variable-time only on public data | no test proves timing: the evidence is the per-site audit below — every exponentiation site, what it raises to, whether that is secret, and the mode it uses — kept current with the code |
 | **Parallelism only in the crypto/action layer; identical behaviour on the wasm pool** | production `wasm` (wasm-bindgen-rayon, atomics) and `wasm-core` both compile; headless IndexedDB test, the interactive emulator (full protocol under wasm) and the live-b4 protocol tests pass |
 | **`vsc` lint posture** (`unsafe_code = forbid`; `unwrap_used`, `panic`, `arithmetic_side_effects`, pedantic/complexity denied) | CI clippy with `-D warnings`; new curve arithmetic and indexing carry justified, localized `#[allow]`s |
-| **CI gates** — `fmt -- --check`, workspace clippy (`--all-targets -D warnings`), vsc clippy, `cargo test --release --features sqlite,postgres`, the wasm-core build | all green on the parking-milestone tree (2026-09-24, `9fdae3ec79`+): fmt, both clippy gates (vsc's after `22eea703bd`), every workspace test suite, the wasm-core wasm32 build; **Verificatum interop 70/70** with `V2V_REQUIRE_VMN=1`. Still to run on that tree: the headless wasm test and the production wasm build (`test-wasm.ps1`, `build-wasm.ps1`), the live-b4 protocol tests and the interactive emulator (TESTING.md), and the fuzz smoke baseline with the fuzz-aware threshold (ASSURANCE.md §3) |
+| **CI gates** — `fmt -- --check`, workspace clippy (`--all-targets -D warnings`), vsc clippy, `cargo test --release --features sqlite,postgres`, the wasm-core build | all green on the parking-milestone tree (2026-09-24, `9fdae3ec79`+): fmt, both clippy gates (vsc's after `22eea703bd`), every workspace test suite, the wasm-core wasm32 build; **Verificatum interop 70/70** with `V2V_REQUIRE_VMN=1`; the production wasm build, the headless IndexedDB test and a full protocol cycle in the interactive emulator (TESTING.md); the live-b4 protocol tests (both harnesses, against a real b4 and LocalStack); the property suites at 2048 cases and the fuzz smoke baseline with the fuzz-aware threshold — vsc ~6.8M and braid ~150k executions, clean (ASSURANCE.md §2–3) |
 
 ### Constant time or variable time, per site
 
@@ -681,5 +681,12 @@ things stand.
   `7c614d2dd2`). Over the day, T(3) at 10⁵/W2 went 27.1 → 18.8 s without
   message handling and 56.9 → 23.7 s with it (before the last lever).
   Transcript-bytes reuse is the one measured lever left on the table.
+  **Verified** on the tree (Constraints, CI gates row): every CI gate,
+  Verificatum interop 70/70, the production wasm build with the headless
+  test and a full emulator cycle, the live-b4 protocol tests (both harnesses, against a real b4 and LocalStack), and — because the change touched
+  serialization — the property suites deepened to 2048 cases and a fuzz
+  smoke baseline of all eight oracle targets with the parallel list paths
+  reachable (`c971c0267c`, `b229eb772a`; the fuzz crates' locks must be
+  seeded from the workspace's, ASSURANCE.md §3).
   Two scheduling levers (eager strip, eager partial verification) recorded
   under Remaining levers as measurable only on the global target, undecided.
