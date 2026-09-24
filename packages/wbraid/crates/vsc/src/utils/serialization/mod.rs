@@ -241,10 +241,11 @@ impl<T: Deserializable + Send> Deserializable for Vec<T> {
 
     fn read(input: &mut &[u8]) -> Result<Self, Error> {
         let count = read_len(input)?;
-        if let Some(width) = T::FIXED_WIDTH {
-            if width > 0 && count >= PAR_MIN_ELEMENTS {
+        match T::FIXED_WIDTH {
+            Some(width) if width > 0 && count >= PAR_MIN_ELEMENTS => {
                 return read_fixed_width_list_parallel(input, count, width);
             }
+            _ => {}
         }
         // No allocation is sized by the attacker-controlled count: the vector
         // grows per parsed element, and each element must consume input, so
@@ -320,16 +321,16 @@ fn read_fixed_width_list_parallel<T: Deserializable + Send>(
 #[must_use]
 pub const fn fixed_width_sum(widths: &[Option<usize>]) -> Option<usize> {
     let mut total: usize = 0;
-    let mut i = 0;
-    while i < widths.len() {
-        match widths[i] {
-            Some(width) => match total.checked_add(width) {
+    let mut rest = widths;
+    while let [first, tail @ ..] = rest {
+        match first {
+            Some(width) => match total.checked_add(*width) {
                 Some(sum) => total = sum,
                 None => return None,
             },
             None => return None,
         }
-        i += 1;
+        rest = tail;
     }
     Some(total)
 }
