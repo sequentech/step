@@ -110,14 +110,7 @@ input for a point list, beyond what a fuzzer feeds), so under `cfg(fuzzing)`,
 which `cargo fuzz` sets for the whole build, the threshold is 4: every
 deserializer target below exercises the parallel encoder and decoder on
 ordinary short lists, and the oracle checks their bytes like any other.
-A smoke baseline with this threshold is **pending**: on the Windows host the
-fuzz crate's standalone dependency resolution (its own `Cargo.lock`, crates.io
-sources rather than the workspace's pinned set) currently picks release
-candidates of the `p256`/`elliptic-curve` family that do not build together
-(`FieldElement: Field` unsatisfied inside `p256 0.14.0-rc.9`), a setup skew
-unrelated to the code; align the fuzz crate's lock with the workspace's (or
-pin `ff`/`group`/`crypto-bigint`/`primeorder` to the workspace's versions) and
-re-run the targets, then record the numbers here.
+The 2026-09-24 baseline below was taken with it.
 
 - `crates/vsc/fuzz`: deserializer oracles for ElGamal and Naor-Yung
   ciphertexts, shuffle proofs, and DKG dealings (`VerifiableShare`, including
@@ -126,6 +119,20 @@ re-run the targets, then record the numbers here.
   accepted adversarial inputs against fixed, deterministically derived keys,
   and the pre-existing `encode_bytes`/`encode_scalar` targets.
 - `crates/braid/fuzz`: oracles for `ProtocolMessage` and `Predicate`.
+
+**Seed the fuzz crate's lock first.** Each fuzz crate is its own cargo
+workspace with a gitignored `Cargo.lock`, so on a fresh machine cargo resolves
+its dependencies afresh from crates.io — and the `p256`/`elliptic-curve`
+release-candidate family then drifts from what the wbraid workspace pins
+(`ff 0.14.0` instead of `0.13.1`, and the build fails inside `p256` with
+`FieldElement: Field` unsatisfied). Copy the workspace's lock in before
+building; cargo keeps every locked version that satisfies the fuzz crate's
+requirements and resolves only the rest:
+
+```sh
+cp Cargo.lock crates/vsc/fuzz/Cargo.lock       # from the workspace root (wbraid/)
+cp Cargo.lock crates/braid/fuzz/Cargo.lock
+```
 
 **How to run — vsc** (any platform; `cargo fuzz` needs a nightly toolchain and this
 workspace pins stable, so invoke it as `cargo +nightly fuzz`). From `crates/vsc`:
@@ -162,6 +169,11 @@ Two platform constraints, one of which shapes the command:
 
 Smoke baselines, all clean (zero crashes, zero bijection violations):
 
+- vsc (2026-09-24, Windows host, 60s/target, `PAR_MIN_ELEMENTS` = 4 under
+  `cfg(fuzzing)` so the parallel list encoder and decoder are on every path):
+  six targets — the four deserializer oracles (`deser_shuffle_proof`, `deser_verifiable_share`, `deser_eg_ciphertext`, `deser_ny_ciphertext`, all `_ristretto`) and the two verify-boundary targets (`verify_ny_strip`, `verify_schnorr`) — ~6.8M executions total, no crash, no bijection violation; the seeded corpora persisted under `crates/vsc/fuzz/corpus/` (gitignored).
+- braid (2026-09-24, Linux under WSL, `-max_total_time=120`, same threshold):
+  both targets, ~150k executions (`deser_predicate` 66.7k, `deser_protocol_message_ristretto` 83.0k), no finding; the corpora grew from 94/80 entries at the August baseline to 337/330, so the oracle's accept path — a valid predicate or protocol message re-serializing to its own bytes through the parallel list paths — is exercised, not only rejections. Built with `CARGO_TARGET_DIR` on the WSL filesystem and the lock seeded as above; `g++` is the one extra prerequisite (libFuzzer's runtime).
 - vsc (2026-08-28, Windows host, 40s/target): eight targets — the six
   serialization-campaign targets plus `encode_bytes_ristretto` and
   `encode_scalar_bytes_ristretto` — ~7.9M executions total.
