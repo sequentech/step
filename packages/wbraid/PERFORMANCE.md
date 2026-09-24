@@ -87,6 +87,7 @@ stage with its share of T:
 | 10⁵ : 5 : 3 | **50.5 s** | 18.3 s | 4.6 s (9%) | 26.9 s (53%) | 11.0 s (22%) | 3.0 s (6%) | 5.0 s (10%) |
 | 10⁵ : 2 : 5 † | **34.8 s** | 12.9 s | 1.7 s (5%) | 20.2 s (58%) | 9.7 s (28%) | 0.9 s (3%) | 2.4 s (7%) |
 | 10⁵ : 2 : 7 † | **47.6 s** | 17.6 s | 1.6 s (3%) | 28.3 s (59%) | 13.6 s (28%) | 1.0 s (2%) | 3.2 s (7%) |
+| 10⁶ : 1 : 2 | **138.3 s** | 51.0 s | 11.5 s (8%) | 75.2 s (54%) | 37.4 s (27%) | 6.2 s (5%) | 7.9 s (6%) |
 
 The replay agrees with the formula over the isolated targets above —
 `2·strip + Q·(prove + verify) + partial + combine` gives 27.0 s and 50.2 s —
@@ -102,9 +103,19 @@ Q-scaling *within* that session: every mix cost the same (prove 4.03 s, verify
 1.94 s, all 12 within 1%), each extra partial's verification 0.42 s, and the
 two rows fit `T(Q) ≈ 2.8 s + 6.4 s·Q` to 0.2% — linear in the quorum size, with
 the intercept the two strips, the partial and the Lagrange step. On the
-reference-speed host of the first rows the slope is ~7.9 s per trustee. Raw
-files: `bench-results/ec2-20260923-234858-2d23452f05/` and
-`bench-results/ec2-20260923-235827-a3a46a5640/`.
+reference-speed host of the first rows the slope is ~7.9 s per trustee.
+
+The 10⁶ : 1 : 2 row is the scenario measured on older implementations, for
+comparison with them. Its session ran the 10⁵ : 2 : 3 cell alongside as an
+anchor and reproduced 27.1 s, so that host was at the reference speed and the
+row is comparable with the Q = 3 rows. Per mix at a million ballots of width
+1: prove 37.6 s, verify 18.7 s (reps within 0.1%); strip 5.7 s per party;
+combine over two partials 7.9 s. Against 10⁵/W2 that is 7.5× for 10× the
+ballots at half the width — linear in N, with the per-ciphertext costs
+(permutation commitments, bridging, transcript) outweighing the per-component
+ones. Raw files: `bench-results/ec2-20260923-234858-2d23452f05/`,
+`bench-results/ec2-20260923-235827-a3a46a5640/` and
+`bench-results/ec2-20260924-005233-196bc5c947/`.
 
 ## Design, as implemented
 
@@ -502,5 +513,8 @@ things stand.
   its host ran ~20% faster than the previous two sessions' on every stage —
   the first observed **host variance** on the rig, recorded in Status and
   BENCH-EC2.md: interleaved within a session is the only exact comparison.
+  A third session (`ec2-20260924-005233-196bc5c947`, 12 min) added the
+  historical comparison cell 10⁶ : 1 : 2 — T = 138 s, V = 51 s — with the
+  10⁵ : 2 : 3 anchor reproducing 27.1 s, host at reference speed.
   Two scheduling levers (eager strip, eager partial verification) recorded
   under Remaining levers as measurable only on the global target, undecided.
