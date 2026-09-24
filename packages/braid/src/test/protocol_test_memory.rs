@@ -4,8 +4,6 @@
 
 use anyhow::Result;
 use log::{error, info};
-use rand::seq::IndexedRandom;
-use rand::Rng;
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::marker::PhantomData;
@@ -28,31 +26,27 @@ use crate::protocol::trustee2::Trustee;
 use crate::test::vector_board::VectorBoard;
 use crate::test::vector_session::VectorSession;
 
+const ALL_TRUSTEES: [usize; MAX_TRUSTEES] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+/// Trustee counts and selected trustees (1-based, in mixing order; the first
+/// also decrypts). Selecting two of three leaves an unselected trustee and empty
+/// trustee set slots; selecting all MAX_TRUSTEES fills every slot.
+const CONFIGURATIONS: [(usize, &[usize]); 2] = [(3, &[3, 1]), (MAX_TRUSTEES, &ALL_TRUSTEES)];
+
 pub fn run<C: Ctx + 'static>(ciphertexts: u32, batches: usize, ctx: C) {
-    let n_trustees = rand::thread_rng().gen_range(2..13);
-    let n_threshold = rand::thread_rng().gen_range(2..=n_trustees);
-    // To test all trustees participating
-    // let n_trustees = 12;
-    // let n_threshold = n_trustees;
-    let max: [usize; 12] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    let all = &max[0..n_trustees];
-    let mut rng = &mut rand::rng();
-    let threshold: Vec<usize> = all
-        .choose_multiple(&mut rng, n_threshold)
-        .cloned()
-        .collect();
+    for (n_trustees, threshold) in CONFIGURATIONS {
+        let now = Instant::now();
+        let test = create_protocol_test(n_trustees, threshold, ctx.clone()).unwrap();
+        run_protocol_test(test, ciphertexts, batches, threshold).unwrap();
 
-    let now = Instant::now();
-    let test = create_protocol_test(n_trustees, &threshold, ctx).unwrap();
-    run_protocol_test(test, ciphertexts, batches, &threshold).unwrap();
-
-    let time = now.elapsed().as_millis() as f64 / 1000.0;
-    info!(
-        "batches = {}, time = {}, rate = {}",
-        batches,
-        time,
-        ((ciphertexts as f64 * batches as f64) / time),
-    );
+        let time = now.elapsed().as_millis() as f64 / 1000.0;
+        info!(
+            "batches = {}, time = {}, rate = {}",
+            batches,
+            time,
+            ((ciphertexts as f64 * batches as f64) / time),
+        );
+    }
 }
 
 fn run_protocol_test<C: Ctx + 'static>(
