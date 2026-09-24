@@ -6,6 +6,11 @@
 
 #![cfg(all(feature = "default_features", feature = "keycloak"))]
 
+#[path = "support/claims.rs"]
+#[allow(dead_code)]
+mod claims;
+
+use claims::Claims;
 use rocket::http::Status;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::authorization::{
@@ -13,7 +18,6 @@ use sequent_core::services::authorization::{
 };
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
-use serde_json::json;
 
 const TENANT_ID: &str = "tenant-a";
 const OTHER_TENANT_ID: &str = "tenant-b";
@@ -27,28 +31,12 @@ const VOTING_PORTAL_CLIENT: &str = "voting-portal";
 
 /// Keep identity fields constant so each test changes only its policy input.
 fn claims() -> JwtClaims {
-    serde_json::from_value(json!({
-        "exp": 2_000_000_000,
-        "iat": 1_900_000_000,
-        "jti": "test-token",
-        "iss": "https://identity.invalid",
-        "sub": USER_ID,
-        "typ": "Bearer",
-        "azp": VOTING_PORTAL_CLIENT,
-        "acr": "1",
-        "allowed-origins": [],
-        "scope": "openid",
-        "email_verified": false,
-        "https://hasura.io/jwt/claims": {
-            "x-hasura-default-role": VOTER_ROLE,
-            "x-hasura-tenant-id": TENANT_ID,
-            "x-hasura-user-id": USER_ID,
-            "x-hasura-area-id": AREA_ID,
-            "authorized-election-ids": [ELECTION_ID],
-            "x-hasura-allowed-roles": [VOTER_ROLE, TENANT_READ_ROLE]
-        }
-    }))
-    .expect("synthetic claims should match the public claims schema")
+    Claims::new(TENANT_ID, USER_ID)
+        .azp(VOTING_PORTAL_CLIENT)
+        .area(AREA_ID)
+        .authorized_elections(&[ELECTION_ID])
+        .roles([VOTER_ROLE, TENANT_READ_ROLE])
+        .build()
 }
 
 #[test]

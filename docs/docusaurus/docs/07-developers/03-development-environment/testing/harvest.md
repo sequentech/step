@@ -59,10 +59,16 @@ write-only claims cannot create it. The HTTP fixture is shared with Core. A fres
 child process clears ambient settings and isolates the global token cache;
 its wait and socket operations are bounded, and LLVM instrumentation is retained.
 This verifies the client protocol and authorization adapter, not a deployed
-identity provider or JWT signatures. A second child sends each guarded route's
-complete permission set with no backend configured: the request must pass
-authorization and stop at the backend with HTTP 500, so a route that required
-a different permission would fail its control.
+identity provider or JWT signatures.
+
+`support/route_permissions.rs` holds one row per guarded route, or per request
+shape where a route's permissions depend on its body, and must cover the whole
+inventory. A second child sends each row's minimum permission set with no
+backend configured: the request must pass authorization and stop at the first
+backend. The same request with any one permission removed must get the route's
+current denial status and content type. Routes that write a task row before
+checking permissions answer the backend failure in both cases, and routes with
+an empty permission list have no denial row.
 
 Audit row tests include complete and reordered controls for both table names,
 every missing/duplicated field, null/wrong types, malformed count row shapes,
