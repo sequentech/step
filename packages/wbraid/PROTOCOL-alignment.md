@@ -21,7 +21,9 @@ proposes scheduling; it changes no code.
 > **Re-verified 2026-09-21** after the performance campaign (final section):
 > alignment preserved throughout; one new description-precision item, D7
 > (batched verification of V2), found and applied. **D8** (batched verification
-> of the ballot well-formedness proofs) followed on 2026-09-23, same class.
+> of the ballot well-formedness proofs) followed on 2026-09-23, same class. Both
+> live in PROTOCOL.md's **Appendix C** since 2026-09-24, so the main text stays
+> the unoptimized description.
 
 Scope: the sections of `PROTOCOL.md` that bind this repository — §2
 (preliminaries), §3 (primitives), §4 (DKG), §5.5 (tally input), §6 (mixing), §7
@@ -272,9 +274,11 @@ for valid proofs, and a proof with any failing instance accepted with
 probability exactly `1/q`. Sound and standard — but not literally the equations
 as written, and it makes the verifier randomized rather than a pure function of
 the public data. Per the D-class convention the *document* was made precise:
-§6.4 now states the batched form as a permitted check with its error bound,
-keeping the per-index equations normative (and deterministic), and §9.2 step 4
-references it. **Applied 2026-09-21.** Negative coverage:
+the batched form is stated as a permitted check with its error bound,
+keeping the per-index equations of §6.4 normative (and deterministic) — first in
+§6.4 itself with a §9.2 step-4 pointer (2026-09-21), since 2026-09-24 in
+**Appendix C.2**, with §9.2's preamble pointing at the appendix.
+**Applied 2026-09-21.** Negative coverage:
 `test_shuffle_batched_v2_rejects_{ristretto,p256}` tamper `k_B` — which
 appears only in V2 and does not feed the challenge `v` — and confirm rejection.
 
@@ -292,9 +296,10 @@ per-item check; the weights are never hashed. On rejection the failing ballots
 are attributed by individual verification, and a batch that rejects while every
 proof verifies individually is treated as an internal error and fails closed
 (`Error::BatchVerificationInconsistent`). Per the D-class convention the
-*document* was made precise: §3.5 states the batched form as a permitted check
-with its error bound, keeping `PlEqVerify` normative; §5.5 and §9.2 step 3
-reference it. **Applied 2026-09-23.** Negative coverage:
+*document* was made precise: the batched form is stated as a permitted check
+with its error bound, keeping `PlEqVerify` normative — first in §3.5 with §5.5 and
+§9.2 step-3 pointers (2026-09-23), since 2026-09-24 in **Appendix C.1**, with
+§9.2's preamble pointing at the appendix. **Applied 2026-09-23.** Negative coverage:
 `test_pleq_verify_batch_attributes_failures_{ristretto,p256}` (a tampered
 response, a pair of proofs swapped between ballots, a foreign context — the
 batch names exactly the per-item failures) and
