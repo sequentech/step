@@ -24,8 +24,10 @@ files and directories. Usage checks assert both exit status and diagnostic text.
 
 The RSA verification and encryption contracts also run against the shipped
 `packages/windmill/external-bin/ecies-tool.jar`, which the Windmill and Harvest
-images copy. After changing the CLI, rebuild it with `mvn package` and replace
-that jar with `target/ECIESEncryption-1.0-SNAPSHOT.jar`.
+images copy. That test fails while the shipped jar is stale, so after changing
+the CLI, build with `mvn package -DskipTests`, copy
+`target/ECIESEncryption-1.0-SNAPSHOT.jar` over the shipped jar, and then run
+`mvn test`.
 
 These are command-line integration contracts, not a cryptographic primitive
 certification. PKCS12 certificate-chain and expiry handling need additional
