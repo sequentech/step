@@ -2246,6 +2246,12 @@ const galegoTranslation: TranslationType = {
                 tallyDisallowed: "O escrutinio está desactivado para unha elección seleccionada.",
                 endVoting:
                     "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
+                keysCeremonyMissing:
+                    "Asigna unha cerimonia de claves a cada elección seleccionada antes de crear o escrutinio.",
+                keysCeremonyMismatch:
+                    "As eleccións seleccionadas usan cerimonias de claves distintas. Fai o seu escrutinio por separado.",
+                keysCeremonyIncomplete:
+                    "Completa a cerimonia de claves antes de crear o escrutinio.",
             },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",

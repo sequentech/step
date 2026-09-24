@@ -2261,6 +2261,12 @@ const frenchTranslation: TranslationType = {
                 tallyDisallowed: "Le dépouillement est désactivé pour une élection sélectionnée.",
                 endVoting:
                     "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
+                keysCeremonyMissing:
+                    "Attribuez une cérémonie des clés à chaque élection sélectionnée avant de créer le dépouillement.",
+                keysCeremonyMismatch:
+                    "Les élections sélectionnées utilisent des cérémonies des clés différentes. Dépouillez-les séparément.",
+                keysCeremonyIncomplete:
+                    "Terminez la cérémonie des clés avant de créer le dépouillement.",
             },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",

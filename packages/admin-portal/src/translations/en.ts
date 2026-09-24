@@ -2220,6 +2220,11 @@ const englishTranslation = {
                 tallyDisallowed: "Tallying is disabled for a selected election.",
                 endVoting:
                     "End voting in each selected election and stop its active voting channels before creating the tally.",
+                keysCeremonyMissing:
+                    "Assign a keys ceremony to each selected election before creating the tally.",
+                keysCeremonyMismatch:
+                    "The selected elections use different keys ceremonies. Tally them separately.",
+                keysCeremonyIncomplete: "Complete the keys ceremony before creating the tally.",
             },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",

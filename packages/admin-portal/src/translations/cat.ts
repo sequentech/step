@@ -2256,6 +2256,12 @@ const catalanTranslation: TranslationType = {
                 tallyDisallowed: "El recompte està deshabilitat per a una elecció seleccionada.",
                 endVoting:
                     "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
+                keysCeremonyMissing:
+                    "Assigna una cerimònia de claus a cada elecció seleccionada abans de crear el recompte.",
+                keysCeremonyMismatch:
+                    "Les eleccions seleccionades fan servir cerimònies de claus diferents. Fes-ne el recompte per separat.",
+                keysCeremonyIncomplete:
+                    "Completa la cerimònia de claus abans de crear el recompte.",
             },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",

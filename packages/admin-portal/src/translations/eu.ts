@@ -2239,6 +2239,11 @@ const basqueTranslation: TranslationType = {
                 tallyDisallowed: "Zenbaketa desgaituta dago hautatutako hauteskunde batean.",
                 endVoting:
                     "Amaitu hautatutako hauteskunde bakoitzeko bozketa eta gelditu kanal aktiboak zenbaketa sortu aurretik.",
+                keysCeremonyMissing:
+                    "Esleitu gako-zeremonia bat hautatutako hauteskunde bakoitzari zenbaketa sortu aurretik.",
+                keysCeremonyMismatch:
+                    "Hautatutako hauteskundeek gako-zeremonia desberdinak erabiltzen dituzte. Egin zenbaketa bereizita.",
+                keysCeremonyIncomplete: "Osatu gako-zeremonia zenbaketa sortu aurretik.",
             },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",

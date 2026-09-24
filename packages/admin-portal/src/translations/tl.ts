@@ -2251,6 +2251,11 @@ const tagalogTranslation: TranslationType = {
                     "Hindi pinapayagan ang pagbibilang para sa isang napiling halalan.",
                 endVoting:
                     "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
+                keysCeremonyMissing:
+                    "Magtalaga ng keys ceremony sa bawat napiling halalan bago gumawa ng pagbibilang.",
+                keysCeremonyMismatch:
+                    "Magkakaiba ang keys ceremony ng mga napiling halalan. Bilangin ang mga ito nang hiwalay.",
+                keysCeremonyIncomplete: "Tapusin ang keys ceremony bago gumawa ng pagbibilang.",
             },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
