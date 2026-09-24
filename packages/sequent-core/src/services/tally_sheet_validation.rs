@@ -80,6 +80,13 @@ pub fn effective_max_marks_per_ballot_typed(
 /// present but not a value this build recognises.
 pub const UNKNOWN_COUNTING_ALGORITHM: &str = "unknown_counting_algorithm";
 
+/// Error code for a blank-vote count that exceeds the bucket containing it.
+pub const INVALID_TOTAL_BLANK_VOTES: &str = "invalid_total_blank_votes";
+
+/// Message parameters that name the exceeded field and its upper bound.
+const LIMIT_FIELD: &str = "limitField";
+const UPPER_BOUND: &str = "upperBound";
+
 /// Resolves the mark bound for a contest from its stored
 /// `counting_algorithm` string.
 ///
@@ -186,12 +193,12 @@ pub fn validate_area_contest_results(
 
     if total_blank_votes > total_valid_votes {
         errors.push(error(
-            "invalid_total_blank_votes",
+            INVALID_TOTAL_BLANK_VOTES,
             "total_blank_votes must not exceed total_valid_votes".to_string(),
             "total_blank_votes",
             HashMap::from([
-                ("limitField".to_string(), "total_valid_votes".to_string()),
-                ("upperBound".to_string(), total_valid_votes.to_string()),
+                (LIMIT_FIELD.to_string(), "total_valid_votes".to_string()),
+                (UPPER_BOUND.to_string(), total_valid_votes.to_string()),
             ]),
         ));
     }
@@ -218,7 +225,7 @@ pub fn validate_area_contest_results(
             HashMap::from([
                 ("candidateVotesSum".to_string(), candidate_votes_sum.to_string()),
                 ("lowerBound".to_string(), lower_bound.to_string()),
-                ("upperBound".to_string(), upper_bound.to_string()),
+                (UPPER_BOUND.to_string(), upper_bound.to_string()),
                 ("nonBlankValidVotes".to_string(), non_blank_valid_votes.to_string()),
                 ("maxMarks".to_string(), max_marks.to_string()),
             ]),
@@ -342,12 +349,12 @@ pub fn validate_ballot_box_blank_ballots(
             if let Some(limit) = limit.filter(|limit| blank > *limit) {
                 return BallotBoxBlankBallotsCheck {
                     errors: vec![error(
-                        "invalid_total_blank_votes",
+                        INVALID_TOTAL_BLANK_VOTES,
                         format!("Each contest's total_blank_votes must not exceed its {field}"),
                         "total_blank_votes",
                         HashMap::from([
-                            ("limitField".to_string(), field.to_string()),
-                            ("upperBound".to_string(), limit.to_string()),
+                            (LIMIT_FIELD.to_string(), field.to_string()),
+                            (UPPER_BOUND.to_string(), limit.to_string()),
                         ]),
                     )],
                     pre_filled_value: None,
@@ -411,7 +418,7 @@ pub fn validate_ballot_box_blank_ballots(
                 HashMap::from([
                     ("blankBallots".to_string(), value.to_string()),
                     ("lowerBound".to_string(), lower_bound.to_string()),
-                    ("upperBound".to_string(), upper_bound.to_string()),
+                    (UPPER_BOUND.to_string(), upper_bound.to_string()),
                 ]),
             ));
         }
