@@ -26,9 +26,13 @@
 # none); a cell may also carry the suffix ":ser" ("N:W:Q:ser") to run with
 # --ser wherever cells are accepted; with a baseline, TALLY_DIFF_CELLS
 # (interleaved tally before/after, default "100000:2:3"; empty skips it) and
-# TALLY_DIFF_REPS (3); BREAKDOWN=1
-# builds targets with --features profile and writes each BREAKDOWN_CELLS cell's
-# stage breakdown (default "100000:2"); GUIDANCE (default 0 -- the criterion
+# TALLY_DIFF_REPS (3); BASE_EXAMPLES_DIR (a directory in the tip's tree whose
+# targets.rs / tally.rs are copied into the baseline before it is built --
+# "bench-ec2/forkpoint" holds frozen copies that build against the fork point;
+# unset, a baseline lacking targets.rs gets the tip's copy); BREAKDOWN=1
+# applies bench-ec2/breakdown.patch (the stage timers) to a scratch copy of the
+# tip, builds targets there with --features profile, and writes each
+# BREAKDOWN_CELLS cell's stage breakdown (default "100000:2"); GUIDANCE (default 0 -- the criterion
 # guidance benches are design inputs recorded in PERFORMANCE.md, not part of a
 # snapshot).
 #
@@ -51,6 +55,7 @@ TALLY_DIFF_CELLS="${TALLY_DIFF_CELLS-100000:2:3}"
 TALLY_DIFF_REPS="${TALLY_DIFF_REPS:-3}"
 BREAKDOWN="${BREAKDOWN:-0}"
 BREAKDOWN_CELLS="${BREAKDOWN_CELLS:-100000:2}"
+BASE_EXAMPLES_DIR="${BASE_EXAMPLES_DIR-}"
 TALLY_HEADER="count,width,quorum,ser,strip_prod_ms,strip_ver_ms,prove_ms,verify_ms,partial_ms,combine_ms,ser_ms,t_ms,v_ms"
 GUIDANCE="${GUIDANCE:-0}"
 S3="s3://$BUCKET/$SESSION"
@@ -147,7 +152,7 @@ md() { curl -sH "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/lates
     echo "# vcpus:         $(nproc)   threads/core: $(lscpu | awk -F: '/Thread\(s\) per core/ {gsub(/ /, "", $2); print $2}')"
     echo "# kernel:        $(uname -r)"
     echo "# rustc:         $(rustc --version)"
-    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS${TALLY_SER_CELLS:+   TALLY_SER_CELLS='$TALLY_SER_CELLS'}${BASE_SHA:+   TALLY_DIFF_CELLS='$TALLY_DIFF_CELLS' TALLY_DIFF_REPS=$TALLY_DIFF_REPS}   BREAKDOWN=$BREAKDOWN${BREAKDOWN_CELLS:+ ($BREAKDOWN_CELLS)}   GUIDANCE=$GUIDANCE"
+    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS${TALLY_SER_CELLS:+   TALLY_SER_CELLS='$TALLY_SER_CELLS'}${BASE_SHA:+   TALLY_DIFF_CELLS='$TALLY_DIFF_CELLS' TALLY_DIFF_REPS=$TALLY_DIFF_REPS}${BASE_EXAMPLES_DIR:+   BASE_EXAMPLES_DIR='$BASE_EXAMPLES_DIR'}   BREAKDOWN=$BREAKDOWN${BREAKDOWN_CELLS:+ ($BREAKDOWN_CELLS)}   GUIDANCE=$GUIDANCE"
 } | tee "$RESULTS/machine.txt"
 
 # --- tip: build, then the snapshot grid --------------------------------------------
@@ -181,12 +186,21 @@ if [ -n "$TALLY_CELLS$TALLY_SER_CELLS" ]; then
     fi
 fi
 
-# --- optional: the stage breakdown, from a profile build of targets -------------
+# --- optional: the stage breakdown, from a patched scratch copy of the tip -------
+# The production code carries no timers; bench-ec2/breakdown.patch holds the
+# `timed(Category::…)` wrappers and is applied to a second copy of the tip's
+# source, which is built with --features profile. The snapshot and the
+# before/afters keep using the untouched tip. A patch that no longer applies
+# fails the session here, loudly.
 if [ "$BREAKDOWN" = 1 ]; then
-    if [ -f "$CUR/crates/vsc/src/utils/profile.rs" ]; then
-        log "building targets with --features profile (separate target dir)"
-        ( cd "$CUR" && CARGO_TARGET_DIR="$CUR/target-profile" \
-            cargo build --release -p vsc --example targets --features profile >/dev/null 2>&1 )
+    if [ -f "$CUR/bench-ec2/breakdown.patch" ]; then
+        log "fetching a scratch copy of $SHA for the breakdown"
+        fetch_src "$SHA" "$WORK/prof"
+        PROFDIR="$WORK/prof/packages/wbraid"
+        log "applying bench-ec2/breakdown.patch"
+        ( cd "$PROFDIR" && patch -p1 --forward < bench-ec2/breakdown.patch >/dev/null )
+        log "building the patched targets with --features profile"
+        ( cd "$PROFDIR" && cargo build --release -p vsc --example targets --features profile >/dev/null 2>&1 )
         PROF="$RESULTS/profile-$SHA.txt"
         : > "$PROF"
         for cell in $BREAKDOWN_CELLS; do
@@ -194,12 +208,12 @@ if [ "$BREAKDOWN" = 1 ]; then
             log "stage breakdown at $cell"
             {
                 echo "## cell $n:$w"
-                "$CUR/target-profile/release/examples/targets" "$n" "$w" 2>&1 >/dev/null
+                "$PROFDIR/target/release/examples/targets" "$n" "$w" 2>&1 >/dev/null
                 echo
             } >> "$PROF"
         done
     else
-        log "utils/profile.rs is not present in $SHA; stage breakdown skipped"
+        log "bench-ec2/breakdown.patch is not present in $SHA; stage breakdown skipped"
     fi
 fi
 
@@ -226,9 +240,18 @@ if [ -n "$BASE_SHA" ]; then
     log "fetching baseline $BASE_SHA"
     fetch_src "$BASE_SHA" "$WORK/base"
     BASE="$WORK/base/packages/wbraid"
-    # examples/targets.rs uses only fork-point public APIs precisely so it can
-    # be dropped into a baseline that predates it (PERFORMANCE.md §6).
-    if [ ! -f "$BASE/crates/vsc/examples/targets.rs" ]; then
+    # The measurement programs a baseline is built with: its own, or -- for a
+    # baseline that predates them -- copies. BASE_EXAMPLES_DIR names a directory
+    # in the tip's tree holding versions that build against that baseline's API
+    # (bench-ec2/forkpoint for the fork point); without it, a baseline lacking
+    # targets.rs gets the tip's copy, which builds only while the APIs it uses
+    # exist there.
+    if [ -n "$BASE_EXAMPLES_DIR" ]; then
+        log "baseline measurement programs from $BASE_EXAMPLES_DIR"
+        for f in targets.rs tally.rs; do
+            [ -f "$CUR/$BASE_EXAMPLES_DIR/$f" ] && cp "$CUR/$BASE_EXAMPLES_DIR/$f" "$BASE/crates/vsc/examples/$f"
+        done
+    elif [ ! -f "$BASE/crates/vsc/examples/targets.rs" ]; then
         cp "$CUR/crates/vsc/examples/targets.rs" "$BASE/crates/vsc/examples/targets.rs"
     fi
     log "building the baseline's targets"
