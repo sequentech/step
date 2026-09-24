@@ -12,6 +12,11 @@ use velvet::pipes::generate_db::{
 };
 use velvet::pipes::generate_reports::ElectionReportDataComputed;
 
+// The configured results database and the file each test opens must match.
+const DATABASE_FILENAME: &str = "results.db";
+// The file name the decoded-ballots import walks the input tree for.
+const DECODED_BALLOTS_FILENAME: &str = "decoded_ballots.json";
+
 #[derive(Debug, PartialEq)]
 struct StoredElection {
     tenant: String,
@@ -29,7 +34,7 @@ fn config() -> PipeConfigGenerateDatabase {
         include_decoded_ballots: false,
         tenant_id: "test-tenant".into(),
         election_event_id: "test-event".into(),
-        database_filename: "results.db".into(),
+        database_filename: DATABASE_FILENAME.into(),
     }
 }
 
@@ -50,7 +55,7 @@ fn a_new_results_database_persists_the_event_election_and_correct_denominators()
     let output = tempdir().unwrap();
     populate_results_tables(input.path(), output.path(), vec![election()], &config()).unwrap();
 
-    let database = Connection::open(output.path().join("results.db")).unwrap();
+    let database = Connection::open(output.path().join(DATABASE_FILENAME)).unwrap();
     let stored = database
         .query_row(
             "SELECT tenant_id, election_event_id, election_id, elegible_census,
@@ -99,7 +104,7 @@ fn a_new_results_database_persists_the_event_election_and_correct_denominators()
 fn a_database_write_failure_rolls_back_the_partial_results_event() {
     let input = tempdir().unwrap();
     let output = tempdir().unwrap();
-    let source = Connection::open(input.path().join("results.db")).unwrap();
+    let source = Connection::open(input.path().join(DATABASE_FILENAME)).unwrap();
     // An incompatible copied schema forces a real SQL error after the results
     // event has been inserted. An early validation error would miss this bug.
     source
@@ -112,7 +117,7 @@ fn a_database_write_failure_rolls_back_the_partial_results_event() {
 
     let error = populate_results_tables(input.path(), output.path(), vec![election()], &config());
     assert!(error.is_err(), "the incompatible schema must fail");
-    let output_database = Connection::open(output.path().join("results.db")).unwrap();
+    let output_database = Connection::open(output.path().join(DATABASE_FILENAME)).unwrap();
     let partial_event_tables: i64 = output_database
         .query_row(
             "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'results_event'",
@@ -131,7 +136,7 @@ fn a_database_write_failure_rolls_back_the_partial_results_event() {
         })
         .unwrap();
     assert_eq!(preserved, "keep this");
-    let source_database = Connection::open(input.path().join("results.db")).unwrap();
+    let source_database = Connection::open(input.path().join(DATABASE_FILENAME)).unwrap();
     assert_eq!(
         source_database
             .query_row::<String, _, _>("SELECT unexpected FROM results_election", [], |row| row
@@ -152,8 +157,8 @@ async fn decoded_ballots_preserve_bytes_and_replace_only_the_matching_area() {
         .join("election__e1/contest__c1/area__south");
     fs::create_dir_all(&north).unwrap();
     fs::create_dir_all(&south).unwrap();
-    fs::write(north.join("decoded_ballots.json"), b"[ 1, 2 ]\n").unwrap();
-    fs::write(south.join("decoded_ballots.json"), b"[]").unwrap();
+    fs::write(north.join(DECODED_BALLOTS_FILENAME), b"[ 1, 2 ]\n").unwrap();
+    fs::write(south.join(DECODED_BALLOTS_FILENAME), b"[]").unwrap();
     fs::write(south.join("unrelated.txt"), b"not a ballot file").unwrap();
 
     let mut database = Connection::open_in_memory().unwrap();
@@ -171,7 +176,7 @@ async fn decoded_ballots_preserve_bytes_and_replace_only_the_matching_area() {
     assert_eq!(read(&database, "north"), b"[ 1, 2 ]\n");
     assert_eq!(read(&database, "south"), b"[]");
 
-    fs::write(north.join("decoded_ballots.json"), b"[3]").unwrap();
+    fs::write(north.join(DECODED_BALLOTS_FILENAME), b"[3]").unwrap();
     let transaction = database.transaction().unwrap();
     process_decoded_ballots(&transaction, directory.path())
         .await
@@ -192,7 +197,7 @@ async fn decoded_ballots_without_an_area_fail_and_can_be_rolled_back() {
     let directory = tempdir().unwrap();
     let incomplete = directory.path().join("election__e1/contest__c1");
     fs::create_dir_all(&incomplete).unwrap();
-    fs::write(incomplete.join("decoded_ballots.json"), b"[]").unwrap();
+    fs::write(incomplete.join(DECODED_BALLOTS_FILENAME), b"[]").unwrap();
     let mut database = Connection::open_in_memory().unwrap();
     let transaction = database.transaction().unwrap();
     assert!(process_decoded_ballots(&transaction, directory.path())
