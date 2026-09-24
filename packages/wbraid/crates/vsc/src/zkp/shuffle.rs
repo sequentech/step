@@ -217,9 +217,9 @@ impl<C: Context, const W: usize> ShuffleChallenges<C, W> for NativeChallenges {
         let a = timed(Category::TranscriptSer, || {
             [
                 seed.to_vec(),
-                commitments.big_b_n.ser(),
+                par_ser(&commitments.big_b_n),
                 commitments.big_a_prime.ser(),
-                commitments.big_b_prime_n.ser(),
+                par_ser(&commitments.big_b_prime_n),
                 commitments.big_c_prime.ser(),
                 commitments.big_d_prime.ser(),
                 commitments.big_f_prime.ser(),
