@@ -135,6 +135,9 @@ From `packages/wbraid`:
 CELLS="10000:2 100000:2" REPS=3 ./bench-ec2.sh session
 DIFF_CELLS="100000:2 100000:5" DIFF_REPS=3 ./bench-ec2.sh session HEAD 657cb05c20
 TALLY_CELLS="100000:2:3 100000:2:5" ./bench-ec2.sh session   # the global target's N:W:Q grid (default 100000:2:3 100000:5:3; "" skips)
+TALLY_SER_CELLS="100000:2:3" ./bench-ec2.sh session          # tally cells run again with --ser (message encode/decode on the path)
+TALLY_DIFF_CELLS="100000:2:3" ./bench-ec2.sh session HEAD 2d23452f05   # interleaved tally before/after (both commits need examples/tally.rs)
+PROFILE=1 PROFILE_CELLS="100000:2 100000:5" ./bench-ec2.sh session     # stage breakdown from a --features profile build of targets
 GUIDANCE=1 ./bench-ec2.sh session            # also run the criterion guidance benches (off by default here)
 CELLS="1000:2" REPS=1 ./bench-ec2.sh session  # a minimal session: validates the rig end to end for cents
 ./bench-ec2.sh sweep                         # any time: proves nothing tagged is alive
@@ -152,7 +155,10 @@ the teardown. Run it before trusting the script with an hour-long session.
 the **snapshot grid** itself (`CELLS × REPS`, default the five cells × 3), then
 the **global target** (`examples/tally.rs`, one tally's critical path for a
 quorum of Q) over `TALLY_CELLS × TALLY_REPS` (default `100000:2:3
-100000:5:3` × 3; skipped for a commit that predates the example);
+100000:5:3` × 3; skipped for a commit that predates the example), and again
+with `--ser` over `TALLY_SER_CELLS` (default none); with `PROFILE=1`, a
+separate `--features profile` build of `targets` writes each `PROFILE_CELLS`
+cell's **stage breakdown** (wall-clock per cost category, `profile-<sha>.txt`);
 with `GUIDANCE=1` also the criterion guidance benches straight from cargo
 (skipping any the packaged commit lacks); with a baseline, the **before/after**
 (grid `DIFF_CELLS`, default `10000:2 100000:2`, `DIFF_REPS` 3; a baseline that
@@ -160,14 +166,19 @@ predates `examples/targets.rs` gets the tip's copy, which must build against
 that baseline's API — the tip's `targets.rs` measures production form, so it
 follows the API forward: since `009b443add` it needs `strip_all`, and a
 baseline older than that is compared through a tip that still built against
-it, e.g. the recorded `185dbbede2` vs `657cb05c20`). The remote script owns every grid loop rather than
+it, e.g. the recorded `185dbbede2` vs `657cb05c20`; and, when both commits
+carry `examples/tally.rs`, the **tally before/after** over `TALLY_DIFF_CELLS`
+× `TALLY_DIFF_REPS`, default `100000:2:3` × 3, interleaved the same way into
+`tally-differential-<base>-vs-<sha>.csv`). The remote script owns every grid loop rather than
 calling the packaged commit's `bench.sh`, so the knobs work for any commit;
 `bench.sh`/`bench.ps1` remain the local tools. It uploads
 `snapshot-<sha>.csv`, `tally-<sha>.csv`, `differential-<base>-vs-<sha>.csv`,
+`tally-differential-<base>-vs-<sha>.csv`, `profile-<sha>.txt`,
 `guidance-<sha>.txt`, `machine.txt` and the log → `collect` also renders
 **`SUMMARY.md`** beside them (`bench-ec2/summarize.sh`: machine header,
 snapshot medians per cell, the tally's `T` and `V` with each stage's share,
-the before/after with speedup factors, and the snapshot-vs-"after" spread —
+both before/afters with speedup factors, the stage breakdown, and the
+snapshot-vs-"after" spread —
 the same tip binary run standalone vs interleaved — as the measurement's
 resolution; the guidance benches excluded by design)
 and prints it, so the key results are readable without opening a CSV;

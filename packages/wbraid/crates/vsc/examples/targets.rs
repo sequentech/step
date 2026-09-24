@@ -40,6 +40,10 @@
 //! CSV: `count,width,prove_ms,verify_ms,partial_decrypt_ms,combine_ms,ny_strip_ms,sizeof_bytes,ser_bytes`.
 //! `sizeof_bytes` is one ciphertext's in-memory footprint, `ser_bytes` its
 //! encoded width. The DKG (fixed `T = 3, P = 5`) is untimed setup.
+//!
+//! Built with `--features profile`, each target's **stage breakdown** goes to
+//! stderr: wall-clock per cost category (`vsc::utils::profile`) with its share
+//! of the stage, and the unattributed remainder. The CSV is unchanged.
 
 #![allow(
     clippy::print_stdout,
@@ -47,6 +51,9 @@
     clippy::unwrap_used,
     clippy::missing_panics_doc,
     clippy::missing_errors_doc,
+    clippy::arithmetic_side_effects,
+    clippy::indexing_slicing,
+    clippy::shadow_unrelated,
     missing_docs,
     clippy::missing_docs_in_private_items
 )]
@@ -63,6 +70,7 @@ use cryptography::dkgd::recipient::{
     AttributedDecryption, ParticipantPosition, Recipient, combine,
 };
 use cryptography::traits::groups::CryptographicGroup;
+use cryptography::utils::profile;
 use cryptography::utils::serialization::Serializable;
 use cryptography::zkp::shuffle::Shuffler;
 use rayon::prelude::*;
@@ -109,13 +117,16 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
         .collect();
 
     // --- (1) shuffle prove (incl. fresh ind_generators, as braid does). ---
+    profile::reset();
     let start = Instant::now();
     let gens = C::G::ind_generators(count, GEN_SEED).unwrap();
     let shuffler = Shuffler::<C, W>::new(gens, joint_pk.clone());
     let (permuted, proof) = shuffler.shuffle(&ciphertexts, SHUFFLE_CTX).unwrap();
     let prove_ms = start.elapsed().as_secs_f64() * 1000.0;
+    breakdown("prove", prove_ms);
 
     // --- (2) shuffle verify (fresh ind_generators, as braid does). ---
+    profile::reset();
     let start = Instant::now();
     let gens_v = C::G::ind_generators(count, GEN_SEED).unwrap();
     let shuffler_v = Shuffler::<C, W>::new(gens_v, joint_pk.clone());
@@ -124,15 +135,18 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
         .unwrap();
     let verify_ms = start.elapsed().as_secs_f64() * 1000.0;
     assert!(ok, "shuffle proof did not verify");
+    breakdown("verify", verify_ms);
 
     // Decryption runs on the mixed output (its cost is identical to L_0).
     // --- (3) partial decryption: T contributions, the first one timed. ---
     let mut partial_decrypt_ms = 0.0;
     let contributions: [AttributedDecryption<C, W, P>; T] = array::from_fn(|i| {
+        profile::reset();
         let start = Instant::now();
         let partial = recipients[i].0.partial_decrypt(&permuted, DEC_CTX).unwrap();
         if i == 0 {
             partial_decrypt_ms = start.elapsed().as_secs_f64() * 1000.0;
+            breakdown("partial_decrypt", partial_decrypt_ms);
         }
         AttributedDecryption::new(
             partial,
@@ -142,9 +156,11 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
     });
 
     // --- (4) combine: verify the T proofs and interpolate the plaintexts. ---
+    profile::reset();
     let start = Instant::now();
     let plaintexts = combine::<C, T, P, W>(&permuted, &contributions, DEC_CTX).unwrap();
     let combine_ms = start.elapsed().as_secs_f64() * 1000.0;
+    breakdown("combine", combine_ms);
     assert_eq!(plaintexts.len(), count, "combine returned a short list");
 
     // --- (5) first-mix Naor-Yung verify-and-strip (mixing-input cost). ---
@@ -156,9 +172,11 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
             ny_pk.encrypt(&message, ENC_CTX).unwrap()
         })
         .collect();
+    profile::reset();
     let start = Instant::now();
     let stripped: Vec<elgamal::Ciphertext<C, W>> = ny_pk.strip_all(ballots, ENC_CTX).unwrap();
     let ny_strip_ms = start.elapsed().as_secs_f64() * 1000.0;
+    breakdown("ny_strip", ny_strip_ms);
     assert_eq!(stripped.len(), count, "strip returned a short list");
 
     let sizeof_bytes = std::mem::size_of::<elgamal::Ciphertext<C, W>>();
@@ -178,6 +196,38 @@ fn run<C: Context, const W: usize>(count: usize) -> (f64, f64, f64, f64, f64, us
         sizeof_bytes,
         ser_bytes,
     )
+}
+
+/// With `--features profile`: print the stage's wall-clock per cost category,
+/// its share of the stage, and the unattributed remainder. Prints nothing
+/// otherwise (the snapshot is empty).
+fn breakdown(stage: &str, stage_ms: f64) {
+    let samples = profile::snapshot();
+    if samples.is_empty() {
+        return;
+    }
+    eprintln!("  breakdown of {stage} ({stage_ms:.0} ms):");
+    let mut attributed = 0.0;
+    for sample in &samples {
+        if sample.calls == 0 {
+            continue;
+        }
+        attributed += sample.millis;
+        eprintln!(
+            "    {:<20} {:8.1} ms  {:5.1}%  ({} timed regions)",
+            sample.category.label(),
+            sample.millis,
+            100.0 * sample.millis / stage_ms,
+            sample.calls
+        );
+    }
+    let rest = stage_ms - attributed;
+    eprintln!(
+        "    {:<20} {:8.1} ms  {:5.1}%",
+        "unattributed",
+        rest,
+        100.0 * rest / stage_ms
+    );
 }
 
 /// Dispatch a runtime `width` to a monomorphized [`run::<RCtx, W>`] call.

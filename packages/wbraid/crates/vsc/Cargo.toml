@@ -52,6 +52,9 @@ name = "cryptography"
 [features]
 default = []
 custom-warnings = ["custom_warning_macro/on"]
+# Wall-clock accumulators per cost category at the stages' outer call sites
+# (utils::profile); examples/targets.rs prints the breakdown. Off: no timers.
+profile = []
 # The benches use the nightly-only libtest harness (#![feature(test)]); this
 # feature keeps them out of stable builds of --all-targets.
 nightly-benches = []

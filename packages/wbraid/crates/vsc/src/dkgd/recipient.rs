@@ -12,6 +12,7 @@ use crate::traits::groups::DistGroupOps;
 use crate::traits::groups::GroupElement;
 use crate::traits::groups::GroupScalar;
 use crate::utils::error::Error;
+use crate::utils::profile::{Category, timed};
 use crate::zkp::dlogeq::DlogEqProof;
 use canonical_derive::Canonical;
 use rayon::prelude::*;
@@ -423,10 +424,12 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         ciphertexts: &[Ciphertext<C, W>],
         proof_context: &[u8],
     ) -> Result<PartialDecryption<C, W>, Error> {
-        let factors: Vec<[C::Element; W]> = ciphertexts
-            .par_iter()
-            .map(|c| c.u().dist_exp(&self.sk))
-            .collect();
+        let factors: Vec<[C::Element; W]> = timed(Category::ElementExp, || {
+            ciphertexts
+                .par_iter()
+                .map(|c| c.u().dist_exp(&self.sk))
+                .collect()
+        });
 
         let bases: Vec<[C::Element; W]> = ciphertexts.iter().map(|c| c.u().clone()).collect();
         let exponents =
@@ -439,8 +442,12 @@ impl<C: Context, const T: usize, const P: usize> Recipient<C, T, P> {
         // secret `sk` enters only the factors, computed constant-time above, and
         // the proof response). It is the published-factor pattern of the batched
         // decryption proof (formerly PERFORMANCE.md item 2).
-        let a = <[C::Element; W]>::dist_vartime_multi_exp(&bases, &exponents)?;
-        let b = <[C::Element; W]>::dist_vartime_multi_exp(&factors, &exponents)?;
+        let a = timed(Category::MsmVarTime, || {
+            <[C::Element; W]>::dist_vartime_multi_exp(&bases, &exponents)
+        })?;
+        let b = timed(Category::MsmVarTime, || {
+            <[C::Element; W]>::dist_vartime_multi_exp(&factors, &exponents)
+        })?;
 
         let proof = DlogEqProof::<C, W>::prove(
             &self.sk,
@@ -643,24 +650,30 @@ fn batching_exponents<C: Context, const W: usize>(
 
     // The two N-element lists are serialized in parallel (byte-identical to
     // `Vec::ser`); their point compression dominates the seed derivation.
-    let seed_input = [
-        verification_key.ser(),
-        par_ser(ciphertexts),
-        par_ser(factors),
-        proof_context.to_vec(),
-    ];
+    let seed_input = timed(Category::TranscriptSer, || {
+        [
+            verification_key.ser(),
+            par_ser(ciphertexts),
+            par_ser(factors),
+            proof_context.to_vec(),
+        ]
+    });
     let slices: Vec<&[u8]> = seed_input.iter().map(Vec::as_slice).collect();
-    let mut hasher = C::Hasher::hasher();
-    update_hasher(&mut hasher, &slices, &BATCH_SEED_TAGS);
-    let seed = hasher.finalize();
+    let seed = timed(Category::Hash, || {
+        let mut hasher = C::Hasher::hasher();
+        update_hasher(&mut hasher, &slices, &BATCH_SEED_TAGS);
+        hasher.finalize()
+    });
 
-    (0..factors.len())
-        .into_par_iter()
-        .map(|index| {
-            let index: u64 = index.try_into().expect("length fits in u64");
-            C::G::hash_to_scalar(&[&seed, &index.to_be_bytes()], &BATCH_EXPONENT_TAGS)
-        })
-        .collect()
+    timed(Category::Hash, || {
+        (0..factors.len())
+            .into_par_iter()
+            .map(|index| {
+                let index: u64 = index.try_into().expect("length fits in u64");
+                C::G::hash_to_scalar(&[&seed, &index.to_be_bytes()], &BATCH_EXPONENT_TAGS)
+            })
+            .collect()
+    })
 }
 
 // There is deliberately no threshold-branded key or ciphertext type
@@ -782,8 +795,12 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
             factors,
             proof_context,
         )?;
-        let a = <[C::Element; W]>::dist_vartime_multi_exp(&bases, &exponents)?;
-        let b = <[C::Element; W]>::dist_vartime_multi_exp(factors, &exponents)?;
+        let a = timed(Category::MsmVarTime, || {
+            <[C::Element; W]>::dist_vartime_multi_exp(&bases, &exponents)
+        })?;
+        let b = timed(Category::MsmVarTime, || {
+            <[C::Element; W]>::dist_vartime_multi_exp(factors, &exponents)
+        })?;
 
         let proof_ok = contribution.partial.proof.verify(
             &C::generator(),
@@ -807,21 +824,24 @@ pub fn combine<C: Context, const T: usize, const P: usize, const W: usize>(
     // Combine and decrypt per ciphertext, in parallel: the reconstructed factor
     // `F_j = ∏_i f_{i,j}^{λ_i}` is a size-T variable-time multi-exp over the
     // published factors (λ and the factors are public), and `m_j = v_j · F_j⁻¹`.
-    ciphertexts
-        .par_iter()
-        .enumerate()
-        .map(|(j, ct)| {
-            // In bounds: every contribution's factor count was checked equal to
-            // `ciphertexts.len()` in the verification loop above.
-            #[allow(clippy::indexing_slicing)]
-            let factors_at_j: Vec<[C::Element; W]> = contributions
-                .iter()
-                .map(|c| c.partial.factors[j].clone())
-                .collect();
-            let combined = <[C::Element; W]>::dist_vartime_multi_exp(&factors_at_j, &lagranges)?;
-            Ok(ct.v().mul(&combined.inv()))
-        })
-        .collect()
+    timed(Category::MsmVarTime, || {
+        ciphertexts
+            .par_iter()
+            .enumerate()
+            .map(|(j, ct)| {
+                // In bounds: every contribution's factor count was checked equal to
+                // `ciphertexts.len()` in the verification loop above.
+                #[allow(clippy::indexing_slicing)]
+                let factors_at_j: Vec<[C::Element; W]> = contributions
+                    .iter()
+                    .map(|c| c.partial.factors[j].clone())
+                    .collect();
+                let combined =
+                    <[C::Element; W]>::dist_vartime_multi_exp(&factors_at_j, &lagranges)?;
+                Ok(ct.v().mul(&combined.inv()))
+            })
+            .collect()
+    })
 }
 
 #[crate::warning("Rustdoc needs a reference to lagrange coeff. calculation")]
