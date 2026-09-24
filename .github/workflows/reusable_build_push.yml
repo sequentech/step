@@ -18,7 +18,7 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: aws-selfhosted-ubuntu24
+    runs-on: gcp-selfhosted-ubuntu24
     strategy:
       matrix:
         include:
