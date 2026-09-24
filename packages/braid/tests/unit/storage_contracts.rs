@@ -247,3 +247,32 @@ fn failed_blob_batches_remove_new_files_and_retry_uses_fresh_bytes() {
     );
     assert_eq!(fs::read_dir(&blobs).unwrap().count(), 2);
 }
+
+#[test]
+fn ignored_rows_write_no_blob_and_new_rows_replace_leftover_files() {
+    let dir = tempfile::tempdir().unwrap();
+    let blobs = dir.path().join("blobs");
+    let mut store =
+        LocalBoard::<RistrettoCtx>::new(Some(dir.path().join("board.sqlite")), Some(blobs.clone()));
+    store.update_store(&vec![message(10, 1, 1)], false).unwrap();
+    // A refresh ignores a known external id even when it now names another
+    // statement. That ignored row must leave no blob for a later row to read.
+    store.update_store(&vec![message(10, 2, 1)], true).unwrap();
+    let files: Vec<_> = fs::read_dir(&blobs)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    assert_eq!(files.len(), 1, "an ignored row left a blob");
+    // A file left at a new row's path, for example by a crash, is replaced.
+    let stem = files[0].to_str().unwrap().strip_suffix("-1-1").unwrap();
+    fs::write(format!("{stem}-2-1"), [0]).unwrap();
+    let fresh = message(20, 2, 1);
+    store.update_store(&vec![fresh.clone()], true).unwrap();
+    assert_eq!(
+        store.store_and_return_messages(&vec![], -1, false).unwrap()[1]
+            .0
+            .strand_serialize()
+            .unwrap(),
+        fresh.message
+    );
+}
