@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
-import {act, render, screen, waitFor, within} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ThemeProvider} from "@mui/material/styles"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
@@ -26,7 +26,11 @@ import {clearIsVoted} from "../store/extra/extraSlice"
 import confirmationScreenDataReducer, {
     setConfirmationScreenData,
 } from "../store/castVotes/confirmationScreenDataSlice"
-import {BALLOT_DATA_KEY} from "../store/castVotes/sessionBallotData"
+import {
+    BALLOT_DATA_EXPIRATION_KEY,
+    BALLOT_DATA_KEY,
+    SessionBallotData,
+} from "../store/castVotes/sessionBallotData"
 import VotingScreen from "./VotingScreen"
 import {ReviewScreen} from "./ReviewScreen"
 import ConfirmationScreen from "./ConfirmationScreen"
@@ -142,6 +146,7 @@ let mockIsKiosk = false
 let mockVoterContext: any = {loading: false}
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
+const routeAction = jest.fn(() => null)
 let mockIsGoldUser = false
 let mockDisableAuth = true
 let mockElectionQueryData:
@@ -156,6 +161,7 @@ let mockElectionQueryData:
 let mockState: RootState
 const BALLOT_ID = "0123456789abcdef".repeat(4)
 const ELECTION_PATH = "/tenant/tenant-1/event/event-1/election/election-1"
+const CAST_VOTE_RESULT = {data: {insert_cast_vote: {id: "cast-vote-1"}}}
 
 const setUpState = ({
     auditButtonCfg,
@@ -235,7 +241,7 @@ const renderRoute = (element: React.ReactElement, path: string) => {
             {
                 path: "/tenant/:tenantId/event/:eventId/election/:electionId/*",
                 element,
-                action: () => null,
+                action: routeAction,
             },
             {
                 path: "/tenant/:tenantId/event/:eventId/election-chooser",
@@ -252,10 +258,20 @@ const renderRoute = (element: React.ReactElement, path: string) => {
     return {...view, router}
 }
 
+const deferCastVote = () => {
+    let resolveCastVote: (result: typeof CAST_VOTE_RESULT) => void = () => undefined
+    mockInsertCastVote.mockReturnValueOnce(
+        new Promise((resolve) => {
+            resolveCastVote = resolve
+        })
+    )
+    return () => resolveCastVote(CAST_VOTE_RESULT)
+}
+
 beforeEach(() => {
     jest.clearAllMocks()
     mockDispatch.mockReset()
-    mockInsertCastVote.mockResolvedValue({data: {insert_cast_vote: {id: "cast-vote-1"}}})
+    mockInsertCastVote.mockResolvedValue(CAST_VOTE_RESULT)
     mockReauthWithGold.mockResolvedValue(undefined)
     mockIsGoldUser = false
     mockDisableAuth = true
@@ -746,4 +762,56 @@ it("keeps the current contest page throughout a refresh of the same published ba
     expect(mockInsertCastVote).not.toHaveBeenCalled()
     view.unmount()
     store.dispatch(clearVoterSession())
+})
+
+describe("pending cast", () => {
+    it("disables the cast button and shows progress while the cast is pending", async () => {
+        mockDisableAuth = false
+        const resolveCastVote = deferCastVote()
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        expect(cast).toBeEnabled()
+        expect(cast.querySelector(".cast-ballot-progress")).toBeNull()
+        await user.click(cast)
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+        expect(cast).toBeDisabled()
+        expect(cast.querySelector(".cast-ballot-progress")).toBeInTheDocument()
+        // user-event will not click the disabled button, which has pointer-events: none.
+        fireEvent.click(cast)
+        resolveCastVote()
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
+
+    it("hides the review actions while the gold reauthentication cast is pending", async () => {
+        const election = mockState.elections["election-1"]!
+        election.presentation = {
+            ...election.presentation,
+            consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
+            cast_vote_gold_level: ECastVoteGoldLevelPolicy.GOLD_LEVEL,
+        }
+        // The stored ballot is cast only when some ballot state is missing. Dropping
+        // just the selections keeps what the page needs to render the actions.
+        mockState = {...mockState, ballotSelections: {}}
+        mockIsGoldUser = true
+        const ballotData: SessionBallotData = {
+            ballotId: BALLOT_ID,
+            electionId: "election-1",
+            isDemo: false,
+            ballot: "{}",
+        }
+        sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify(ballotData))
+        sessionStorage.setItem(BALLOT_DATA_EXPIRATION_KEY, String(Date.now() + 60_000))
+        const resolveCastVote = deferCastVote()
+        renderRoute(<ReviewScreen />, "review")
+        expect(mockInsertCastVote).toHaveBeenCalledWith({
+            variables: {electionId: "election-1", ballotId: BALLOT_ID, content: "{}"},
+        })
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeInTheDocument()
+        expect(screen.queryByRole("button", {name: "reviewScreen.castBallotButton"})).toBeNull()
+        resolveCastVote()
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
 })
