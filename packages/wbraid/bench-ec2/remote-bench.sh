@@ -24,8 +24,8 @@
 # "N:W:Q" cells, default "100000:2:3 100000:5:3"; empty skips it) and
 # TALLY_REPS (3); TALLY_SER_CELLS (tally cells run again with --ser, default
 # none); with a baseline, TALLY_DIFF_CELLS (interleaved tally before/after,
-# default "100000:2:3"; empty skips it) and TALLY_DIFF_REPS (3); PROFILE=1
-# builds targets with --features profile and writes each PROFILE_CELLS cell's
+# default "100000:2:3"; empty skips it) and TALLY_DIFF_REPS (3); BREAKDOWN=1
+# builds targets with --features profile and writes each BREAKDOWN_CELLS cell's
 # stage breakdown (default "100000:2"); GUIDANCE (default 0 -- the criterion
 # guidance benches are design inputs recorded in PERFORMANCE.md, not part of a
 # snapshot).
@@ -47,8 +47,8 @@ TALLY_REPS="${TALLY_REPS:-3}"
 TALLY_SER_CELLS="${TALLY_SER_CELLS-}"
 TALLY_DIFF_CELLS="${TALLY_DIFF_CELLS-100000:2:3}"
 TALLY_DIFF_REPS="${TALLY_DIFF_REPS:-3}"
-PROFILE="${PROFILE:-0}"
-PROFILE_CELLS="${PROFILE_CELLS:-100000:2}"
+BREAKDOWN="${BREAKDOWN:-0}"
+BREAKDOWN_CELLS="${BREAKDOWN_CELLS:-100000:2}"
 TALLY_HEADER="count,width,quorum,ser,strip_prod_ms,strip_ver_ms,prove_ms,verify_ms,partial_ms,combine_ms,ser_ms,t_ms,v_ms"
 GUIDANCE="${GUIDANCE:-0}"
 S3="s3://$BUCKET/$SESSION"
@@ -143,7 +143,7 @@ md() { curl -sH "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/lates
     echo "# vcpus:         $(nproc)   threads/core: $(lscpu | awk -F: '/Thread\(s\) per core/ {gsub(/ /, "", $2); print $2}')"
     echo "# kernel:        $(uname -r)"
     echo "# rustc:         $(rustc --version)"
-    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS${TALLY_SER_CELLS:+   TALLY_SER_CELLS='$TALLY_SER_CELLS'}${BASE_SHA:+   TALLY_DIFF_CELLS='$TALLY_DIFF_CELLS' TALLY_DIFF_REPS=$TALLY_DIFF_REPS}   PROFILE=$PROFILE${PROFILE_CELLS:+ ($PROFILE_CELLS)}   GUIDANCE=$GUIDANCE"
+    echo "# grid:          CELLS='$CELLS' REPS=$REPS${BASE_SHA:+   DIFF_CELLS='$DIFF_CELLS' DIFF_REPS=$DIFF_REPS}   TALLY_CELLS='$TALLY_CELLS' TALLY_REPS=$TALLY_REPS${TALLY_SER_CELLS:+   TALLY_SER_CELLS='$TALLY_SER_CELLS'}${BASE_SHA:+   TALLY_DIFF_CELLS='$TALLY_DIFF_CELLS' TALLY_DIFF_REPS=$TALLY_DIFF_REPS}   BREAKDOWN=$BREAKDOWN${BREAKDOWN_CELLS:+ ($BREAKDOWN_CELLS)}   GUIDANCE=$GUIDANCE"
 } | tee "$RESULTS/machine.txt"
 
 # --- tip: build, then the snapshot grid --------------------------------------------
@@ -178,14 +178,14 @@ if [ -n "$TALLY_CELLS$TALLY_SER_CELLS" ]; then
 fi
 
 # --- optional: the stage breakdown, from a profile build of targets -------------
-if [ "$PROFILE" = 1 ]; then
+if [ "$BREAKDOWN" = 1 ]; then
     if [ -f "$CUR/crates/vsc/src/utils/profile.rs" ]; then
         log "building targets with --features profile (separate target dir)"
         ( cd "$CUR" && CARGO_TARGET_DIR="$CUR/target-profile" \
             cargo build --release -p vsc --example targets --features profile >/dev/null 2>&1 )
         PROF="$RESULTS/profile-$SHA.txt"
         : > "$PROF"
-        for cell in $PROFILE_CELLS; do
+        for cell in $BREAKDOWN_CELLS; do
             n="${cell%%:*}"; w="${cell##*:}"
             log "stage breakdown at $cell"
             {
