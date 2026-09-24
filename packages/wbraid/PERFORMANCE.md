@@ -294,16 +294,41 @@ In priority order; nothing here is done.
 1. **Prover fixed-base batches.** `apply_permutation`'s `uᵢ = g^{rᵢ}·hᵢ` and
    the re-encryption `(g^s, y^s)` legs still use per-element `exp`/`repl_exp`;
    `exp_many` applies (constant-time). Prove is the least-improved target.
-2. **Parallel deserialization** — the other half of SERIALIZATION.md §10, on
-   `FixedWidth`'s computable boundaries. A colder site (message loading, not
-   the transcript) and safety-sensitive: only if a profile of the loading path
-   warrants it.
-3. **`jemalloc`** is available behind a `braid` feature as a higher-performance
+2. **Transcript bytes reused, not recompressed.** Every Fiat–Shamir input is
+   the canonical `ser` encoding of group elements (SERIALIZATION.md §6), and
+   compressing a point costs a field inversion. The verifier already holds
+   those bytes: the posted lists and proofs *are* that encoding, so it decodes
+   them to points and then, inside `verify`, recompresses the same points for
+   the transcript — about 10⁶ compressions per mix at 10⁵/W2, an estimated
+   0.6–0.7 s of its 2.27 s. The prover compresses its output list and
+   commitments twice, once for the transcript and once for posting — about
+   half its transcript cost, ~0.5 s of 5 s. Carrying the canonical bytes
+   alongside decoded values (a `deser` that returns both, a transcript builder
+   that takes bytes when offered, one compression shared with message
+   serialization on the prover) removes that work **without changing a single
+   hashed byte**. Two conditions become load-bearing, both true today:
+   decoding is strict — a non-canonical encoding is rejected, so received
+   bytes ≡ re-serialized bytes, which turns from a format property into a
+   soundness requirement once relied upon — and the transcript and message
+   framings of a list are byte-identical or sliceable. Estimated ~3.5 s of
+   T(3) = 27 s, on a par with lever 1; the same plumbing is what lever 3
+   needs. Native transcripts only: the Verificatum-compatible challenge
+   derivation encodes ByteTree through `VmnChallenges` (SERIALIZATION.md §6)
+   and keeps its own serialization. Sized by estimate only: an instrumented
+   stage breakdown (timers around the MSM seam methods and the transcript
+   serialization, one rig session) should confirm the compression share
+   before this or lever 1 is picked.
+3. **Parallel deserialization** — the other half of SERIALIZATION.md §10, on
+   `FixedWidth`'s computable boundaries. Decoding is serial today and on the
+   critical path between parties (`tally --ser` measures it; at N = 1000 it
+   already added 0.84 s to T). Safety-sensitive: only with a profile of the
+   loading path, and naturally combined with lever 2's byte-carrying `deser`.
+4. **`jemalloc`** is available behind a `braid` feature as a higher-performance
    allocator and profiling aid; not wired into the runtime.
-4. **Marked unoptimized paths.** `--features custom-warnings` surfaces the
+5. **Marked unoptimized paths.** `--features custom-warnings` surfaces the
    `#[crate::warning("…")]` annotations on known-unoptimized code as compiler
    warnings — the in-code map of what is left.
-5. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
+6. **GPU — assessed, not justified.** Rule: adopt a GPU MSM only if MSM holds
    ≥ 70% of verifier wall-clock at the deployment's real N *and* a latency
    requirement CPU scaling cannot meet exists. On the reference machine at
    10⁵/W2 the verifier's ~dozen MSM-equivalents (~48 ms each) are ~0.6 s of
@@ -315,7 +340,7 @@ In priority order; nothing here is done.
    CPU prover (secret `ε` never reaches VRAM), feature-gated with silent CPU
    fallback, CPU path normative for Verificatum interop. The EC2 *G and VT*
    quota is granted, so a feasibility session is possible.
-6. **Two scheduling levers, measurable only on the global target — recorded,
+7. **Two scheduling levers, measurable only on the global target — recorded,
    not decided.** The global target (`examples/tally.rs`, Tooling and method;
    its numbers in Status) is the **critical-path latency of one tally** for a
    quorum of Q, each party acting in turn and concurrent work off the path:
