@@ -281,14 +281,14 @@ fn order_clause<K: Display, V: Display>(order_by: Option<HashMap<K, V>>) -> Resu
     if columns.is_empty() {
         return Ok("ORDER BY id DESC".into());
     }
+    // `id` is unique, so any key after it would be ignored: it always goes last.
+    let id_direction = columns.remove("id").unwrap_or_else(|| "ASC".into());
     let mut fields = columns
         .iter()
         .map(|(field, direction)| format!("{field} {direction}"))
         .collect::<Vec<_>>();
     // Nonunique timestamps/metadata need a stable final key across offset pages.
-    if !columns.contains_key("id") {
-        fields.push("id ASC".into());
-    }
+    fields.push(format!("id {id_direction}"));
     Ok(format!("ORDER BY {}", fields.join(", ")))
 }
 

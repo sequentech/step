@@ -101,4 +101,14 @@ fn nonunique_sort_columns_have_an_explicit_unique_pagination_tiebreaker() {
         order_clause(Some(HashMap::from([("created", "desc"), ("id", "desc")]))).unwrap(),
         "ORDER BY created DESC, id DESC"
     );
+    // Columns that sort after `id` alphabetically must still come before it.
+    assert_eq!(
+        order_clause(Some(HashMap::from([
+            ("statement_timestamp", "desc"),
+            ("id", "desc"),
+            ("version", "asc"),
+        ])))
+        .unwrap(),
+        "ORDER BY statement_timestamp DESC, version ASC, id DESC"
+    );
 }
