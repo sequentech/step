@@ -13,6 +13,7 @@ use strand::{backend::ristretto::RistrettoCtx, context::Ctx};
 
 use crate::ballot::get_ballot_bytes_for_signing;
 use crate::ballot::SignedContent;
+use crate::ballot::INCOMPLETE_BALLOT_SIGNATURE_ERROR;
 use crate::ballot::TYPES_VERSION;
 use crate::ballot::{BallotStyle, ReplicationChoice};
 use base64::engine::general_purpose;
@@ -299,23 +300,21 @@ pub fn verify_multi_ballot_signature(
     election_id: &str,
     signed_hashable_multi_ballot: &SignedHashableMultiBallot,
 ) -> Result<Option<(StrandSignaturePk, StrandSignature)>, String> {
-    let (signature, public_key) = if let (
-        Some(voter_ballot_signature),
-        Some(voter_signing_pk),
-    ) = (
-        signed_hashable_multi_ballot.voter_ballot_signature.clone(),
-        signed_hashable_multi_ballot.voter_signing_pk.clone(),
-    ) {
-        (voter_ballot_signature, voter_signing_pk)
-    } else if signed_hashable_multi_ballot
-        .voter_ballot_signature
-        .is_none()
-        && signed_hashable_multi_ballot.voter_signing_pk.is_none()
-    {
-        return Ok(None);
-    } else {
-        return Err("Incomplete ballot signature: public key and signature must both be present".into());
-    };
+    let (signature, public_key) =
+        if let (Some(voter_ballot_signature), Some(voter_signing_pk)) = (
+            signed_hashable_multi_ballot.voter_ballot_signature.clone(),
+            signed_hashable_multi_ballot.voter_signing_pk.clone(),
+        ) {
+            (voter_ballot_signature, voter_signing_pk)
+        } else if signed_hashable_multi_ballot
+            .voter_ballot_signature
+            .is_none()
+            && signed_hashable_multi_ballot.voter_signing_pk.is_none()
+        {
+            return Ok(None);
+        } else {
+            return Err(INCOMPLETE_BALLOT_SIGNATURE_ERROR.into());
+        };
 
     let voter_signing_pk = StrandSignaturePk::from_der_b64_string(&public_key)
         .map_err(|err| {
