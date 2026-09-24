@@ -171,7 +171,7 @@ fn configuration_for(
         width,
         keys.share.iter().map(|kp| kp.pkey.y.clone()).collect(),
         PhantomData,
-    );
+    )?;
     let cfg_hash = ConfigurationHash::from_configuration(&cfg)?;
     Ok((cfg, cfg_hash))
 }
