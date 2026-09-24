@@ -5,6 +5,9 @@
 #[macro_use]
 extern crate quick_error;
 
+pub mod adapters;
+pub mod domain;
+pub mod ports;
 pub mod postgres;
 pub mod services;
 pub mod tasks;

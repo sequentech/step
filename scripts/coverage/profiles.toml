@@ -203,7 +203,12 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/services/insert_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the cast-vote service remains measured."
 
 [profiles.windmill.scope_exceptions]
+"src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
+"src/adapters/mod.rs" = "Module declarations only; the adapters remain in the source inventory."
+"src/domain/mod.rs" = "Module declarations only; the domain rules remain in the source inventory."
 "src/lib.rs" = "Module declarations and a test allocator static; no handwritten executable function bodies."
+"src/ports/clock.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/mod.rs" = "Module declarations only; the port traits carry no executable code."
 "src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ceremonies/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
