@@ -24,6 +24,9 @@ proposes scheduling; it changes no code.
 > of the ballot well-formedness proofs) followed on 2026-09-23, same class. Both
 > live in PROTOCOL.md's **Appendix C** since 2026-09-24, so the main text stays
 > the unoptimized description.
+>
+> **Re-verified again 2026-09-24** at the parking milestone of the performance
+> work (last section): alignment preserved; no new item.
 
 Scope: the sections of `PROTOCOL.md` that bind this repository — §2
 (preliminaries), §3 (primitives), §4 (DKG), §5.5 (tally input), §6 (mixing), §7
@@ -305,3 +308,30 @@ response, a pair of proofs swapped between ballots, a foreign context — the
 batch names exactly the per-item failures) and
 `test_strip_all_rejects_invalid_ballot_{ristretto,p256}`; braid's tampered-ballot
 protocol test still halts the tally.
+
+## Re-verification at the parking milestone (2026-09-24)
+
+Between the 2026-09-21 re-verification and the freeze of the performance work
+the implementation changed in five ways. Each was checked against the section
+it implements, and each has a pin that the value, transcript or byte in
+question is unchanged.
+
+| change | sections | alignment |
+|---|---|---|
+| Batched Naor-Yung verification (`009b443add`; `verify_batch`, `strip_all`) | §3.5, §3.6, §5.5, §9.2 step 3 | **D8** — Appendix C.1 states the permitted form; challenges `v_i` recomputed exactly as §3.5 |
+| Second shuffle challenge's commitment lists encoded in parallel (`6f4c995c22`) | §6.3 (`v = H2S(seed, B, A′, B′, …)`), §2.3 (list encoding) | **Preserved.** `par_ser` is pinned byte-identical to the sequential list encoding; the challenge input is the same bytes |
+| Parallel list encoding and decoding behind the unchanged format (`0ae4a48ea3`; `FIXED_WIDTH` hint) | §2.3 (canonical encodings, count-prefixed lists), every posted message | **Preserved.** Bytes produced and accepted are the sequential loops' exactly, pinned against a sequential reference on valid, corrupted, truncated, extended and mis-counted lists (`serialization/tests.rs`), plus the property suite; each element still passes the same strict `read` |
+| Prover's permutation commitments and re-encryption legs as fixed-base batches (`cae05fe816`) | §6.2 (`u_i = g^{r_π(i)} h_π(i)`, `w′_i = ReEnc_y(w_{π⁻¹(i)}; s_{π⁻¹(i)})`) | **Preserved.** Same values by the per-element definition (`test_apply_permutation_matches_definition_*`); the permutation is applied as §6.2 writes it — `r` and `h` permuted by `π`, `w` and `s` by `π⁻¹` — re-read against `apply_permutation` |
+| Stage-breakdown instrumentation added and removed (`233f484655`, `2ad569ecae`) | — | No protocol effect; the crypto code is back to its uninstrumented text (three files byte-identical, `shuffle.rs` differing only by the two changes above) |
+
+Re-read this pass, against the current source: §6.2–6.3 (`apply_permutation`,
+`shuffle_with`), §7.1–7.2 (`partial_decrypt`, `combine`), §3.5–3.6 (`pleq`,
+`naoryung`), §2.3's list encoding (`serialization`). The description itself
+changed only by the Appendix C move (D7, D8 above), which restored the main
+text to the unoptimized form; the comparison of that text against the
+reference it was originally verified against was repeated the same day and
+found it unchanged (the notes are kept outside the repository, as before).
+
+Constant-time versus variable-time exponentiation remains an implementation
+posture with no normative text; the decision and the per-site audit are in
+PERFORMANCE.md (Constraints).
