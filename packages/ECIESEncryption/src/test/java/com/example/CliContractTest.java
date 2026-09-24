@@ -18,12 +18,21 @@ import static org.junit.jupiter.api.Assertions.*;
 class CliContractTest {
     @TempDir Path dir;
 
+    // Windmill ships this prebuilt jar, not the classes compiled for these tests.
+    private static final Path SHIPPED_JAR = Paths.get("..", "windmill", "external-bin", "ecies-tool.jar");
+    private static final String JAVA = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
+
     // The real CLI owns System.exit. A bounded child process isolates it and its provider registry.
     private Result cli(String... args) throws Exception {
-        List<String> command = new ArrayList<>(Arrays.asList(
-            Paths.get(System.getProperty("java.home"), "bin", "java").toString(),
-            "-cp", System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
-            ECIESEncryptionTool.class.getName()));
+        return run(Arrays.asList(JAVA, "-cp",
+            System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
+            ECIESEncryptionTool.class.getName()), args);
+    }
+    private Result shipped(String... args) throws Exception {
+        return run(Arrays.asList(JAVA, "-jar", SHIPPED_JAR.toString()), args);
+    }
+    private Result run(List<String> launcher, String... args) throws Exception {
+        List<String> command = new ArrayList<>(launcher);
         command.addAll(Arrays.asList(args));
         Path output = Files.createTempFile(dir, "cli-", ".out");
         Path errors = Files.createTempFile(dir, "cli-", ".err");
@@ -136,6 +145,26 @@ class CliContractTest {
         cli("decrypt", priv.toString(), "!").failure("IllegalArgumentException");
         Path malformed = write("bad.pem", "not a public key".getBytes(StandardCharsets.US_ASCII));
         cli("encrypt", malformed.toString(), "message").failure("IllegalArgumentException");
+    }
+
+    @Test void shippedJarPassesTheRsaAndEncryptionContracts() throws Exception {
+        assertTrue(Files.exists(SHIPPED_JAR), "Windmill's ecies-tool.jar is missing");
+        KeyPair rsa = keys("RSA");
+        Path pub = pem("shipped-rsa.pem", "PUBLIC KEY", rsa.getPublic().getEncoded());
+        byte[] message = "synthetic ballot\n".getBytes(StandardCharsets.UTF_8);
+        Path file = write("shipped.txt", message);
+        Signature signer = Signature.getInstance("SHA256withRSA");
+        signer.initSign(rsa.getPrivate()); signer.update(message);
+        String signature = Base64.getEncoder().encodeToString(signer.sign());
+        assertEquals("Signature valid: true", shipped("verify-rsa", pub.toString(), file.toString(), signature).success());
+        Files.write(file, "changed ballot\n".getBytes(StandardCharsets.UTF_8));
+        assertEquals("Signature valid: false", shipped("verify-rsa", pub.toString(), file.toString(), signature).success());
+
+        Path ecPub = dir.resolve("shipped-ec.pub"), ecPriv = dir.resolve("shipped-ec.key");
+        shipped("create-keys", ecPub.toString(), ecPriv.toString()).success();
+        String plaintext = Base64.getEncoder().encodeToString("synthetic secret".getBytes(StandardCharsets.UTF_8));
+        String encrypted = shipped("encrypt", ecPub.toString(), plaintext).success();
+        assertEquals(plaintext, shipped("decrypt", ecPriv.toString(), encrypted).success());
     }
 
     @Test void bulkSigningIgnoresDirectoriesAndExistingSignatureFiles() throws Exception {

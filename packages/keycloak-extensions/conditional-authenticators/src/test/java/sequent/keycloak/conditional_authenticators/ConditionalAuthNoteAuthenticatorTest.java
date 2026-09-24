@@ -89,6 +89,7 @@ class ConditionalAuthNoteAuthenticatorTest {
     assertTrue(authenticator.matchCondition(context));
     when(session.getAuthNote(NOTE_KEY)).thenReturn(null);
     assertFalse(authenticator.matchCondition(context));
+    when(session.getAuthNote(NOTE_KEY)).thenReturn("no");
     when(context.getAuthenticationSession()).thenReturn(null);
     assertFalse(authenticator.matchCondition(context));
   }
