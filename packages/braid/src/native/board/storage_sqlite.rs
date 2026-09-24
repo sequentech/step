@@ -112,7 +112,7 @@ impl LocalBoardStorage for SqliteStorage {
         let mut statement = connection.prepare(sql)?;
 
         // Keep the writer lock until new blobs and their metadata commit together.
-        // On an ordinary error, delete only files created by this batch.
+        // On an ordinary error, delete only files written by this batch.
         struct PendingBlobs(Vec<PathBuf>);
         impl Drop for PendingBlobs {
             fn drop(&mut self) {
@@ -148,8 +148,13 @@ impl LocalBoardStorage for SqliteStorage {
                 let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
 
-                if !path.exists() {
-                    let mut file = File::options().write(true).create_new(true).open(&path)?;
+                // Store metadata only (empty message bytes). An ignored row writes no
+                // blob. The statement columns are unique, so a new row owns its path,
+                // and any file already there is a leftover.
+                let inserted =
+                    statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
+                if inserted > 0 {
+                    let mut file = File::create(&path)?;
                     pending_blobs.0.push(path.clone());
                     file.write_all(&m.message)?;
                     tracing::info!(
@@ -158,9 +163,6 @@ impl LocalBoardStorage for SqliteStorage {
                         path
                     );
                 }
-
-                // Store metadata only (empty message bytes)
-                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
             } else {
                 // Store message bytes inline in database
                 statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number])?;
