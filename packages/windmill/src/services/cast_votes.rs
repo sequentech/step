@@ -125,7 +125,8 @@ fn area_ballots_query(
                         voter_id_string,
                         content,
                         COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel,
-                        status
+                        status,
+                        id
                     FROM "sequent_backend".cast_vote
                     WHERE
                         tenant_id = '{tenant_id}' AND
@@ -1097,21 +1098,32 @@ mod tests {
         )?
         .replace("\"sequent_backend\".cast_vote", "audit_ballots_test");
         let rows = transaction.query(&query, &[]).await?;
-        let actual: Vec<(String, String, String)> = rows
+        let actual: Vec<(String, String, String, Uuid)> = rows
             .into_iter()
             .map(|row| {
                 (
                     row.get("voter_id_string"),
                     row.get("content"),
                     row.get("status"),
+                    row.get("id"),
                 )
             })
             .collect();
         assert_eq!(
             actual,
             vec![
-                ("A".into(), "latest discarded".into(), "discarded".into()),
-                ("B".into(), "latest valid".into(), "valid".into()),
+                (
+                    "A".into(),
+                    "latest discarded".into(),
+                    "discarded".into(),
+                    Uuid::parse_str("10000000-0000-4000-8000-000000000011")?
+                ),
+                (
+                    "B".into(),
+                    "latest valid".into(),
+                    "valid".into(),
+                    Uuid::parse_str("10000000-0000-4000-8000-000000000013")?
+                ),
             ]
         );
         transaction.rollback().await?;

@@ -3,6 +3,7 @@
 
 use crate::postgres::document::get_document;
 use crate::services::documents::{get_document_as_temp_file, upload_and_return_document};
+use crate::services::join::AuditableBallot;
 use anyhow::{ensure, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::ballot::{ContestEncryptionPolicy, HashableBallot};
@@ -16,26 +17,45 @@ use tempfile::NamedTempFile;
 
 pub(crate) const AUDITABLE_BALLOTS_FILE: &str = "encrypted-ballots.jsonl";
 
+#[derive(serde::Serialize)]
+struct AuditRecord<'a, T> {
+    cast_vote_id: &'a Option<String>,
+    voter_id: &'a str,
+    #[serde(flatten)]
+    ballot: T,
+}
+
 fn write_ballots(
     writer: impl Write,
-    ballots: &[String],
+    ballots: &[AuditableBallot],
     policy: ContestEncryptionPolicy,
 ) -> Result<()> {
     let mut writer = BufWriter::new(writer);
-    // Do not preserve the voter-ID ordering of the merge input.
-    let mut ballots = ballots.iter().collect::<Vec<_>>();
-    ballots.sort_unstable();
-    for content in ballots {
+    for record in ballots {
         // The unsigned types omit the voter signing key and signature stored
         // with cast ballots. Excluded ballots are never decrypted.
         match policy {
             ContestEncryptionPolicy::SINGLE_CONTEST => {
-                let ballot: HashableBallot = serde_json::from_str(content)?;
-                serde_json::to_writer(&mut writer, &ballot)?;
+                let ballot: HashableBallot = serde_json::from_str(&record.content)?;
+                serde_json::to_writer(
+                    &mut writer,
+                    &AuditRecord {
+                        cast_vote_id: &record.cast_vote_id,
+                        voter_id: &record.voter_id,
+                        ballot,
+                    },
+                )?;
             }
             ContestEncryptionPolicy::MULTIPLE_CONTESTS => {
-                let ballot: HashableMultiBallot = serde_json::from_str(content)?;
-                serde_json::to_writer(&mut writer, &ballot)?;
+                let ballot: HashableMultiBallot = serde_json::from_str(&record.content)?;
+                serde_json::to_writer(
+                    &mut writer,
+                    &AuditRecord {
+                        cast_vote_id: &record.cast_vote_id,
+                        voter_id: &record.voter_id,
+                        ballot,
+                    },
+                )?;
             }
         }
         writeln!(writer)?;
@@ -64,7 +84,7 @@ pub(crate) fn remap_auditable_ballots_document(
 pub async fn save_auditable_ballots(
     transaction: &Transaction<'_>,
     session: &TallySessionContest,
-    ballots: &[String],
+    ballots: &[AuditableBallot],
     policy: ContestEncryptionPolicy,
 ) -> Result<Option<String>> {
     if ballots.is_empty() {
@@ -179,7 +199,11 @@ mod tests {
             fs::create_dir_all(&path)?;
             write_ballots(
                 File::create(path.join(AUDITABLE_BALLOTS_FILE))?,
-                &[ballot],
+                &[AuditableBallot {
+                    cast_vote_id: Some("10000000-0000-4000-8000-000000000011".into()),
+                    voter_id: "voter-identifier".into(),
+                    content: ballot,
+                }],
                 policy,
             )?;
             let (_guard, archive, _) = create_archive_from_folder(dir.path(), false)?;
@@ -195,6 +219,11 @@ mod tests {
                 assert_eq!(content.lines().count(), 1);
                 let saved: serde_json::Value = serde_json::from_str(&content)?;
                 assert_eq!(saved["contests"], contests);
+                assert_eq!(
+                    saved["cast_vote_id"],
+                    "10000000-0000-4000-8000-000000000011"
+                );
+                assert_eq!(saved["voter_id"], "voter-identifier");
                 assert!(saved.get("voter_signing_pk").is_none());
                 assert!(saved.get("voter_ballot_signature").is_none());
                 found = true;

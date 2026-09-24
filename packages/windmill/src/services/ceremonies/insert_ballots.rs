@@ -295,6 +295,7 @@ pub async fn insert_ballots_messages(
                         Some(ballots_channel_index),
                         multiplicity_source,
                         Some(3), // cast-vote status
+                        Some(4), // cast-vote UUID
                     )?;
 
                     // Checked before anything is posted, so a run that would
@@ -390,7 +391,7 @@ pub async fn insert_ballots_messages(
                     let auditable_ballots_document_id = save_auditable_ballots(
                         &hasura_transaction_clone,
                         &tally_session_contest,
-                        &merge_result.auditable_ballot_contents,
+                        &merge_result.auditable_ballots,
                         contest_encryption_policy_clone.clone(),
                     )
                     .await?;
