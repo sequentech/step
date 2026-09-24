@@ -60,6 +60,12 @@ Two suites carry them:
   covering every composition rule (fixed leaves, `String`, `Option`, `Vec`
   including byte vectors, arrays, nesting, `PhantomData`, group
   elements/scalars), both contexts, all-fixed and variable struct shapes.
+  Since the parallel list paths (`SERIALIZATION.md` §5), it also carries a
+  large-fixed-list property — lists of 1024 to 1064 group elements, the
+  region where `Vec<T>` encodes and decodes on the rayon pool — under P1 and
+  the mutation form of P2, per curve; and the unit tests beside it pin the
+  parallel decoder against a sequential reference for acceptance, value and
+  error text on valid, corrupted, truncated, extended and mis-counted lists.
 - `braid/tests/serialization_properties.rs` — the two braid-specific
   boundaries: `ProtocolMessage` (untrusted-board bytes, pre-signature) and
   `Predicate` (anti-rewrite persistence), over valid, mutated, and random
@@ -97,6 +103,21 @@ randomized message orderings.
 deserializer target embeds the strictness oracle — `if let Ok(v) =
 T::deser(data) { assert_eq!(v.ser(), data) }` — so coverage-guided fuzzing
 hunts panics *and* canonicality violations in one pass.
+
+**The parallel list paths are fuzzed too.** `Vec<T>` switches to the rayon
+pool from `PAR_MIN_ELEMENTS` elements (1024 in production — about 32 KB of
+input for a point list, beyond what a fuzzer feeds), so under `cfg(fuzzing)`,
+which `cargo fuzz` sets for the whole build, the threshold is 4: every
+deserializer target below exercises the parallel encoder and decoder on
+ordinary short lists, and the oracle checks their bytes like any other.
+A smoke baseline with this threshold is **pending**: on the Windows host the
+fuzz crate's standalone dependency resolution (its own `Cargo.lock`, crates.io
+sources rather than the workspace's pinned set) currently picks release
+candidates of the `p256`/`elliptic-curve` family that do not build together
+(`FieldElement: Field` unsatisfied inside `p256 0.14.0-rc.9`), a setup skew
+unrelated to the code; align the fuzz crate's lock with the workspace's (or
+pin `ff`/`group`/`crypto-bigint`/`primeorder` to the workspace's versions) and
+re-run the targets, then record the numbers here.
 
 - `crates/vsc/fuzz`: deserializer oracles for ElGamal and Naor-Yung
   ciphertexts, shuffle proofs, and DKG dealings (`VerifiableShare`, including
