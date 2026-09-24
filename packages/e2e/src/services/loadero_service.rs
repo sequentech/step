@@ -8,6 +8,18 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{env, error::Error, thread, time::Duration};
 
+// Terminal run statuses without participant results. Loadero's own client stops
+// polling on these and on "done"; any other status is still in progress.
+const FAILED_RUN_STATUSES: [&str; 7] = [
+    "aborted",
+    "aws-error",
+    "db-error",
+    "insufficient-resources",
+    "no-users",
+    "server-error",
+    "timeout-exceeded",
+];
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TestConfig {
     pub increment_strategy: String,
@@ -283,6 +295,13 @@ fn check_test_status(
                         .unwrap_or(0) as usize;
                     return Ok(Some((pass, fail)));
                 }
+            } else if FAILED_RUN_STATUSES.contains(&status) {
+                return Err(anyhow!(
+                    "Test {} (run ID {}) ended with status {}",
+                    test_id,
+                    run_id,
+                    status
+                ));
             } else {
                 return Ok(None);
             }
