@@ -351,10 +351,61 @@ datalog is not a parallelism site; `rayon` is a non-optional dependency of
 |---|---|
 | **Proofs, transcripts and wire format are unchanged** — the techniques change how values are computed, never what they are | `par_ser` == `Vec::ser` and closed form == recurrence differential tests; shuffle and dkgd round-trips; all 17 model-check configurations; **Verificatum interop 70/70** (`V2V_REQUIRE_VMN=1`) with seed, challenge, decryption transcript and generators byte-identical to `vmnv -t`; PROTOCOL-alignment.md re-verification |
 | **Accept/reject is unchanged**, except the documented exactly-1/q of the two batched checks | batched-V2 negative tests and PROTOCOL.md §6.4 (D7); `verify_batch` attribution tests, `strip_all` rejection tests and PROTOCOL.md §3.5 (D8) |
-| **Constant-time wherever a secret enters** (`ε`, `β`, `bᵢ`; `u^{xᵢ}`); variable-time only on public data | no test proves timing: the evidence is the per-site classification — the trait contract, the call-site annotations, and that every variable-time site consumes only hash-derived or published values |
+| **Constant-time wherever a secret enters**; variable-time only on public data | no test proves timing: the evidence is the per-site audit below — every exponentiation site, what it raises to, whether that is secret, and the mode it uses — kept current with the code |
 | **Parallelism only in the crypto/action layer; identical behaviour on the wasm pool** | production `wasm` (wasm-bindgen-rayon, atomics) and `wasm-core` both compile; headless IndexedDB test, the interactive emulator (full protocol under wasm) and the live-b4 protocol tests pass |
 | **`vsc` lint posture** (`unsafe_code = forbid`; `unwrap_used`, `panic`, `arithmetic_side_effects`, pedantic/complexity denied) | CI clippy with `-D warnings`; new curve arithmetic and indexing carry justified, localized `#[allow]`s |
 | **CI gates** — `fmt -- --check`, workspace clippy (`--all-targets -D warnings`), vsc clippy, `cargo test --release --features sqlite,postgres`, the wasm-core build | all green on the milestone tree (Log, 2026-09-21) |
+
+### Constant time or variable time, per site
+
+**The decision (2026-09-24, revisited with the measured breakdown):
+constant time wherever the exponent is a secret, variable time wherever every
+operand is public.** Nothing in the protocol text speaks to timing; this is an
+implementation posture, and it costs something measurable: after the
+fixed-base batches, the prover's two constant-time multi-exponentiations
+(`A′`, `F′`) are ~27–30% of prove, and a variable-time multi-exponentiation
+runs about three times faster (`msm_strategy`), so going variable-time there
+would save roughly a fifth of prove and a tenth of T. It is not taken. The
+exponents in question are the prover's blinders `ε`: the response
+`k_E = v·e′ + ε` hides the permuted challenge `e′` behind them, so a timing
+channel on `ε` is a channel on the permutation — the one secret a mixnet
+exists to keep. A co-tenant or same-host observer is a realistic adversary for
+a trustee running in a cloud, and the library's constant-time primitives are
+exactly the defence the deployment would otherwise have to argue away. The
+fixed-base batches are constant-time at no extra cost (the table multiply is),
+so the prover's remaining constant-time premium is those two MSMs, and it is
+accepted.
+
+The audit. "Secret" means the exponent is a value the protocol keeps private;
+"public" means every operand is published or hash-derived from published
+values, so timing can reveal nothing an observer does not already have.
+
+| site | raises | exponent | mode |
+|---|---|---|---|
+| shuffle prover: `uᵢ = g^{rᵢ}·h` (`apply_permutation`) | `g` | `rᵢ` commitment randomness — secret | constant-time fixed-base (`exp_many`) |
+| shuffle prover: re-encryption `(g^{sᵢ}, y^{sᵢ})` | `g`, `y` | `sᵢ` re-encryption randomness — secret | constant-time fixed-base (`exp_many`) |
+| shuffle prover: bridging `Bᵢ = g^{dᵢ} h₁^{pᵢ}`, `B′ᵢ` | `g`, `h₁` | `d`, `p`, `β`, `ε` — secret | constant-time fixed-base (`exp_many`) |
+| shuffle prover: `A′ = g^α ∏ hᵢ^{εᵢ}` | `g`, `hᵢ` | `α`, `ε` — secret | constant-time: `g_exp`, `multi_exp` |
+| shuffle prover: `F′ = Enc(1; −φ) ∏ w′ᵢ^{εᵢ}` | `w′ᵢ`, `g`, `y` | `ε`, `φ` — secret | constant-time: `dist_multi_exp`, `repl_exp` |
+| shuffle prover: `C′ = g^γ`, `D′ = g^δ` | `g` | `γ`, `δ` — secret | constant-time `exp` |
+| shuffle verifier: `A`, `F`, `h^{k_E}`, V2 (both sides), V5 | published lists and commitments | `e`, `v`, `k_*`, verifier-local `t` — public | variable-time MSM (`vartime_multi_exp`, `dist_vartime_multi_exp`) |
+| shuffle verifier: the nine single exponentiations (`A^v`, `g^{k_A}`, `h₁^{∏e}`, `g^{Σtk_B}`, `C^v`, `g^{k_C}`, `D^v`, `g^{k_D}`, `(g,y)^{−k_F}`) | public | public | constant-time `exp` — harmless and microseconds; not worth a variable-time variant |
+| decryption: factors `uᵢ^{x}` (`partial_decrypt`) | `uᵢ` (varying) | `x` the key share — secret | constant-time per-element `dist_exp`; no fixed base, no batch: inherent |
+| decryption: the batched statement `a`, `b` (`partial_decrypt`, `combine`) | published `u`, factors | hash-derived `e` — public | variable-time `dist_vartime_multi_exp` |
+| decryption: Lagrange `F_j = ∏ f_{i,j}^{λᵢ}` (`combine`) | published factors | `λ` — public | variable-time `dist_vartime_multi_exp` (size T, per ciphertext) |
+| decryption proof (`DlogEqProof`): prove / verify | `g`, `u` | prove: blinder — secret; verify: public | constant-time `exp`/`dist_exp` both (verify could be variable-time; it is a handful of exponentiations) |
+| Naor-Yung: encrypt, PlEq prove | `g`, `y`, `z` | `r`, `a` — secret | constant-time `repl_exp` |
+| Naor-Yung: `verify_batch` | published ballots and proofs | `v`, verifier-local weights — public | variable-time MSM (size 4WN) |
+| Naor-Yung: per-item `verify` (the attribution fallback) | published | public | constant-time `repl_exp`/`dist_exp` — harmless; only runs on a rejected list |
+| DKG: shares, verification keys (`Dealer`, `Recipient`) | `g` | polynomial coefficients, shares — secret | constant-time `exp` |
+| DKG: share verification (`checking_values.exp`) | published commitments | public | constant-time `exp` — P·T exponentiations, harmless |
+| generators (`ind_generators`) | — | hash-to-point, no exponent | — |
+
+Every variable-time site consumes only published or hash-derived values, and
+every secret exponent is on a constant-time path. Three public sites use
+constant-time exponentiation where variable-time would be admissible (the
+verifier's single exponentiations, the decryption proof's verify, share
+verification); each is a handful of exponentiations and stays as is.
 
 ## Remaining levers
 
