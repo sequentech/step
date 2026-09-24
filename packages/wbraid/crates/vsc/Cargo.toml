@@ -95,7 +95,7 @@ private_interfaces = "warn"
 private_bounds = "warn"
 unnameable_types = "warn"
 # https://github.com/taiki-e/cargo-llvm-cov?tab=readme-ov-file#exclude-code-from-coverage
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)', 'cfg(fuzzing)'] }
 
 [lints.clippy]
 missing_docs_in_private_items = "deny"

@@ -229,7 +229,12 @@ impl<T: Deserializable, const N: usize> Deserializable for [T; N] {
 /// Lists at least this long are encoded — and, when the element width is
 /// known, decoded — on the rayon pool. Below it the per-task overhead is not
 /// worth paying; the bytes produced and accepted are identical either way.
-pub const PAR_MIN_ELEMENTS: usize = 1024;
+///
+/// Under `cfg(fuzzing)` (set by `cargo fuzz` for the whole build) the
+/// threshold drops to 4, so the bijection-oracle fuzz targets — whose inputs
+/// are a few kilobytes — exercise the parallel paths on ordinary short lists
+/// instead of never reaching them.
+pub const PAR_MIN_ELEMENTS: usize = if cfg!(fuzzing) { 4 } else { 1024 };
 
 impl<T: Serializable + Sync> Serializable for Vec<T> {
     fn write(&self, out: &mut Vec<u8>) {
