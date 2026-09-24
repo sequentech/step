@@ -27,7 +27,8 @@
 #   as do TALLY_CELLS, TALLY_SER_CELLS and TALLY_DIFF_CELLS (each forwarded only
 #   when set, so an empty value skips that grid and an unset one takes the remote
 #   default), TALLY_REPS, TALLY_DIFF_REPS, BREAKDOWN and BREAKDOWN_CELLS (the
-#   stage breakdown; not PROFILE, which is this script's AWS profile).
+#   stage breakdown; not PROFILE, which is this script's AWS profile), and
+#   BASE_EXAMPLES_DIR (frozen measurement programs for an old baseline).
 set -euo pipefail
 
 PROFILE="${AWS_PROFILE_NAME:-wbraid-bench}"
@@ -101,7 +102,7 @@ export DEBIAN_FRONTEND=noninteractive
 # download failure must not leave a half-bootstrapped instance that the
 # benchmark only discovers minutes later. A FAILED marker lets the remote side
 # abort at once instead of waiting out the lifetime cap.
-for attempt in 1 2 3; do apt-get update -y && apt-get install -y build-essential pkg-config libssl-dev unzip curl && break; sleep 15; done
+for attempt in 1 2 3; do apt-get update -y && apt-get install -y build-essential pkg-config libssl-dev unzip curl patch && break; sleep 15; done
 for attempt in 1 2 3; do curl -sSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip && unzip -qo /tmp/awscliv2.zip -d /tmp && /tmp/aws/install --update && break; sleep 15; done
 for attempt in 1 2 3; do curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain ${RUST_TOOLCHAIN} && /root/.cargo/bin/rustc --version && break; sleep 15; done
 /root/.cargo/bin/rustc --version || touch /var/tmp/wbraid-bootstrap-FAILED
@@ -331,7 +332,7 @@ session() {
     # exit code is what the invocation reports, not the log upload's.
     ssm_run "$iid" $(( LIFETIME_MIN * 60 )) \
         'i=0; until [ -f /var/tmp/wbraid-bootstrap-done ]; do sleep 5; i=$((i+5)); [ "$i" -ge 900 ] && { echo "ERROR: bootstrap did not finish within 15 min"; exit 6; }; done; [ -f /var/tmp/wbraid-bootstrap-FAILED ] && { echo "ERROR: bootstrap failed -- see /var/log/cloud-init-output.log"; exit 5; }; echo "bootstrap: done"' \
-        "export PATH=/root/.cargo/bin:/usr/local/bin:\$PATH CELLS='${CELLS:-}' REPS='${REPS:-}' DIFF_CELLS='${DIFF_CELLS:-}' DIFF_REPS='${DIFF_REPS:-}' GUIDANCE='${GUIDANCE:-}' ${TALLY_CELLS+TALLY_CELLS='${TALLY_CELLS}'} TALLY_REPS='${TALLY_REPS:-}' ${TALLY_SER_CELLS+TALLY_SER_CELLS='${TALLY_SER_CELLS}'} ${TALLY_DIFF_CELLS+TALLY_DIFF_CELLS='${TALLY_DIFF_CELLS}'} TALLY_DIFF_REPS='${TALLY_DIFF_REPS:-}' BREAKDOWN='${BREAKDOWN:-}' BREAKDOWN_CELLS='${BREAKDOWN_CELLS:-}'" \
+        "export PATH=/root/.cargo/bin:/usr/local/bin:\$PATH CELLS='${CELLS:-}' REPS='${REPS:-}' DIFF_CELLS='${DIFF_CELLS:-}' DIFF_REPS='${DIFF_REPS:-}' GUIDANCE='${GUIDANCE:-}' ${TALLY_CELLS+TALLY_CELLS='${TALLY_CELLS}'} TALLY_REPS='${TALLY_REPS:-}' ${TALLY_SER_CELLS+TALLY_SER_CELLS='${TALLY_SER_CELLS}'} ${TALLY_DIFF_CELLS+TALLY_DIFF_CELLS='${TALLY_DIFF_CELLS}'} TALLY_DIFF_REPS='${TALLY_DIFF_REPS:-}' BREAKDOWN='${BREAKDOWN:-}' BREAKDOWN_CELLS='${BREAKDOWN_CELLS:-}' ${BASE_EXAMPLES_DIR+BASE_EXAMPLES_DIR='${BASE_EXAMPLES_DIR}'}" \
         "aws s3 cp s3://$BUCKET/$session/remote-bench.sh /tmp/remote-bench.sh --only-show-errors" \
         "bash /tmp/remote-bench.sh '$session' '$BUCKET' '$sha' '$bsha' > /tmp/remote-bench.log 2>&1; rc=\$?" \
         "tail -n 25 /tmp/remote-bench.log" \

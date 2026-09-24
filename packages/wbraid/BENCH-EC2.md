@@ -137,7 +137,8 @@ DIFF_CELLS="100000:2 100000:5" DIFF_REPS=3 ./bench-ec2.sh session HEAD 657cb05c2
 TALLY_CELLS="100000:2:3 100000:2:5" ./bench-ec2.sh session   # the global target's N:W:Q grid (default 100000:2:3 100000:5:3; "" skips)
 TALLY_SER_CELLS="100000:2:3" ./bench-ec2.sh session          # tally cells run again with --ser (message encode/decode on the path)
 TALLY_DIFF_CELLS="100000:2:3" ./bench-ec2.sh session HEAD 2d23452f05   # interleaved tally before/after (both commits need examples/tally.rs)
-BREAKDOWN=1 BREAKDOWN_CELLS="100000:2 100000:5" ./bench-ec2.sh session # stage breakdown from a --features profile build of targets
+BREAKDOWN=1 BREAKDOWN_CELLS="100000:2 100000:5" ./bench-ec2.sh session # stage breakdown: bench-ec2/breakdown.patch applied to a scratch copy, built with --features profile
+BASE_EXAMPLES_DIR=bench-ec2/forkpoint ./bench-ec2.sh session HEAD 657cb05c20   # before/after vs the fork point, with the frozen programs that build there
 GUIDANCE=1 ./bench-ec2.sh session            # also run the criterion guidance benches (off by default here)
 CELLS="1000:2" REPS=1 ./bench-ec2.sh session  # a minimal session: validates the rig end to end for cents
 ./bench-ec2.sh sweep                         # any time: proves nothing tagged is alive
@@ -156,23 +157,28 @@ the **snapshot grid** itself (`CELLS × REPS`, default the five cells × 3), the
 the **global target** (`examples/tally.rs`, one tally's critical path for a
 quorum of Q) over `TALLY_CELLS × TALLY_REPS` (default `100000:2:3
 100000:5:3` × 3; skipped for a commit that predates the example), and again
-with `--ser` over `TALLY_SER_CELLS` (default none); with `BREAKDOWN=1`, a
-separate `--features profile` build of `targets` writes each `BREAKDOWN_CELLS`
-cell's **stage breakdown** (wall-clock per cost category, `profile-<sha>.txt`)
-— which reports categories only while the code carries `timed` call sites;
-they were removed after the 2026-09-24 measurement, see PERFORMANCE.md's
-tooling table;
+with `--ser` over `TALLY_SER_CELLS` (default none); with `BREAKDOWN=1`, the
+**stage breakdown**: the production code carries no timers, so the remote
+fetches a scratch copy of the tip, applies `bench-ec2/breakdown.patch` (the
+`timed(Category::…)` wrappers on the outer call sites, ~35 one-liners), builds
+`targets --features profile` there and writes each `BREAKDOWN_CELLS` cell's
+wall-clock per cost category to `profile-<sha>.txt`; a patch that no longer
+applies fails the session, and is regenerated from the per-site audit in
+PERFORMANCE.md (Constraints);
 with `GUIDANCE=1` also the criterion guidance benches straight from cargo
 (skipping any the packaged commit lacks); with a baseline, the **before/after**
 (grid `DIFF_CELLS`, default `10000:2 100000:2`, `DIFF_REPS` 3; a baseline that
-predates `examples/targets.rs` gets the tip's copy, which must build against
-that baseline's API — the tip's `targets.rs` measures production form, so it
-follows the API forward: since `009b443add` it needs `strip_all`, and a
-baseline older than that is compared through a tip that still built against
-it, e.g. the recorded `185dbbede2` vs `657cb05c20`; and, when both commits
-carry `examples/tally.rs`, the **tally before/after** over `TALLY_DIFF_CELLS`
-× `TALLY_DIFF_REPS`, default `100000:2:3` × 3, interleaved the same way into
-`tally-differential-<base>-vs-<sha>.csv`). The remote script owns every grid loop rather than
+predates `examples/targets.rs` gets the tip's copy, which builds only while
+the APIs it uses exist there — the tip's programs measure production form, so
+since `009b443add` they need `strip_all`. For older baselines,
+`BASE_EXAMPLES_DIR` names a directory of **frozen measurement programs** that
+the remote copies into the baseline instead: `bench-ec2/forkpoint/` holds
+`targets.rs` and `tally.rs` that build against the fork point `657cb05c20`
+(the milestone's `targets.rs`, and the tally with per-item `strip` in place of
+`strip_all`; same composition, same CSVs; never edited to track the live
+examples). With both sides carrying a tally, the **tally before/after** runs
+over `TALLY_DIFF_CELLS` × `TALLY_DIFF_REPS`, default `100000:2:3` × 3,
+interleaved the same way into `tally-differential-<base>-vs-<sha>.csv`). The remote script owns every grid loop rather than
 calling the packaged commit's `bench.sh`, so the knobs work for any commit;
 `bench.sh`/`bench.ps1` remain the local tools. It uploads
 `snapshot-<sha>.csv`, `tally-<sha>.csv`, `differential-<base>-vs-<sha>.csv`,
