@@ -22,12 +22,12 @@ Every results file records these, so a number is never quoted without them.
 | | |
 |---|---|
 | Region | `eu-west-1` |
-| CPU reference instance | `c7i.4xlarge` — 16 vCPU (8 physical cores + HT), Intel, the same AVX2 dalek backend as the laptops; ~$0.8/h |
+| CPU reference instance | **`c7i.8xlarge`** — 32 vCPU (16 physical cores + HT), Intel Xeon Platinum 8488C, the same AVX2 dalek backend as the laptops; ~$1.6/h. PERFORMANCE.md's Status is measured on it (`INSTANCE_TYPE=c7i.8xlarge`); the script's default for cheaper validation sessions is `c7i.4xlarge` (16 vCPU, ~$0.8/h), whose absolute numbers are not comparable with Status |
 | Image | newest official Canonical **Ubuntu 24.04 amd64 gp3** AMI, resolved at launch by `describe-images` (owner `099720109477`), never hardcoded |
 | Root volume | 30 GB gp3, `DeleteOnTermination` |
 | Toolchain | Rust `1.96.0` (rustup, minimal profile), `build-essential`, `libssl-dev`, AWS CLI v2 |
 | Access | **SSM only** — no SSH key pair, no inbound security-group rule; IMDSv2 required |
-| Lifetime cap | 120 min (`LIFETIME_MIN`), 25 min for `smoke` |
+| Lifetime cap | 120 min (`LIFETIME_MIN`), 25 min for `smoke`; the full Status grid against the fork point needs `LIFETIME_MIN=240` (it ran 136 min on `c7i.8xlarge`) |
 
 Comparability note: cloud vCPUs are hyperthreads, and the laptop's 16 logical
 cores are similar — so absolute numbers differ from the laptop. **The same
@@ -139,6 +139,8 @@ TALLY_SER_CELLS="100000:2:3" ./bench-ec2.sh session          # tally cells run a
 TALLY_DIFF_CELLS="100000:2:3" ./bench-ec2.sh session HEAD 2d23452f05   # interleaved tally before/after (both commits need examples/tally.rs)
 BREAKDOWN=1 BREAKDOWN_CELLS="100000:2 100000:5" ./bench-ec2.sh session # stage breakdown: bench-ec2/breakdown.patch applied to a scratch copy, built with --features profile
 BASE_EXAMPLES_DIR=bench-ec2/forkpoint ./bench-ec2.sh session HEAD 657cb05c20   # before/after vs the fork point, with the frozen programs that build there
+# The session PERFORMANCE.md's Status is generated from (2026-09-24, 136 min, ~$3.60):
+INSTANCE_TYPE=c7i.8xlarge LIFETIME_MIN=240   CELLS="1000:2 10000:2 10000:5 100000:2 100000:5 1000000:1" REPS=3   DIFF_CELLS="100000:2 100000:5 1000000:1" DIFF_REPS=3   TALLY_CELLS="100000:2:3 100000:5:3 1000000:1:2 100000:2:3:ser" TALLY_REPS=3   TALLY_DIFF_CELLS="100000:2:3 100000:5:3 1000000:1:2 100000:2:3:ser" TALLY_DIFF_REPS=3   BASE_EXAMPLES_DIR=bench-ec2/forkpoint BREAKDOWN=1 BREAKDOWN_CELLS="100000:2 100000:5"   ./bench-ec2.sh session HEAD 657cb05c20
 GUIDANCE=1 ./bench-ec2.sh session            # also run the criterion guidance benches (off by default here)
 CELLS="1000:2" REPS=1 ./bench-ec2.sh session  # a minimal session: validates the rig end to end for cents
 ./bench-ec2.sh sweep                         # any time: proves nothing tagged is alive
