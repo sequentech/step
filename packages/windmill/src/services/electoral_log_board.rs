@@ -6,10 +6,10 @@
 //! platform derives for an election event and its elections, and the manager
 //! key that signs the log's statements.
 //!
-//! The electoral log still runs on the old core (`electoral-log`, strand), so
-//! the manager key kept here is the old core's `ProtocolManagerConfig`. The
-//! keys ceremony and its boards use `crate::services::protocol_manager`;
-//! this module goes when the electoral log moves to `cryptography`.
+//! The electoral log runs on the old core (`electoral-log` over strand), so the
+//! manager key kept here is the old core's `ProtocolManagerConfig`. The keys
+//! ceremony boards of the new core keep their own manager identity in
+//! `crate::services::protocol_board`.
 
 use anyhow::{anyhow, Context, Result};
 use b4::messages::protocol_manager::{ProtocolManager, ProtocolManagerConfig};
@@ -23,63 +23,10 @@ use strand::context::Ctx;
 use strand::signature::StrandSignatureSk;
 use tracing::instrument;
 
-use crate::services::protocol_manager::get_protocol_manager_secret_path;
 use crate::services::vault;
 
-pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
-    let tenant: String = tenant_id
-        .to_string()
-        .chars()
-        .filter(|&c| c != '-')
-        .take(17)
-        .collect();
-    format!("{}tenant{}event{}", slug, tenant, election_event_id)
-        .chars()
-        .filter(|&c| c != '-')
-        .collect()
-}
-
-pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
-    let tenant: String = tenant_id
-        .to_string()
-        .chars()
-        .filter(|&c| c != '-')
-        .take(17)
-        .collect();
-    format!("{}tenant{}election{}", slug, tenant, election_id)
-        .chars()
-        .filter(|&c| c != '-')
-        .collect()
-}
-
-#[instrument(err)]
-pub async fn get_board_client() -> Result<BoardClient> {
-    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-    let board_client = BoardClient::new(&server_url, &username, &password).await?;
-
-    Ok(board_client)
-}
-
-#[instrument(err)]
-pub async fn get_immudb_client() -> Result<Client> {
-    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
-    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
-    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
-
-    let mut client = Client::new(&server_url, &username, &password).await?;
-    client.login().await?;
-
-    Ok(client)
-}
-
-pub fn create_named_param(name: String, value: Value) -> NamedParam {
-    NamedParam {
-        name,
-        value: Some(SqlValue { value: Some(value) }),
-    }
+pub fn get_protocol_manager_secret_path(board_name: &str) -> String {
+    format!("boards/{board_name}/protocol-manager")
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -119,7 +66,7 @@ pub fn gen_protocol_manager<C: Ctx>() -> Result<ProtocolManager<C>> {
 
 #[instrument]
 pub fn serialize_protocol_manager<C: Ctx>(pm: &ProtocolManager<C>) -> Result<String> {
-    let pmc = ProtocolManagerConfig::from(&pm);
+    let pmc = ProtocolManagerConfig::from(pm);
     toml::to_string(&pmc).map_err(|err| anyhow!("{:?}", err))
 }
 
@@ -148,4 +95,60 @@ pub async fn get_protocol_manager<C: Ctx>(
     .await?
     .ok_or(anyhow!("protocol manager secret not found"))?;
     deserialize_protocol_manager::<C>(protocol_manager_data)
+}
+
+#[instrument(err)]
+pub async fn get_board_client() -> Result<BoardClient> {
+    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+    let board_client = BoardClient::new(&server_url, &username, &password).await?;
+
+    Ok(board_client)
+}
+
+#[instrument(err)]
+pub async fn get_immudb_client() -> Result<Client> {
+    let username = env::var("IMMUDB_USER").context("IMMUDB_USER must be set")?;
+    let password = env::var("IMMUDB_PASSWORD").context("IMMUDB_PASSWORD must be set")?;
+    let server_url = env::var("IMMUDB_SERVER_URL").context("IMMUDB_SERVER_URL must be set")?;
+
+    let mut client = Client::new(&server_url, &username, &password).await?;
+    client.login().await?;
+
+    Ok(client)
+}
+
+pub fn create_named_param(name: String, value: Value) -> NamedParam {
+    NamedParam {
+        name,
+        value: Some(SqlValue { value: Some(value) }),
+    }
+}
+
+pub fn get_event_board(tenant_id: &str, election_event_id: &str, slug: &str) -> String {
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("{}tenant{}event{}", slug, tenant, election_event_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
+}
+
+pub fn get_election_board(tenant_id: &str, election_id: &str, slug: &str) -> String {
+    let tenant: String = tenant_id
+        .to_string()
+        .chars()
+        .filter(|&c| c != '-')
+        .take(17)
+        .collect();
+    format!("{}tenant{}election{}", slug, tenant, election_id)
+        .chars()
+        .filter(|&c| c != '-')
+        .collect()
 }

@@ -47,6 +47,7 @@ pub struct CeremonyState {
     pub status: KeysCeremonyStatus,
     _private: (),
 }
+
 impl CeremonyState {
     pub fn new(
         execution: KeysCeremonyExecutionStatus,

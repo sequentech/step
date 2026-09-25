@@ -68,6 +68,17 @@ impl DkgBoard {
             _private: (),
         })
     }
+
+    pub fn from_signed_configuration(
+        keys_ceremony_id: &Uuid,
+        configuration: SignedConfiguration,
+    ) -> DkgBoard {
+        DkgBoard {
+            name: BoardName::for_dkg(keys_ceremony_id),
+            configuration,
+            _private: (),
+        }
+    }
 }
 
 /// A `Configuration` message as the protocol manager signed it: what the

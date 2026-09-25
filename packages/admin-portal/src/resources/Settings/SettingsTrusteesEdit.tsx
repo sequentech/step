@@ -60,6 +60,7 @@ export const SettingsTrusteesEdit: React.FC<EditProps> = (props) => {
 
                     <TextInput source="name" />
                     <TextInput source="public_key" />
+                    <TextInput source="share_encryption_public_key" />
                 </SimpleForm>
             </PageHeaderStyles.Wrapper>
         </Edit>
