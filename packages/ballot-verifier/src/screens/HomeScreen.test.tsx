@@ -219,20 +219,26 @@ describe("importing an audited ballot", () => {
         expect(nextButton()).toBeDisabled()
     })
 
-    // Expected failure: sequent-core rejects a half-present signature
-    // (INCOMPLETE_BALLOT_SIGNATURE_ERROR), but HomeScreen.tsx:194-197 skips
-    // verification unless both fields exist, so the ballot passes as unsigned.
-    it.failing.each(["voter_signing_pk", "voter_ballot_signature"] as const)(
-        "rejects a signed ballot whose %s was removed",
-        async (field) => {
-            const single = singleContestBallot()
-            const {[field]: _removed, ...incomplete} = single.ballot
-            recordSequentCore(single)
-            renderImportStep()
+    // sequent-core rejects a signature without its public key, and the reverse
+    // (INCOMPLETE_BALLOT_SIGNATURE_ERROR), in either ballot format.
+    it.each([
+        ["single-contest", "voter_signing_pk", singleContestBallot],
+        ["single-contest", "voter_ballot_signature", singleContestBallot],
+        ["multi-contest", "voter_signing_pk", multiContestBallot],
+        ["multi-contest", "voter_ballot_signature", multiContestBallot],
+    ] as const)(
+        "rejects a signed %s ballot whose %s was removed",
+        async (_format, field, recorded) => {
+            const valid = recorded()
+            const {[field]: _removed, ...incomplete} = valid.ballot
+            recordSequentCore(valid)
+            const {lastReported} = renderImportStep()
 
             await importFile(JSON.stringify(incomplete), "incomplete.json")
 
             await expectRejected()
+            expect(lastReported()).toBeNull()
+            expect(nextButton()).toBeDisabled()
         }
     )
 })
