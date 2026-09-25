@@ -176,6 +176,36 @@ test("GraphQL validates variables, executes the selection and records headers", 
     expect(fixture.violations.list()).toEqual([])
 })
 
+test("GraphQL infers a sole operation and rejects ambiguous or unknown names", async () => {
+    const fixture = graphqlFixture()
+    const query = "query Greeting($name: String!) { greeting(name: $name) }"
+    const send = (body: object) =>
+        fixture.graphql.handle(
+            request("/v1/graphql", "POST", JSON.stringify({variables: {name: "Voter"}, ...body}))
+        )
+    expect(bodyOf((await send({query})) as MockFulfillment)).toEqual({
+        data: {greeting: "Hello Voter"},
+    })
+    expect(fixture.graphql.callsTo("Greeting")).toHaveLength(1)
+    fixture.graphql.on("", () => ({data: {greeting: "Hello Anonymous"}}))
+    expect(
+        bodyOf((await send({query: '{ greeting(name: "Anonymous") }'})) as MockFulfillment)
+    ).toEqual({data: {greeting: "Hello Anonymous"}})
+    expect(fixture.violations.list()).toEqual([])
+    expect(
+        bodyOf(
+            (await send({
+                query: `${query} query Other { greeting(name: "Other") }`,
+            })) as MockFulfillment
+        )
+    ).toHaveProperty("errors")
+    expect(
+        bodyOf((await send({query, operationName: "Missing"})) as MockFulfillment)
+    ).toHaveProperty("errors")
+    expect(fixture.graphql.calls).toHaveLength(2)
+    expect(fixture.violations.list()).toHaveLength(2)
+})
+
 for (const [name, query, variables] of [
     ["unknown field", "query Greeting { unknown }", {}],
     ["missing required variable", "query Greeting($name: String!) { greeting(name: $name) }", {}],

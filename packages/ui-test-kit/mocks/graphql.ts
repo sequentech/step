@@ -109,7 +109,7 @@ export class GraphQLMock {
             this.violations.add("GraphQL request without a query")
             return json(400, {errors: [{message: "Missing query"}]})
         }
-        const operationName = typeof body.operationName === "string" ? body.operationName : ""
+        let operationName = typeof body.operationName === "string" ? body.operationName : ""
         const variables = isRecord(body.variables) ? body.variables : {}
         let document: DocumentNode
         try {
@@ -119,6 +119,8 @@ export class GraphQLMock {
             return json(200, {errors: [{message: String(error)}]})
         }
         const operation = getOperationAST(document, operationName || undefined)
+        // GraphQL permits omitting operationName when the document has one operation.
+        operationName ||= operation?.name?.value ?? ""
         const problems = [
             ...validate(this.schema, document).map((error) => error.message),
             ...this.checkOperation(operation, operationName, variables),
@@ -159,7 +161,7 @@ export class GraphQLMock {
         const result = await execute({
             schema: this.schema,
             document,
-            operationName,
+            operationName: operationName || undefined,
             rootValue: reply.data,
             variableValues: variables,
         })
@@ -181,7 +183,7 @@ export class GraphQLMock {
         if (!operation) {
             return [`the document has no operation named "${operationName}"`]
         }
-        if (operation.name?.value !== operationName) {
+        if ((operation.name?.value ?? "") !== operationName) {
             return [`operationName "${operationName}" does not name the operation`]
         }
         const coerced = getVariableValues(
