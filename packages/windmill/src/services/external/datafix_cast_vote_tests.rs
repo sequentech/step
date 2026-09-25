@@ -48,6 +48,87 @@ fn lock_key() -> String {
     format!("datafix-voter-{TENANT_ID}-{ELECTION_EVENT_ID}-{VOTER_ID}")
 }
 
+#[tokio::test]
+async fn a_different_holder_can_take_over_only_after_the_lease_deadline() {
+    for elapsed in [299, 300, 301] {
+        let locks = InMemoryDatafixVoterLocks::at(now());
+        let original = locks
+            .acquire(lock_key(), "first".into(), now() + Duration::seconds(300))
+            .await
+            .unwrap();
+        locks.advance(Duration::seconds(elapsed));
+        let replacement = locks
+            .acquire(lock_key(), "second".into(), now() + Duration::seconds(600))
+            .await;
+        if elapsed <= 300 {
+            assert!(replacement.is_err());
+            assert_eq!(locks.holder(&lock_key()).as_deref(), Some("first"));
+        } else {
+            let replacement = replacement.unwrap();
+            assert!(locks.extend(&original, 300).await.is_err());
+            locks.release(original).await.unwrap();
+            assert_eq!(locks.holder(&lock_key()).as_deref(), Some("second"));
+            locks.release(replacement).await.unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_same_holder_can_reacquire_an_unexpired_lease() {
+    let locks = InMemoryDatafixVoterLocks::at(now());
+    locks
+        .acquire(lock_key(), "first".into(), now() + Duration::seconds(300))
+        .await
+        .unwrap();
+    let lock = locks
+        .acquire(lock_key(), "first".into(), now() + Duration::seconds(600))
+        .await
+        .unwrap();
+    locks.release(lock).await.unwrap();
+    assert_eq!(
+        locks.released()[0].expiry_date,
+        now() + Duration::seconds(600)
+    );
+}
+
+#[tokio::test]
+async fn a_holder_without_a_known_expiry_remains_busy_after_clock_advances() {
+    let locks = InMemoryDatafixVoterLocks::at(now());
+    locks.hold_for_another_operation(&lock_key());
+    locks.advance(Duration::days(1));
+    assert!(locks
+        .acquire(lock_key(), "first".into(), now() + Duration::days(2))
+        .await
+        .is_err());
+    assert_eq!(
+        locks.holder(&lock_key()).as_deref(),
+        Some(ANOTHER_OPERATION)
+    );
+}
+
+#[tokio::test]
+async fn renewal_uses_the_same_expired_holder_takeover_rule_as_acquisition() {
+    let locks = InMemoryDatafixVoterLocks::at(now());
+    let original = locks
+        .acquire(lock_key(), "first".into(), now() + Duration::seconds(300))
+        .await
+        .unwrap();
+    locks.advance(Duration::seconds(301));
+    let replacement = locks
+        .acquire(lock_key(), "second".into(), now() + Duration::seconds(600))
+        .await
+        .unwrap();
+    locks.advance(Duration::seconds(300));
+    locks.extend(&original, 300).await.unwrap();
+    locks.release(replacement).await.unwrap();
+    assert_eq!(locks.holder(&lock_key()).as_deref(), Some("first"));
+    locks.release(original).await.unwrap();
+    assert_eq!(
+        locks.released()[0].expiry_date,
+        now() + Duration::seconds(901)
+    );
+}
+
 fn cast_vote(id: &str, status: CastVoteStatus) -> CastVote {
     CastVote {
         id: id.to_string(),
