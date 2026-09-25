@@ -6,7 +6,7 @@ import {render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {createMemoryRouter, RouterProvider} from "react-router-dom"
 import {ThemeProvider} from "@mui/material/styles"
-import {ESupportMaterialsPolicy} from "@sequentech/ui-core"
+import {ESupportMaterialsPolicy, EElectionEventDelegatedVotingPolicy} from "@sequentech/ui-core"
 import theme from "../../../ui-essentials/src/services/theme"
 import {store, type RootState} from "../store/store"
 import {ELECTION_WITH_INVALID} from "../fixtures/election"
@@ -50,7 +50,10 @@ beforeEach(() => {
         electionEvent: {
             "event-1": {
                 id: "event-1",
-                presentation: {materials: {policy: ESupportMaterialsPolicy.MANDATORY_FOR_VOTING}},
+                presentation: {
+                    delegated_voting_policy: EElectionEventDelegatedVotingPolicy.DISABLED,
+                    materials: {policy: ESupportMaterialsPolicy.MANDATORY_FOR_VOTING},
+                },
             },
         },
         supportMaterials: {
@@ -101,6 +104,7 @@ it.each([false, true])(
                     ballot_eml: {
                         ...ELECTION_WITH_INVALID,
                         election_event_presentation: {
+                            delegated_voting_policy: EElectionEventDelegatedVotingPolicy.DISABLED,
                             materials: {policy: ESupportMaterialsPolicy.MANDATORY_FOR_VOTING},
                         },
                     },

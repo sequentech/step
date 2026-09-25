@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {test, expect, eventPath, realm, IDS, electionFixture, type Portal} from "./fixtures"
-import type {Page} from "@playwright/test"
+import {test, expect, eventPath, realm, IDS, electionFixture} from "./fixtures"
+import {review} from "./flow"
 import type {IDecodedVoteContest} from "sequent-core"
 import {readFile} from "node:fs/promises"
 import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
@@ -31,20 +31,6 @@ test("authenticated voter loads their published ballot through OIDC, GraphQL and
             .sort()
     ).toEqual(["election.json", "event.json", "summary.json"])
 })
-
-async function review(page: Page, portal: Portal, preview = false) {
-    await page.goto(`${portal.origin}${preview ? portal.previewPath : eventPath + "?lang=en"}`)
-    await page.getByRole("button", {name: /click to vote/i}).click()
-    if (preview)
-        await page.getByRole("button", {name: "I understand that my vote will not be cast"}).click()
-    await page.getByRole("button", {name: "Start Voting", exact: true}).click()
-    await page.getByRole("checkbox", {name: /Alice Example/}).check()
-    await expect(page.getByRole("checkbox", {name: /Alice Example/})).toBeChecked()
-    await expect(page.getByRole("checkbox", {name: /Bob Example/})).not.toBeChecked()
-    await page.getByRole("button", {name: "Next", exact: true}).click()
-    await expect(page.getByRole("heading", {name: /^Review your ballot/})).toBeVisible()
-    await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
-}
 
 test("cast sends an encrypted ballot whose ID is shown on confirmation", async ({page, portal}) => {
     await review(page, portal)
