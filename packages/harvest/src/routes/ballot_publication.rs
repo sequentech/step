@@ -407,3 +407,7 @@ pub async fn get_ballot_publication_changes(
 #[cfg(test)]
 #[path = "../../tests/support/ballot_publication_errors.rs"]
 mod ballot_publication_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/ballot_publication_routes.rs"]
+mod route_tests;

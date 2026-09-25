@@ -257,3 +257,7 @@ pub async fn get_election_event_top_votes_by_ip(
         },
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/election_event_stats_routes.rs"]
+mod route_tests;

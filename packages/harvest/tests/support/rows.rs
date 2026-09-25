@@ -183,6 +183,125 @@ impl Event {
         .await;
     }
 
+    /// A report of `report_type` rendered with the template `alias`.
+    pub async fn report(
+        &self,
+        pool: &Pool,
+        report_type: &str,
+        template_alias: &str,
+    ) -> String {
+        let (tenant_id, election_event_id) = self.ids();
+        let id = Uuid::new_v4();
+        execute(
+            pool,
+            "INSERT INTO sequent_backend.report
+                (id, tenant_id, election_event_id, report_type, template_alias)
+             VALUES ($1, $2, $3, $4, $5)",
+            &[
+                &id,
+                &tenant_id,
+                &election_event_id,
+                &report_type,
+                &template_alias,
+            ],
+        )
+        .await;
+        id.to_string()
+    }
+
+    /// A tenant template stored under `alias`.
+    pub async fn template(
+        &self,
+        pool: &Pool,
+        alias: &str,
+        template: serde_json::Value,
+    ) {
+        let (tenant_id, _) = self.ids();
+        execute(
+            pool,
+            "INSERT INTO sequent_backend.template
+                (tenant_id, alias, template, created_by, communication_method, type)
+             VALUES ($1, $2, $3, 'fixture', 'EMAIL', 'CREDENTIALS')",
+            &[&tenant_id, &alias, &template],
+        )
+        .await;
+    }
+
+    /// A ballot publication; `published` also gives it the object root a
+    /// publication's files live under.
+    pub async fn ballot_publication(
+        &self,
+        pool: &Pool,
+        is_generated: bool,
+        published: bool,
+    ) -> String {
+        let (tenant_id, election_event_id) = self.ids();
+        let id = Uuid::new_v4();
+        let annotations = published.then(|| {
+            serde_json::json!({
+                windmill::domain::publication_files::FILES_ANNOTATION:
+                    windmill::domain::publication_files::publication_root(
+                        tenant_id,
+                        election_event_id,
+                        id,
+                        Uuid::new_v4(),
+                    )
+            })
+        });
+        execute(
+            pool,
+            "INSERT INTO sequent_backend.ballot_publication
+                (id, tenant_id, election_event_id, is_generated,
+                 published_at, annotations)
+             VALUES ($1, $2, $3, $4,
+                CASE WHEN $5 THEN now() END, $6)",
+            &[
+                &id,
+                &tenant_id,
+                &election_event_id,
+                &is_generated,
+                &published,
+                &annotations,
+            ],
+        )
+        .await;
+        id.to_string()
+    }
+
+    /// A valid vote `voter` cast in `election_id` from `area_id`.
+    pub async fn cast_vote(
+        &self,
+        pool: &Pool,
+        election_id: &str,
+        area_id: &str,
+        voter: &str,
+    ) {
+        let (tenant_id, election_event_id) = self.ids();
+        execute(
+            pool,
+            "INSERT INTO sequent_backend.cast_vote
+                (id, tenant_id, election_event_id, election_id, area_id,
+                 voter_id_string, status)
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'valid')",
+            &[
+                &tenant_id,
+                &election_event_id,
+                &uuid(election_id),
+                &uuid(area_id),
+                &voter,
+            ],
+        )
+        .await;
+    }
+
+    /// The Keycloak realm of the event's voters.
+    pub fn realm(&self) -> String {
+        sequent_core::services::keycloak::get_event_realm(
+            &self.tenant_id,
+            &self.election_event_id,
+        )
+    }
+
     /// A document row; its contents live in object storage.
     pub async fn document(
         &self,
@@ -277,4 +396,34 @@ impl Event {
         .await
         .len()
     }
+}
+
+/// A Keycloak realm named `name`; returns its id.
+pub async fn keycloak_realm(pool: &Pool, name: &str) -> String {
+    let id = Uuid::new_v4().to_string();
+    execute(
+        pool,
+        "INSERT INTO realm (id, name) VALUES ($1, $2)",
+        &[&id, &name],
+    )
+    .await;
+    id
+}
+
+/// A Keycloak user of the realm with id `realm_id`; returns its id.
+pub async fn keycloak_user(
+    pool: &Pool,
+    realm_id: &str,
+    username: &str,
+    enabled: bool,
+) -> String {
+    let id = Uuid::new_v4().to_string();
+    execute(
+        pool,
+        "INSERT INTO user_entity (id, realm_id, username, enabled, email_verified)
+         VALUES ($1, $2, $3, $4, true)",
+        &[&id, &realm_id, &username, &enabled],
+    )
+    .await;
+    id
 }

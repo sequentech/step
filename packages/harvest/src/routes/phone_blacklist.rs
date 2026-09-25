@@ -206,3 +206,7 @@ pub async fn delete_phone_blacklist_entry(
 
     Ok(Json(DeletePhoneBlacklistEntryOutput { id: body.id }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/phone_blacklist_routes.rs"]
+mod route_tests;

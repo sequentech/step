@@ -500,3 +500,7 @@ pub async fn encrypt_report_route(
 
     Ok(Json(output))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/report_routes.rs"]
+mod route_tests;

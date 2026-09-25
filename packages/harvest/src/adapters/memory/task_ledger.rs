@@ -10,18 +10,34 @@ use serde_json::{json, Value};
 use std::sync::Mutex;
 use windmill::types::tasks::ETasksExecution;
 
-/// Task execution rows in memory. A refusing ledger fails every write, as
-/// when its database is down.
+/// Which writes a ledger refuses, as when its database goes down.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum Refusal {
+    #[default]
+    Nothing,
+    Everything,
+    /// Rows can be created but not updated afterwards.
+    Updates,
+}
+
+/// Task execution rows in memory.
 #[derive(Default)]
 pub struct MemoryTaskLedger {
     tasks: Mutex<Vec<TasksExecution>>,
-    refuses: bool,
+    refuses: Refusal,
 }
 
 impl MemoryTaskLedger {
     pub fn refusing() -> Self {
         Self {
-            refuses: true,
+            refuses: Refusal::Everything,
+            ..Default::default()
+        }
+    }
+
+    pub fn refusing_updates() -> Self {
+        Self {
+            refuses: Refusal::Updates,
             ..Default::default()
         }
     }
@@ -30,8 +46,9 @@ impl MemoryTaskLedger {
         self.tasks.lock().unwrap().clone()
     }
 
-    fn check(&self) -> anyhow::Result<()> {
-        match self.refuses {
+    fn check(&self, refused_by: Refusal) -> anyhow::Result<()> {
+        match self.refuses == Refusal::Everything || self.refuses == refused_by
+        {
             true => Err(anyhow!("tasks_execution is unavailable")),
             false => Ok(()),
         }
@@ -44,7 +61,7 @@ impl MemoryTaskLedger {
         log: &str,
         document_id: Option<String>,
     ) -> anyhow::Result<()> {
-        self.check()?;
+        self.check(Refusal::Updates)?;
         let mut tasks = self.tasks.lock().unwrap();
         let stored = tasks
             .iter_mut()
@@ -84,7 +101,7 @@ impl TaskLedger for MemoryTaskLedger {
         executed_by_user: &str,
         annotations: Value,
     ) -> anyhow::Result<TasksExecution> {
-        self.check()?;
+        self.check(Refusal::Everything)?;
         let mut tasks = self.tasks.lock().unwrap();
         let task: TasksExecution = serde_json::from_value(json!({
             "id": format!("task-{}", tasks.len() + 1), "tenant_id": tenant_id,

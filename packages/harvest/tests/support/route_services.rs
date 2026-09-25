@@ -7,9 +7,11 @@
 
 use crate::adapters::memory::database::FixedDatabasePools;
 use crate::adapters::memory::documents::MemoryDocumentStorage;
+use crate::adapters::memory::electoral_log::MemoryElectoralLogs;
 use crate::adapters::memory::identity::LocalIdentityAdmin;
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
 use crate::adapters::memory::task_queue::MemoryTaskQueue;
+use crate::adapters::memory::vault::MemoryVault;
 use crate::services::dependencies::HarvestServices;
 use crate::test_claims::Claims;
 use deadpool_postgres::{Pool, Runtime};
@@ -29,10 +31,12 @@ pub struct Services {
     pub hasura: Arc<Pool>,
     pub keycloak: Arc<Pool>,
     pub documents: Arc<MemoryDocumentStorage>,
+    pub electoral_log: Arc<MemoryElectoralLogs>,
     /// The local Keycloak stand-in admin clients talk to, if any.
     pub keycloak_url: Option<String>,
     pub ledger: Arc<MemoryTaskLedger>,
     pub tasks: MemoryTaskQueue,
+    pub vault: Arc<MemoryVault>,
 }
 
 impl Services {
@@ -43,9 +47,11 @@ impl Services {
             hasura: pool.clone(),
             keycloak: pool,
             documents: Default::default(),
+            electoral_log: Default::default(),
             keycloak_url: None,
             ledger: Default::default(),
             tasks: Default::default(),
+            vault: Default::default(),
         }
     }
 
@@ -56,9 +62,11 @@ impl Services {
             hasura: pool.clone(),
             keycloak: pool,
             documents: Default::default(),
+            electoral_log: Default::default(),
             keycloak_url: None,
             ledger: Default::default(),
             tasks: Default::default(),
+            vault: Default::default(),
         }
     }
 
@@ -69,6 +77,16 @@ impl Services {
 
     pub fn with_tasks(mut self, tasks: MemoryTaskQueue) -> Self {
         self.tasks = tasks;
+        self
+    }
+
+    pub fn with_electoral_log(mut self, log: MemoryElectoralLogs) -> Self {
+        self.electoral_log = Arc::new(log);
+        self
+    }
+
+    pub fn with_vault(mut self, vault: MemoryVault) -> Self {
+        self.vault = Arc::new(vault);
         self
     }
 
@@ -84,11 +102,13 @@ impl Services {
                 keycloak: self.keycloak.clone(),
             }),
             documents: self.documents.clone(),
+            electoral_log: self.electoral_log.clone(),
             identity: Arc::new(LocalIdentityAdmin {
                 url: self.keycloak_url.clone(),
             }),
             ledger: self.ledger.clone(),
             tasks: Arc::new(self.tasks.clone()),
+            vault: self.vault.clone(),
         };
         Client::tracked(crate::build_application_with(services).configure(
             rocket::Config {
