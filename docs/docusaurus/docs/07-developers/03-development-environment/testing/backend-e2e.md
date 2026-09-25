@@ -21,25 +21,30 @@ The first run builds the service images and Rust binaries in the same container
 image that executes them. Allow at least 8 GB RAM and 40 GB free disk space; use
 `CARGO_BUILD_JOBS=1` on smaller machines. No host Rust, Node or Python installation
 is needed. The runner uses development credentials from `.env.development` and
-creates a fresh `step-e2e` Compose project without publishing host ports. It
+creates a uniquely named `step-e2e-...` Compose project without publishing host ports. It
 removes that project's containers and volumes when finished.
 
 For iteration:
 
 ```bash
-scripts/e2e/run.sh --skip-images --skip-build --keep
+STEP_E2E_PROJECT=my-e2e scripts/e2e/run.sh --skip-images --skip-build --keep
 scripts/e2e/run.sh --skip-images --skip-build -k automatic_key_ceremony
-scripts/e2e/run.sh --down
+STEP_E2E_PROJECT=my-e2e scripts/e2e/run.sh --down
 ```
 
 `-k` runs through the last matching test, including its prerequisites. Skipping
 images or binaries is appropriate only while their sources are unchanged.
-`--keep` retains the stack for diagnosis; the next run still starts fresh.
-`STEP_E2E_PROJECT` selects another isolated project name. Set `STEP_E2E_PORTS=1`
+`--keep` retains the stack for diagnosis. To reuse an explicit project name, first
+remove that retained stack with `STEP_E2E_PROJECT=<name> scripts/e2e/run.sh --down`;
+a default invocation chooses a new name automatically.
+`STEP_E2E_PROJECT` selects an explicit project name. Starting a project that already
+has Compose containers, networks or volumes fails without deleting them. `--down`
+requires an explicit project name; use the name printed at startup to remove a
+retained default run. Set `STEP_E2E_PORTS=1`
 to expose Hasura, Keycloak and MinIO on dynamically allocated loopback ports;
 `docker ps` shows the allocated ports.
 
-Results are written to `.cache/backend-e2e/run/journeys.json`, with CLI output and
+Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI output and
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
 The `Backend E2E journeys` workflow runs the same command on affected pull
 requests and uploads those artifacts, including after failures.
