@@ -20,6 +20,13 @@ pub enum AuthenticationUpdate {
     Otp(String),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthenticationChange {
+    pub tenant_id: Option<String>,
+    pub election_event_id: Option<String>,
+    pub update: AuthenticationUpdate,
+}
+
 /// Keycloak for route tests: admin clients for a local stand-in at `url`
 /// holding a synthetic token, and fixed answers from the helpers that open
 /// clients of their own. Unset answers fail as when Keycloak refuses the
@@ -29,19 +36,29 @@ pub struct LocalIdentityAdmin {
     pub url: Option<String>,
     pub password_policy: Option<ParsedRealmPasswordPolicy>,
     pub refuses_updates: bool,
-    pub updates: Mutex<Vec<AuthenticationUpdate>>,
+    pub updates: Mutex<Vec<AuthenticationChange>>,
+    pub policy_reads: Mutex<Vec<(String, String)>>,
 }
 
 impl LocalIdentityAdmin {
-    pub fn updates(&self) -> Vec<AuthenticationUpdate> {
+    pub fn updates(&self) -> Vec<AuthenticationChange> {
         self.updates.lock().unwrap().clone()
     }
 
-    fn update(&self, update: AuthenticationUpdate) -> WindmillResult<()> {
+    fn update(
+        &self,
+        tenant_id: Option<String>,
+        election_event_id: Option<String>,
+        update: AuthenticationUpdate,
+    ) -> WindmillResult<()> {
         if self.refuses_updates {
             return Err(refused().into());
         }
-        self.updates.lock().unwrap().push(update);
+        self.updates.lock().unwrap().push(AuthenticationChange {
+            tenant_id,
+            election_event_id,
+            update,
+        });
         Ok(())
     }
 }
@@ -69,27 +86,39 @@ impl IdentityAdmin for LocalIdentityAdmin {
 
     async fn realm_password_policy(
         &self,
-        _tenant_id: &str,
-        _election_event_id: &str,
+        tenant_id: &str,
+        election_event_id: &str,
     ) -> anyhow::Result<ParsedRealmPasswordPolicy> {
+        self.policy_reads
+            .lock()
+            .unwrap()
+            .push((tenant_id.to_owned(), election_event_id.to_owned()));
         self.password_policy.clone().ok_or_else(refused)
     }
 
     async fn update_voter_enrollment(
         &self,
-        _tenant_id: Option<String>,
-        _election_event_id: Option<String>,
+        tenant_id: Option<String>,
+        election_event_id: Option<String>,
         enable_enrollment: bool,
     ) -> WindmillResult<()> {
-        self.update(AuthenticationUpdate::Enrollment(enable_enrollment))
+        self.update(
+            tenant_id,
+            election_event_id,
+            AuthenticationUpdate::Enrollment(enable_enrollment),
+        )
     }
 
     async fn update_voter_otp(
         &self,
-        _tenant_id: Option<String>,
-        _election_event_id: Option<String>,
+        tenant_id: Option<String>,
+        election_event_id: Option<String>,
         new_otp_state: String,
     ) -> WindmillResult<()> {
-        self.update(AuthenticationUpdate::Otp(new_otp_state))
+        self.update(
+            tenant_id,
+            election_event_id,
+            AuthenticationUpdate::Otp(new_otp_state),
+        )
     }
 }

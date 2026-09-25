@@ -95,6 +95,10 @@ async fn a_letter_is_generated_by_a_task_with_its_document_password_saved() {
     assert_eq!(status, Status::Ok, "{body}");
     peer.finish();
 
+    assert_eq!(
+        *services.identity.policy_reads.lock().unwrap(),
+        vec![(event.tenant_id.clone(), event.election_event_id.clone())],
+    );
     // The response names the password the vault keeps for its document.
     let saved = services.vault.document_passwords.lock().unwrap().clone();
     assert_eq!(

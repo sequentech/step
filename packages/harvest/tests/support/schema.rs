@@ -139,6 +139,7 @@ async fn create() -> String {
         .await
         .expect("create fixture database");
 
+    anchor(&database).await;
     let pool = pool_for(&database);
     let mut client = pool.get().await.expect("fixture connection");
     client
@@ -163,6 +164,26 @@ async fn create() -> String {
         .await
         .expect("Keycloak tables");
     database
+}
+
+/// Keeps one connection open until the process exits, on a thread of its own,
+/// so another binary's cleanup above cannot drop the database between tests.
+async fn anchor(database: &str) {
+    let (connected, ready) = tokio::sync::oneshot::channel();
+    let database = database.to_owned();
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("anchor runtime")
+            .block_on(async move {
+                let pool = pool_for(&database);
+                let _connection = pool.get().await.expect("anchor connection");
+                let _ = connected.send(());
+                std::future::pending::<()>().await
+            })
+    });
+    ready.await.expect("anchor connected");
 }
 
 /// A new pool on the migrated database.

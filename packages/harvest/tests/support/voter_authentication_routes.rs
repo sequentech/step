@@ -5,7 +5,7 @@
 //! event's presentation reach Keycloak.
 
 use crate::adapters::memory::identity::{
-    AuthenticationUpdate, LocalIdentityAdmin,
+    AuthenticationChange, AuthenticationUpdate, LocalIdentityAdmin,
 };
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
@@ -36,6 +36,14 @@ async fn set<'c>(
         }),
     )
     .await
+}
+
+fn change(event: &Event, update: AuthenticationUpdate) -> AuthenticationChange {
+    AuthenticationChange {
+        tenant_id: Some(event.tenant_id.clone()),
+        election_event_id: Some(event.election_event_id.clone()),
+        update,
+    }
 }
 
 fn updated() -> (Status, serde_json::Value) {
@@ -74,8 +82,8 @@ async fn changed_settings_are_sent_to_keycloak() {
     assert_eq!(
         services.identity.updates(),
         vec![
-            AuthenticationUpdate::Enrollment(false),
-            AuthenticationUpdate::Otp("DISABLED".into()),
+            change(&event, AuthenticationUpdate::Enrollment(false)),
+            change(&event, AuthenticationUpdate::Otp("DISABLED".into())),
         ]
     );
 }
@@ -99,8 +107,8 @@ async fn enabling_otp_makes_it_required() {
     assert_eq!(
         services.identity.updates(),
         vec![
-            AuthenticationUpdate::Enrollment(true),
-            AuthenticationUpdate::Otp("REQUIRED".into()),
+            change(&event, AuthenticationUpdate::Enrollment(true)),
+            change(&event, AuthenticationUpdate::Otp("REQUIRED".into())),
         ]
     );
 }
