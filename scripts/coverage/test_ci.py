@@ -83,6 +83,43 @@ class PairedCoverageTests(unittest.TestCase):
         self.assertEqual(measure.call_count, 2)
         self.assertEqual(self.verdict()["status"], "pass")
 
+    def test_only_the_base_measurement_skips_policy_files_it_predates(self):
+        (self.base / "packages/existing/src").mkdir(parents=True)
+        report = {"package": "existing", "metrics": metrics()}
+        with (
+            patch.object(ci, "identity", return_value="a" * 40),
+            patch.object(ci, "measure", return_value=report) as measure,
+            patch.object(ci, "compare_rust", return_value={"passes": True}),
+        ):
+            ci.paired_run(self.base, self.head, "rust", "existing", self.output)
+        roots = [call.args[0] for call in measure.call_args_list]
+        flags = [
+            call.kwargs.get("comparison_base", False) for call in measure.call_args_list
+        ]
+        self.assertEqual(roots, [self.head, self.base])
+        self.assertEqual(flags, [False, True])
+
+    def test_the_rust_runner_receives_the_comparison_base_flag(self):
+        commands = []
+
+        def runner(arguments, root, output, name):
+            commands.append(arguments)
+            summary = output / "native" / "existing" / "run" / "summary.json"
+            summary.parent.mkdir(parents=True)
+            summary.write_text(json.dumps({"revision": "a" * 40}))
+            return ""
+
+        with (
+            patch.object(ci, "command", side_effect=runner),
+            patch.object(ci, "identity", return_value="a" * 40),
+        ):
+            for flag, name in ((False, "head-report"), (True, "base-report")):
+                output = self.root / name
+                output.mkdir()
+                ci.measure_rust(self.head, "existing", output, comparison_base=flag)
+        self.assertNotIn("--comparison-base", commands[0])
+        self.assertIn("--comparison-base", commands[1])
+
     def test_a_broken_baseline_is_not_treated_as_zero_coverage(self):
         with patch.object(
             ci, "measure", side_effect=[metrics(), CoverageError("Tests failed")]
