@@ -11,7 +11,7 @@ mod schema;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
 use deadpool_postgres::{Object, Transaction};
-use sequent_core::types::hasura::core::{Application, PhoneBlacklistEntry, Template};
+use sequent_core::types::hasura::core::{Application, PhoneBlacklistEntry, Preview, Template};
 use serde_json::{json, Value};
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -1860,6 +1860,45 @@ async fn insert_preview_writes_a_preview_for_the_document() {
             row.get::<_, DateTime<Utc>>(2)
         ),
         (now, now)
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn preview_wrapper_maps_every_column_of_a_preview_row() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let (tenant, document, id) = (f.tenant().await, f.id(), f.id());
+    f.execute(
+        "INSERT INTO sequent_backend.preview
+             (id, tenant_id, document_id, url, requested_by, annotations, created_at, updated_at)
+         VALUES ($1, $2, $3, 'https://preview.example.test/2', 'admin', '{\"pages\": 2}', $4, $5)",
+        &[&id, &tenant, &document, &at(1), &at(2)],
+    )
+    .await;
+    let row = tx
+        .query_one(
+            "SELECT * FROM sequent_backend.preview WHERE id = $1",
+            &[&id],
+        )
+        .await
+        .unwrap();
+
+    let mapped = preview::PreviewWrapper::try_from(row).unwrap();
+
+    assert_eq!(
+        mapped.0,
+        Preview {
+            id: id.to_string(),
+            tenant_id: tenant.to_string(),
+            document_id: document.to_string(),
+            url: "https://preview.example.test/2".to_string(),
+            requested_by: "admin".to_string(),
+            created_at: Some(local(at(1))),
+            updated_at: Some(local(at(2))),
+            annotations: Some(json!({"pages": 2})),
+        }
     );
     tx.rollback().await.unwrap();
 }

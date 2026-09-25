@@ -802,6 +802,47 @@ async fn delete_area_contests_removes_only_the_links_of_the_area() {
 }
 
 #[tokio::test]
+async fn area_election_wrapper_maps_text_annotations_but_not_the_stored_jsonb() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let id = f.id();
+    area::insert_area(&tx, area_data(a, id, None))
+        .await
+        .unwrap();
+    let row = |annotations: &'static str| {
+        let tx = &tx;
+        async move {
+            tx.query_one(
+                &format!(
+                    "SELECT id, name, description, {annotations} AS annotations
+                     FROM sequent_backend.area WHERE id = $1"
+                ),
+                &[&id],
+            )
+            .await
+            .unwrap()
+        }
+    };
+
+    let mapped = area::AreaElectionWrapper::try_from(row("annotations::text").await).unwrap();
+    let stored = area::AreaElectionWrapper::try_from(row("annotations").await);
+
+    assert_eq!(
+        mapped.0,
+        area::AreaElection {
+            id: id.to_string(),
+            name: Some(format!("district-{id}")),
+            description: Some("District".to_string()),
+            annotations: Some("{\"note\": \"x\"}".to_string()),
+        }
+    );
+    assert!(stored.is_err());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn area_adapters_reject_invalid_uuids() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
