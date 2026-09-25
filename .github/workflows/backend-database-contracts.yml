@@ -86,9 +86,12 @@ jobs:
           docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
           python3 scripts/test_ballot_publication_lifecycle.py
       - name: Voting-load capture diagnostics
-        run: >-
-          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
-          python3 -m unittest discover -s packages/voting-load
+        run: |
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness \
+            python3 -m unittest discover -s packages/voting-load 2>&1 \
+            | tee "$RUNNER_TEMP/voting-load-tests.log"
+          # unittest exits successfully when discovery finds no tests.
+          grep --quiet --extended-regexp 'Ran [1-9][0-9]* tests?' "$RUNNER_TEMP/voting-load-tests.log"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
