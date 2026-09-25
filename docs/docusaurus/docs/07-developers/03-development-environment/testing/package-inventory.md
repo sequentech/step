@@ -74,3 +74,12 @@ devenv, run the Python commands and `check_migrations.sh` directly;
 `python3 scripts/test_cast_vote_scalability.py --rust-tests` also runs the
 ignored Windmill `services::insert_cast_vote::tests` against its disposable
 database.
+
+The Tests workflow's Windmill job runs those ignored tests against the same
+fixture in a Docker container. From `packages/`:
+
+```sh
+export CAST_VOTE_TEST_DATABASE_URL=$(../scripts/voting_flow/castvote_fixture.sh)
+cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored
+docker rm --force step-castvote-fixture
+```

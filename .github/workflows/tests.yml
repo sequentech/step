@@ -130,6 +130,20 @@ jobs:
           -- --ignored --exact
         working-directory: packages/windmill
 
+      - name: Start the voting-flow database fixture
+        run: |
+          url=$(scripts/voting_flow/castvote_fixture.sh)
+          echo "CAST_VOTE_TEST_DATABASE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Run the ignored insert_cast_vote PostgreSQL tests
+        shell: bash
+        run: |
+          cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored \
+            | tee "$RUNNER_TEMP/insert-cast-vote-tests.log"
+          # An empty filter also succeeds; require that the tests actually ran.
+          grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/insert-cast-vote-tests.log"
+        working-directory: packages
+
   # ===========================================================================
   # JOB: run-frontend-tests
   # ===========================================================================

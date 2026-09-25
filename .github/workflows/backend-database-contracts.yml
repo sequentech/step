@@ -11,10 +11,8 @@ on:
       - 'scripts/test_*.py'
       - 'scripts/postgres/**'
       - 'packages/windmill/src/postgres/**'
-      - 'packages/windmill/src/services/**'
       - 'packages/voting-load/**'
       - '.devcontainer/postgresql/init.sh'
-      - '.github/actions/setup-rust-tests/**'
       - '.github/workflows/backend-database-contracts.yml'
   push:
     branches: [main]
@@ -24,10 +22,8 @@ on:
       - 'scripts/test_*.py'
       - 'scripts/postgres/**'
       - 'packages/windmill/src/postgres/**'
-      - 'packages/windmill/src/services/**'
       - 'packages/voting-load/**'
       - '.devcontainer/postgresql/init.sh'
-      - '.github/actions/setup-rust-tests/**'
       - '.github/workflows/backend-database-contracts.yml'
   workflow_dispatch:
 
@@ -101,57 +97,3 @@ jobs:
           npm install --global yarn@1.22.22
           yarn --cwd hasura install --frozen-lockfile --non-interactive
           node --test hasura/tests/document-access.test.cjs
-
-  windmill-database:
-    name: Windmill PostgreSQL tests
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    env:
-      CARGO_BUILD_JOBS: '2'
-      CAST_VOTE_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
-    services:
-      postgres:
-        image: postgres:18-bookworm
-        env:
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready --host=127.0.0.1 --username=postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-rust-tests
-        with:
-          cargo-build-name: database-contracts-windmill
-          cargo-build-path: packages/target
-          cargo-lock-path: packages/Cargo.lock
-      # The fixture that scripts/voting_flow/database.py builds for the
-      # regressions and for test_cast_vote_scalability.py --rust-tests.
-      - name: Load the voting-flow database fixture
-        env:
-          DATABASE_CONTAINER: ${{ job.services.postgres.id }}
-        run: |
-          fixture() {
-            docker exec --interactive "$DATABASE_CONTAINER" \
-              psql --username=postgres --no-psqlrc --quiet --set=ON_ERROR_STOP=1 "$@"
-          }
-          migrations=hasura/migrations/backend-db
-          fixture < scripts/voting_flow/schema.sql
-          fixture --single-transaction < "$migrations/1788765000000_serialize_cast_vote_area_checks/up.sql"
-          fixture --command='CREATE TRIGGER check_revote_limit_trigger
-            BEFORE INSERT ON sequent_backend.cast_vote
-            FOR EACH ROW EXECUTE FUNCTION check_revote_limit()'
-          fixture --single-transaction < "$migrations/1788765000002_materialize_voting_windows/up.sql"
-          fixture --single-transaction < "$migrations/1789420000001_voting_windows_follow_channels/up.sql"
-      - name: Run the ignored insert_cast_vote PostgreSQL tests
-        working-directory: packages
-        run: |
-          cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored \
-            | tee "$RUNNER_TEMP/windmill-database.log"
-          # An empty filter also succeeds; require that the tests actually ran.
-          grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/windmill-database.log"
