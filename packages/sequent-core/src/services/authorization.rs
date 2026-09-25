@@ -44,12 +44,33 @@ impl VoterClient {
     }
 }
 
+const SUPER_ADMIN_TENANT_ID: &str = "SUPER_ADMIN_TENANT_ID";
+
 #[instrument(skip(claims))]
 pub fn authorize(
     claims: &JwtClaims,
     allow_super_admin_auth: bool, // Allow authorizing super admin tenant
     tenant_id_opt: Option<String>,
     permissions: Vec<Permissions>,
+) -> Result<(), (Status, String)> {
+    authorize_with(
+        claims,
+        allow_super_admin_auth,
+        tenant_id_opt,
+        permissions,
+        || env::var(SUPER_ADMIN_TENANT_ID).ok(),
+    )
+}
+
+/// `authorize`, asking `super_admin_tenant_id` for the super admin tenant
+/// instead of the environment. It is only asked when super admins are allowed
+/// and the requested tenant is not the caller's own.
+pub fn authorize_with(
+    claims: &JwtClaims,
+    allow_super_admin_auth: bool,
+    tenant_id_opt: Option<String>,
+    permissions: Vec<Permissions>,
+    super_admin_tenant_id: impl FnOnce() -> Option<String>,
 ) -> Result<(), (Status, String)> {
     // Verify tenant id
     let allowed = match (tenant_id_opt.clone(), allow_super_admin_auth) {
@@ -60,11 +81,11 @@ pub fn authorize(
         }
 
         (_, true) => {
-            let super_admin_tenant_id = env::var("SUPER_ADMIN_TENANT_ID")
-                .map_err(|_| {
+            let super_admin_tenant_id =
+                super_admin_tenant_id().ok_or_else(|| {
                     (
                         Status::Unauthorized,
-                        format!("SUPER_ADMIN_TENANT_ID must be set"),
+                        format!("{SUPER_ADMIN_TENANT_ID} must be set"),
                     )
                 })?;
             info!("super_admin_tenant_id: {super_admin_tenant_id}");
