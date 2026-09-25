@@ -108,7 +108,12 @@ export const test = base.extend<
             test: true,
         }
         graphql.on("GetTenantById", () => ({data: {sequent_backend_tenant: [tenant]}}))
-        graphql.on("sequent_backend_tenant", () => ({data: {sequent_backend_tenant: [tenant]}}))
+        graphql.on("sequent_backend_tenant", () => ({
+            data: {
+                sequent_backend_tenant: [tenant],
+                sequent_backend_tenant_aggregate: {aggregate: {count: 1}},
+            },
+        }))
         graphql.on("election_events_tree", () => ({data: {sequent_backend_election_event: []}}))
         graphql.on("sequent_backend_election_event", () => ({
             data: {
