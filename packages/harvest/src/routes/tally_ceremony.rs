@@ -598,3 +598,7 @@ mod tally_error_tests {
 #[cfg(test)]
 #[path = "../../tests/support/tally_service_errors.rs"]
 mod tally_service_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_ceremony_routes.rs"]
+mod route_tests;

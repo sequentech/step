@@ -955,3 +955,7 @@ mod boundary_tests;
 #[cfg(test)]
 #[path = "../../tests/support/tally_import_errors.rs"]
 mod tally_import_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_sheet_routes.rs"]
+mod route_tests;

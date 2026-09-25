@@ -77,10 +77,11 @@ jobs:
       fail-fast: false
       matrix:
         profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native", "b4", "braid", "immudb-rs"]') }}
-    # Synthetic local fixture, shared with the ordinary Windmill test job.
+    # Synthetic local fixture, shared with the ordinary Windmill and Harvest
+    # test jobs.
     services:
       postgres:
-        image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill') && 'postgres:16' || '' }}
+        image: ${{ (matrix.profile == 'wrap-map-err' || matrix.profile == 'windmill' || matrix.profile == 'harvest') && 'postgres:16' || '' }}
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
@@ -94,6 +95,16 @@ jobs:
           --health-retries 5
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
+      # Harvest's route tests reach the service above through the same
+      # settings as its ordinary test job. Other profiles do not read them.
+      KEYCLOAK_DB__PORT: "3322"
+      KEYCLOAK_DB__USER: "test"
+      KEYCLOAK_DB__PASSWORD: "test"
+      KEYCLOAK_DB__DBNAME: "test"
+      HASURA_DB__PORT: "3322"
+      HASURA_DB__USER: "test"
+      HASURA_DB__PASSWORD: "test"
+      HASURA_DB__DBNAME: "test"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

@@ -33,6 +33,10 @@ mod request_boundaries;
 #[path = "../tests/support/error_contracts.rs"]
 mod error_contracts;
 
+#[cfg(test)]
+#[path = "../tests/support/route_services.rs"]
+mod route_services;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();

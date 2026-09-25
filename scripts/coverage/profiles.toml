@@ -150,7 +150,8 @@ features = []
 limitations = [
     "Native tests with declared default dependencies, including Windmill's default FIPS feature selection.",
     "Request-boundary tests use Rocket's local client; they do not start service workers or verify identity-provider signatures.",
-    "Database, Keycloak, broker, storage and complete successful service workflows require local integration fixtures before claiming their coverage.",
+    "Route tests run against a private migrated database on the PostgreSQL server HASURA_DB__* names, with in-memory task ledger, broker and storage and a local Keycloak stand-in.",
+    "Deployed Keycloak, RabbitMQ, S3, ImmuDB and complete worker-side workflows remain outside this profile.",
     "Existing inline unit tests contribute to LLVM source counters; branch and deployment coverage are separate scopes.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
@@ -171,8 +172,8 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 "src/types/optional.rs" = "Struct and derives only; no handwritten executable methods or LLVM line regions."
 "src/routes/manual_verification_pdf.rs" = "Not declared in routes/mod.rs or mounted in main.rs, so this source is not part of the native binary. No runtime coverage claim is made for it."
 
-# Only parsing configuration is required here; Harvest's native tests do not
-# connect to these endpoints. A complete service fixture is a separate profile.
+# The route tests' database server comes from the ambient HASURA_DB__* and
+# KEYCLOAK_DB__* settings, as in the ordinary test job; only the host is fixed.
 [profiles.harvest.test_environment]
 KEYCLOAK_DB__HOST = "127.0.0.1"
 HASURA_DB__HOST = "127.0.0.1"
