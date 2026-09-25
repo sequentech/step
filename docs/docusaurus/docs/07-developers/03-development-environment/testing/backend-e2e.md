@@ -9,7 +9,7 @@ The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, ImmuDB,
 MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 
-From the repository root, with Docker Engine and Compose 2.24.4 or newer:
+From the repository root, with Python 3, Docker Engine and Compose 2.24.4 or newer:
 
 ```bash
 scripts/e2e/run.sh
@@ -19,8 +19,7 @@ DOCKER="sudo docker" scripts/e2e/run.sh
 
 The first run builds the service images and Rust binaries in the same container
 image that executes them. Allow at least 8 GB RAM and 40 GB free disk space; use
-`CARGO_BUILD_JOBS=1` on smaller machines. No host Rust, Node or Python installation
-is needed. The runner uses development credentials from `.env.development` and
+`CARGO_BUILD_JOBS=1` on smaller machines. No host Rust or Node installation is needed. Python 3 holds the project lock. The runner uses development credentials from `.env.development` and
 creates a uniquely named `step-e2e-...` Compose project without publishing host ports. It
 removes that project's containers and volumes when finished.
 
@@ -58,3 +57,5 @@ results, with valid controls for rejection cases.
 
 Every journey must pass. Errors, skipped journeys and expected failures all fail
 the run; a green result means the complete selected sequence passed.
+
+Concurrent launchers using the same explicit project on this host and user fail before touching Docker, even from different checkouts. A process-held project lock covers startup through cleanup and also protects `--down`; it releases automatically when the launcher exits. Runs on separate hosts or under different users must use distinct project names.
