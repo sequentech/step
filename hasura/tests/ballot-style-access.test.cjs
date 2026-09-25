@@ -4,7 +4,7 @@ const {test} = require("node:test")
 const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
-const yaml = require("../../packages/node_modules/js-yaml")
+const yaml = require("js-yaml")
 
 const metadata = yaml.load(
     readFileSync(
@@ -17,7 +17,9 @@ const metadata = yaml.load(
 )
 
 test("voter ballot reads require a live published style within every JWT scope", () => {
-    const {permission} = metadata.select_permissions.find(({role}) => role === "user")
+    const {permission} = metadata.select_permissions.find(
+        ({role}) => role === "user"
+    )
     assert.deepEqual(permission.filter, {
         _and: [
             {election_event_id: {_eq: "X-Hasura-Election-Event-Id"}},
@@ -54,7 +56,9 @@ test("publication eligibility cannot be borrowed from another tenant or event", 
 
 test("publication managers retain tenant-scoped access to drafts and deleted styles", () => {
     for (const role of ["admin-user", "publish-read", "publish-write"]) {
-        const {permission} = metadata.select_permissions.find((item) => item.role === role)
+        const {permission} = metadata.select_permissions.find(
+            (item) => item.role === role
+        )
         assert.deepEqual(permission.filter, {
             tenant_id: {_eq: "X-Hasura-Tenant-Id"},
         })
