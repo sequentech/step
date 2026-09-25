@@ -60,11 +60,17 @@ export const test = base.extend<{journeyCoverage: void}, {coverageRecorder: Cove
         {scope: "worker"},
     ],
     journeyCoverage: [
-        async ({page, browserName, coverageRecorder}, use) => {
+        async ({page, browserName, coverageRecorder}, use, testInfo) => {
             if (!journeyCoverage || browserName !== "chromium") return use()
             await page.coverage.startJSCoverage({resetOnNavigation: false})
             await use()
-            if (!page.isClosed()) coverageRecorder.add(await page.coverage.stopJSCoverage())
+            if (page.isClosed()) return
+            try {
+                coverageRecorder.add(await page.coverage.stopJSCoverage())
+            } catch (error) {
+                // A crashed page has no coverage to stop; the test reports its own failure.
+                console.warn(`No journey coverage for "${testInfo.title}": ${String(error)}`)
+            }
         },
         {auto: true},
     ],
