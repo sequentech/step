@@ -1011,7 +1011,7 @@ async fn insert_secret_writes_and_returns_the_secret() {
 }
 
 #[tokio::test]
-async fn insert_secret_rejects_a_key_used_by_any_tenant_with_a_scheduled_event_message() {
+async fn insert_secret_rejects_a_key_used_by_any_tenant() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -1020,15 +1020,12 @@ async fn insert_secret_rejects_a_key_used_by_any_tenant_with_a_scheduled_event_m
     let key = format!("key-{}", f.id());
     insert_raw_secret(&tx, f.id(), other.tenant, None, &key).await;
 
-    // Keys are unique across tenants; the error names scheduled events.
+    // Keys are unique across tenants.
     let error = secret::insert_secret(&tx, &a.tenant_id(), None, &key, &vec![1])
         .await
         .unwrap_err();
 
-    assert_eq!(
-        error.to_string(),
-        "Error inserting scheduled event: db error"
-    );
+    assert_eq!(error.to_string(), "Error inserting secret: db error");
     tx.rollback().await.unwrap();
 }
 
