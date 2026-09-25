@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 FAKE_DOCKER = r"""#!/usr/bin/env python3
-import json, os, sys, time
+import fcntl, json, os, sys, time
 from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_DOCKER_LOG"], "a") as output:
@@ -26,6 +26,19 @@ if args[0] != "compose":
     if args[0] == "run" and any(arg.endswith(":/coverage") for arg in args):
         sys.exit(23 if mode == "coverage-failure" else 0)
     if args[0] == "run":
+        if mode == "project-lock-check":
+            descriptor = int(os.environ["STEP_E2E_PROJECT_LOCK_FD"])
+            actual = os.fstat(descriptor)
+            expected = Path(os.environ["FAKE_PROJECT_LOCK"]).stat()
+            if (actual.st_dev, actual.st_ino) != (expected.st_dev, expected.st_ino):
+                sys.exit(102)
+            with open(os.environ["FAKE_PROJECT_LOCK"], "a") as competing:
+                try:
+                    fcntl.flock(competing, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    pass
+                else:
+                    sys.exit(103)
         if mode == "build-failure":
             sys.exit(101)
         # Emulate the build container's install(1): each file in /out becomes a
@@ -215,6 +228,35 @@ class RunSafety(unittest.TestCase):
                 self.assertTrue(Path(out[: -len(":/out")]).is_absolute(), out)
                 published = caller / configured / "windmill"
                 self.assertEqual(published.read_text(), "new windmill")
+
+    def test_build_preserves_an_inherited_project_lock_on_either_fixed_descriptor(self):
+        for descriptor in (8, 9):
+            with self.subTest(descriptor=descriptor):
+                result = subprocess.run(
+                    [
+                        "bash",
+                        "-c",
+                        f'exec {descriptor}>>"$1"; flock {descriptor}; exec bash "$2"',
+                        "project-lock-holder",
+                        str(self.root / "project.lock"),
+                        str(self.root / "scripts/e2e/build.sh"),
+                    ],
+                    env={
+                        **self.env,
+                        "STEP_E2E_PROJECT_LOCK_FD": str(descriptor),
+                        "FAKE_PROJECT_LOCK": str(self.root / "project.lock"),
+                        "FAKE_DOCKER_MODE": "project-lock-check",
+                    },
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    (self.root / ".cache/backend-e2e/bin/windmill").read_text(),
+                    "new windmill",
+                )
 
     def test_concurrent_builds_take_turns_and_publish_complete_binaries(self):
         binaries = self.root / "shared-bin"
