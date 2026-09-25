@@ -392,7 +392,7 @@ export class OidcMock {
             if (!pending || pending.realm !== realm.name) {
                 return fail("unknown code")
             }
-            if (pending.used || pending.expiresAt < this.nowSecs()) {
+            if (pending.used || pending.expiresAt <= this.nowSecs()) {
                 return fail("code already used or expired")
             }
             pending.used = true
