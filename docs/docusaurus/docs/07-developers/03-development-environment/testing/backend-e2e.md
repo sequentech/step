@@ -34,7 +34,9 @@ STEP_E2E_PROJECT=my-e2e scripts/e2e/run.sh --down
 
 `-k` runs through the last matching test, including its prerequisites. Skipping
 images or binaries is appropriate only while their sources are unchanged.
-`--keep` retains the stack for diagnosis; the next run still starts fresh.
+`--keep` retains the stack for diagnosis. To reuse an explicit project name, first
+remove that retained stack with `STEP_E2E_PROJECT=<name> scripts/e2e/run.sh --down`;
+a default invocation chooses a new name automatically.
 `STEP_E2E_PROJECT` selects an explicit project name. Starting a project that already
 has Compose containers, networks or volumes fails without deleting them. `--down`
 requires an explicit project name; use the name printed at startup to remove a
