@@ -71,6 +71,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Check voting fixture ownership and cleanup contracts
+        run: python3 -m unittest scripts.voting_flow.test_castvote_fixture -v
       - name: Build the PostgreSQL 18 harness image
         run: docker build --tag voting-flow-harness scripts/voting_flow
       - name: Voting-flow regressions

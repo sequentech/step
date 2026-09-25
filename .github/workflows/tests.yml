@@ -148,7 +148,7 @@ jobs:
 
       - name: Remove the voting-flow database fixture
         if: always() && steps.castvote-fixture.outputs.created == 'true'
-        run: docker rm --force step-castvote-fixture
+        run: docker rm --force --volumes step-castvote-fixture
 
   # ===========================================================================
   # JOB: run-frontend-tests

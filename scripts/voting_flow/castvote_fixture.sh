@@ -8,7 +8,7 @@
 #
 #   export CAST_VOTE_TEST_DATABASE_URL=$(../scripts/voting_flow/castvote_fixture.sh)
 #   cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --ignored
-#   docker rm --force step-castvote-fixture
+#   docker rm --force --volumes step-castvote-fixture
 #
 # Usage: scripts/voting_flow/castvote_fixture.sh [container-name] [host-port]
 # An existing container with the same name is left untouched. Without a port,
@@ -27,7 +27,7 @@ docker create --name "$name" --publish "127.0.0.1:$port:5432" \
     postgres:18-bookworm -c shared_preload_libraries=pg_stat_statements >/dev/null
 cleanup_on_error() {
     if [ "$?" -ne 0 ]; then
-        docker rm --force "$name" >/dev/null 2>&1 || true
+        docker rm --force --volumes "$name" >/dev/null 2>&1 || true
     fi
 }
 trap cleanup_on_error EXIT
