@@ -24,9 +24,11 @@ with patch.dict(
     },
 ):
     driver = importlib.import_module("scripts.e2e.journeys.__main__")
+summary = importlib.import_module("scripts.e2e.summary")
+ROOT = Path(__file__).resolve().parents[2]
 
 
-class RunnerContracts(unittest.TestCase):
+class DriverOutput(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -42,6 +44,8 @@ class RunnerContracts(unittest.TestCase):
         with patch.object(driver.test_journeys, "BackendJourneys", case):
             return driver.run_tests(pattern)
 
+
+class RunnerContracts(DriverOutput):
     def test_filter_runs_prerequisites_and_records_only_the_selected_sequence(self):
         observed = []
 
@@ -100,6 +104,57 @@ class RunnerContracts(unittest.TestCase):
                 self.assertEqual(self.run_case(case), 1)
                 records = json.loads((self.output / "journeys.json").read_text())
                 self.assertEqual([record["outcome"] for record in records], [outcome])
+
+
+class SummaryContracts(DriverOutput):
+    def test_summary_tables_every_recorded_journey_and_check_with_totals(self):
+        class Journeys(unittest.TestCase):
+            def test_1_import(self):
+                pass
+
+            def test_2_tally(self):
+                self.fail("expected 3 | got 2\nsecond line")
+
+        self.assertEqual(self.run_case(Journeys), 1)
+        (self.output / "bootstrap.json").write_text(
+            json.dumps({"seconds": {"tenant row": 2.0, "trustees registered": 9.5}})
+        )
+        (self.output / "coverage").mkdir()
+        (self.output / "coverage/summary.md").write_text("### Coverage table\n")
+        text = summary.render(self.output)
+        self.assertIn("| bootstrap | pass | 9.5 s | |", text)
+        self.assertRegex(text, r"\| `test_1_import` \| pass \| \d+\.\d s \|")
+        self.assertRegex(
+            text, r"\| `test_2_tally` \| \*\*fail\*\* \| .* expected 3 \\\| got 2 \|"
+        )
+        self.assertNotIn("second line", text)
+        self.assertIn("**Failed:** 2 journeys (1 pass, 1 fail)", text)
+        self.assertTrue(text.rstrip().endswith("### Coverage table"))
+
+        self.assertEqual(self.run_case(Journeys, "import"), 0)
+        self.assertIn("**Passed:** 1 journeys (1 pass)", summary.render(self.output))
+
+    def test_summary_explains_a_run_without_results(self):
+        for directory in (self.output, self.output / "never-created"):
+            with self.subTest(directory=directory.name):
+                text = summary.render(directory)
+                self.assertIn("No journey results", text)
+                self.assertNotIn("| Journey", text)
+        with patch("sys.argv", ["summary.py", str(self.output)]):
+            summary.main()
+        self.assertIn("No journey results", (self.output / "summary.md").read_text())
+
+    def test_ci_summarizes_and_uploads_results_after_every_outcome(self):
+        workflow = (ROOT / ".github/workflows/backend-e2e.yml").read_text()
+        step = workflow[workflow.index("name: Summarize the journey results") :]
+        step = step[: step.index("- name:")]
+        self.assertIn("if: always()", step)
+        command = "python3 scripts/e2e/summary.py .cache/backend-e2e/run"
+        self.assertIn(f'{command} >> "$GITHUB_STEP_SUMMARY"', step)
+        upload = workflow[workflow.index("name: Upload the results summary") :]
+        self.assertIn("hashFiles('.cache/backend-e2e/run/summary.md') != ''", upload)
+        for name in ("summary.md", "journeys.json", "coverage/summary.json"):
+            self.assertIn(f".cache/backend-e2e/run/{name}", upload)
 
 
 if __name__ == "__main__":

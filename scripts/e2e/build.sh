@@ -6,6 +6,9 @@
 # the same bookworm cargo-packages image the stack runs them in, so the host's
 # glibc does not matter.
 #
+# STEP_E2E_COVERAGE=1     instrument the workspace crates for source-based coverage
+#                         (scripts/e2e/coverage-rustc); uses a coverage/ tree in the
+#                         cargo target and defaults the output to bin-coverage
 # STEP_E2E_RUNTIME_IMAGE  image to build in (default step-backend-e2e-cargo-packages:local)
 # STEP_E2E_BIN_DIR        output directory (default .cache/backend-e2e/bin); builds
 #                         into one directory take turns (flock) and replace each
@@ -19,7 +22,11 @@ set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 IMAGE=${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
-BIN_DIR=${STEP_E2E_BIN_DIR:-$ROOT/.cache/backend-e2e/bin}
+COVERAGE=${STEP_E2E_COVERAGE:-0}
+[[ "$COVERAGE" == [01] ]] || { echo 'STEP_E2E_COVERAGE must be 0 or 1' >&2; exit 2; }
+default_bin=$ROOT/.cache/backend-e2e/bin
+[[ "$COVERAGE" == 1 ]] && default_bin+=-coverage
+BIN_DIR=${STEP_E2E_BIN_DIR:-$default_bin}
 TARGET=${STEP_E2E_CARGO_TARGET:-step-e2e-cargo-target}
 CARGO_CACHE=${STEP_E2E_CARGO_HOME:-step-e2e-cargo-home}
 DOCKER=${DOCKER:-docker}
@@ -54,7 +61,7 @@ $DOCKER run --rm \
     --volume "$git_cache:/usr/local/cargo/git" \
     --volume "$STAGING:/out" \
     --workdir /workspaces/step/packages \
-    --env CARGO_TARGET_DIR=/cargo-target \
+    --env STEP_E2E_COVERAGE="$COVERAGE" \
     --env CARGO_INCREMENTAL=0 \
     --env CARGO_PROFILE_DEV_DEBUG=line-tables-only \
     --env CARGO_TERM_COLOR=never \
@@ -64,6 +71,17 @@ $DOCKER run --rm \
     --env OUT_GID="$(id -g)" \
     "$IMAGE" bash -euo pipefail -c '
         [[ -n "$CARGO_BUILD_JOBS" ]] || unset CARGO_BUILD_JOBS
+        export CARGO_TARGET_DIR=/cargo-target
+        if [[ "$STEP_E2E_COVERAGE" == 1 ]]; then
+            # Cargo fingerprints neither the wrapper nor its flags: keep instrumented
+            # artifacts apart and start over whenever the wrapper changes.
+            export CARGO_TARGET_DIR=/cargo-target/coverage
+            export RUSTC_WORKSPACE_WRAPPER=/workspaces/step/scripts/e2e/coverage-rustc
+            stamp=$(sha256sum < "$RUSTC_WORKSPACE_WRAPPER")
+            [[ "$(cat "$CARGO_TARGET_DIR/.wrapper" 2>/dev/null)" == "$stamp" ]] || rm -rf "$CARGO_TARGET_DIR"
+            mkdir -p "$CARGO_TARGET_DIR"
+            printf "%s\n" "$stamp" > "$CARGO_TARGET_DIR/.wrapper"
+        fi
         build() { echo "::group::cargo build $*"; cargo build --locked "$@"; echo "::endgroup::"; }
         build -p windmill --bin main --bin beat
         build -p harvest --bin harvest
@@ -71,13 +89,13 @@ $DOCKER run --rm \
         build -p step-cli --bin step-cli
         build --release -p b4 --bin b4 --features native
         build --release -p braid --bin main
-        install -m 0755 /cargo-target/debug/main /out/windmill
-        install -m 0755 /cargo-target/debug/beat /out/beat
-        install -m 0755 /cargo-target/debug/harvest /out/harvest
-        install -m 0755 /cargo-target/debug/bb_helper /out/bb_helper
-        install -m 0755 /cargo-target/debug/step-cli /out/step-cli
-        install -m 0755 /cargo-target/release/b4 /out/b4
-        install -m 0755 /cargo-target/release/main /out/trustee
+        install -m 0755 "$CARGO_TARGET_DIR/debug/main" /out/windmill
+        install -m 0755 "$CARGO_TARGET_DIR/debug/beat" /out/beat
+        install -m 0755 "$CARGO_TARGET_DIR/debug/harvest" /out/harvest
+        install -m 0755 "$CARGO_TARGET_DIR/debug/bb_helper" /out/bb_helper
+        install -m 0755 "$CARGO_TARGET_DIR/debug/step-cli" /out/step-cli
+        install -m 0755 "$CARGO_TARGET_DIR/release/b4" /out/b4
+        install -m 0755 "$CARGO_TARGET_DIR/release/main" /out/trustee
         chown "$OUT_UID:$OUT_GID" /out/*
     '
 # Same-directory renames: a service starting now executes a complete old or new

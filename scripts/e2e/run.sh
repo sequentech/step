@@ -18,12 +18,22 @@
 #   STEP_E2E_OUTPUT_DIR    logs/results (default .cache/backend-e2e/<project>)
 #   STEP_E2E_BIN_DIR       binaries (default .cache/backend-e2e/bin)
 #   STEP_E2E_PORTS=1       also publish Hasura, Keycloak and MinIO on 127.0.0.1
+#   STEP_E2E_COVERAGE=1    instrumented binaries (default .cache/backend-e2e/bin-coverage);
+#                          after the journeys the services stop and <output>/coverage
+#                          gets per-package coverage (scripts/e2e/coverage.py)
 #   and the build settings documented in scripts/e2e/build.sh
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 DOCKER=${DOCKER:-docker}
-export STEP_E2E_BIN_DIR=${STEP_E2E_BIN_DIR:-$ROOT/.cache/backend-e2e/bin}
+RUNTIME_IMAGE=${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+export STEP_E2E_COVERAGE=${STEP_E2E_COVERAGE:-0}
+[[ "$STEP_E2E_COVERAGE" == [01] ]] || { echo 'STEP_E2E_COVERAGE must be 0 or 1' >&2; exit 2; }
+coverage=false
+[[ "$STEP_E2E_COVERAGE" == 1 ]] && coverage=true
+default_bin=$ROOT/.cache/backend-e2e/bin
+$coverage && default_bin+=-coverage
+export STEP_E2E_BIN_DIR=${STEP_E2E_BIN_DIR:-$default_bin}
 DEVCONTAINER=$ROOT/.devcontainer
 SERVICES=(
     devcontainer postgres postgres-keycloak postgres-b4 minio configure-minio rabbitmq
@@ -31,6 +41,8 @@ SERVICES=(
     trustee1 trustee2
 )
 IMAGES=(postgres postgres-b4 minio configure-minio keycloak harvest)
+# Services with an LLVM_PROFILE_FILE in docker-compose-ci-coverage.yml.
+INSTRUMENTED=(immudb-init harvest windmill beat b4 trustee1 trustee2)
 
 original_args=("$@")
 keep=false images=true build=true down_only=false pattern=()
@@ -43,12 +55,16 @@ while (($#)); do
         -k)
             [[ $# -ge 2 && -n "$2" ]] || { echo '-k requires a pattern' >&2; exit 2; }
             pattern=(-k "$2"); shift ;;
-        -h | --help) sed -n '5,22p' "$0"; exit 0 ;;
+        -h | --help) sed -n '5,25p' "$0"; exit 0 ;;
         *) echo "Unknown option $1" >&2; exit 2 ;;
     esac
     shift
 done
 
+if $coverage && $keep; then
+    echo 'Services write complete coverage profiles only when they stop; drop --keep' >&2
+    exit 2
+fi
 if $down_only && [[ -z "${STEP_E2E_PROJECT:-}" ]]; then
     echo '--down requires an explicit STEP_E2E_PROJECT; no stack was removed' >&2
     exit 2
@@ -103,6 +119,7 @@ EOF
 
 files=(-f "$DEVCONTAINER/docker-compose.yml" -f "$DEVCONTAINER/docker-compose-ci.yml")
 [[ "${STEP_E2E_PORTS:-}" == 1 ]] && files+=(-f "$DEVCONTAINER/docker-compose-ci-ports.yml")
+$coverage && files+=(-f "$DEVCONTAINER/docker-compose-ci-coverage.yml")
 compose() {
     $DOCKER compose --project-name "$PROJECT" \
         --env-file "$DEVCONTAINER/.env.development" --env-file "$OUTPUT/compose.env" \
@@ -114,6 +131,23 @@ collect_logs() {
     for service in "${SERVICES[@]}"; do
         compose logs --no-color --timestamps "$service" > "$OUTPUT/logs/$service.log" 2>&1 || true
     done
+}
+
+# The toolchain that built the binaries, plus its llvm-tools, merges the profiles.
+coverage_report() {
+    $DOCKER run --rm \
+        --volume "$ROOT:/workspaces/step:ro" \
+        --volume "$STEP_E2E_BIN_DIR:/opt/step-e2e/bin:ro" \
+        --volume "$OUTPUT/coverage:/coverage" \
+        --workdir /workspaces/step/packages \
+        --env OUT_UID="$(id -u)" \
+        --env OUT_GID="$(id -g)" \
+        "$RUNTIME_IMAGE" bash -euo pipefail -c '
+            trap "chown -R \"\$OUT_UID:\$OUT_GID\" /coverage" EXIT
+            rustup component add llvm-tools > /coverage/llvm-tools.log 2>&1 ||
+                { cat /coverage/llvm-tools.log >&2; exit 1; }
+            python3 /workspaces/step/scripts/e2e/coverage.py /coverage /opt/step-e2e/bin
+        '
 }
 
 teardown() {
@@ -135,8 +169,7 @@ if $images; then
 fi
 if $build; then
     phase "Building backend binaries"
-    STEP_E2E_RUNTIME_IMAGE=${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local} DOCKER=$DOCKER \
-        "$ROOT/scripts/e2e/build.sh"
+    STEP_E2E_RUNTIME_IMAGE=$RUNTIME_IMAGE DOCKER=$DOCKER "$ROOT/scripts/e2e/build.sh"
 fi
 
 # Builds may take several minutes: check again immediately before taking ownership.
@@ -147,6 +180,11 @@ trap 'collect_logs; $keep || teardown || true' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+if $coverage; then
+    # A reused output directory must not merge an earlier run's profiles.
+    rm -rf "$OUTPUT/coverage"
+    mkdir -p "$OUTPUT/coverage/profiles" "$OUTPUT/coverage/profdata"
+fi
 phase "Starting project $PROJECT; logs in $OUTPUT"
 printf '%s\n' "$PROJECT" > "$OUTPUT/$STARTED_MARKER"
 compose up --detach --wait --wait-timeout 900 "${SERVICES[@]}"
@@ -170,5 +208,14 @@ set +e
 compose run --rm --no-deps driver test ${pattern[@]+"${pattern[@]}"}
 status=$?
 set -e
+if $coverage; then
+    phase "Stopping the services so they write their coverage profiles"
+    reported=0
+    compose stop --timeout 120 "${INSTRUMENTED[@]}" || reported=$?
+    compose ps --all --format json > "$OUTPUT/coverage/services.json" || true
+    phase "Merging coverage profiles"
+    coverage_report || reported=$?
+    ((status)) || status=$reported
+fi
 phase "Finished with status $status; logs in $OUTPUT"
 exit "$status"
