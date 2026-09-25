@@ -3,18 +3,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::{
-    types::hasura_types::*,
-    utils::{
-        read_config::read_config,
-        tally::download_document::{download_file, fetch_document},
-        upload_file::GetUploadUrl,
+    adapters::{documents::HasuraDocuments, graphql::HasuraGraphql},
+    ports::{
+        documents::{Downloader, Uploader},
+        graphql::GraphqlClient,
     },
+    types::hasura_types::*,
 };
 use clap::{Args, Subcommand, ValueEnum};
 use colored::Colorize;
 use graphql_client::{GraphQLQuery, Response};
 use sequent_core::types::tally_sheets::VotingChannel;
-use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
@@ -364,6 +363,7 @@ impl CreateTallySheetCommand {
         };
 
         match create_tally_sheet(
+            &HasuraGraphql,
             &self.election_event_id,
             &self.area_id,
             &self.contest_id,
@@ -378,7 +378,12 @@ impl CreateTallySheetCommand {
 
 impl ReviewTallySheetCommand {
     fn run(&self) {
-        match review_tally_sheet(&self.election_event_id, &self.tally_sheet_id, self.status) {
+        match review_tally_sheet(
+            &HasuraGraphql,
+            &self.election_event_id,
+            &self.tally_sheet_id,
+            self.status,
+        ) {
             Ok(sheet) => print_json("Success! Reviewed tally sheet:", &sheet),
             Err(err) => eprintln!("Error! Failed to review tally sheet: {}", err),
         }
@@ -388,6 +393,7 @@ impl ReviewTallySheetCommand {
 impl PreviewTallySheetImportCommand {
     fn run(&self) {
         let document = match resolve_import_document(
+            &HasuraDocuments,
             &self.election_event_id,
             self.file_path.as_deref(),
             self.document_id.as_deref(),
@@ -402,6 +408,7 @@ impl PreviewTallySheetImportCommand {
         };
 
         match preview_tally_sheet_import(
+            &HasuraGraphql,
             &self.election_event_id,
             &document.document_id,
             document.sha256.as_deref(),
@@ -420,6 +427,7 @@ impl PreviewTallySheetImportCommand {
 impl CreateTallySheetImportCommand {
     fn run(&self) {
         let document = match resolve_import_document(
+            &HasuraDocuments,
             &self.election_event_id,
             self.file_path.as_deref(),
             self.document_id.as_deref(),
@@ -434,6 +442,7 @@ impl CreateTallySheetImportCommand {
         };
 
         match create_tally_sheet_import(
+            &HasuraGraphql,
             &self.election_event_id,
             &document.document_id,
             document.sha256.as_deref(),
@@ -451,7 +460,12 @@ impl CreateTallySheetImportCommand {
 
 impl ReviewTallySheetImportCommand {
     fn run(&self) {
-        match review_tally_sheet_import(&self.election_event_id, &self.import_id, self.decision) {
+        match review_tally_sheet_import(
+            &HasuraGraphql,
+            &self.election_event_id,
+            &self.import_id,
+            self.decision,
+        ) {
             Ok(import) => print_json("Success! Reviewed tally sheet import:", &import),
             Err(err) => eprintln!("Error! Failed to review tally sheet import: {}", err),
         }
@@ -460,7 +474,7 @@ impl ReviewTallySheetImportCommand {
 
 impl ListTallySheetImportsCommand {
     fn run(&self) {
-        match list_tally_sheet_imports(&self.election_event_id, self.limit) {
+        match list_tally_sheet_imports(&HasuraGraphql, &self.election_event_id, self.limit) {
             Ok(imports) => print_json("Success! Tally sheet imports:", &imports),
             Err(err) => eprintln!("Error! Failed to list tally sheet imports: {}", err),
         }
@@ -469,7 +483,7 @@ impl ListTallySheetImportsCommand {
 
 impl ShowTallySheetImportCommand {
     fn run(&self) {
-        match get_tally_sheet_import(&self.election_event_id, &self.import_id) {
+        match get_tally_sheet_import(&HasuraGraphql, &self.election_event_id, &self.import_id) {
             Ok(import) => print_json("Success! Tally sheet import:", &import),
             Err(err) => eprintln!("Error! Failed to show tally sheet import: {}", err),
         }
@@ -479,6 +493,8 @@ impl ShowTallySheetImportCommand {
 impl DownloadTallySheetImportSourceCommand {
     fn run(&self) {
         match download_tally_sheet_import_source(
+            &HasuraGraphql,
+            &HasuraDocuments,
             &self.election_event_id,
             &self.import_id,
             &self.output_dir,
@@ -498,7 +514,7 @@ impl DownloadTallySheetImportSourceCommand {
 
 impl RecountTallySessionCommand {
     fn run(&self) {
-        match recount_tally_session(&self.election_event_id, &self.tally_id) {
+        match recount_tally_session(&HasuraGraphql, &self.election_event_id, &self.tally_id) {
             Ok(tally_id) => {
                 println!(
                     "{} {}",
@@ -525,6 +541,7 @@ impl ConvertEssXmlCommand {
 }
 
 pub fn create_tally_sheet(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     area_id: &str,
     contest_id: &str,
@@ -539,7 +556,7 @@ pub fn create_tally_sheet(
         area_id: area_id.to_string(),
     };
     let request_body = CreateNewTallySheet::build_query(variables);
-    let data: create_new_tally_sheet::ResponseData = response_data(post_graphql(&request_body)?)?;
+    let data: create_new_tally_sheet::ResponseData = response_data(graphql.post(&request_body)?)?;
     let sheet = data
         .create_new_tally_sheet
         .ok_or("failed creating tally sheet")?;
@@ -548,6 +565,7 @@ pub fn create_tally_sheet(
 }
 
 pub fn review_tally_sheet(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     tally_sheet_id: &str,
     status: TallySheetStatusArg,
@@ -558,7 +576,7 @@ pub fn review_tally_sheet(
         new_status: status.as_str().to_string(),
     };
     let request_body = ReviewTallySheet::build_query(variables);
-    let data: review_tally_sheet::ResponseData = response_data(post_graphql(&request_body)?)?;
+    let data: review_tally_sheet::ResponseData = response_data(graphql.post(&request_body)?)?;
     let sheet = data
         .review_tally_sheet
         .ok_or("failed reviewing tally sheet")?;
@@ -567,6 +585,7 @@ pub fn review_tally_sheet(
 }
 
 pub fn preview_tally_sheet_import(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     document_id: &str,
     sha256: Option<&str>,
@@ -582,7 +601,7 @@ pub fn preview_tally_sheet_import(
     };
     let request_body = PreviewTallySheetImport::build_query(variables);
     let data: preview_tally_sheet_import::ResponseData =
-        response_data(post_graphql(&request_body)?)?;
+        response_data(graphql.post(&request_body)?)?;
     let preview = data
         .preview_tally_sheet_import
         .ok_or("failed previewing tally sheet import")?
@@ -592,6 +611,7 @@ pub fn preview_tally_sheet_import(
 }
 
 pub fn create_tally_sheet_import(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     document_id: &str,
     sha256: Option<&str>,
@@ -607,7 +627,7 @@ pub fn create_tally_sheet_import(
     };
     let request_body = CreateTallySheetImport::build_query(variables);
     let data: create_tally_sheet_import::ResponseData =
-        response_data(post_graphql(&request_body)?)?;
+        response_data(graphql.post(&request_body)?)?;
     let import = data
         .create_tally_sheet_import
         .ok_or("failed creating tally sheet import")?
@@ -617,6 +637,7 @@ pub fn create_tally_sheet_import(
 }
 
 pub fn review_tally_sheet_import(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     import_id: &str,
     decision: TallySheetImportDecisionArg,
@@ -628,7 +649,7 @@ pub fn review_tally_sheet_import(
     };
     let request_body = ReviewTallySheetImport::build_query(variables);
     let data: review_tally_sheet_import::ResponseData =
-        response_data(post_graphql(&request_body)?)?;
+        response_data(graphql.post(&request_body)?)?;
     let import = data
         .review_tally_sheet_import
         .ok_or("failed reviewing tally sheet import")?
@@ -638,6 +659,7 @@ pub fn review_tally_sheet_import(
 }
 
 pub fn list_tally_sheet_imports(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     limit: i64,
 ) -> Result<Value, Box<dyn Error>> {
@@ -646,7 +668,7 @@ pub fn list_tally_sheet_imports(
         limit,
     };
     let request_body = ListTallySheetImports::build_query(variables);
-    let data: list_tally_sheet_imports::ResponseData = response_data(post_graphql(&request_body)?)?;
+    let data: list_tally_sheet_imports::ResponseData = response_data(graphql.post(&request_body)?)?;
 
     Ok(serde_json::to_value(
         data.sequent_backend_tally_sheet_import,
@@ -654,6 +676,7 @@ pub fn list_tally_sheet_imports(
 }
 
 pub fn get_tally_sheet_import(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     import_id: &str,
 ) -> Result<Value, Box<dyn Error>> {
@@ -662,7 +685,7 @@ pub fn get_tally_sheet_import(
         import_id: ::uuid::Uuid::parse_str(import_id)?.to_string(),
     };
     let request_body = GetTallySheetImport::build_query(variables);
-    let data: get_tally_sheet_import::ResponseData = response_data(post_graphql(&request_body)?)?;
+    let data: get_tally_sheet_import::ResponseData = response_data(graphql.post(&request_body)?)?;
     let tally_sheet_import = data
         .sequent_backend_tally_sheet_import
         .into_iter()
@@ -673,11 +696,13 @@ pub fn get_tally_sheet_import(
 }
 
 pub fn download_tally_sheet_import_source(
+    graphql: &impl GraphqlClient,
+    downloader: &impl Downloader,
     election_event_id: &str,
     import_id: &str,
     output_dir: &Path,
 ) -> Result<PathBuf, Box<dyn Error>> {
-    let tally_sheet_import = get_tally_sheet_import(election_event_id, import_id)?;
+    let tally_sheet_import = get_tally_sheet_import(graphql, election_event_id, import_id)?;
     let document_id = tally_sheet_import
         .get("source_document_id")
         .and_then(Value::as_str)
@@ -690,13 +715,13 @@ pub fn download_tally_sheet_import_source(
         .map(String::from)
         .unwrap_or_else(|| format!("tally-sheet-import-{import_id}"));
     let output_path = output_dir.join(file_name);
-    let document = fetch_document(election_event_id, document_id)?;
-    download_file(&document.url, &output_path.to_string_lossy())?;
+    downloader.download(election_event_id, document_id, &output_path)?;
 
     Ok(output_path)
 }
 
 pub fn recount_tally_session(
+    graphql: &impl GraphqlClient,
     election_event_id: &str,
     tally_id: &str,
 ) -> Result<String, Box<dyn Error>> {
@@ -705,7 +730,7 @@ pub fn recount_tally_session(
         tally_session_id: ::uuid::Uuid::parse_str(tally_id)?.to_string(),
     };
     let request_body = RecountTallySession::build_query(variables);
-    let data: recount_tally_session::ResponseData = response_data(post_graphql(&request_body)?)?;
+    let data: recount_tally_session::ResponseData = response_data(graphql.post(&request_body)?)?;
     let output = data
         .recount_tally_session
         .ok_or("failed recounting tally session")?;
@@ -741,6 +766,7 @@ struct ImportDocument {
 }
 
 fn resolve_import_document(
+    uploader: &impl Uploader,
     election_event_id: &str,
     file_path: Option<&Path>,
     document_id: Option<&str>,
@@ -762,11 +788,7 @@ fn resolve_import_document(
                     )));
                 }
             }
-            let uploaded_document_id = GetUploadUrl::upload_for_election_event(
-                path.to_string_lossy().to_string(),
-                is_local,
-                Some(election_event_id.to_string()),
-            )?;
+            let uploaded_document_id = uploader.upload(path, is_local, election_event_id)?;
 
             Ok(ImportDocument {
                 document_id: uploaded_document_id,
@@ -822,31 +844,6 @@ fn normalize_sha256(value: Option<&str>) -> Result<Option<String>, Box<dyn Error
     }
 
     Ok(Some(normalized))
-}
-
-fn post_graphql<T, B>(request_body: &B) -> Result<Response<T>, Box<dyn Error>>
-where
-    T: DeserializeOwned,
-    B: Serialize + ?Sized,
-{
-    let config = read_config()?;
-    let client = reqwest::blocking::Client::new();
-    let response = client
-        .post(&config.endpoint_url)
-        .bearer_auth(config.auth_token)
-        .json(request_body)
-        .send()?;
-
-    if response.status().is_success() {
-        Ok(response.json()?)
-    } else {
-        let status = response.status();
-        let error_message = response.text()?;
-        Err(Box::from(format!(
-            "HTTP Status: {}\nError Message: {}",
-            status, error_message
-        )))
-    }
 }
 
 fn response_data<T>(response_body: Response<T>) -> Result<T, Box<dyn Error>> {

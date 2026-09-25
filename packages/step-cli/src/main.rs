@@ -2,9 +2,11 @@
 // //
 // // SPDX-License-Identifier: AGPL-3.0-only
 
+mod adapters;
 mod commands;
 mod domain;
 mod load;
+mod ports;
 mod tests;
 mod types;
 mod utils;
