@@ -120,6 +120,31 @@ pub struct PublicationSourceFacts {
     pub tallied_contest_count: i64,
 }
 
+pub async fn validate_new_publication_source(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    tally_session_execution_id: &str,
+    results_event_id: &str,
+    election_ids: &[String],
+    contest_ids: &[String],
+    route_election_id: Option<&str>,
+) -> Result<()> {
+    let source = crate::domain::results_publication::publication_source_from_ids(
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        tally_session_execution_id,
+        results_event_id,
+        election_ids,
+        contest_ids,
+        route_election_id,
+    )?;
+    let facts = get_publication_source_facts(tx, &source).await?;
+    crate::domain::results_publication::check_publication_source(&source, &facts)
+}
+
 pub async fn get_publication_source_facts(
     tx: &Transaction<'_>,
     source: &PublicationSource,

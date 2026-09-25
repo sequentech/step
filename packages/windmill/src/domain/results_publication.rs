@@ -316,7 +316,29 @@ pub fn publication_source(
     tenant_id: &str,
     input: &PublishResultsWebsiteInput,
 ) -> Result<PublicationSource> {
-    if input.election_ids.is_empty() || input.contest_ids.is_empty() {
+    publication_source_from_ids(
+        tenant_id,
+        &input.election_event_id,
+        &input.tally_session_id,
+        &input.tally_session_execution_id,
+        &input.results_event_id,
+        &input.election_ids,
+        &input.contest_ids,
+        input.route_election_id.as_deref(),
+    )
+}
+
+pub fn publication_source_from_ids(
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    tally_session_execution_id: &str,
+    results_event_id: &str,
+    election_ids: &[String],
+    contest_ids: &[String],
+    route_election_id: Option<&str>,
+) -> Result<PublicationSource> {
+    if election_ids.is_empty() || contest_ids.is_empty() {
         return Err(anyhow!(
             "A publication requires at least one election and one contest"
         ));
@@ -324,18 +346,14 @@ pub fn publication_source(
 
     let source = PublicationSource {
         tenant_id: parse_uuid_v4(tenant_id)?,
-        election_event_id: parse_uuid_v4(&input.election_event_id)?,
-        tally_session_id: parse_uuid_v4(&input.tally_session_id)?,
-        tally_session_execution_id: parse_uuid_v4(&input.tally_session_execution_id)?,
-        results_event_id: parse_uuid_v4(&input.results_event_id)?,
-        election_ids: parse_uuids(&input.election_ids)?,
-        contest_ids: parse_uuids(&input.contest_ids)?,
+        election_event_id: parse_uuid_v4(election_event_id)?,
+        tally_session_id: parse_uuid_v4(tally_session_id)?,
+        tally_session_execution_id: parse_uuid_v4(tally_session_execution_id)?,
+        results_event_id: parse_uuid_v4(results_event_id)?,
+        election_ids: parse_uuids(election_ids)?,
+        contest_ids: parse_uuids(contest_ids)?,
     };
-    let route_election_id = input
-        .route_election_id
-        .as_deref()
-        .map(parse_uuid_v4)
-        .transpose()?;
+    let route_election_id = route_election_id.map(parse_uuid_v4).transpose()?;
     if route_election_id.is_some_and(|route_id| !source.election_ids.contains(&route_id)) {
         return Err(anyhow!(
             "The route election must be included in the publication elections"
