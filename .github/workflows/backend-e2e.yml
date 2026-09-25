@@ -11,6 +11,7 @@ on:
       - packages/**
       - hasura/**
       - scripts/e2e/**
+      - scripts/coverage/**
       - rust-toolchain.toml
   push:
     branches: [main]
@@ -20,6 +21,7 @@ on:
       - packages/**
       - hasura/**
       - scripts/e2e/**
+      - scripts/coverage/**
       - rust-toolchain.toml
   workflow_dispatch:
 

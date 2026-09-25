@@ -3,20 +3,18 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::ballot::{Enrollment, Otp};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument};
 use windmill::postgres::election_event::get_election_event_by_id;
-use windmill::services::database::get_hasura_pool;
-use windmill::tasks::manage_election_event_enrollment::{
-    update_keycloak_enrollment, update_keycloak_otp,
-};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SetVoterAuthentication {
@@ -31,11 +29,12 @@ struct SetVoterAuthenticationOutput {
     message: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/set-voter-authentication", format = "json", data = "<input>")]
 pub async fn set_voter_authentication(
     claims: JwtClaims,
     input: Json<SetVoterAuthentication>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<SetVoterAuthenticationOutput>, (Status, String)> {
     let body = input.into_inner();
 
@@ -52,7 +51,7 @@ pub async fn set_voter_authentication(
     })?;
 
     let mut hasura_db_client =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             error!("Failed to get DB pool: {:?}", e);
             (Status::InternalServerError, format!("{:?}", e))
         })?;
@@ -102,19 +101,21 @@ pub async fn set_voter_authentication(
             body.enrollment.eq(&Enrollment::ENABLED.to_string());
         info!("Updating enrollment to: {}", enable_enrollment);
 
-        update_keycloak_enrollment(
-            Some(claims.hasura_claims.tenant_id.clone()),
-            Some(body.election_event_id.clone()),
-            enable_enrollment,
-        )
-        .await
-        .map_err(|error| {
-            error!("Failed to update enrollment: {:?}", error);
-            (
-                Status::InternalServerError,
-                format!("Error updating enrollment: {error:?}"),
+        services
+            .identity
+            .update_voter_enrollment(
+                Some(claims.hasura_claims.tenant_id.clone()),
+                Some(body.election_event_id.clone()),
+                enable_enrollment,
             )
-        })?;
+            .await
+            .map_err(|error| {
+                error!("Failed to update enrollment: {:?}", error);
+                (
+                    Status::InternalServerError,
+                    format!("Error updating enrollment: {error:?}"),
+                )
+            })?;
     }
 
     if !body.otp.trim().is_empty() && prev_otp != body.otp {
@@ -126,19 +127,21 @@ pub async fn set_voter_authentication(
 
         info!("Updating OTP to: {}", new_otp_state);
 
-        update_keycloak_otp(
-            Some(claims.hasura_claims.tenant_id.clone()),
-            Some(body.election_event_id.clone()),
-            new_otp_state,
-        )
-        .await
-        .map_err(|error| {
-            error!("Failed to update OTP: {:?}", error);
-            (
-                Status::InternalServerError,
-                format!("Error updating OTP: {error:?}"),
+        services
+            .identity
+            .update_voter_otp(
+                Some(claims.hasura_claims.tenant_id.clone()),
+                Some(body.election_event_id.clone()),
+                new_otp_state,
             )
-        })?;
+            .await
+            .map_err(|error| {
+                error!("Failed to update OTP: {:?}", error);
+                (
+                    Status::InternalServerError,
+                    format!("Error updating OTP: {error:?}"),
+                )
+            })?;
     }
 
     // Commit transaction
@@ -152,3 +155,7 @@ pub async fn set_voter_authentication(
         message: "Authentication updated successfully".to_string(),
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/voter_authentication_routes.rs"]
+mod route_tests;

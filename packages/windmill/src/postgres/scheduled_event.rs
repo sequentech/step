@@ -77,7 +77,7 @@ pub async fn find_all_active_events(
                 *
             FROM "sequent_backend".scheduled_event
             WHERE
-                stopped_at IS NULL
+                stopped_at IS NULL AND archived_at IS NULL
             "#,
         )
         .await?;
@@ -248,7 +248,7 @@ pub async fn archive_scheduled_event(
             UPDATE
                 "sequent_backend".scheduled_event
             SET
-                stopped_at = NOW(),
+                stopped_at = COALESCE(stopped_at, NOW()),
                 archived_at = NOW()
             WHERE
                 tenant_id = $1

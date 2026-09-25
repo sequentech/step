@@ -161,6 +161,17 @@ def main():
         for row in inventory
         if not row["executed_functions"]
     ]
+    # These continuous-profile services terminate through init on SIGTERM.
+    terminated = {"beat", "b4", "trustee1", "trustee2"}
+    for row in inventory:
+        # The ephemeral driver is removed; run.sh propagates its exit status.
+        if row["profile"] == "step-cli":
+            continue
+        allowed = {0, 143} if row["profile"] in terminated else {0}
+        if row["exit_code"] not in allowed:
+            failures.append(
+                f"`{row['profile']}` has unexpected exit code {row['exit_code']}"
+            )
     packages = []
     measured = [str(row["profdata"]) for row in inventory if row["profdata"]]
     if measured:
