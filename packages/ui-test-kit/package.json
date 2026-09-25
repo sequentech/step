@@ -27,8 +27,12 @@
   "dependencies": {
     "@axe-core/playwright": "4.11.1",
     "@bcoe/v8-coverage": "^0.2.3",
+    "@jridgewell/remapping": "^2.3.5",
     "graphql": "^16.8.1",
-    "sql.js": "^1.13.0"
+    "istanbul-lib-coverage": "^3.2.2",
+    "sql.js": "^1.13.0",
+    "typescript": "^5.9.2",
+    "v8-to-istanbul": "^9.0.1"
   },
   "peerDependencies": {
     "@playwright/test": "1.62.1",
@@ -41,7 +45,7 @@
     "eslint": "^9.39.1",
     "globals": "^15.9.0",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.2",
-    "@playwright/test": "1.62.1"
+    "@playwright/test": "1.62.1",
+    "@types/istanbul-lib-coverage": "^2.0.6"
   }
 }

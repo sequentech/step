@@ -10,7 +10,7 @@ export default [
         ignores: ["node_modules/**", "test-results/**", "playwright-report/**", "**/*.license"],
     },
     {
-        files: ["**/*.{js,mjs,ts}"],
+        files: ["**/*.{js,mjs,ts,mts}"],
         languageOptions: {
             ecmaVersion: "latest",
             sourceType: "module",
