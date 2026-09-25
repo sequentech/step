@@ -155,23 +155,37 @@ const meta = {
                     },
                 }
             },
-            GetBallotPublicationChange: () => ({
+            GetBallotPublicationChange: ({variables}) => ({
                 data: {
                     get_ballot_publication_changes: {
                         previous: {
                             ballot_publication_id: "previous-publication",
-                            ballot_styles: {name: "Previous council"},
+                            ballot_styles: [{id: "previous-style", ballot_eml: "Previous council"}],
                         },
                         current: {
                             ballot_publication_id: PUBLICATION_ID,
                             ballot_styles: args.large
-                                ? Object.fromEntries(
-                                      Array.from({length: 600}, (_, index) => [
-                                          `line_${String(index).padStart(3, "0")}`,
-                                          `Synthetic candidate ${index}`,
-                                      ])
+                                ? Array.from(
+                                      {
+                                          length:
+                                              typeof variables.limit === "number"
+                                                  ? variables.limit
+                                                  : 60,
+                                      },
+                                      (_, index) => ({
+                                          id: `style-${String(index).padStart(3, "0")}`,
+                                          tenant_id: TENANT_ID,
+                                          election_event_id: EVENT_ID,
+                                          election_id: ELECTION_ID,
+                                          ballot_eml: `Publication marker ${String(index).padStart(3, "0")}`,
+                                          ballot_signature: null,
+                                          annotations: {},
+                                          labels: {},
+                                          created_at: FIXED_TIME,
+                                          last_updated_at: FIXED_TIME,
+                                      })
                                   )
-                                : {name: "Revised council"},
+                                : [{id: "revised-style", ballot_eml: "Revised council"}],
                         },
                     },
                 },
@@ -270,5 +284,121 @@ export const GenerationRequestFailureRestoresList: Story = {
         expect(
             boundary.calls.filter(({name}) => name === "GetTaskById" || name === "PublishBallot")
         ).toEqual([])
+    },
+}
+
+export const ElectionGenerationKeepsBothScopeIds: Story = {
+    args: {election: true},
+    play: async ({canvasElement}) => {
+        const canvas = await generate(canvasElement)
+        await expect(await canvas.findByText(/Revised council/)).toBeVisible()
+        expect(
+            boundary.calls.find(({name}) => name === "GenerateBallotPublication")!.variables
+        ).toEqual({electionEventId: EVENT_ID, electionId: ELECTION_ID})
+        expect(data.calls.filter(({method}) => method === "getList")[0].args[1]).toMatchObject({
+            filter: {election_event_id: EVENT_ID, election_id: ELECTION_ID},
+        })
+        expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toEqual([])
+    },
+}
+
+export const FailedGenerationTaskShowsItsReasonWithoutPublishing: Story = {
+    args: {taskFails: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Generate Publication"}))
+        await waitFor(() =>
+            expect(boundary.calls.some(({name}) => name === "GetTaskById")).toBe(true)
+        )
+        completeTask()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText(
+                    "Ballot style generation failed: Synthetic ballot exceeded maximum size"
+                )
+            ).toBeVisible()
+        )
+        await expect(
+            await canvas.findByRole("button", {name: "Generate Publication"})
+        ).toBeEnabled()
+        expect(
+            boundary.calls.filter(({name}) =>
+                ["GetBallotPublicationChange", "PublishBallot"].includes(name)
+            )
+        ).toEqual([])
+    },
+}
+
+export const PublishFailureKeepsDiffAndRetriesSamePublication: Story = {
+    args: {publicationFails: true},
+    play: async ({canvasElement}) => {
+        const canvas = await generate(canvasElement)
+        await expect(await canvas.findByText(/Revised council/)).toBeVisible()
+        await userEvent.click(canvas.getAllByRole("button", {name: "Publish Changes"}).at(-1)!)
+        const alert = await canvas.findByRole("alert")
+        await expect(alert).toHaveTextContent("Error publishing ballot publication")
+        await expect(alert).toHaveTextContent("Synthetic publication write failed")
+        await expect(canvas.getByText(/Revised council/)).toBeVisible()
+        expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toHaveLength(1)
+        publicationFails = false
+        await userEvent.click(canvas.getAllByRole("button", {name: "Publish Changes"}).at(-1)!)
+        await expect(await canvas.findByText(PUBLICATION_ID)).toBeVisible()
+        const publications = boundary.calls.filter(({name}) => name === "PublishBallot")
+        expect(publications).toHaveLength(2)
+        expect(publications.map(({variables}) => variables)).toEqual([
+            {electionEventId: EVENT_ID, ballotPublicationId: PUBLICATION_ID},
+            {electionEventId: EVENT_ID, ballotPublicationId: PUBLICATION_ID},
+        ])
+    },
+}
+
+export const LargeDiffRequiresConfirmationBeforeFetchingAllStyles: Story = {
+    args: {large: true},
+    play: async ({canvasElement}) => {
+        const canvas = await generate(canvasElement)
+        await expect(await canvas.findByText(/Publication marker 000/)).toBeVisible()
+        expect(canvas.queryByText(/Publication marker 049/)).not.toBeInTheDocument()
+        expect(canvas.queryByText(/Publication marker 059/)).not.toBeInTheDocument()
+        const initialRequests = boundary.calls.filter(
+            ({name}) => name === "GetBallotPublicationChange"
+        )
+        expect(initialRequests).toHaveLength(1)
+        expect(initialRequests[0].variables.limit).toBe(50)
+        const showMore = () => canvas.getAllByRole("button", {name: "Show More"})[0]
+        await expect(showMore()).toHaveAttribute("aria-expanded", "false")
+        await userEvent.click(showMore())
+        let dialog = within(await within(document.body).findByRole("dialog"))
+        await expect(
+            dialog.getByText(/Rendering all changes might make the page unresponsive/)
+        ).toBeVisible()
+        await userEvent.click(dialog.getByRole("button", {name: "Cancel"}))
+        await waitFor(() =>
+            expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()
+        )
+        expect(
+            boundary.calls.filter(({name}) => name === "GetBallotPublicationChange")
+        ).toHaveLength(1)
+        await userEvent.click(showMore())
+        dialog = within(await within(document.body).findByRole("dialog"))
+        await userEvent.click(dialog.getByRole("button", {name: "Confirm"}))
+        await waitFor(() =>
+            expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()
+        )
+        await expect(await canvas.findByText(/Publication marker 059/)).toBeVisible()
+        const requests = boundary.calls.filter(({name}) => name === "GetBallotPublicationChange")
+        expect(requests).toHaveLength(2)
+        expect(requests[1].variables).toEqual({
+            electionEventId: EVENT_ID,
+            ballotPublicationId: PUBLICATION_ID,
+        })
+        await expect(canvas.getAllByRole("button", {name: "Show Less"})[0]).toHaveAttribute(
+            "aria-expanded",
+            "true"
+        )
+        await userEvent.click(canvas.getAllByRole("button", {name: "Show Less"})[0])
+        await waitFor(() =>
+            expect(canvas.queryByText(/Publication marker 059/)).not.toBeInTheDocument()
+        )
+        expect(boundary.calls.filter(({name}) => name === "PublishBallot")).toEqual([])
     },
 }
