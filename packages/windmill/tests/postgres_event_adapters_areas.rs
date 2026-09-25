@@ -10,14 +10,12 @@ mod schema;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
 use deadpool_postgres::{Object, Transaction};
-use futures::FutureExt;
 use sequent_core::election_config::ImportElectionEventSchema;
 use sequent_core::types::hasura::core::{Area, AreaContest, Candidate, Contest};
 use sequent_core::types::keycloak::UserArea;
 use serde_json::{json, Value};
 use std::cell::Cell;
 use std::collections::HashMap;
-use std::panic::AssertUnwindSafe;
 use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
 use windmill::postgres::{area, area_contest, candidate, contest};
@@ -1021,7 +1019,39 @@ async fn export_area_contests_returns_the_links_of_the_event() {
 }
 
 #[tokio::test]
-async fn get_areas_by_contest_id_panics_reading_its_uuid_column_as_text() {
+async fn get_areas_by_contest_id_returns_the_areas_linked_to_the_contest() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let election = f.election(a).await;
+    let (linked, other) = (f.contest(a, election).await, f.contest(a, election).await);
+    let (first, second, elsewhere) = (f.area(a).await, f.area(a).await, f.area(a).await);
+    f.area_contest(a, first, linked).await;
+    f.area_contest(a, second, linked).await;
+    f.area_contest(a, elsewhere, other).await;
+    // The same contest id in another event of the tenant, linked to its own area.
+    f.election_as(sibling, election).await;
+    f.contest_as(sibling, linked, election).await;
+    let sibling_area = f.area(sibling).await;
+    f.area_contest(sibling, sibling_area, linked).await;
+
+    let areas = area_contest::get_areas_by_contest_id(
+        &tx,
+        &a.tenant_id(),
+        &a.event_id(),
+        &linked.to_string(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(sorted(areas), strings(&[first, second]));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_areas_by_contest_id_returns_nothing_for_an_unlinked_contest() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -1031,7 +1061,7 @@ async fn get_areas_by_contest_id_panics_reading_its_uuid_column_as_text() {
     let area_id = f.area(a).await;
     f.area_contest(a, area_id, linked).await;
 
-    let empty = area_contest::get_areas_by_contest_id(
+    let areas = area_contest::get_areas_by_contest_id(
         &tx,
         &a.tenant_id(),
         &a.event_id(),
@@ -1039,23 +1069,8 @@ async fn get_areas_by_contest_id_panics_reading_its_uuid_column_as_text() {
     )
     .await
     .unwrap();
-    // `row.get::<_, String>` on the uuid area_id column panics.
-    let panic = AssertUnwindSafe(area_contest::get_areas_by_contest_id(
-        &tx,
-        &a.tenant_id(),
-        &a.event_id(),
-        &linked.to_string(),
-    ))
-    .catch_unwind()
-    .await
-    .unwrap_err();
 
-    assert!(empty.is_empty());
-    let message = panic.downcast_ref::<String>().cloned().unwrap_or_default();
-    assert!(
-        message.starts_with("error retrieving column area_id"),
-        "{message}"
-    );
+    assert!(areas.is_empty());
     tx.rollback().await.unwrap();
 }
 
