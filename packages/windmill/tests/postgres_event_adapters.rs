@@ -267,6 +267,101 @@ impl<'t, 'c> Fixture<'t, 'c> {
             self.execute(sql, &params).await;
         }
     }
+
+    /// A blacklisted phone number, as the admin PhoneBlacklist page adds it.
+    async fn phone_blacklist_entry(&self, scope: Scope) {
+        self.execute(
+            "INSERT INTO sequent_backend.phone_blacklist
+                 (tenant_id, election_event_id, phone_e164, created_by)
+             VALUES ($1, $2, '+34600000000', $3)",
+            &[&scope.tenant, &scope.event, &self.id()],
+        )
+        .await;
+    }
+
+    /// A tally sheet import with its source document, one item and the tally
+    /// sheet that item generated.
+    async fn tally_sheet_import(&self, scope: Scope) {
+        let election = self.election(scope).await;
+        let contest = self.contest(scope, election).await;
+        let area = self.area(scope).await;
+        let (document, import, sheet) = (self.id(), self.id(), self.id());
+        self.execute(
+            "INSERT INTO sequent_backend.document (id, tenant_id, election_event_id, name)
+             VALUES ($1, $2, $3, 'tally-sheets.csv')",
+            &[&document, &scope.tenant, &scope.event],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_sheet_import
+                 (id, tenant_id, election_event_id, source_document_id, source_format,
+                  selected_channel, created_by_user_id)
+             VALUES ($1, $2, $3, $4, 'CSV', 'PAPER', 'admin')",
+            &[&import, &scope.tenant, &scope.event, &document],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_sheet
+                 (id, tenant_id, election_event_id, election_id, contest_id, area_id,
+                  created_by_user_id, version, import_id)
+             VALUES ($1, $2, $3, $4, $5, $6, 'admin', 1, $7)",
+            &[
+                &sheet,
+                &scope.tenant,
+                &scope.event,
+                &election,
+                &contest,
+                &area,
+                &import,
+            ],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_sheet_import_item
+                 (tenant_id, election_event_id, import_id, election_id, area_id, contest_id,
+                  channel, generated_tally_sheet_id, baseline_approved_tally_sheet_id,
+                  incoming_content_hash, change_type, incoming_csv)
+             VALUES ($1, $2, $3, $4, $5, $6, 'PAPER', $7, $7, 'hash', 'NEW', 'csv')",
+            &[
+                &scope.tenant,
+                &scope.event,
+                &import,
+                &election,
+                &area,
+                &contest,
+                &sheet,
+            ],
+        )
+        .await;
+    }
+
+    /// A tally session with a pending recount resolution for one contest.
+    async fn tally_session_resolution(&self, scope: Scope) {
+        let election = self.election(scope).await;
+        let contest = self.contest(scope, election).await;
+        let (ceremony, session) = (self.id(), self.id());
+        self.execute(
+            "INSERT INTO sequent_backend.keys_ceremony
+                 (id, tenant_id, election_event_id, trustee_ids, threshold)
+             VALUES ($1, $2, $3, '{}', 1)",
+            &[&ceremony, &scope.tenant, &scope.event],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_session
+                 (id, tenant_id, election_event_id, keys_ceremony_id, threshold)
+             VALUES ($1, $2, $3, $4, 1)",
+            &[&session, &scope.tenant, &scope.event, &ceremony],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_session_resolution
+                 (tenant_id, election_event_id, tally_session_id, contest_id, resolution_type)
+             VALUES ($1, $2, $3, $4, 'manual_recount')",
+            &[&scope.tenant, &scope.event, &session, &contest],
+        )
+        .await;
+    }
 }
 
 const POPULATED_TABLES: [&str; 13] = [
@@ -285,9 +380,27 @@ const POPULATED_TABLES: [&str; 13] = [
     "tasks_execution",
 ];
 
+/// The tables delete_election_event must clear for events with blacklisted
+/// phones or tally sheet imports.
+const BLOCKING_TABLES: [&str; 5] = [
+    "phone_blacklist",
+    "tally_sheet_import",
+    "tally_sheet_import_item",
+    "tally_sheet",
+    "document",
+];
+
 async fn event_row_counts(tx: &Transaction<'_>, scope: Scope) -> Vec<(&'static str, i64)> {
+    row_counts(tx, scope, &POPULATED_TABLES).await
+}
+
+async fn row_counts(
+    tx: &Transaction<'_>,
+    scope: Scope,
+    tables: &[&'static str],
+) -> Vec<(&'static str, i64)> {
     let mut counts = Vec::new();
-    for table in POPULATED_TABLES {
+    for &table in tables {
         let count: i64 = scalar(
             tx,
             &format!(
@@ -1176,29 +1289,138 @@ async fn delete_election_event_removes_the_event_and_its_rows_only() {
 }
 
 #[tokio::test]
-async fn delete_election_event_fails_while_the_event_has_phone_blacklist_entries() {
+async fn delete_election_event_removes_the_events_phone_blacklist_entries() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
-    f.execute(
-        "INSERT INTO sequent_backend.phone_blacklist
-             (tenant_id, election_event_id, phone_e164, created_by)
-         VALUES ($1, $2, '+34600000000', $3)",
-        &[&a.tenant, &a.event, &f.id()],
-    )
-    .await;
+    let sibling = f.event_in(a.tenant).await;
+    f.phone_blacklist_entry(a).await;
+    f.phone_blacklist_entry(sibling).await;
 
-    // phone_blacklist is not among the tables it clears, and its foreign key
-    // to the event restricts the final DELETE.
-    let error = election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
+    election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
         .await
-        .unwrap_err();
+        .unwrap();
 
+    assert!(!event_exists(&tx, a.event).await);
     assert_eq!(
-        error.to_string(),
-        "Error executing the delete query: db error"
+        row_counts(&tx, a, &["phone_blacklist"]).await,
+        vec![("phone_blacklist", 0)]
     );
+    assert_eq!(
+        row_counts(&tx, sibling, &["phone_blacklist"]).await,
+        vec![("phone_blacklist", 1)]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn delete_election_event_removes_the_events_tally_sheet_imports() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    f.tally_sheet_import(a).await;
+    f.tally_sheet_import(sibling).await;
+
+    election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
+        .await
+        .unwrap();
+
+    assert!(!event_exists(&tx, a.event).await);
+    assert!(row_counts(&tx, a, &BLOCKING_TABLES)
+        .await
+        .iter()
+        .all(|(_, count)| *count == 0));
+    let sibling_counts = row_counts(&tx, sibling, &BLOCKING_TABLES).await;
+    assert_eq!(
+        sibling_counts,
+        vec![
+            ("phone_blacklist", 0),
+            ("tally_sheet_import", 1),
+            ("tally_sheet_import_item", 1),
+            ("tally_sheet", 1),
+            ("document", 1),
+        ]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn delete_election_event_removes_the_events_tally_session_resolutions() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    f.tally_session_resolution(a).await;
+    f.tally_session_resolution(sibling).await;
+
+    election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
+        .await
+        .unwrap();
+
+    let tables = ["tally_session_resolution", "tally_session", "keys_ceremony"];
+    assert!(!event_exists(&tx, a.event).await);
+    assert!(row_counts(&tx, a, &tables)
+        .await
+        .iter()
+        .all(|(_, count)| *count == 0));
+    assert!(row_counts(&tx, sibling, &tables)
+        .await
+        .iter()
+        .all(|(_, count)| *count == 1));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn delete_tenant_succeeds_once_events_with_blacklist_and_import_rows_are_deleted() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let first = f.scope().await;
+    let second = f.event_in(first.tenant).await;
+    let other = f.scope().await;
+    for scope in [first, second, other] {
+        f.phone_blacklist_entry(scope).await;
+        f.tally_sheet_import(scope).await;
+    }
+
+    // The delete-tenant task requires the tenant to have no events left.
+    for scope in [first, second] {
+        election_event::delete_election_event(&tx, &scope.tenant_id(), &scope.event_id())
+            .await
+            .unwrap();
+    }
+    assert_eq!(
+        election_event::count_tenant_election_events(&tx, &first.tenant_id())
+            .await
+            .unwrap(),
+        0
+    );
+    tenant::delete_tenant(&tx, &first.tenant_id())
+        .await
+        .unwrap();
+
+    let tenant_exists = |tenant: Uuid| {
+        let tx = &tx;
+        async move {
+            scalar::<bool>(
+                tx,
+                "SELECT EXISTS (SELECT 1 FROM sequent_backend.tenant WHERE id = $1)",
+                &[&tenant],
+            )
+            .await
+        }
+    };
+    assert!(!tenant_exists(first.tenant).await);
+    assert!(tenant_exists(other.tenant).await);
+    assert!(event_exists(&tx, other.event).await);
+    assert!(row_counts(&tx, other, &BLOCKING_TABLES)
+        .await
+        .iter()
+        .all(|(_, count)| *count == 1));
     tx.rollback().await.unwrap();
 }
 
