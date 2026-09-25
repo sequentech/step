@@ -35,6 +35,11 @@ Redux voter session before loading each fixture; see `Question/__stories__` and
 `routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
+Admin stories cover event uploads, keys ceremony thresholds and publication controls.
+Their provider supplies the production admin theme, tenant and recorded Apollo responses;
+assert mutation variables, permission headers, callbacks and visible errors. Run
+`yarn --cwd packages/admin-portal typecheck:stories` to check these fixtures and stories.
+
 Stories are excluded from production type builds and the existing Jest coverage
 profile. Storybook coverage is reported separately from that gate. Shared test
 setup lives in `packages/test-support/storybook/`. Keep changes to production behavior separate from story maintenance.

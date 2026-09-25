@@ -1,0 +1,19 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "allowImportingTsExtensions": true,
+        "paths": {
+            "@/*": ["./src/*"],
+            "@sequentech/ui-core": ["../ui-core/src/index.tsx"],
+            "@sequentech/ui-essentials": ["../ui-essentials/src/index.tsx"]
+        }
+    },
+    "include": [
+        "src/**/*.stories.tsx",
+        "src/**/__stories__/**/*.tsx",
+        "src/**/*.d.ts",
+        "../ui-essentials/src/**/*.d.ts"
+    ],
+    "exclude": []
+}

@@ -89,16 +89,3 @@ WithButtonDropFile.play = async ({canvasElement}) => {
     expect(inputFile.files![0]).toStrictEqual(fakeFile)
     expect(inputFile.files!.item(0)).toStrictEqual(fakeFile)
 }
-
-BasicDropFile.parameters = {
-    expectedFailure: {
-        reason: "The empty selected filename is rendered as a heading.",
-        a11y: ["empty-heading"],
-    },
-}
-WithButtonDropFile.parameters = {
-    expectedFailure: {
-        reason: "Selected filename text has insufficient contrast.",
-        a11y: ["color-contrast"],
-    },
-}

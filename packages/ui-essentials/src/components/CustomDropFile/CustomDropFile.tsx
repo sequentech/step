@@ -203,12 +203,13 @@ export const CustomDropFile = React.forwardRef<HTMLInputElement, PropsWithChildr
                 )}
                 <Typography
                     className="file-name"
+                    component="p"
                     variant="h6"
                     sx={{
                         fontSize: "16px",
                         margin: "8px 0",
                         height: "24px",
-                        color: theme.palette.brandSuccess,
+                        color: theme.palette.text.primary,
                     }}
                 >
                     {fileName}
