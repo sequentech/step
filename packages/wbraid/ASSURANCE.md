@@ -114,24 +114,33 @@ The 2026-09-24 baseline below was taken with it.
 
 - `crates/vsc/fuzz`: deserializer oracles for ElGamal and Naor-Yung
   ciphertexts, shuffle proofs, and DKG dealings (`VerifiableShare`, including
-  checking-value proofs), plus two verify-boundary targets — Naor-Yung
-  verify-and-strip (the PlEq verifier) and Schnorr verification — running
-  accepted adversarial inputs against fixed, deterministically derived keys,
-  and the pre-existing `encode_bytes`/`encode_scalar` targets.
+  checking-value proofs), plus verify-boundary targets running accepted
+  adversarial inputs against fixed, deterministically derived keys —
+  Naor-Yung verify-and-strip per item (the PlEq verifier), Schnorr
+  verification, and **the batched Naor-Yung verification**
+  (`verify_ny_strip_all_ristretto`): lists of up to 16 ballots drawn from a
+  fixed pool of valid ones, each optionally corrupted by one byte, checked
+  differentially — `strip_all` (`verify_batch` and its per-item attribution
+  fallback, the path braid's first mix runs) must accept exactly when every
+  per-item `strip` accepts, return the same ciphertexts in order, and never
+  report `BatchVerificationInconsistent` — and the pre-existing
+  `encode_bytes`/`encode_scalar` targets.
 - `crates/braid/fuzz`: oracles for `ProtocolMessage` and `Predicate`.
 
-**Seed the fuzz crate's lock first.** Each fuzz crate is its own cargo
-workspace with a gitignored `Cargo.lock`, so on a fresh machine cargo resolves
-its dependencies afresh from crates.io — and the `p256`/`elliptic-curve`
-release-candidate family then drifts from what the wbraid workspace pins
-(`ff 0.14.0` instead of `0.13.1`, and the build fails inside `p256` with
-`FieldElement: Field` unsatisfied). Copy the workspace's lock in before
-building; cargo keeps every locked version that satisfies the fuzz crate's
-requirements and resolves only the rest:
+**The fuzz crates' lockfiles are committed.** Each fuzz crate is its own
+cargo workspace, so without its own `Cargo.lock` cargo would resolve its
+dependencies afresh from crates.io on every fresh machine — and the
+`p256`/`elliptic-curve` release-candidate family then drifts from what the
+wbraid workspace pins (`ff 0.14.0` instead of `0.13.1`, and the build fails
+inside `p256` with `FieldElement: Field` unsatisfied). The committed locks
+were derived from the workspace's. **When the workspace's `Cargo.lock` changes
+a cryptographic dependency, refresh them the same way** — copy it in and let
+cargo resolve the rest:
 
 ```sh
 cp Cargo.lock crates/vsc/fuzz/Cargo.lock       # from the workspace root (wbraid/)
 cp Cargo.lock crates/braid/fuzz/Cargo.lock
+(cd crates/vsc/fuzz && cargo +nightly fuzz build)   # re-resolves only what the copy lacks
 ```
 
 **How to run — vsc** (any platform; `cargo fuzz` needs a nightly toolchain and this
@@ -174,6 +183,11 @@ Smoke baselines, all clean (zero crashes, zero bijection violations):
   six targets — the four deserializer oracles (`deser_shuffle_proof`, `deser_verifiable_share`, `deser_eg_ciphertext`, `deser_ny_ciphertext`, all `_ristretto`) and the two verify-boundary targets (`verify_ny_strip`, `verify_schnorr`) — ~6.8M executions total, no crash, no bijection violation; the seeded corpora persisted under `crates/vsc/fuzz/corpus/` (gitignored).
 - braid (2026-09-24, Linux under WSL, `-max_total_time=120`, same threshold):
   both targets, ~150k executions (`deser_predicate` 66.7k, `deser_protocol_message_ristretto` 83.0k), no finding; the corpora grew from 94/80 entries at the August baseline to 337/330, so the oracle's accept path — a valid predicate or protocol message re-serializing to its own bytes through the parallel list paths — is exercised, not only rejections. Built with `CARGO_TARGET_DIR` on the WSL filesystem and the lock seeded as above; `g++` is the one extra prerequisite (libFuzzer's runtime).
+- vsc `verify_ny_strip_all_ristretto` (2026-09-26, Windows host, 120 s, new
+  target): ~23k executions, no crash and no disagreement between the batched
+  and per-item verifiers; 484 corpus entries (the highest coverage of the vsc
+  targets — every run executes the batch, and every corrupted list the
+  attribution fallback).
 - vsc (2026-08-28, Windows host, 40s/target): eight targets — the six
   serialization-campaign targets plus `encode_bytes_ristretto` and
   `encode_scalar_bytes_ristretto` — ~7.9M executions total.
