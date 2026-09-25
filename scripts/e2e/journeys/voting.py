@@ -56,21 +56,26 @@ class Portal:
         )
 
     @staticmethod
-    def ballot_style(file):
-        """Rebuild the published ballot style from the voter's signed URLs."""
+    def ballot_eml(file):
+        """Rebuild the exact signed EML bytes from the voter's published files."""
         event = http_get(file["urls"]["event_url"])
         style = http_get(file["urls"]["style_url"])
         if event.status != 200 or style.status != 200:
             raise AssertionError(f"Ballot files answered {event.status}/{style.status}")
         style = style.json()
         if style.get("ballot_eml_prefix") is None:
-            return json.loads(style["ballot_eml"]), style
+            return style["ballot_eml"], style
         text = (
             style["ballot_eml_prefix"]
             + event.json()["ballot_eml_presentation"]
             + style["ballot_eml_suffix"]
         )
-        return json.loads(text), style
+        return text, style
+
+    @staticmethod
+    def ballot_style(file):
+        text, wrapper = Portal.ballot_eml(file)
+        return json.loads(text), wrapper
 
     def encrypt(self, style, candidate):
         """Encrypt a vote for `candidate` (a display name) with step-cli's ballot encoder."""

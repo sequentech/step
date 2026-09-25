@@ -151,14 +151,6 @@ def election_event(voting_portal_url, tag):
     return event
 
 
-def without_translations(document):
-    """Keep one event name only; see test_5b for why publishing needs this."""
-    reduced = copy.deepcopy(document)
-    name = display_name(reduced["election_event"])
-    reduced["election_event"]["presentation"]["i18n"] = {"en": {"name": name}}
-    return reduced
-
-
 def dangling_contest_link(document):
     """A copy whose last area-contest link names a contest missing from the bundle."""
     broken = copy.deepcopy(document)

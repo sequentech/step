@@ -51,7 +51,10 @@ separate browser/WASM/runtime profiles must be accounted for explicitly.
 
 The `Backend database contracts` workflow uses fresh PostgreSQL 18 databases.
 The migration check applies every Hasura backend-db migration, rolls back all
-but the squashed baseline, reapplies them and requires an identical schema. The
+but the squashed baseline and requires its schema immediately after rollback.
+It then reapplies them and compares with the fully migrated schema. Dump nonces
+and physical column order are ignored; column types, defaults, nullability and
+constraints remain part of the comparison. The
 Hasura check starts the devcontainer's Hasura image, which applies the
 migrations and metadata, and requires consistent metadata. From the repository
 root:

@@ -51,7 +51,5 @@ last accepted ballot. Fixtures live in `fixtures.py`; clients use Python's
 standard library. Add assertions against observable responses and persisted
 results, with valid controls for rejection cases.
 
-Known defects have explicit expected-failure probes: only the documented failure
-is accepted, and a passing probe fails the run so its marker must be removed.
-Other errors and skipped journeys fail the run. These probes do not replace the
-seven required passing journeys.
+Every journey must pass. Errors, skipped journeys and expected failures all fail
+the run; a green result means the complete selected sequence passed.

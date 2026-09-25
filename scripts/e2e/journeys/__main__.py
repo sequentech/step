@@ -18,7 +18,7 @@ from .client import OUTPUT
 
 
 class JourneyResult(unittest.TextTestResult):
-    """Adds per-test timings, and reports known defects as expected failures."""
+    """Record every outcome with its elapsed time."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,28 +40,21 @@ class JourneyResult(unittest.TextTestResult):
             }
         )
 
-    def _known_defect(self, test):
-        return getattr(getattr(test, test._testMethodName, None), "known_defect", None)
-
     def addSuccess(self, test):
-        if self._known_defect(test):
-            super().addUnexpectedSuccess(test)
-            self._record(
-                test,
-                "unexpected success",
-                "known defect no longer reproduces; remove its marker",
-            )
-        else:
-            super().addSuccess(test)
-            self._record(test, "pass")
+        super().addSuccess(test)
+        self._record(test, "pass")
 
     def addFailure(self, test, err):
-        if isinstance(err[1], test_journeys.KnownDefect):
-            super().addExpectedFailure(test, err)
-            self._record(test, "known defect", str(err[1]))
-        else:
-            super().addFailure(test, err)
-            self._record(test, "fail", str(err[1]))
+        super().addFailure(test, err)
+        self._record(test, "fail", str(err[1]))
+
+    def addExpectedFailure(self, test, err):
+        super().addExpectedFailure(test, err)
+        self._record(test, "expected failure", str(err[1]))
+
+    def addUnexpectedSuccess(self, test):
+        super().addUnexpectedSuccess(test)
+        self._record(test, "unexpected success")
 
     def addError(self, test, err):
         super().addError(test, err)
@@ -96,7 +89,11 @@ def run_tests(pattern):
         print(
             f"  {record['test']:<{width}}  {record['outcome']:<18} {record['seconds']:>6.1f}s  {summary}"
         )
-    return 0 if result.wasSuccessful() and not result.skipped else 1
+    return (
+        0
+        if result.wasSuccessful() and not (result.skipped or result.expectedFailures)
+        else 1
+    )
 
 
 def main():
