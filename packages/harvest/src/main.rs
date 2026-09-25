@@ -14,6 +14,8 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+mod adapters;
+mod ports;
 mod routes;
 mod services;
 mod types;

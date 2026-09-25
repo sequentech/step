@@ -4,4 +4,5 @@
 
 pub mod access;
 pub mod authorization;
+pub mod user_tasks;
 pub mod worker;

@@ -35,6 +35,26 @@ use windmill::{
     types::tasks::ETasksExecution,
 };
 
+fn ballot_publication_error(
+    is_validation_error: bool,
+    failure_message: &str,
+    response_message: &str,
+) -> JsonError {
+    if is_validation_error {
+        ErrorResponse::new(
+            Status::BadRequest,
+            failure_message,
+            ErrorCode::BallotPublicationValidation,
+        )
+    } else {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            response_message,
+            ErrorCode::InternalServerError,
+        )
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
     election_event_id: String,
@@ -275,19 +295,11 @@ pub async fn publish_ballot(
                     ErrorCode::InternalServerError,
                 )
             })?;
-        return Err(if is_validation_error {
-            ErrorResponse::new(
-                Status::BadRequest,
-                &failure_message,
-                ErrorCode::BallotPublicationValidation,
-            )
-        } else {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &response_message,
-                ErrorCode::InternalServerError,
-            )
-        });
+        return Err(ballot_publication_error(
+            is_validation_error,
+            &failure_message,
+            &response_message,
+        ));
     }
 
     if let Err(commit_error) = hasura_transaction.commit().await {
@@ -381,3 +393,7 @@ pub async fn get_ballot_publication_changes(
 
     Ok(Json(diff))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/ballot_publication_errors.rs"]
+mod ballot_publication_errors;

@@ -127,6 +127,26 @@ fn private_key_download_internal_error() -> JsonError {
     )
 }
 
+fn private_key_download_error(
+    error: anyhow::Error,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> JsonError {
+    if error
+        .downcast_ref::<PrivateKeyDownloadUnavailable>()
+        .is_some()
+    {
+        private_key_download_unavailable()
+    } else {
+        error!(
+            election_event_id = %election_event_id,
+            keys_ceremony_id = %keys_ceremony_id,
+            "Failed to download private key: {error:#}"
+        );
+        private_key_download_internal_error()
+    }
+}
+
 // The main function to get the private key
 #[instrument(skip(claims))]
 #[post("/get-private-key", format = "json", data = "<body>")]
@@ -178,19 +198,11 @@ pub async fn get_private_key(
     )
     .await
     .map_err(|error| {
-        if error
-            .downcast_ref::<PrivateKeyDownloadUnavailable>()
-            .is_some()
-        {
-            private_key_download_unavailable()
-        } else {
-            error!(
-                election_event_id = %input.election_event_id,
-                keys_ceremony_id = %input.keys_ceremony_id,
-                "Failed to download private key: {error:#}"
-            );
-            private_key_download_internal_error()
-        }
+        private_key_download_error(
+            error,
+            &input.election_event_id,
+            &input.keys_ceremony_id,
+        )
     })?;
 
     event!(
@@ -407,3 +419,7 @@ pub async fn list_keys_ceremonies(
         },
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/private_key_errors.rs"]
+mod private_key_errors;
