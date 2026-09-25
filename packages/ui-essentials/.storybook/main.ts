@@ -2,61 +2,63 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
+import {fileURLToPath} from "node:url"
+import {resolve} from "node:path"
 import {mergeConfig} from "vite"
-import path from "path"
+
+const sourceEntry = (workspace: string) =>
+    fileURLToPath(new URL(`../../${workspace}/src/index.tsx`, import.meta.url))
 
 const config: StorybookConfig = {
-    stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|jsx|ts|tsx)"],
+    stories: ["../src/**/*.mdx", "../src/**/*.stories.tsx"],
+    staticDirs: ["../public"],
     addons: [
-        "@storybook/addon-links",
-        "@storybook/addon-essentials",
-        "@storybook/addon-interactions",
         "@storybook/addon-docs",
-        "storybook-addon-remix-react-router",
+        "@storybook/addon-a11y",
+        "@storybook/addon-vitest",
         "storybook-addon-pseudo-states",
-        "@storybook/addon-viewport",
     ],
-    framework: {
-        name: "@storybook/react-vite",
-        options: {},
-    },
-    docs: {
-        autodocs: true,
-        defaultName: "Docs",
-    },
-
+    framework: "@storybook/react-vite",
+    core: {disableTelemetry: true},
     typescript: {
         reactDocgen: "react-docgen-typescript",
         reactDocgenTypescriptOptions: {
             shouldExtractLiteralValuesFromEnum: true,
             shouldRemoveUndefinedFromOptional: true,
-            propFilter: (prop) => {
-                if (prop.parent) {
-                    return (
-                        !prop.parent.fileName.includes("node_modules") &&
-                        !prop.parent.fileName.includes("/dist/")
-                    )
-                }
-                return true
-            },
+            propFilter: (prop) =>
+                !prop.parent ||
+                (!prop.parent.fileName.includes("node_modules") &&
+                    !prop.parent.fileName.includes("/dist/")),
         },
     },
-
-    async viteFinal(viteConfig, {configType}) {
-        return mergeConfig(viteConfig, {
+    viteFinal: (viteConfig) =>
+        mergeConfig(viteConfig, {
             resolve: {
-                alias: [{find: "@root", replacement: path.resolve(__dirname, "../src")}],
+                dedupe: ["react", "react-dom"],
+                // Exact match: only the package entry moves to its source.
+                alias: [
+                    {
+                        find: /^@\//,
+                        replacement: `${resolve(viteConfig.root ?? process.cwd(), "src")}/`,
+                    },
+                    {
+                        find: /^@root\//,
+                        replacement: `${resolve(viteConfig.root ?? process.cwd(), "src")}/`,
+                    },
+                    {find: /^@sequentech\/ui-core$/, replacement: sourceEntry("ui-core")},
+                    {
+                        find: /^@sequentech\/ui-essentials$/,
+                        replacement: sourceEntry("ui-essentials"),
+                    },
+                ],
             },
-
-            build: {
-                sourcemap: configType === "DEVELOPMENT",
-            },
-
+            // sequent-core fetches its .wasm relative to its own module URL.
             optimizeDeps: {
-                exclude: ["sequent-core"],
+                // Nightwatch brings Vue test-utils into this React workspace;
+                // Vitest otherwise discovers it and requires absent Vue peers.
+                exclude: ["sequent-core", "@vue/test-utils"],
             },
-        })
-    },
+        }),
 }
 
 export default config

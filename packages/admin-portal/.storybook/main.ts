@@ -1,23 +1,18 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-module.exports = {
-    stories: ["../src/**/*.stories.mdx", "../src/**/*.stories.@(js|jsx|ts|tsx)"],
-    addons: [
-        "@storybook/addon-links",
-        "@storybook/addon-essentials",
-        "@storybook/addon-interactions",
-        "@storybook/preset-create-react-app",
-        "storybook-addon-react-router-v6",
-        "@storybook/addon-mdx-gfm",
-    ],
-    framework: {
-        name: "@storybook/react-webpack5",
-        options: {},
-    },
-    features: {
-        interactionsDebugger: true, // 👈 Enable playback controls
-    },
+import type {StorybookConfig} from "@storybook/react-vite"
+import config from "../../ui-essentials/.storybook/main.ts"
+import postcssPresetEnv from "postcss-preset-env"
+import {mergeConfig} from "vite"
 
-    port: 9009,
-}
+const adminConfig = {
+    ...config,
+    staticDirs: ["../public"],
+    viteFinal: async (viteConfig, options) =>
+        mergeConfig(await config.viteFinal!(viteConfig, options), {
+            css: {postcss: {plugins: [postcssPresetEnv()]}},
+        }),
+} satisfies StorybookConfig
+
+export default adminConfig

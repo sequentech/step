@@ -2,14 +2,18 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import DropFile from "../DropFile"
-import {INITIAL_VIEWPORTS} from "@storybook/addon-viewport"
+import {INITIAL_VIEWPORTS} from "storybook/viewport"
 
 const meta: Meta<typeof DropFile> = {
     title: "components/DropFile",
     component: DropFile,
     parameters: {
+        expectedFailure: {
+            reason: "The empty selected filename is rendered as a heading.",
+            a11y: ["empty-heading"],
+        },
         backgrounds: {
             default: "white",
         },
