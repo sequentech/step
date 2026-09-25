@@ -54,15 +54,18 @@ fn migrations() -> Vec<PathBuf> {
     directories.into_iter().map(|(_, path)| path).collect()
 }
 
-async fn create() -> String {
-    let maintenance = pool_for(
-        &PgConfig::from_env()
-            .expect("HASURA_DB__* must name the test PostgreSQL server")
-            .hasura_db
-            .dbname
-            .expect("HASURA_DB__DBNAME"),
-    );
-    let admin = maintenance.get().await.expect("maintenance connection");
+pub(super) async fn create_database() -> (String, deadpool_postgres::ClientWrapper) {
+    // Cleanup is cluster-wide, while advisory locks are database-scoped.
+    let maintenance = pool_for("postgres");
+    let admin =
+        deadpool_postgres::Client::take(maintenance.get().await.expect("maintenance connection"));
+    admin
+        .query_one(
+            "SELECT pg_advisory_lock(hashtextextended($1, 0))",
+            &[&PREFIX],
+        )
+        .await
+        .expect("fixture creation lock");
     // Earlier runs leave their databases behind. Drop those nobody uses;
     // a database another test binary is using right now refuses to drop.
     for row in admin
@@ -88,7 +91,14 @@ async fn create() -> String {
         .await
         .expect("create fixture database");
 
+    (database, admin)
+}
+
+async fn create() -> String {
+    let (database, admin) = create_database().await;
     anchor(&database).await;
+    // The owned connection releases its session lock even if setup panics.
+    drop(admin);
     let pool = pool_for(&database);
     let mut client = pool.get().await.expect("fixture connection");
     // The extensions .devcontainer/postgresql/init.sh creates.
@@ -112,7 +122,7 @@ async fn create() -> String {
 
 /// Keeps one connection open until the process exits, on a thread of its own,
 /// so another binary's cleanup above cannot drop the database between tests.
-async fn anchor(database: &str) {
+pub(super) async fn anchor(database: &str) {
     let (connected, ready) = tokio::sync::oneshot::channel();
     let database = database.to_owned();
     std::thread::spawn(move || {
