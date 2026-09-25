@@ -13,7 +13,6 @@ import collections
 import functools
 import json
 import re
-import time
 import unittest
 import uuid
 from datetime import datetime, timezone
@@ -30,6 +29,7 @@ from .client import (
     Hasura,
     Keycloak,
     StepCli,
+    StepCliError,
     event_realm,
     http_get,
     jwt_claims,
@@ -78,7 +78,8 @@ query ($eventId: String) {
 class State:
     """What earlier journeys produced; `passed` names the journeys that passed."""
 
-    passed = set()
+    def __init__(self):
+        self.passed = set()
 
 
 class BackendJourneys(unittest.TestCase):
@@ -87,6 +88,7 @@ class BackendJourneys(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         OUTPUT.mkdir(parents=True, exist_ok=True)
+        cls.state = State()
         cls.tag = uuid.uuid4().hex[:8]
         cls.keycloak = Keycloak()
         cls.admin = Hasura.admin()
@@ -111,7 +113,9 @@ class BackendJourneys(unittest.TestCase):
         return bootstrap.admin_token(self.keycloak)
 
     def electoral_log(self, event_id):
-        data = Hasura(token=self.admin_token()).query(ELECTORAL_LOG, {"eventId": event_id})["listElectoralLog"]
+        data = Hasura(token=self.admin_token()).query(
+            ELECTORAL_LOG, {"eventId": event_id}
+        )["listElectoralLog"]
         return collections.Counter(item["statement_kind"] for item in data["items"])
 
     def wait_for_log(self, event_id, expected, timeout=120):
@@ -119,25 +123,40 @@ class BackendJourneys(unittest.TestCase):
 
         def complete():
             counts = self.electoral_log(event_id)
-            return counts if all(counts[kind] >= count for kind, count in expected.items()) else None
+            return (
+                counts
+                if all(counts[kind] >= count for kind, count in expected.items())
+                else None
+            )
 
         try:
-            return wait_until(f"electoral log entries {dict(expected)}", complete, timeout=timeout, interval=3)
+            return wait_until(
+                f"electoral log entries {dict(expected)}",
+                complete,
+                timeout=timeout,
+                interval=3,
+            )
         except TimeoutError as error:
-            raise AssertionError(f"{error}; found {dict(self.electoral_log(event_id))}") from error
+            raise AssertionError(
+                f"{error}; found {dict(self.electoral_log(event_id))}"
+            ) from error
 
-    def event_rows(self, query):
-        return self.admin.query(query, {"event": self.state.event_id})
+    def event_rows(self, query, **variables):
+        return self.admin.query(query, {"event": self.state.event_id, **variables})
 
     def assert_rejected(self, errors, code, message):
         self.assertIsNotNone(errors, "the vote was accepted")
-        self.assertEqual([(e.get("extensions") or {}).get("code") for e in errors], [code], errors)
+        self.assertEqual(
+            [(e.get("extensions") or {}).get("code") for e in errors], [code], errors
+        )
         self.assertEqual(errors[0]["message"], message)
 
     def import_event(self, document, name):
         path = self.cli.directory / f"{name}.json"
         path.write_text(json.dumps(document))
-        return StepCli.last_id(self.step("import-election", "--file-path", str(path), "--is-local"))
+        return StepCli.last_id(
+            self.step("import-election", "--file-path", str(path), "--is-local")
+        )
 
     def import_tasks(self, since):
         """Import task executions the tenant started since `since`."""
@@ -170,7 +189,9 @@ class BackendJourneys(unittest.TestCase):
         if receipt:
             self.assertEqual(receipt["ballot_id"], ballot["ballotId"])
             self.assertEqual(receipt["election_id"], ballot["electionId"])
-            self.state.accepted.append((voter, style["area_id"], style["contests"][0]["id"], candidate))
+            self.state.accepted.append(
+                (voter, style["area_id"], style["contests"][0]["id"], candidate)
+            )
         else:
             self.state.rejected += 1
         return receipt, errors
@@ -190,24 +211,34 @@ class BackendJourneys(unittest.TestCase):
         realm = self.keycloak.admin("GET", TENANT_REALM)
         self.assertEqual(realm["displayName"], tenant["slug"])
 
-        jwks = http_get(f"{S3_URL}/{ENV['AWS_S3_PUBLIC_BUCKET']}/{ENV['AWS_S3_JWKS_CERTS_PATH']}")
+        jwks = http_get(
+            f"{S3_URL}/{ENV['AWS_S3_PUBLIC_BUCKET']}/{ENV['AWS_S3_JWKS_CERTS_PATH']}"
+        )
         self.assertEqual(jwks.status, 200)
         kids = bootstrap.realm_signing_kids()
         self.assertTrue(kids)
         self.assertLessEqual(kids, {key["kid"] for key in jwks.json()["keys"]})
         # Written by windmill with its cache policy, unlike the empty seed file.
-        self.assertEqual(jwks.headers.get("Cache-Control"), ENV["AWS_S3_JWKS_CACHE_POLICY"])
+        self.assertEqual(
+            jwks.headers.get("Cache-Control"), ENV["AWS_S3_JWKS_CACHE_POLICY"]
+        )
 
         token = self.admin_token()
         claims = jwt_claims(token)["https://hasura.io/jwt/claims"]
         self.assertEqual(claims["x-hasura-tenant-id"], TENANT_ID)
-        rows = Hasura(token=token).query("{ sequent_backend_tenant { id } }")["sequent_backend_tenant"]
+        rows = Hasura(token=token).query("{ sequent_backend_tenant { id } }")[
+            "sequent_backend_tenant"
+        ]
         self.assertEqual(rows, [{"id": TENANT_ID}])
 
         # Control: Hasura verifies the signature against that JWKS.
         header, payload, signature = token.split(".")
         forged = f"{header}.{payload}.{signature[:-4]}{'AAAA' if signature[-4:] != 'AAAA' else 'BBBB'}"
-        errors = Hasura(token=forged).execute("{ sequent_backend_tenant { id } }").get("errors")
+        errors = (
+            Hasura(token=forged)
+            .execute("{ sequent_backend_tenant { id } }")
+            .get("errors")
+        )
         self.assertEqual([e["extensions"]["code"] for e in errors], ["invalid-jwt"])
         self.passed("journey 1")
 
@@ -216,7 +247,9 @@ class BackendJourneys(unittest.TestCase):
         self.requires("journey 1")
         # Publishing fails for events with translations (test_5b), so the
         # journeys use a single event name.
-        document = fixtures.without_translations(fixtures.election_event(ENV["VOTING_PORTAL_URL"], self.tag))
+        document = fixtures.without_translations(
+            fixtures.election_event(ENV["VOTING_PORTAL_URL"], self.tag)
+        )
         self.state.document = document
         started = datetime.now(timezone.utc)
         event_id = self.import_event(document, "event")
@@ -234,9 +267,14 @@ class BackendJourneys(unittest.TestCase):
         )
         (event,) = data["sequent_backend_election_event"]
         self.assertEqual(event["tenant_id"], TENANT_ID)
-        self.assertEqual(fixtures.display_name(event), fixtures.display_name(document["election_event"]))
+        self.assertEqual(
+            fixtures.display_name(event),
+            fixtures.display_name(document["election_event"]),
+        )
 
-        elections = {fixtures.display_name(e): e for e in data["sequent_backend_election"]}
+        elections = {
+            fixtures.display_name(e): e for e in data["sequent_backend_election"]
+        }
         self.assertEqual(sorted(elections), ["E2E grace election", "E2E main election"])
         main, grace = elections["E2E main election"], elections["E2E grace election"]
         self.assertEqual(main["external_id"], f"e2e-main-{self.tag}")
@@ -246,30 +284,50 @@ class BackendJourneys(unittest.TestCase):
 
         areas = {a["name"]: a["id"] for a in data["sequent_backend_area"]}
         self.assertEqual(sorted(areas), sorted(spec.name for spec in fixtures.AREAS))
-        contests = {fixtures.display_name(c): c for c in data["sequent_backend_contest"]}
-        self.assertEqual(sorted(contests), sorted(spec.contest for spec in fixtures.AREAS))
-        links = {(link["area_id"], link["contest_id"]) for link in data["sequent_backend_area_contest"]}
+        contests = {
+            fixtures.display_name(c): c for c in data["sequent_backend_contest"]
+        }
+        self.assertEqual(
+            sorted(contests), sorted(spec.contest for spec in fixtures.AREAS)
+        )
+        links = {
+            (link["area_id"], link["contest_id"])
+            for link in data["sequent_backend_area_contest"]
+        }
         candidates = collections.defaultdict(dict)
         for candidate in data["sequent_backend_candidate"]:
-            candidates[candidate["contest_id"]][fixtures.display_name(candidate)] = candidate["id"]
+            candidates[candidate["contest_id"]][fixtures.display_name(candidate)] = (
+                candidate["id"]
+            )
         self.state.areas, self.state.contests, self.state.candidates = {}, {}, {}
         for spec in fixtures.AREAS:
             contest = contests[spec.contest]
-            self.assertEqual(contest["election_id"], self.state.elections[spec.election])
+            self.assertEqual(
+                contest["election_id"], self.state.elections[spec.election]
+            )
             self.assertIn((areas[spec.name], contest["id"]), links)
             self.assertEqual(sorted(candidates[contest["id"]]), sorted(spec.candidates))
             self.state.areas[spec.key] = areas[spec.name]
             self.state.contests[spec.key] = contest["id"]
             self.state.candidates[spec.key] = candidates[contest["id"]]
         self.assertEqual(len(links), len(fixtures.AREAS))
-        self.assertEqual([task["execution_status"] for task in self.import_tasks(started)], ["SUCCESS"])
+        self.assertEqual(
+            [task["execution_status"] for task in self.import_tasks(started)],
+            ["SUCCESS"],
+        )
 
         board = event["bulletin_board_reference"]["database_name"]
         self.state.board = board
-        boards = {b["name"]: b["status"] for b in http_get(f"{B4_URL}/boards").json()["boards"]}
+        boards = {
+            b["name"]: b["status"]
+            for b in http_get(f"{B4_URL}/boards").json()["boards"]
+        }
         self.assertEqual(boards.get(board), "active")
 
-        self.assertEqual(self.keycloak.admin("GET", event_realm(event_id))["realm"], event_realm(event_id))
+        self.assertEqual(
+            self.keycloak.admin("GET", event_realm(event_id))["realm"],
+            event_realm(event_id),
+        )
         # The event's electoral log database answers; an unknown event's does not.
         self.assertEqual(self.electoral_log(event_id), collections.Counter())
         with self.assertRaises(GraphQLError):
@@ -284,11 +342,21 @@ class BackendJourneys(unittest.TestCase):
         path.write_text(json.dumps(broken))
         bootstrap.configure_step_cli(self.cli)
         started = datetime.now(timezone.utc)
-        code, output = self.cli.run("step", "import-election", "--file-path", str(path), "--is-local", check=False)
+        code, output = self.cli.run(
+            "step",
+            "import-election",
+            "--file-path",
+            str(path),
+            "--is-local",
+            check=False,
+        )
         self.assertNotEqual(code, 0, output)
         last = len(broken["area_contests"]) - 1
         self.assertIn("The election event bundle cannot be imported", output)
-        self.assertIn(f"area_contests[{last}].contest_id: points at a contest that is not in the bundle", output)
+        self.assertIn(
+            f"area_contests[{last}].contest_id: points at a contest that is not in the bundle",
+            output,
+        )
 
         name = fixtures.display_name(broken["election_event"])
         imported = self.admin.query(
@@ -300,7 +368,9 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(imported, 0)
         (task,) = self.import_tasks(started)
         self.assertEqual(task["execution_status"], "FAILED")
-        self.assertIn("points at a contest that is not in the bundle", json.dumps(task["logs"]))
+        self.assertIn(
+            "points at a contest that is not in the bundle", json.dumps(task["logs"])
+        )
 
     def test_3_import_voters(self):
         """Imported voters become enabled Keycloak users of the event realm, in their areas."""
@@ -313,22 +383,45 @@ class BackendJourneys(unittest.TestCase):
         }
         path = self.cli.directory / "voters.csv"
         fixtures.write_census(path, voters, authorization)
-        self.step("import-voters", "--election-event-id", self.state.event_id, "--file-path", str(path), "--is-local")
+        self.step(
+            "import-voters",
+            "--election-event-id",
+            self.state.event_id,
+            "--file-path",
+            str(path),
+            "--is-local",
+        )
 
         realm = event_realm(self.state.event_id)
         for voter in voters:
             user = self.keycloak.user(realm, voter.username)
             self.assertTrue(user["enabled"], voter.username)
             self.assertEqual(user["email"], f"{voter.username}@example.invalid")
-            self.assertEqual(user["attributes"]["area-id"], [self.state.areas[voter.area]])
-            self.assertEqual(user["attributes"]["authorized-election-ids"], [authorization[voter.area]])
-            groups = [group["name"] for group in self.keycloak.admin("GET", f"{realm}/users/{user['id']}/groups")]
+            self.assertEqual(
+                user["attributes"]["area-id"], [self.state.areas[voter.area]]
+            )
+            self.assertEqual(
+                user["attributes"]["authorized-election-ids"],
+                [authorization[voter.area]],
+            )
+            groups = [
+                group["name"]
+                for group in self.keycloak.admin(
+                    "GET", f"{realm}/users/{user['id']}/groups"
+                )
+            ]
             self.assertEqual(groups, [ENV["KEYCLOAK_VOTER_GROUP_NAME"]])
         for key, area_id in self.state.areas.items():
-            members = self.keycloak.admin("GET", f"{realm}/users?q=area-id:{area_id}&briefRepresentation=true&max=100")
+            members = self.keycloak.admin(
+                "GET",
+                f"{realm}/users?q=area-id:{area_id}&briefRepresentation=true&max=100",
+            )
             expected = sorted(v.username for v in voters if v.area == key)
             self.assertEqual(sorted(user["username"] for user in members), expected)
-        self.state.voters = {key: [v.username for v in voters if v.area == key] for key in self.state.areas}
+        self.state.voters = {
+            key: [v.username for v in voters if v.area == key]
+            for key in self.state.areas
+        }
         self.passed("journey 3")
 
     def test_4_automatic_key_ceremony(self):
@@ -340,12 +433,25 @@ class BackendJourneys(unittest.TestCase):
             self.assertIn(f"name={name} public_key={pk}", listed)
 
         event_id = self.state.event_id
-        output = self.step("start-key-ceremony", "--election-event-id", event_id, "--threshold", "2", "--automatic")
+        output = self.step(
+            "start-key-ceremony",
+            "--election-event-id",
+            event_id,
+            "--threshold",
+            "2",
+            "--automatic",
+        )
         ceremony_id = StepCli.last_id(output)
 
         def finished():
             bootstrap.configure_step_cli(self.cli)
-            out = self.cli.step("get-key-ceremony-status", "--election-event-id", event_id, "--key-ceremony-id", ceremony_id)
+            out = self.cli.step(
+                "get-key-ceremony-status",
+                "--election-event-id",
+                event_id,
+                "--key-ceremony-id",
+                ceremony_id,
+            )
             status = re.search(r"Keys Ceremony status: (\w+)", out).group(1)
             if status in ("FAILED", "CANCELLED"):
                 raise AssertionError(f"Key ceremony {status}")
@@ -354,12 +460,12 @@ class BackendJourneys(unittest.TestCase):
         wait_until("the automatic key ceremony", finished, timeout=600, interval=5)
 
         data = self.event_rows(
-            """query ($event: uuid!) {
+            """query ($event: uuid!, $tenant: uuid!) {
               sequent_backend_keys_ceremony(where: {election_event_id: {_eq: $event}}) { id execution_status threshold settings status trustee_ids }
               sequent_backend_election(where: {election_event_id: {_eq: $event}}) { keys_ceremony_id }
-              sequent_backend_trustee(where: {tenant_id: {_eq: "%s"}}) { id name }
-            }"""
-            % TENANT_ID
+              sequent_backend_trustee(where: {tenant_id: {_eq: $tenant}}) { id name }
+            }""",
+            tenant=TENANT_ID,
         )
         (ceremony,) = data["sequent_backend_keys_ceremony"]
         self.assertEqual(ceremony["id"], ceremony_id)
@@ -367,22 +473,32 @@ class BackendJourneys(unittest.TestCase):
         self.assertEqual(ceremony["threshold"], 2)
         self.assertEqual(ceremony["settings"], {"policy": "automated-ceremonies"})
         trustees = {t["name"]: t["id"] for t in data["sequent_backend_trustee"]}
-        self.assertEqual(sorted(ceremony["trustee_ids"]), sorted(trustees[name] for name in bootstrap.TRUSTEES))
+        self.assertEqual(
+            sorted(ceremony["trustee_ids"]),
+            sorted(trustees[name] for name in bootstrap.TRUSTEES),
+        )
         self.assertEqual(
             sorted((t["name"], t["status"]) for t in ceremony["status"]["trustees"]),
             [(name, "KEY_GENERATED") for name in bootstrap.TRUSTEES],
         )
         public_key = ceremony["status"]["public_key"]
         self.assertTrue(public_key)
-        self.assertEqual({e["keys_ceremony_id"] for e in data["sequent_backend_election"]}, {ceremony_id})
+        self.assertEqual(
+            {e["keys_ceremony_id"] for e in data["sequent_backend_election"]},
+            {ceremony_id},
+        )
 
-        messages = http_get(f"{B4_URL}/boards/{self.state.board}/messages/list").json()["messages"]
+        messages = http_get(f"{B4_URL}/boards/{self.state.board}/messages/list").json()[
+            "messages"
+        ]
         senders = collections.defaultdict(set)
         for message in messages:
             senders[message["statement_kind"]].add(message["sender_pk"])
         self.assertEqual(senders["ConfigurationSigned"], set(pks.values()))
         # One trustee publishes the joint public key and the other signs it.
-        self.assertEqual(senders["PublicKey"] | senders["PublicKeySigned"], set(pks.values()))
+        self.assertEqual(
+            senders["PublicKey"] | senders["PublicKeySigned"], set(pks.values())
+        )
         self.assertEqual(len(senders["PublicKey"]), 1)
 
         self.wait_for_log(event_id, {"KeyGeneration": 1})
@@ -393,7 +509,9 @@ class BackendJourneys(unittest.TestCase):
         """Publishing writes one private ballot style per area; each voter only gets their own."""
         self.requires("journey 3", "journey 4")
         event_id = self.state.event_id
-        publication_id = StepCli.last_id(self.step("publish", "--election-event-id", event_id))
+        publication_id = StepCli.last_id(
+            self.step("publish", "--election-event-id", event_id)
+        )
         data = self.event_rows(
             """query ($event: uuid!) {
               sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}}) { id is_generated published_at annotations }
@@ -405,13 +523,25 @@ class BackendJourneys(unittest.TestCase):
         self.assertTrue(publication["is_generated"])
         self.assertIsNotNone(publication["published_at"])
         root = publication["annotations"]["ballot_files_v1"]
-        self.assertTrue(root.startswith(f"tenant-{TENANT_ID}/event-{event_id}/publication-{publication_id}/"), root)
+        self.assertTrue(
+            root.startswith(
+                f"tenant-{TENANT_ID}/event-{event_id}/publication-{publication_id}/"
+            ),
+            root,
+        )
 
-        styles = {(s["election_id"], s["area_id"]): s["id"] for s in data["sequent_backend_ballot_style"]}
-        expected = {(self.state.elections[spec.election], self.state.areas[spec.key]) for spec in fixtures.AREAS}
+        styles = {
+            (s["election_id"], s["area_id"]): s["id"]
+            for s in data["sequent_backend_ballot_style"]
+        }
+        expected = {
+            (self.state.elections[spec.election], self.state.areas[spec.key])
+            for spec in fixtures.AREAS
+        }
         self.assertEqual(set(styles), expected)
         self.assertEqual(
-            {s["ballot_publication_id"] for s in data["sequent_backend_ballot_style"]}, {publication_id}
+            {s["ballot_publication_id"] for s in data["sequent_backend_ballot_style"]},
+            {publication_id},
         )
 
         self.state.portal = Portal(event_id, self.cli)
@@ -427,14 +557,22 @@ class BackendJourneys(unittest.TestCase):
             )
             style, wrapper = self.state.portal.ballot_style(files[0])
             self.assertEqual(style["area_id"], self.state.areas[spec.key])
-            self.assertEqual([c["id"] for c in style["contests"]], [self.state.contests[spec.key]])
             self.assertEqual(
-                sorted(candidate_name(c) for c in style["contests"][0]["candidates"]), sorted(spec.candidates)
+                [c["id"] for c in style["contests"]], [self.state.contests[spec.key]]
             )
-            self.assertEqual(style["public_key"], {"public_key": self.state.public_key, "is_demo": False})
+            self.assertEqual(
+                sorted(candidate_name(c) for c in style["contests"][0]["candidates"]),
+                sorted(spec.candidates),
+            )
+            self.assertEqual(
+                style["public_key"],
+                {"public_key": self.state.public_key, "is_demo": False},
+            )
             self.assertEqual(wrapper["id"], files[0]["id"])
             # Ballot files are private: the same object without a signature is refused.
-            self.assertEqual(http_get(files[0]["urls"]["style_url"].split("?")[0]).status, 403)
+            self.assertEqual(
+                http_get(files[0]["urls"]["style_url"].split("?")[0]).status, 403
+            )
         self.wait_for_log(event_id, {"ElectionPublish": 1})
         self.passed("journey 5")
 
@@ -442,14 +580,38 @@ class BackendJourneys(unittest.TestCase):
         "Publishing fails when the event presentation has translations: each ballot style serializes "
         "the presentation's i18n HashMap in its own order, and publication_files.rs refuses the "
         "differing copies with 'Inconsistent event presentation within publication'.",
-        r"Timeout while waiting for publication to be available",
+        r"^Inconsistent event presentation within publication$",
     )
     def test_5b_publish_event_with_translations(self):
         """An event whose presentation keeps the fixture's translations publishes too."""
         self.requires("journey 2")
         document = fixtures.election_event(ENV["VOTING_PORTAL_URL"], f"{self.tag}-i18n")
         event_id = self.import_event(document, "translated-event")
-        publication_id = StepCli.last_id(self.step("publish", "--election-event-id", event_id))
+        try:
+            publication_id = StepCli.last_id(
+                self.step("publish", "--election-event-id", event_id)
+            )
+        except StepCliError:
+            tasks = self.admin.query(
+                """query ($event: uuid!) {
+                  sequent_backend_tasks_execution(where: {election_event_id: {_eq: $event}, type: {_eq: "GENERATE_BALLOT_PUBLICATION"}}) {
+                    execution_status logs
+                  }
+                }""",
+                {"event": event_id},
+            )["sequent_backend_tasks_execution"]
+            if (
+                len(tasks) == 1
+                and tasks[0]["execution_status"] == "FAILED"
+                and (
+                    "Inconsistent event presentation within publication"
+                    in json.dumps(tasks[0]["logs"])
+                )
+            ):
+                raise AssertionError(
+                    "Inconsistent event presentation within publication"
+                ) from None
+            raise
         styles = self.admin.query(
             """query ($event: uuid!, $publication: uuid!) {
               sequent_backend_ballot_style_aggregate(where: {election_event_id: {_eq: $event}, ballot_publication_id: {_eq: $publication}}) { aggregate { count } }
@@ -467,24 +629,46 @@ class BackendJourneys(unittest.TestCase):
         (b1,) = self.state.voters["B"][:1]
         (c1,) = self.state.voters["C"][:1]
 
-        self.step("update-event-voting-status", "--election-event-id", event_id, "--voting-status", "OPEN", "--voting-channel", "ONLINE")
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "OPEN",
+            "--voting-channel",
+            "ONLINE",
+        )
         statuses = self.event_rows(
             """query ($event: uuid!) {
               sequent_backend_election_event(where: {id: {_eq: $event}}) { status }
               sequent_backend_election(where: {election_event_id: {_eq: $event}}) { status }
             }"""
         )
-        self.assertEqual(statuses["sequent_backend_election_event"][0]["status"]["voting_status"], "OPEN")
-        self.assertEqual({e["status"]["voting_status"] for e in statuses["sequent_backend_election"]}, {"OPEN"})
+        self.assertEqual(
+            statuses["sequent_backend_election_event"][0]["status"]["voting_status"],
+            "OPEN",
+        )
+        self.assertEqual(
+            {
+                e["status"]["voting_status"]
+                for e in statuses["sequent_backend_election"]
+            },
+            {"OPEN"},
+        )
 
         # A vote and a revote are accepted; a third vote exceeds the limit.
         token = self.state.portal.login(a1)
         receipt, errors = self.vote(a1, "Alice", token)
         self.assertIsNone(errors)
-        self.assertEqual((receipt["area_id"], receipt["election_event_id"]), (self.state.areas["A"], event_id))
+        self.assertEqual(
+            (receipt["area_id"], receipt["election_event_id"]),
+            (self.state.areas["A"], event_id),
+        )
         self.assertIsNone(self.vote(a1, "Bob", token)[1])
         self.assert_rejected(
-            self.vote(a1, "Carol", token)[1], "InsertFailedExceedsAllowedRevotes", "InsertFailedExceedsAllowedRevotes"
+            self.vote(a1, "Carol", token)[1],
+            "InsertFailedExceedsAllowedRevotes",
+            "InsertFailedExceedsAllowedRevotes",
         )
         own = self.state.portal.status(token)["sequent_backend_cast_vote"]
         self.assertEqual(len(own), fixtures.MAIN_ALLOWED_VOTES)
@@ -492,31 +676,76 @@ class BackendJourneys(unittest.TestCase):
         # A voter who voted in area A cannot vote in the same election from area B.
         self.assertIsNone(self.vote(a2, "Alice")[1])
         user = self.keycloak.user(event_realm(event_id), a2)
-        self.step("update-voter", "--election-event-id", event_id, "--user-id", user["id"], "--area-id", self.state.areas["B"])
+        self.step(
+            "update-voter",
+            "--election-event-id",
+            event_id,
+            "--user-id",
+            user["id"],
+            "--area-id",
+            self.state.areas["B"],
+        )
         token = self.state.portal.login(a2)
-        self.assertEqual(jwt_claims(token)["https://hasura.io/jwt/claims"]["x-hasura-area-id"], self.state.areas["B"])
+        self.assertEqual(
+            jwt_claims(token)["https://hasura.io/jwt/claims"]["x-hasura-area-id"],
+            self.state.areas["B"],
+        )
         self.assert_rejected(
             self.vote(a2, "Dave", token)[1],
             "CheckVotesInOtherAreasFailed",
             "Cannot insert cast vote, votes already present in other area(s)",
         )
         # The tally only counts voters in the area of their ballot; move a2 back.
-        self.step("update-voter", "--election-event-id", event_id, "--user-id", user["id"], "--area-id", self.state.areas["A"])
+        self.step(
+            "update-voter",
+            "--election-event-id",
+            event_id,
+            "--user-id",
+            user["id"],
+            "--area-id",
+            self.state.areas["A"],
+        )
 
         self.assertIsNone(self.vote(b1, "Erin")[1])
         self.state.c1_token = self.state.portal.login(c1)
         self.assertIsNone(self.vote(c1, "Frank", self.state.c1_token)[1])
 
-        self.step("update-event-voting-status", "--election-event-id", event_id, "--voting-status", "CLOSED", "--voting-channel", "ONLINE")
-        # Tokens carry whole seconds: log in strictly after the close.
-        time.sleep(1.5)
+        self.step(
+            "update-event-voting-status",
+            "--election-event-id",
+            event_id,
+            "--voting-status",
+            "CLOSED",
+            "--voting-channel",
+            "ONLINE",
+        )
+        # Tokens carry whole seconds; observe a session newer than the close.
+        self.state.closed_before = datetime.now(timezone.utc).timestamp()
+
+        def session_after_close():
+            token = self.state.portal.login(a3)
+            return (
+                token
+                if jwt_claims(token)["auth_time"] > self.state.closed_before
+                else None
+            )
+
+        token_after_close = wait_until(
+            "a login strictly after closing",
+            session_after_close,
+            timeout=10,
+            interval=0.2,
+        )
         self.assert_rejected(
-            self.vote(a3, "Carol")[1], "CheckStatusFailed", "Voting Status for voting_channel=ONLINE is CLOSED"
+            self.vote(a3, "Carol", token_after_close)[1],
+            "CheckStatusFailed",
+            "Voting Status for voting_channel=ONLINE is CLOSED",
         )
 
         self.assertEqual(len(self.voter_votes(a1)), fixtures.MAIN_ALLOWED_VOTES)
         self.assertEqual(
-            [(v["area_id"], v["status"]) for v in self.voter_votes(a2)], [(self.state.areas["A"], "valid")]
+            [(v["area_id"], v["status"]) for v in self.voter_votes(a2)],
+            [(self.state.areas["A"], "valid")],
         )
         self.assertEqual(self.voter_votes(a3), [])
         self.wait_for_log(
@@ -540,15 +769,31 @@ class BackendJourneys(unittest.TestCase):
         self.requires("journey 6")
         c1, c2 = self.state.voters["C"][:2]
         self.assertIsNone(self.vote(c1, "Grace", self.state.c1_token)[1])
-        errors = self.vote(c2, "Frank")[1]
-        self.assert_rejected(errors, "CheckStatusFailed", "Voting Status for voting_channel=ONLINE is CLOSED")
+        newer_token = self.state.portal.login(c2)
+        self.assertGreater(
+            jwt_claims(newer_token)["auth_time"], self.state.closed_before
+        )
+        errors = self.vote(c2, "Frank", newer_token)[1]
+        self.assert_rejected(
+            errors,
+            "CheckStatusFailed",
+            "Voting Status for voting_channel=ONLINE is CLOSED",
+        )
 
     def tally(self):
         """Run one electoral-results tally for the event and return its results event ID."""
         if getattr(self.state, "results_event_id", None):
             return self.state.results_event_id
         event_id = self.state.event_id
-        tally_id = StepCli.last_id(self.step("start-tally", "--election-event-id", event_id, "--tally-type", "ELECTORAL_RESULTS"))
+        tally_id = StepCli.last_id(
+            self.step(
+                "start-tally",
+                "--election-event-id",
+                event_id,
+                "--tally-type",
+                "ELECTORAL_RESULTS",
+            )
+        )
 
         def finished():
             (session,) = self.admin.query(
@@ -579,12 +824,25 @@ class BackendJourneys(unittest.TestCase):
               sequent_backend_results_contest_candidate(where: {results_event_id: {_eq: $results}, contest_id: {_eq: $contest}}) { candidate_id cast_votes }
               sequent_backend_results_area_contest_candidate(where: {results_event_id: {_eq: $results}, contest_id: {_eq: $contest}, area_id: {_eq: $area}}) { candidate_id cast_votes }
             }""",
-            {"results": self.state.results_event_id, "contest": self.state.contests[key], "area": self.state.areas[key]},
+            {
+                "results": self.state.results_event_id,
+                "contest": self.state.contests[key],
+                "area": self.state.areas[key],
+            },
         )
-        names = {candidate_id: name for name, candidate_id in self.state.candidates[key].items()}
+        names = {
+            candidate_id: name
+            for name, candidate_id in self.state.candidates[key].items()
+        }
         (contest,) = data["sequent_backend_results_contest"]
-        by_name = {names[r["candidate_id"]]: r["cast_votes"] for r in data["sequent_backend_results_contest_candidate"]}
-        by_area = {names[r["candidate_id"]]: r["cast_votes"] for r in data["sequent_backend_results_area_contest_candidate"]}
+        by_name = {
+            names[r["candidate_id"]]: r["cast_votes"]
+            for r in data["sequent_backend_results_contest_candidate"]
+        }
+        by_area = {
+            names[r["candidate_id"]]: r["cast_votes"]
+            for r in data["sequent_backend_results_area_contest_candidate"]
+        }
         return contest, by_name, by_area
 
     def expected(self, key):
@@ -614,7 +872,7 @@ class BackendJourneys(unittest.TestCase):
         "The tally drops ballots from voters whose authorized-election-ids lists the election ID, as "
         "step-cli generate-voters writes it: for an election without an external ID, "
         "windmill/src/services/ceremonies/insert_ballots.rs matches voters against an empty alias.",
-        r"Contest C results",
+        r"^All accepted election-ID ballots are absent from the tally$",
     )
     def test_7b_tally_counts_voters_listed_by_election_id(self):
         """Voters authorized by election ID have their accepted ballots counted."""
@@ -623,6 +881,17 @@ class BackendJourneys(unittest.TestCase):
         expected = self.expected("C")
         self.assertTrue(sum(expected.values()))
         contest, by_name, by_area = self.results("C")
+        zero_votes = dict.fromkeys(fixtures.AREA["C"].candidates, 0)
+        if (
+            by_name == zero_votes
+            and by_area == zero_votes
+            and contest
+            == {
+                "total_votes": 0,
+                "total_valid_votes": 0,
+            }
+        ):
+            self.fail("All accepted election-ID ballots are absent from the tally")
         self.assertEqual(by_name, expected, "Contest C results")
         self.assertEqual(by_area, expected, "Contest C results in area C")
         self.assertEqual(contest["total_valid_votes"], sum(expected.values()))

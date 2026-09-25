@@ -23,7 +23,11 @@ INSERT_CAST_VOTE = portal_query("InsertCastVote")
 def candidate_name(candidate):
     """The English name a ballot style shows for a candidate."""
     i18n = ((candidate.get("presentation") or {}).get("i18n") or {}).get("en") or {}
-    return candidate.get("name") or (candidate.get("name_i18n") or {}).get("en") or i18n.get("name")
+    return (
+        candidate.get("name")
+        or (candidate.get("name_i18n") or {}).get("en")
+        or i18n.get("name")
+    )
 
 
 class Portal:
@@ -37,13 +41,19 @@ class Portal:
 
     def login(self, username):
         tokens = self.keycloak.browser_login(
-            event_realm(self.election_event_id), "voting-portal", self.redirect_uri, username, VOTER_PASSWORD
+            event_realm(self.election_event_id),
+            "voting-portal",
+            self.redirect_uri,
+            username,
+            VOTER_PASSWORD,
         )
         return tokens["access_token"]
 
     def status(self, token):
         """GetVoterStatus: the voter's ballot files and their own cast votes."""
-        return Hasura(token=token).query(GET_VOTER_STATUS, {"electionEventId": self.election_event_id})
+        return Hasura(token=token).query(
+            GET_VOTER_STATUS, {"electionEventId": self.election_event_id}
+        )
 
     @staticmethod
     def ballot_style(file):
@@ -55,7 +65,11 @@ class Portal:
         style = style.json()
         if style.get("ballot_eml_prefix") is None:
             return json.loads(style["ballot_eml"]), style
-        text = style["ballot_eml_prefix"] + event.json()["ballot_eml_presentation"] + style["ballot_eml_suffix"]
+        text = (
+            style["ballot_eml_prefix"]
+            + event.json()["ballot_eml_presentation"]
+            + style["ballot_eml_suffix"]
+        )
         return json.loads(text), style
 
     def encrypt(self, style, candidate):
@@ -73,7 +87,11 @@ class Portal:
                 "invalid_errors": [],
                 "invalid_alerts": [],
                 "choices": [
-                    {"id": c["id"], "selected": 0 if name == candidate else -1, "write_in_text": None}
+                    {
+                        "id": c["id"],
+                        "selected": 0 if name == candidate else -1,
+                        "write_in_text": None,
+                    }
                     for c, name in zip(contest["candidates"], names)
                 ],
             }
@@ -83,7 +101,14 @@ class Portal:
         style_path.write_text(json.dumps(style))
         choices_path.write_text(json.dumps(choices))
         result = subprocess.run(
-            [str(self.cli.binary), "load", "encrypt", str(style_path), str(choices_path), "1"],
+            [
+                str(self.cli.binary),
+                "load",
+                "encrypt",
+                str(style_path),
+                str(choices_path),
+                "1",
+            ],
             capture_output=True,
             text=True,
             check=True,
@@ -97,7 +122,11 @@ class Portal:
         """InsertCastVote as the portal sends it; returns (receipt, errors)."""
         result = Hasura(token=token).execute(
             INSERT_CAST_VOTE,
-            {"electionId": ballot["electionId"], "ballotId": ballot["ballotId"], "content": ballot["content"]},
+            {
+                "electionId": ballot["electionId"],
+                "ballotId": ballot["ballotId"],
+                "content": ballot["content"],
+            },
         )
         receipt = (result.get("data") or {}).get("insert_cast_vote")
         return receipt, result.get("errors")

@@ -18,7 +18,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -46,11 +46,13 @@ def wait_until(description, probe, timeout, interval=2.0):
             value = probe()
             if value:
                 return value
-        except Exception as error:  # noqa: BLE001 - reported on timeout
+        except (OSError, GraphQLError) as error:
             last_error = error
         if time.monotonic() >= deadline:
             detail = f" (last error: {last_error!r})" if last_error else ""
-            raise TimeoutError(f"Timed out after {timeout}s waiting for {description}{detail}")
+            raise TimeoutError(
+                f"Timed out after {timeout}s waiting for {description}{detail}"
+            )
         time.sleep(interval)
 
 
@@ -83,7 +85,17 @@ class Http:
             urllib.request.HTTPCookieProcessor(self.jar), _NoRedirect()
         )
 
-    def request(self, method, url, *, form=None, json_body=None, data=None, headers=None, timeout=120):
+    def request(
+        self,
+        method,
+        url,
+        *,
+        form=None,
+        json_body=None,
+        data=None,
+        headers=None,
+        timeout=120,
+    ):
         headers = dict(headers or {})
         if form is not None:
             data = urllib.parse.urlencode(form).encode()
@@ -94,7 +106,9 @@ class Http:
         request = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
             with self.opener.open(request, timeout=timeout) as response:
-                return Response(response.status, dict(response.headers), response.read(), url)
+                return Response(
+                    response.status, dict(response.headers), response.read(), url
+                )
         except urllib.error.HTTPError as error:
             return Response(error.code, dict(error.headers), error.read(), url)
 
@@ -139,10 +153,14 @@ class Hasura:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         response = Http().post(
-            HASURA_URL, json_body={"query": query, "variables": variables or {}}, headers=headers
+            HASURA_URL,
+            json_body={"query": query, "variables": variables or {}},
+            headers=headers,
         )
         if response.status != 200:
-            raise AssertionError(f"Hasura answered HTTP {response.status}: {response.text[:500]}")
+            raise AssertionError(
+                f"Hasura answered HTTP {response.status}: {response.text[:500]}"
+            )
         return response.json()
 
     def query(self, query, variables=None):
@@ -164,7 +182,9 @@ class _Forms(html.parser.HTMLParser):
         attrs = dict(attrs)
         kind = (attrs.get("type") or ("submit" if tag == "button" else "text")).lower()
         if tag == "form":
-            self.forms.append({"id": attrs.get("id"), "action": attrs.get("action"), "inputs": {}})
+            self.forms.append(
+                {"id": attrs.get("id"), "action": attrs.get("action"), "inputs": {}}
+            )
         elif tag in ("input", "button") and self.forms and attrs.get("name"):
             # Browsers never submit plain buttons, nor unchecked boxes.
             if kind == "button" or (tag == "button" and kind != "submit"):
@@ -212,7 +232,12 @@ class Keycloak:
 
     def admin_token(self):
         if time.monotonic() >= self._admin_expiry:
-            body = self.password_grant("master", "admin-cli", ENV["KEYCLOAK_ADMIN"], ENV["KEYCLOAK_ADMIN_PASSWORD"])
+            body = self.password_grant(
+                "master",
+                "admin-cli",
+                ENV["KEYCLOAK_ADMIN"],
+                ENV["KEYCLOAK_ADMIN_PASSWORD"],
+            )
             self._admin_token = body["access_token"]
             self._admin_expiry = time.monotonic() + body["expires_in"] - 10
         return self._admin_token
@@ -225,20 +250,32 @@ class Keycloak:
             headers={"Authorization": f"Bearer {self.admin_token()}"},
         )
         if response.status not in expect:
-            raise AssertionError(f"Keycloak admin {method} {path}: HTTP {response.status} {response.text[:300]}")
+            raise AssertionError(
+                f"Keycloak admin {method} {path}: HTTP {response.status} {response.text[:300]}"
+            )
         return response.json() if response.body else None
 
     def user(self, realm, username):
-        users = self.admin("GET", f"{realm}/users?exact=true&username={urllib.parse.quote(username)}")
+        users = self.admin(
+            "GET", f"{realm}/users?exact=true&username={urllib.parse.quote(username)}"
+        )
         if len(users) != 1:
-            raise AssertionError(f"Expected one {username} in {realm}, found {len(users)}")
+            raise AssertionError(
+                f"Expected one {username} in {realm}, found {len(users)}"
+            )
         return users[0]
 
-    def browser_login(self, realm, client_id, redirect_uri, username, password, otp=None):
+    def browser_login(
+        self, realm, client_id, redirect_uri, username, password, otp=None
+    ):
         """Authorization-code login with PKCE, submitting the realm's own HTML forms."""
         session = Http()
         verifier = secrets.token_urlsafe(48)
-        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+        challenge = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+            .rstrip(b"=")
+            .decode()
+        )
         state, nonce = secrets.token_urlsafe(16), secrets.token_urlsafe(16)
         query = urllib.parse.urlencode(
             {
@@ -253,32 +290,54 @@ class Keycloak:
                 "code_challenge_method": "S256",
             }
         )
-        response = session.get(f"{KEYCLOAK_URL}/realms/{realm}/protocol/openid-connect/auth?{query}")
+        response = session.get(
+            f"{KEYCLOAK_URL}/realms/{realm}/protocol/openid-connect/auth?{query}"
+        )
         for _ in range(4):
             if response.status in (302, 303):
                 break
             if response.status != 200:
-                raise LoginError(f"Login page for {username} answered HTTP {response.status}")
+                raise LoginError(
+                    f"Login page for {username} answered HTTP {response.status}"
+                )
             forms = parse_forms(response.text)
-            login = next((form for form in forms if form["id"] == "kc-form-login"), None)
+            login = next(
+                (form for form in forms if form["id"] == "kc-form-login"), None
+            )
             if login is not None:
                 values = {name: value or "" for name, value in login["inputs"].items()}
                 values.update(username=username, password=password)
             else:
-                otp_form = next((form for form in forms if "code" in form["inputs"]), None)
+                otp_form = next(
+                    (form for form in forms if "code" in form["inputs"]), None
+                )
                 if otp_form is None or otp is None:
-                    error = re.search(r'kc-feedback-text">([^<]+)<|alert-error[^>]*>\s*([^<]+)<', response.text)
-                    raise LoginError(f"Unexpected login page for {username}: {error.groups() if error else forms}")
-                values = {name: value or "" for name, value in otp_form["inputs"].items()}
+                    error = re.search(
+                        r'kc-feedback-text">([^<]+)<|alert-error[^>]*>\s*([^<]+)<',
+                        response.text,
+                    )
+                    raise LoginError(
+                        f"Unexpected login page for {username}: {error.groups() if error else forms}"
+                    )
+                values = {
+                    name: value or "" for name, value in otp_form["inputs"].items()
+                }
                 # The page's script copies the per-digit boxes into `code`.
-                values.update({f"otp{index}": digit for index, digit in enumerate(otp, 1)}, code=otp)
+                values.update(
+                    {f"otp{index}": digit for index, digit in enumerate(otp, 1)},
+                    code=otp,
+                )
                 login = otp_form
             action = html.unescape(login["action"])
-            response = session.post(urllib.parse.urljoin(response.url, action), form=values)
+            response = session.post(
+                urllib.parse.urljoin(response.url, action), form=values
+            )
             response.url = urllib.parse.urljoin(response.url, action)
         location = response.headers.get("Location", "")
         if not location.startswith(redirect_uri.split("?")[0]):
-            raise LoginError(f"Login for {username} did not return to the client: {response.status} {location[:200]}")
+            raise LoginError(
+                f"Login for {username} did not return to the client: {response.status} {location[:200]}"
+            )
         fragment = urllib.parse.parse_qs(urllib.parse.urlsplit(location).fragment)
         if fragment.get("state") != [state] or "code" not in fragment:
             raise LoginError(f"OAuth callback for {username} lacks the code or state")
@@ -308,7 +367,10 @@ class StepCli:
     """step-cli with a private, writable copy (it keeps its session beside the binary)."""
 
     def __init__(self, source=None):
-        source = Path(source or Path(ENV.get("STEP_E2E_BIN_DIR", "/opt/step-e2e/bin")) / "step-cli")
+        source = Path(
+            source
+            or Path(ENV.get("STEP_E2E_BIN_DIR", "/opt/step-e2e/bin")) / "step-cli"
+        )
         self.directory = Path(tempfile.mkdtemp(prefix="step-cli-"))
         self.binary = self.directory / "step-cli"
         shutil.copy2(source, self.binary)
@@ -324,14 +386,23 @@ class StepCli:
             text=True,
             env={**ENV, "NO_COLOR": "1", "HOME": str(self.directory)},
             timeout=timeout,
+            check=False,
         )
         output = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", process.stdout)
         with self.log.open("a") as log:
-            printable = [arg if len(arg) < 200 else arg[:200] + "..." for arg in args]
-            log.write(f"$ step-cli {' '.join(printable)}  # exit {process.returncode}, {time.monotonic() - started:.1f}s\n{output}\n")
+            secret_flags = {"--keycloak-password", "--keycloak-client-secret"}
+            printable = [
+                "<redacted>" if index and args[index - 1] in secret_flags else arg[:200]
+                for index, arg in enumerate(args)
+            ]
+            log.write(
+                f"$ step-cli {' '.join(printable)}  # exit {process.returncode}, {time.monotonic() - started:.1f}s\n{output}\n"
+            )
         failed = process.returncode != 0 or re.search(r"^Error!", output, re.MULTILINE)
         if check and failed:
-            raise StepCliError(f"step-cli {args[:2]} failed (exit {process.returncode}):\n{output[-2000:]}")
+            raise StepCliError(
+                f"step-cli {args[:2]} failed (exit {process.returncode}):\n{output[-2000:]}"
+            )
         return process.returncode, output
 
     def step(self, *args, **kwargs):
@@ -340,15 +411,9 @@ class StepCli:
     @staticmethod
     def last_id(output):
         """Return the ID printed on step-cli's final `Success! ... ID <uuid>` line."""
-        ids = re.findall(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", output)
+        ids = re.findall(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", output
+        )
         if not ids:
             raise StepCliError(f"No ID in step-cli output:\n{output[-1000:]}")
         return ids[-1]
-
-
-@dataclass
-class Voter:
-    username: str
-    area: str
-    password: str
-    tokens: dict = field(default_factory=dict)

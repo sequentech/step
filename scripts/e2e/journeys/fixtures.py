@@ -61,7 +61,9 @@ def _name(item, name):
 
 def display_name(item):
     """Read the English display name the way `_name` wrote it."""
-    return ((item.get("presentation") or {}).get("i18n") or {}).get("en", {}).get("name")
+    return (
+        ((item.get("presentation") or {}).get("i18n") or {}).get("en", {}).get("name")
+    )
 
 
 def election_event(voting_portal_url, tag):
@@ -70,7 +72,9 @@ def election_event(voting_portal_url, tag):
     main = event["elections"][0]
     template_contest = event["contests"][0]
     template_area = event["areas"][0]
-    template_candidate = next(c for c in event["candidates"] if c["contest_id"] == template_contest["id"])
+    template_candidate = next(
+        c for c in event["candidates"] if c["contest_id"] == template_contest["id"]
+    )
 
     _name(event["election_event"], f"Backend E2E {tag}")
     grace = copy.deepcopy(main)
@@ -107,10 +111,20 @@ def election_event(voting_portal_url, tag):
             candidates.append(candidate)
         areas.append(area)
         contests.append(contest)
-        links.append({"id": str(uuid.uuid4()), "area_id": area["id"], "contest_id": contest["id"]})
+        links.append(
+            {
+                "id": str(uuid.uuid4()),
+                "area_id": area["id"],
+                "contest_id": contest["id"],
+            }
+        )
 
     event.update(
-        elections=[main, grace], areas=areas, contests=contests, candidates=candidates, area_contests=links
+        elections=[main, grace],
+        areas=areas,
+        contests=contests,
+        candidates=candidates,
+        area_contests=links,
     )
 
     # The same simplifications `step-cli load prepare` applies to this fixture.
@@ -128,7 +142,12 @@ def election_event(voting_portal_url, tag):
     origin = voting_portal_url.rstrip("/")
     for client in realm["clients"]:
         if client["clientId"] == "voting-portal":
-            client.update(rootUrl=origin, baseUrl=origin, redirectUris=[f"{origin}/*"], webOrigins=[origin])
+            client.update(
+                rootUrl=origin,
+                baseUrl=origin,
+                redirectUris=[f"{origin}/*"],
+                webOrigins=[origin],
+            )
     return event
 
 
@@ -143,7 +162,9 @@ def without_translations(document):
 def dangling_contest_link(document):
     """A copy whose last area-contest link names a contest missing from the bundle."""
     broken = copy.deepcopy(document)
-    _name(broken["election_event"], display_name(broken["election_event"]) + " (invalid)")
+    _name(
+        broken["election_event"], display_name(broken["election_event"]) + " (invalid)"
+    )
     broken["area_contests"][-1]["contest_id"] = str(uuid.uuid4())
     return broken
 
@@ -157,7 +178,11 @@ class Voter:
 
 def census(tag, counts):
     """Voters per area key, e.g. {"A": 4} -> e2e-<tag>-a1 .. a4."""
-    return [Voter(f"e2e-{tag}-{key.lower()}{index}", key) for key, count in counts.items() for index in range(1, count + 1)]
+    return [
+        Voter(f"e2e-{tag}-{key.lower()}{index}", key)
+        for key, count in counts.items()
+        for index in range(1, count + 1)
+    ]
 
 
 def write_census(path, voters, authorization):
@@ -167,7 +192,16 @@ def write_census(path, voters, authorization):
     """
     with Path(path).open("w", newline="") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["username", "area_name", "email", "email_verified", "password", "authorized-election-ids"])
+        writer.writerow(
+            [
+                "username",
+                "area_name",
+                "email",
+                "email_verified",
+                "password",
+                "authorized-election-ids",
+            ]
+        )
         for voter in voters:
             writer.writerow(
                 [
