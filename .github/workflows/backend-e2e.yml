@@ -46,6 +46,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check journey runner outcome and ownership contracts
+        run: python3 -m unittest scripts.e2e.test_runner scripts.e2e.test_run_safety -v
+
       - name: Make room for the backend build
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
