@@ -123,7 +123,16 @@ export const test = base.extend<
         // React-admin's known telemetry image is answered locally; it never leaves the browser.
         await context.route(
             "https://react-admin-telemetry.marmelab.com/react-admin-telemetry?domain=127.0.0.1",
-            (route) => route.fulfill({status: 204, body: ""})
+            (route) => {
+                const request = route.request()
+                if (request.method() !== "GET" || request.resourceType() !== "image") {
+                    violations.add(
+                        `Unexpected telemetry request: ${request.method()} ${request.resourceType()}`
+                    )
+                    return route.abort("blockedbyclient")
+                }
+                return route.fulfill({status: 204, body: ""})
+            }
         )
         try {
             await use(portal)
