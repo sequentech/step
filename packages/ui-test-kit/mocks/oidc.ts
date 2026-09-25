@@ -323,6 +323,19 @@ export class OidcMock {
             return html(400, `<h1>Invalid request</h1><p>${escapeHtml(problems.join("; "))}</p>`)
         }
         if (!this.signedIn) {
+            if (params.prompt === "none") {
+                const response = new URLSearchParams({
+                    state: params.state,
+                    error: "login_required",
+                })
+                const target = new URL(params.redirect_uri)
+                if (params.response_mode === "query") {
+                    response.forEach((value, name) => target.searchParams.set(name, value))
+                } else {
+                    target.hash = response.toString()
+                }
+                return redirect(target.toString())
+            }
             const loginId = this.nextId("login")
             this.pendingLogins.set(loginId, record)
             return html(
