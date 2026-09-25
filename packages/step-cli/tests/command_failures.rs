@@ -4,7 +4,7 @@
 //! Exercise the process boundary that shell automation relies on.
 use std::{
     fs,
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     net::TcpListener,
     process::Command,
     thread,
@@ -35,8 +35,23 @@ fn failed_http_commands_exit_nonzero() {
     let handler = thread::spawn(move || {
         for _ in 0..2 {
             let (mut stream, _) = server.accept().unwrap();
-            let mut request = [0; 8192];
-            stream.read(&mut request).unwrap();
+            let mut reader = BufReader::new(&mut stream);
+            let mut request_line = String::new();
+            assert!(reader.read_line(&mut request_line).unwrap() > 0);
+            let mut content_length = 0;
+            loop {
+                let mut header = String::new();
+                assert!(reader.read_line(&mut header).unwrap() > 0);
+                if header == "\r\n" {
+                    break;
+                }
+                let (name, value) = header.split_once(':').unwrap();
+                if name.eq_ignore_ascii_case("content-length") {
+                    content_length = value.trim().parse::<usize>().unwrap();
+                }
+            }
+            let mut body = vec![0; content_length];
+            reader.read_exact(&mut body).unwrap();
             stream.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
         }
     });
