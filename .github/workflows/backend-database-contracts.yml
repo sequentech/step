@@ -60,6 +60,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Metadata checker cleanup contracts
+        run: python3 scripts/postgres/test_hasura_metadata_cleanup.py
       - name: Start Hasura on a fresh database and check its metadata
         run: scripts/postgres/check_hasura_metadata.sh
 
