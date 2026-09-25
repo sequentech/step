@@ -759,11 +759,6 @@ class BackendJourneys(unittest.TestCase):
         )
         self.passed("journey 6")
 
-    @known_defect(
-        "The grace period also admits sessions opened after voting closed: check_status in "
-        "windmill/src/services/insert_cast_vote.rs parses the JWT auth_time (seconds) as milliseconds.",
-        r"the vote was accepted",
-    )
     def test_6b_grace_period_admits_only_earlier_sessions(self):
         """In the grace period, a session opened before closing still votes; a newer one does not."""
         self.requires("journey 6")
@@ -779,6 +774,7 @@ class BackendJourneys(unittest.TestCase):
             "CheckStatusFailed",
             "Voting Status for voting_channel=ONLINE is CLOSED",
         )
+        self.assertEqual(self.voter_votes(c2), [])
 
     def tally(self):
         """Run one electoral-results tally for the event and return its results event ID."""
