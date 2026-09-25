@@ -68,6 +68,9 @@ OUTPUT=${STEP_E2E_OUTPUT_DIR:-$ROOT/.cache/backend-e2e/$PROJECT}
 # even if its caller selected an output directory containing old run markers.
 RUN_TOKEN=${STEP_E2E_RUN_TOKEN:-$$-$RANDOM-$RANDOM}
 [[ "$RUN_TOKEN" =~ ^[a-zA-Z0-9_-]+$ ]] || { echo 'Invalid run token' >&2; exit 2; }
+# Written just before compose up: CI uploads results only if this run got there.
+STARTED_MARKER=.compose-started
+$down_only || rm -f "$OUTPUT/$STARTED_MARKER"
 
 assert_unused_project() {
     local resources kind
@@ -147,6 +150,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 phase "Starting project $PROJECT; logs in $OUTPUT"
+printf '%s\n' "$PROJECT" > "$OUTPUT/$STARTED_MARKER"
 compose up --detach --wait --wait-timeout 900 "${SERVICES[@]}"
 
 phase "Waiting for the super tenant"
