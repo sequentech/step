@@ -9,3 +9,4 @@
 #[cfg(test)]
 pub mod memory;
 pub mod system;
+pub mod tally_ceremony;
