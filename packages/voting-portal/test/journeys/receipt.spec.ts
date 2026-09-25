@@ -62,7 +62,9 @@ test("receipt QR independently decodes to the scoped locator and print waits for
         await review(page, portal)
         await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
         await expect(page).toHaveURL(/\/confirmation/)
-        const ballotId = await page.getByTestId("ballot-id").first().innerText()
+        const ballotIdLabel = page.getByTestId("ballot-id").first()
+        await expect(ballotIdLabel).toHaveText(/^[0-9a-f]{64}$/)
+        const ballotId = await ballotIdLabel.innerText()
         const pixels = await page.locator("svg.qr-code-svg").evaluate(async (svg) => {
             const image = new Image()
             image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`
