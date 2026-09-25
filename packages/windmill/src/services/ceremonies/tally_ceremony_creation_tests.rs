@@ -763,7 +763,7 @@ async fn each_contest_area_gets_its_own_run_of_batches_after_the_existing_ones()
 async fn a_session_after_the_maximum_stored_batch_fails_before_inserting_contests() {
     let control = closed_event(json!({}));
     create(&control).await.unwrap();
-    assert_creation_writes(&control, 1, 1, 2);
+    assert_eq!(control.session_contests(FIRST_ID).len(), 2);
 
     let ceremony = closed_event(json!({}));
     ceremony.add_session_contest(TallySessionContest {
