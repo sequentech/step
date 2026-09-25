@@ -31,6 +31,7 @@ import {
     CheckboxGroupInput,
     useGetOne,
     useNotify,
+    useTranslate,
     ValidationErrorMessage,
     AutocompleteInput,
     ReferenceInput,
@@ -93,6 +94,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
     const notify = useNotify()
+    const translate = useTranslate()
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [openConfirmationModal, setOpenConfirmationModal] = useState(false)
@@ -322,12 +324,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     }
 
     // validates selected trustees
-    const trusteeListValidator = (value: string[]): ValidationErrorMessage | null => {
+    const trusteeListValidator = (
+        value: string[],
+        values: FieldValues
+    ): ValidationErrorMessage | null => {
         const length = value && value ? value.length : 0
-        if (length < threshold) {
+        const requiredTrustees = Number(values.threshold)
+        if (length < requiredTrustees) {
             return t("keysGeneration.configureStep.errorMinTrustees", {
                 selected: length,
-                threshold: threshold,
+                threshold: requiredTrustees,
                 count: length,
             })
         } else {
@@ -377,6 +383,7 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                         <TextInput
                             dir={i18n.dir(i18n.language)}
                             source="threshold"
+                            sx={{"& .MuiInputLabel-root.Mui-error": {color: "error.dark"}}}
                             label={String(t("keysGeneration.configureStep.threshold"))}
                             value={threshold}
                             validate={validateThreshold}
@@ -417,6 +424,9 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
                                             <InputAdornment position="end">
                                                 <IconButton
                                                     onClick={() => setFilterTrustees("")}
+                                                    aria-label={translate(
+                                                        "ra.action.clear_input_value"
+                                                    )}
                                                     edge="end"
                                                 >
                                                     <Clear />

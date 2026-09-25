@@ -52,6 +52,7 @@ import {
     EInitializeReportPolicy,
     EInitReport,
     isArray,
+    isString,
     parseResultsWebsitePolicy,
 } from "@sequentech/ui-core"
 
@@ -804,7 +805,8 @@ export const TallyCeremony: React.FC = () => {
                     {resultsEventId &&
                     record?.id &&
                     isArray(contests) &&
-                    isArray(tallySession?.election_ids) ? (
+                    isArray(tallySession?.election_ids) &&
+                    tallySession.election_ids.every(isString) ? (
                         <ResultsDataLoader
                             resultsEventId={resultsEventId}
                             electionEventId={record?.id}

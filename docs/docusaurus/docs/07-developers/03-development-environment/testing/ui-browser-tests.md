@@ -35,6 +35,11 @@ Redux voter session before loading each fixture; see `Question/__stories__` and
 `routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
+Admin stories cover event uploads, keys ceremony thresholds and publication controls.
+Their provider supplies the production admin theme, tenant and recorded Apollo responses;
+assert mutation variables, permission headers, callbacks and visible errors. Run
+`yarn --cwd packages/admin-portal typecheck:stories` to check these fixtures and stories.
+
 Stories are excluded from production type builds and the existing Jest coverage
 profile. Storybook coverage is reported separately from that gate. Shared test
 setup lives in `packages/test-support/storybook/`. Keep changes to production behavior separate from story maintenance.
@@ -63,3 +68,19 @@ unexpected requests fail teardown. Audit assertions decode downloaded ballots
 with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from `test-results/`. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.
+
+Results portal journeys use the same boundaries and export a real SQLite fixture
+with `sql.js`; the production browser reads it through its own WASM loader.
+After building the shared UI packages, run:
+
+```sh
+yarn --cwd packages build:results-portal
+yarn --cwd packages/results-portal test:types
+yarn --cwd packages/results-portal test:journeys
+```
+
+Fixtures live in `packages/results-portal/tests/fixtures/`, browser cases in
+`tests/journeys/`, and component interactions in `src/components/__stories__/`.
+Use literal expected counts and scoped publications. A rejected publication or
+artifact should settle without repeating authentication; include a valid control
+and assert that a route change uses the new event's token.

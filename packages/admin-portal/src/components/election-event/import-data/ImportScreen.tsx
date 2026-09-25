@@ -70,13 +70,16 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         }, [passwordDialogOpen, passwordInputRef.current])
 
         const uploadFile = async (url: string, file: File) => {
-            await fetch(url, {
+            const response = await fetch(url, {
                 method: "PUT",
                 headers: {
                     "Content-Type": file.type,
                 },
                 body: file,
             })
+            if (!response.ok) {
+                throw new Error("File upload failed")
+            }
             setIsUploading(false)
         }
 
@@ -93,6 +96,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 })
 
                 if (!data?.get_upload_url?.url) {
+                    setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                     return
                 }
@@ -229,7 +233,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                     helperText={false}
                                     onChange={(e) => setPassword(e.target.value)}
                                     inputProps={{
-                                        ref: passwordInputRef,
+                                        "ref": passwordInputRef,
+                                        "aria-label": t(
+                                            "electionEventScreen.import.passwordDialog.label"
+                                        ),
                                     }}
                                 />
                             </Box>
