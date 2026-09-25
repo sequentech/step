@@ -25,6 +25,7 @@ with patch.dict(
 ):
     driver = importlib.import_module("scripts.e2e.journeys.__main__")
 summary = importlib.import_module("scripts.e2e.summary")
+coverage = importlib.import_module("scripts.e2e.coverage")
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -155,6 +156,81 @@ class SummaryContracts(DriverOutput):
         self.assertIn("hashFiles('.cache/backend-e2e/run/summary.md') != ''", upload)
         for name in ("summary.md", "journeys.json", "coverage/summary.json"):
             self.assertIn(f".cache/backend-e2e/run/{name}", upload)
+
+
+class CoverageExitContracts(unittest.TestCase):
+    def report(self, codes, *, json_lines=False):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            (directory / "profiles").mkdir()
+            binaries = directory / "bin"
+            binaries.mkdir()
+            binary = binaries / "harvest"
+            binary.write_text("instrumented binary placeholder")
+            binary.chmod(0o700)
+            for name in ("immudb-init", "harvest", "windmill", "beat", "b4",
+                         "trustee1", "trustee2", "step-cli"):
+                (directory / "profiles" / f"{name}-123.profraw").write_bytes(b"profile")
+            rows = [{"Service": name, "ExitCode": code} for name, code in codes.items()]
+            (directory / "services.json").write_text(
+                "\n".join(json.dumps(row) for row in rows) if json_lines else json.dumps(rows)
+            )
+
+            def llvm(*command):
+                if command[1] == "show":
+                    return "Total functions: 12\n"
+                if command[1] == "export":
+                    return '{"data":[{"files":[]}]}'
+                self.assertEqual(command[1], "merge")
+                return ""
+
+            with patch.object(coverage, "llvm_tool", side_effect=lambda name: name), \
+                    patch.object(coverage, "run", side_effect=llvm), \
+                    patch("sys.argv", ["coverage.py", str(directory), str(binaries)]), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                status = coverage.main()
+            return status, json.loads((directory / "summary.json").read_text()), \
+                (directory / "summary.md").read_text()
+
+    @staticmethod
+    def normal_codes():
+        return {"immudb-init": 0, "harvest": 0, "windmill": 0,
+                "beat": 143, "b4": 143, "trustee1": 143, "trustee2": 143}
+
+    def test_normal_shutdown_and_removed_driver_accept_nonempty_profiles(self):
+        for json_lines in (False, True):
+            with self.subTest(json_lines=json_lines):
+                status, report, _ = self.report(self.normal_codes(), json_lines=json_lines)
+                self.assertEqual(status, 0)
+                self.assertEqual(report["failures"], [])
+                self.assertEqual(len(report["profiles"]), 8)
+                self.assertTrue(all(row["executed_functions"] == 12 for row in report["profiles"]))
+
+    def test_worker_crash_fails_even_when_its_profile_executed_code(self):
+        for service, code in (("windmill", 101), ("harvest", 143), ("beat", 137),
+                              ("b4", 1), ("immudb-init", 143), ("trustee1", 101)):
+            with self.subTest(service=service, code=code):
+                codes = self.normal_codes()
+                codes[service] = code
+                status, report, markdown = self.report(codes)
+                self.assertEqual(status, 1)
+                self.assertEqual(len(report["failures"]), 1)
+                self.assertIn(service, report["failures"][0])
+                self.assertIn(str(code), report["failures"][0])
+                self.assertIn("**Coverage failure:**", markdown)
+
+    def test_missing_persistent_service_status_cannot_report_success(self):
+        for absent in (True, False):
+            with self.subTest(absent=absent):
+                codes = self.normal_codes()
+                if absent:
+                    del codes["windmill"]
+                else:
+                    codes["windmill"] = None
+                status, report, _ = self.report(codes)
+                self.assertEqual(status, 1)
+                self.assertEqual(len(report["failures"]), 1)
+                self.assertIn("windmill", report["failures"][0])
 
 
 if __name__ == "__main__":

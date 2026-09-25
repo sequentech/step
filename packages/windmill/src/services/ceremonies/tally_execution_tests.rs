@@ -116,6 +116,56 @@ async fn missing_ceremonies_do_not_shuffle_trustees() {
     assert!(order.0.lock().unwrap().is_empty());
 }
 #[tokio::test]
+async fn trustee_selection_requires_a_ceremony_in_the_requested_tenant_and_event() {
+    for (tenant, event, expected) in [
+        (
+            "tenant-a",
+            "event-a",
+            TrusteeSelection::Ready(vec!["c".into(), "a".into()]),
+        ),
+        ("tenant-b", "event-a", TrusteeSelection::NoCeremony),
+        ("tenant-a", "event-b", TrusteeSelection::NoCeremony),
+    ] {
+        let store = MemoryTallyExecution::default();
+        let order = ReverseTrusteeOrder::default();
+        let keys = ceremony(2, false);
+        let mut stored = keys.clone();
+        stored.tenant_id = tenant.into();
+        stored.election_event_id = event.into();
+        store.0.lock().unwrap().ceremonies.push(stored);
+        let selected =
+            select_execution_trustees_with(&store, &order, "tenant-a", "event-a", &keys, status())
+                .await
+                .unwrap();
+        assert_eq!(selected, expected, "stored scope: {tenant}/{event}");
+        assert_eq!(
+            order.0.lock().unwrap().is_empty(),
+            expected == TrusteeSelection::NoCeremony
+        );
+    }
+}
+#[tokio::test]
+async fn memory_ceremony_listing_preserves_matching_row_order_across_scopes() {
+    let store = MemoryTallyExecution::default();
+    let mut first = ceremony(2, false);
+    first.id = "keys-z".into();
+    let mut foreign_tenant = ceremony(2, false);
+    foreign_tenant.tenant_id = "tenant-b".into();
+    let mut foreign_event = ceremony(2, false);
+    foreign_event.election_event_id = "event-b".into();
+    store.0.lock().unwrap().ceremonies =
+        vec![first, foreign_tenant, foreign_event, ceremony(2, false)];
+
+    let listed = store.list("tenant-a", "event-a").await.unwrap();
+    assert_eq!(
+        listed
+            .iter()
+            .map(|keys| keys.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["keys-z", "keys-a"]
+    );
+}
+#[tokio::test]
 async fn ceremony_read_errors_keep_the_original_context() {
     let store = MemoryTallyExecution::default();
     store.0.lock().unwrap().read_failure = Some("connection unavailable");
