@@ -17,6 +17,7 @@ use sequent_core::types::hasura::core::{
     TallySessionContest, TallySessionExecution, TallySheet,
 };
 use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
+use sequent_core::types::tally_sheets::TallySheetStatus;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
@@ -566,6 +567,10 @@ impl TallyCreationReader for InMemoryTallyCeremony {
             .filter(|tally_sheet| {
                 tally_sheet.tenant_id == tenant_id
                     && tally_sheet.election_event_id == election_event_id
+                    && tally_sheet.reviewed_at.is_some()
+                    && tally_sheet.reviewed_by_user_id.is_some()
+                    && tally_sheet.status == TallySheetStatus::APPROVED
+                    && tally_sheet.deleted_at.is_none()
             })
             .cloned()
             .collect())
