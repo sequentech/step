@@ -9,6 +9,7 @@ use sequent_core::ballot::{
     Contest as SequentContest, DecodedBallotsInclusionPolicy, DelegatedVotingPolicy,
 };
 use sequent_core::types::hasura::core::{Area, TallySessionContest, TallySheet};
+use sequent_core::types::tally_sheets::TallySheetStatus;
 
 const TENANT: &str = "tenant";
 const EVENT: &str = "event";
@@ -149,6 +150,7 @@ fn approved_tally_sheet(election_id: &str) -> TallySheet {
         "id": format!("sheet-{election_id}"), "tenant_id": TENANT, "election_event_id": EVENT,
         "election_id": election_id, "contest_id": "mayor", "area_id": "north",
         "created_by_user_id": ADMIN_ID, "status": "APPROVED", "version": 1,
+        "reviewed_at": "2026-01-01T00:00:00Z", "reviewed_by_user_id": "reviewer",
     }))
     .unwrap()
 }
@@ -179,12 +181,29 @@ async fn create_tally(
     election_ids: &[&str],
     permission_labels: &[&str],
 ) -> Result<String> {
+    create_tally_with_events(
+        ceremony,
+        ceremony,
+        tally_type,
+        election_ids,
+        permission_labels,
+    )
+    .await
+}
+
+async fn create_tally_with_events(
+    ceremony: &InMemoryTallyCeremony,
+    election_events: &impl ElectionEventReader,
+    tally_type: &str,
+    election_ids: &[&str],
+    permission_labels: &[&str],
+) -> Result<String> {
     let permission_labels: Vec<String> = permission_labels.iter().map(|l| l.to_string()).collect();
     create_tally_ceremony_with(
         ceremony,
         ceremony,
         ceremony,
-        ceremony,
+        election_events,
         ceremony,
         &SequentialIds::default(),
         TallyCreation {
@@ -743,4 +762,185 @@ async fn a_published_ballot_style_must_hold_a_readable_ballot() {
             "Could not read published ballot style style-{ELECTION}-east: "
         )));
     assert_nothing_written(&unreadable);
+}
+
+#[tokio::test]
+async fn approved_sheet_with_complete_review_blocks_voter_weighted_creation() {
+    let ceremony = closed_event(voter_weighted());
+    ceremony.add_tally_sheet(approved_tally_sheet(ELECTION));
+    let error = create(&ceremony).await.unwrap_err();
+    assert!(validation_message(error)
+        .contains("1 approved tally sheet(s) exist for this election event"));
+    assert_nothing_written(&ceremony);
+}
+
+async fn assert_sheet_does_not_block_creation(sheet: TallySheet) {
+    let ceremony = closed_event(voter_weighted());
+    ceremony.add_tally_sheet(sheet);
+    assert_eq!(create(&ceremony).await.unwrap(), FIRST_ID);
+    assert_eq!(ceremony.session_contests(FIRST_ID).len(), 2);
+    assert_eq!(ceremony.audit_entries().len(), 1);
+}
+
+#[tokio::test]
+async fn approved_sheet_without_review_timestamp_does_not_block_creation() {
+    let mut sheet = approved_tally_sheet(ELECTION);
+    sheet.reviewed_at = None;
+    assert_sheet_does_not_block_creation(sheet).await;
+}
+
+#[tokio::test]
+async fn approved_sheet_without_reviewer_does_not_block_creation() {
+    let mut sheet = approved_tally_sheet(ELECTION);
+    sheet.reviewed_by_user_id = None;
+    assert_sheet_does_not_block_creation(sheet).await;
+}
+
+#[tokio::test]
+async fn pending_or_disapproved_sheet_does_not_block_creation() {
+    for status in [TallySheetStatus::PENDING, TallySheetStatus::DISAPPROVED] {
+        let mut sheet = approved_tally_sheet(ELECTION);
+        sheet.status = status;
+        assert_sheet_does_not_block_creation(sheet).await;
+    }
+}
+
+#[tokio::test]
+async fn deleted_approved_sheet_does_not_block_creation() {
+    let mut sheet = approved_tally_sheet(ELECTION);
+    sheet.deleted_at = sheet.reviewed_at;
+    assert_sheet_does_not_block_creation(sheet).await;
+}
+
+#[tokio::test]
+async fn approved_sheet_from_another_tenant_or_event_does_not_block_creation() {
+    let mut other_tenant = approved_tally_sheet(ELECTION);
+    other_tenant.tenant_id = "other-tenant".into();
+    assert_sheet_does_not_block_creation(other_tenant).await;
+    let mut other_event = approved_tally_sheet(ELECTION);
+    other_event.election_event_id = "other-event".into();
+    assert_sheet_does_not_block_creation(other_event).await;
+}
+
+fn assert_creation_writes(
+    ceremony: &InMemoryTallyCeremony,
+    sessions: usize,
+    executions: usize,
+    contests: usize,
+) {
+    let rows = ceremony.sessions();
+    assert_eq!(rows.len(), sessions);
+    if let Some(row) = rows.first() {
+        assert_eq!(row.id, FIRST_ID);
+        assert_eq!(row.tenant_id, TENANT);
+        assert_eq!(row.election_event_id, EVENT);
+    }
+    let snapshots = ceremony.executions(FIRST_ID);
+    assert_eq!(snapshots.len(), executions);
+    if let Some(snapshot) = snapshots.first() {
+        assert_eq!(snapshot.current_message_id, -1);
+        assert_eq!(snapshot.run_reason.as_deref(), Some("NORMAL"));
+    }
+    let rows = ceremony.session_contests(FIRST_ID);
+    assert_eq!(rows.len(), contests);
+    if !rows.is_empty() {
+        assert_eq!(
+            rows.iter()
+                .map(|row| row.area_id.as_str())
+                .collect::<HashSet<_>>(),
+            HashSet::from(["north", "south"])
+        );
+    }
+    assert!(ceremony.audit_entries().is_empty());
+}
+
+async fn assert_creation_failure(
+    call: TallyCall,
+    sessions: usize,
+    executions: usize,
+    contests: usize,
+) {
+    let ceremony = closed_event(voter_weighted());
+    ceremony.fail(call, "creation dependency unavailable");
+    let error = create(&ceremony).await.unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "creation dependency unavailable",
+        "{call:?}"
+    );
+    assert!(error.downcast_ref::<TallyValidationError>().is_none());
+    assert_creation_writes(&ceremony, sessions, executions, contests);
+}
+
+#[tokio::test]
+async fn session_insert_failure_leaves_creation_empty() {
+    assert_creation_failure(TallyCall::InsertSession, 0, 0, 0).await;
+}
+
+#[tokio::test]
+async fn execution_insert_failure_keeps_only_the_session() {
+    assert_creation_failure(TallyCall::AppendExecution, 1, 0, 0).await;
+}
+
+#[tokio::test]
+async fn batch_allocation_failure_keeps_the_initial_execution_without_contests() {
+    assert_creation_failure(TallyCall::NextBatch, 1, 1, 0).await;
+}
+
+#[tokio::test]
+async fn contest_insert_failure_stops_before_reading_the_event_for_audit() {
+    let ceremony = closed_event(voter_weighted());
+    ceremony.fail(TallyCall::InsertContest, "contest insertion failed");
+    let election_events = InMemoryTallyCeremony::default();
+    election_events.fail(TallyCall::GetElectionEvent, "event read must not run");
+    assert_eq!(
+        create_tally_with_events(
+            &ceremony,
+            &election_events,
+            ELECTORAL_RESULTS,
+            &[ELECTION],
+            &[]
+        )
+        .await
+        .unwrap_err()
+        .to_string(),
+        "contest insertion failed"
+    );
+    assert_creation_writes(&ceremony, 1, 1, 0);
+}
+
+#[tokio::test]
+async fn creation_audit_failure_keeps_the_session_execution_and_contests() {
+    assert_creation_failure(TallyCall::KeyInsertionStarted, 1, 1, 2).await;
+}
+
+#[tokio::test]
+async fn creation_event_read_failure_keeps_the_prior_writes_without_audit() {
+    let ceremony = closed_event(voter_weighted());
+    let election_events = InMemoryTallyCeremony::default();
+    election_events.fail(TallyCall::GetElectionEvent, "event read unavailable");
+    let error = create_tally_with_events(
+        &ceremony,
+        &election_events,
+        ELECTORAL_RESULTS,
+        &[ELECTION],
+        &[],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.to_string(), "event read unavailable");
+    assert!(error.downcast_ref::<TallyValidationError>().is_none());
+    assert_creation_writes(&ceremony, 1, 1, 2);
+}
+
+#[tokio::test]
+async fn creation_source_read_failures_happen_before_any_writes() {
+    for call in [
+        TallyCall::EventSnapshot,
+        TallyCall::PublishedBallotStyles,
+        TallyCall::ApprovedTallySheets,
+        TallyCall::GetKeysCeremony,
+    ] {
+        assert_creation_failure(call, 0, 0, 0).await;
+    }
 }
