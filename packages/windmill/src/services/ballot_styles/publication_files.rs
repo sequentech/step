@@ -1,17 +1,18 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::publication_files::{
-    get_election_event_status, get_publication_annotations, get_publication_elections,
-    get_publication_event, get_published_ballot_styles, merge_ballot_publication_annotation,
-    stream_publication_styles,
+use crate::adapters::publication_files::{PgPublicationRows, S3Endpoint, S3PublicationStorage};
+use crate::adapters::system::RandomIds;
+pub use crate::domain::publication_files::FILES_ANNOTATION;
+use crate::domain::publication_files::{
+    election_key, event_key, publication_root, split_event_presentation, style_key, summary_key,
+    validate_publication_root,
 };
+use crate::ports::clock::IdGenerator;
+use crate::ports::publication_files::{PublicationObjects, PublicationRows, PublicationStorage};
 use anyhow::{bail, Context, Result};
-use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, Client};
 use deadpool_postgres::Transaction;
 use futures::TryStreamExt;
-use sequent_core::services::s3::{get_private_bucket, get_s3_client};
-use sequent_core::util::aws::get_s3_aws_config;
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
@@ -19,71 +20,7 @@ use std::{
 };
 use uuid::Uuid;
 
-pub const FILES_ANNOTATION: &str = "ballot_files_v1";
-
-fn validate_publication_root(
-    root: &str,
-    tenant: Uuid,
-    event: Uuid,
-    publication: Uuid,
-) -> Result<()> {
-    let prefix = format!("tenant-{tenant}/event-{event}/publication-{publication}/");
-    let attempt = root
-        .strip_prefix(&prefix)
-        .context("Publication object scope mismatch")?;
-    Uuid::parse_str(attempt).context("Invalid publication object version")?;
-    Ok(())
-}
-
-/// Split only the shared JSON value, preserving the exact original EML bytes.
-fn split_event_presentation(eml: &str) -> Result<(String, String, String)> {
-    #[derive(serde::Deserialize)]
-    struct Envelope<'a> {
-        #[serde(borrow)]
-        election_event_presentation: Option<&'a serde_json::value::RawValue>,
-    }
-    let parsed: Envelope<'_> = serde_json::from_str(eml)?;
-    let Some(raw) = parsed.election_event_presentation else {
-        return Ok((eml.to_owned(), String::new(), String::new()));
-    };
-    let value = raw.get();
-    let offset = value.as_ptr() as usize - eml.as_ptr() as usize;
-    Ok((
-        eml[..offset].to_owned(),
-        value.to_owned(),
-        eml[offset + value.len()..].to_owned(),
-    ))
-}
-
-async fn upload(client: &Client, bucket: &str, key: &str, value: &Value) -> Result<()> {
-    let bytes = serde_json::to_vec(value)?;
-    client
-        .put_object()
-        .bucket(bucket)
-        .key(key)
-        .content_type("application/json")
-        .cache_control("private, max-age=300")
-        .if_none_match("*")
-        .body(ByteStream::from(bytes.clone()))
-        .send()
-        .await
-        .context("Cannot upload ballot publication object")?;
-    let stored = client
-        .get_object()
-        .bucket(bucket)
-        .key(key)
-        .send()
-        .await
-        .context("Cannot validate ballot publication object")?
-        .body
-        .collect()
-        .await?
-        .into_bytes();
-    if stored.as_ref() != bytes.as_slice() {
-        bail!("Ballot publication object verification failed");
-    }
-    Ok(())
-}
+const VOTER_URL_LIFETIME: Duration = Duration::from_secs(300);
 
 /// Called under the event publication lock. The reference becomes visible only
 /// when the transaction commits, after every immutable object has been verified.
@@ -93,10 +30,31 @@ pub async fn prepare_publication_files(
     event: &str,
     publication: &str,
 ) -> Result<()> {
+    prepare_files(
+        &PgPublicationRows { transaction: tx },
+        &S3PublicationStorage {
+            endpoint: S3Endpoint::Server,
+        },
+        &RandomIds,
+        tenant,
+        event,
+        publication,
+    )
+    .await
+}
+
+async fn prepare_files(
+    rows: &impl PublicationRows,
+    storage: &impl PublicationStorage,
+    ids: &impl IdGenerator,
+    tenant: &str,
+    event: &str,
+    publication: &str,
+) -> Result<()> {
     let tenant = Uuid::parse_str(tenant)?;
     let event = Uuid::parse_str(event)?;
     let publication = Uuid::parse_str(publication)?;
-    let annotations = get_publication_annotations(tx, tenant, event, publication).await?;
+    let annotations = rows.annotations(tenant, event, publication).await?;
     if let Some(root) = annotations
         .as_ref()
         .and_then(|v| v.get(FILES_ANNOTATION))
@@ -106,25 +64,17 @@ pub async fn prepare_publication_files(
         return Ok(());
     }
     // A new attempt never overwrites objects from a failed or active attempt.
-    let root = format!(
-        "tenant-{tenant}/event-{event}/publication-{publication}/{}",
-        Uuid::new_v4()
-    );
-    let bucket = get_private_bucket()?;
-    let client = get_s3_client(get_s3_aws_config(true).await?).await?;
-    let mut event_data = get_publication_event(tx, tenant, event).await?;
+    let root = publication_root(tenant, event, publication, ids.new_id());
+    let objects = storage.open().await?;
+    let mut event_data = rows.event(tenant, event).await?;
 
-    for data in get_publication_elections(tx, tenant, event, publication).await? {
+    for data in rows.elections(tenant, event, publication).await? {
         let id = data["id"].as_str().context("Missing election id")?;
-        upload(
-            &client,
-            &bucket,
-            &format!("{root}/election-{id}.json"),
-            &data,
-        )
-        .await?;
+        objects
+            .put_immutable_json(&election_key(&root, id), &data)
+            .await?;
     }
-    let styles = stream_publication_styles(tx, tenant, event, publication).await?;
+    let styles = rows.styles(tenant, event, publication).await?;
     futures::pin_mut!(styles);
     let mut shared_presentation: Option<String> = None;
     while let Some(mut data) = styles.try_next().await? {
@@ -145,24 +95,44 @@ pub async fn prepare_publication_files(
         data["ballot_eml_suffix"] = Value::String(suffix);
         // List information is small; contests/candidates are fetched only on selection.
         let summary = json!({"id":id, "area_presentation":eml.get("area_presentation"), "election_dates":eml.get("election_dates")});
-        upload(
-            &client,
-            &bucket,
-            &format!("{root}/summary-{id}.json"),
-            &summary,
-        )
-        .await?;
-        upload(&client, &bucket, &format!("{root}/style-{id}.json"), &data).await?;
+        objects
+            .put_immutable_json(&summary_key(&root, &id), &summary)
+            .await?;
+        objects
+            .put_immutable_json(&style_key(&root, &id), &data)
+            .await?;
     }
     event_data["ballot_eml_presentation"] = Value::String(shared_presentation.unwrap_or_default());
-    upload(&client, &bucket, &format!("{root}/event.json"), &event_data).await?;
-    merge_ballot_publication_annotation(tx, tenant, event, publication, FILES_ANNOTATION, &root)
-        .await
+    objects
+        .put_immutable_json(&event_key(&root), &event_data)
+        .await?;
+    rows.set_files_root(tenant, event, publication, &root).await
 }
 
 /// Only identifiers, active references and live policy are read here, never EML.
 pub async fn voter_files(
     tx: &Transaction<'_>,
+    tenant: &str,
+    event: &str,
+    area: &str,
+    elections: &[String],
+) -> Result<Value> {
+    list_voter_files(
+        &PgPublicationRows { transaction: tx },
+        &S3PublicationStorage {
+            endpoint: S3Endpoint::Public,
+        },
+        tenant,
+        event,
+        area,
+        elections,
+    )
+    .await
+}
+
+async fn list_voter_files(
+    rows: &impl PublicationRows,
+    storage: &impl PublicationStorage,
     tenant: &str,
     event: &str,
     area: &str,
@@ -175,13 +145,14 @@ pub async fn voter_files(
         .iter()
         .map(|id| Uuid::parse_str(id))
         .collect::<Result<Vec<_>, _>>()?;
-    let styles =
-        get_published_ballot_styles(tx, tenant, event, area, &elections, FILES_ANNOTATION).await?;
-    let status = get_election_event_status(tx, tenant, event)
+    let styles = rows
+        .published_styles(tenant, event, area, &elections)
+        .await?;
+    let status = rows
+        .event_status(tenant, event)
         .await?
         .context("Election event not found")?;
-    let bucket = get_private_bucket()?;
-    let client = get_s3_client(get_s3_aws_config(false).await?).await?;
+    let objects = storage.open().await?;
     let mut files = Vec::new();
     let mut seen = HashSet::new();
     let mut signed_urls = HashMap::<String, String>::new();
@@ -197,21 +168,15 @@ pub async fn voter_files(
         validate_publication_root(&root, tenant, event, style.publication_id)?;
         let mut urls = serde_json::Map::new();
         for (name, key) in [
-            ("event_url", format!("{root}/event.json")),
-            ("election_url", format!("{root}/election-{election}.json")),
-            ("summary_url", format!("{root}/summary-{id}.json")),
-            ("style_url", format!("{root}/style-{id}.json")),
+            ("event_url", event_key(&root)),
+            ("election_url", election_key(&root, election)),
+            ("summary_url", summary_key(&root, id)),
+            ("style_url", style_key(&root, id)),
         ] {
             let url = if let Some(url) = signed_urls.get(&key) {
                 url.clone()
             } else {
-                let signed = client
-                    .get_object()
-                    .bucket(&bucket)
-                    .key(&key)
-                    .presigned(PresigningConfig::expires_in(Duration::from_secs(300))?)
-                    .await?;
-                let url = signed.uri().to_string();
+                let url = objects.presign_get(&key, VOTER_URL_LIFETIME).await?;
                 signed_urls.insert(key, url.clone());
                 url
             };

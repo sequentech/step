@@ -4,24 +4,12 @@
 
 //! Rows behind the private S3 objects of a ballot publication.
 
+use crate::domain::publication_files::PublishedBallotStyle;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use futures::{Stream, TryStreamExt};
 use serde_json::Value;
 use uuid::Uuid;
-
-/// A published, non-deleted ballot style in a voter's area, with the object
-/// root of its publication and the live policy of its election.
-#[derive(Clone, Debug, PartialEq)]
-pub struct PublishedBallotStyle {
-    pub id: Uuid,
-    pub election_id: Uuid,
-    pub publication_id: Uuid,
-    pub root: Option<String>,
-    pub status: Option<Value>,
-    pub num_allowed_revotes: Option<i64>,
-    pub voting_channels: Option<Value>,
-}
 
 pub async fn get_publication_annotations(
     hasura_transaction: &Transaction<'_>,

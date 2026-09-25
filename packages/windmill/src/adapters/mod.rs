@@ -8,4 +8,5 @@
 
 #[cfg(test)]
 pub mod memory;
+pub mod publication_files;
 pub mod system;
