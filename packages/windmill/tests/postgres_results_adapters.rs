@@ -44,7 +44,8 @@ use windmill::postgres::tally_session_resolution::{
     submit_resolution, update_resolution,
 };
 use windmill::services::export::export_tally::{
-    export_results_election, export_results_election_area, export_tally_session_execution,
+    export_results_election, export_results_election_area, export_results_event,
+    export_tally_session_execution,
 };
 use windmill::services::import::import_tally::process_tally_file;
 use windmill::types::documents::ETallyDocuments;
@@ -65,6 +66,7 @@ const RESULTS: &str = "70000000-0000-4000-8000-000000000001";
 const OTHER_RESULTS: &str = "70000000-0000-4000-8000-000000000002";
 // Not created by `world`.
 const NEW_RESULTS: &str = "70000000-0000-4000-8000-000000000003";
+const NEW_OTHER_RESULTS: &str = "70000000-0000-4000-8000-000000000004";
 const USER: &str = "80000000-0000-4000-8000-000000000001";
 const OTHER_USER: &str = "80000000-0000-4000-8000-000000000002";
 const CANDIDATE_A: &str = "a0000000-0000-4000-8000-000000000001";
@@ -2386,6 +2388,81 @@ async fn tally_executions_survive_an_export_and_import_round_trip() {
             election_event_id: OTHER_EVENT.to_string(),
             documents: None,
             run_reason: None,
+            ..original
+        }
+    );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn results_events_survive_an_export_and_import_round_trip() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    transaction
+        .execute(
+            "UPDATE sequent_backend.results_event
+             SET name = 'First count', labels = $1, annotations = $2, documents = $3,
+                 created_at = $4, last_updated_at = $5
+             WHERE tenant_id = $6 AND election_event_id = $7 AND id = $8",
+            &[
+                &json!({"origin": "tally"}),
+                &json!({"note": "recount"}),
+                &documents_json(),
+                &at("2026-01-01T00:00:00Z"),
+                &at("2026-01-02T00:00:00Z"),
+                &uuid(TENANT),
+                &uuid(EVENT),
+                &uuid(RESULTS),
+            ],
+        )
+        .await
+        .unwrap();
+    let original = get_results_event_by_id(&transaction, TENANT, EVENT, RESULTS)
+        .await
+        .unwrap();
+
+    let export = exported(export_results_event(&transaction, TENANT, EVENT).await);
+    let mut reader = csv::Reader::from_reader(export.1.as_slice());
+    assert_eq!(
+        reader.headers().unwrap(),
+        &csv::StringRecord::from(vec![
+            "id",
+            "tenant_id",
+            "election_event_id",
+            "name",
+            "created_at",
+            "last_updated_at",
+            "labels",
+            "annotations",
+            "documents",
+        ]),
+    );
+    let row = reader
+        .records()
+        .map(Result::unwrap)
+        .find(|row| row.get(0) == Some(&format!("\"{RESULTS}\"")))
+        .unwrap();
+    assert_eq!(row.get(3), Some("\"First count\""));
+    assert_eq!(row.get(6), Some(r#"{"origin":"tally"}"#));
+    assert_eq!(row.get(7), Some(r#"{"note":"recount"}"#));
+    let new_ids = HashMap::from([
+        (RESULTS.to_string(), NEW_RESULTS.to_string()),
+        (OTHER_RESULTS.to_string(), NEW_OTHER_RESULTS.to_string()),
+    ]);
+    import_into_away(&transaction, export, new_ids)
+        .await
+        .unwrap();
+
+    let imported = get_results_event_by_id(&transaction, TENANT, OTHER_EVENT, NEW_RESULTS)
+        .await
+        .unwrap();
+    assert_eq!(
+        imported,
+        ResultsEvent {
+            id: NEW_RESULTS.to_string(),
+            election_event_id: OTHER_EVENT.to_string(),
             ..original
         }
     );

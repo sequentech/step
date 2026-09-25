@@ -239,8 +239,8 @@ pub async fn export_results_event(
         "name".to_string(),
         "created_at".to_string(),
         "last_updated_at".to_string(),
-        "annotations".to_string(),
         "labels".to_string(),
+        "annotations".to_string(),
         "documents".to_string(),
     ])?;
 

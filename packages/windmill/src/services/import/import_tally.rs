@@ -175,8 +175,8 @@ async fn process_event_results_file(
         let created_at = get_opt_date(&record, 4).await?;
         let last_updated_at = get_opt_date(&record, 5).await?;
 
-        let annotations = get_opt_json_value_item(&record, 6).await?;
-        let labels = get_opt_json_value_item(&record, 7).await?;
+        let labels = get_opt_json_value_item(&record, 6).await?;
+        let annotations = get_opt_json_value_item(&record, 7).await?;
 
         let documents = record
             .get(8)
