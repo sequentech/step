@@ -295,6 +295,8 @@ pub async fn export_results_election_area(
         "last_updated_at".to_string(),
         "documents".to_string(),
         "name".to_string(),
+        "blank_ballots".to_string(),
+        "blank_ballots_percent".to_string(),
     ])?;
 
     for results_election_area in results_election_areas {
@@ -352,6 +354,8 @@ pub async fn export_results_election(
         "annotations".to_string(),
         "total_voters_percent".to_string(),
         "documents".to_string(),
+        "blank_ballots".to_string(),
+        "blank_ballots_percent".to_string(),
     ])?;
 
     for results_election in results_elections {

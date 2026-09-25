@@ -247,6 +247,10 @@ async fn process_results_election_file(
             .transpose()
             .map_err(|err| anyhow!("Error at process documents: {:?}", err))?;
 
+        // Exports from before the blank ballot columns end at documents.
+        let blank_ballots = get_opt_i64_item(&record, 14).await?;
+        let blank_ballots_percent = get_opt_f64_item(&record, 15).await?;
+
         let results_election = ResultsElection {
             id: Uuid::new_v4().to_string(),
             tenant_id: tenant_id.to_string(),
@@ -262,8 +266,8 @@ async fn process_results_election_file(
             last_updated_at,
             total_voters_percent,
             documents,
-            blank_ballots: None,
-            blank_ballots_percent: None,
+            blank_ballots,
+            blank_ballots_percent,
         };
 
         results_elections.push(results_election);
@@ -568,6 +572,10 @@ async fn process_results_election_area_file(
 
         let name: Option<String> = get_string_or_null_item(&record, 9).await?;
 
+        // Exports from before the blank ballot columns end at name.
+        let blank_ballots = get_opt_i64_item(&record, 10).await?;
+        let blank_ballots_percent = get_opt_f64_item(&record, 11).await?;
+
         let results_election_area = ResultsElectionArea {
             id: Uuid::new_v4().to_string(),
             tenant_id: tenant_id.to_string(),
@@ -579,8 +587,8 @@ async fn process_results_election_area_file(
             last_updated_at,
             documents,
             name,
-            blank_ballots: None,
-            blank_ballots_percent: None,
+            blank_ballots,
+            blank_ballots_percent,
         };
 
         results_elections_areas.push(results_election_area);

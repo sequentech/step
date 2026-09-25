@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! The results event, election and election area adapters and the tally
-//! session resolution adapter under `postgres::*` against the migrated schema.
+//! session resolution adapter under `postgres::*` against the migrated schema,
+//! and the tally export and import round trip through their CSV files.
 
 #[path = "support/schema.rs"]
 mod schema;
@@ -18,6 +19,9 @@ use sequent_core::types::results::{
     ResultDocuments, ResultsElection, ResultsElectionArea, ResultsEvent,
 };
 use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::io::Write;
+use tempfile::{NamedTempFile, TempPath};
 use tokio_postgres::error::SqlState;
 use tokio_postgres::types::WasNull;
 use uuid::Uuid;
@@ -37,6 +41,11 @@ use windmill::postgres::tally_session_resolution::{
     create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
     submit_resolution, update_resolution,
 };
+use windmill::services::export::export_tally::{
+    export_results_election, export_results_election_area,
+};
+use windmill::services::import::import_tally::process_tally_file;
+use windmill::types::documents::ETallyDocuments;
 
 const TENANT: &str = "10000000-0000-4000-8000-000000000001";
 const OTHER_TENANT: &str = "10000000-0000-4000-8000-000000000002";
@@ -2077,5 +2086,248 @@ async fn a_resolution_of_another_tenant_cannot_be_updated() {
     .unwrap_err();
     assert_eq!(error.to_string(), format!("Resolution not found: {ROW_1}"));
     assert_eq!(decision(&transaction, ROW_1).await, undecided("pending"));
+    transaction.rollback().await.unwrap();
+}
+
+/// Every identifier `world` creates, mapped to itself: `away` holds the same
+/// ones in OTHER_EVENT, so an export of EVENT imports there unchanged.
+fn same_ids() -> HashMap<String, String> {
+    [
+        ELECTION,
+        OTHER_ELECTION,
+        AREA,
+        OTHER_AREA,
+        SESSION,
+        OTHER_SESSION,
+        RESULTS,
+        OTHER_RESULTS,
+    ]
+    .iter()
+    .map(|id| (id.to_string(), id.to_string()))
+    .collect()
+}
+
+/// The file name and contents of an exported tally file.
+fn exported(export: anyhow::Result<(String, TempPath)>) -> (String, Vec<u8>) {
+    let (file_name, path) = export.unwrap();
+    (file_name, std::fs::read(&path).unwrap())
+}
+
+/// Imports a tally file into TENANT's OTHER_EVENT.
+async fn import_into_away(
+    tx: &Transaction<'_>,
+    (file_name, csv): (String, Vec<u8>),
+    replacements: HashMap<String, String>,
+) -> anyhow::Result<()> {
+    let mut file = NamedTempFile::new().unwrap();
+    file.write_all(&csv).unwrap();
+    process_tally_file(tx, &file, file_name, TENANT, OTHER_EVENT, replacements).await
+}
+
+/// `rows` as exports wrote them before the blank-ballot columns existed: the
+/// serialized fields that `header` names, which were then all of them.
+fn export_before_blank_ballots<T: serde::Serialize>(header: &[&str], rows: &[T]) -> Vec<u8> {
+    let mut writer = csv::Writer::from_writer(vec![]);
+    writer.write_record(header).unwrap();
+    for row in rows {
+        let values: Vec<String> = serde_json::to_value(row)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .values()
+            .take(header.len())
+            .map(Value::to_string)
+            .collect();
+        writer.write_record(&values).unwrap();
+    }
+    writer.into_inner().unwrap()
+}
+
+fn tallied_election_result(id: &str, election: &str) -> ResultsElection {
+    ResultsElection {
+        id: id.to_string(),
+        tenant_id: TENANT.to_string(),
+        election_event_id: EVENT.to_string(),
+        results_event_id: RESULTS.to_string(),
+        created_at: Some(local("2026-01-01T00:00:00Z")),
+        last_updated_at: Some(local("2026-01-02T00:00:00Z")),
+        ..election_result(election)
+    }
+}
+
+#[tokio::test]
+async fn election_results_survive_an_export_and_import_round_trip() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    let originals = vec![
+        tallied_election_result(ROW_1, ELECTION),
+        ResultsElection {
+            blank_ballots: None,
+            blank_ballots_percent: None,
+            ..tallied_election_result(ROW_2, OTHER_ELECTION)
+        },
+    ];
+    insert_many_results_elections(&transaction, originals.clone())
+        .await
+        .unwrap();
+
+    let export = exported(export_results_election(&transaction, TENANT, EVENT).await);
+    import_into_away(&transaction, export, same_ids())
+        .await
+        .unwrap();
+
+    let mut imported = get_event_results_election(&transaction, TENANT, OTHER_EVENT)
+        .await
+        .unwrap();
+    imported.sort_by(|a, b| a.election_id.cmp(&b.election_id));
+    assert_eq!(imported.len(), originals.len(), "{imported:#?}");
+    let expected: Vec<ResultsElection> = imported
+        .iter()
+        .zip(originals)
+        .map(|(imported, original)| ResultsElection {
+            id: imported.id.clone(),
+            election_event_id: OTHER_EVENT.to_string(),
+            ..original
+        })
+        .collect();
+    assert_eq!(imported, expected);
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn election_area_results_survive_an_export_and_import_round_trip() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    let originals = vec![
+        election_area_result(AREA),
+        ResultsElectionArea {
+            id: ROW_2.to_string(),
+            blank_ballots: None,
+            blank_ballots_percent: None,
+            ..election_area_result(OTHER_AREA)
+        },
+    ];
+    insert_many_results_elections_areas(&transaction, originals.clone())
+        .await
+        .unwrap();
+
+    let export = exported(export_results_election_area(&transaction, TENANT, EVENT).await);
+    import_into_away(&transaction, export, same_ids())
+        .await
+        .unwrap();
+
+    let mut imported = get_event_results_election_area(&transaction, TENANT, OTHER_EVENT)
+        .await
+        .unwrap();
+    imported.sort_by(|a, b| a.area_id.cmp(&b.area_id));
+    assert_eq!(imported.len(), originals.len(), "{imported:#?}");
+    let expected: Vec<ResultsElectionArea> = imported
+        .iter()
+        .zip(originals)
+        .map(|(imported, original)| ResultsElectionArea {
+            id: imported.id.clone(),
+            election_event_id: OTHER_EVENT.to_string(),
+            ..original
+        })
+        .collect();
+    assert_eq!(imported, expected);
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_election_results_export_from_before_blank_ballots_still_imports() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    let original = tallied_election_result(ROW_1, ELECTION);
+    let csv = export_before_blank_ballots(
+        &[
+            "id",
+            "tenant_id",
+            "election_event_id",
+            "election_id",
+            "results_event_id",
+            "name",
+            "elegible_census",
+            "total_voters",
+            "created_at",
+            "last_updated_at",
+            "labels",
+            "annotations",
+            "total_voters_percent",
+            "documents",
+        ],
+        &[original.clone()],
+    );
+
+    let file_name = ETallyDocuments::RESULTS_ELECTION.to_file_name().to_string();
+    import_into_away(&transaction, (file_name, csv), same_ids())
+        .await
+        .unwrap();
+    let imported = get_event_results_election(&transaction, TENANT, OTHER_EVENT)
+        .await
+        .unwrap();
+    assert_eq!(imported.len(), 1, "{imported:#?}");
+    assert_eq!(
+        imported[0],
+        ResultsElection {
+            id: imported[0].id.clone(),
+            election_event_id: OTHER_EVENT.to_string(),
+            blank_ballots: None,
+            blank_ballots_percent: None,
+            ..original
+        }
+    );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_election_area_results_export_from_before_blank_ballots_still_imports() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    let original = election_area_result(AREA);
+    let csv = export_before_blank_ballots(
+        &[
+            "id",
+            "tenant_id",
+            "election_event_id",
+            "election_id",
+            "area_id",
+            "results_event_id",
+            "created_at",
+            "last_updated_at",
+            "documents",
+            "name",
+        ],
+        &[original.clone()],
+    );
+
+    let file_name = ETallyDocuments::RESULTS_ELECTION_AREA
+        .to_file_name()
+        .to_string();
+    import_into_away(&transaction, (file_name, csv), same_ids())
+        .await
+        .unwrap();
+    let imported = get_event_results_election_area(&transaction, TENANT, OTHER_EVENT)
+        .await
+        .unwrap();
+    assert_eq!(imported.len(), 1, "{imported:#?}");
+    assert_eq!(
+        imported[0],
+        ResultsElectionArea {
+            id: imported[0].id.clone(),
+            election_event_id: OTHER_EVENT.to_string(),
+            blank_ballots: None,
+            blank_ballots_percent: None,
+            ..original
+        }
+    );
     transaction.rollback().await.unwrap();
 }
