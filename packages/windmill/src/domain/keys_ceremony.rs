@@ -410,3 +410,582 @@ pub fn public_key_execution_status(
 pub fn stop_date(now: DateTime<Local>) -> String {
     (now.timestamp() * 1000).to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+    use serde_json::json;
+
+    const TRUSTEE: &str = "trustee1";
+    const OTHER_TRUSTEE: &str = "trustee2";
+    const PUBLIC_KEY: &str = "public-key";
+
+    fn status(trustees: &[(&str, TrusteeStatus)]) -> KeysCeremonyStatus {
+        KeysCeremonyStatus {
+            stop_date: Some("1699990000000".to_string()),
+            public_key: Some(PUBLIC_KEY.to_string()),
+            logs: vec![],
+            trustees: trustees
+                .iter()
+                .map(|(name, status)| Trustee {
+                    name: name.to_string(),
+                    status: status.clone(),
+                })
+                .collect(),
+        }
+    }
+
+    fn keys_ceremony(
+        execution_status: KeysCeremonyExecutionStatus,
+        trustee_status: TrusteeStatus,
+    ) -> KeysCeremony {
+        let status = status(&[
+            (TRUSTEE, trustee_status),
+            (OTHER_TRUSTEE, TrusteeStatus::KEY_GENERATED),
+        ]);
+        serde_json::from_value(json!({
+            "id": "keys-ceremony",
+            "tenant_id": "tenant",
+            "election_event_id": "election-event",
+            "trustee_ids": [],
+            "status": status,
+            "execution_status": execution_status.to_string(),
+            "threshold": 2,
+        }))
+        .expect("keys ceremony")
+    }
+
+    fn with_default(is_default: Option<bool>) -> KeysCeremony {
+        KeysCeremony {
+            is_default,
+            ..keys_ceremony(
+                KeysCeremonyExecutionStatus::IN_PROGRESS,
+                TrusteeStatus::KEY_GENERATED,
+            )
+        }
+    }
+
+    fn trustee_record(name: Option<&str>) -> TrusteeRecord {
+        serde_json::from_value(json!({"id": "id", "name": name, "tenant_id": "tenant"}))
+            .expect("trustee")
+    }
+
+    fn election(keys_ceremony_id: Option<&str>) -> Election {
+        serde_json::from_value(json!({
+            "id": "election",
+            "tenant_id": "tenant",
+            "election_event_id": "election-event",
+            "keys_ceremony_id": keys_ceremony_id,
+        }))
+        .expect("election")
+    }
+
+    fn statuses(status: &KeysCeremonyStatus) -> Vec<(&str, TrusteeStatus)> {
+        status
+            .trustees
+            .iter()
+            .map(|trustee| (trustee.name.as_str(), trustee.status.clone()))
+            .collect()
+    }
+
+    fn log(text: &str) -> Log {
+        Log {
+            created_date: "2023-11-14T22:13:20+00:00".to_string(),
+            log_text: text.to_string(),
+        }
+    }
+
+    fn message(statement: KeysBoardStatement, sender: &str) -> KeysBoardMessage<String> {
+        KeysBoardMessage {
+            statement,
+            sender: sender.to_string(),
+        }
+    }
+
+    fn error_message(result: Result<impl std::fmt::Debug>) -> String {
+        format!("{:#}", result.expect_err("an error"))
+    }
+
+    #[test]
+    fn a_new_ceremony_needs_every_requested_trustee() {
+        assert_eq!(
+            error_message(validate_new_ceremony_trustees(3, 2, 2)),
+            "can't find trustees"
+        );
+        // Checked first, so it wins over an invalid threshold.
+        assert_eq!(
+            error_message(validate_new_ceremony_trustees(3, 2, 5)),
+            "can't find trustees"
+        );
+    }
+
+    #[test]
+    fn thresholds_from_two_to_the_number_of_trustees_are_valid() {
+        for threshold in [2, 3] {
+            assert!(validate_new_ceremony_trustees(3, 3, threshold).is_ok());
+        }
+    }
+
+    #[test]
+    fn thresholds_below_two_or_above_the_number_of_trustees_are_invalid() {
+        for (trustees, threshold) in [(3, 0), (3, 1), (3, 4), (1, 1), (1, 2)] {
+            assert_eq!(
+                error_message(validate_new_ceremony_trustees(
+                    trustees, trustees, threshold
+                )),
+                "invalid threshold, minimum is 2"
+            );
+        }
+    }
+
+    #[test]
+    fn a_ceremony_for_all_elections_blocks_new_ceremonies() {
+        for is_default in [Some(true), None] {
+            assert_eq!(
+                error_message(validate_no_default_ceremony(&[
+                    with_default(Some(false)),
+                    with_default(is_default),
+                ])),
+                "there's already an existing running ceremony for all elections"
+            );
+        }
+    }
+
+    #[test]
+    fn ceremonies_for_single_elections_do_not_block_new_ceremonies() {
+        assert!(validate_no_default_ceremony(&[]).is_ok());
+        assert!(validate_no_default_ceremony(&[with_default(Some(false))]).is_ok());
+    }
+
+    #[test]
+    fn an_election_can_have_only_one_ceremony() {
+        assert!(validate_election_without_ceremony("election", &election(None)).is_ok());
+        assert_eq!(
+            error_message(validate_election_without_ceremony(
+                "requested-election",
+                &election(Some("keys-ceremony"))
+            )),
+            "there's already an existing running ceremony for election id 'requested-election'"
+        );
+    }
+
+    #[test]
+    fn a_ceremony_for_the_whole_event_must_be_its_only_ceremony() {
+        assert!(validate_event_without_ceremonies(&[]).is_ok());
+        assert_eq!(
+            error_message(validate_event_without_ceremonies(&[with_default(Some(false))])),
+            "Can't create an election event keys ceremony when there are already existing keys ceremonies."
+        );
+    }
+
+    #[test]
+    fn a_new_ceremony_waits_for_every_trustee_without_a_public_key() {
+        let status = initial_status(
+            &[
+                trustee_record(Some(OTHER_TRUSTEE)),
+                trustee_record(Some(TRUSTEE)),
+            ],
+            vec![log("created")],
+        )
+        .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(status).unwrap(),
+            json!({
+                "stop_date": null,
+                "public_key": null,
+                "logs": [{"created_date": "2023-11-14T22:13:20+00:00", "log_text": "created"}],
+                "trustees": [
+                    {"name": "trustee2", "status": "WAITING"},
+                    {"name": "trustee1", "status": "WAITING"},
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn a_trustee_without_a_name_cannot_join_a_ceremony() {
+        assert_eq!(
+            error_message(initial_status(
+                &[trustee_record(Some(TRUSTEE)), trustee_record(None)],
+                vec![]
+            )),
+            "empty trustee name"
+        );
+    }
+
+    #[test]
+    fn automatic_ceremonies_are_stored_with_the_automated_policy() {
+        assert_eq!(
+            ceremony_settings(&ceremony_policy(true)),
+            json!({"policy": "automated-ceremonies"})
+        );
+        assert_eq!(
+            ceremony_settings(&ceremony_policy(false)),
+            json!({"policy": "manual-ceremonies"})
+        );
+    }
+
+    #[test]
+    fn user_permission_labels_are_read_from_a_postgres_array() {
+        let cases = [
+            (r#"{"label-a","label-b"}"#, vec!["label-a", "label-b"]),
+            (r#"  {"label-a"}  "#, vec!["label-a"]),
+            (r#""label-a""#, vec!["label-a"]),
+            ("{}", vec![]),
+        ];
+        for (claim, expected) in cases {
+            let labels = parse_user_permission_labels(Some(claim.to_string())).unwrap();
+
+            assert_eq!(
+                labels,
+                expected
+                    .into_iter()
+                    .map(str::to_string)
+                    .collect::<HashSet<_>>(),
+                "{claim}"
+            );
+        }
+    }
+
+    #[test]
+    fn missing_or_malformed_user_permission_labels_are_rejected() {
+        assert_eq!(
+            error_message(parse_user_permission_labels(None)),
+            "user dont have permission labels"
+        );
+        for claim in ["{label-a}", r#"{"label-a""#] {
+            assert!(parse_user_permission_labels(Some(claim.to_string())).is_err());
+        }
+    }
+
+    #[test]
+    fn a_user_needs_every_permission_label_of_the_elections() {
+        let user_labels: HashSet<String> = ["label-a".to_string()].into();
+
+        assert!(covers_permission_labels(&[], &user_labels));
+        assert!(covers_permission_labels(
+            &["label-a".to_string(), "label-a".to_string()],
+            &user_labels
+        ));
+        assert!(!covers_permission_labels(
+            &["label-a".to_string(), "label-b".to_string()],
+            &user_labels
+        ));
+    }
+
+    #[test]
+    fn each_permission_label_of_the_elections_is_kept_once() {
+        let labelled = |label: Option<&str>| Election {
+            permission_label: label.map(str::to_string),
+            ..election(None)
+        };
+
+        let mut labels = unique_permission_labels(vec![
+            labelled(Some("label-b")),
+            labelled(None),
+            labelled(Some("label-a")),
+            labelled(Some("label-b")),
+        ]);
+        labels.sort();
+
+        assert_eq!(labels, vec!["label-a", "label-b"]);
+    }
+
+    #[test]
+    fn a_trustee_waiting_for_its_key_may_still_download_it() {
+        let ceremony = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::WAITING,
+        );
+
+        assert!(validate_private_key_download(&ceremony, TRUSTEE).is_ok());
+    }
+
+    #[test]
+    fn a_trustee_can_check_a_generated_key_while_in_progress_or_after_success() {
+        for execution_status in [
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            KeysCeremonyExecutionStatus::SUCCESS,
+        ] {
+            for trustee_status in [
+                TrusteeStatus::KEY_GENERATED,
+                TrusteeStatus::KEY_RETRIEVED,
+                TrusteeStatus::KEY_CHECKED,
+            ] {
+                let ceremony = keys_ceremony(execution_status.clone(), trustee_status);
+
+                assert!(validate_private_key_check(&ceremony, TRUSTEE).is_ok());
+            }
+        }
+    }
+
+    #[test]
+    fn checks_are_refused_in_any_other_ceremony_status() {
+        for execution_status in [
+            KeysCeremonyExecutionStatus::USER_CONFIGURATION,
+            KeysCeremonyExecutionStatus::STARTED,
+            KeysCeremonyExecutionStatus::CANCELLED,
+        ] {
+            let ceremony = keys_ceremony(execution_status, TrusteeStatus::KEY_RETRIEVED);
+
+            assert_eq!(
+                error_message(validate_private_key_check(&ceremony, TRUSTEE)),
+                "Keys ceremony not in ExecutionStatus::IN_PROCESS or  ExecutionStatus::SUCCESS"
+            );
+        }
+    }
+
+    #[test]
+    fn only_a_trustee_of_the_ceremony_with_a_generated_key_can_check_it() {
+        let waiting = keys_ceremony(
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            TrusteeStatus::WAITING,
+        );
+        for (ceremony, trustee_name) in [(&waiting, TRUSTEE), (&waiting, "trustee3")] {
+            assert_eq!(
+                error_message(validate_private_key_check(ceremony, trustee_name)),
+                "Trustee not part of the keys ceremony or has invalid state"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unreadable_ceremony_status_fails_the_check() {
+        let ceremony = KeysCeremony {
+            status: Some(json!({"trustees": "invalid"})),
+            ..keys_ceremony(
+                KeysCeremonyExecutionStatus::IN_PROGRESS,
+                TrusteeStatus::KEY_RETRIEVED,
+            )
+        };
+
+        assert!(
+            error_message(validate_private_key_check(&ceremony, TRUSTEE))
+                .starts_with("error parsing keys ceremony current status: ")
+        );
+    }
+
+    #[test]
+    fn a_download_marks_only_that_trustee_retrieved() {
+        let current = status(&[
+            (TRUSTEE, TrusteeStatus::KEY_GENERATED),
+            (OTHER_TRUSTEE, TrusteeStatus::KEY_GENERATED),
+        ]);
+
+        let new_status = with_key_retrieved(&current, TRUSTEE, vec![log("downloaded")]);
+
+        assert_eq!(
+            statuses(&new_status),
+            vec![
+                (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+                (OTHER_TRUSTEE, TrusteeStatus::KEY_GENERATED),
+            ]
+        );
+        assert_eq!(new_status.public_key.as_deref(), Some(PUBLIC_KEY));
+        assert_eq!(new_status.stop_date, None);
+        assert_eq!(new_status.logs.len(), 1);
+        assert_eq!(new_status.logs[0].log_text, "downloaded");
+    }
+
+    #[test]
+    fn a_check_keeps_the_ceremony_in_progress_while_another_trustee_has_not_checked() {
+        let current = status(&[
+            (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+            (OTHER_TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+        ]);
+
+        let (new_status, execution_status) =
+            with_key_checked(&current, TRUSTEE, vec![log("checked")]);
+
+        assert_eq!(
+            statuses(&new_status),
+            vec![
+                (TRUSTEE, TrusteeStatus::KEY_CHECKED),
+                (OTHER_TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+            ]
+        );
+        assert_eq!(execution_status, KeysCeremonyExecutionStatus::IN_PROGRESS);
+        assert_eq!(new_status.stop_date, None);
+        assert_eq!(new_status.public_key.as_deref(), Some(PUBLIC_KEY));
+    }
+
+    #[test]
+    fn the_ceremony_succeeds_when_the_last_trustee_checks_its_key() {
+        let current = status(&[
+            (TRUSTEE, TrusteeStatus::KEY_RETRIEVED),
+            (OTHER_TRUSTEE, TrusteeStatus::KEY_CHECKED),
+        ]);
+
+        let (_, execution_status) = with_key_checked(&current, TRUSTEE, vec![]);
+
+        assert_eq!(execution_status, KeysCeremonyExecutionStatus::SUCCESS);
+    }
+
+    #[test]
+    fn each_ceremony_state_needs_its_own_board_step() {
+        let with_key = status(&[]);
+        let without_key = KeysCeremonyStatus {
+            public_key: None,
+            ..status(&[])
+        };
+        let cases = [
+            (
+                KeysCeremonyExecutionStatus::STARTED,
+                &without_key,
+                Some(KeysBoardStep::CreateKeys),
+            ),
+            (
+                KeysCeremonyExecutionStatus::STARTED,
+                &with_key,
+                Some(KeysBoardStep::CreateKeys),
+            ),
+            (
+                KeysCeremonyExecutionStatus::IN_PROGRESS,
+                &without_key,
+                Some(KeysBoardStep::SetPublicKey),
+            ),
+            (KeysCeremonyExecutionStatus::IN_PROGRESS, &with_key, None),
+            (
+                KeysCeremonyExecutionStatus::USER_CONFIGURATION,
+                &without_key,
+                None,
+            ),
+            (KeysCeremonyExecutionStatus::SUCCESS, &without_key, None),
+            (KeysCeremonyExecutionStatus::CANCELLED, &without_key, None),
+        ];
+        for (execution_status, status, step) in cases {
+            assert_eq!(
+                next_board_step(&execution_status, status),
+                step,
+                "{execution_status} with public key {:?}",
+                status.public_key
+            );
+        }
+    }
+
+    #[test]
+    fn keys_are_generated_only_for_a_started_ceremony_without_a_public_key() {
+        let with_key = status(&[]);
+        let without_key = KeysCeremonyStatus {
+            public_key: None,
+            ..status(&[])
+        };
+
+        assert!(awaits_key_generation(
+            &KeysCeremonyExecutionStatus::STARTED,
+            &without_key
+        ));
+        assert!(!awaits_key_generation(
+            &KeysCeremonyExecutionStatus::STARTED,
+            &with_key
+        ));
+        for execution_status in [
+            KeysCeremonyExecutionStatus::USER_CONFIGURATION,
+            KeysCeremonyExecutionStatus::IN_PROGRESS,
+            KeysCeremonyExecutionStatus::SUCCESS,
+            KeysCeremonyExecutionStatus::CANCELLED,
+        ] {
+            assert!(!awaits_key_generation(&execution_status, &without_key));
+        }
+    }
+
+    #[test]
+    fn the_ceremony_trustees_must_be_the_stored_trustees() {
+        let names: HashSet<String> = [TRUSTEE.to_string(), OTHER_TRUSTEE.to_string()].into();
+        let both = [
+            trustee_record(Some(TRUSTEE)),
+            trustee_record(Some(OTHER_TRUSTEE)),
+        ];
+
+        assert!(validate_known_trustees(&names, &both).is_ok());
+        assert!(validate_known_trustees(
+            &names,
+            &[
+                trustee_record(Some(OTHER_TRUSTEE)),
+                trustee_record(None),
+                trustee_record(Some(TRUSTEE))
+            ]
+        )
+        .is_ok());
+        for trustees in [
+            &both[..1],
+            &[
+                trustee_record(Some(TRUSTEE)),
+                trustee_record(Some(OTHER_TRUSTEE)),
+                trustee_record(Some("trustee3")),
+            ][..],
+        ] {
+            assert_eq!(
+                error_message(validate_known_trustees(&names, trustees)),
+                "trustee_names don't correspond to trustees_by_name"
+            );
+        }
+    }
+
+    #[test]
+    fn a_trustee_generated_its_key_once_the_board_has_its_public_key_share() {
+        for statement in [
+            KeysBoardStatement::PublicKey,
+            KeysBoardStatement::PublicKeySigned,
+        ] {
+            let messages = [
+                message(KeysBoardStatement::Other, "other-sender"),
+                message(statement, "sender"),
+            ];
+
+            assert_eq!(
+                trustee_key_status(&"sender".to_string(), &messages),
+                TrusteeStatus::KEY_GENERATED
+            );
+        }
+    }
+
+    #[test]
+    fn other_messages_or_senders_do_not_count_as_a_generated_key() {
+        let messages = [
+            message(KeysBoardStatement::Other, "sender"),
+            message(KeysBoardStatement::PublicKey, "other-sender"),
+            message(KeysBoardStatement::PublicKeySigned, "other-sender"),
+        ];
+
+        assert_eq!(
+            trustee_key_status(&"sender".to_string(), &messages),
+            TrusteeStatus::WAITING
+        );
+        assert_eq!(
+            trustee_key_status(&"sender".to_string(), &[]),
+            TrusteeStatus::WAITING
+        );
+    }
+
+    #[test]
+    fn only_automated_ceremonies_succeed_with_the_public_key() {
+        let automated = CeremoniesPolicy::AUTOMATED_CEREMONIES;
+        let manual = CeremoniesPolicy::MANUAL_CEREMONIES;
+
+        assert_eq!(
+            public_key_execution_status(&automated, Some(PUBLIC_KEY)),
+            KeysCeremonyExecutionStatus::SUCCESS
+        );
+        assert_eq!(
+            public_key_execution_status(&automated, None),
+            KeysCeremonyExecutionStatus::IN_PROGRESS
+        );
+        assert_eq!(
+            public_key_execution_status(&manual, Some(PUBLIC_KEY)),
+            KeysCeremonyExecutionStatus::IN_PROGRESS
+        );
+    }
+
+    #[test]
+    fn the_stop_date_counts_whole_seconds_in_milliseconds() {
+        let now = Local
+            .timestamp_opt(1_700_000_000, 999_000_000)
+            .single()
+            .expect("valid time");
+
+        assert_eq!(stop_date(now), "1700000000000");
+    }
+}

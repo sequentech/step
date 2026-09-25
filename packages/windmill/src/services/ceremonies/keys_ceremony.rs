@@ -899,3 +899,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "keys_ceremony_tests.rs"]
+mod use_case_tests;
