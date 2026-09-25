@@ -82,11 +82,18 @@ const ENC_CTX: &[u8] = b"tally encryption context";
 const SHUFFLE_CTX: &[u8] = b"tally shuffle context";
 const DEC_CTX: &[u8] = b"tally decryption context";
 
-/// Ciphertext widths `W` this binary can instantiate (`W` is const generic).
-const SUPPORTED_WIDTHS: &[usize] = &[1, 2, 3, 5, 10];
+/// Ciphertext widths `W` this binary can instantiate (`W` is const generic):
+/// exactly the widths braid's runtime dispatches (`dispatch_ciphertext_width!`
+/// in `crates/braid/src/dispatch.rs`), so any width braid accepts can be
+/// measured. Keep this list, the one in the `dispatch` call below and that
+/// macro in step.
+const SUPPORTED_WIDTHS: &[usize] = &[1, 2, 3, 4, 5, 6, 7, 8];
 /// Quorum sizes `Q` this binary can instantiate (`Q` is const generic; the
-/// committee is `Q` of `Q`).
-const SUPPORTED_QUORUMS: &[usize] = &[2, 3, 4, 5, 7];
+/// committee is `Q` of `Q`): exactly the thresholds braid's runtime dispatches
+/// (`dispatch_threshold_trustees!` in `crates/braid/src/dispatch.rs`, thresholds
+/// 2 to 8). Keep this list, the one in the `dispatch` call below and that macro
+/// in step.
+const SUPPORTED_QUORUMS: &[usize] = &[2, 3, 4, 5, 6, 7, 8];
 
 type Ciphertexts<C, const W: usize> = Vec<elgamal::Ciphertext<C, W>>;
 
@@ -440,6 +447,13 @@ fn main() {
     };
 
     eprintln!("running tally: count={count} width={width} quorum={quorum} ser={ser}");
-    let stages = dispatch!(width, quorum, count, ser, [1, 2, 3, 5, 10], [2, 3, 4, 5, 7]);
+    let stages = dispatch!(
+        width,
+        quorum,
+        count,
+        ser,
+        [1, 2, 3, 4, 5, 6, 7, 8],
+        [2, 3, 4, 5, 6, 7, 8]
+    );
     report(count, width, quorum, ser, &stages);
 }
