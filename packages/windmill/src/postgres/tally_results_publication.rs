@@ -94,44 +94,36 @@ impl TryFrom<Row> for TallyResultsPublication {
     }
 }
 
-pub async fn validate_new_publication_source(
+/// The tally source of a new publication.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PublicationSource {
+    pub tenant_id: Uuid,
+    pub election_event_id: Uuid,
+    pub tally_session_id: Uuid,
+    pub tally_session_execution_id: Uuid,
+    pub results_event_id: Uuid,
+    pub election_ids: Vec<Uuid>,
+    pub contest_ids: Vec<Uuid>,
+}
+
+/// What the database holds for a publication source.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PublicationSourceFacts {
+    /// The execution belongs to the session and the results event, and the
+    /// session covers every source election.
+    pub valid_execution: bool,
+    /// Distinct source elections in the election event.
+    pub election_count: i64,
+    /// Distinct source contests in the source elections.
+    pub contest_count: i64,
+    /// Distinct source contests with results in the results event.
+    pub tallied_contest_count: i64,
+}
+
+pub async fn get_publication_source_facts(
     tx: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    tally_session_id: &str,
-    tally_session_execution_id: &str,
-    results_event_id: &str,
-    election_ids: &[String],
-    contest_ids: &[String],
-    route_election_id: Option<&str>,
-) -> Result<()> {
-    if election_ids.is_empty() || contest_ids.is_empty() {
-        return Err(anyhow!(
-            "A publication requires at least one election and one contest"
-        ));
-    }
-
-    let tenant_id = parse_uuid_v4(tenant_id)?;
-    let election_event_id = parse_uuid_v4(election_event_id)?;
-    let tally_session_id = parse_uuid_v4(tally_session_id)?;
-    let tally_session_execution_id = parse_uuid_v4(tally_session_execution_id)?;
-    let results_event_id = parse_uuid_v4(results_event_id)?;
-    let election_ids = election_ids
-        .iter()
-        .map(|id| parse_uuid_v4(id))
-        .collect::<std::result::Result<Vec<_>, _>>()?;
-    let contest_ids = contest_ids
-        .iter()
-        .map(|id| parse_uuid_v4(id))
-        .collect::<std::result::Result<Vec<_>, _>>()?;
-    let route_election_id = route_election_id.map(parse_uuid_v4).transpose()?;
-
-    if route_election_id.is_some_and(|route_id| !election_ids.contains(&route_id)) {
-        return Err(anyhow!(
-            "The route election must be included in the publication elections"
-        ));
-    }
-
+    source: &PublicationSource,
+) -> Result<PublicationSourceFacts> {
     let statement = tx
         .prepare(
             r#"
@@ -185,46 +177,23 @@ pub async fn validate_new_publication_source(
         .query_one(
             &statement,
             &[
-                &tenant_id,
-                &election_event_id,
-                &tally_session_id,
-                &tally_session_execution_id,
-                &results_event_id,
-                &election_ids,
-                &contest_ids,
+                &source.tenant_id,
+                &source.election_event_id,
+                &source.tally_session_id,
+                &source.tally_session_execution_id,
+                &source.results_event_id,
+                &source.election_ids,
+                &source.contest_ids,
             ],
         )
         .await?;
 
-    let valid_execution: bool = row.try_get("valid_execution")?;
-    let election_count: i64 = row.try_get("election_count")?;
-    let contest_count: i64 = row.try_get("contest_count")?;
-    let tallied_contest_count: i64 = row.try_get("tallied_contest_count")?;
-    let expected_elections = i64::try_from(election_ids.len())?;
-    let expected_contests = i64::try_from(contest_ids.len())?;
-
-    if !valid_execution {
-        return Err(anyhow!(
-            "The tally session, execution, and results event do not belong together"
-        ));
-    }
-    if election_count != expected_elections {
-        return Err(anyhow!(
-            "One or more publication elections are outside the tally event"
-        ));
-    }
-    if contest_count != expected_contests {
-        return Err(anyhow!(
-            "One or more publication contests are outside the selected elections"
-        ));
-    }
-    if tallied_contest_count != expected_contests {
-        return Err(anyhow!(
-            "Every selected contest must have results in the selected tally execution"
-        ));
-    }
-
-    Ok(())
+    Ok(PublicationSourceFacts {
+        valid_execution: row.try_get("valid_execution")?,
+        election_count: row.try_get("election_count")?,
+        contest_count: row.try_get("contest_count")?,
+        tallied_contest_count: row.try_get("tallied_contest_count")?,
+    })
 }
 
 pub async fn next_publication_version(

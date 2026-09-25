@@ -3,21 +3,32 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Results website rules: whether a publication still matches the election
-//! event's policy, which route it serves, and what a reader may see of it.
+//! event's policy, which route it serves, what a reader may see of it, and
+//! whether a new publication's tally source is consistent.
 
-use crate::postgres::tally_results_publication::TallyResultsPublication;
+use crate::postgres::tally_results_publication::{
+    PublicationSource, PublicationSourceFacts, TallyResultsPublication,
+};
 use crate::types::results_publication::{
-    ResultsPublicationDocuments, ResultsPublicationManifest, ResultsRouteScope,
+    PublishResultsWebsiteInput, ResultsPublicationDocuments, ResultsPublicationManifest,
+    ResultsRouteScope,
 };
 use anyhow::{anyhow, Context, Result};
+use electoral_log::messages::newtypes::{
+    ContestIdString, ElectionIdString, ResultsPublicationAccessString, ResultsPublicationAction,
+    ResultsPublicationDetails, ResultsPublicationIdString, ResultsPublicationRouteScopeString,
+    ResultsPublicationVisibilityScopeString,
+};
 use sequent_core::ballot::{
     ElectionEventPresentation, ResultsWebsiteAccess, ResultsWebsitePolicy, ResultsWebsiteStatus,
     ResultsWebsiteVisibilityScope,
 };
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_event_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::permissions::Permissions;
 use thiserror::Error;
+use uuid::Uuid;
 
 const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
 const LEGACY_RESULTS_PORTAL_CLIENT_ID: &str = "voting-portal";
@@ -272,6 +283,102 @@ pub fn artifact_document_ids_for_reader(
     }
 }
 
+/// The electoral log details of an action on a publication.
+pub fn results_publication_log_details(
+    publication: &TallyResultsPublication,
+    action: ResultsPublicationAction,
+) -> ResultsPublicationDetails {
+    ResultsPublicationDetails {
+        publication_id: ResultsPublicationIdString(publication.id.clone()),
+        action,
+        route_scope: ResultsPublicationRouteScopeString(publication.route_scope.to_string()),
+        route_election_id: ElectionIdString(publication.route_election_id.clone()),
+        access: ResultsPublicationAccessString(publication.access.to_string()),
+        visibility_scope: ResultsPublicationVisibilityScopeString(
+            publication.visibility_scope.to_string(),
+        ),
+        contest_ids: publication
+            .published_contest_ids
+            .iter()
+            .cloned()
+            .map(ContestIdString)
+            .collect(),
+    }
+}
+
+fn parse_uuids(ids: &[String]) -> Result<Vec<Uuid>> {
+    ids.iter().map(|id| parse_uuid_v4(id)).collect()
+}
+
+/// The tally source of a publication request: at least one election and
+/// one contest, and an election route among its elections.
+pub fn publication_source(
+    tenant_id: &str,
+    input: &PublishResultsWebsiteInput,
+) -> Result<PublicationSource> {
+    if input.election_ids.is_empty() || input.contest_ids.is_empty() {
+        return Err(anyhow!(
+            "A publication requires at least one election and one contest"
+        ));
+    }
+
+    let source = PublicationSource {
+        tenant_id: parse_uuid_v4(tenant_id)?,
+        election_event_id: parse_uuid_v4(&input.election_event_id)?,
+        tally_session_id: parse_uuid_v4(&input.tally_session_id)?,
+        tally_session_execution_id: parse_uuid_v4(&input.tally_session_execution_id)?,
+        results_event_id: parse_uuid_v4(&input.results_event_id)?,
+        election_ids: parse_uuids(&input.election_ids)?,
+        contest_ids: parse_uuids(&input.contest_ids)?,
+    };
+    let route_election_id = input
+        .route_election_id
+        .as_deref()
+        .map(parse_uuid_v4)
+        .transpose()?;
+    if route_election_id.is_some_and(|route_id| !source.election_ids.contains(&route_id)) {
+        return Err(anyhow!(
+            "The route election must be included in the publication elections"
+        ));
+    }
+
+    Ok(source)
+}
+
+/// The execution, session and results event must belong together, and
+/// every source election, contest and contest result must exist. The
+/// database counts distinct identifiers, so repeated ones fail too.
+pub fn check_publication_source(
+    source: &PublicationSource,
+    facts: &PublicationSourceFacts,
+) -> Result<()> {
+    let expected_elections = i64::try_from(source.election_ids.len())?;
+    let expected_contests = i64::try_from(source.contest_ids.len())?;
+
+    if !facts.valid_execution {
+        return Err(anyhow!(
+            "The tally session, execution, and results event do not belong together"
+        ));
+    }
+    if facts.election_count != expected_elections {
+        return Err(anyhow!(
+            "One or more publication elections are outside the tally event"
+        ));
+    }
+    if facts.contest_count != expected_contests {
+        return Err(anyhow!(
+            "One or more publication contests are outside the selected elections"
+        ));
+    }
+    if facts.tallied_contest_count != expected_contests {
+        return Err(anyhow!(
+            "Every selected contest must have results in the selected tally execution"
+        ));
+    }
+
+    Ok(())
+}
+
 /// Synthetic readers and publications for tenant `TENANT_ID` and event
 /// `ELECTION_EVENT_ID`.
 #[cfg(test)]
@@ -296,6 +403,16 @@ pub(crate) mod fixtures {
     pub const ADMIN_CLIENT_ID: &str = "admin-portal";
     pub const READ_ROLE: &str = "publish-results-read";
     pub const WRITE_ROLE: &str = "publish-results-write";
+
+    // Publication requests use v4 UUIDs because source validation parses them.
+    pub const REQUEST_TENANT_ID: &str = "10000000-0000-4000-8000-000000000001";
+    pub const REQUEST_EVENT_ID: &str = "10000000-0000-4000-8000-000000000002";
+    pub const REQUEST_SESSION_ID: &str = "10000000-0000-4000-8000-000000000003";
+    pub const REQUEST_EXECUTION_ID: &str = "10000000-0000-4000-8000-000000000004";
+    pub const REQUEST_RESULTS_EVENT_ID: &str = "10000000-0000-4000-8000-000000000005";
+    pub const REQUEST_ELECTION_ID: &str = "10000000-0000-4000-8000-000000000006";
+    pub const REQUEST_OTHER_ELECTION_ID: &str = "10000000-0000-4000-8000-000000000007";
+    pub const REQUEST_CONTEST_ID: &str = "10000000-0000-4000-8000-000000000008";
 
     /// A results portal voter of `AREA_ID` authorized for `ELECTION_ID`.
     pub fn voter_claims() -> JwtClaims {
@@ -415,6 +532,25 @@ pub(crate) mod fixtures {
                 areas: Some(areas),
             })),
             ..publication()
+        }
+    }
+
+    /// A request to publish a contest of two elections on the event route.
+    pub fn publication_request() -> PublishResultsWebsiteInput {
+        PublishResultsWebsiteInput {
+            election_event_id: REQUEST_EVENT_ID.to_string(),
+            tally_session_id: REQUEST_SESSION_ID.to_string(),
+            tally_session_execution_id: REQUEST_EXECUTION_ID.to_string(),
+            results_event_id: REQUEST_RESULTS_EVENT_ID.to_string(),
+            route_scope: ResultsRouteScope::Event,
+            route_election_id: None,
+            election_ids: vec![
+                REQUEST_ELECTION_ID.to_string(),
+                REQUEST_OTHER_ELECTION_ID.to_string(),
+            ],
+            contest_ids: vec![REQUEST_CONTEST_ID.to_string()],
+            access: ResultsWebsiteAccess::Authenticated,
+            visibility_scope: ResultsWebsiteVisibilityScope::FullEvent,
         }
     }
 
@@ -987,5 +1123,190 @@ mod tests {
             Some("results/manifest-v1.json")
         );
         assert_eq!(manifest_public_path(&publication()).unwrap(), None);
+    }
+
+    fn uuid(value: &str) -> Uuid {
+        Uuid::parse_str(value).unwrap()
+    }
+
+    fn request_source() -> PublicationSource {
+        publication_source(REQUEST_TENANT_ID, &publication_request()).unwrap()
+    }
+
+    fn source_facts(
+        valid_execution: bool,
+        election_count: i64,
+        contest_count: i64,
+        tallied_contest_count: i64,
+    ) -> PublicationSourceFacts {
+        PublicationSourceFacts {
+            valid_execution,
+            election_count,
+            contest_count,
+            tallied_contest_count,
+        }
+    }
+
+    fn source_error(tenant_id: &str, request: &PublishResultsWebsiteInput) -> String {
+        publication_source(tenant_id, request)
+            .unwrap_err()
+            .to_string()
+    }
+
+    #[test]
+    fn a_publication_source_holds_the_parsed_request_identifiers() {
+        assert_eq!(
+            request_source(),
+            PublicationSource {
+                tenant_id: uuid(REQUEST_TENANT_ID),
+                election_event_id: uuid(REQUEST_EVENT_ID),
+                tally_session_id: uuid(REQUEST_SESSION_ID),
+                tally_session_execution_id: uuid(REQUEST_EXECUTION_ID),
+                results_event_id: uuid(REQUEST_RESULTS_EVENT_ID),
+                election_ids: vec![uuid(REQUEST_ELECTION_ID), uuid(REQUEST_OTHER_ELECTION_ID)],
+                contest_ids: vec![uuid(REQUEST_CONTEST_ID)],
+            }
+        );
+    }
+
+    #[test]
+    fn a_publication_needs_an_election_and_a_contest_before_identifiers_are_parsed() {
+        let mut without_elections = publication_request();
+        without_elections.election_ids.clear();
+        let mut without_contests = publication_request();
+        without_contests.contest_ids.clear();
+
+        for request in [without_elections, without_contests] {
+            assert_eq!(
+                source_error("not-a-uuid", &request),
+                "A publication requires at least one election and one contest"
+            );
+        }
+    }
+
+    #[test]
+    fn every_source_identifier_must_be_a_v4_uuid() {
+        let not_v4 = "10000000-0000-1000-8000-000000000001";
+        for (invalid, expected_prefix) in [
+            ("not-a-uuid", "invalid UUID 'not-a-uuid'"),
+            (
+                not_v4,
+                "UUID '10000000-0000-1000-8000-000000000001' is not v4",
+            ),
+        ] {
+            let mut requests = vec![];
+            for field in 0..7 {
+                let mut request = publication_request();
+                let invalid = invalid.to_string();
+                match field {
+                    0 => request.election_event_id = invalid,
+                    1 => request.tally_session_id = invalid,
+                    2 => request.tally_session_execution_id = invalid,
+                    3 => request.results_event_id = invalid,
+                    4 => request.election_ids[1] = invalid,
+                    5 => request.contest_ids[0] = invalid,
+                    _ => request.route_election_id = Some(invalid),
+                }
+                requests.push(request);
+            }
+
+            assert!(source_error(invalid, &publication_request()).starts_with(expected_prefix));
+            for request in requests {
+                let error = source_error(REQUEST_TENANT_ID, &request);
+                assert!(error.starts_with(expected_prefix), "{error}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_route_election_must_be_one_of_the_publication_elections() {
+        let mut request = publication_request();
+        request.route_election_id = Some("10000000-0000-4000-8000-000000000009".to_string());
+
+        assert_eq!(
+            source_error(REQUEST_TENANT_ID, &request),
+            "The route election must be included in the publication elections"
+        );
+    }
+
+    #[test]
+    fn route_elections_are_compared_as_uuids_not_as_text() {
+        let mut request = publication_request();
+        request.election_ids = vec!["a0000000-0000-4000-8000-00000000000a".to_string()];
+        request.route_election_id = Some("A0000000-0000-4000-8000-00000000000A".to_string());
+
+        assert!(publication_source(REQUEST_TENANT_ID, &request).is_ok());
+    }
+
+    #[test]
+    fn a_source_whose_records_all_exist_and_were_tallied_is_consistent() {
+        assert!(check_publication_source(&request_source(), &source_facts(true, 2, 1, 1)).is_ok());
+    }
+
+    #[test]
+    fn inconsistent_sources_report_their_first_failing_check() {
+        for (facts, message) in [
+            (
+                source_facts(false, 1, 0, 0),
+                "The tally session, execution, and results event do not belong together",
+            ),
+            (
+                source_facts(true, 1, 0, 0),
+                "One or more publication elections are outside the tally event",
+            ),
+            (
+                source_facts(true, 3, 1, 1),
+                "One or more publication elections are outside the tally event",
+            ),
+            (
+                source_facts(true, 2, 0, 0),
+                "One or more publication contests are outside the selected elections",
+            ),
+            (
+                source_facts(true, 2, 1, 0),
+                "Every selected contest must have results in the selected tally execution",
+            ),
+        ] {
+            let error = check_publication_source(&request_source(), &facts).unwrap_err();
+            assert_eq!(error.to_string(), message, "{facts:?}");
+        }
+    }
+
+    #[test]
+    fn repeated_source_identifiers_do_not_match_the_distinct_database_counts() {
+        let mut request = publication_request();
+        request.contest_ids = vec![REQUEST_CONTEST_ID.to_string(); 2];
+        let source = publication_source(REQUEST_TENANT_ID, &request).unwrap();
+
+        // The database counts the repeated contest once.
+        let error = check_publication_source(&source, &source_facts(true, 2, 1, 1)).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "One or more publication contests are outside the selected elections"
+        );
+    }
+
+    #[test]
+    fn audit_details_describe_the_publication_and_the_action() {
+        let publication = TallyResultsPublication {
+            published_contest_ids: vec!["contest-1".to_string(), "contest-2".to_string()],
+            ..election_route_publication(Some(ELECTION_ID))
+        };
+
+        assert_eq!(
+            results_publication_log_details(&publication, ResultsPublicationAction::Revoke),
+            ResultsPublicationDetails {
+                publication_id: ResultsPublicationIdString("publication-1".to_string()),
+                action: ResultsPublicationAction::Revoke,
+                route_scope: ResultsPublicationRouteScopeString("election".to_string()),
+                route_election_id: ElectionIdString(Some(ELECTION_ID.to_string())),
+                access: ResultsPublicationAccessString("authenticated".to_string()),
+                visibility_scope: ResultsPublicationVisibilityScopeString("full_event".to_string()),
+                contest_ids: vec![
+                    ContestIdString("contest-1".to_string()),
+                    ContestIdString("contest-2".to_string()),
+                ],
+            }
+        );
     }
 }
