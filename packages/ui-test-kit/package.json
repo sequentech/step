@@ -7,6 +7,7 @@
   "exports": {
     "./adapters/axe": "./adapters/axe.ts",
     "./adapters/playwright": "./adapters/playwright.ts",
+    "./coverage/fixture": "./coverage/fixture.ts",
     "./fixtures": "./fixtures/index.ts",
     "./mocks/graphql": "./mocks/graphql.ts",
     "./mocks/oidc": "./mocks/oidc.ts",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "@axe-core/playwright": "4.11.1",
+    "@bcoe/v8-coverage": "^0.2.3",
     "graphql": "^16.8.1",
     "sql.js": "^1.13.0"
   },

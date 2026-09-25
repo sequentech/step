@@ -21,6 +21,10 @@ const types: Record<string, string> = {
     ".ttf": "font/ttf",
 }
 
+const roots = new Map<string, string>()
+/** The directory behind each open origin, so coverage can map script URLs back to files. */
+export const servedRoots: ReadonlyMap<string, string> = roots
+
 /** Owns its ephemeral listening socket until close; never probes then rebinds a free port. */
 export async function serveDist(directory: string) {
     const root = await realpath(directory)
@@ -62,9 +66,12 @@ export async function serveDist(directory: string) {
         server.once("error", reject)
         server.listen(0, "127.0.0.1", resolve)
     })
+    const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    roots.set(origin, root)
     return {
-        origin: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+        origin,
         close: async () => {
+            roots.delete(origin)
             await new Promise<void>((resolve, reject) => {
                 server.close((error) => (error ? reject(error) : resolve()))
                 server.closeAllConnections()

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {test as base, expect} from "@playwright/test"
+import {expect} from "@playwright/test"
+import {test as base} from "@sequentech/ui-test-kit/coverage/fixture"
 import {resolve, dirname} from "node:path"
 import {fileURLToPath} from "node:url"
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
