@@ -213,3 +213,102 @@ fn early_voting_area_does_not_overwrite_transport_channels() {
 
 #[path = "insert_cast_vote_database_tests.rs"]
 mod database;
+
+#[test]
+fn jwt_auth_time_is_seconds_since_the_unix_epoch() {
+    let parsed = parse_voter_auth_time(Some(1_767_268_800)).unwrap();
+    assert_eq!(parsed, ISO8601::to_date("2026-01-01T12:00:00Z").unwrap());
+}
+
+#[test]
+fn jwt_auth_time_keeps_only_pre_close_sessions_eligible_during_grace() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let status = ElectionStatus {
+        voting_status: VotingStatus::CLOSED,
+        ..Default::default()
+    };
+    let presentation = ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    };
+    for (claim, allowed) in [(1_767_268_799, true), (1_767_268_801, false)] {
+        let result = check_status_with_loaded_election(
+            close + Duration::seconds(30),
+            parse_voter_auth_time(Some(claim)).unwrap(),
+            VotingStatusChannel::ONLINE,
+            false,
+            VotingPeriodDates {
+                start_date: None,
+                end_date: Some("2026-01-01T12:00:00Z".into()),
+            },
+            &status,
+            &presentation,
+            "election",
+        );
+        if allowed {
+            assert!(matches!(result, Ok(VotingStatusChannel::ONLINE)));
+        } else {
+            assert!(
+                matches!(result, Err(CastVoteError::CheckStatusFailed(message))
+                if message == "Cannot vote outside grace period")
+            );
+        }
+    }
+}
+
+#[test]
+fn jwt_auth_time_preserves_invalid_and_missing_claim_errors() {
+    assert!(
+        matches!(parse_voter_auth_time(None), Err(CastVoteError::CheckStatusFailed(message))
+        if message == "auth_time is not a valid integer")
+    );
+    for claim in [i64::MIN, i64::MAX] {
+        assert!(
+            matches!(parse_voter_auth_time(Some(claim)), Err(CastVoteError::CheckStatusFailed(message))
+            if message == "Invalid auth_time timestamp")
+        );
+    }
+}
+
+#[test]
+fn jwt_auth_time_keeps_only_pre_close_sessions_eligible_after_manual_close() {
+    let close = ISO8601::to_date("2026-01-01T12:00:00Z").unwrap();
+    let mut status = ElectionStatus {
+        voting_status: VotingStatus::CLOSED,
+        ..Default::default()
+    };
+    status.voting_period_dates.last_stopped_at = Some(close.with_timezone(&chrono::Utc));
+    let presentation = ElectionPresentation {
+        grace_period_policy: Some(EGracePeriodPolicy::GRACE_PERIOD_WITHOUT_ALERT),
+        grace_period_secs: Some(120),
+        ..Default::default()
+    };
+    for (claim, allowed) in [
+        (1_767_268_799, true),
+        (1_767_268_800, false),
+        (1_767_268_801, false),
+    ] {
+        let result = check_status_with_loaded_election(
+            close + Duration::seconds(30),
+            parse_voter_auth_time(Some(claim)).unwrap(),
+            VotingStatusChannel::ONLINE,
+            false,
+            VotingPeriodDates {
+                start_date: None,
+                end_date: None,
+            },
+            &status,
+            &presentation,
+            "election",
+        );
+        if allowed {
+            assert!(matches!(result, Ok(VotingStatusChannel::ONLINE)));
+        } else {
+            assert!(
+                matches!(result, Err(CastVoteError::CheckStatusFailed(message))
+                if message == "Voting Status for voting_channel=ONLINE is CLOSED")
+            );
+        }
+    }
+}

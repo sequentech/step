@@ -90,8 +90,8 @@ if __name__ == "__main__":
         database.apply(ONLINE_WINDOW_MIGRATION, "down")
         database.apply(CHANNELS_MIGRATION, "down")
         assert database.connection.execute(CONFIGURATION_QUERY, election.scope).fetchone() == original
-        # Rolled-back schedules return to the legacy payload, so the restored
-        # constraint still accepts the updates Windmill makes when they run.
+        # Rolled-back schedules return to the legacy payload. The main baseline
+        # has no payload constraint, and Windmill can still update schedules.
         assert database.connection.execute(
             "SELECT event_payload FROM sequent_backend.scheduled_event WHERE id = %s", (explicit_schedule,),
         ).fetchone()[0] == {"election_id": str(explicit.election)}
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         )
         assert database.connection.execute(
             "SELECT convalidated FROM pg_constraint WHERE conname = 'scheduled_event_voting_period_valid'"
-        ).fetchone()[0]
+        ).fetchone() is None
         database.apply(CHANNELS_MIGRATION)
         database.apply(ONLINE_WINDOW_MIGRATION)
         if not result.wasSuccessful():

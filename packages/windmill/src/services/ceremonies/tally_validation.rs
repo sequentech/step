@@ -1,21 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub use crate::domain::tally_ceremony::TallyValidationError;
 use sequent_core::ballot::{AllowTallyStatus, ElectionStatus, InitReport};
 use sequent_core::types::ceremonies::TallyType;
 use sequent_core::types::hasura::core::{Election, VotingChannels};
 use std::collections::HashSet;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-#[error("{0}")]
-pub struct TallyValidationError(String);
-
-impl TallyValidationError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self(message.into())
-    }
-}
 
 pub fn validate_tally_elections(
     elections: &[Election],

@@ -2,39 +2,42 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::tally_validation::{validate_tally_elections, TallyValidationError};
-use crate::postgres::area::get_event_areas;
-use crate::postgres::area_contest::export_area_contests;
+use crate::adapters::system::RandomIds;
+use crate::adapters::tally_ceremony::{
+    BoardTrusteePrivateKeys, ElectoralLogTallyAudit, EnvSlug, PgElectionEvents, PgElectionsById,
+    PgKeysCeremonies, PgTallyCreationReader, PgTallySessions,
+};
+use crate::domain::tally_ceremony::{
+    check_key_restore_status, check_status_change, check_trustee_quorum, is_recount_eligible,
+    reaches_key_threshold, recount_elections_status, restore_trustee_key, restored_trustee_count,
+    tally_executer, tally_execution_status, waiting_trustee, EXECUTER_USERNAME_ANNOTATION,
+    EXECUTER_USER_ID_ANNOTATION,
+};
+use crate::domain::tally_creation::{
+    check_weighted_voting_ballot_styles, check_weighted_voting_policies,
+    check_weighted_voting_tally_sheets, WeightedVotingStage,
+};
+use crate::ports::clock::IdGenerator;
+use crate::ports::tally_ceremony::{
+    DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
+    NewTallySession, TallyCeremonyAudit, TallyCreationReader, TallyEventSnapshot, TallySessions,
+    TrusteePrivateKeys,
+};
 use crate::postgres::ballot_style::get_ballot_styles_by_elections;
-use crate::postgres::contest::export_contests;
-use crate::postgres::election::{export_elections, get_election_by_id};
-use crate::postgres::election_event::get_election_event_by_id;
-use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
-use crate::postgres::tally_session::{
-    get_tally_session_by_id, insert_tally_session, lock_tally_session_for_update,
-    set_tally_session_completed as set_tally_session_completed_in_db, update_tally_session_status,
-};
-use crate::postgres::tally_session_contest::{
-    get_tally_session_contests, get_tally_session_highest_batch, insert_tally_session_contest,
-};
-use crate::postgres::tally_session_execution::{
-    get_last_tally_session_execution, insert_tally_session_execution,
-};
-use crate::postgres::tally_sheet::get_approved_tally_sheets_by_event;
-use crate::services::ceremonies::keys_ceremony::find_trustee_private_key;
+use crate::postgres::tally_session::get_tally_session_by_id;
+use crate::postgres::tally_session_contest::get_tally_session_contests;
+use crate::postgres::tally_session_execution::get_last_tally_session_execution;
 use crate::services::ceremonies::serialize_logs::{
     append_tally_recount_log, append_tally_trustee_log, generate_tally_initial_log,
 };
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::election_event_status::get_election_status;
-use crate::services::electoral_log::ElectoralLog;
 use crate::services::protocol_manager::get_event_board;
 use anyhow::{anyhow, Context, Result};
 use b4::messages::newtypes::BatchNumber;
 use deadpool_postgres::Transaction;
-use futures::try_join;
 use sequent_core::ballot::{
-    BallotStyle as SequentBallotStyle, ContestEncryptionPolicy, DecodedBallotsInclusionPolicy,
-    DelegatedVotingPolicy, Weight, WeightedVotingPolicy,
+    BallotStyle as SequentBallotStyle, ContestEncryptionPolicy, WeightedVotingPolicy,
 };
 use sequent_core::ballot_codec::multi_ballot::votable_contests;
 use sequent_core::serialization::deserialize_with_path::*;
@@ -54,7 +57,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::str::FromStr;
 use tracing::{event, instrument, Level};
-use uuid::Uuid;
 
 #[instrument(skip(hasura_transaction), err)]
 pub async fn find_last_tally_session_execution_and_all_related_data(
@@ -139,6 +141,22 @@ pub async fn find_keys_ceremony(
     election_event_id: &str,
     elections: &Vec<Election>,
 ) -> Result<KeysCeremony> {
+    find_keys_ceremony_with(
+        &PgKeysCeremonies::new(transaction),
+        tenant_id,
+        election_event_id,
+        elections,
+    )
+    .await
+}
+
+#[instrument(skip(keys_ceremonies), err)]
+pub async fn find_keys_ceremony_with(
+    keys_ceremonies: &impl KeysCeremonyReader,
+    tenant_id: &str,
+    election_event_id: &str,
+    elections: &Vec<Election>,
+) -> Result<KeysCeremony> {
     let keys_ceremonies_set: HashSet<String> = elections
         .clone()
         .into_iter()
@@ -161,13 +179,9 @@ pub async fn find_keys_ceremony(
         return Err(TallyValidationError::new("Election has no keys ceremony").into());
     };
 
-    let keys_ceremony = get_keys_ceremony_by_id(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        &keys_ceremony_id,
-    )
-    .await?;
+    let keys_ceremony = keys_ceremonies
+        .get(tenant_id, election_event_id, &keys_ceremony_id)
+        .await?;
 
     let status_str = keys_ceremony.execution_status.clone().unwrap_or_default();
     if KeysCeremonyExecutionStatus::from_str(&status_str).ok()
@@ -215,28 +229,45 @@ pub async fn insert_tally_session_contests(
     published_ballot_styles: &[SequentBallotStyle],
     configuration: &TallySessionConfiguration,
 ) -> Result<()> {
+    insert_tally_session_contests_with(
+        &PgTallySessions::new(hasura_transaction),
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        published_ballot_styles,
+        configuration,
+    )
+    .await
+}
+
+#[instrument(err, skip(sessions))]
+pub async fn insert_tally_session_contests_with(
+    sessions: &impl TallySessions,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    published_ballot_styles: &[SequentBallotStyle],
+    configuration: &TallySessionConfiguration,
+) -> Result<()> {
     // Each contest area owns `VOTE_WEIGHT_BATCHES` consecutive batches starting
     // at its `session_id`. Only `VOTERS_WEIGHTED_VOTING` fills more than the
     // first, but the stride is unconditional so that a session created under
     // one policy can never allocate a batch inside a run created under another.
-    let mut batch: BatchNumber =
-        get_tally_session_highest_batch(hasura_transaction, tenant_id, election_event_id).await?;
+    let mut batch: BatchNumber = sessions.next_batch(tenant_id, election_event_id).await?;
 
-    for (election_id, area_id, contest_id) in required_decryption_sets(
+    for decryption_set in required_decryption_sets(
         published_ballot_styles,
         configuration.get_contest_encryption_policy(),
     ) {
-        insert_tally_session_contest(
-            hasura_transaction,
-            tenant_id,
-            election_event_id,
-            &area_id,
-            contest_id,
-            batch,
-            tally_session_id,
-            &election_id,
-        )
-        .await?;
+        sessions
+            .insert_contest(
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+                &decryption_set,
+                batch,
+            )
+            .await?;
         batch += VOTE_WEIGHT_BATCHES as BatchNumber;
     }
     Ok(())
@@ -248,7 +279,7 @@ pub async fn insert_tally_session_contests(
 fn required_decryption_sets(
     ballot_styles: &[SequentBallotStyle],
     policy: ContestEncryptionPolicy,
-) -> HashSet<(String, String, Option<String>)> {
+) -> HashSet<DecryptionSet> {
     match policy {
         ContestEncryptionPolicy::SINGLE_CONTEST => ballot_styles
             .iter()
@@ -289,6 +320,18 @@ fn get_area_contests_for_election_ids(
     area_contests_tree.get_contest_matches(&contest_ids)
 }
 
+/// A request to create a tally session for some elections of an event.
+pub struct TallyCreation<'a> {
+    pub tenant_id: String,
+    pub user_id: &'a str,
+    pub election_event_id: String,
+    pub election_ids: Vec<String>,
+    pub configuration: Option<TallySessionConfiguration>,
+    pub tally_type: String,
+    pub permission_labels: &'a Vec<String>,
+    pub username: String,
+}
+
 #[instrument(err, skip(transaction))]
 pub async fn create_tally_ceremony(
     transaction: &Transaction<'_>,
@@ -301,13 +344,56 @@ pub async fn create_tally_ceremony(
     permission_labels: &Vec<String>,
     username: String,
 ) -> Result<String> {
-    let (election_event, all_elections, all_contests, areas, all_area_contests) = try_join!(
-        get_election_event_by_id(&transaction, &tenant_id, &election_event_id),
-        export_elections(&transaction, &tenant_id, &election_event_id),
-        export_contests(&transaction, &tenant_id, &election_event_id),
-        get_event_areas(&transaction, &tenant_id, &election_event_id),
-        export_area_contests(&transaction, &tenant_id, &election_event_id),
-    )?;
+    create_tally_ceremony_with(
+        &PgTallyCreationReader::new(transaction),
+        &PgKeysCeremonies::new(transaction),
+        &PgTallySessions::new(transaction),
+        &PgElectionEvents::new(transaction),
+        &ElectoralLogTallyAudit::new(transaction),
+        &RandomIds,
+        TallyCreation {
+            tenant_id,
+            user_id,
+            election_event_id,
+            election_ids,
+            configuration,
+            tally_type,
+            permission_labels,
+            username,
+        },
+    )
+    .await
+}
+
+/// Returns the id of the new tally session.
+pub async fn create_tally_ceremony_with(
+    reader: &impl TallyCreationReader,
+    keys_ceremonies: &impl KeysCeremonyReader,
+    sessions: &impl TallySessions,
+    election_events: &impl ElectionEventReader,
+    audit: &impl TallyCeremonyAudit,
+    ids: &impl IdGenerator,
+    request: TallyCreation<'_>,
+) -> Result<String> {
+    let TallyCreation {
+        tenant_id,
+        user_id,
+        election_event_id,
+        election_ids,
+        configuration,
+        tally_type,
+        permission_labels,
+        username,
+    } = request;
+    let TallyEventSnapshot {
+        election_event,
+        elections: all_elections,
+        contests: all_contests,
+        areas,
+        area_contests: all_area_contests,
+    } = reader
+        .event_snapshot(&tenant_id, &election_event_id)
+        .await?;
     let parsed_tally_type = TallyType::try_from(tally_type.as_str())
         .map_err(|_| TallyValidationError::new("Invalid tally type"))?;
     validate_tally_elections(&all_elections, &election_ids, parsed_tally_type)?;
@@ -315,9 +401,9 @@ pub async fn create_tally_ceremony(
     let decoded_ballots_inclusion_policy = election_event.get_decoded_ballots_inclusion_policy();
     let delegated_voting_policy = election_event.get_delegated_voting_policy();
     let weighted_voting_policy = election_event.get_weighted_voting_policy();
-    let published_ballot_style_rows =
-        get_ballot_styles_by_elections(transaction, &tenant_id, &election_event_id, &election_ids)
-            .await?;
+    let published_ballot_style_rows = reader
+        .published_ballot_styles(&tenant_id, &election_event_id, &election_ids)
+        .await?;
     let published_ballot_styles = published_ballot_style_rows
         .iter()
         .map(|published| {
@@ -333,123 +419,17 @@ pub async fn create_tally_ceremony(
         })
         .collect::<Result<Vec<SequentBallotStyle>>>()?;
     if weighted_voting_policy == WeightedVotingPolicy::VOTERS_WEIGHTED_VOTING {
-        // A delegate's ballot has no defined weighted semantics, and applying
-        // both would silently compute weight * (1 + delegate_count).
-        if delegated_voting_policy == DelegatedVotingPolicy::ENABLED {
-            return Err(TallyValidationError::new(
-                "Delegated voting and voter-weighted voting cannot both be \
-                 enabled on the same election event",
-            )
-            .into());
-        }
-        // The mix batch no longer repeats a ciphertext, but the tally still
-        // expands each batch's plaintexts by that batch's multiplier, so the
-        // decoded ballots would carry each voter's weight as a run of identical
-        // plaintexts. This closes the most direct disclosure; it does not make
-        // the scheme secret-ballot safe on its own, since a ballot still
-        // appears in one batch per bit of its weight and every batch is
-        // public.
-        if decoded_ballots_inclusion_policy == DecodedBallotsInclusionPolicy::INCLUDED {
-            return Err(TallyValidationError::new(format!(
-                "Decoded ballots cannot be included in the results when \
-                 voter-weighted voting is enabled, because the repeated \
-                 ballots would reveal each voter's weight"
-            ))
-            .into());
-        }
-
-        // A tally sheet reports a count of paper ballots and has nowhere to
-        // carry a weight, so velvet adds its votes to the weighted electronic
-        // totals at one vote each. That does not just under-count them: it
-        // decides contests, since a few hundred paper ballots worth 1 land
-        // beside electronic ballots worth thousands. It also breaks the
-        // published percentages, because a sheet contributes to the candidate
-        // totals but not to the weighted base they are divided by.
-        // Scoped to the elections being tallied, like the two refusals below.
-        // An approved sheet belonging to a different election in the same event
-        // says nothing about this tally, and refusing on it would name a remedy
-        // -- withdraw the sheet -- that destroys that other election's paper
-        // count.
-        let approved_tally_sheets: Vec<_> =
-            get_approved_tally_sheets_by_event(&transaction, &tenant_id, &election_event_id)
-                .await?
-                .into_iter()
-                // An empty list needs no fallback: a session that names no
-                // elections has no contest rows, so there is no tally for a
-                // sheet to be counted into.
-                .filter(|sheet| election_ids.contains(&sheet.election_id))
-                .collect();
-        if !approved_tally_sheets.is_empty() {
-            return Err(TallyValidationError::new(format!(
-                "Approved tally sheets cannot be counted when voter-weighted \
-                 voting is enabled: a tally sheet reports a ballot count with no \
-                 weight, so its votes would be added to the weighted totals at a \
-                 weight of one each. {} approved tally sheet(s) exist for this \
-                 election event",
-                approved_tally_sheets.len()
-            ))
-            .into());
-        }
-
-        // Nothing downstream stops an area weight being applied on top of the
-        // per-voter weight, so this refusal is the only thing that does.
-        // It reads the ballot style snapshot frozen at publication, because
-        // that is the value velvet will use: clearing the live area row without
-        // republishing would otherwise satisfy the check while the tally still
-        // double-counted every ballot.
-        let mut weighted_areas: Vec<String> = Vec::new();
-        let mut unsupported_contests: Vec<String> = Vec::new();
-        for ballot_style in &published_ballot_styles {
-            // An absent weight and an explicit 1 are the same value, so only a
-            // weight that would actually multiply is a conflict.
-            let is_weighted = ballot_style
-                .area_annotations
-                .as_ref()
-                .map(|annotations| annotations.get_weight())
-                .is_some_and(|weight| weight != Weight::default());
-            if is_weighted && !weighted_areas.contains(&ballot_style.area_id) {
-                weighted_areas.push(ballot_style.area_id.clone());
-            }
-
-            // Duplicating a ballot is only defined for the algorithm this
-            // feature was specified and tested for. Others would silently
-            // accept repeated ballots with untested quota and elimination
-            // behaviour. An unset algorithm resolves to plurality-at-large, and
-            // could not have been published otherwise.
-            // An acclaimed contest is never tallied, so its counting
-            // algorithm cannot make a ballot style unsupported.
-            for contest in votable_contests(&ballot_style.contests) {
-                if contest.get_counting_algorithm() != CountingAlgType::PluralityAtLarge
-                    && !unsupported_contests.contains(&contest.id)
-                {
-                    unsupported_contests.push(contest.id.clone());
-                }
-            }
-        }
-        if !weighted_areas.is_empty() {
-            return Err(TallyValidationError::new(format!(
-                "Voter-weighted voting cannot be used while published ballots \
-                 still carry an area weight, because the two would multiply: \
-                 {}. This has to be corrected \
-                 before the ballots are published: set the weighted voting \
-                 policy back to areas-weighted voting, which makes the weight \
-                 editable again, clear it on these areas, set the policy to \
-                 voters-weighted voting and publish. Once voting has begun the \
-                 ballots cannot be republished, so at this point there is no \
-                 remedy left",
-                weighted_areas.join(", ")
-            ))
-            .into());
-        }
-
-        if !unsupported_contests.is_empty() {
-            return Err(TallyValidationError::new(format!(
-                "Voter-weighted voting only supports the plurality-at-large \
-                 counting algorithm. These contests use another algorithm: {}",
-                unsupported_contests.join(", ")
-            ))
-            .into());
-        }
+        let stage = WeightedVotingStage::Creation;
+        check_weighted_voting_policies(
+            stage,
+            &delegated_voting_policy,
+            &decoded_ballots_inclusion_policy,
+        )?;
+        let approved_tally_sheets = reader
+            .approved_tally_sheets(&tenant_id, &election_event_id)
+            .await?;
+        check_weighted_voting_tally_sheets(stage, &approved_tally_sheets, &election_ids)?;
+        check_weighted_voting_ballot_styles(stage, &published_ballot_styles)?;
     }
 
     let mut final_configuration = configuration.clone().unwrap_or_default();
@@ -544,15 +524,16 @@ pub async fn create_tally_ceremony(
         .collect();
 
     let keys_ceremony =
-        find_keys_ceremony(transaction, &tenant_id, &election_event_id, &elections).await?;
+        find_keys_ceremony_with(keys_ceremonies, &tenant_id, &election_event_id, &elections)
+            .await?;
     let keys_ceremony_status = keys_ceremony.status()?;
     let keys_ceremony_id = keys_ceremony.id.clone();
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
-    let tally_session_id: String = Uuid::new_v4().to_string();
+    let tally_session_id: String = ids.new_id().to_string();
 
     let annotations: Value = json!({
-        "executer_username": username,
-        "executer_user_id": user_id,
+        EXECUTER_USERNAME_ANNOTATION: username,
+        EXECUTER_USER_ID_ANNOTATION: user_id,
     });
 
     let keys_ceremony_policy = keys_ceremony.policy();
@@ -562,39 +543,38 @@ pub async fn create_tally_ceremony(
         _ => TallyExecutionStatus::STARTED,
     };
 
-    let _tally_session = insert_tally_session(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        election_ids.clone(),
-        area_ids.clone(),
-        &tally_session_id,
-        &keys_ceremony_id,
-        tally_execution_status,
-        keys_ceremony.threshold as i32,
-        Some(final_configuration.clone()),
-        &tally_type,
-        annotations,
-        tally_permission_labels,
-    )
-    .await?;
+    sessions
+        .insert(
+            &tenant_id,
+            &election_event_id,
+            NewTallySession {
+                id: tally_session_id.clone(),
+                election_ids: election_ids.clone(),
+                area_ids: area_ids.clone(),
+                keys_ceremony_id: keys_ceremony_id.clone(),
+                execution_status: tally_execution_status,
+                threshold: keys_ceremony.threshold as i32,
+                configuration: Some(final_configuration.clone()),
+                tally_type: tally_type.clone(),
+                annotations,
+                permission_labels: tally_permission_labels,
+            },
+        )
+        .await?;
 
-    let _tally_session_execution = insert_tally_session_execution(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        -1,
-        &tally_session_id,
-        Some(initial_status),
-        None,
-        None,
-        None,
-        TallyRunReason::NORMAL,
-    )
-    .await?;
+    sessions
+        .append_execution(
+            &tenant_id,
+            &election_event_id,
+            &tally_session_id,
+            -1,
+            initial_status,
+            TallyRunReason::NORMAL,
+        )
+        .await?;
 
-    insert_tally_session_contests(
-        transaction,
+    insert_tally_session_contests_with(
+        sessions,
         &tenant_id,
         &election_event_id,
         &tally_session_id,
@@ -604,36 +584,34 @@ pub async fn create_tally_ceremony(
     .await?;
 
     // get the election event
-    let election_event =
-        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
+    let election_event = election_events.get(&tenant_id, &election_event_id).await?;
 
     // Save this in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(
-        transaction,
-        &board_name,
-        &tenant_id,
-        &election_event_id,
-        user_id,
-        Some(username.clone()),
-        Some(election_ids.clone()),
-        None,
-    )
-    .await?;
-    electoral_log
-        .post_key_insertion_start(
-            election_event_id.clone(),
-            Some(user_id.to_string()),
-            Some(username),
-            Some(election_ids),
+    audit
+        .key_insertion_started(
+            &board_name,
+            &tenant_id,
+            &election_event_id,
+            election_ids,
+            user_id,
+            &username,
         )
-        .await
-        .with_context(|| "error posting to the electoral log")?;
+        .await?;
 
     Ok(tally_session_id.clone())
+}
+
+/// A request to move a tally session to another execution status.
+pub struct TallyStatusChange {
+    pub tenant_id: String,
+    pub election_event_id: String,
+    pub tally_session: TallySession,
+    pub new_execution_status: TallyExecutionStatus,
+    pub user_id: String,
+    pub username: String,
 }
 
 #[instrument(err, skip(hasura_transaction))]
@@ -646,43 +624,46 @@ pub async fn update_tally_ceremony(
     user_id: String,
     username: String,
 ) -> Result<()> {
-    let current_status = tally_session
-        .execution_status
-        .map(|value| {
-            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
-        })
-        .unwrap_or(TallyExecutionStatus::STARTED);
+    update_tally_ceremony_with(
+        &PgTallySessions::new(hasura_transaction),
+        &PgElectionsById::new(hasura_transaction),
+        &EnvSlug,
+        &ElectoralLogTallyAudit::new(hasura_transaction),
+        TallyStatusChange {
+            tenant_id,
+            election_event_id,
+            tally_session,
+            new_execution_status,
+            user_id,
+            username,
+        },
+    )
+    .await
+}
 
-    let expected_status: Vec<TallyExecutionStatus> = match current_status {
-        TallyExecutionStatus::STARTED => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::CONNECTED => vec![
-            TallyExecutionStatus::IN_PROGRESS,
-            TallyExecutionStatus::CANCELLED,
-        ],
-        TallyExecutionStatus::IN_PROGRESS => vec![TallyExecutionStatus::CANCELLED],
-        TallyExecutionStatus::AWAITING_INPUT => vec![
-            TallyExecutionStatus::IN_PROGRESS,
-            TallyExecutionStatus::CANCELLED,
-        ],
-        TallyExecutionStatus::SUCCESS => vec![],
-        TallyExecutionStatus::CANCELLED => vec![],
-    };
-
-    if !expected_status.contains(&new_execution_status) {
-        return Err(TallyValidationError::new(format!(
-            "Cannot change tally status from {current_status} to {new_execution_status}."
-        ))
-        .into());
-    }
+pub async fn update_tally_ceremony_with(
+    sessions: &impl TallySessions,
+    elections: &impl ElectionsById,
+    environment: &impl EnvironmentSlug,
+    audit: &impl TallyCeremonyAudit,
+    change: TallyStatusChange,
+) -> Result<()> {
+    let TallyStatusChange {
+        tenant_id,
+        election_event_id,
+        tally_session,
+        new_execution_status,
+        user_id,
+        username,
+    } = change;
+    let current_status = tally_execution_status(tally_session.execution_status.as_deref());
+    check_status_change(&current_status, &new_execution_status)?;
 
     if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
-        let elections = crate::postgres::election::get_elections_by_ids(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session.election_ids.clone().unwrap_or_default(),
-        )
-        .await?;
+        let election_ids = tally_session.election_ids.clone().unwrap_or_default();
+        let elections = elections
+            .get(&tenant_id, &election_event_id, &election_ids)
+            .await?;
         let tally_type = tally_session
             .tally_type
             .as_deref()
@@ -690,19 +671,14 @@ pub async fn update_tally_ceremony(
             .transpose()
             .map_err(|_| TallyValidationError::new("Invalid tally type"))?
             .unwrap_or_default();
-        validate_tally_elections(
-            &elections,
-            &tally_session.election_ids.clone().unwrap_or_default(),
-            tally_type,
-        )?;
+        validate_tally_elections(&elections, &election_ids, tally_type)?;
     }
 
-    let Some((tally_session_execution, _, _, _)) =
-        find_last_tally_session_execution_and_all_related_data(
-            hasura_transaction,
-            tenant_id.clone(),
-            election_event_id.clone(),
-            tally_session.id.clone(),
+    let Some((tally_session_execution, _)) = sessions
+        .last_execution_and_session(
+            &tenant_id,
+            &election_event_id,
+            &tally_session.id,
             tally_session.election_ids.clone().unwrap_or_default(),
         )
         .await?
@@ -712,22 +688,11 @@ pub async fn update_tally_ceremony(
     };
 
     let status = get_tally_ceremony_status(tally_session_execution.status)?;
-    let num_connected_trustees = status
-        .trustees
-        .iter()
-        .filter(|trustee| trustee.status == TallyTrusteeStatus::KEY_RESTORED)
-        .collect::<Vec<_>>()
-        .len();
-
-    if tally_session.threshold > num_connected_trustees as i64
-        && new_execution_status != TallyExecutionStatus::CANCELLED
-    {
-        return Err(TallyValidationError::new(format!(
-            "Insufficient number of connected trustees {}. Required threshold {}.",
-            num_connected_trustees, tally_session.threshold
-        ))
-        .into());
-    }
+    check_trustee_quorum(
+        tally_session.threshold,
+        restored_trustee_count(&status),
+        &new_execution_status,
+    )?;
 
     println!(
         "Updating tally session execution status: {:?}",
@@ -736,47 +701,43 @@ pub async fn update_tally_ceremony(
 
     println!("new_execution_status:: {:?}", &new_execution_status);
 
-    update_tally_session_status(
-        &hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session.id,
-        new_execution_status.clone(),
-        new_execution_status == TallyExecutionStatus::SUCCESS,
-    )
-    .await?;
-
-    if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
-        let tally_elections_ids = tally_session.election_ids.clone();
-
-        let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-
-        // Save this in the electoral log
-        let board_name: String = get_event_board(&tenant_id, &election_event_id, &slug);
-        let electoral_log = ElectoralLog::for_admin_user(
-            &hasura_transaction,
-            board_name.as_str(),
+    sessions
+        .set_status(
             &tenant_id,
             &election_event_id,
-            &user_id,
-            Some(username.clone()),
-            tally_elections_ids.clone(),
-            None,
+            &tally_session.id,
+            new_execution_status.clone(),
+            new_execution_status == TallyExecutionStatus::SUCCESS,
         )
         .await?;
 
-        electoral_log
-            .post_tally_open(
-                election_event_id.to_string(),
-                tally_elections_ids.clone(),
-                Some(user_id),
-                Some(username),
+    if new_execution_status == TallyExecutionStatus::IN_PROGRESS {
+        let slug = environment.env_slug()?;
+
+        // Save this in the electoral log
+        let board_name = get_event_board(&tenant_id, &election_event_id, &slug);
+        audit
+            .tally_opened(
+                &board_name,
+                &tenant_id,
+                &election_event_id,
+                tally_session.election_ids.clone(),
+                &user_id,
+                &username,
             )
-            .await
-            .with_context(|| "error posting to the electoral log")?;
+            .await?;
     }
 
     Ok(())
+}
+
+/// A trustee's request to restore their private key for a tally session.
+pub struct TrusteeKeyRestore<'a> {
+    pub claims: &'a JwtClaims,
+    pub tenant_id: &'a str,
+    pub election_event_id: &'a str,
+    pub tally_session_id: &'a str,
+    pub private_key_base64: &'a str,
 }
 
 #[instrument(err, skip(transaction))]
@@ -788,13 +749,43 @@ pub async fn set_private_key(
     tally_session_id: &str,
     private_key_base64: &str,
 ) -> Result<bool> {
-    let tally_session = get_tally_session_by_id(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session_id,
+    set_private_key_with(
+        &PgTallySessions::new(transaction),
+        &PgKeysCeremonies::new(transaction),
+        &BoardTrusteePrivateKeys::new(transaction),
+        &PgElectionEvents::new(transaction),
+        &ElectoralLogTallyAudit::new(transaction),
+        TrusteeKeyRestore {
+            claims,
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            private_key_base64,
+        },
     )
-    .await?;
+    .await
+}
+
+/// Returns `false`, writing nothing, if the key is not the one the trustee
+/// stored on the board in the keys ceremony.
+pub async fn set_private_key_with(
+    sessions: &impl TallySessions,
+    keys_ceremonies: &impl KeysCeremonyReader,
+    private_keys: &impl TrusteePrivateKeys,
+    election_events: &impl ElectionEventReader,
+    audit: &impl TallyCeremonyAudit,
+    request: TrusteeKeyRestore<'_>,
+) -> Result<bool> {
+    let TrusteeKeyRestore {
+        claims,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        private_key_base64,
+    } = request;
+    let tally_session = sessions
+        .get(tenant_id, election_event_id, tally_session_id)
+        .await?;
 
     // The trustee name is simply the username of the user
     let trustee_name = claims
@@ -802,12 +793,11 @@ pub async fn set_private_key(
         .clone()
         .ok_or(anyhow!("trustee name not found"))?;
 
-    let Some((tally_session_execution, tally_session, _, _)) =
-        find_last_tally_session_execution_and_all_related_data(
-            transaction,
-            tenant_id.to_string(),
-            election_event_id.to_string(),
-            tally_session_id.to_string(),
+    let Some((tally_session_execution, tally_session)) = sessions
+        .last_execution_and_session(
+            tenant_id,
+            election_event_id,
+            tally_session_id,
             tally_session.election_ids.clone().unwrap_or_default(),
         )
         .await?
@@ -817,146 +807,73 @@ pub async fn set_private_key(
         ));
     };
 
-    let current_status = tally_session
-        .execution_status
-        .map(|value| {
-            TallyExecutionStatus::from_str(&value).unwrap_or(TallyExecutionStatus::STARTED)
-        })
-        .unwrap_or(TallyExecutionStatus::STARTED);
-
-    if TallyExecutionStatus::STARTED != current_status
-        && TallyExecutionStatus::CONNECTED != current_status
-    {
-        return Err(anyhow!("Unexpected status {}", current_status.to_string()));
-    }
+    check_key_restore_status(&tally_execution_status(
+        tally_session.execution_status.as_deref(),
+    ))?;
 
     // get the keys ceremonies for this election event
-    let keys_ceremony = get_keys_ceremony_by_id(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        &tally_session.keys_ceremony_id,
-    )
-    .await?;
+    let keys_ceremony = keys_ceremonies
+        .get(
+            tenant_id,
+            election_event_id,
+            &tally_session.keys_ceremony_id,
+        )
+        .await?;
 
     let tally_ceremony_status = get_tally_ceremony_status(tally_session_execution.status.clone())?;
-
-    let found_trustee_opt = tally_ceremony_status
-        .trustees
-        .clone()
-        .into_iter()
-        .find(|trustee| trustee.name == trustee_name);
-
-    let Some(found_trustee) = found_trustee_opt else {
-        return Err(anyhow!(
-            "Trustee not part of the keys ceremony or has invalid state"
-        ));
-    };
-
-    if TallyTrusteeStatus::WAITING != found_trustee.status {
-        return Err(anyhow!(
-            "Unexpected trustee status {}",
-            found_trustee.status.to_string()
-        ));
-    }
+    let found_trustee = waiting_trustee(&tally_ceremony_status, &trustee_name)?.clone();
 
     // get the encrypted private key
-    let encrypted_private_key = find_trustee_private_key(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        &trustee_name,
-        &keys_ceremony,
-    )
-    .await?;
-    // FFF tally fix
+    let encrypted_private_key = private_keys
+        .encrypted_private_key(tenant_id, election_event_id, &trustee_name, &keys_ceremony)
+        .await?;
 
     if encrypted_private_key != private_key_base64 {
         return Ok(false);
     }
-    let mut new_status = tally_ceremony_status.clone();
-    new_status.logs = append_tally_trustee_log(&new_status.logs, &trustee_name);
-    new_status.trustees = new_status
-        .trustees
-        .iter()
-        .map(|trustee| {
-            if trustee.name == found_trustee.name {
-                let mut new_trustee = trustee.clone();
-                new_trustee.status = TallyTrusteeStatus::KEY_RESTORED;
-                new_trustee
-            } else {
-                trustee.clone()
-            }
-        })
-        .collect();
-    insert_tally_session_execution(
-        transaction,
-        &tenant_id,
-        &election_event_id,
-        tally_session_execution.current_message_id,
-        &tally_session_id,
-        Some(new_status.clone()),
-        None,
-        None,
-        None,
-        TallyRunReason::NORMAL,
-    )
-    .await?;
-
-    let connected_trustees = new_status
-        .trustees
-        .iter()
-        .filter(|trustee| TallyTrusteeStatus::KEY_RESTORED == trustee.status)
-        .collect::<Vec<_>>();
-
-    // enough trustees connected, so change tally execution status to connected
-    if connected_trustees.len() as i64 >= keys_ceremony.threshold {
-        update_tally_session_status(
-            transaction.clone(),
-            &tenant_id,
-            &election_event_id,
-            &tally_session_id,
-            TallyExecutionStatus::CONNECTED,
-            false,
+    let mut new_status = restore_trustee_key(tally_ceremony_status.clone(), &found_trustee.name);
+    new_status.logs = append_tally_trustee_log(&tally_ceremony_status.logs, &trustee_name);
+    sessions
+        .append_execution(
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            tally_session_execution.current_message_id,
+            new_status.clone(),
+            TallyRunReason::NORMAL,
         )
         .await?;
+
+    // enough trustees connected, so change tally execution status to connected
+    if reaches_key_threshold(&new_status, keys_ceremony.threshold) {
+        sessions
+            .set_status(
+                tenant_id,
+                election_event_id,
+                tally_session_id,
+                TallyExecutionStatus::CONNECTED,
+                false,
+            )
+            .await?;
     }
     println!("after update status");
     // get the election event
-    let election_event =
-        get_election_event_by_id(transaction, &tenant_id, &election_event_id).await?;
+    let election_event = election_events.get(tenant_id, election_event_id).await?;
 
     // Save this in the electoral log
     let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
         .with_context(|| "missing bulletin board")?;
 
-    let user_id = &claims.hasura_claims.user_id;
-    let username = &claims.preferred_username;
-
-    let tally_elections_ids = tally_session.election_ids.clone();
-
-    // let electoral_log = ElectoralLog::new(board_name.as_str()).await?;
-    let electoral_log = ElectoralLog::for_admin_user(
-        transaction,
-        &board_name,
-        &tenant_id,
-        election_event_id,
-        user_id,
-        username.clone(),
-        tally_elections_ids.clone(),
-        None,
-    )
-    .await?;
-    electoral_log
-        .post_key_insertion(
-            election_event_id.to_string(),
-            found_trustee.name.clone(),
-            Some(user_id.to_string()),
-            username.clone(),
-            tally_elections_ids,
+    audit
+        .key_restored(
+            &board_name,
+            tenant_id,
+            election_event_id,
+            tally_session.election_ids.clone(),
+            &found_trustee.name,
+            claims,
         )
-        .await
-        .with_context(|| "error posting to the electoral log")?;
+        .await?;
 
     Ok(true)
 }
@@ -968,66 +885,57 @@ pub async fn set_tally_session_completed(
     election_event_id: String,
     tally_session_id: String,
 ) -> Result<()> {
-    let execution_status = TallyExecutionStatus::SUCCESS;
-
-    let is_updated = match set_tally_session_completed_in_db(
-        hasura_transaction,
+    set_tally_session_completed_with(
+        &PgTallySessions::new(hasura_transaction),
+        &PgElectionEvents::new(hasura_transaction),
+        &ElectoralLogTallyAudit::new(hasura_transaction),
         &tenant_id,
         &election_event_id,
         &tally_session_id,
-        execution_status,
     )
     .await
-    {
-        Ok(_) => true,
-        Err(_) => false,
-    };
+}
+
+/// An error marking the session completed is swallowed: nothing is posted to
+/// the electoral log and `Ok` is returned.
+pub async fn set_tally_session_completed_with(
+    sessions: &impl TallySessions,
+    election_events: &impl ElectionEventReader,
+    audit: &impl TallyCeremonyAudit,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<()> {
+    let is_updated = sessions
+        .mark_completed(
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            TallyExecutionStatus::SUCCESS,
+        )
+        .await
+        .is_ok();
 
     if is_updated {
-        let election_event =
-            get_election_event_by_id(hasura_transaction, &tenant_id, &election_event_id).await?;
+        let election_event = election_events.get(tenant_id, election_event_id).await?;
 
-        let tally_session = get_tally_session_by_id(
-            hasura_transaction,
-            &tenant_id,
-            &election_event_id,
-            &tally_session_id,
-        )
-        .await?;
+        let tally_session = sessions
+            .get(tenant_id, election_event_id, tally_session_id)
+            .await?;
 
-        let annotations = match tally_session.annotations {
-            Some(annotations) => annotations,
-            None => json!({}),
-        };
-
-        let username = annotations
-            .get("executer_username")
-            .and_then(|val| val.as_str().map(|s| s.to_string()));
-        let user_id = annotations
-            .get("executer_user_id")
-            .and_then(|val| val.as_str().map(|s| s.to_string()));
+        let executer = tally_executer(tally_session.annotations.as_ref());
         let board_name = get_election_event_board(election_event.bulletin_board_reference.clone())
             .with_context(|| "missing bulletin board")?;
 
-        let electoral_log = ElectoralLog::new(
-            hasura_transaction,
-            &tenant_id,
-            Some(&election_event_id),
-            board_name.as_str(),
-        )
-        .await?;
-
-        let tally_elections_ids = tally_session.election_ids.clone();
-
-        electoral_log
-            .post_tally_close(
-                election_event_id.to_string(),
-                tally_elections_ids,
-                user_id,
-                username,
+        audit
+            .tally_closed(
+                &board_name,
+                tenant_id,
+                election_event_id,
+                tally_session.election_ids.clone(),
+                executer,
             )
-            .await
-            .with_context(|| "error posting to the electoral log")?;
+            .await?;
     }
 
     Ok(())
@@ -1057,90 +965,87 @@ pub async fn begin_tally_session_recount(
     tally_session_id: &str,
     election_ids: &[String],
 ) -> Result<bool> {
-    // Serialize the state transition with post-tally finalization. The task
-    // itself has a different, long-lived lock; this short row lock protects
-    // only writers that can change which execution is considered latest.
-    lock_tally_session_for_update(
-        hasura_transaction,
+    begin_tally_session_recount_with(
+        &PgTallySessions::new(hasura_transaction),
         tenant_id,
         election_event_id,
         tally_session_id,
+        election_ids,
     )
-    .await?;
+    .await
+}
+
+pub async fn begin_tally_session_recount_with(
+    sessions: &impl TallySessions,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    election_ids: &[String],
+) -> Result<bool> {
+    // Serialize the state transition with post-tally finalization. The task
+    // itself has a different, long-lived lock; this short row lock protects
+    // only writers that can change which execution is considered latest.
+    sessions
+        .lock_for_update(tenant_id, election_event_id, tally_session_id)
+        .await?;
 
     // Callers inspect the session before opening this transition, but another
     // recount can complete that read and acquire the lock first. Re-check only
     // after the lock is held so a stale caller cannot append a second marker.
-    let tally_session = get_tally_session_by_id(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    )
-    .await?;
-    if tally_session.execution_status.as_deref()
-        != Some(TallyExecutionStatus::SUCCESS.to_string().as_str())
-        || !tally_session.is_execution_completed
-    {
+    let tally_session = sessions
+        .get(tenant_id, election_event_id, tally_session_id)
+        .await?;
+    if !is_recount_eligible(&tally_session) {
         return Ok(false);
     }
 
-    let Some(last_execution) = get_last_tally_session_execution(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-    )
-    .await?
+    let Some(last_execution) = sessions
+        .last_execution(tenant_id, election_event_id, tally_session_id)
+        .await?
     else {
         return Ok(false);
     };
 
-    let original_status = get_tally_ceremony_status(last_execution.status.clone())?;
+    let mut recount_status = get_tally_ceremony_status(last_execution.status.clone())?;
+    recount_status.logs = append_tally_recount_log(&recount_status.logs, &election_ids.to_vec());
+    recount_status.elections_status = recount_elections_status(election_ids);
 
-    let mut recount_status = original_status.clone();
-    let election_ids_vec = election_ids.to_vec();
-    recount_status.logs = append_tally_recount_log(&recount_status.logs, &election_ids_vec);
-    recount_status.elections_status = election_ids_vec
-        .iter()
-        .map(|election_id| TallyElection {
-            election_id: election_id.clone(),
-            status: TallyElectionStatus::WAITING,
-            progress: 0.0,
-        })
-        .collect();
+    sessions
+        .append_execution(
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            last_execution.current_message_id,
+            recount_status,
+            // The durable record that a recount was asked for. The celery message
+            // this function's callers send afterwards is only a nudge: if it is
+            // lost -- expired while no worker was consuming, or dropped because a
+            // concurrent run held the lock -- the next process_board tick reads
+            // this row and performs the recount anyway.
+            TallyRunReason::RECOUNT,
+        )
+        .await?;
 
-    insert_tally_session_execution(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        last_execution.current_message_id,
-        tally_session_id,
-        Some(recount_status),
-        None,
-        None,
-        None,
-        // The durable record that a recount was asked for. The celery message
-        // this function's callers send afterwards is only a nudge: if it is
-        // lost -- expired while no worker was consuming, or dropped because a
-        // concurrent run held the lock -- the next process_board tick reads
-        // this row and performs the recount anyway.
-        TallyRunReason::RECOUNT,
-    )
-    .await?;
-
-    update_tally_session_status(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        tally_session_id,
-        TallyExecutionStatus::IN_PROGRESS,
-        false,
-    )
-    .await?;
+    sessions
+        .set_status(
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            TallyExecutionStatus::IN_PROGRESS,
+            false,
+        )
+        .await?;
 
     Ok(true)
 }
+
+#[cfg(test)]
+#[path = "tally_ceremony_creation_tests.rs"]
+mod creation_tests;
+
+#[cfg(test)]
+#[path = "tally_ceremony_state_tests.rs"]
+mod state_tests;
 
 #[cfg(test)]
 mod tests {
