@@ -73,11 +73,15 @@ pub async fn get_ballot_files_urls(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_claims::Claims;
     fn claims() -> JwtClaims {
-        serde_json::from_value(serde_json::json!({
-            "exp": 1, "iat": 0, "jti": "test", "iss": "test", "sub": "voter", "typ": "Bearer", "azp": "voting-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
-            "https://hasura.io/jwt/claims": {"x-hasura-default-role":"user", "x-hasura-tenant-id":"tenant", "x-hasura-user-id":"voter", "x-hasura-area-id":"area", "x-hasura-election-event-id":"event", "authorized-election-ids":["election"], "x-hasura-allowed-roles":["user"]}
-        })).unwrap()
+        Claims::new("tenant", "voter")
+            .azp("voting-portal")
+            .area("area")
+            .election_event("event")
+            .authorized_elections(&["election"])
+            .roles(["user"])
+            .build()
     }
     #[test]
     fn publication_urls_require_event_area_role_and_voter_client() {

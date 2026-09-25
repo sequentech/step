@@ -2,27 +2,41 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::document::{delete_documents, get_document};
+use crate::adapters::results_publication::{
+    CeleryResultsPublicationTasks, ElectoralLogResultsPublicationAudit, PgResultsEventPresentation,
+    PgResultsPublications, S3ResultsDocumentUrls,
+};
+use crate::adapters::results_publication_lifecycle::StoredResultsArtifacts;
+use crate::domain::results_publication::{
+    artifact_document_ids_for_reader, authorize_results_reader, check_publication_source,
+    manifest_for_reader, manifest_public_path, publication_matches_requested_route,
+    publication_source,
+};
+pub use crate::domain::results_publication::{
+    is_results_website_enabled, publication_matches_results_website_policy, results_website_policy,
+    validate_results_website_policy, ResultsPublicationServiceError,
+    ResultsPublicationServiceResult,
+};
+use crate::ports::results_publication::{
+    ResultsDocumentUrls, ResultsEventPresentation, ResultsPublicationAudit,
+    ResultsPublicationReader, ResultsPublicationRequestSteps, ResultsPublicationTasks,
+    ResultsPublicationWriter,
+};
+use crate::ports::results_publication_lifecycle::{
+    ResultsPublicationArtifactStore, ResultsPublicationLifecycle, ResultsPublicationRenderer,
+};
+use crate::postgres::document::get_document;
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
 use crate::postgres::tally_results_publication::{
-    get_active_publication_for_route, get_publication_by_id, insert_publishing_publication,
-    list_active_public_publications, list_superseded_publications, mark_publication_failed,
-    mark_publication_published, mark_publication_superseded, revoke_publication,
-    set_publication_finalization_error, validate_new_publication_source,
     NewTallyResultsPublication, TallyResultsPublication,
 };
 use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
-use crate::services::celery_app::get_celery_app;
 use crate::services::database::get_hasura_pool;
 use crate::services::documents::{
-    get_document_as_temp_file, get_document_url, upload_and_return_document,
-    upload_and_return_public_event_document,
+    get_document_as_temp_file, upload_and_return_document, upload_and_return_public_event_document,
 };
-use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log::ElectoralLog;
-use crate::services::tasks_execution::post;
 use crate::types::results_publication::{
     ConfigureResultsWebsitePolicyInput, ConfigureResultsWebsitePolicyOutput,
     ContestPublicationState, FetchResultsArtifactInput, FetchResultsArtifactOutput,
@@ -33,60 +47,23 @@ use crate::types::results_publication::{
     ResultsPublicationManifest, ResultsPublicationManifestDocument, ResultsPublicationStatus,
     ResultsRouteScope, RevokeResultsPublicationInput, RevokeResultsPublicationOutput,
 };
-use crate::types::tasks::ETasksExecution;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use electoral_log::messages::newtypes::{
-    ContestIdString, ElectionIdString, ResultsPublicationAccessString, ResultsPublicationAction,
-    ResultsPublicationDetails, ResultsPublicationIdString, ResultsPublicationRouteScopeString,
-    ResultsPublicationVisibilityScopeString,
-};
+use electoral_log::messages::newtypes::ResultsPublicationAction;
 use rusqlite::{params_from_iter, Connection, OptionalExtension, ToSql};
 use sequent_core::ballot::{
-    ElectionEventPresentation, ElectionPresentation, ResultsWebsiteAccess, ResultsWebsitePolicy,
-    ResultsWebsiteStatus, ResultsWebsiteVisibilityScope,
+    ElectionEventPresentation, ElectionPresentation, ResultsWebsiteAccess,
+    ResultsWebsiteVisibilityScope,
 };
 use sequent_core::services::jwt::JwtClaims;
-use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::services::s3;
 use sequent_core::sqlite::election_event::replace_election_event_translation_overrides_sqlite;
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
-use sequent_core::types::permissions::Permissions;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
-use thiserror::Error;
-
-const RESULTS_PORTAL_CLIENT_ID: &str = "results-portal";
-const LEGACY_RESULTS_PORTAL_CLIENT_ID: &str = "voting-portal";
-
-#[derive(Debug, Error)]
-pub enum ResultsPublicationServiceError {
-    #[error("{0}")]
-    BadRequest(String),
-    #[error("{0}")]
-    Unauthorized(String),
-    #[error("{0}")]
-    Forbidden(String),
-    #[error("{0}")]
-    NotFound(String),
-    #[error("{0}")]
-    Conflict(String),
-    #[error("{0}")]
-    Internal(#[from] anyhow::Error),
-}
-
-pub type ResultsPublicationServiceResult<T> =
-    std::result::Result<T, ResultsPublicationServiceError>;
-
-fn is_results_portal_client(client_id: &str) -> bool {
-    matches!(
-        client_id,
-        RESULTS_PORTAL_CLIENT_ID | LEGACY_RESULTS_PORTAL_CLIENT_ID
-    )
-}
 
 fn placeholders(count: usize) -> String {
     (0..count).map(|_| "?").collect::<Vec<_>>().join(",")
@@ -96,28 +73,6 @@ fn selected_contest_ids(publication: &TallyResultsPublication) -> Result<Vec<Str
     Ok(publication.published_contest_ids.clone())
 }
 
-fn results_publication_log_details(
-    publication: &TallyResultsPublication,
-    action: ResultsPublicationAction,
-) -> ResultsPublicationDetails {
-    ResultsPublicationDetails {
-        publication_id: ResultsPublicationIdString(publication.id.clone()),
-        action,
-        route_scope: ResultsPublicationRouteScopeString(publication.route_scope.to_string()),
-        route_election_id: ElectionIdString(publication.route_election_id.clone()),
-        access: ResultsPublicationAccessString(publication.access.to_string()),
-        visibility_scope: ResultsPublicationVisibilityScopeString(
-            publication.visibility_scope.to_string(),
-        ),
-        contest_ids: publication
-            .published_contest_ids
-            .iter()
-            .cloned()
-            .map(ContestIdString)
-            .collect(),
-    }
-}
-
 pub async fn post_results_publication_action(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
@@ -125,88 +80,9 @@ pub async fn post_results_publication_action(
     user_id: &str,
     username: Option<String>,
 ) -> Result<()> {
-    let election_event =
-        get_election_event_by_id(tx, &publication.tenant_id, &publication.election_event_id)
-            .await?;
-    let board_name = get_election_event_board(election_event.bulletin_board_reference)
-        .context("Missing electoral log board for results publication")?;
-    let electoral_log = ElectoralLog::for_admin_user(
-        tx,
-        &board_name,
-        &publication.tenant_id,
-        &publication.election_event_id,
-        user_id,
-        username.clone(),
-        Some(publication.election_ids.clone()),
-        None,
-    )
-    .await?;
-
-    electoral_log
-        .post_results_publication_action(
-            publication.election_event_id.clone(),
-            results_publication_log_details(publication, action),
-            Some(user_id.to_string()),
-            username,
-        )
+    ElectoralLogResultsPublicationAudit { transaction: tx }
+        .action(publication, action, user_id, username)
         .await
-        .context("Failed to post results publication action to the electoral log")
-}
-
-pub fn results_website_policy(
-    presentation: &ElectionEventPresentation,
-) -> Result<Option<ResultsWebsitePolicy>> {
-    presentation
-        .results_website
-        .as_deref()
-        .map(serde_json::from_str)
-        .transpose()
-        .context("Invalid results website policy")
-}
-
-pub fn is_results_website_enabled(presentation: &ElectionEventPresentation) -> Result<bool> {
-    Ok(results_website_policy(presentation)?
-        .is_some_and(|policy| policy.status == ResultsWebsiteStatus::Enabled))
-}
-
-pub fn publication_matches_results_website_policy(
-    presentation: &ElectionEventPresentation,
-    publication: &TallyResultsPublication,
-) -> Result<bool> {
-    let Some(policy) = results_website_policy(presentation)? else {
-        return Ok(false);
-    };
-
-    Ok(policy.status == ResultsWebsiteStatus::Enabled
-        && policy.access == publication.access
-        && policy.visibility_scope == publication.visibility_scope)
-}
-
-pub fn validate_results_website_policy(
-    presentation: &ElectionEventPresentation,
-    access: ResultsWebsiteAccess,
-    visibility_scope: ResultsWebsiteVisibilityScope,
-) -> Result<()> {
-    let policy = results_website_policy(presentation)?
-        .ok_or_else(|| anyhow!("Results website policy is not configured"))?;
-
-    if policy.status != ResultsWebsiteStatus::Enabled {
-        return Err(anyhow!(
-            "Results website publishing is disabled for this election event"
-        ));
-    }
-    if policy.access != access {
-        return Err(anyhow!(
-            "Results access does not match the election event results website policy"
-        ));
-    }
-    if policy.visibility_scope != visibility_scope {
-        return Err(anyhow!(
-            "Results visibility does not match the election event results website policy"
-        ));
-    }
-
-    Ok(())
 }
 
 pub async fn configure_results_website_policy(
@@ -802,7 +678,7 @@ fn query_manifest_custom_css(
 }
 
 #[derive(Clone)]
-struct ManifestLanguageConfig {
+pub(crate) struct ManifestLanguageConfig {
     default_locale: String,
     available_languages: Vec<String>,
 }
@@ -930,7 +806,7 @@ fn event_public_path(tenant_id: &str, election_event_id: &str, name: &str) -> St
     s3::get_public_election_event_document_name_key(tenant_id, election_event_id, name)
 }
 
-async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
+pub(crate) async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
     let (_file, path, _size) = write_json_file("results-public-index", value)?;
     s3::upload_file_to_s3(
         key.to_string(),
@@ -945,15 +821,16 @@ async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
     Ok(())
 }
 
-async fn delete_public_results_artifacts(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let prefix = event_public_path(tenant_id, election_event_id, "results");
-    s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, s3::S3Endpoint::Server).await
-}
-
 pub async fn delete_public_publication_route_artifacts(
     publication: &TallyResultsPublication,
 ) -> Result<()> {
-    delete_public_publication_artifacts(publication, true).await
+    let mut paths = HashSet::new();
+    collect_publication_public_paths(&publication.documents, true, &mut paths);
+    paths.extend(expected_publication_public_paths(publication, true));
+    for path in paths {
+        s3::delete_files_from_s3(s3::get_public_bucket()?, path, s3::S3Endpoint::Server).await?;
+    }
+    Ok(())
 }
 
 fn collect_publication_document_ids(value: &Value, ids: &mut HashSet<String>) {
@@ -1027,7 +904,8 @@ fn expected_publication_public_paths(
     paths
 }
 
-async fn delete_public_publication_artifacts(
+async fn delete_public_publication_artifacts_with(
+    artifacts: &impl ResultsPublicationArtifactStore,
     publication: &TallyResultsPublication,
     include_latest: bool,
 ) -> Result<()> {
@@ -1039,13 +917,13 @@ async fn delete_public_publication_artifacts(
     ));
 
     for path in paths {
-        s3::delete_files_from_s3(s3::get_public_bucket()?, path, s3::S3Endpoint::Server).await?;
+        artifacts.delete_public_path(path).await?;
     }
     Ok(())
 }
 
-async fn delete_publication_artifacts_internal(
-    tx: &Transaction<'_>,
+pub async fn delete_publication_artifacts_with(
+    artifacts: &impl ResultsPublicationArtifactStore,
     publication: &TallyResultsPublication,
     include_latest: bool,
 ) -> Result<()> {
@@ -1053,17 +931,10 @@ async fn delete_publication_artifacts_internal(
     collect_publication_document_ids(&publication.documents, &mut document_ids);
 
     if publication.access == ResultsWebsiteAccess::Public {
-        delete_public_publication_artifacts(publication, include_latest).await?;
+        delete_public_publication_artifacts_with(artifacts, publication, include_latest).await?;
     } else {
         for document_id in &document_ids {
-            let Some(document) = get_document(
-                tx,
-                &publication.tenant_id,
-                Some(publication.election_event_id.clone()),
-                document_id,
-            )
-            .await?
-            else {
+            let Some(document) = artifacts.document(publication, document_id).await? else {
                 continue;
             };
             let key = s3::get_document_key(
@@ -1072,19 +943,14 @@ async fn delete_publication_artifacts_internal(
                 document_id,
                 document.name.as_deref().unwrap_or_default(),
             );
-            s3::delete_files_from_s3(s3::get_private_bucket()?, key, s3::S3Endpoint::Server)
-                .await?;
+            artifacts.delete_private_path(key).await?;
         }
     }
 
     let document_ids = document_ids.into_iter().collect::<Vec<_>>();
-    delete_documents(
-        tx,
-        &publication.tenant_id,
-        &publication.election_event_id,
-        &document_ids,
-    )
-    .await?;
+    artifacts
+        .delete_documents(publication, &document_ids)
+        .await?;
     Ok(())
 }
 
@@ -1092,14 +958,12 @@ pub async fn delete_publication_artifacts(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
 ) -> Result<()> {
-    delete_publication_artifacts_internal(tx, publication, true).await
-}
-
-async fn delete_superseded_publication_artifacts(
-    tx: &Transaction<'_>,
-    publication: &TallyResultsPublication,
-) -> Result<()> {
-    delete_publication_artifacts_internal(tx, publication, false).await
+    delete_publication_artifacts_with(
+        &StoredResultsArtifacts { transaction: tx },
+        publication,
+        true,
+    )
+    .await
 }
 
 async fn source_sqlite_file(
@@ -1169,7 +1033,7 @@ fn build_manifest(
     }
 }
 
-async fn publish_public_artifacts(
+pub(crate) async fn publish_public_artifacts(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
     source_path: &Path,
@@ -1252,7 +1116,7 @@ async fn publish_public_artifacts(
     Ok((serde_json::to_value(documents)?, manifest))
 }
 
-async fn publish_private_artifacts(
+pub(crate) async fn publish_private_artifacts(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
     source_path: &Path,
@@ -1349,15 +1213,15 @@ async fn publish_private_artifacts(
     Ok((serde_json::to_value(documents)?, manifest))
 }
 
-pub async fn refresh_public_results_index(
-    tx: &Transaction<'_>,
+pub async fn refresh_public_results_index_with(
+    publications: &impl ResultsPublicationLifecycle,
+    presentations: &impl ResultsEventPresentation,
+    artifacts: &impl ResultsPublicationArtifactStore,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let election_event = get_election_event_by_id(tx, tenant_id, election_event_id).await?;
-    let presentation = election_event.get_presentation()?.unwrap_or_default();
-    let active_publications =
-        list_active_public_publications(tx, tenant_id, election_event_id).await?;
+    let presentation = presentations.get(tenant_id, election_event_id).await?;
+    let active_publications = publications.active(tenant_id, election_event_id).await?;
     let active_publications = if is_results_website_enabled(&presentation)? {
         let mut policy_matching_publications = Vec::new();
 
@@ -1365,17 +1229,19 @@ pub async fn refresh_public_results_index(
             if publication_matches_results_website_policy(&presentation, &publication)? {
                 policy_matching_publications.push(publication);
             } else {
-                delete_publication_artifacts(tx, &publication).await?;
-                mark_publication_superseded(tx, &publication).await?;
+                delete_publication_artifacts_with(artifacts, &publication, true).await?;
+                publications.mark_superseded(&publication).await?;
             }
         }
 
         policy_matching_publications
     } else {
-        delete_public_results_artifacts(tenant_id, election_event_id).await?;
+        artifacts
+            .delete_public_path(event_public_path(tenant_id, election_event_id, "results"))
+            .await?;
         for publication in active_publications {
-            delete_publication_artifacts(tx, &publication).await?;
-            mark_publication_superseded(tx, &publication).await?;
+            delete_publication_artifacts_with(artifacts, &publication, true).await?;
+            publications.mark_superseded(&publication).await?;
         }
         Vec::new()
     };
@@ -1423,31 +1289,37 @@ pub async fn refresh_public_results_index(
         "publications": publications
     });
     let key = format!("results-index/{election_event_id}.json");
-    upload_public_json_key(&key, &index).await
+    artifacts.upload_index(&key, &index).await
 }
 
-pub async fn publish_results_website_artifacts(
+pub async fn refresh_public_results_index(
     tx: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    publication_id: &str,
 ) -> Result<()> {
-    let publication =
-        get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
-    match publication.publication_status {
-        ResultsPublicationStatus::Published => {
-            return Ok(());
-        }
-        ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed => {}
-        ResultsPublicationStatus::Revoked | ResultsPublicationStatus::Superseded => {
-            return Err(anyhow!(
-                "Cannot publish a {} results publication",
-                publication.publication_status
-            ));
-        }
-    }
-    let selected_contests = selected_contest_ids(&publication)?;
-    let source_sqlite = source_sqlite_file(tx, &publication).await?;
+    refresh_public_results_index_with(
+        &PgResultsPublications { transaction: tx },
+        &PgResultsEventPresentation { transaction: tx },
+        &StoredResultsArtifacts { transaction: tx },
+        tenant_id,
+        election_event_id,
+    )
+    .await
+}
+
+pub struct PreparedPublicationSource {
+    pub(crate) file: NamedTempFile,
+    pub(crate) contests: Vec<ResultsManifestContest>,
+    pub(crate) custom_css: ResultsManifestCustomCss,
+    pub(crate) language_config: ManifestLanguageConfig,
+}
+
+pub(crate) async fn prepare_publication_source(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+    selected_contests: &[String],
+) -> Result<PreparedPublicationSource> {
+    let source_sqlite = source_sqlite_file(tx, publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
     let current_presentation =
         get_election_event_by_id(tx, &publication.tenant_id, &publication.election_event_id)
@@ -1465,53 +1337,77 @@ pub async fn publish_results_website_artifacts(
         current_translation_overrides.as_ref(),
     )?;
     drop(source_connection);
-    let contests = query_manifest_contests(&source_path, &publication, &selected_contests)?;
-    let custom_css = query_manifest_custom_css(&source_path, &publication)?;
-    let language_config = query_manifest_language_config(&source_path, &publication)?;
+    let contests = query_manifest_contests(&source_path, publication, selected_contests)?;
+    let custom_css = query_manifest_custom_css(&source_path, publication)?;
+    let language_config = query_manifest_language_config(&source_path, publication)?;
 
+    Ok(PreparedPublicationSource {
+        file: source_sqlite,
+        contests,
+        custom_css,
+        language_config,
+    })
+}
+
+pub async fn publish_results_website_artifacts_with(
+    publications: &impl ResultsPublicationLifecycle,
+    renderer: &impl ResultsPublicationRenderer,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> Result<()> {
+    let publication = publications
+        .get(tenant_id, election_event_id, publication_id)
+        .await?;
+    match publication.publication_status {
+        ResultsPublicationStatus::Published => {
+            return Ok(());
+        }
+        ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed => {}
+        ResultsPublicationStatus::Revoked | ResultsPublicationStatus::Superseded => {
+            return Err(anyhow!(
+                "Cannot publish a {} results publication",
+                publication.publication_status
+            ));
+        }
+    }
+    let selected_contests = selected_contest_ids(&publication)?;
+    let source = renderer.prepare(&publication, &selected_contests).await?;
     let (documents, manifest) = if publication.access == ResultsWebsiteAccess::Public {
-        publish_public_artifacts(
-            tx,
-            &publication,
-            &source_path,
-            &selected_contests,
-            contests,
-            custom_css,
-            &language_config,
-        )
-        .await?
+        renderer
+            .publish_public(&publication, &source, &selected_contests)
+            .await?
     } else {
-        publish_private_artifacts(
-            tx,
-            &publication,
-            &source_path,
-            &selected_contests,
-            contests,
-            custom_css,
-            &language_config,
-        )
-        .await?
+        renderer
+            .publish_private(&publication, &source, &selected_contests)
+            .await?
     };
-
-    mark_publication_published(
-        tx,
-        &publication,
-        documents,
-        serde_json::to_value(&manifest)?,
-    )
-    .await?;
+    publications
+        .mark_published(&publication, documents, serde_json::to_value(&manifest)?)
+        .await?;
     Ok(())
 }
 
-async fn upload_latest_public_manifest(publication: &TallyResultsPublication) -> Result<()> {
-    if publication.access != ResultsWebsiteAccess::Public {
-        return Ok(());
-    }
+pub async fn publish_results_website_artifacts(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> Result<()> {
+    publish_results_website_artifacts_with(
+        &PgResultsPublications { transaction: tx },
+        &StoredResultsArtifacts { transaction: tx },
+        tenant_id,
+        election_event_id,
+        publication_id,
+    )
+    .await
+}
 
-    let manifest = publication
-        .manifest
-        .as_ref()
-        .ok_or_else(|| anyhow!("Published results publication has no manifest"))?;
+pub(crate) async fn upload_latest_public_manifest_value(
+    publication: &TallyResultsPublication,
+    manifest: &Value,
+) -> Result<()> {
     let (_manifest_file, manifest_path, _manifest_size) =
         write_json_file("results-manifest-latest", manifest)?;
     let latest_manifest_name = format!(
@@ -1534,6 +1430,67 @@ async fn upload_latest_public_manifest(publication: &TallyResultsPublication) ->
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn finalize_results_website_publication_with(
+    publications: &impl ResultsPublicationLifecycle,
+    presentations: &impl ResultsEventPresentation,
+    artifacts: &impl ResultsPublicationArtifactStore,
+    audit: &impl ResultsPublicationAudit,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+    user_id: &str,
+    username: Option<String>,
+) -> Result<()> {
+    let publication = publications
+        .get(tenant_id, election_event_id, publication_id)
+        .await?;
+    if publication.publication_status != ResultsPublicationStatus::Published {
+        return Err(anyhow!("Results publication is not published"));
+    }
+
+    if publication.access == ResultsWebsiteAccess::Public {
+        let manifest = publication
+            .manifest
+            .as_ref()
+            .ok_or_else(|| anyhow!("Published results publication has no manifest"))?;
+        artifacts
+            .upload_latest_manifest(&publication, manifest)
+            .await?;
+    } else {
+        delete_public_publication_artifacts_with(artifacts, &publication, true).await?;
+    }
+    refresh_public_results_index_with(
+        publications,
+        presentations,
+        artifacts,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+
+    for superseded in publications
+        .superseded(tenant_id, election_event_id)
+        .await?
+    {
+        delete_publication_artifacts_with(artifacts, &superseded, false).await?;
+    }
+
+    audit
+        .action(
+            &publication,
+            ResultsPublicationAction::Publish,
+            user_id,
+            username,
+        )
+        .await?;
+    publications
+        .clear_finalization_error(tenant_id, election_event_id, publication_id)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn finalize_results_website_publication(
     tx: &Transaction<'_>,
     tenant_id: &str,
@@ -1542,157 +1499,37 @@ pub async fn finalize_results_website_publication(
     user_id: &str,
     username: Option<String>,
 ) -> Result<()> {
-    let publication =
-        get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
-    if publication.publication_status != ResultsPublicationStatus::Published {
-        return Err(anyhow!("Results publication is not published"));
-    }
-
-    upload_latest_public_manifest(&publication).await?;
-    if publication.access != ResultsWebsiteAccess::Public {
-        delete_public_publication_route_artifacts(&publication).await?;
-    }
-    refresh_public_results_index(tx, tenant_id, election_event_id).await?;
-
-    for superseded in list_superseded_publications(tx, tenant_id, election_event_id).await? {
-        delete_superseded_publication_artifacts(tx, &superseded).await?;
-    }
-
-    post_results_publication_action(
-        tx,
-        &publication,
-        ResultsPublicationAction::Publish,
+    finalize_results_website_publication_with(
+        &PgResultsPublications { transaction: tx },
+        &PgResultsEventPresentation { transaction: tx },
+        &StoredResultsArtifacts { transaction: tx },
+        &ElectoralLogResultsPublicationAudit { transaction: tx },
+        tenant_id,
+        election_event_id,
+        publication_id,
         user_id,
         username,
     )
-    .await?;
-    set_publication_finalization_error(tx, tenant_id, election_event_id, publication_id, None)
-        .await?;
-
-    Ok(())
+    .await
 }
 
-fn publication_documents(
-    publication: &TallyResultsPublication,
-) -> Result<ResultsPublicationDocuments> {
-    serde_json::from_value(publication.documents.clone())
-        .context("Invalid stored results publication documents")
-}
-
-fn manifest_public_path(publication: &TallyResultsPublication) -> Result<Option<String>> {
-    Ok(publication_documents(publication)?
-        .manifest
-        .and_then(|manifest| manifest.latest_public_path.or(manifest.public_path)))
-}
-
-fn publication_matches_requested_route(
-    publication: &TallyResultsPublication,
-    election_id: Option<&str>,
-) -> bool {
-    match publication.route_scope {
-        ResultsRouteScope::Election => {
-            publication.route_election_id.as_deref().is_some()
-                && publication.route_election_id.as_deref() == election_id
-        }
-        ResultsRouteScope::Event => election_id
-            .map(|id| {
-                publication
-                    .election_ids
-                    .iter()
-                    .any(|election| election == id)
-            })
-            .unwrap_or(true),
-    }
-}
-
-fn authorize_results_reader(
-    claims: &JwtClaims,
+pub async fn cleanup_revoked_results_publication(
+    publications: &impl ResultsPublicationLifecycle,
+    presentations: &impl ResultsEventPresentation,
+    artifacts: &impl ResultsPublicationArtifactStore,
+    tenant_id: &str,
     election_event_id: &str,
     publication: &TallyResultsPublication,
-    requested_election_id: Option<&str>,
-) -> ResultsPublicationServiceResult<()> {
-    if !is_results_portal_client(&claims.azp) {
-        let can_read = claims.hasura_claims.allowed_roles.iter().any(|role| {
-            role == &Permissions::PUBLISH_RESULTS_READ.to_string()
-                || role == &Permissions::PUBLISH_RESULTS_WRITE.to_string()
-        });
-        return can_read.then_some(()).ok_or_else(|| {
-            ResultsPublicationServiceError::Unauthorized(
-                "Missing results publication permission".to_string(),
-            )
-        });
-    }
-
-    let expected_realm = get_event_realm(&claims.hasura_claims.tenant_id, election_event_id);
-    let issuer_realm = claims.iss.trim_end_matches('/').rsplit('/').next();
-    if issuer_realm != Some(expected_realm.as_str()) {
-        return Err(ResultsPublicationServiceError::Forbidden(
-            "Token is not valid for this election event".to_string(),
-        ));
-    }
-
-    let authorized_election_ids = claims
-        .hasura_claims
-        .authorized_election_ids
-        .as_ref()
-        .ok_or_else(|| {
-            ResultsPublicationServiceError::Forbidden(
-                "No authorized elections are available".to_string(),
-            )
-        })?;
-    let is_authorized = match requested_election_id {
-        Some(election_id) => {
-            authorized_election_ids.iter().any(|id| id == election_id)
-                && publication.election_ids.iter().any(|id| id == election_id)
-        }
-        None => publication
-            .election_ids
-            .iter()
-            .any(|election_id| authorized_election_ids.iter().any(|id| id == election_id)),
-    };
-
-    is_authorized.then_some(()).ok_or_else(|| {
-        ResultsPublicationServiceError::Forbidden(
-            "Not authorized to view these election results".to_string(),
-        )
-    })
-}
-
-fn manifest_for_reader(
-    publication: &TallyResultsPublication,
-    claims: &JwtClaims,
-) -> ResultsPublicationServiceResult<Option<ResultsPublicationManifest>> {
-    let mut manifest = publication
-        .manifest
-        .clone()
-        .map(serde_json::from_value)
-        .transpose()
-        .context("Invalid stored results publication manifest")?;
-    if publication.visibility_scope != ResultsWebsiteVisibilityScope::AreaBased
-        || !is_results_portal_client(&claims.azp)
-    {
-        return Ok(manifest);
-    }
-
-    let area_id = claims.hasura_claims.area_id.as_ref().ok_or_else(|| {
-        ResultsPublicationServiceError::Forbidden("No voter area is available".to_string())
-    })?;
-    let areas = manifest
-        .as_mut()
-        .and_then(|manifest| manifest.artifacts.areas.as_mut())
-        .ok_or_else(|| {
-            ResultsPublicationServiceError::NotFound(
-                "No area results artifacts are available".to_string(),
-            )
-        })?;
-    let area_document = areas.remove(area_id).ok_or_else(|| {
-        ResultsPublicationServiceError::Forbidden(
-            "No results artifact is available for this voter area".to_string(),
-        )
-    })?;
-    areas.clear();
-    areas.insert(area_id.clone(), area_document);
-    Ok(manifest)
+) -> Result<()> {
+    refresh_public_results_index_with(
+        publications,
+        presentations,
+        artifacts,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    delete_publication_artifacts_with(artifacts, publication, true).await
 }
 
 pub async fn configure_results_website_policy_request(
@@ -1730,7 +1567,127 @@ pub async fn configure_results_website_policy_request(
     Ok(output)
 }
 
-pub async fn request_results_website_publication(
+/// Checks a publication request against the results website policy and
+/// its tally source.
+async fn validate_publication_request(
+    presentations: &impl ResultsEventPresentation,
+    publications: &impl ResultsPublicationWriter,
+    tenant_id: &str,
+    input: &PublishResultsWebsiteInput,
+) -> ResultsPublicationServiceResult<()> {
+    let presentation = presentations
+        .get(tenant_id, &input.election_event_id)
+        .await
+        .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?;
+    validate_results_website_policy(&presentation, input.access, input.visibility_scope).map_err(
+        |err| {
+            ResultsPublicationServiceError::BadRequest(format!(
+                "Invalid publication request: {err}"
+            ))
+        },
+    )?;
+    validate_publication_source(publications, tenant_id, input)
+        .await
+        .map_err(|err| {
+            ResultsPublicationServiceError::BadRequest(format!("Invalid publication source: {err}"))
+        })
+}
+
+async fn validate_publication_source(
+    publications: &impl ResultsPublicationWriter,
+    tenant_id: &str,
+    input: &PublishResultsWebsiteInput,
+) -> Result<()> {
+    let source = publication_source(tenant_id, input)?;
+    let facts = publications.source_facts(&source).await?;
+    check_publication_source(&source, &facts)
+}
+
+/// Runs each step of a publication request in its own transaction.
+struct HasuraPublicationRequestSteps;
+
+impl ResultsPublicationRequestSteps for HasuraPublicationRequestSteps {
+    async fn validate(
+        &self,
+        tenant_id: &str,
+        input: &PublishResultsWebsiteInput,
+    ) -> ResultsPublicationServiceResult<()> {
+        let mut client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Failed to acquire Hasura database connection")?;
+        let tx = client
+            .transaction()
+            .await
+            .context("Failed to start publication validation transaction")?;
+        validate_publication_request(
+            &PgResultsEventPresentation { transaction: &tx },
+            &PgResultsPublications { transaction: &tx },
+            tenant_id,
+            input,
+        )
+        .await?;
+        tx.commit()
+            .await
+            .context("Failed to commit publication validation transaction")?;
+        Ok(())
+    }
+
+    async fn insert_publishing(
+        &self,
+        publication: NewTallyResultsPublication<'_>,
+    ) -> ResultsPublicationServiceResult<TallyResultsPublication> {
+        let mut client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Failed to acquire Hasura database connection")?;
+        let tx = client
+            .transaction()
+            .await
+            .context("Failed to start publication transaction")?;
+        let publication = PgResultsPublications { transaction: &tx }
+            .insert_publishing(publication)
+            .await?;
+        tx.commit()
+            .await
+            .context("Failed to commit publication transaction")?;
+        Ok(publication)
+    }
+
+    async fn mark_failed(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        publication_id: &str,
+        error_message: &str,
+    ) -> ResultsPublicationServiceResult<()> {
+        let mut client = get_hasura_pool()
+            .await
+            .get()
+            .await
+            .context("Failed to acquire Hasura database connection")?;
+        let tx = client
+            .transaction()
+            .await
+            .context("Failed to start publication failure transaction")?;
+        PgResultsPublications { transaction: &tx }
+            .mark_failed(tenant_id, election_event_id, publication_id, error_message)
+            .await?;
+        tx.commit()
+            .await
+            .context("Failed to commit publication failure")?;
+        Ok(())
+    }
+}
+
+/// Stores a `Publishing` publication and sends the task that publishes its
+/// artifacts. When the task cannot be sent, the publication is marked
+/// failed and the response says why.
+pub async fn start_results_website_publication(
+    steps: &impl ResultsPublicationRequestSteps,
+    tasks: &impl ResultsPublicationTasks,
     tenant_id: &str,
     user_id: &str,
     username: Option<String>,
@@ -1740,69 +1697,13 @@ pub async fn request_results_website_publication(
     input.validate().map_err(|err| {
         ResultsPublicationServiceError::BadRequest(format!("Invalid publication request: {err}"))
     })?;
+    steps.validate(tenant_id, input).await?;
 
-    let mut client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .context("Failed to acquire Hasura database connection")?;
-    let tx = client
-        .transaction()
-        .await
-        .context("Failed to start publication validation transaction")?;
-    let election_event = get_election_event_by_id(&tx, tenant_id, &input.election_event_id)
-        .await
-        .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?;
-    let presentation = election_event
-        .get_presentation()
-        .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?
-        .unwrap_or_default();
-    validate_results_website_policy(&presentation, input.access, input.visibility_scope).map_err(
-        |err| {
-            ResultsPublicationServiceError::BadRequest(format!(
-                "Invalid publication request: {err}"
-            ))
-        },
-    )?;
-    validate_new_publication_source(
-        &tx,
-        tenant_id,
-        &input.election_event_id,
-        &input.tally_session_id,
-        &input.tally_session_execution_id,
-        &input.results_event_id,
-        &input.election_ids,
-        &input.contest_ids,
-        input.route_election_id.as_deref(),
-    )
-    .await
-    .map_err(|err| {
-        ResultsPublicationServiceError::BadRequest(format!("Invalid publication source: {err}"))
-    })?;
-    tx.commit()
-        .await
-        .context("Failed to commit publication validation transaction")?;
-
-    let task_execution = post(
-        tenant_id,
-        Some(&input.election_event_id),
-        ETasksExecution::PUBLISH_RESULTS_WEBSITE,
-        executed_by_user,
-    )
-    .await?;
-
-    let mut client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .context("Failed to acquire Hasura database connection")?;
-    let tx = client
-        .transaction()
-        .await
-        .context("Failed to start publication transaction")?;
-    let publication = insert_publishing_publication(
-        &tx,
-        NewTallyResultsPublication {
+    let task_execution = tasks
+        .new_task_execution(tenant_id, &input.election_event_id, executed_by_user)
+        .await?;
+    let publication = steps
+        .insert_publishing(NewTallyResultsPublication {
             tenant_id,
             election_event_id: &input.election_event_id,
             tally_session_id: &input.tally_session_id,
@@ -1816,51 +1717,32 @@ pub async fn request_results_website_publication(
             visibility_scope: input.visibility_scope,
             contest_ids: &input.contest_ids,
             published_by_user_id: Some(user_id),
-        },
-    )
-    .await?;
-    tx.commit()
-        .await
-        .context("Failed to commit publication transaction")?;
+        })
+        .await?;
 
     let publication_id = publication.id;
-    let celery_app = get_celery_app().await;
-    let error_msg = match celery_app
-        .send_task(
-            crate::tasks::publish_results_website::publish_results_website_task::new(
-                tenant_id.to_string(),
-                input.election_event_id.clone(),
-                publication_id.clone(),
-                user_id.to_string(),
-                username,
-                task_execution.clone(),
-            ),
+    let error_msg = match tasks
+        .enqueue_publish(
+            tenant_id,
+            &input.election_event_id,
+            &publication_id,
+            user_id,
+            username,
+            &task_execution,
         )
         .await
     {
-        Ok(_) => None,
+        Ok(()) => None,
         Err(err) => {
-            let message = format!("Failed to send PUBLISH_RESULTS_WEBSITE task: {err:?}");
-            let mut client = get_hasura_pool()
-                .await
-                .get()
-                .await
-                .context("Failed to acquire Hasura database connection")?;
-            let tx = client
-                .transaction()
-                .await
-                .context("Failed to start publication failure transaction")?;
-            mark_publication_failed(
-                &tx,
-                tenant_id,
-                &input.election_event_id,
-                &publication_id,
-                &message,
-            )
-            .await?;
-            tx.commit()
-                .await
-                .context("Failed to commit publication failure")?;
+            let message = format!("Failed to send PUBLISH_RESULTS_WEBSITE task: {err}");
+            steps
+                .mark_failed(
+                    tenant_id,
+                    &input.election_event_id,
+                    &publication_id,
+                    &message,
+                )
+                .await?;
             Some(message)
         }
     };
@@ -1878,7 +1760,32 @@ pub async fn request_results_website_publication(
     })
 }
 
-pub async fn resolve_results_publication_request(
+pub async fn request_results_website_publication(
+    tenant_id: &str,
+    user_id: &str,
+    username: Option<String>,
+    executed_by_user: &str,
+    input: &PublishResultsWebsiteInput,
+) -> ResultsPublicationServiceResult<PublishResultsWebsiteOutput> {
+    start_results_website_publication(
+        &HasuraPublicationRequestSteps,
+        &CeleryResultsPublicationTasks,
+        tenant_id,
+        user_id,
+        username,
+        executed_by_user,
+        input,
+    )
+    .await
+}
+
+/// The publication shown on an event or election results page. An election
+/// page without its own publication shows the event page's one, if that
+/// publishes the election. Nothing is shown while the website is disabled
+/// or once the publication no longer matches the policy.
+pub async fn resolve_results_publication(
+    publications: &impl ResultsPublicationReader,
+    presentations: &impl ResultsEventPresentation,
     claims: &JwtClaims,
     input: &ResolveResultsPublicationInput,
 ) -> ResultsPublicationServiceResult<Option<ResolveResultsPublicationOutput>> {
@@ -1888,48 +1795,28 @@ pub async fn resolve_results_publication_request(
     } else {
         ResultsRouteScope::Event
     };
-    let mut client = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .context("Failed to acquire Hasura database connection")?;
-    let tx = client
-        .transaction()
-        .await
-        .context("Failed to start results publication resolution transaction")?;
-    let election_event = get_election_event_by_id(&tx, tenant_id, &input.ee_id)
+    let presentation = presentations
+        .get(tenant_id, &input.ee_id)
         .await
         .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?;
-    let presentation = election_event
-        .get_presentation()
-        .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?
-        .unwrap_or_default();
     if !is_results_website_enabled(&presentation)
         .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?
     {
-        tx.commit()
-            .await
-            .context("Failed to commit results publication resolution")?;
         return Ok(None);
     }
 
-    let mut publication = get_active_publication_for_route(
-        &tx,
-        tenant_id,
-        &input.ee_id,
-        route_scope,
-        input.election_id.as_deref(),
-    )
-    .await?;
-    if publication.is_none() && input.election_id.is_some() {
-        publication = get_active_publication_for_route(
-            &tx,
+    let mut publication = publications
+        .active_for_route(
             tenant_id,
             &input.ee_id,
-            ResultsRouteScope::Event,
-            None,
+            route_scope,
+            input.election_id.as_deref(),
         )
         .await?;
+    if publication.is_none() && input.election_id.is_some() {
+        publication = publications
+            .active_for_route(tenant_id, &input.ee_id, ResultsRouteScope::Event, None)
+            .await?;
     }
     if let Some(candidate) = publication.as_ref() {
         let matches_policy =
@@ -1942,9 +1829,6 @@ pub async fn resolve_results_publication_request(
         }
     }
     let Some(publication) = publication else {
-        tx.commit()
-            .await
-            .context("Failed to commit results publication resolution")?;
         return Ok(None);
     };
     authorize_results_reader(
@@ -1955,9 +1839,6 @@ pub async fn resolve_results_publication_request(
     )?;
     let manifest_public_path = manifest_public_path(&publication)?;
     let manifest = manifest_for_reader(&publication, claims)?;
-    tx.commit()
-        .await
-        .context("Failed to commit results publication resolution")?;
 
     Ok(Some(ResolveResultsPublicationOutput {
         tenant_id: publication.tenant_id,
@@ -1972,11 +1853,10 @@ pub async fn resolve_results_publication_request(
     }))
 }
 
-pub async fn fetch_results_artifact_request(
+pub async fn resolve_results_publication_request(
     claims: &JwtClaims,
-    input: &FetchResultsArtifactInput,
-) -> ResultsPublicationServiceResult<FetchResultsArtifactOutput> {
-    let tenant_id = &claims.hasura_claims.tenant_id;
+    input: &ResolveResultsPublicationInput,
+) -> ResultsPublicationServiceResult<Option<ResolveResultsPublicationOutput>> {
     let mut client = get_hasura_pool()
         .await
         .get()
@@ -1985,14 +1865,35 @@ pub async fn fetch_results_artifact_request(
     let tx = client
         .transaction()
         .await
-        .context("Failed to start results artifact transaction")?;
-    let election_event = get_election_event_by_id(&tx, tenant_id, &input.election_event_id)
+        .context("Failed to start results publication resolution transaction")?;
+    let output = resolve_results_publication(
+        &PgResultsPublications { transaction: &tx },
+        &PgResultsEventPresentation { transaction: &tx },
+        claims,
+        input,
+    )
+    .await?;
+    tx.commit()
+        .await
+        .context("Failed to commit results publication resolution")?;
+
+    Ok(output)
+}
+
+/// Download URLs for the results SQLite of a published publication that the
+/// reader may see on the requested page.
+pub async fn fetch_results_artifact(
+    publications: &impl ResultsPublicationReader,
+    presentations: &impl ResultsEventPresentation,
+    document_urls: &impl ResultsDocumentUrls,
+    claims: &JwtClaims,
+    input: &FetchResultsArtifactInput,
+) -> ResultsPublicationServiceResult<FetchResultsArtifactOutput> {
+    let tenant_id = &claims.hasura_claims.tenant_id;
+    let presentation = presentations
+        .get(tenant_id, &input.election_event_id)
         .await
         .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?;
-    let presentation = election_event
-        .get_presentation()
-        .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?
-        .unwrap_or_default();
     if !is_results_website_enabled(&presentation)
         .map_err(|err| ResultsPublicationServiceError::BadRequest(err.to_string()))?
     {
@@ -2001,13 +1902,9 @@ pub async fn fetch_results_artifact_request(
         ));
     }
 
-    let publication = get_publication_by_id(
-        &tx,
-        tenant_id,
-        &input.election_event_id,
-        &input.publication_id,
-    )
-    .await?;
+    let publication = publications
+        .get(tenant_id, &input.election_event_id, &input.publication_id)
+        .await?;
     if publication.publication_status != ResultsPublicationStatus::Published
         || !publication_matches_requested_route(&publication, input.election_id.as_deref())
         || !publication_matches_results_website_policy(&presentation, &publication)
@@ -2024,48 +1921,86 @@ pub async fn fetch_results_artifact_request(
         input.election_id.as_deref(),
     )?;
 
-    let documents = publication_documents(&publication)?;
-    let document_ids = if publication.visibility_scope == ResultsWebsiteVisibilityScope::AreaBased {
-        let area_id = claims.hasura_claims.area_id.as_ref().ok_or_else(|| {
-            ResultsPublicationServiceError::Forbidden("No voter area is available".to_string())
-        })?;
-        documents
-            .area_sqlite
-            .as_ref()
-            .and_then(|areas| areas.get(area_id))
-            .and_then(|artifact| artifact.document_id.clone())
-            .map(|document_id| vec![document_id])
-            .ok_or_else(|| {
-                ResultsPublicationServiceError::Forbidden(
-                    "No results artifact is available for this voter area".to_string(),
-                )
-            })?
-    } else {
-        documents
-            .full_sqlite
-            .and_then(|artifact| artifact.document_id)
-            .map(|document_id| vec![document_id])
-            .ok_or_else(|| {
-                ResultsPublicationServiceError::NotFound(
-                    "No results artifact is available".to_string(),
-                )
-            })?
-    };
-
+    let document_ids = artifact_document_ids_for_reader(&publication, claims)?;
     let mut urls = Vec::with_capacity(document_ids.len());
     for document_id in document_ids {
-        let url = get_document_url(&tx, tenant_id, Some(&input.election_event_id), &document_id)
+        let url = document_urls
+            .url(tenant_id, &input.election_event_id, &document_id)
             .await?
             .ok_or_else(|| {
                 ResultsPublicationServiceError::NotFound("Document not found".to_string())
             })?;
         urls.push(url);
     }
+
+    Ok(FetchResultsArtifactOutput { urls })
+}
+
+pub async fn fetch_results_artifact_request(
+    claims: &JwtClaims,
+    input: &FetchResultsArtifactInput,
+) -> ResultsPublicationServiceResult<FetchResultsArtifactOutput> {
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .context("Failed to acquire Hasura database connection")?;
+    let tx = client
+        .transaction()
+        .await
+        .context("Failed to start results artifact transaction")?;
+    let output = fetch_results_artifact(
+        &PgResultsPublications { transaction: &tx },
+        &PgResultsEventPresentation { transaction: &tx },
+        &S3ResultsDocumentUrls { transaction: &tx },
+        claims,
+        input,
+    )
+    .await?;
     tx.commit()
         .await
         .context("Failed to commit results artifact transaction")?;
 
-    Ok(FetchResultsArtifactOutput { urls })
+    Ok(output)
+}
+
+/// Revokes a published publication and logs who did it. Revoking a revoked
+/// publication changes nothing; any other state is a conflict. Returns the
+/// publication as it was before.
+pub async fn revoke_results_publication(
+    publications: &impl ResultsPublicationWriter,
+    audit: &impl ResultsPublicationAudit,
+    tenant_id: &str,
+    user_id: &str,
+    username: Option<String>,
+    input: &RevokeResultsPublicationInput,
+) -> ResultsPublicationServiceResult<TallyResultsPublication> {
+    let publication = publications
+        .get(tenant_id, &input.election_event_id, &input.publication_id)
+        .await?;
+    match publication.publication_status {
+        ResultsPublicationStatus::Published => {
+            publications
+                .revoke(tenant_id, &input.election_event_id, &input.publication_id)
+                .await?;
+            audit
+                .action(
+                    &publication,
+                    ResultsPublicationAction::Revoke,
+                    user_id,
+                    username,
+                )
+                .await?;
+        }
+        ResultsPublicationStatus::Revoked => {}
+        _ => {
+            return Err(ResultsPublicationServiceError::Conflict(
+                "Publication is not currently published".to_string(),
+            ));
+        }
+    };
+
+    Ok(publication)
 }
 
 pub async fn revoke_results_publication_request(
@@ -2083,38 +2018,15 @@ pub async fn revoke_results_publication_request(
         .transaction()
         .await
         .context("Failed to start results revocation transaction")?;
-    let publication = get_publication_by_id(
-        &tx,
+    let publication = revoke_results_publication(
+        &PgResultsPublications { transaction: &tx },
+        &ElectoralLogResultsPublicationAudit { transaction: &tx },
         tenant_id,
-        &input.election_event_id,
-        &input.publication_id,
+        user_id,
+        username,
+        input,
     )
     .await?;
-    match publication.publication_status {
-        ResultsPublicationStatus::Published => {
-            revoke_publication(
-                &tx,
-                tenant_id,
-                &input.election_event_id,
-                &input.publication_id,
-            )
-            .await?;
-            post_results_publication_action(
-                &tx,
-                &publication,
-                ResultsPublicationAction::Revoke,
-                user_id,
-                username,
-            )
-            .await?;
-        }
-        ResultsPublicationStatus::Revoked => {}
-        _ => {
-            return Err(ResultsPublicationServiceError::Conflict(
-                "Publication is not currently published".to_string(),
-            ));
-        }
-    };
     tx.commit()
         .await
         .context("Failed to commit results revocation")?;
@@ -2128,8 +2040,15 @@ pub async fn revoke_results_publication_request(
         .transaction()
         .await
         .context("Failed to start results revocation cleanup transaction")?;
-    refresh_public_results_index(&tx, tenant_id, &input.election_event_id).await?;
-    delete_publication_artifacts(&tx, &publication).await?;
+    cleanup_revoked_results_publication(
+        &PgResultsPublications { transaction: &tx },
+        &PgResultsEventPresentation { transaction: &tx },
+        &StoredResultsArtifacts { transaction: &tx },
+        tenant_id,
+        &input.election_event_id,
+        &publication,
+    )
+    .await?;
     tx.commit()
         .await
         .context("Failed to commit results revocation cleanup")?;
@@ -2176,6 +2095,14 @@ pub async fn refresh_results_publication_index_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::memory::results_publication::{
+        AuditEntry, EnqueuedPublish, InMemoryResultsDocumentUrls, InMemoryResultsEventPresentation,
+        InMemoryResultsPublicationAudit, InMemoryResultsPublicationTasks,
+        InMemoryResultsPublications, PublicationCall,
+    };
+    use crate::domain::results_publication::fixtures::*;
+    use crate::postgres::tally_results_publication::PublicationSourceFacts;
+    use sequent_core::ballot::{ResultsWebsitePolicy, ResultsWebsiteStatus};
 
     fn row_count(conn: &Connection, table: &str) -> Result<i64> {
         Ok(
@@ -2454,4 +2381,921 @@ mod tests {
 
         Ok(())
     }
+
+    const FULL_SQLITE_URL: &str = "https://storage.invalid/full.sqlite";
+    const AREA_SQLITE_URL: &str = "https://storage.invalid/area-1.sqlite";
+    const UNAVAILABLE_FOR_ROUTE: &str = "Results publication is not available for this route";
+
+    /// What readers of `ELECTION_EVENT_ID` can reach, with an enabled
+    /// authenticated full-event results website unless told otherwise.
+    struct Site {
+        publications: InMemoryResultsPublications,
+        presentations: InMemoryResultsEventPresentation,
+        document_urls: InMemoryResultsDocumentUrls,
+    }
+
+    impl Site {
+        fn with(publications: impl IntoIterator<Item = TallyResultsPublication>) -> Self {
+            Self::with_policy(
+                policy("enabled", "authenticated", "full_event"),
+                publications,
+            )
+        }
+
+        fn with_policy(
+            policy: Option<Value>,
+            publications: impl IntoIterator<Item = TallyResultsPublication>,
+        ) -> Self {
+            let document_urls = InMemoryResultsDocumentUrls::default();
+            for (document_id, url) in [
+                ("full-sqlite", FULL_SQLITE_URL),
+                ("area-1-sqlite", AREA_SQLITE_URL),
+                ("area-2-sqlite", "https://storage.invalid/area-2.sqlite"),
+            ] {
+                document_urls.insert(TENANT_ID, ELECTION_EVENT_ID, document_id, url);
+            }
+            Self {
+                publications: InMemoryResultsPublications::with(publications),
+                presentations: InMemoryResultsEventPresentation::with(
+                    TENANT_ID,
+                    ELECTION_EVENT_ID,
+                    presentation(policy),
+                ),
+                document_urls,
+            }
+        }
+
+        fn with_unreadable_policy(self) -> Self {
+            let presentations = InMemoryResultsEventPresentation::with(
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                ElectionEventPresentation {
+                    results_website: Some("enabled".to_string()),
+                    ..Default::default()
+                },
+            );
+            Self {
+                presentations,
+                ..self
+            }
+        }
+
+        async fn resolve(
+            &self,
+            claims: &JwtClaims,
+            election_id: Option<&str>,
+        ) -> ResultsPublicationServiceResult<Option<ResolveResultsPublicationOutput>> {
+            let input = ResolveResultsPublicationInput {
+                ee_id: ELECTION_EVENT_ID.to_string(),
+                election_id: election_id.map(str::to_string),
+            };
+            resolve_results_publication(&self.publications, &self.presentations, claims, &input)
+                .await
+        }
+
+        async fn fetch(
+            &self,
+            claims: &JwtClaims,
+            election_id: Option<&str>,
+        ) -> ResultsPublicationServiceResult<Vec<String>> {
+            let input = FetchResultsArtifactInput {
+                election_event_id: ELECTION_EVENT_ID.to_string(),
+                election_id: election_id.map(str::to_string),
+                publication_id: "publication-1".to_string(),
+            };
+            let output = fetch_results_artifact(
+                &self.publications,
+                &self.presentations,
+                &self.document_urls,
+                claims,
+                &input,
+            )
+            .await?;
+            Ok(output.urls)
+        }
+    }
+
+    fn with_id(id: &str, publication: TallyResultsPublication) -> TallyResultsPublication {
+        TallyResultsPublication {
+            id: id.to_string(),
+            ..publication
+        }
+    }
+
+    fn full_event_publication() -> TallyResultsPublication {
+        TallyResultsPublication {
+            documents: json!({ "full_sqlite": artifact("full-sqlite") }),
+            ..publication()
+        }
+    }
+
+    /// A voter with a valid event realm token who may not see `ELECTION_ID`.
+    fn voter_of_an_unpublished_election() -> JwtClaims {
+        let mut claims = voter_claims();
+        claims.hasura_claims.authorized_election_ids =
+            Some(vec![UNPUBLISHED_ELECTION_ID.to_string()]);
+        claims
+    }
+
+    fn resolved_id(output: Option<ResolveResultsPublicationOutput>) -> Option<String> {
+        output.map(|output| output.publication_id)
+    }
+
+    #[tokio::test]
+    async fn no_publication_is_resolved_unless_the_results_website_is_enabled() {
+        for policy in [None, policy("disabled", "authenticated", "full_event")] {
+            let site = Site::with_policy(policy, [publication()]);
+
+            assert!(site.resolve(&voter_claims(), None).await.unwrap().is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn the_event_page_resolves_the_event_publication() {
+        let output = Site::with([publication()])
+            .resolve(&voter_claims(), None)
+            .await
+            .unwrap();
+
+        assert_eq!(resolved_id(output), Some("publication-1".to_string()));
+    }
+
+    #[tokio::test]
+    async fn an_election_page_resolves_its_own_publication_before_the_event_one() {
+        let site = Site::with([
+            with_id("event-publication", publication()),
+            with_id(
+                "election-publication",
+                election_route_publication(Some(ELECTION_ID)),
+            ),
+        ]);
+
+        let output = site
+            .resolve(&voter_claims(), Some(ELECTION_ID))
+            .await
+            .unwrap();
+        assert_eq!(
+            resolved_id(output),
+            Some("election-publication".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn an_election_page_without_its_own_publication_shows_the_event_publication() {
+        let site = Site::with([
+            with_id("event-publication", publication()),
+            with_id(
+                "other-election-publication",
+                election_route_publication(Some(OTHER_ELECTION_ID)),
+            ),
+        ]);
+
+        let output = site
+            .resolve(&voter_claims(), Some(ELECTION_ID))
+            .await
+            .unwrap();
+        assert_eq!(resolved_id(output), Some("event-publication".to_string()));
+    }
+
+    #[tokio::test]
+    async fn the_event_publication_is_not_shown_for_an_election_it_does_not_publish() {
+        let output = Site::with([publication()])
+            .resolve(
+                &voter_of_an_unpublished_election(),
+                Some(UNPUBLISHED_ELECTION_ID),
+            )
+            .await
+            .unwrap();
+
+        assert!(output.is_none());
+    }
+
+    #[tokio::test]
+    async fn publications_that_no_longer_match_the_policy_are_not_shown() {
+        let site = Site::with_policy(policy("enabled", "public", "full_event"), [publication()]);
+
+        assert!(site.resolve(&voter_claims(), None).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn an_off_policy_election_publication_does_not_fall_back_to_the_event_one() {
+        let site = Site::with([
+            publication(),
+            TallyResultsPublication {
+                access: ResultsWebsiteAccess::Public,
+                ..election_route_publication(Some(ELECTION_ID))
+            },
+        ]);
+
+        let output = site
+            .resolve(&voter_claims(), Some(ELECTION_ID))
+            .await
+            .unwrap();
+        assert!(output.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_resolved_publication_carries_its_route_and_latest_manifest_path() {
+        let stored_manifest = manifest(Default::default());
+        let site = Site::with([TallyResultsPublication {
+            documents: json!({
+                "manifest": {
+                    "public_path": "results/manifest-v1.json",
+                    "latest_public_path": "results/manifest-latest.json"
+                }
+            }),
+            manifest: Some(stored_manifest.clone()),
+            ..publication()
+        }]);
+
+        let output = site.resolve(&voter_claims(), None).await.unwrap().unwrap();
+        assert_eq!(
+            serde_json::to_value(&output).unwrap(),
+            json!({
+                "tenant_id": TENANT_ID,
+                "election_event_id": ELECTION_EVENT_ID,
+                "access": "authenticated",
+                "route_scope": "event",
+                "election_ids": [ELECTION_ID, OTHER_ELECTION_ID],
+                "publication_id": "publication-1",
+                "manifest_public_path": "results/manifest-latest.json",
+                "manifest_url": null,
+                "manifest": stored_manifest,
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn voters_resolve_only_their_area_of_an_area_based_publication() {
+        let site = Site::with_policy(
+            policy("enabled", "authenticated", "area_based"),
+            [area_based_publication()],
+        );
+
+        let output = site.resolve(&voter_claims(), None).await.unwrap().unwrap();
+        let areas = output.manifest.unwrap().artifacts.areas.unwrap();
+        assert_eq!(areas.into_keys().collect::<Vec<_>>(), vec![AREA_ID]);
+    }
+
+    #[tokio::test]
+    async fn resolving_a_publication_the_reader_may_not_see_fails_authorization() {
+        let site = Site::with([publication()]);
+        let mut admin_without_permission = admin_claims();
+        admin_without_permission.hasura_claims.allowed_roles = vec![];
+
+        assert_eq!(
+            denial(
+                site.resolve(&voter_of_an_unpublished_election(), None)
+                    .await
+            ),
+            forbidden("Not authorized to view these election results")
+        );
+        assert_eq!(
+            denial(site.resolve(&admin_without_permission, None).await),
+            (
+                "Unauthorized",
+                "Missing results publication permission".to_string()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn resolving_with_an_unknown_event_or_unreadable_policy_is_a_bad_request() {
+        let unknown_event = Site {
+            presentations: InMemoryResultsEventPresentation::default(),
+            ..Site::with([])
+        };
+        let unreadable_policy = Site::with([]).with_unreadable_policy();
+
+        assert_eq!(
+            denial(unknown_event.resolve(&voter_claims(), None).await),
+            ("BadRequest", "Election event event-1 not found".to_string())
+        );
+        assert_eq!(
+            denial(unreadable_policy.resolve(&voter_claims(), None).await),
+            ("BadRequest", "Invalid results website policy".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn publication_lookup_failures_while_resolving_are_internal_errors() {
+        let site = Site::with([]);
+        site.publications.fail_with("connection reset");
+
+        assert_eq!(
+            denial(site.resolve(&voter_claims(), Some(ELECTION_ID)).await),
+            ("Internal", "connection reset".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn readers_fetch_the_full_sqlite_of_a_full_event_publication() {
+        let site = Site::with([full_event_publication()]);
+
+        for election_id in [None, Some(ELECTION_ID)] {
+            let urls = site.fetch(&voter_claims(), election_id).await.unwrap();
+            assert_eq!(urls, vec![FULL_SQLITE_URL]);
+        }
+    }
+
+    #[tokio::test]
+    async fn voters_fetch_only_their_area_sqlite_of_an_area_based_publication() {
+        let site = Site::with_policy(
+            policy("enabled", "authenticated", "area_based"),
+            [area_based_publication()],
+        );
+
+        let urls = site.fetch(&voter_claims(), None).await.unwrap();
+        assert_eq!(urls, vec![AREA_SQLITE_URL]);
+    }
+
+    #[tokio::test]
+    async fn no_artifact_is_fetched_unless_the_results_website_is_enabled() {
+        for policy in [None, policy("disabled", "authenticated", "full_event")] {
+            let site = Site::with_policy(policy, [full_event_publication()]);
+
+            assert_eq!(
+                denial(site.fetch(&voter_claims(), None).await),
+                (
+                    "NotFound",
+                    "Results publication is not available".to_string()
+                )
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn only_published_publications_serve_artifacts() {
+        for status in [
+            ResultsPublicationStatus::Publishing,
+            ResultsPublicationStatus::Failed,
+            ResultsPublicationStatus::Revoked,
+            ResultsPublicationStatus::Superseded,
+        ] {
+            let site = Site::with([TallyResultsPublication {
+                publication_status: status,
+                ..full_event_publication()
+            }]);
+
+            assert_eq!(
+                denial(site.fetch(&voter_claims(), None).await),
+                ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string()),
+                "{status}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn artifacts_are_fetched_only_for_a_page_the_publication_serves() {
+        let election_publication = TallyResultsPublication {
+            documents: json!({ "full_sqlite": artifact("full-sqlite") }),
+            ..election_route_publication(Some(ELECTION_ID))
+        };
+
+        for (publication, election_id) in [
+            (full_event_publication(), Some(UNPUBLISHED_ELECTION_ID)),
+            (election_publication, None),
+        ] {
+            let site = Site::with([publication]);
+            assert_eq!(
+                denial(site.fetch(&voter_claims(), election_id).await),
+                ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string())
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn publications_that_no_longer_match_the_policy_serve_no_artifacts() {
+        let site = Site::with_policy(
+            policy("enabled", "authenticated", "area_based"),
+            [full_event_publication()],
+        );
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn unavailable_publications_are_not_found_before_readers_are_authorized() {
+        let site = Site::with([TallyResultsPublication {
+            publication_status: ResultsPublicationStatus::Revoked,
+            ..full_event_publication()
+        }]);
+
+        assert_eq!(
+            denial(site.fetch(&voter_of_an_unpublished_election(), None).await),
+            ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn readers_are_authorized_before_the_artifacts_are_looked_up() {
+        // The publication has no artifacts, which would be NotFound.
+        let site = Site::with([publication()]);
+
+        assert_eq!(
+            denial(site.fetch(&voter_of_an_unpublished_election(), None).await),
+            forbidden("Not authorized to view these election results")
+        );
+    }
+
+    #[tokio::test]
+    async fn fetching_an_unknown_publication_is_an_internal_error() {
+        let site = Site::with([]);
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("Internal", "Publication not found".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn an_artifact_without_a_stored_document_is_not_found() {
+        let site = Site {
+            document_urls: InMemoryResultsDocumentUrls::default(),
+            ..Site::with([full_event_publication()])
+        };
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("NotFound", "Document not found".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn document_url_failures_are_internal_errors() {
+        let site = Site::with([full_event_publication()]);
+        site.document_urls.fail_with("presigning failed");
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("Internal", "presigning failed".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn fetching_with_an_unknown_event_or_unreadable_policy_is_a_bad_request() {
+        let unknown_event = Site {
+            presentations: InMemoryResultsEventPresentation::default(),
+            ..Site::with([full_event_publication()])
+        };
+        let unreadable_policy = Site::with([full_event_publication()]).with_unreadable_policy();
+
+        assert_eq!(
+            denial(unknown_event.fetch(&voter_claims(), None).await),
+            ("BadRequest", "Election event event-1 not found".to_string())
+        );
+        assert_eq!(
+            denial(unreadable_policy.fetch(&voter_claims(), None).await),
+            ("BadRequest", "Invalid results website policy".to_string())
+        );
+    }
+
+    const ADMIN_ID: &str = "admin-1";
+    const ADMIN_USERNAME: &str = "admin";
+    const ADMIN_NAME: &str = "Admin User";
+    const NOT_PUBLISHED: &str = "Publication is not currently published";
+
+    /// The stores that publication requests and revocations change, for an
+    /// event with an enabled authenticated full-event results website.
+    struct Lifecycle {
+        publications: InMemoryResultsPublications,
+        presentations: InMemoryResultsEventPresentation,
+        tasks: InMemoryResultsPublicationTasks,
+        audit: InMemoryResultsPublicationAudit,
+    }
+
+    impl Lifecycle {
+        fn with(publications: impl IntoIterator<Item = TallyResultsPublication>) -> Self {
+            Self::with_policy(
+                policy("enabled", "authenticated", "full_event"),
+                publications,
+            )
+        }
+
+        fn with_policy(
+            policy: Option<Value>,
+            publications: impl IntoIterator<Item = TallyResultsPublication>,
+        ) -> Self {
+            Self {
+                publications: InMemoryResultsPublications::with(publications),
+                presentations: InMemoryResultsEventPresentation::with(
+                    REQUEST_TENANT_ID,
+                    REQUEST_EVENT_ID,
+                    presentation(policy),
+                ),
+                tasks: InMemoryResultsPublicationTasks::default(),
+                audit: InMemoryResultsPublicationAudit::default(),
+            }
+        }
+
+        async fn request(
+            &self,
+            input: &PublishResultsWebsiteInput,
+        ) -> ResultsPublicationServiceResult<PublishResultsWebsiteOutput> {
+            start_results_website_publication(
+                self,
+                &self.tasks,
+                REQUEST_TENANT_ID,
+                ADMIN_ID,
+                Some(ADMIN_USERNAME.to_string()),
+                ADMIN_NAME,
+                input,
+            )
+            .await
+        }
+
+        async fn revoke(&self) -> ResultsPublicationServiceResult<TallyResultsPublication> {
+            let input = RevokeResultsPublicationInput {
+                election_event_id: ELECTION_EVENT_ID.to_string(),
+                publication_id: "publication-1".to_string(),
+            };
+            revoke_results_publication(
+                &self.publications,
+                &self.audit,
+                TENANT_ID,
+                ADMIN_ID,
+                Some(ADMIN_USERNAME.to_string()),
+                &input,
+            )
+            .await
+        }
+
+        fn recorded_nothing(&self) -> bool {
+            self.publications.stored().is_empty()
+                && self.tasks.executions().is_empty()
+                && self.tasks.enqueued().is_empty()
+        }
+
+        fn statuses(&self) -> Vec<ResultsPublicationStatus> {
+            self.publications
+                .stored()
+                .into_iter()
+                .map(|publication| publication.publication_status)
+                .collect()
+        }
+    }
+
+    /// The request steps without transactions.
+    impl ResultsPublicationRequestSteps for Lifecycle {
+        async fn validate(
+            &self,
+            tenant_id: &str,
+            input: &PublishResultsWebsiteInput,
+        ) -> ResultsPublicationServiceResult<()> {
+            validate_publication_request(&self.presentations, &self.publications, tenant_id, input)
+                .await
+        }
+
+        async fn insert_publishing(
+            &self,
+            publication: NewTallyResultsPublication<'_>,
+        ) -> ResultsPublicationServiceResult<TallyResultsPublication> {
+            Ok(self.publications.insert_publishing(publication).await?)
+        }
+
+        async fn mark_failed(
+            &self,
+            tenant_id: &str,
+            election_event_id: &str,
+            publication_id: &str,
+            error_message: &str,
+        ) -> ResultsPublicationServiceResult<()> {
+            Ok(self
+                .publications
+                .mark_failed(tenant_id, election_event_id, publication_id, error_message)
+                .await?)
+        }
+    }
+
+    #[tokio::test]
+    async fn a_valid_request_stores_a_publishing_publication_and_sends_its_task() {
+        let lifecycle = Lifecycle::with([]);
+
+        let output = lifecycle.request(&publication_request()).await.unwrap();
+
+        let [publication] = lifecycle.publications.stored().try_into().unwrap();
+        assert_eq!(
+            publication.publication_status,
+            ResultsPublicationStatus::Publishing
+        );
+        assert_eq!(publication.task_execution_id.as_deref(), Some("task-1"));
+        assert_eq!(publication.published_by_user_id.as_deref(), Some(ADMIN_ID));
+        assert_eq!(
+            [
+                publication.tally_session_id.as_str(),
+                publication.tally_session_execution_id.as_str(),
+                publication.results_event_id.as_str(),
+            ],
+            [
+                REQUEST_SESSION_ID,
+                REQUEST_EXECUTION_ID,
+                REQUEST_RESULTS_EVENT_ID
+            ]
+        );
+        assert_eq!(
+            publication.election_ids,
+            [REQUEST_ELECTION_ID, REQUEST_OTHER_ELECTION_ID]
+        );
+        assert_eq!(publication.published_contest_ids, [REQUEST_CONTEST_ID]);
+
+        let [task_execution] = lifecycle.tasks.executions().try_into().unwrap();
+        assert_eq!(task_execution.executed_by_user, ADMIN_NAME);
+        assert_eq!(
+            lifecycle.tasks.enqueued(),
+            vec![EnqueuedPublish {
+                tenant_id: REQUEST_TENANT_ID.to_string(),
+                election_event_id: REQUEST_EVENT_ID.to_string(),
+                publication_id: publication.id.clone(),
+                user_id: ADMIN_ID.to_string(),
+                username: Some(ADMIN_USERNAME.to_string()),
+                task_execution_id: "task-1".to_string(),
+            }]
+        );
+        assert_eq!(output.publication_id, publication.id);
+        assert_eq!(output.task_execution_id, "task-1");
+        assert_eq!(output.task_execution.id, "task-1");
+        assert_eq!(
+            output.publication_status,
+            ResultsPublicationStatus::Publishing
+        );
+        assert_eq!(output.error_msg, None);
+    }
+
+    #[tokio::test]
+    async fn a_task_that_cannot_be_sent_marks_the_publication_failed() {
+        let lifecycle = Lifecycle::with([]);
+        lifecycle.tasks.fail_enqueues_with("broker unavailable");
+
+        let output = lifecycle.request(&publication_request()).await.unwrap();
+
+        let message = "Failed to send PUBLISH_RESULTS_WEBSITE task: broker unavailable";
+        let [publication] = lifecycle.publications.stored().try_into().unwrap();
+        assert_eq!(
+            publication.publication_status,
+            ResultsPublicationStatus::Failed
+        );
+        assert_eq!(publication.error_message.as_deref(), Some(message));
+        assert_eq!(output.publication_id, publication.id);
+        assert_eq!(output.publication_status, ResultsPublicationStatus::Failed);
+        assert_eq!(output.error_msg.as_deref(), Some(message));
+    }
+
+    #[tokio::test]
+    async fn requests_that_break_the_request_rules_or_the_policy_record_nothing() {
+        let mut without_contests = publication_request();
+        without_contests.contest_ids.clear();
+
+        for (lifecycle, request, message) in [
+            (
+                Lifecycle::with([]),
+                without_contests,
+                "Invalid publication request: At least one contest must be selected",
+            ),
+            (
+                Lifecycle::with_policy(None, []),
+                publication_request(),
+                "Invalid publication request: Results website policy is not configured",
+            ),
+            (
+                Lifecycle::with_policy(policy("enabled", "public", "full_event"), []),
+                publication_request(),
+                "Invalid publication request: Results access does not match the election \
+                 event results website policy",
+            ),
+        ] {
+            assert_eq!(
+                denial(lifecycle.request(&request).await),
+                ("BadRequest", message.to_string())
+            );
+            assert!(lifecycle.recorded_nothing(), "{message}");
+        }
+    }
+
+    #[tokio::test]
+    async fn requests_with_an_inconsistent_source_record_nothing() {
+        let lifecycle = Lifecycle::with([]);
+        lifecycle
+            .publications
+            .set_source_facts(PublicationSourceFacts {
+                valid_execution: false,
+                election_count: 2,
+                contest_count: 1,
+                tallied_contest_count: 1,
+            });
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            (
+                "BadRequest",
+                "Invalid publication source: The tally session, execution, and results event \
+                 do not belong together"
+                    .to_string()
+            )
+        );
+        assert!(lifecycle.recorded_nothing());
+    }
+
+    #[tokio::test]
+    async fn requests_with_unparsable_source_identifiers_are_bad_requests() {
+        let lifecycle = Lifecycle::with([]);
+        let mut request = publication_request();
+        request.tally_session_id = "not-a-uuid".to_string();
+
+        let (variant, message) = denial(lifecycle.request(&request).await);
+        assert_eq!(variant, "BadRequest");
+        assert!(
+            message.starts_with("Invalid publication source: invalid UUID 'not-a-uuid'"),
+            "{message}"
+        );
+        assert!(lifecycle.recorded_nothing());
+    }
+
+    #[tokio::test]
+    async fn source_lookup_failures_are_reported_as_invalid_sources() {
+        let lifecycle = Lifecycle::with([]);
+        lifecycle
+            .publications
+            .fail_on(PublicationCall::SourceFacts, "connection reset");
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            (
+                "BadRequest",
+                "Invalid publication source: connection reset".to_string()
+            )
+        );
+        assert!(lifecycle.recorded_nothing());
+    }
+
+    #[tokio::test]
+    async fn requests_for_an_unknown_election_event_are_bad_requests() {
+        let lifecycle = Lifecycle {
+            presentations: InMemoryResultsEventPresentation::default(),
+            ..Lifecycle::with([])
+        };
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            (
+                "BadRequest",
+                format!("Election event {REQUEST_EVENT_ID} not found")
+            )
+        );
+        assert!(lifecycle.recorded_nothing());
+    }
+
+    #[tokio::test]
+    async fn a_request_whose_task_execution_cannot_be_recorded_stores_no_publication() {
+        let lifecycle = Lifecycle::with([]);
+        lifecycle
+            .tasks
+            .fail_task_executions_with("tasks table unavailable");
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            ("Internal", "tasks table unavailable".to_string())
+        );
+        assert!(lifecycle.recorded_nothing());
+    }
+
+    #[tokio::test]
+    async fn a_request_whose_publication_cannot_be_stored_sends_no_task() {
+        let lifecycle = Lifecycle::with([]);
+        lifecycle
+            .publications
+            .fail_on(PublicationCall::InsertPublishing, "unique violation");
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            ("Internal", "unique violation".to_string())
+        );
+        assert!(lifecycle.tasks.enqueued().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_send_failure_that_cannot_be_recorded_fails_the_request() {
+        let lifecycle = Lifecycle::with([]);
+        lifecycle.tasks.fail_enqueues_with("broker unavailable");
+        lifecycle
+            .publications
+            .fail_on(PublicationCall::MarkFailed, "connection reset");
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            ("Internal", "connection reset".to_string())
+        );
+        assert_eq!(
+            lifecycle.statuses(),
+            vec![ResultsPublicationStatus::Publishing]
+        );
+    }
+
+    #[tokio::test]
+    async fn revoking_a_published_publication_revokes_it_and_logs_who_did() {
+        let lifecycle = Lifecycle::with([publication()]);
+
+        let revoked = lifecycle.revoke().await.unwrap();
+
+        assert_eq!(
+            revoked.publication_status,
+            ResultsPublicationStatus::Published
+        );
+        assert_eq!(
+            lifecycle.statuses(),
+            vec![ResultsPublicationStatus::Revoked]
+        );
+        assert_eq!(
+            lifecycle.audit.entries(),
+            vec![AuditEntry {
+                publication_id: "publication-1".to_string(),
+                action: ResultsPublicationAction::Revoke,
+                user_id: ADMIN_ID.to_string(),
+                username: Some(ADMIN_USERNAME.to_string()),
+            }]
+        );
+    }
+
+    #[tokio::test]
+    async fn revoking_a_revoked_publication_changes_nothing() {
+        let lifecycle = Lifecycle::with([TallyResultsPublication {
+            publication_status: ResultsPublicationStatus::Revoked,
+            ..publication()
+        }]);
+
+        let revoked = lifecycle.revoke().await.unwrap();
+
+        assert_eq!(
+            revoked.publication_status,
+            ResultsPublicationStatus::Revoked
+        );
+        assert_eq!(
+            lifecycle.statuses(),
+            vec![ResultsPublicationStatus::Revoked]
+        );
+        assert!(lifecycle.audit.entries().is_empty());
+    }
+
+    #[tokio::test]
+    async fn only_published_publications_can_be_revoked() {
+        for status in [
+            ResultsPublicationStatus::Publishing,
+            ResultsPublicationStatus::Failed,
+            ResultsPublicationStatus::Superseded,
+        ] {
+            let lifecycle = Lifecycle::with([TallyResultsPublication {
+                publication_status: status,
+                ..publication()
+            }]);
+
+            assert_eq!(
+                denial(lifecycle.revoke().await),
+                ("Conflict", NOT_PUBLISHED.to_string()),
+                "{status}"
+            );
+            assert_eq!(lifecycle.statuses(), vec![status]);
+            assert!(lifecycle.audit.entries().is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn a_revocation_that_cannot_be_stored_is_not_logged() {
+        let lifecycle = Lifecycle::with([publication()]);
+        lifecycle
+            .publications
+            .fail_on(PublicationCall::Revoke, "row locked");
+
+        assert_eq!(
+            denial(lifecycle.revoke().await),
+            ("Internal", "row locked".to_string())
+        );
+        assert!(lifecycle.audit.entries().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_revocation_that_cannot_be_logged_fails() {
+        let lifecycle = Lifecycle::with([publication()]);
+        lifecycle.audit.fail_with("electoral log unavailable");
+
+        assert_eq!(
+            denial(lifecycle.revoke().await),
+            ("Internal", "electoral log unavailable".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn revoking_an_unknown_publication_is_an_internal_error() {
+        let lifecycle = Lifecycle::with([]);
+
+        assert_eq!(
+            denial(lifecycle.revoke().await),
+            ("Internal", "Publication not found".to_string())
+        );
+    }
 }
+
+#[cfg(test)]
+#[path = "results_publication_lifecycle_tests.rs"]
+mod lifecycle_tests;
