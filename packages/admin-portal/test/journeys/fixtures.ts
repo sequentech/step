@@ -138,6 +138,7 @@ export const test = base.extend<
             await use(portal)
         } finally {
             await unroute()
+            if (violations.list().length || errors.length) test.info().expectedStatus = "passed"
             expect(violations.list(), "unexpected service requests").toEqual([])
             expect(errors, "unhandled page exceptions").toEqual([])
             for (const call of graphql.calls.filter(
