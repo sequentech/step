@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Developers Velvet | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Developers Velvet | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3314/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Developers Velvet","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3314/docs/developers/velvet/developers_velvet"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3314/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3314/assets/js/runtime~main.2e1e532e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3314/assets/js/runtime~main.5b4ba1b0.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3314/assets/js/main.d9ae6fc0.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -15,15 +15,30 @@
 <p>Content will be added here soon.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="auditable-cast-ballots">Auditable cast ballots<a href="#auditable-cast-ballots" class="hash-link" aria-label="Direct link to Auditable cast ballots" title="Direct link to Auditable cast ballots" translate="no">​</a></h3>
 <p>Windmill retains an audit snapshot when extracting ballots for a new tally session.
+Deploy this change before a new election/tally, not during an ongoing election.
 The tally archive contains <code>auditable-ballots/election__&lt;id&gt;/contest__&lt;id&gt;/area__&lt;id&gt;/</code>
 for single-contest encryption, or <code>auditable-ballots/election__&lt;id&gt;/area__&lt;id&gt;/</code>
 for multiple-contest encryption. Both original and renamed archives include it.
-Each directory contains <code>summary.json</code> (count and <code>ballots_available</code>) and, when
+Each directory contains <code>summary.json</code> (<code>format_version: 1</code>, count and
+<code>ballots_available</code>) and, when
 available, <code>encrypted-ballots.jsonl</code> (JSON Lines, not CSV) with one record per ballot.
 Each record includes <code>cast_vote_id</code> (the cast-vote UUID) and <code>voter_id</code> (the stored
 Keycloak voter ID, not the username), alongside the unsigned encrypted ballot fields
 <code>version</code>, <code>issue_date</code>, <code>contests</code>, <code>config</code>, and <code>ballot_style_hash</code>. Voter signing
-keys and signatures are omitted; excluded ballots are never decrypted.</p>
+keys and signatures are omitted; excluded ballots are never decrypted. Only
+excluded ballots appear in this file; accepted ballots remain in the normal tally.
+Each record also includes <code>reason</code>: <code>discarded</code> or <code>no_eligible_voter</code>.</p>
+<p>If an excluded ballot cannot be parsed, its record retains the IDs and reason,
+sets <code>payload_error: &quot;invalid_ballot_format&quot;</code>, and includes <code>content_sha256</code> of the
+original stored bytes. Encrypted payload fields are absent for that record. It
+still counts as auditable and does not stop the tally. Raw malformed contents and
+parser errors are not exported because they could contain voter signing fields.
+<code>ballots_available</code> describes snapshot availability, not payload validity; inspect
+<code>payload_error</code> to identify records with unavailable payloads.</p>
+<p>Single-contest folders contain the complete unsigned encrypted ballot, including
+its other encrypted contests. The same cast-vote ID may therefore appear under
+several contests. Do not sum these per-contest counts as distinct voters. This
+layout follows the tally&#x27;s contest/area scope and does not decrypt any contest.</p>
 <p>The count adds ballots marked <code>discarded</code> (including voter-disable releases) to
 existing ballots without an enabled, authorized voter. Extraction keeps the latest
 valid revote when present, otherwise the latest discarded ballot for each voter in
