@@ -779,6 +779,43 @@ async fn completing_a_session_marks_it_successful_and_completed() {
 }
 
 #[tokio::test]
+async fn completion_marks_post_processing_pending_and_preserves_other_annotations() {
+    for (before, expected) in [
+        (None, None),
+        (
+            Some(json!({})),
+            Some(json!({"is_post_task_completed": false})),
+        ),
+        (
+            Some(json!({"is_post_task_completed": true, "operator": "test"})),
+            Some(json!({"is_post_task_completed": false, "operator": "test"})),
+        ),
+        (
+            Some(json!([1])),
+            Some(json!([1, {"is_post_task_completed": false}])),
+        ),
+        (
+            Some(json!(null)),
+            Some(json!([null, {"is_post_task_completed": false}])),
+        ),
+        (
+            Some(json!(true)),
+            Some(json!([true, {"is_post_task_completed": false}])),
+        ),
+    ] {
+        let ceremony = InMemoryTallyCeremony::default();
+        let mut session = tally_session(&IN_PROGRESS);
+        session.annotations = before;
+        ceremony.add_session(session);
+        ceremony.add_election_event(election_event(Some(
+            json!({"id": 1, "database_name": EVENT_BOARD, "is_archived": false}),
+        )));
+        complete(&ceremony).await.unwrap();
+        assert_eq!(ceremony.session(SESSION).annotations, expected);
+    }
+}
+
+#[tokio::test]
 async fn completing_a_session_posts_a_tally_close_entry_naming_its_executer() {
     let ceremony = ceremony(&IN_PROGRESS, &restored_pair());
     complete(&ceremony).await.unwrap();
