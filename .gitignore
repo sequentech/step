@@ -95,3 +95,5 @@ airgapped-artifacts
 # Storybook browser-test reports and static catalogs.
 /packages/*/storybook-static/
 /packages/*/test-results/
+# Backend E2E binaries built by scripts/e2e/build.sh.
+/.cache/backend-e2e/

@@ -8,6 +8,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -35,14 +36,20 @@ pub struct DeleteTenantInput {
 fn check_deletion_target(
     claims: &JwtClaims,
     tenant_id: &str,
-) -> Result<(), (Status, String)> {
-    if tenant_id == claims.hasura_claims.tenant_id {
+) -> Result<String, (Status, String)> {
+    let target = parse_uuid_v4(tenant_id)
+        .map_err(|_| (Status::BadRequest, "Invalid tenant ID".to_string()))?;
+    let caller =
+        parse_uuid_v4(&claims.hasura_claims.tenant_id).map_err(|_| {
+            (Status::Unauthorized, "Invalid tenant identity".to_string())
+        })?;
+    if target == caller {
         return Err((
             Status::BadRequest,
             "The super-admin tenant cannot delete itself".to_string(),
         ));
     }
-    Ok(())
+    Ok(target.to_string())
 }
 
 /// Deletes a tenant. Only callable by the super-admin tenant (same
@@ -85,18 +92,21 @@ pub async fn delete_tenant_f(
         return Err(error);
     };
 
-    if let Err(error) = check_deletion_target(&claims, &input.tenant_id) {
-        let _ = update_fail(&task_execution, &error.1).await;
-        return Err(error);
-    }
+    let tenant_id = match check_deletion_target(&claims, &input.tenant_id) {
+        Ok(tenant_id) => tenant_id,
+        Err(error) => {
+            let _ = update_fail(&task_execution, &error.1).await;
+            return Err(error);
+        }
+    };
 
     let celery_app = get_celery_app().await;
 
-    let realm = get_tenant_realm(&input.tenant_id);
+    let realm = get_tenant_realm(&tenant_id);
 
     let celery_task_result = celery_app
         .send_task(delete_tenant::delete_tenant_t::new(
-            input.tenant_id.clone(),
+            tenant_id.clone(),
             realm,
             task_execution.clone(),
         ))
@@ -119,7 +129,7 @@ pub async fn delete_tenant_f(
     };
 
     Ok(Json(DeleteTenantOutput {
-        id: input.tenant_id,
+        id: tenant_id,
         error_msg: None,
         task_execution,
     }))
@@ -132,7 +142,7 @@ mod tests {
     fn super_admin_claims() -> JwtClaims {
         serde_json::from_value(serde_json::json!({
             "exp": 1, "iat": 0, "jti": "test", "iss": "test", "sub": "admin", "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
-            "https://hasura.io/jwt/claims": {"x-hasura-default-role":"admin-user", "x-hasura-tenant-id":"super-admin-tenant", "x-hasura-user-id":"admin", "x-hasura-allowed-roles":["tenant-delete"]}
+            "https://hasura.io/jwt/claims": {"x-hasura-default-role":"admin-user", "x-hasura-tenant-id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "x-hasura-user-id":"admin", "x-hasura-allowed-roles":["tenant-delete"]}
         }))
         .unwrap()
     }
@@ -141,12 +151,87 @@ mod tests {
     fn the_super_admin_tenant_cannot_be_the_deletion_target() {
         let claims = super_admin_claims();
         assert_eq!(
-            check_deletion_target(&claims, "super-admin-tenant"),
+            check_deletion_target(
+                &claims,
+                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+            ),
             Err((
                 Status::BadRequest,
                 "The super-admin tenant cannot delete itself".to_string()
             ))
         );
-        assert_eq!(check_deletion_target(&claims, "other-tenant"), Ok(()));
+        assert_eq!(
+            check_deletion_target(
+                &claims,
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ),
+            Ok("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb".into())
+        );
+    }
+    #[test]
+    fn alternate_uuid_spellings_cannot_bypass_the_self_deletion_guard() {
+        let claims = super_admin_claims();
+        for target in [
+            "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+            "aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa",
+            "urn:uuid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "{aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa}",
+        ] {
+            assert_eq!(
+                check_deletion_target(&claims, target),
+                Err((
+                    Status::BadRequest,
+                    "The super-admin tenant cannot delete itself".into()
+                )),
+                "{target}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_accepted_target_spelling_uses_the_canonical_resource_identity() {
+        let claims = super_admin_claims();
+        for target in [
+            "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB",
+            "bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb",
+            "urn:uuid:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            "{bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb}",
+        ] {
+            let canonical = check_deletion_target(&claims, target).unwrap();
+            assert_eq!(
+                canonical, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "{target}"
+            );
+            assert_eq!(
+                get_tenant_realm(&canonical),
+                "tenant-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_or_non_v4_targets_are_rejected_before_dispatch() {
+        let claims = super_admin_claims();
+        for target in ["", "not-a-uuid", "00000000-0000-0000-0000-000000000000"]
+        {
+            assert_eq!(
+                check_deletion_target(&claims, target),
+                Err((Status::BadRequest, "Invalid tenant ID".into()))
+            );
+        }
+    }
+
+    #[test]
+    fn an_invalid_caller_tenant_cannot_authorize_deletion() {
+        let mut claims = super_admin_claims();
+        claims.hasura_claims.tenant_id = "not-a-uuid".into();
+        assert_eq!(
+            check_deletion_target(
+                &claims,
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ),
+            Err((Status::Unauthorized, "Invalid tenant identity".into()))
+        );
     }
 }
