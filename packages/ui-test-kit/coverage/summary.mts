@@ -163,12 +163,24 @@ async function journeys(target: string) {
 }
 
 const [mode, target, title] = process.argv.slice(2)
-if (mode === "stories" && target) await stories(target)
-else if (mode === "journeys" && target) await journeys(target)
-else if (mode === "results" && target) await results(target, title ?? basename(target))
-else {
+const reports: Record<string, [heading: string, write: () => Promise<void>]> = {
+    stories: [`${basename(target ?? "")} stories`, () => stories(target)],
+    journeys: [`${basename(target ?? "")} production journeys`, () => journeys(target)],
+    results: [title ?? basename(target ?? ""), () => results(target, title ?? basename(target))],
+}
+const report = target ? reports[mode] : undefined
+if (!report) {
     process.stderr.write(
         "Usage: summary.mts stories|journeys <package-dir> | results <junit.xml> [title]\n"
     )
     process.exitCode = 2
+} else {
+    try {
+        await report[1]()
+    } catch (error) {
+        // A missing report means an earlier step failed; that step gates the job.
+        const {code, path} = error as NodeJS.ErrnoException
+        if (code !== "ENOENT") throw error
+        await publish(`### ${report[0]}\n\nNo report at \`${path}\`.`)
+    }
 }
