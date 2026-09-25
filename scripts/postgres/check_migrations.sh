@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Apply every Hasura backend-db migration to an empty database in version order,
-# roll back all but the oldest in reverse order, then apply them again and
-# require the same schema as the first time. Each file runs in its own
+# roll back all but the oldest in reverse order, require the baseline schema,
+# then reapply and require the fully migrated schema. Each file runs in its own
 # transaction. The oldest migration is the squashed baseline: its generated
 # down.sql is not executable, and rolling it back would drop the whole schema.
 #
@@ -63,24 +63,31 @@ apply() {
         run --single-transaction --file="$migrations/$version/$direction.sql"
     done
 }
-# pg_dump adds a random \restrict key to each dump; drop it before comparing.
-schema() { pg_dump --schema-only --no-owner --no-privileges | grep -v -E '^\\(un)?restrict ' >"$1"; }
+# Ignore dump nonce and physical column order, which DROP/ADD cannot restore.
+schema() {
+    pg_dump --schema-only --no-owner --no-privileges \
+        | awk -f "$root/scripts/postgres/normalize_schema.awk" >"$1"
+}
 
 # The extensions that .devcontainer/postgresql/init.sh creates.
 run --command='CREATE EXTENSION IF NOT EXISTS pgcrypto' \
     --command='CREATE EXTENSION IF NOT EXISTS unaccent'
 
-apply up "${versions[@]}"
+baseline=${versions[0]}
+reversible=("${versions[@]:1}")
+apply up "$baseline"
+schema "$work/baseline.sql"
+apply up "${reversible[@]}"
 schema "$work/applied.sql"
 echo "Applied ${#versions[@]} migrations"
 
-baseline=${versions[0]}
-reversible=("${versions[@]:1}")
 reversed=()
 for ((index = ${#reversible[@]} - 1; index >= 0; index--)); do
     reversed+=("${reversible[index]}")
 done
 apply down "${reversed[@]}"
+schema "$work/rolled-back.sql"
+diff -u "$work/baseline.sql" "$work/rolled-back.sql" >&2
 echo "Rolled back ${#reversible[@]} migrations to the ${baseline%%_*} baseline"
 
 apply up "${reversible[@]}"

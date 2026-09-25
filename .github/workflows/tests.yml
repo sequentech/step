@@ -131,9 +131,11 @@ jobs:
         working-directory: packages/windmill
 
       - name: Start the voting-flow database fixture
+        id: castvote-fixture
         run: |
           url=$(scripts/voting_flow/castvote_fixture.sh)
           echo "CAST_VOTE_TEST_DATABASE_URL=$url" >> "$GITHUB_ENV"
+          echo "created=true" >> "$GITHUB_OUTPUT"
 
       - name: Run the ignored insert_cast_vote PostgreSQL tests
         shell: bash
@@ -145,7 +147,7 @@ jobs:
         working-directory: packages
 
       - name: Remove the voting-flow database fixture
-        if: always()
+        if: always() && steps.castvote-fixture.outputs.created == 'true'
         run: docker rm --force step-castvote-fixture
 
   # ===========================================================================
