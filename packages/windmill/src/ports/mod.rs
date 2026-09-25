@@ -7,3 +7,5 @@
 //! Production implementations live in `crate::adapters`.
 
 pub mod clock;
+pub mod results_publication;
+pub mod results_publication_lifecycle;
