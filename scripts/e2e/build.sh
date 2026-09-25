@@ -34,10 +34,11 @@ DOCKER=${DOCKER:-docker}
 mkdir -p "$BIN_DIR"
 BIN_DIR=$(cd -- "$BIN_DIR" && pwd)
 # Stacks bind-mount this directory, possibly while another run rebuilds it.
-exec {build_lock}>>"$BIN_DIR/.build.lock"
-if ! flock --nonblock "$build_lock"; then
+# Keep the lock for the entire script, including on hosts with Bash 3.2.
+exec 9>>"$BIN_DIR/.build.lock"
+if ! flock --nonblock 9; then
     echo "Waiting for another backend E2E build into $BIN_DIR" >&2
-    flock "$build_lock"
+    flock 9
 fi
 STAGING=$BIN_DIR/.staging
 rm -rf "$STAGING"
