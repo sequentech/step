@@ -10,7 +10,7 @@
 #   --down          only remove the stack and its volumes
 #   --skip-images   reuse the service images already built
 #   --skip-build    reuse the binaries already in STEP_E2E_BIN_DIR
-#   -k PATTERN      only run the journeys whose name contains PATTERN
+#   -k PATTERN      run through the last matching journey, including prerequisites
 #
 # Environment:
 #   DOCKER                 docker command (default "docker", e.g. "sudo docker")
@@ -41,7 +41,9 @@ while (($#)); do
         --down) down_only=true ;;
         --skip-images) images=false ;;
         --skip-build) build=false ;;
-        -k) pattern=(-k "$2"); shift ;;
+        -k)
+            [[ $# -ge 2 && -n "$2" ]] || { echo '-k requires a pattern' >&2; exit 2; }
+            pattern=(-k "$2"); shift ;;
         -h | --help) sed -n '5,22p' "$0"; exit 0 ;;
         *) echo "Unknown option $1" >&2; exit 2 ;;
     esac
@@ -74,7 +76,7 @@ collect_logs() {
 }
 
 teardown() {
-    compose down --volumes --remove-orphans --timeout 20 > "$OUTPUT/logs/down.log" 2>&1 || true
+    compose down --volumes --remove-orphans --timeout 20 > "$OUTPUT/logs/down.log" 2>&1
 }
 
 if $down_only; then
@@ -96,7 +98,9 @@ if $build; then
 fi
 
 status=1
-trap 'collect_logs; $keep || teardown' EXIT
+trap 'collect_logs; $keep || teardown || true' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 phase "Starting the stack"
 teardown

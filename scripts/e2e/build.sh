@@ -6,7 +6,7 @@
 # the same bookworm cargo-packages image the stack runs them in, so the host's
 # glibc does not matter.
 #
-# STEP_E2E_RUNTIME_IMAGE  image to build in (default step-e2e-cargo-packages:local)
+# STEP_E2E_RUNTIME_IMAGE  image to build in (default step-backend-e2e-cargo-packages:local)
 # STEP_E2E_BIN_DIR        output directory (default .cache/backend-e2e/bin)
 # STEP_E2E_CARGO_TARGET   cargo target dir: a docker volume name or an absolute
 #                         host path (default volume step-e2e-cargo-target)
@@ -16,7 +16,7 @@
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-IMAGE=${STEP_E2E_RUNTIME_IMAGE:-step-e2e-cargo-packages:local}
+IMAGE=${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
 BIN_DIR=${STEP_E2E_BIN_DIR:-$ROOT/.cache/backend-e2e/bin}
 TARGET=${STEP_E2E_CARGO_TARGET:-step-e2e-cargo-target}
 CARGO_CACHE=${STEP_E2E_CARGO_HOME:-step-e2e-cargo-home}

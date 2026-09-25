@@ -34,6 +34,8 @@ services:
     entrypoint: ["sleep", "infinity"]
     init: true
     cap_add: !reset []
+    volumes: !override
+      - ..:/workspaces/step:ro
 
   postgres-volume-init:
     container_name: !reset null
@@ -41,14 +43,23 @@ services:
   postgres:
     image: step-backend-e2e-postgresql:local
     container_name: !reset null
+    depends_on:
+      postgres-volume-init:
+        condition: service_completed_successfully
 
   postgres-keycloak:
     image: step-backend-e2e-postgresql:local
     container_name: !reset null
+    depends_on:
+      postgres-volume-init:
+        condition: service_completed_successfully
 
   postgres-b4:
     image: step-backend-e2e-postgresql-b4:local
     container_name: !reset null
+    depends_on:
+      postgres-volume-init:
+        condition: service_completed_successfully
 
   # MinIO no longer publishes community images; build the last release.
   minio:
@@ -211,10 +222,19 @@ services:
     command: ["/opt/step-e2e/bin/beat"]
     volumes:
       - *e2e-binaries
+    environment:
+      # The readiness probe initializes the task registry, including S3 plugins.
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
     healthcheck: *e2e-probe
     depends_on:
       rabbitmq:
         condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
 
   b4:
     image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
