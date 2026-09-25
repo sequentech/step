@@ -1,12 +1,32 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {afterEach} from "vitest"
+import {afterEach, beforeEach} from "vitest"
 
 interface ExpectedFailure {
     reason: string
     a11y: string[]
 }
+interface StoryTask {
+    story?: {parameters: {expectedFailure?: ExpectedFailure | null}}
+}
+
+// Storybook assigns the composed story while its test runs, when annotations
+// are still accepted. The annotation becomes a JUnit property, so reports can
+// tell an expected failure from an ordinary pass.
+beforeEach((context) => {
+    let story: StoryTask["story"]
+    Object.defineProperty(context, "story", {
+        configurable: true,
+        enumerable: true,
+        get: () => story,
+        set(value: StoryTask["story"]) {
+            story = value
+            const expected = value?.parameters.expectedFailure
+            if (expected) void context.annotate(expected.reason, "expected-failure")
+        },
+    })
+})
 
 // Storybook generates each Vitest test. Its task.fails flag has the same
 // semantics as test.fails: an unexpected pass fails the run. Only the exact
