@@ -119,29 +119,42 @@ fn area_ballots_query(
     let discarded_status = escape_sql_literal(&CastVoteStatus::Discarded.to_string());
     let status = escape_sql_literal(&CastVoteStatus::Valid.to_string());
     let default_channel = escape_sql_literal(&VotingStatusChannel::ONLINE.to_string());
-    let areas_statement = format!(
-        r#"
-                    SELECT DISTINCT ON (election_id, voter_id_string)
-                        voter_id_string,
-                        content,
-                        COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel,
-                        status,
-                        id
-                    FROM "sequent_backend".cast_vote
-                    WHERE
-                        tenant_id = '{tenant_id}' AND
-                        election_event_id = '{election_event_id}' AND
-                        area_id = '{area_id}' AND
-                        election_id = '{election_id}' AND
-                        status IN ('{status}', '{discarded_status}')
-                    ORDER BY
-                        election_id,
-                        voter_id_string,
-                        (status = '{status}') DESC,
-                        created_at DESC NULLS LAST,
-                        id DESC
-                "#
+    // A constant status lets each branch use idx_cast_vote_optimized in voter
+    // order. Merge the ordered streams instead of sorting every ballot payload
+    // by a status expression, which spills to disk on large elections.
+    let latest_ballots = |ballot_status: &str, extra_filter: &str| {
+        format!(
+            r#"SELECT DISTINCT ON (election_id, voter_id_string)
+                voter_id_string, content,
+                COALESCE(annotations->>'voting_channel', '{default_channel}') AS voting_channel,
+                status, id
+            FROM "sequent_backend".cast_vote AS cv
+            WHERE tenant_id = '{tenant_id}'
+                AND election_event_id = '{election_event_id}'
+                AND area_id = '{area_id}'
+                AND election_id = '{election_id}'
+                AND status = '{ballot_status}'
+                {extra_filter}
+            ORDER BY election_id, voter_id_string, created_at DESC NULLS LAST, id DESC"#
+        )
+    };
+    let valid_ballots = latest_ballots(&status, "");
+    let discarded_ballots = latest_ballots(
+        &discarded_status,
+        &format!(
+            r#"AND NOT EXISTS (
+                SELECT 1 FROM "sequent_backend".cast_vote AS valid
+                WHERE valid.tenant_id = cv.tenant_id
+                    AND valid.election_event_id = cv.election_event_id
+                    AND valid.area_id = cv.area_id
+                    AND valid.election_id = cv.election_id
+                    AND valid.voter_id_string = cv.voter_id_string
+                    AND valid.status = '{status}'
+            )"#
+        ),
     );
+    let areas_statement =
+        format!("({valid_ballots}) UNION ALL ({discarded_ballots}) ORDER BY voter_id_string");
 
     Ok(areas_statement)
 }
@@ -1083,12 +1096,24 @@ mod tests {
                 (16, 'D', 'other tenant', 'discarded'),
                 (17, 'E', 'other event', 'discarded'),
                 (18, 'F', 'other election', 'discarded'),
-                (19, 'G', 'other area', 'discarded')
+                (19, 'G', 'other area', 'discarded'),
+                (20, 'A', 'valid in another tenant', 'valid'),
+                (21, 'A', 'valid in another event', 'valid'),
+                (22, 'A', 'valid in another election', 'valid'),
+                (23, 'A', 'valid in another area', 'valid'),
+                (24, 'B', 'tie broken by UUID', 'valid'),
+                (25, 'B', 'null timestamp', 'valid')
             ) AS ballots(n, voter, content, status);
             UPDATE audit_ballots_test SET tenant_id = '20000000-0000-4000-8000-000000000001' WHERE voter_id_string = 'D';
             UPDATE audit_ballots_test SET election_event_id = '20000000-0000-4000-8000-000000000002' WHERE voter_id_string = 'E';
             UPDATE audit_ballots_test SET election_id = '20000000-0000-4000-8000-000000000003' WHERE voter_id_string = 'F';
             UPDATE audit_ballots_test SET area_id = '20000000-0000-4000-8000-000000000004' WHERE voter_id_string = 'G';
+            UPDATE audit_ballots_test SET tenant_id = '20000000-0000-4000-8000-000000000001' WHERE id = '10000000-0000-4000-8000-000000000020';
+            UPDATE audit_ballots_test SET election_event_id = '20000000-0000-4000-8000-000000000002' WHERE id = '10000000-0000-4000-8000-000000000021';
+            UPDATE audit_ballots_test SET election_id = '20000000-0000-4000-8000-000000000003' WHERE id = '10000000-0000-4000-8000-000000000022';
+            UPDATE audit_ballots_test SET area_id = '20000000-0000-4000-8000-000000000004' WHERE id = '10000000-0000-4000-8000-000000000023';
+            UPDATE audit_ballots_test SET created_at = '2026-09-01'::timestamptz + interval '13 seconds' WHERE id = '10000000-0000-4000-8000-000000000024';
+            UPDATE audit_ballots_test SET created_at = NULL WHERE id = '10000000-0000-4000-8000-000000000025';
         "#).await?;
         let query = area_ballots_query(
             TENANT_ID,
@@ -1120,9 +1145,9 @@ mod tests {
                 ),
                 (
                     "B".into(),
-                    "latest valid".into(),
+                    "tie broken by UUID".into(),
                     "valid".into(),
-                    Uuid::parse_str("10000000-0000-4000-8000-000000000013")?
+                    Uuid::parse_str("10000000-0000-4000-8000-000000000024")?
                 ),
             ]
         );

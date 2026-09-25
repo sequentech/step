@@ -8,7 +8,9 @@ use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::trustee::get_trustees_by_name;
 use crate::services::cast_votes::{find_area_ballots, CastVote};
 use crate::services::celery_app::get_worker_threads;
-use crate::services::ceremonies::auditable_ballots::save_auditable_ballots;
+use crate::services::ceremonies::auditable_ballots::{
+    remove_auditable_upload, save_auditable_ballots, write_ballot,
+};
 use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
 use crate::services::election::get_election_event_elections;
 use crate::services::join::merge_join_csv;
@@ -49,6 +51,7 @@ use sequent_core::types::keycloak::{
 };
 use serde_json::json;
 use std::collections::HashMap;
+use std::io::{BufWriter, Write};
 use strand::backend::ristretto::RistrettoCtx;
 use strand::elgamal::Ciphertext;
 use strand::serialization::StrandDeserialize;
@@ -286,6 +289,10 @@ pub async fn insert_ballots_messages(
                         VoterMultiplicityColumn::None => None,
                     };
 
+                    // Stream excluded records: an empty census can make every
+                    // ballot auditable, so retaining them all would grow memory.
+                    let audit_file = NamedTempFile::new()?;
+                    let mut audit_writer = BufWriter::new(audit_file.as_file());
                     let merge_result = merge_join_csv(
                         &ballots_temp_file,
                         &users_temp_file,
@@ -296,7 +303,17 @@ pub async fn insert_ballots_messages(
                         multiplicity_source,
                         Some(3), // cast-vote status
                         Some(4), // cast-vote UUID
+                        |ballot| {
+                            write_ballot(
+                                &mut audit_writer,
+                                &ballot,
+                                &contest_encryption_policy_clone,
+                            )
+                        },
                     )?;
+
+                    audit_writer.flush()?;
+                    drop(audit_writer);
 
                     // Checked before anything is posted, so a run that would
                     // be refused does not leave batches on an append-only
@@ -386,40 +403,6 @@ pub async fn insert_ballots_messages(
                         // annotations byte-identical to what they were before
                         // weighting existed.
                         None
-                    };
-
-                    let auditable_ballots_document_id = save_auditable_ballots(
-                        &hasura_transaction_clone,
-                        &tally_session_contest,
-                        &merge_result.auditable_ballots,
-                        contest_encryption_policy_clone.clone(),
-                    )
-                    .await?;
-
-                    let annotations = TallySessionContestAnnotations {
-                        elegible_voters: merge_result.eligible_voters,
-                        ballots_without_voter: merge_result.ballots_without_voter,
-                        auditable_ballots_document_id,
-                        casted_ballots: merge_result.casted_ballots,
-                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
-                        weight_bit_mask,
-                    };
-
-                    let annotations = serde_json::to_value(&annotations)?;
-
-                    let updated_tally_session_contest = TallySessionContest {
-                        id: tally_session_contest.id.clone(),
-                        tenant_id: tally_session_contest.tenant_id.clone(),
-                        election_event_id: tally_session_contest.election_event_id.clone(),
-                        area_id: tally_session_contest.area_id.clone(),
-                        contest_id: tally_session_contest.contest_id.clone(),
-                        session_id: tally_session_contest.session_id.clone(),
-                        created_at: tally_session_contest.created_at.clone(),
-                        last_updated_at: tally_session_contest.last_updated_at.clone(),
-                        labels: tally_session_contest.labels.clone(),
-                        annotations: Some(annotations),
-                        tally_session_id: tally_session_contest.tally_session_id.clone(),
-                        election_id: tally_session_contest.election_id.clone(),
                     };
 
                     {
@@ -606,7 +589,62 @@ pub async fn insert_ballots_messages(
                         }
                     }
 
-                    hasura_transaction_clone.commit().await?;
+                    // Finish validation and board posting before uploading the
+                    // audit snapshot, so failures there leave no S3 object.
+                    let auditable_ballots_document_id = save_auditable_ballots(
+                        &hasura_transaction_clone,
+                        &tally_session_contest,
+                        &audit_file,
+                        merge_result.ballots_without_voter,
+                    )
+                    .await?;
+
+                    let annotations = TallySessionContestAnnotations {
+                        elegible_voters: merge_result.eligible_voters,
+                        ballots_without_voter: merge_result.ballots_without_voter,
+                        auditable_ballots_document_id: auditable_ballots_document_id.clone(),
+                        casted_ballots: merge_result.casted_ballots,
+                        votes_by_channel: Some(merge_result.casted_ballots_by_channel),
+                        weight_bit_mask,
+                    };
+
+                    let annotations = serde_json::to_value(&annotations)?;
+
+                    let updated_tally_session_contest = TallySessionContest {
+                        id: tally_session_contest.id.clone(),
+                        tenant_id: tally_session_contest.tenant_id.clone(),
+                        election_event_id: tally_session_contest.election_event_id.clone(),
+                        area_id: tally_session_contest.area_id.clone(),
+                        contest_id: tally_session_contest.contest_id.clone(),
+                        session_id: tally_session_contest.session_id.clone(),
+                        created_at: tally_session_contest.created_at.clone(),
+                        last_updated_at: tally_session_contest.last_updated_at.clone(),
+                        labels: tally_session_contest.labels.clone(),
+                        annotations: Some(annotations),
+                        tally_session_id: tally_session_contest.tally_session_id.clone(),
+                        election_id: tally_session_contest.election_id.clone(),
+                    };
+
+                    if let Err(error) = hasura_transaction_clone.commit().await {
+                        if let Some(document_id) = &auditable_ballots_document_id {
+                            // Connection errors (08xxx) and statement completion
+                            // unknown (40003) do not establish whether COMMIT
+                            // succeeded. Never delete their possibly committed file.
+                            if error.as_db_error().is_some_and(|db_error| {
+                                let code = db_error.code().code();
+                                !code.starts_with("08") && code != "40003"
+                            }) {
+                                remove_auditable_upload(&tally_session_contest, document_id).await;
+                            } else {
+                                event!(
+                                    Level::WARN,
+                                    document_id,
+                                    "Audit snapshot commit outcome is unknown; retaining upload"
+                                );
+                            }
+                        }
+                        return Err(error.into());
+                    }
                     Ok(updated_tally_session_contest)
                 })
             });
