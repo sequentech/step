@@ -373,6 +373,9 @@ test("production server owns an ephemeral port and never returns HTML for missin
                 await fetch(`${server.origin}/tenant/event`, {headers: {accept: "text/html"}})
             ).text()
         ).toBe("<main>Portal</main>")
+        expect(
+            await (await fetch(`${server.origin}/`, {headers: {accept: "text/html"}})).text()
+        ).toBe("<main>Portal</main>")
         expect(await (await fetch(`${server.origin}/asset.js`)).text()).toBe(
             "export const value = 7"
         )
