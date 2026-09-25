@@ -9,7 +9,7 @@ The backend journeys use real PostgreSQL, Hasura, Keycloak, RabbitMQ, ImmuDB,
 MinIO, B4 and two trustees. They exercise administrator commands and the voting
 portal's GraphQL protocol, including ballot encryption and tallying.
 
-From the repository root, with Python 3, Docker Engine and Compose 2.24.4 or newer:
+From the repository root, with Python 3, `flock`, Docker Engine and Compose 2.24.4 or newer:
 
 ```bash
 scripts/e2e/run.sh
