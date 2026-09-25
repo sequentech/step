@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::cast_votes::CastVoteStatus;
 use anyhow::{anyhow, ensure, Result};
 use csv::{ReaderBuilder, StringRecord};
 use sequent_core::types::keycloak::{MAX_VOTE_WEIGHT, MIN_VOTE_WEIGHT};
@@ -67,6 +68,21 @@ fn read_multiplicity(
     }
 }
 
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuditableBallotReason {
+    Discarded,
+    NoEligibleVoter,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct AuditableBallot {
+    pub reason: AuditableBallotReason,
+    pub cast_vote_id: Option<String>,
+    pub voter_id: String,
+    pub content: String,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct MergeJoinResult {
     /// `(ballot content, multiplicity)`. The content is stored once with its
@@ -108,11 +124,48 @@ pub fn merge_join_csv(
     ballots_content_index: usize,
     ballots_channel_index: Option<usize>,
     multiplicity_source: Option<MultiplicitySource>,
+    ballots_status_index: Option<usize>,
+    ballots_cast_vote_id_index: Option<usize>,
+    mut audit_sink: impl FnMut(AuditableBallot) -> Result<()>,
 ) -> Result<MergeJoinResult> {
     info!("START merge_join_csv");
 
     // Initialize the result vector and counters
     let mut result = Vec::new();
+    let audit_ballot = |ballot: &StringRecord| -> Result<AuditableBallot> {
+        let cast_vote_id = ballots_cast_vote_id_index
+            .map(|index| {
+                ballot
+                    .get(index)
+                    .filter(|id| !id.is_empty())
+                    .map(str::to_string)
+                    .ok_or_else(|| anyhow!("Missing auditable cast-vote ID"))
+            })
+            .transpose()?;
+        let reason = match ballots_status_index {
+            Some(index) => match ballot
+                .get(index)
+                .and_then(|status| status.parse::<CastVoteStatus>().ok())
+            {
+                Some(CastVoteStatus::Discarded) => AuditableBallotReason::Discarded,
+                Some(CastVoteStatus::Valid) => AuditableBallotReason::NoEligibleVoter,
+                _ => return Err(anyhow!("Unexpected ballot status in tally input")),
+            },
+            None => AuditableBallotReason::NoEligibleVoter,
+        };
+        Ok(AuditableBallot {
+            reason,
+            cast_vote_id,
+            voter_id: ballot
+                .get(ballots_voter_id_index)
+                .ok_or_else(|| anyhow!("Missing auditable voter ID column"))?
+                .to_string(),
+            content: ballot
+                .get(ballots_content_index)
+                .ok_or_else(|| anyhow!("Missing auditable ballot content"))?
+                .to_string(),
+        })
+    };
     let mut ballots_without_voter: u64 = 0;
     let mut elegible_voters: u64 = 0;
     let mut casted_ballots: u64 = 0;
@@ -174,9 +227,22 @@ pub fn merge_join_csv(
             read_multiplicity(voter, multiplicity_source)?;
 
         // Compare the join keys lexicographically.
-        match ballot_voter_id.cmp(voter_id) {
+        // Discarded ballots remain auditable even if the voter is re-enabled.
+        let ordering = match ballots_status_index {
+            Some(index) => match ballot
+                .get(index)
+                .and_then(|status| status.parse::<CastVoteStatus>().ok())
+            {
+                Some(CastVoteStatus::Discarded) => Ordering::Less,
+                Some(CastVoteStatus::Valid) => ballot_voter_id.cmp(voter_id),
+                _ => return Err(anyhow!("Unexpected ballot status in tally input")),
+            },
+            None => ballot_voter_id.cmp(voter_id),
+        };
+        match ordering {
             Ordering::Less => {
                 // If the ballot has no voter.
+                audit_sink(audit_ballot(ballot)?)?;
                 ballots_without_voter += 1;
                 count_ballot_channel(
                     &mut casted_ballots_by_channel,
@@ -239,8 +305,9 @@ pub fn merge_join_csv(
     while let Some(ballot_record) = ballots_record {
         casted_ballots += 1;
         ballots_without_voter += 1;
+        let ballot = ballot_record?;
+        audit_sink(audit_ballot(&ballot)?)?;
         if ballots_channel_index.is_some() {
-            let ballot = ballot_record?;
             count_ballot_channel(
                 &mut casted_ballots_by_channel,
                 &ballot,
@@ -320,6 +387,9 @@ mod tests {
             1,    // ballots_content_index
             None, // ballots_channel_index
             None, // multiplicity_source
+            None, // ballots_status_index
+            None, // ballots_cast_vote_id_index
+            |_| Ok(()),
         )?;
         Ok((
             expand(result.ballot_contents),
@@ -327,6 +397,122 @@ mod tests {
             result.ballots_without_voter,
             result.casted_ballots,
         ))
+    }
+
+    #[test]
+    fn discarded_ballots_are_additive_to_existing_auditable_ballots() -> Result<()> {
+        let mut ballots = NamedTempFile::new()?;
+        // A: disabled; B: eligible; C: re-enabled but its old ballot remains
+        // discarded; Z: previously auditable because no eligible voter exists.
+        writeln!(ballots, "A,disabled,ONLINE,discarded,10000000-0000-4000-8000-000000000001\nB,enabled,KIOSK,valid,10000000-0000-4000-8000-000000000002\nC,re-enabled,TELEPHONE,discarded,10000000-0000-4000-8000-000000000003\nZ,unmatched,ONLINE,valid,10000000-0000-4000-8000-000000000004")?;
+        for (users, expected_auditable) in [("B\nC", 3), ("", 4)] {
+            let mut voters = NamedTempFile::new()?;
+            write!(voters, "{users}")?;
+            let mut auditable_ballots = Vec::new();
+            let result = merge_join_csv(
+                &ballots.reopen()?,
+                &voters.reopen()?,
+                0,
+                0,
+                1,
+                Some(2),
+                None,
+                Some(3),
+                Some(4),
+                |ballot| {
+                    auditable_ballots.push(ballot);
+                    Ok(())
+                },
+            )?;
+            assert_eq!(result.ballots_without_voter, expected_auditable);
+            assert_eq!(auditable_ballots.len() as u64, expected_auditable);
+            assert_eq!(result.casted_ballots, 4);
+            assert_eq!(result.casted_ballots_by_channel.values().sum::<u64>(), 4);
+            if users.is_empty() {
+                assert!(result.ballot_contents.is_empty());
+                assert_eq!(result.eligible_voters, 0);
+            } else {
+                assert_eq!(result.ballot_contents, vec![("enabled".to_string(), 1)]);
+                assert_eq!(
+                    auditable_ballots
+                        .iter()
+                        .map(|ballot| ballot.content.as_str())
+                        .collect::<Vec<_>>(),
+                    vec!["disabled", "re-enabled", "unmatched"]
+                );
+                assert_eq!(result.eligible_voters, 2);
+            }
+            for ballot in auditable_ballots {
+                assert_eq!(
+                    ballot.reason,
+                    if matches!(ballot.voter_id.as_str(), "A" | "C") {
+                        AuditableBallotReason::Discarded
+                    } else {
+                        AuditableBallotReason::NoEligibleVoter
+                    }
+                );
+                let suffix = match ballot.voter_id.as_str() {
+                    "A" => "1",
+                    "B" => "2",
+                    "C" => "3",
+                    "Z" => "4",
+                    id => panic!("Unexpected voter ID: {id}"),
+                };
+                assert_eq!(
+                    ballot.cast_vote_id,
+                    Some(format!("10000000-0000-4000-8000-00000000000{suffix}"))
+                );
+            }
+        }
+        for users in ["B", ""] {
+            let mut ballots = NamedTempFile::new()?;
+            let mut voters = NamedTempFile::new()?;
+            writeln!(ballots, "A,unresolved,ONLINE,in-progress,id")?;
+            write!(voters, "{users}")?;
+            assert!(merge_join_csv(
+                &ballots.reopen()?,
+                &voters.reopen()?,
+                0,
+                0,
+                1,
+                Some(2),
+                None,
+                Some(3),
+                Some(4),
+                |_| Ok(()),
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("Unexpected ballot status"));
+        }
+        // A configured ID column must not silently produce incomplete snapshots,
+        // either during the join or after the enabled-voter input is exhausted.
+        for row in [
+            "A,disabled,ONLINE,discarded",
+            "A,disabled,ONLINE,discarded,",
+        ] {
+            for users in ["B", ""] {
+                let mut ballots = NamedTempFile::new()?;
+                let mut voters = NamedTempFile::new()?;
+                writeln!(ballots, "{row}")?;
+                write!(voters, "{users}")?;
+                let error = merge_join_csv(
+                    &ballots.reopen()?,
+                    &voters.reopen()?,
+                    0,
+                    0,
+                    1,
+                    Some(2),
+                    None,
+                    Some(3),
+                    Some(4),
+                    |_| Ok(()),
+                )
+                .unwrap_err();
+                assert!(error.to_string().contains("Missing auditable cast-vote ID"));
+            }
+        }
+        Ok(())
     }
 
     #[test]
@@ -598,6 +784,9 @@ mod tests {
             /* ballots_content_index  */ 1,
             /* ballots_channel_index  */ None,
             /* multiplicity_source    */ Some(MultiplicitySource::DelegateCount(1)),
+            None,
+            None,
+            |_| Ok(()),
         )?;
 
         Ok((
@@ -763,6 +952,9 @@ mod tests {
             1,
             channel_index,
             Some(MultiplicitySource::VoteWeight(1)),
+            None,
+            None,
+            |_| Ok(()),
         )
     }
 
@@ -884,6 +1076,9 @@ mod tests {
             1,
             Some(2),
             Some(MultiplicitySource::DelegateCount(1)),
+            None,
+            None,
+            |_| Ok(()),
         )?;
 
         assert_eq!(expand(result.ballot_contents.clone()).len(), 4);

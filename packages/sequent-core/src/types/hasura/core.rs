@@ -542,6 +542,8 @@ pub struct TallySession {
 pub struct TallySessionContestAnnotations {
     pub elegible_voters: u64,
     pub ballots_without_voter: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auditable_ballots_document_id: Option<String>,
     pub casted_ballots: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub votes_by_channel: Option<VotesByChannel>,
@@ -660,10 +662,12 @@ mod tally_session_contest_annotations_tests {
             }))
             .unwrap();
         assert_eq!(legacy.votes_by_channel, None);
+        assert_eq!(legacy.auditable_ballots_document_id, None);
 
         let current = TallySessionContestAnnotations {
             elegible_voters: 0,
             ballots_without_voter: 0,
+            auditable_ballots_document_id: None,
             casted_ballots: 0,
             votes_by_channel: Some(VotesByChannel::new()),
             weight_bit_mask: None,
