@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::{
     services::jwt::{self, JwtClaims},
     types::{hasura::core::TasksExecution, permissions::Permissions},
@@ -14,24 +16,19 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit, ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
 
 use strum_macros::{Display, EnumString};
 use tracing::instrument;
 use uuid::Uuid;
-use windmill::{postgres::reports::Report, services::tasks_execution::*};
-use windmill::{
-    postgres::reports::{get_report_by_type, ReportType},
-    services::reports_vault::get_report_key_pair,
-};
+use windmill::postgres::reports::Report;
+use windmill::postgres::reports::{get_report_by_type, ReportType};
 use windmill::{
     postgres::{document::get_document, reports::get_report_by_id},
-    services::{
-        celery_app::get_celery_app,
-        database::get_hasura_pool,
-        reports::template_renderer::{EReportEncryption, GenerateReportMode},
+    services::reports::template_renderer::{
+        EReportEncryption, GenerateReportMode,
     },
     tasks::generate_template::EGenerateTemplate,
     types::tasks::ETasksExecution,
@@ -50,11 +47,12 @@ pub struct RenderDocumentPdfResponse {
     pub task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/render-document-pdf", format = "json", data = "<body>")]
 pub async fn render_document_pdf(
     claims: JwtClaims,
     body: Json<RenderDocumentPdfInput>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<RenderDocumentPdfResponse>, (Status, String)> {
     let input = body.into_inner();
     authorize(
@@ -65,7 +63,7 @@ pub async fn render_document_pdf(
     )?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error obtaining keycloak transaction: {e:?}"),
@@ -128,22 +126,24 @@ pub async fn render_document_pdf(
 
     let output_document_id: String = Uuid::new_v4().to_string();
 
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await;
 
     // Insert the task execution record
-    let task_execution = post(
-        &claims.hasura_claims.tenant_id,
-        election_event_id.as_deref(),
-        ETasksExecution::RENDER_DOCUMENT_PDF,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
+    let task_execution = services
+        .ledger
+        .post(
+            &claims.hasura_claims.tenant_id,
+            election_event_id.as_deref(),
+            ETasksExecution::RENDER_DOCUMENT_PDF,
+            &executer_name,
         )
-    })?;
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let _task = celery_app
         .send_task(
@@ -179,11 +179,12 @@ pub struct GenerateTemplateResponse {
     pub task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/generate-template", format = "json", data = "<body>")]
 pub async fn generate_template(
     claims: JwtClaims,
     body: Json<EGenerateTemplate>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<GenerateTemplateResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
@@ -195,7 +196,7 @@ pub async fn generate_template(
     )?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error obtaining keycloak transaction: {e:?}"),
@@ -220,25 +221,27 @@ pub async fn generate_template(
         .unwrap_or_else(|| executer_name.clone());
 
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await;
     let EGenerateTemplate::BallotImages {
         election_event_id, ..
     } = input.clone();
 
     // Insert the task execution record
-    let task_execution = post(
-        &claims.hasura_claims.tenant_id,
-        Some(&election_event_id),
-        ETasksExecution::GENERATE_REPORT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
+    let task_execution = services
+        .ledger
+        .post(
+            &claims.hasura_claims.tenant_id,
+            Some(&election_event_id),
+            ETasksExecution::GENERATE_REPORT,
+            &executer_name,
         )
-    })?;
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_template::generate_template::new(
@@ -276,11 +279,12 @@ pub struct GenerateReportResponse {
     pub task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/generate-report", format = "json", data = "<body>")]
 pub async fn generate_report(
     claims: JwtClaims,
     body: Json<GenerateReportBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<GenerateReportResponse>, (Status, String)> {
     let input = body.into_inner();
     info!("Generating report: {input:?}");
@@ -292,7 +296,7 @@ pub async fn generate_report(
     )?;
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             (
                 Status::InternalServerError,
                 format!("Error obtaining keycloak transaction: {e:?}"),
@@ -317,7 +321,7 @@ pub async fn generate_report(
         .unwrap_or_else(|| executer_name.clone());
 
     let document_id: String = Uuid::new_v4().to_string();
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await;
     let report = get_report_by_id(
         &hasura_transaction,
         &input.tenant_id,
@@ -360,7 +364,9 @@ pub async fn generate_report(
         )?;
         let attribute_names: Vec<String> =
             declared_secret_names.iter().cloned().collect();
-        post_voter_secret_attribute_audit(
+        services
+            .electoral_log
+            .voter_secret_attributes(
             &report.tenant_id,
             &report.election_event_id,
             &ElectoralLogAdminContext::from_claims(&claims),
@@ -382,19 +388,21 @@ pub async fn generate_report(
     }
 
     // Insert the task execution record
-    let task_execution = post(
-        &input.tenant_id,
-        input.election_event_id.as_deref(),
-        ETasksExecution::GENERATE_REPORT,
-        &executer_name,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
+    let task_execution = services
+        .ledger
+        .post(
+            &input.tenant_id,
+            input.election_event_id.as_deref(),
+            ETasksExecution::GENERATE_REPORT,
+            &executer_name,
         )
-    })?;
+        .await
+        .map_err(|error| {
+            (
+                Status::InternalServerError,
+                format!("Failed to insert task execution record: {error:?}"),
+            )
+        })?;
 
     let _task = celery_app
         .send_task(windmill::tasks::generate_report::generate_report::new(
@@ -434,11 +442,12 @@ pub struct ExportTemplateOutput {
     error_msg: Option<String>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/encrypt-report", format = "json", data = "<input>")]
 pub async fn encrypt_report_route(
     claims: jwt::JwtClaims,
     input: Json<EncryptReportBody>,
+    services: &State<HarvestServices>,
 ) -> Result<Json<ExportTemplateOutput>, (Status, String)> {
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
@@ -450,7 +459,9 @@ pub async fn encrypt_report_route(
         vec![Permissions::REPORT_WRITE],
     )?;
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -461,15 +472,17 @@ pub async fn encrypt_report_route(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
 
-    get_report_key_pair(
-        &hasura_transaction,
-        tenant_id,
-        body.election_event_id.clone(),
-        body.report_id.clone(),
-        body.password.clone(),
-    )
-    .await
-    .map_err(|err| (Status::InternalServerError, err.to_string()))?;
+    services
+        .vault
+        .check_report_password(
+            &hasura_transaction,
+            tenant_id,
+            body.election_event_id.clone(),
+            body.report_id.clone(),
+            body.password.clone(),
+        )
+        .await
+        .map_err(|err| (Status::InternalServerError, err.to_string()))?;
 
     info!("body {:?}", body);
 

@@ -4,7 +4,9 @@
 
 pub mod database;
 pub mod documents;
+pub mod electoral_log;
 pub mod identity;
 pub mod task_ledger;
 pub mod task_queue;
 pub mod user_tasks;
+pub mod vault;

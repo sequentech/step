@@ -4,14 +4,18 @@
 
 use crate::adapters::database::WindmillDatabasePools;
 use crate::adapters::documents::S3DocumentStorage;
+use crate::adapters::electoral_log::BoardElectoralLogs;
 use crate::adapters::identity::KeycloakIdentityAdmin;
 use crate::adapters::task_ledger::WindmillTaskLedger;
 use crate::adapters::task_queue::CeleryTaskQueue;
+use crate::adapters::vault::WindmillVault;
 use crate::ports::database::DatabasePools;
 use crate::ports::documents::DocumentStorage;
+use crate::ports::electoral_log::ElectoralLogs;
 use crate::ports::identity::IdentityAdmin;
 use crate::ports::task_ledger::TaskLedger;
 use crate::ports::task_queue::TaskQueue;
+use crate::ports::vault::SecretVault;
 use std::sync::Arc;
 
 /// What route handlers reach outside Harvest through. Rocket manages one
@@ -20,9 +24,11 @@ use std::sync::Arc;
 pub struct HarvestServices {
     pub databases: Arc<dyn DatabasePools>,
     pub documents: Arc<dyn DocumentStorage>,
+    pub electoral_log: Arc<dyn ElectoralLogs>,
     pub identity: Arc<dyn IdentityAdmin>,
     pub ledger: Arc<dyn TaskLedger>,
     pub tasks: Arc<dyn TaskQueue>,
+    pub vault: Arc<dyn SecretVault>,
 }
 
 impl HarvestServices {
@@ -30,9 +36,11 @@ impl HarvestServices {
         Self {
             databases: Arc::new(WindmillDatabasePools),
             documents: Arc::new(S3DocumentStorage),
+            electoral_log: Arc::new(BoardElectoralLogs),
             identity: Arc::new(KeycloakIdentityAdmin),
             ledger: Arc::new(WindmillTaskLedger),
             tasks: Arc::new(CeleryTaskQueue),
+            vault: Arc::new(WindmillVault),
         }
     }
 }
