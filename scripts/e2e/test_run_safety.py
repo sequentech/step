@@ -4,6 +4,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -22,6 +23,8 @@ mode = os.environ.get("FAKE_DOCKER_MODE", "success")
 if args[0] != "compose":
     if mode == "daemon-failure":
         sys.exit(125)
+    if args[0] == "run" and any(arg.endswith(":/coverage") for arg in args):
+        sys.exit(23 if mode == "coverage-failure" else 0)
     if args[0] == "run":
         if mode == "build-failure":
             sys.exit(101)
@@ -58,6 +61,8 @@ if "build" in args and mode == "image-failure":
     sys.exit(17)
 if "up" in args and mode == "partial-start":
     sys.exit(19)
+if args[-2:] == ["driver", "test"] and mode == "journeys-failure":
+    sys.exit(7)
 """
 
 
@@ -91,6 +96,7 @@ class RunSafety(unittest.TestCase):
             "STEP_E2E_BIN_DIR",
             "STEP_E2E_CARGO_TARGET",
             "STEP_E2E_CARGO_HOME",
+            "STEP_E2E_COVERAGE",
         ):
             self.env.pop(name, None)
         self.env.update(
@@ -421,6 +427,68 @@ class RunSafety(unittest.TestCase):
                     self.assertEqual((output / marker).read_text(), f"{mode}\n")
                 else:
                     self.assertFalse((output / marker).exists())
+
+    def test_coverage_is_merged_after_services_stop_without_hiding_failures(self):
+        overlay = str(self.root / ".devcontainer/docker-compose-ci-coverage.yml")
+        output = self.root / "coverage-run"
+        for mode, status in (
+            ("success", 0),
+            ("coverage-failure", 23),
+            ("journeys-failure", 7),
+        ):
+            with self.subTest(mode=mode):
+                self.log.unlink(missing_ok=True)
+                stale = output / "coverage/profiles/windmill-old.profraw"
+                stale.parent.mkdir(parents=True, exist_ok=True)
+                stale.write_text("an earlier run")
+                result = self.run_script(
+                    "--skip-images",
+                    "--skip-build",
+                    STEP_E2E_COVERAGE="1",
+                    STEP_E2E_PROJECT="coverage-" + mode,
+                    STEP_E2E_OUTPUT_DIR=str(output),
+                    FAKE_DOCKER_MODE=mode,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                calls = self.calls()
+                (up,) = self.compose_calls("up")
+                (stop,) = self.compose_calls("stop")
+                (down,) = self.compose_calls("down")
+                (report,) = [
+                    args
+                    for args in calls
+                    if args[0] == "run" and f"{output}/coverage:/coverage" in args
+                ]
+                self.assertIn(overlay, up)
+                # Only the instrumented services wait for a graceful exit.
+                services = re.findall(
+                    r"^  ([a-z0-9-]+):\n(?:    .*\n)*?      LLVM_PROFILE_FILE:",
+                    (ROOT / ".devcontainer/docker-compose-ci-coverage.yml").read_text(),
+                    re.MULTILINE,
+                )
+                self.assertEqual(
+                    sorted(stop[stop.index("stop") + 3 :]),
+                    sorted(set(services) - {"driver"}),
+                )
+                # Profiles are complete only once the services have stopped.
+                self.assertLess(calls.index(up), calls.index(stop))
+                self.assertLess(calls.index(stop), calls.index(report))
+                self.assertLess(calls.index(report), calls.index(down))
+                binaries = self.root / ".cache/backend-e2e/bin-coverage"
+                self.assertIn(f"{binaries}:/opt/step-e2e/bin:ro", report)
+                self.assertTrue((output / "coverage/profiles").is_dir())
+                self.assertFalse(stale.exists())
+        self.log.unlink()
+        result = self.run_script("--keep", "--skip-images", STEP_E2E_COVERAGE="1")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("--keep", result.stderr)
+        self.assertEqual(self.calls(), [])
+        # Ordinary runs neither load the overlay nor stop services for a report.
+        result = self.run_script("--skip-images", "--skip-build")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn(overlay, self.compose_calls("up")[0])
+        self.assertEqual(self.compose_calls("stop"), [])
+        self.assertEqual(self.build_calls(), [])
 
     def test_keep_can_be_removed_by_an_explicit_down(self):
         result = self.run_script(

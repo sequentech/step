@@ -41,6 +41,8 @@ jobs:
       STEP_E2E_CARGO_TARGET: ${{ github.workspace }}/.cache/backend-e2e/target
       STEP_E2E_CARGO_HOME: ${{ github.workspace }}/.cache/backend-e2e/cargo-home
       STEP_E2E_OUTPUT_DIR: ${{ github.workspace }}/.cache/backend-e2e/run
+      # Instrumented binaries also report the coverage the journeys exercise.
+      STEP_E2E_COVERAGE: "1"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -60,8 +62,9 @@ jobs:
           path: |
             .cache/backend-e2e/target
             .cache/backend-e2e/cargo-home
-          key: backend-e2e-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh') }}
-          restore-keys: backend-e2e-${{ runner.os }}-
+          # Instrumented builds use their own target tree; do not restore the old one.
+          key: backend-e2e-coverage-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml', 'packages/Cargo.lock', 'packages/Dockerfile.cargo-packages', 'scripts/e2e/build.sh', 'scripts/e2e/coverage-rustc') }}
+          restore-keys: backend-e2e-coverage-${{ runner.os }}-
 
       - name: Build and run the isolated backend journeys
         run: scripts/e2e/run.sh
@@ -100,4 +103,6 @@ jobs:
             .cache/backend-e2e/run/summary.md
             .cache/backend-e2e/run/journeys.json
             .cache/backend-e2e/run/bootstrap.json
+            .cache/backend-e2e/run/coverage/summary.json
+            .cache/backend-e2e/run/coverage/summary.md
           retention-days: 30

@@ -153,7 +153,7 @@ class SummaryContracts(DriverOutput):
         self.assertIn(f'{command} >> "$GITHUB_STEP_SUMMARY"', step)
         upload = workflow[workflow.index("name: Upload the results summary") :]
         self.assertIn("hashFiles('.cache/backend-e2e/run/summary.md') != ''", upload)
-        for name in ("summary.md", "journeys.json", "bootstrap.json"):
+        for name in ("summary.md", "journeys.json", "coverage/summary.json"):
             self.assertIn(f".cache/backend-e2e/run/{name}", upload)
 
 
