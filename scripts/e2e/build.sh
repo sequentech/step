@@ -7,7 +7,9 @@
 # glibc does not matter.
 #
 # STEP_E2E_RUNTIME_IMAGE  image to build in (default step-backend-e2e-cargo-packages:local)
-# STEP_E2E_BIN_DIR        output directory (default .cache/backend-e2e/bin)
+# STEP_E2E_BIN_DIR        output directory (default .cache/backend-e2e/bin); builds
+#                         into one directory take turns (flock) and replace each
+#                         binary with a rename, so stacks may run from it meanwhile
 # STEP_E2E_CARGO_TARGET   cargo target dir: a docker volume name or an absolute
 #                         host path (default volume step-e2e-cargo-target)
 # STEP_E2E_CARGO_HOME     registry/git cache: a volume name or an absolute host
@@ -24,6 +26,15 @@ DOCKER=${DOCKER:-docker}
 
 mkdir -p "$BIN_DIR"
 BIN_DIR=$(cd -- "$BIN_DIR" && pwd)
+# Stacks bind-mount this directory, possibly while another run rebuilds it.
+exec {build_lock}>>"$BIN_DIR/.build.lock"
+if ! flock --nonblock "$build_lock"; then
+    echo "Waiting for another backend E2E build into $BIN_DIR" >&2
+    flock "$build_lock"
+fi
+STAGING=$BIN_DIR/.staging
+rm -rf "$STAGING"
+mkdir "$STAGING"
 if [[ "$CARGO_CACHE" == /* ]]; then
     mkdir -p "$CARGO_CACHE/registry" "$CARGO_CACHE/git"
     registry="$CARGO_CACHE/registry"
@@ -41,7 +52,7 @@ $DOCKER run --rm \
     --volume "$TARGET:/cargo-target" \
     --volume "$registry:/usr/local/cargo/registry" \
     --volume "$git_cache:/usr/local/cargo/git" \
-    --volume "$BIN_DIR:/out" \
+    --volume "$STAGING:/out" \
     --workdir /workspaces/step/packages \
     --env CARGO_TARGET_DIR=/cargo-target \
     --env CARGO_INCREMENTAL=0 \
@@ -69,4 +80,7 @@ $DOCKER run --rm \
         install -m 0755 /cargo-target/release/main /out/trustee
         chown "$OUT_UID:$OUT_GID" /out/*
     '
+# Same-directory renames: a service starting now executes a complete old or new
+# binary, and running services keep the inode they already executed.
+mv -f -- "$STAGING"/* "$BIN_DIR/"
 echo "Backend E2E binaries are in $BIN_DIR"
