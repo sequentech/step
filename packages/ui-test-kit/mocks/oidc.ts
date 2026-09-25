@@ -87,12 +87,12 @@ export interface AccountRecord {
 }
 
 export interface TokenSet {
-    access_token: string
-    expires_in: number
-    refresh_expires_in: number
-    refresh_token: string
-    token_type: "Bearer"
-    id_token: string
+    "access_token": string
+    "expires_in": number
+    "refresh_expires_in": number
+    "refresh_token": string
+    "token_type": "Bearer"
+    "id_token": string
     "not-before-policy": number
     "session_state": string
     "scope": string
@@ -421,6 +421,9 @@ export class OidcMock {
             const issued = this.refreshTokens.get(presented)
             if (!issued || issued.expiresAt <= this.nowSecs()) {
                 return fail("refresh token is unknown or expired")
+            }
+            if (issued.session.realm !== realm.name) {
+                return fail("refresh token was issued in another realm")
             }
             if (issued.session.clientId !== clientId) {
                 return fail("refresh token was issued to another client")

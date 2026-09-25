@@ -124,11 +124,18 @@ export class GraphQLMock {
             ...this.checkOperation(operation, operationName, variables),
         ]
         if (problems.length > 0) {
-            this.violations.add(`Invalid GraphQL operation ${operationName}: ${problems.join("; ")}`)
+            this.violations.add(
+                `Invalid GraphQL operation ${operationName}: ${problems.join("; ")}`
+            )
             return json(200, {errors: problems.map((message) => ({message}))})
         }
 
-        const call: GraphQLCall = {operationName, query: body.query, variables, headers: request.headers}
+        const call: GraphQLCall = {
+            operationName,
+            query: body.query,
+            variables,
+            headers: request.headers,
+        }
         this.calls.push(call)
         const handler = this.queued.get(operationName)?.shift() ?? this.handlers.get(operationName)
         if (!handler) {
