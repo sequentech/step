@@ -1815,8 +1815,7 @@ async fn insert_tally_session_contest_without_a_contest_stores_a_null_contest() 
 }
 
 #[tokio::test]
-async fn insert_tally_session_contest_wraps_a_batch_number_beyond_the_int4_column() {
-    // The batch number is a u64 cast with `as i32` into an int4 column.
+async fn insert_tally_session_contest_rejects_a_batch_number_beyond_the_int4_column() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1829,7 +1828,20 @@ async fn insert_tally_session_contest_wraps_a_batch_number_beyond_the_int4_colum
     )
     .await;
 
-    let inserted = tally_session_contest::insert_tally_session_contest(
+    let valid = tally_session_contest::insert_tally_session_contest(
+        &tx,
+        &w.tenant,
+        &w.event,
+        &area_id,
+        None,
+        i32::MAX as u64,
+        &session,
+        &election_id,
+    )
+    .await
+    .unwrap();
+    assert_eq!(valid.session_id, i32::MAX);
+    let error = tally_session_contest::insert_tally_session_contest(
         &tx,
         &w.tenant,
         &w.event,
@@ -1840,9 +1852,12 @@ async fn insert_tally_session_contest_wraps_a_batch_number_beyond_the_int4_colum
         &election_id,
     )
     .await
-    .unwrap();
-
-    assert_eq!(inserted.session_id, i32::MIN);
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Tally session batch number exceeds the database integer range"
+    );
+    assert_eq!(count(&tx, "tally_session_contest", &w.tenant).await, 1);
     tx.rollback().await.unwrap();
 }
 
