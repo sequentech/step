@@ -2501,9 +2501,7 @@ async fn get_last_tally_session_execution_is_none_without_executions() {
 }
 
 #[tokio::test]
-async fn get_last_tally_session_execution_prefers_an_execution_without_created_at() {
-    // `ORDER BY created_at DESC` puts NULL first, so an undated execution (as
-    // the bulk insert can write) outranks every dated one.
+async fn get_last_tally_session_execution_prefers_dated_history_and_lists_undated_history_last() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -2521,7 +2519,18 @@ async fn get_last_tally_session_execution_prefers_an_execution_without_created_a
     .unwrap()
     .unwrap();
 
-    assert_eq!(last.id, w.id(20));
+    assert_eq!(last.id, w.id(21));
+    let executions =
+        tally_session_execution::get_tally_session_executions(&tx, &w.tenant, &w.event, &w.id(10))
+            .await
+            .unwrap();
+    assert_eq!(
+        executions
+            .into_iter()
+            .map(|execution| execution.id)
+            .collect::<Vec<_>>(),
+        [w.id(21), w.id(20)]
+    );
     tx.rollback().await.unwrap();
 }
 
