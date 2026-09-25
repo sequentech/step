@@ -2004,31 +2004,119 @@ async fn insert_ballot_style_rejects_invalid_uuids_before_writing() {
 }
 
 #[tokio::test]
-async fn get_all_ballot_styles_always_fails_binding_text_to_uuid_columns() {
+async fn get_all_ballot_styles_returns_the_live_styles_of_the_area_and_elections() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
-    let election = f.election(a).await;
-    let area = f.area(a).await;
+    let (requested, unrequested) = (f.election(a).await, f.election(a).await);
+    let (area, other_area) = (f.area(a).await, f.area(a).await);
     let publication = f.publication(a, published(1)).await;
-    f.style(a, publication, election, area).await;
+    let wanted = f.style(a, publication, requested, area).await;
+    f.deleted_style(a, publication, requested, area).await;
+    f.style(a, publication, unrequested, area).await;
+    f.style(a, publication, requested, other_area).await;
 
-    // The tenant and area ids are bound as text, which PostgreSQL's uuid
-    // parameters do not accept, so even a matching style is never returned.
-    let error = ballot_style::get_all_ballot_styles(
+    let styles = ballot_style::get_all_ballot_styles(
+        &tx,
+        &a.tenant_id(),
+        &area.to_string(),
+        &strings(&[requested]),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(style_ids(&styles), strings(&[wanted]));
+    assert_eq!(styles[0].area_id, Some(area.to_string()));
+    assert_eq!(styles[0].election_id, requested.to_string());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_all_ballot_styles_never_returns_styles_of_other_tenants() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let other = f.scope().await;
+    let [election, area, publication, style] = [f.id(), f.id(), f.id(), f.id()];
+    for scope in [a, sibling, other] {
+        f.election_as(scope, election, None).await;
+        f.area_as(scope, area).await;
+        f.publication_as(scope, publication, published(1)).await;
+        f.style_as(scope, style, [publication, election, area], None)
+            .await;
+    }
+
+    let styles = ballot_style::get_all_ballot_styles(
         &tx,
         &a.tenant_id(),
         &area.to_string(),
         &strings(&[election]),
     )
     .await
-    .unwrap_err();
+    .unwrap();
 
+    // Without an event argument, identical ids in another event of the
+    // tenant match too.
+    let mut scopes: Vec<(String, String)> = styles
+        .iter()
+        .map(|style| (style.tenant_id.clone(), style.election_event_id.clone()))
+        .collect();
+    scopes.sort();
     assert_eq!(
-        error.to_string(),
-        "Error executing query: error serializing parameter 0"
+        scopes,
+        sorted(vec![
+            (a.tenant_id(), a.event_id()),
+            (a.tenant_id(), sibling.event_id()),
+        ])
     );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_all_ballot_styles_returns_nothing_without_a_matching_style() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let election = f.election(a).await;
+    let (area, empty_area) = (f.area(a).await, f.area(a).await);
+    let publication = f.publication(a, published(1)).await;
+    f.style(a, publication, election, area).await;
+    let styles = |area: Uuid, elections: Vec<String>| {
+        let tx = &tx;
+        async move {
+            ballot_style::get_all_ballot_styles(tx, &a.tenant_id(), &area.to_string(), &elections)
+                .await
+                .unwrap()
+        }
+    };
+
+    assert!(styles(empty_area, strings(&[election])).await.is_empty());
+    assert!(styles(area, vec![]).await.is_empty());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_all_ballot_styles_rejects_invalid_uuids() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let (tenant, area, election) = (a.tenant_id(), f.id().to_string(), f.id().to_string());
+
+    for (tenant, area, election) in [
+        (BAD_UUID, area.as_str(), election.as_str()),
+        (tenant.as_str(), BAD_UUID, election.as_str()),
+        (tenant.as_str(), area.as_str(), BAD_UUID),
+    ] {
+        assert_invalid_uuid(
+            ballot_style::get_all_ballot_styles(&tx, tenant, area, &vec![election.to_string()])
+                .await,
+        );
+    }
     tx.rollback().await.unwrap();
 }
 
