@@ -11,5 +11,12 @@ export default defineConfig({
     expect: {timeout: 10000},
     retries: 0,
     reporter: [["list"], ["junit", {outputFile: "test-results/journeys.xml"}]],
-    use: {...devices["Desktop Chrome"], locale: "en-US", timezoneId: "UTC", serviceWorkers: "block", trace: "retain-on-failure", screenshot: "only-on-failure"},
+    use: {
+        ...devices["Desktop Chrome"],
+        locale: "en-US",
+        timezoneId: "UTC",
+        serviceWorkers: "block",
+        trace: "retain-on-failure",
+        screenshot: "only-on-failure",
+    },
 })

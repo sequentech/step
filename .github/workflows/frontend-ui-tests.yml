@@ -61,3 +61,43 @@ jobs:
           name: stories-${{ matrix.package }}
           path: packages/${{ matrix.package }}/test-results
           if-no-files-found: warn
+
+  voting-journeys:
+    name: Voting production browser journeys
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.22.0"
+      - name: Install locked workspace dependencies
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd packages install --frozen-lockfile --non-interactive
+      - name: Validate the browser fixture contracts
+        run: |
+          yarn --cwd packages/ui-test-kit typecheck
+          yarn --cwd packages/ui-test-kit test
+          yarn --cwd packages/voting-portal tsc -p tsconfig.journeys.json
+      - name: Build the production portal
+        run: |
+          yarn --cwd packages build:ui-core
+          yarn --cwd packages build:ui-essentials
+          yarn --cwd packages build:voting-portal
+      - name: Run mocked service journeys in Chromium
+        run: yarn --cwd packages/voting-portal test:journeys
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: voting-production-journeys
+          path: |
+            packages/voting-portal/test-results
+            packages/ui-test-kit/test-results
+          if-no-files-found: error

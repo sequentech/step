@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import {CombinedGraphQLErrors} from "@apollo/client/errors"
 import React from "react"
 import {fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -78,6 +79,11 @@ jest.mock(
         ).BallotHashCopyButton,
         theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
         Dialog: () => null,
+        WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox")
+            .default,
+        EWarnBoxAnnouncement: jest.requireActual(
+            "../../../ui-essentials/src/components/WarnBox/WarnBox"
+        ).EWarnBoxAnnouncement,
         QRCode: jest.requireActual("../../../ui-essentials/src/components/QRCode/QRCode").default,
     }),
     {virtual: true}
@@ -552,5 +558,48 @@ describe("pending cast", () => {
         resolveCastVote()
         await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
         expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("Apollo 4 cast failures", () => {
+    it.each([
+        [
+            new CombinedGraphQLErrors({
+                errors: [{message: "Cannot cast", extensions: {code: "AreaNotFound"}}],
+            }),
+            "CAST_VOTE_AreaNotFound",
+        ],
+        [
+            new CombinedGraphQLErrors({
+                errors: [{message: "Cannot cast", extensions: {code: "CheckStatusFailed"}}],
+            }),
+            "CAST_VOTE_CheckStatusFailed",
+        ],
+        [
+            new CombinedGraphQLErrors({
+                errors: [
+                    {
+                        message: "Cannot cast",
+                        extensions: {code: "InsertFailedExceedsAllowedRevotes"},
+                    },
+                ],
+            }),
+            "CAST_VOTE_InsertFailedExceedsAllowedRevotes",
+        ],
+        [new TypeError("Failed to fetch"), "NETWORK_ERROR"],
+    ])("shows the specific failure and permits a successful retry: %s", async (error, message) => {
+        mockDisableAuth = false
+        mockInsertCastVote.mockRejectedValueOnce(error)
+        const user = userEvent.setup()
+        renderRoute(<ReviewScreen />, "review")
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        await user.click(cast)
+        expect(await screen.findByRole("alert")).toHaveTextContent(`reviewScreen.error.${message}`)
+        expect(cast).toBeEnabled()
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(1)
+        await user.click(cast)
+        await waitFor(() => expect(mockInsertCastVote).toHaveBeenCalledTimes(2))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(2)
+        expect(mockInsertCastVote.mock.calls[1]).toEqual(mockInsertCastVote.mock.calls[0])
     })
 })
