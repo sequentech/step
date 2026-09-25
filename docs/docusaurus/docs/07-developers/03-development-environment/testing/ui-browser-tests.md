@@ -108,9 +108,9 @@ Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` a
 Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
 
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
-failures and skips, plus coverage as covered/total (percent): Istanbul for stories; for journeys,
-Chromium V8 counts mapped through the dist source maps, re-emitting each module to reach the
-portal's bundled TypeScript `src/**`, saved in `test-results/journey-coverage/`:
+failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the
+Istanbul statements, functions and branches of the bundled TypeScript `src/**`, each counted from the
+innermost V8 block around its bundle code (unloaded chunks count 0), in `test-results/journey-coverage/`:
 ```sh
 STEP_UI_JOURNEY_COVERAGE=1 yarn --cwd packages/voting-portal test:journeys
 node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/voting-portal
