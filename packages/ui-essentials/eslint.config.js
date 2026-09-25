@@ -70,7 +70,7 @@ export default [
         },
     },
     {
-        files: ["**/*.stories.*"],
+        files: ["**/*.stories.{js,jsx,ts,tsx}"],
         rules: {
             "import/no-anonymous-default-export": "off",
         },
