@@ -239,6 +239,18 @@ export class OidcMock {
         }
         const endpoint = match[2]
         switch (`${request.method} ${endpoint}`) {
+            case "GET .well-known/openid-configuration": {
+                const issuer = this.issuer(realm.name)
+                return json(200, {
+                    issuer,
+                    authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
+                    token_endpoint: `${issuer}/protocol/openid-connect/token`,
+                    end_session_endpoint: `${issuer}/protocol/openid-connect/logout`,
+                    response_types_supported: ["code"],
+                    grant_types_supported: ["authorization_code", "refresh_token"],
+                    code_challenge_methods_supported: ["S256"],
+                })
+            }
             case "GET protocol/openid-connect/auth":
                 return this.authorize(realm, request, "login")
             case "GET protocol/openid-connect/registrations":

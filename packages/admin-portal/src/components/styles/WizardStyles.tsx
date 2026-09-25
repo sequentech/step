@@ -103,7 +103,7 @@ export const WizardStyles = {
         color: ${({theme}) => theme.palette.errorColor};
     `,
     SucessMessage: styled(Typography)`
-        color: ${({theme}) => theme.palette.brandSuccess};
+        color: ${({theme}) => theme.palette.success.dark};
         font-weight: bold;
     `,
     StepHeader: styled(Typography)`

@@ -86,6 +86,42 @@ function oidcFixture() {
     }
 }
 
+test("OIDC discovery scopes supported endpoints to each configured realm", () => {
+    const fixture = oidcFixture()
+    for (const realm of ["election", "other"]) {
+        const response = fixture.oidc.handle(
+            request(`/keycloak/realms/${realm}/.well-known/openid-configuration`)
+        ) as MockFulfillment
+        expect(response.status).toBe(200)
+        const issuer = `${origin}/keycloak/realms/${realm}`
+        expect(bodyOf(response)).toEqual({
+            issuer,
+            authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
+            token_endpoint: `${issuer}/protocol/openid-connect/token`,
+            end_session_endpoint: `${issuer}/protocol/openid-connect/logout`,
+            response_types_supported: ["code"],
+            grant_types_supported: ["authorization_code", "refresh_token"],
+            code_challenge_methods_supported: ["S256"],
+        })
+    }
+    expect(fixture.violations.list()).toEqual([])
+})
+test("OIDC discovery rejects unconfigured realms and wrong methods", () => {
+    const fixture = oidcFixture()
+    const unknown = fixture.oidc.handle(
+        request("/keycloak/realms/unconfigured/.well-known/openid-configuration")
+    ) as MockFulfillment
+    expect(unknown.status).toBe(404)
+    const wrongMethod = fixture.oidc.handle(
+        request("/keycloak/realms/election/.well-known/openid-configuration", "POST")
+    ) as MockFulfillment
+    expect(wrongMethod.status).toBe(404)
+    expect(fixture.violations.list()).toEqual([
+        `Keycloak request for an unknown realm: ${origin}/keycloak/realms/unconfigured/.well-known/openid-configuration`,
+        `Unexpected Keycloak request: POST ${origin}/keycloak/realms/election/.well-known/openid-configuration`,
+    ])
+})
+
 test("OIDC keeps state and nonce, verifies RFC PKCE, refreshes and expires tokens", () => {
     const fixture = oidcFixture()
     const response = fixture.token(fixture.authorize())
