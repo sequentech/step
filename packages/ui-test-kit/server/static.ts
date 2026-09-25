@@ -3,7 +3,7 @@
 
 import {createServer} from "node:http"
 import {readFile, realpath, stat} from "node:fs/promises"
-import {extname, resolve, sep} from "node:path"
+import {extname, relative, resolve, sep} from "node:path"
 import type {AddressInfo} from "node:net"
 
 const types: Record<string, string> = {
@@ -26,7 +26,10 @@ const roots = new Map<string, string>()
 export const servedRoots: ReadonlyMap<string, string> = roots
 
 /** Owns its ephemeral listening socket until close; never probes then rebinds a free port. */
-export async function serveDist(directory: string) {
+export async function serveDist(
+    directory: string,
+    overrides: ReadonlyMap<string, string> = new Map()
+) {
     const root = await realpath(directory)
     await stat(resolve(root, "index.html"))
     const server = createServer(async (request, response) => {
@@ -54,7 +57,9 @@ export async function serveDist(directory: string) {
                 response.writeHead(403).end()
                 return
             }
-            const content = await readFile(canonical)
+            // Overrides belong to this server and only replace existing files
+            // after the same navigation and canonical-path checks as disk reads.
+            const content = overrides.get(relative(root, canonical)) ?? (await readFile(canonical))
             response.writeHead(200, {
                 "content-type": types[extname(canonical)] ?? "application/octet-stream",
                 "cache-control": "no-store",

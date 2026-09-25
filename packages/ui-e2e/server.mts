@@ -14,14 +14,18 @@ const portals = {
     verifier: "ballot-verifier",
 } as const
 const servers = await Promise.all(
-    Object.entries(portals).map(async ([name, directory]) => ({
-        name,
-        directory: resolve(packages, directory, "dist"),
-        server: await serveDist(resolve(packages, directory, "dist")),
-    }))
+    Object.entries(portals).map(async ([name, directory]) => {
+        const overrides = new Map<string, string>()
+        return {
+            name,
+            directory: resolve(packages, directory, "dist"),
+            overrides,
+            server: await serveDist(resolve(packages, directory, "dist"), overrides),
+        }
+    })
 )
 const origins = Object.fromEntries(servers.map(({name, server}) => [name, server.origin]))
-for (const {directory} of servers) {
+for (const {directory, overrides} of servers) {
     const settings = JSON.parse(await readFile(resolve(directory, "global-settings.json"), "utf8"))
     Object.assign(settings, {
         DISABLE_AUTH: false,
@@ -34,7 +38,7 @@ for (const {directory} of servers) {
         RESULTS_PORTAL_URL: origins.results,
         QUERY_POLL_INTERVAL_MS: 600000,
     })
-    await writeFile(resolve(directory, "global-settings.json"), JSON.stringify(settings, null, 2))
+    overrides.set("global-settings.json", JSON.stringify(settings, null, 2))
 }
 await mkdir(output, {recursive: true})
 await writeFile(resolve(output, "origins.json"), JSON.stringify(origins, null, 2))
