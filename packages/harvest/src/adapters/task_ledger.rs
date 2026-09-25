@@ -4,7 +4,6 @@
 
 use crate::ports::task_ledger::TaskLedger;
 use sequent_core::types::hasura::core::TasksExecution;
-use serde_json::Value;
 use windmill::services::tasks_execution;
 use windmill::types::tasks::ETasksExecution;
 
@@ -29,23 +28,7 @@ impl TaskLedger for WindmillTaskLedger {
         .await
     }
 
-    async fn post_with_annotations(
-        &self,
-        tenant_id: &str,
-        election_event_id: Option<&str>,
-        task_type: ETasksExecution,
-        executed_by_user: &str,
-        annotations: Value,
-    ) -> anyhow::Result<TasksExecution> {
-        tasks_execution::post_with_annotations(
-            tenant_id,
-            election_event_id,
-            task_type,
-            executed_by_user,
-            annotations,
-        )
-        .await
-    }
+
 
     async fn update_complete(
         &self,

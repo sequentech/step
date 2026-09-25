@@ -3,8 +3,10 @@
 
 //! Route handlers behind Rocket's local client, with the dependencies they
 //! reach through managed state replaced: pools on the migrated test
-//! database, and in-memory task ledger, task queue and document storage.
+//! database, a local Keycloak stand-in, and in-memory fakes of everything
+//! else.
 
+use crate::adapters::memory::cast_votes::ScriptedCastVotes;
 use crate::adapters::memory::database::FixedDatabasePools;
 use crate::adapters::memory::documents::MemoryDocumentStorage;
 use crate::adapters::memory::electoral_log::MemoryElectoralLogs;
@@ -27,13 +29,18 @@ mod schema;
 #[path = "rows.rs"]
 pub mod rows;
 
+/// Core's bounded HTTP peer, standing in for Keycloak.
+#[path = "../../../sequent-core/tests/support/http.rs"]
+#[allow(dead_code)]
+pub mod http;
+
 pub struct Services {
+    pub cast_votes: Arc<ScriptedCastVotes>,
     pub hasura: Arc<Pool>,
     pub keycloak: Arc<Pool>,
     pub documents: Arc<MemoryDocumentStorage>,
     pub electoral_log: Arc<MemoryElectoralLogs>,
-    /// The local Keycloak stand-in admin clients talk to, if any.
-    pub keycloak_url: Option<String>,
+    pub identity: Arc<LocalIdentityAdmin>,
     pub ledger: Arc<MemoryTaskLedger>,
     pub tasks: MemoryTaskQueue,
     pub vault: Arc<MemoryVault>,
@@ -42,32 +49,41 @@ pub struct Services {
 impl Services {
     /// Both pools on the migrated test database.
     pub async fn on_test_database() -> Self {
-        let pool = Arc::new(schema::pool().await);
+        Self::with_pool(Arc::new(schema::pool().await))
+    }
+
+    /// Pools whose connections are refused.
+    pub fn without_database() -> Self {
+        Self::with_pool(Arc::new(unreachable_pool()))
+    }
+
+    fn with_pool(pool: Arc<Pool>) -> Self {
         Self {
+            cast_votes: Default::default(),
             hasura: pool.clone(),
             keycloak: pool,
             documents: Default::default(),
             electoral_log: Default::default(),
-            keycloak_url: None,
+            identity: Default::default(),
             ledger: Default::default(),
             tasks: Default::default(),
             vault: Default::default(),
         }
     }
 
-    /// Pools whose connections are refused.
-    pub fn without_database() -> Self {
-        let pool = Arc::new(unreachable_pool());
-        Self {
-            hasura: pool.clone(),
-            keycloak: pool,
-            documents: Default::default(),
-            electoral_log: Default::default(),
-            keycloak_url: None,
-            ledger: Default::default(),
-            tasks: Default::default(),
-            vault: Default::default(),
-        }
+    pub fn with_cast_votes(mut self, cast_votes: ScriptedCastVotes) -> Self {
+        self.cast_votes = Arc::new(cast_votes);
+        self
+    }
+
+    pub fn with_electoral_log(mut self, log: MemoryElectoralLogs) -> Self {
+        self.electoral_log = Arc::new(log);
+        self
+    }
+
+    pub fn with_identity(mut self, identity: LocalIdentityAdmin) -> Self {
+        self.identity = Arc::new(identity);
+        self
     }
 
     pub fn with_ledger(mut self, ledger: MemoryTaskLedger) -> Self {
@@ -80,32 +96,21 @@ impl Services {
         self
     }
 
-    pub fn with_electoral_log(mut self, log: MemoryElectoralLogs) -> Self {
-        self.electoral_log = Arc::new(log);
-        self
-    }
-
     pub fn with_vault(mut self, vault: MemoryVault) -> Self {
         self.vault = Arc::new(vault);
         self
     }
 
-    pub fn with_keycloak(mut self, url: &str) -> Self {
-        self.keycloak_url = Some(url.to_string());
-        self
-    }
-
     pub async fn client(&self) -> Client {
         let services = HarvestServices {
+            cast_votes: self.cast_votes.clone(),
             databases: Arc::new(FixedDatabasePools {
                 hasura: self.hasura.clone(),
                 keycloak: self.keycloak.clone(),
             }),
             documents: self.documents.clone(),
             electoral_log: self.electoral_log.clone(),
-            identity: Arc::new(LocalIdentityAdmin {
-                url: self.keycloak_url.clone(),
-            }),
+            identity: self.identity.clone(),
             ledger: self.ledger.clone(),
             tasks: Arc::new(self.tasks.clone()),
             vault: self.vault.clone(),

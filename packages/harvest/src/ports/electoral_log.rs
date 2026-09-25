@@ -4,7 +4,7 @@
 
 use deadpool_postgres::Transaction;
 use windmill::services::electoral_log::{
-    ElectoralLogAdminContext, VoterPasswordChangeSource,
+    ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 
@@ -37,15 +37,7 @@ pub trait ElectoralLogs: Send + Sync {
         action: VoterSecretAttributeAction,
         audit: VoterSecretAttributeAudit<'_>,
     ) -> anyhow::Result<()>;
-    async fn voter_password_change(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        voter_id: &str,
-        voter_username: Option<String>,
-        admin: &ElectoralLogAdminContext,
-        source: VoterPasswordChangeSource,
-    ) -> anyhow::Result<()>;
+
     /// Posted on the transaction that writes the entry.
     async fn phone_blacklist_entry(
         &self,

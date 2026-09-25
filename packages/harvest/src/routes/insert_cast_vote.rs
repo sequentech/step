@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize_voter_election;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::connection::UserLocation;
 use sequent_core::services::jwt::JwtClaims;
@@ -15,10 +17,9 @@ use sequent_core::util::retry::retry_with_exponential_backoff;
 use std::time::Duration;
 use std::time::Instant;
 use tracing::{error, info, instrument};
-use windmill::services::celery_app::get_celery_app;
 use windmill::services::insert_cast_vote::{
-    try_insert_cast_vote, CastVoteError, InsertCastVoteInput,
-    InsertCastVoteOutput, InsertCastVoteResult,
+    CastVoteError, InsertCastVoteInput, InsertCastVoteOutput,
+    InsertCastVoteResult,
 };
 use windmill::tasks::process_cast_vote;
 
@@ -37,6 +38,7 @@ pub async fn insert_cast_vote(
     body: Json<InsertCastVoteInput>,
     claims: JwtClaims,
     user_info: UserLocation,
+    services: &State<HarvestServices>,
 ) -> Result<Json<InsertCastVoteOutput>, JsonError> {
     let start = Instant::now();
     let input: InsertCastVoteInput = body.into_inner();
@@ -69,21 +71,23 @@ pub async fn insert_cast_vote(
     let insert_result_wrapped = retry_with_exponential_backoff(
         // The closure we want to call repeatedly
         || async {
-            try_insert_cast_vote(
-                input.clone(),
-                &claims.hasura_claims.tenant_id,
-                &claims.hasura_claims.user_id,
-                &area_id,
-                voting_channel,
-                auth_time,
-                &user_info.ip.map(|ip| ip.to_string()),
-                &user_info
-                    .country_code
-                    .clone()
-                    .map(|country_code| country_code.to_string()),
-                &claims.preferred_username,
-            )
-            .await
+            services
+                .cast_votes
+                .try_insert(
+                    input.clone(),
+                    &claims.hasura_claims.tenant_id,
+                    &claims.hasura_claims.user_id,
+                    &area_id,
+                    voting_channel,
+                    auth_time,
+                    &user_info.ip.map(|ip| ip.to_string()),
+                    &user_info
+                        .country_code
+                        .clone()
+                        .map(|country_code| country_code.to_string()),
+                    &claims.preferred_username,
+                )
+                .await
         },
         // Maximum number of retries:
         5,
@@ -306,7 +310,7 @@ pub async fn insert_cast_vote(
     if let Some(cast_vote_id) = pending_cast_vote_id {
         // The Datafix vote is already committed: an enqueue failure must not
         // fail the request. The review beat recovers in-progress rows.
-        let celery_app = get_celery_app().await;
+        let celery_app = services.tasks.connect().await;
         match celery_app
             .send_task(process_cast_vote::process_cast_vote::new(
                 inserted_cast_vote.tenant_id.clone(),
@@ -338,3 +342,7 @@ pub async fn insert_cast_vote(
     );
     Ok(Json(inserted_cast_vote))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/cast_vote_routes.rs"]
+mod route_tests;

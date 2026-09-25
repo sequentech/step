@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use deadpool_postgres::Transaction;
 use std::sync::Mutex;
 use windmill::services::electoral_log::{
-    ElectoralLogAdminContext, VoterPasswordChangeSource,
+    ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 
@@ -23,12 +23,6 @@ pub enum LoggedEntry {
         voter_id: Option<String>,
         attribute_names: Vec<String>,
         document_id: Option<String>,
-    },
-    VoterPasswordChange {
-        election_event_id: String,
-        admin_id: String,
-        voter_id: String,
-        source: String,
     },
     PhoneBlacklistEntry {
         change: PhoneBlacklistChange,
@@ -87,22 +81,7 @@ impl ElectoralLogs for MemoryElectoralLogs {
         })
     }
 
-    async fn voter_password_change(
-        &self,
-        _tenant_id: &str,
-        election_event_id: &str,
-        voter_id: &str,
-        _voter_username: Option<String>,
-        admin: &ElectoralLogAdminContext,
-        source: VoterPasswordChangeSource,
-    ) -> anyhow::Result<()> {
-        self.record(LoggedEntry::VoterPasswordChange {
-            election_event_id: election_event_id.to_string(),
-            admin_id: admin.user_id.clone(),
-            voter_id: voter_id.to_string(),
-            source: format!("{source:?}"),
-        })
-    }
+
 
     async fn phone_blacklist_entry(
         &self,

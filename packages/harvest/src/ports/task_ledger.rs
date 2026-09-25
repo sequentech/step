@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use sequent_core::types::hasura::core::TasksExecution;
-use serde_json::Value;
 use windmill::types::tasks::ETasksExecution;
 
 /// The task execution rows that let the admin portal follow a background
@@ -18,14 +17,7 @@ pub trait TaskLedger: Send + Sync {
         task_type: ETasksExecution,
         executed_by_user: &str,
     ) -> anyhow::Result<TasksExecution>;
-    async fn post_with_annotations(
-        &self,
-        tenant_id: &str,
-        election_event_id: Option<&str>,
-        task_type: ETasksExecution,
-        executed_by_user: &str,
-        annotations: Value,
-    ) -> anyhow::Result<TasksExecution>;
+
     async fn update_complete(
         &self,
         task: &TasksExecution,

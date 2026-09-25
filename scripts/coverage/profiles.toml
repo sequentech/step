@@ -159,6 +159,7 @@ issue = "https://github.com/sequentech/meta/issues/13302"
 [profiles.harvest.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; user task fakes remain in the source inventory."
 "src/adapters/mod.rs" = "Module declarations only; production adapters are inventoried separately."
+"src/ports/cast_votes.rs" = "Cast vote insertion trait declaration only; implementations are measured in adapters."
 "src/ports/database.rs" = "Database pool trait declaration only; implementations are measured in adapters."
 "src/ports/documents.rs" = "Document storage trait declaration only; implementations are measured in adapters."
 "src/ports/identity.rs" = "Identity admin trait declaration only; implementations are measured in adapters."

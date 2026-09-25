@@ -6,7 +6,7 @@ use crate::ports::task_ledger::TaskLedger;
 use anyhow::anyhow;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::hasura::extra::TasksExecutionStatus;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::sync::Mutex;
 use windmill::types::tasks::ETasksExecution;
 
@@ -83,24 +83,6 @@ impl TaskLedger for MemoryTaskLedger {
         task_type: ETasksExecution,
         executed_by_user: &str,
     ) -> anyhow::Result<TasksExecution> {
-        self.post_with_annotations(
-            tenant_id,
-            election_event_id,
-            task_type,
-            executed_by_user,
-            Value::Null,
-        )
-        .await
-    }
-
-    async fn post_with_annotations(
-        &self,
-        tenant_id: &str,
-        election_event_id: Option<&str>,
-        task_type: ETasksExecution,
-        executed_by_user: &str,
-        annotations: Value,
-    ) -> anyhow::Result<TasksExecution> {
         self.check(Refusal::Everything)?;
         let mut tasks = self.tasks.lock().unwrap();
         let task: TasksExecution = serde_json::from_value(json!({
@@ -109,7 +91,7 @@ impl TaskLedger for MemoryTaskLedger {
             "name": task_type.to_name(), "task_type": task_type.to_string(),
             "execution_status": TasksExecutionStatus::IN_PROGRESS.to_string(),
             "created_at": "2026-01-01T00:00:00Z",
-            "executed_by_user": executed_by_user, "annotations": annotations
+            "executed_by_user": executed_by_user, "annotations": null
         }))?;
         tasks.push(task.clone());
         Ok(task)

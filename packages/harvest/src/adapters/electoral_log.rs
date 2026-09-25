@@ -10,8 +10,8 @@ use deadpool_postgres::Transaction;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
-    post_voter_password_change, post_voter_secret_attribute_audit,
-    ElectoralLog, ElectoralLogAdminContext, VoterPasswordChangeSource,
+    post_voter_secret_attribute_audit,
+    ElectoralLog, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 
@@ -38,25 +38,7 @@ impl ElectoralLogs for BoardElectoralLogs {
         .await
     }
 
-    async fn voter_password_change(
-        &self,
-        tenant_id: &str,
-        election_event_id: &str,
-        voter_id: &str,
-        voter_username: Option<String>,
-        admin: &ElectoralLogAdminContext,
-        source: VoterPasswordChangeSource,
-    ) -> anyhow::Result<()> {
-        post_voter_password_change(
-            tenant_id,
-            election_event_id,
-            voter_id,
-            voter_username,
-            admin,
-            source,
-        )
-        .await
-    }
+
 
     async fn phone_blacklist_entry(
         &self,

@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::adapters::cast_votes::WindmillCastVotes;
 use crate::adapters::database::WindmillDatabasePools;
 use crate::adapters::documents::S3DocumentStorage;
 use crate::adapters::electoral_log::BoardElectoralLogs;
@@ -9,6 +10,7 @@ use crate::adapters::identity::KeycloakIdentityAdmin;
 use crate::adapters::task_ledger::WindmillTaskLedger;
 use crate::adapters::task_queue::CeleryTaskQueue;
 use crate::adapters::vault::WindmillVault;
+use crate::ports::cast_votes::CastVotes;
 use crate::ports::database::DatabasePools;
 use crate::ports::documents::DocumentStorage;
 use crate::ports::electoral_log::ElectoralLogs;
@@ -22,6 +24,7 @@ use std::sync::Arc;
 /// instance: the production adapters in the service, fakes or a test
 /// database in route tests.
 pub struct HarvestServices {
+    pub cast_votes: Arc<dyn CastVotes>,
     pub databases: Arc<dyn DatabasePools>,
     pub documents: Arc<dyn DocumentStorage>,
     pub electoral_log: Arc<dyn ElectoralLogs>,
@@ -34,6 +37,7 @@ pub struct HarvestServices {
 impl HarvestServices {
     pub fn production() -> Self {
         Self {
+            cast_votes: Arc::new(WindmillCastVotes),
             databases: Arc::new(WindmillDatabasePools),
             documents: Arc::new(S3DocumentStorage),
             electoral_log: Arc::new(BoardElectoralLogs),
