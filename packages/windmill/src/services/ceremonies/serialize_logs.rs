@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
 use b4::messages::message::Message;
+use chrono::{DateTime, Local};
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, instrument, Level};
@@ -85,8 +86,13 @@ pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
 
 #[instrument]
 pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
+    generate_keys_initial_log_at(trustee_names, ISO8601::now())
+}
+
+#[instrument(skip(now))]
+pub fn generate_keys_initial_log_at(trustee_names: &Vec<String>, now: DateTime<Local>) -> Vec<Log> {
     vec![Log {
-        created_date: ISO8601::to_string(&ISO8601::now()),
+        created_date: ISO8601::to_string(&now),
         log_text: format!("Created Keys Ceremony with trustees: {:?}", trustee_names,),
     }]
 }
@@ -103,9 +109,18 @@ pub fn append_tally_trustee_log(current_logs: &Vec<Log>, trustee_name: &str) -> 
 
 #[instrument(skip(current_logs))]
 pub fn append_keys_trustee_download_log(current_logs: &Vec<Log>, trustee_name: &str) -> Vec<Log> {
+    append_keys_trustee_download_log_at(current_logs, trustee_name, ISO8601::now())
+}
+
+#[instrument(skip(current_logs, now))]
+pub fn append_keys_trustee_download_log_at(
+    current_logs: &Vec<Log>,
+    trustee_name: &str,
+    now: DateTime<Local>,
+) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.clone();
     logs.push(Log {
-        created_date: ISO8601::to_string(&ISO8601::now()),
+        created_date: ISO8601::to_string(&now),
         log_text: format!("Downloaded private key for trustee {}", trustee_name,),
     });
     sort_logs(&logs)
@@ -113,9 +128,18 @@ pub fn append_keys_trustee_download_log(current_logs: &Vec<Log>, trustee_name: &
 
 #[instrument(skip(current_logs))]
 pub fn append_keys_trustee_check_log(current_logs: &Vec<Log>, trustee_name: &str) -> Vec<Log> {
+    append_keys_trustee_check_log_at(current_logs, trustee_name, ISO8601::now())
+}
+
+#[instrument(skip(current_logs, now))]
+pub fn append_keys_trustee_check_log_at(
+    current_logs: &Vec<Log>,
+    trustee_name: &str,
+    now: DateTime<Local>,
+) -> Vec<Log> {
     let mut logs: Vec<Log> = current_logs.clone();
     logs.push(Log {
-        created_date: ISO8601::to_string(&ISO8601::now()),
+        created_date: ISO8601::to_string(&now),
         log_text: format!("Checked private key for trustee {}", trustee_name,),
     });
     sort_logs(&logs)

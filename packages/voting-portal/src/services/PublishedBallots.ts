@@ -30,6 +30,8 @@ export interface VoterFiles {
 export class PublicationDownloadError extends Error {
     constructor(public status: number) {
         super("Unable to download published ballot data")
+        // Preserve the custom error identity when the production bundle targets ES5.
+        Object.setPrototypeOf(this, PublicationDownloadError.prototype)
     }
 }
 

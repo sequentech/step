@@ -2,6 +2,16 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::adapters::user_tasks::{
+    audit_secret_attributes, AuditedUserExportDocuments,
+    CeleryUserTaskDispatch, ClaimsUserTaskAuthorization,
+    WindmillUserTaskLedger,
+};
+use crate::services::access::{
+    create_user_permissions, delete_permission, edit_user_access,
+    read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
+    UserScope,
+};
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
@@ -21,8 +31,7 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, UserProfileConfiguration, PERMISSION_LABELS,
-    TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, UserProfileConfiguration, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -41,8 +50,7 @@ use windmill::services::electoral_log::{
     VoterPasswordChangeSource,
 };
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit, VoterSecretAttributeAction,
-    VoterSecretAttributeAudit,
+    VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 use windmill::services::export::export_users::{
     ExportBody, ExportTenantUsersBody, ExportUsersBody,
@@ -126,31 +134,6 @@ async fn get_event_redacted_secret_names(
     )
 }
 
-/// Records a secret-attribute action before it takes effect, so an action
-/// that cannot be audited does not happen.
-async fn audit_secret_attributes(
-    claims: &jwt::JwtClaims,
-    tenant_id: &str,
-    election_event_id: &str,
-    action: VoterSecretAttributeAction,
-    audit: VoterSecretAttributeAudit<'_>,
-) -> Result<(), (Status, String)> {
-    post_voter_secret_attribute_audit(
-        tenant_id,
-        election_event_id,
-        &ElectoralLogAdminContext::from_claims(claims),
-        action,
-        audit,
-    )
-    .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to record the secret-attribute electoral-log entry: {error:#}"),
-        )
-    })
-}
-
 /// Splits requested secret changes into the names being set and cleared.
 fn secret_change_names(
     secret_attributes: &HashMap<String, Option<Vec<String>>>,
@@ -232,16 +215,13 @@ pub async fn delete_user(
     body: Json<DeleteUserBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_DELETE
-    } else {
-        Permissions::USER_WRITE
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![delete_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
     if let Some(election_event_id) = input.election_event_id.as_deref() {
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
@@ -303,16 +283,13 @@ pub async fn delete_users(
     body: Json<DeleteUsersBody>,
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_DELETE
-    } else {
-        Permissions::USER_WRITE
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![delete_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
 
     let select_all = input.select_all.unwrap_or(false);
@@ -490,16 +467,13 @@ pub async fn count_users(
     body: Json<GetUsersBody>,
 ) -> Result<Json<CountUserOutput>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![read_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
 
     let realm = match input.election_event_id {
@@ -593,16 +567,13 @@ pub async fn get_users(
     body: Json<GetUsersBody>,
 ) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![read_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
 
     let realm = match input.election_event_id {
@@ -824,33 +795,20 @@ pub async fn create_user(
     body: Json<CreateUserBody>,
 ) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
-    let has_secret_attributes = input
-        .secret_attributes
-        .as_ref()
-        .is_some_and(|attributes| !attributes.is_empty());
-    let mut required_perms = Vec::<Permissions>::new();
-    if input.election_event_id.is_some() {
-        required_perms.push(Permissions::VOTER_CREATE);
-        if has_secret_attributes {
-            required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
-        }
-    } else {
-        if has_secret_attributes {
-            return Err(ErrorResponse::new(
-                Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters",
-                ErrorCode::UnknownError,
-            ));
-        }
-        required_perms.push(Permissions::USER_CREATE);
-        if let Some(attributes) = &input.user.attributes {
-            if attributes.contains_key(PERMISSION_LABELS) {
-                // only user who has this permission can edit the user
-                // permission_labels if it present in the body.
-                required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
-            }
-        }
-    };
+    let has_secret_attributes =
+        writes_secret_attributes(input.secret_attributes.as_ref());
+    let required_perms = create_user_permissions(
+        UserScope::of(input.election_event_id.as_deref()),
+        input.secret_attributes.as_ref(),
+        input.user.attributes.as_ref(),
+    )
+    .map_err(|error| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &error.to_string(),
+            ErrorCode::UnknownError,
+        )
+    })?;
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
         .map_err(|(status, message)| {
             let code = if status == Status::InternalServerError {
@@ -1241,72 +1199,30 @@ pub async fn edit_user(
     body: Json<EditUserBody>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
-    let password_only = input.election_event_id.is_some()
-        && input.password.is_some()
-        && input.enabled.is_none()
-        && input.attributes.is_none()
-        && input.secret_attributes.is_none()
-        && input.email.is_none()
-        && input.first_name.is_none()
-        && input.last_name.is_none()
-        && input.username.is_none();
-    let mut required_perms = Vec::<Permissions>::new();
-    let has_secret_changes = input
-        .secret_attributes
-        .as_ref()
-        .is_some_and(|attributes| !attributes.is_empty());
-    let mut voter_voted_edit = false;
-    let mut voter_email_tlf_edit = false;
-    if input.election_event_id.is_some() {
-        if password_only {
-            required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
-        }
-        voter_voted_edit = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_VOTED_EDIT.to_string());
-        voter_email_tlf_edit = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_EMAIL_TLF_EDIT.to_string());
-        let voter_write = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_WRITE.to_string());
-
-        if !password_only {
-            if voter_write {
-                required_perms.push(Permissions::VOTER_WRITE);
-            } else {
-                required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
-            }
-            if input.password.is_some() {
-                required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
-            }
-            if has_secret_changes {
-                required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
-                if !voter_write {
-                    required_perms.push(Permissions::VOTER_WRITE);
-                }
-            }
-        }
-    } else {
-        if has_secret_changes {
-            return Err((
-                Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters".to_string(),
-            )
-                .into());
-        }
-        required_perms.push(Permissions::USER_WRITE);
-        if let Some(attributes) = &input.attributes {
-            if attributes.contains_key(PERMISSION_LABELS) {
-                // only user who has this permission can edit the user
-                // permission_labels if it present in the body.
-                required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
-            }
-        }
-    };
+    let has_secret_changes =
+        writes_secret_attributes(input.secret_attributes.as_ref());
+    let UserEditAccess {
+        permissions: required_perms,
+        password_only,
+        voter_voted_edit,
+        voter_email_tlf_edit,
+    } = edit_user_access(
+        &UserEdit {
+            scope: UserScope::of(input.election_event_id.as_deref()),
+            enabled: input.enabled,
+            attributes: input.attributes.as_ref(),
+            secret_attributes: input.secret_attributes.as_ref(),
+            email: input.email.as_deref(),
+            first_name: input.first_name.as_deref(),
+            last_name: input.last_name.as_deref(),
+            username: input.username.as_deref(),
+            password: input.password.as_deref(),
+        },
+        &claims.hasura_claims.allowed_roles,
+    )
+    .map_err(|error| {
+        EditUserError::from((Status::BadRequest, error.to_string()))
+    })?;
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -1673,16 +1589,13 @@ pub async fn get_user(
     body: Json<GetUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![read_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
     let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
@@ -1814,81 +1727,15 @@ pub async fn import_users_f(
     claims: jwt::JwtClaims,
     body: Json<import_users::ImportUsersBody>,
 ) -> Result<Json<ImportUsersOutput>, (Status, String)> {
-    let input = body.clone().into_inner();
-    let tenant_id = claims.hasura_claims.tenant_id.clone();
-    let election_event_id = input.election_event_id.clone().unwrap_or_default();
-    let is_admin = election_event_id.is_empty();
-    info!("Calculated is_admin: {}", is_admin);
-
-    let executer_name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_CREATE
-    } else {
-        Permissions::USER_CREATE
-    };
-
-    // Insert the task execution record
-    let task_execution = post(
-        &tenant_id,
-        Some(&election_event_id),
-        ETasksExecution::IMPORT_USERS,
-        &executer_name,
+    crate::services::user_tasks::import_users_with(
+        &WindmillUserTaskLedger,
+        &ClaimsUserTaskAuthorization,
+        &CeleryUserTaskDispatch,
+        claims,
+        body.clone().into_inner(),
     )
     .await
-    .map_err(|error| {
-        (
-            Status::InternalServerError,
-            format!("Failed to insert task execution record: {error:?}"),
-        )
-    })?;
-
-    authorize(
-        &claims,
-        true,
-        Some(input.tenant_id.clone()),
-        vec![required_perm],
-    )?;
-    let celery_app = get_celery_app().await;
-
-    let mut task_input = input.clone();
-    task_input.is_admin = is_admin;
-    task_input.may_write_secret_attributes = input.election_event_id.is_some()
-        && authorize(
-            &claims,
-            true,
-            Some(input.tenant_id.clone()),
-            vec![Permissions::VOTER_SECRET_ATTRIBUTE_WRITE],
-        )
-        .is_ok();
-    task_input.secret_write_initiator = task_input
-        .may_write_secret_attributes
-        .then(|| ElectoralLogAdminContext::from_claims(&claims));
-
-    let _celery_task = match celery_app
-        .send_task(import_users::import_users::new(
-            task_input,
-            task_execution.clone(),
-        ))
-        .await
-    {
-        Ok(celery_task) => celery_task,
-        Err(_) => {
-            return Ok(Json(ImportUsersOutput {
-                task_execution: task_execution.clone(),
-            }));
-        }
-    };
-
-    info!("Sent IMPORT_USERS task {}", task_execution.id);
-
-    let output = ImportUsersOutput {
-        task_execution: task_execution.clone(),
-    };
-
-    Ok(Json(output))
+    .map(Json)
 }
 
 #[instrument(skip(claims, input))]
@@ -1897,145 +1744,16 @@ pub async fn export_users_f(
     claims: jwt::JwtClaims,
     input: Json<ExportUsersBody>,
 ) -> Result<Json<ExportUsersOutput>, (Status, String)> {
-    let body = input.into_inner();
-    let tenant_id = body.tenant_id.clone();
-    let executer_name = claims
-        .name
-        .clone()
-        .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-
-    let required_perm = if body.election_event_id.clone().is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
-
-    authorize(
-        &claims,
-        true,
-        Some(body.tenant_id.clone()),
-        vec![required_perm],
-    )?;
-
-    let may_read_secret_attributes = if body.include_secret_attributes {
-        if body.election_event_id.is_none() {
-            return Err((
-                Status::BadRequest,
-                "Secret attributes can only be included in an election-event voter export"
-                    .to_string(),
-            ));
-        }
-        authorize(
-            &claims,
-            true,
-            Some(body.tenant_id.clone()),
-            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
-        )?;
-        true
-    } else {
-        false
-    };
-
-    let document_id = Uuid::new_v4().to_string();
-    if let (true, Some(election_event_id)) = (
-        may_read_secret_attributes,
-        body.election_event_id.as_deref(),
-    ) {
-        audit_secret_attributes(
-            &claims,
-            &body.tenant_id,
-            election_event_id,
-            VoterSecretAttributeAction::Export,
-            VoterSecretAttributeAudit {
-                voter_id: None,
-                voter_username: None,
-                attribute_names: &[],
-                document_id: Some(&document_id),
-            },
-        )
-        .await?;
-    }
-
-    // Authorize before creating the task row, then persist a task-bound grant.
-    // The worker reloads this row and never trusts a broker-supplied boolean.
-    let task_execution =
-        if let Some(ref election_event_id) = body.election_event_id {
-            Some(
-                post_with_annotations(
-                    &tenant_id,
-                    Some(election_event_id),
-                    ETasksExecution::EXPORT_VOTERS,
-                    &executer_name,
-                    secret_export_task_annotations(
-                        &document_id,
-                        may_read_secret_attributes,
-                    ),
-                )
-                .await
-                .map_err(|error| {
-                    (
-                        Status::InternalServerError,
-                        format!(
-                            "Failed to insert task execution record: {error:?}"
-                        ),
-                    )
-                })?,
-            )
-        } else {
-            None
-        };
-
-    let celery_app = get_celery_app().await;
-
-    let celery_task = match celery_app
-        .send_task(export_users::export_users::new(
-            ExportBody::Users {
-                tenant_id: body.tenant_id,
-                election_event_id: body.election_event_id.clone(),
-                election_id: body.election_id,
-                include_secret_attributes: body.include_secret_attributes,
-            },
-            document_id.clone(),
-            task_execution.clone(),
-        ))
-        .await
-    {
-        Ok(celery_task) => celery_task,
-        Err(err) => {
-            if let Some(task_execution) = &task_execution {
-                update_fail(
-                    task_execution,
-                    &format!("Failed to enqueue voter export: {err:?}"),
-                )
-                .await
-                .map_err(|update_error| {
-                    (
-                        Status::InternalServerError,
-                        format!(
-                            "Failed to revoke voter export authorization: {update_error:?}"
-                        ),
-                    )
-                })?;
-            }
-            return Ok(Json(ExportUsersOutput {
-                document_id,
-                error_msg: Some(format!(
-                    "Error sending Export Users task: ${err}"
-                )),
-                task_execution: task_execution.clone(),
-            }));
-        }
-    };
-
-    let output = ExportUsersOutput {
-        document_id,
-        error_msg: None,
-        task_execution: task_execution.clone(),
-    };
-
-    info!("Sent EXPORT_USERS task");
-
-    Ok(Json(output))
+    crate::services::user_tasks::export_users_with(
+        &WindmillUserTaskLedger,
+        &ClaimsUserTaskAuthorization,
+        &CeleryUserTaskDispatch,
+        &AuditedUserExportDocuments,
+        claims,
+        input.into_inner(),
+    )
+    .await
+    .map(Json)
 }
 
 #[instrument(skip(claims))]
@@ -2099,11 +1817,8 @@ pub async fn get_user_profile_attributes(
     claims: jwt::JwtClaims,
     body: Json<GetUserProfileAttributesBody>,
 ) -> Result<Json<Vec<UserProfileAttribute>>, (Status, String)> {
-    let required_perm = if body.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
+    let required_perm =
+        read_permission(UserScope::of(body.election_event_id.as_deref()));
 
     let input = body.into_inner();
     authorize(
@@ -2138,11 +1853,8 @@ pub async fn get_user_profile_configuration(
     claims: jwt::JwtClaims,
     body: Json<GetUserProfileAttributesBody>,
 ) -> Result<Json<UserProfileConfiguration>, (Status, String)> {
-    let required_perm = if body.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
+    let required_perm =
+        read_permission(UserScope::of(body.election_event_id.as_deref()));
 
     let input = body.into_inner();
     authorize(
@@ -2314,3 +2026,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/user_service_errors.rs"]
+mod user_service_errors;

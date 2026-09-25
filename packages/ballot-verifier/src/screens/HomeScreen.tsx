@@ -27,7 +27,7 @@ import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
-import {TenantEventContext} from ".."
+import {TenantEventContext} from "../providers/TenantEventContext"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {useAppDispatch} from "../store/hooks"
 import {

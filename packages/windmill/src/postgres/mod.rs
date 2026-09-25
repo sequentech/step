@@ -20,6 +20,7 @@ pub mod lock;
 pub mod maintenance;
 pub mod phone_blacklist;
 pub mod preview;
+pub mod publication_files;
 pub mod render_report;
 pub mod reports;
 pub mod results_area_contest;

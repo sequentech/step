@@ -4,7 +4,13 @@
 
 /** @type {import('jest').Config} */
 module.exports = {
-    collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/*.d.ts", "!src/**/*.test.{ts,tsx}"],
+    collectCoverageFrom: [
+        "src/**/*.{ts,tsx}",
+        "!src/**/*.d.ts",
+        "!src/**/*.test.{ts,tsx}",
+        "!src/**/*.stories.{ts,tsx}",
+        "!src/**/__stories__/**",
+    ],
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],
     testEnvironment: "node",

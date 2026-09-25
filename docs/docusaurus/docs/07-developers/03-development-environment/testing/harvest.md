@@ -39,6 +39,7 @@ export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
 cargo test -p harvest --locked --offline --bin harvest -- request_boundaries
 cargo test -p harvest --locked --offline --bin harvest -- error_contracts
 cargo test -p harvest --locked --offline --bin harvest -- boundary_tests
+cargo test -p harvest --locked --offline --bin harvest -- services::access
 ```
 
 For a complete native report, from the repository root:
@@ -59,16 +60,30 @@ write-only claims cannot create it. The HTTP fixture is shared with Core. A fres
 child process clears ambient settings and isolates the global token cache;
 its wait and socket operations are bounded, and LLVM instrumentation is retained.
 This verifies the client protocol and authorization adapter, not a deployed
-identity provider or JWT signatures. A second child sends each guarded route's
-complete permission set with no backend configured: the request must pass
-authorization and stop at the backend with HTTP 500, so a route that required
-a different permission would fail its control.
+identity provider or JWT signatures.
+
+`support/route_permissions.rs` holds one row per guarded route, or per request
+shape where a route's permissions depend on its body, and must cover the whole
+inventory. A second child sends each row's minimum permission set with no
+backend configured: the request must pass authorization and stop at the first
+backend. The same request with any one permission removed must get the route's
+current denial status and content type. Routes that write a task row before
+checking permissions answer the backend failure in both cases, and routes with
+an empty permission list have no denial row.
 
 Audit row tests include complete and reordered controls for both table names,
 every missing/duplicated field, null/wrong types, malformed count row shapes,
 and an empty ordering map. Publication mappings retain public 4xx explanations
-while replacing internal details with a generic 500 message. Use existing interfaces for additional failure fixtures; do not rewrite the
-service architecture solely for testability.
+while replacing internal details with a generic 500 message.
+
+Access decisions are plain functions in `src/services/access.rs`: the
+permissions each user-management request needs, the extra permission for
+documents holding voter secrets, and the admin-or-trustee check. Routes pass
+their results to `authorize` unchanged, so `support/access_policy.rs` pins the
+permission tables, including the order a denial lists them in. Sequent Core's
+`authorize_with` and `has_gold_permission_at` take the super-admin tenant and
+the current time as arguments, so their tests need neither the environment nor
+the wall clock.
 
 Most route bodies require configured database
 transactions, Keycloak, brokers, storage or worker state; the denial checks and

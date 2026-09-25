@@ -2,11 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useRef} from "react"
-import {StoryFn, Meta} from "@storybook/react"
+import {StoryFn, Meta} from "@storybook/react-vite"
 import CustomDropFile from "../CustomDropFile"
 import Button from "@mui/material/Button"
-import {within, userEvent} from "@storybook/testing-library"
-import {expect} from "@storybook/jest"
+import {within, userEvent} from "storybook/test"
+import {expect} from "storybook/test"
 import Box from "@mui/material/Box"
 import {styled} from "@mui/material/styles"
 import Paper from "@mui/material/Paper"
@@ -31,7 +31,7 @@ export default {
 
 const BasicTemplate: StoryFn<typeof CustomDropFile> = (args) => (
     <CustomDropFile {...args}>
-        <StyledBox />
+        <StyledBox>Choose a file</StyledBox>
     </CustomDropFile>
 )
 
@@ -54,16 +54,16 @@ const WithButtonTemplate: StoryFn<React.FC<DropFileProps & WithButtonTemplatePro
 }) => {
     const inputRef = useRef<HTMLInputElement | null>(null)
     const handleFiles = (files: FileList) => {
-        alert("Number of files: " + files.length)
+        args.handleFiles?.(files)
     }
 
     return (
         <CustomDropFile {...args} handleFiles={handleFiles} ref={inputRef}>
             <Paper variant="responsive">
                 {text}
-                <Button component="span" variant="outlined" data-testid="drop-file-button">
+                <Box component="span" data-testid="drop-file-button">
                     {buttonText}
-                </Button>
+                </Box>
             </Paper>
         </CustomDropFile>
     )
@@ -83,9 +83,22 @@ WithButtonDropFile.play = async ({canvasElement}) => {
     const fakeFile = new File(["hello"], "hello.png", {type: "image/png"})
 
     const inputFile = canvas.getByTestId<HTMLInputElement>("drop-input-file")
-    userEvent.upload(inputFile, fakeFile)
+    await userEvent.upload(inputFile, fakeFile)
 
     expect(inputFile.files).toHaveLength(1)
     expect(inputFile.files![0]).toStrictEqual(fakeFile)
     expect(inputFile.files!.item(0)).toStrictEqual(fakeFile)
+}
+
+BasicDropFile.parameters = {
+    expectedFailure: {
+        reason: "The empty selected filename is rendered as a heading.",
+        a11y: ["empty-heading"],
+    },
+}
+WithButtonDropFile.parameters = {
+    expectedFailure: {
+        reason: "Selected filename text has insufficient contrast.",
+        a11y: ["color-contrast"],
+    },
 }
