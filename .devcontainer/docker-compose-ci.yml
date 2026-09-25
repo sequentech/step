@@ -1,0 +1,331 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Backend E2E overlay for docker-compose.yml, used by scripts/e2e/run.sh.
+#
+# It runs prebuilt binaries (scripts/e2e/build.sh) instead of cargo-watch,
+# drops fixed container names and host ports so several stacks can share one
+# Docker host, waits on healthchecks, and adds the trustees and the test
+# driver. Services keep their devcontainer environment and working directories.
+#
+#   docker compose --env-file .env.development -p step-e2e \
+#     -f docker-compose.yml -f docker-compose-ci.yml up -d --wait <services>
+#
+# STEP_E2E_BIN_DIR must point at the directory scripts/e2e/build.sh filled.
+
+x-e2e-binaries: &e2e-binaries
+  type: bind
+  source: ${STEP_E2E_BIN_DIR:?set STEP_E2E_BIN_DIR to the scripts/e2e/build.sh output}
+  target: /opt/step-e2e/bin
+  read_only: true
+
+x-e2e-probe: &e2e-probe
+  test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:3030/ready || exit 1"]
+  interval: 3s
+  timeout: 5s
+  retries: 100
+  start_period: 10s
+
+services:
+  # Only holds the checkout mount that other services take with volumes_from.
+  devcontainer:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    entrypoint: ["sleep", "infinity"]
+    init: true
+    cap_add: !reset []
+    volumes: !override
+      - ..:/workspaces/step:ro
+
+  postgres-volume-init:
+    container_name: !reset null
+
+  postgres:
+    image: step-backend-e2e-postgresql:local
+    container_name: !reset null
+    depends_on:
+      postgres-volume-init:
+        condition: service_completed_successfully
+
+  postgres-keycloak:
+    image: step-backend-e2e-postgresql:local
+    container_name: !reset null
+    depends_on:
+      postgres-volume-init:
+        condition: service_completed_successfully
+
+  postgres-b4:
+    image: step-backend-e2e-postgresql-b4:local
+    container_name: !reset null
+    depends_on:
+      postgres-volume-init:
+        condition: service_completed_successfully
+
+  # MinIO no longer publishes community images; build the last release.
+  minio:
+    image: step-backend-e2e-minio:local
+    build:
+      context: ../scripts/e2e/docker
+      dockerfile: minio.Dockerfile
+    container_name: !reset null
+    ports: !reset []
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 2s
+
+  configure-minio:
+    image: step-backend-e2e-configure-minio:local
+    build:
+      context: ./minio
+      dockerfile: ../../scripts/e2e/docker/configure-minio.Dockerfile
+    container_name: !reset null
+
+  rabbitmq:
+    container_name: !reset null
+    ports: !reset []
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 10s
+
+  immudb:
+    image: codenotary/immudb:1.9.6
+    build: !reset null
+    container_name: !reset null
+    ports: !reset []
+    depends_on: !reset []
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/immuadmin", "status"]
+      interval: 2s
+      timeout: 10s
+      retries: 60
+      start_period: 5s
+
+  immudb-init:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    restart: on-failure
+    env_file: !reset []
+    volumes:
+      - *e2e-binaries
+    entrypoint:
+      - /opt/step-e2e/bin/bb_helper
+      - --server-url
+      - ${IMMUDB_SERVER_URL}
+      - --username
+      - ${IMMUDB_USER}
+      - --password
+      - ${IMMUDB_PASSWORD}
+      - --board-dbname
+      - ${IMMUDB_BOARD_DB_NAME}
+      - --cache-dir
+      - /tmp/immu-board
+      - upsert-board-db
+    depends_on: !override
+      immudb:
+        condition: service_healthy
+
+  data-connector-agent:
+    container_name: !reset null
+    ports: !reset []
+
+  graphql-engine:
+    container_name: !reset null
+    ports: !reset []
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 5s
+      retries: 100
+      start_period: 30s
+
+  keycloak:
+    image: step-backend-e2e-keycloak:local
+    container_name: !reset null
+    ports: !reset []
+    environment:
+      # Issue login URLs and tokens for the address the driver can reach.
+      KC_HOSTNAME: http://keycloak:8090
+    healthcheck:
+      # Ready once the imported tenant realm serves its discovery document.
+      test:
+        - CMD-SHELL
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8090 &&
+          printf 'GET /realms/tenant-${SUPER_ADMIN_TENANT_ID}/.well-known/openid-configuration HTTP/1.0\r\nHost: keycloak\r\n\r\n' >&3 &&
+          head -n 1 <&3 | grep -q ' 200 '
+      interval: 3s
+      timeout: 5s
+      retries: 100
+      start_period: 60s
+
+  harvest:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    ports: !reset []
+    command: ["/opt/step-e2e/bin/harvest"]
+    volumes:
+      - *e2e-binaries
+    environment:
+      # Presigned downloads must resolve inside the compose network.
+      AWS_S3_PUBLIC_URI: http://minio:9000
+    healthcheck: *e2e-probe
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
+
+  windmill:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    command:
+      - /opt/step-e2e/bin/windmill
+      - consume
+      - -q
+      - beat
+      - short_queue
+      - tally_queue
+      - reports_queue
+      - communication_queue
+      - import_export_queue
+      - electoral_log_batch_queue
+      - electoral_log_beat_queue
+      - --prefetch-count
+      - "1"
+    volumes:
+      - *e2e-binaries
+    environment:
+      AWS_S3_PUBLIC_URI: http://minio:9000
+    healthcheck: *e2e-probe
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-keycloak:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      immudb-init:
+        condition: service_completed_successfully
+      postgres-b4:
+        condition: service_healthy
+
+  beat:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    command: ["/opt/step-e2e/bin/beat"]
+    volumes:
+      - *e2e-binaries
+    environment:
+      # The readiness probe initializes the task registry, including S3 plugins.
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
+    healthcheck: *e2e-probe
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      configure-minio:
+        condition: service_completed_successfully
+
+  b4:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    ports: !reset []
+    volumes:
+      - *e2e-binaries
+    entrypoint:
+      - /opt/step-e2e/bin/b4
+      - --host
+      - ${B4_PG_HOST}
+      - --port
+      - ${B4_PG_PORT}
+      - --username
+      - ${B4_PG_USER}
+      - --password
+      - ${B4_PG_PASSWORD}
+      - --database
+      - ${B4_PG_DATABASE}
+      - --bind
+      - ${B4_BIND}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:50051/boards"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 5s
+    depends_on: !override
+      postgres-b4:
+        condition: service_healthy
+
+  trustee1:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    build: !reset null
+    container_name: !reset null
+    working_dir: /opt/braid
+    volumes:
+      - *e2e-binaries
+      - ./trustees-data/trustee1/trustee1.toml:/etc/step-e2e/trustee.toml:ro
+    entrypoint: ["/opt/step-e2e/bin/trustee", "--b4-url", "${B4_URL}", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+    depends_on: !override
+      b4:
+        condition: service_healthy
+
+  trustee2:
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    container_name: !reset null
+    working_dir: /opt/braid
+    volumes:
+      - *e2e-binaries
+      - ./trustees-data/trustee2/trustee2.toml:/etc/step-e2e/trustee.toml:ro
+    entrypoint: ["/opt/step-e2e/bin/trustee", "--b4-url", "${B4_URL}", "--trustee-config", "/etc/step-e2e/trustee.toml"]
+    depends_on: !override
+      b4:
+        condition: service_healthy
+
+  # Runs the journeys from inside the compose network; see scripts/e2e/run.sh.
+  driver:
+    profiles: ["e2e"]
+    image: ${STEP_E2E_RUNTIME_IMAGE:-step-backend-e2e-cargo-packages:local}
+    init: true
+    user: ${STEP_E2E_UID:-0}:${STEP_E2E_GID:-0}
+    working_dir: /workspaces/step
+    volumes:
+      - ..:/workspaces/step:ro
+      - *e2e-binaries
+      - type: bind
+        source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR to a writable directory}
+        target: /out
+    environment:
+      HOME: /tmp
+      STEP_E2E_OUTPUT_DIR: /out
+      STEP_E2E_BIN_DIR: /opt/step-e2e/bin
+      ENV_SLUG: ${ENV_SLUG}
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      HASURA_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_PORTAL_TEST_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PORTAL_TEST_PASSWORD}
+      API_KEY_CLIENT_SECRET: ${API_KEY_CLIENT_SECRET}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_S3_JWKS_CERTS_PATH: ${AWS_S3_JWKS_CERTS_PATH}
+      AWS_S3_JWKS_CACHE_POLICY: ${AWS_S3_JWKS_CACHE_POLICY}
+      KEYCLOAK_VOTER_GROUP_NAME: ${KEYCLOAK_VOTER_GROUP_NAME}
+      VOTING_PORTAL_URL: ${VOTING_PORTAL_URL}
+      B4_URL: ${B4_URL}
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    entrypoint: ["python3", "-m", "scripts.e2e.journeys"]

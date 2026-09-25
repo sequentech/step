@@ -91,3 +91,6 @@ airgapped-artifacts
 /runs/
 
 /packages/voting-load/__pycache__/
+
+# Backend E2E binaries built by scripts/e2e/build.sh.
+/.cache/backend-e2e/
