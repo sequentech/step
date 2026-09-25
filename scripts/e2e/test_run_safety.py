@@ -22,6 +22,26 @@ mode = os.environ.get("FAKE_DOCKER_MODE", "success")
 if args[0] != "compose":
     if mode == "daemon-failure":
         sys.exit(125)
+    if args[0] == "run":
+        if mode == "build-failure":
+            sys.exit(101)
+        # Emulate the build container's install(1): each file in /out becomes a
+        # new inode that a concurrent reader can observe half-written.
+        mounts = [args[i + 1] for i, arg in enumerate(args) if arg == "--volume"]
+        (out,) = [mount[: -len(":/out")] for mount in mounts if mount.endswith(":/out")]
+        for name in ("windmill", "step-cli"):
+            binary = Path(out, name)
+            binary.unlink(missing_ok=True)
+            with binary.open("w") as stream:
+                stream.write("new ")
+                stream.flush()
+                if mode == "held-build" and name == "windmill":
+                    Path(os.environ["FAKE_START_MARKER"]).touch()
+                    while not Path(os.environ["FAKE_RELEASE_MARKER"]).exists():
+                        time.sleep(0.01)
+                stream.write(name)
+            binary.chmod(0o755)
+        sys.exit(0)
     kind = "container" if args[0] == "ps" else args[0]
     if mode == "collision-" + kind:
         print("owned-by-another-run")
@@ -34,6 +54,8 @@ if "up" in args and mode == "held-start":
     Path(os.environ["FAKE_START_MARKER"]).touch()
     while not Path(os.environ["FAKE_RELEASE_MARKER"]).exists():
         time.sleep(0.01)
+if "build" in args and mode == "image-failure":
+    sys.exit(17)
 if "up" in args and mode == "partial-start":
     sys.exit(19)
 """
@@ -49,6 +71,7 @@ class RunSafety(unittest.TestCase):
         shutil.copyfile(ROOT / "scripts/e2e/run.sh", script)
         script.chmod(0o755)
         shutil.copyfile(ROOT / "scripts/e2e/build.sh", script.parent / "build.sh")
+        (script.parent / "build.sh").chmod(0o755)
         shutil.copyfile(
             ROOT / "scripts/e2e/project_lock.py", script.parent / "project_lock.py"
         )
@@ -92,6 +115,9 @@ class RunSafety(unittest.TestCase):
             if self.log.exists()
             else []
         )
+
+    def build_calls(self):
+        return [args for args in self.calls() if args[0] == "run"]
 
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
@@ -178,8 +204,73 @@ class RunSafety(unittest.TestCase):
                     for index, value in enumerate(build)
                     if value == "--volume"
                 ]
-                self.assertIn(f"{caller / configured}:/out", mounts)
-                self.assertTrue((caller / configured).is_dir())
+                (out,) = [mount for mount in mounts if mount.endswith(":/out")]
+                # A relative source would silently name a Docker volume instead.
+                self.assertTrue(Path(out[: -len(":/out")]).is_absolute(), out)
+                published = caller / configured / "windmill"
+                self.assertEqual(published.read_text(), "new windmill")
+
+    def test_concurrent_builds_take_turns_and_publish_complete_binaries(self):
+        binaries = self.root / "shared-bin"
+        binaries.mkdir()
+        published = binaries / "windmill"
+        published.write_text("old windmill")
+        running = published.open()  # a service already executing the old binary
+        self.addCleanup(running.close)
+        started, release = self.root / "started", self.root / "release"
+        errors = self.root / "second-build.err"
+        build = ["bash", str(self.root / "scripts/e2e/build.sh")]
+        environment = {**self.env, "STEP_E2E_BIN_DIR": str(binaries)}
+        first = subprocess.Popen(
+            build,
+            env={
+                **environment,
+                "FAKE_DOCKER_MODE": "held-build",
+                "FAKE_START_MARKER": str(started),
+                "FAKE_RELEASE_MARKER": str(release),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        second = None
+        try:
+            deadline = time.monotonic() + 5
+            while not started.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(started.exists(), "First build never started copying")
+            # Mid-copy, a service starting from the shared directory must still
+            # find the complete previous binary.
+            self.assertEqual(published.read_text(), "old windmill")
+            with errors.open("w") as stream:
+                second = subprocess.Popen(
+                    build, env=environment, stdout=subprocess.DEVNULL, stderr=stream
+                )
+            deadline = time.monotonic() + 5
+            while (
+                "another backend E2E build" not in errors.read_text()
+                and len(self.build_calls()) < 2
+                and time.monotonic() < deadline
+            ):
+                time.sleep(0.01)
+            self.assertEqual(
+                len(self.build_calls()), 1, "Second build did not wait its turn"
+            )
+            self.assertIn("another backend E2E build", errors.read_text())
+        finally:
+            release.touch()
+            stdout, stderr = first.communicate(timeout=10)
+            if second is not None:
+                second.wait(timeout=10)
+        self.assertEqual(first.returncode, 0, stdout + stderr)
+        self.assertEqual(second.returncode, 0, errors.read_text())
+        self.assertEqual(len(self.build_calls()), 2)
+        self.assertEqual(published.read_text(), "new windmill")
+        self.assertEqual(running.read(), "old windmill")
+        self.assertEqual(
+            sorted(path.name for path in binaries.iterdir() if path.name[0] != "."),
+            ["step-cli", "windmill"],
+        )
 
     def test_down_requires_an_explicit_project(self):
         result = self.run_script("--down")
@@ -299,6 +390,37 @@ class RunSafety(unittest.TestCase):
             "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_ci_uploads_results_only_for_runs_that_reached_compose_up(self):
+        marker = ".compose-started"
+        workflow = (ROOT / ".github/workflows/backend-e2e.yml").read_text()
+        upload = workflow[workflow.index("name: Upload journey results") :]
+        self.assertIn(f"hashFiles('.cache/backend-e2e/run/{marker}') != ''", upload)
+        # Excluded, so a started run without any results still fails the upload.
+        self.assertIn(f"!.cache/backend-e2e/run/{marker}", upload)
+        self.assertIn("if-no-files-found: error", upload)
+        output = self.root / "results"
+        for mode, arguments, status in (
+            ("daemon-failure", ("--skip-images", "--skip-build"), 125),
+            ("image-failure", ("--skip-build",), 17),
+            ("build-failure", ("--skip-images",), 101),
+            ("partial-start", ("--skip-images", "--skip-build"), 19),
+            ("success", ("--skip-images", "--skip-build"), 0),
+        ):
+            with self.subTest(mode=mode):
+                output.mkdir(exist_ok=True)
+                (output / marker).write_text("left by an earlier run\n")
+                result = self.run_script(
+                    *arguments,
+                    STEP_E2E_PROJECT=mode,
+                    STEP_E2E_OUTPUT_DIR=str(output),
+                    FAKE_DOCKER_MODE=mode,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                if status in (0, 19):
+                    self.assertEqual((output / marker).read_text(), f"{mode}\n")
+                else:
+                    self.assertFalse((output / marker).exists())
 
     def test_keep_can_be_removed_by_an_explicit_down(self):
         result = self.run_script(
