@@ -94,8 +94,16 @@ def compare_rust(base: dict[str, Any], head: dict[str, Any]) -> dict[str, Any]:
             raise CoverageError(f"Incompatible Rust measurements: {field}")
     if base.get("consumer_packages", []) != head.get("consumer_packages", []):
         raise CoverageError("Incompatible Rust measurements: consumer_packages")
+    # A base run skips only the head's entries for files it predates; every
+    # other entry must match exactly.
+    absent = set(base.get("policy_files_absent_from_base", []))
     for field in ("excluded_files", "scope_exceptions"):
-        if base.get(field, {}) != head.get(field, {}):
+        expected = {
+            name: reason
+            for name, reason in head.get(field, {}).items()
+            if name not in absent
+        }
+        if base.get(field, {}) != expected:
             raise CoverageError(f"Incompatible Rust measurements: {field}")
     verdict = compare(rust_metrics(base), rust_metrics(head))
     # Existing scope gaps remain disclosed. Opening another one fails CI even

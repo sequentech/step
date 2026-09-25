@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::access::document_extra_permissions;
 use crate::services::authorization::authorize;
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
@@ -72,7 +73,7 @@ pub async fn fetch_document(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
-    let requires_secret_read = document
+    let annotations = document
         .annotations
         .map(serde_json::from_value::<DocumentAnnotations>)
         .transpose()
@@ -81,16 +82,14 @@ pub async fn fetch_document(
                 Status::InternalServerError,
                 format!("Error reading document access policy: {error}"),
             )
-        })?
-        .is_some_and(|annotations| {
-            annotations.requires_voter_secret_attribute_read()
-        });
-    if requires_secret_read {
+        })?;
+    let extra_permissions = document_extra_permissions(annotations.as_ref());
+    if !extra_permissions.is_empty() {
         authorize(
             &claims,
             true,
             Some(claims.hasura_claims.tenant_id.clone()),
-            vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
+            extra_permissions,
         )?;
     }
 
