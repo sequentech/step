@@ -562,3 +562,7 @@ mod tally_error_tests {
         assert_eq!(response.1.extensions.code, "InternalServerError");
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_service_errors.rs"]
+mod tally_service_errors;

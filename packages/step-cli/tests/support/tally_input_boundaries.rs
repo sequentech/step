@@ -5,6 +5,7 @@
 //! for operations whose result an operator may treat as completed.
 
 use super::*;
+use crate::adapters::memory::documents::MemoryDocuments;
 use serde_json::json;
 
 const ABC_DIGEST: &str = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
@@ -50,21 +51,33 @@ fn contradictory_import_sources_and_digest_mismatches_fail_before_uploading() {
     let directory = tempfile::tempdir().unwrap();
     let file = directory.path().join("source.csv");
     fs::write(&file, b"different bytes").unwrap();
+    let documents = MemoryDocuments::default();
     for (path, document) in [
         (None, None),
         (Some(file.as_path()), Some("existing-document")),
     ] {
-        assert!(resolve_import_document("event-a", path, document, None, false).is_err());
+        assert!(
+            resolve_import_document(&documents, "event-a", path, document, None, false).is_err()
+        );
     }
-    let error = resolve_import_document("event-a", Some(&file), None, Some(ABC_DIGEST), false)
-        .err()
-        .unwrap();
+    let error = resolve_import_document(
+        &documents,
+        "event-a",
+        Some(&file),
+        None,
+        Some(ABC_DIGEST),
+        false,
+    )
+    .err()
+    .unwrap();
     assert!(error.to_string().contains("sha256 mismatch"));
+    assert!(documents.uploads().is_empty());
 }
 
 #[test]
 fn an_existing_document_keeps_its_normalized_digest_without_file_access() {
     let document = resolve_import_document(
+        &MemoryDocuments::default(),
         "event-a",
         None,
         Some("existing-document"),
@@ -127,16 +140,20 @@ fn partial_graphql_data_with_errors_is_not_reported_as_success() {
 
 #[test]
 fn empty_document_references_are_rejected_before_network_access() {
+    let documents = MemoryDocuments::default();
     for document in ["", " ", "\t\n"] {
-        let error = resolve_import_document("event-a", None, Some(document), None, false)
-            .err()
-            .expect("an empty reference cannot identify an uploaded document");
+        let error =
+            resolve_import_document(&documents, "event-a", None, Some(document), None, false)
+                .err()
+                .expect("an empty reference cannot identify an uploaded document");
         assert_eq!(error.to_string(), "document id must not be empty");
     }
     let document =
-        resolve_import_document("event-a", None, Some("document-7"), None, false).unwrap();
+        resolve_import_document(&documents, "event-a", None, Some("document-7"), None, false)
+            .unwrap();
     assert_eq!(document.document_id, "document-7");
     assert_eq!(document.sha256, None);
+    assert!(documents.uploads().is_empty());
 }
 
 #[test]
