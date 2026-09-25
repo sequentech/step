@@ -43,8 +43,9 @@ export const getTallyDisabledReason = (
     const keysIds = selectedIds.map(
         (id) => elections.find((item) => item.id === id)?.keys_ceremony_id
     )
+    // Same order as windmill: distinct assigned ceremonies first, then missing ones.
+    if (new Set(keysIds.filter(Boolean)).size > 1) return "keysCeremonyMismatch"
     if (keysIds.some((id) => !id)) return "keysCeremonyMissing"
-    if (new Set(keysIds).size > 1) return "keysCeremonyMismatch"
     const ceremony = keysCeremonies.find((item) => item.id === keysIds[0])
     if (ceremony?.execution_status !== IKeysCeremonyExecutionStatus.SUCCESS)
         return "keysCeremonyIncomplete"

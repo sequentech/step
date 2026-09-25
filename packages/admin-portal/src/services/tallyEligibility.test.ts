@@ -61,6 +61,13 @@ it("requires one completed keys ceremony across the selected elections", () => {
     expect(
         getTallyDisabledReason([withKeys("a", "k1"), withKeys("b", "k2")], ["a", "b"], done)
     ).toBe("keysCeremonyMismatch")
+    expect(
+        getTallyDisabledReason(
+            [withKeys("a", "k1"), withKeys("b", "k2"), withKeys("c")],
+            ["a", "b", "c"],
+            done
+        )
+    ).toBe("keysCeremonyMismatch")
     for (const execution_status of ["IN_PROGRESS", "CANCELLED", null]) {
         expect(
             getTallyDisabledReason([withKeys("a", "k1")], ["a"], [{id: "k1", execution_status}])
