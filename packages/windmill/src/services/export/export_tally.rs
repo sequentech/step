@@ -131,6 +131,8 @@ pub async fn export_tally_session_execution(
         "session_ids".to_string(),
         "status".to_string(),
         "results_event_id".to_string(),
+        "documents".to_string(),
+        "run_reason".to_string(),
     ])?;
 
     for tally_session_execution in event_tally_sessions_executions {

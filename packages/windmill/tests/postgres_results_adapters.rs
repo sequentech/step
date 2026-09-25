@@ -15,6 +15,7 @@ use sequent_core::types::ceremonies::{
     TallySessionResolutionData, TallySessionResolutionStatus, TallySessionResolutionType,
     TieBreakingMethod,
 };
+use sequent_core::types::hasura::core::TallySessionExecution;
 use sequent_core::types::results::{
     ResultDocuments, ResultsElection, ResultsElectionArea, ResultsEvent,
 };
@@ -37,12 +38,13 @@ use windmill::postgres::results_event::{
     get_results_event_by_event_id, get_results_event_by_id, insert_many_results_events,
     insert_results_event, update_results_event_documents,
 };
+use windmill::postgres::tally_session_execution::get_event_tally_session_executions;
 use windmill::postgres::tally_session_resolution::{
     create_tally_session_resolution, get_pending_resolutions, get_resolution_by_tally_session,
     submit_resolution, update_resolution,
 };
 use windmill::services::export::export_tally::{
-    export_results_election, export_results_election_area,
+    export_results_election, export_results_election_area, export_tally_session_execution,
 };
 use windmill::services::import::import_tally::process_tally_file;
 use windmill::types::documents::ETallyDocuments;
@@ -2326,6 +2328,64 @@ async fn an_election_area_results_export_from_before_blank_ballots_still_imports
             election_event_id: OTHER_EVENT.to_string(),
             blank_ballots: None,
             blank_ballots_percent: None,
+            ..original
+        }
+    );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn tally_executions_survive_an_export_and_import_round_trip() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    transaction
+        .execute(
+            "INSERT INTO sequent_backend.tally_session_execution (
+                 id, tenant_id, election_event_id, created_at, last_updated_at, labels,
+                 annotations, current_message_id, tally_session_id, session_ids, status,
+                 results_event_id, documents, run_reason
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 5, $8, '{1,2}', $9, $10, $11, 'RECOUNT')",
+            &[
+                &uuid(ROW_1),
+                &uuid(TENANT),
+                &uuid(EVENT),
+                &at("2026-01-01T00:00:00Z"),
+                &at("2026-01-02T00:00:00Z"),
+                &json!({"origin": "tally"}),
+                &json!({"note": "first run"}),
+                &uuid(SESSION),
+                &json!({"stage": "done"}),
+                &uuid(RESULTS),
+                &json!({"json": "execution.json"}),
+            ],
+        )
+        .await
+        .unwrap();
+    let original = get_event_tally_session_executions(&transaction, TENANT, EVENT)
+        .await
+        .unwrap()
+        .remove(0);
+
+    let export = exported(export_tally_session_execution(&transaction, TENANT, EVENT).await);
+    import_into_away(&transaction, export, same_ids())
+        .await
+        .unwrap();
+
+    let imported = get_event_tally_session_executions(&transaction, TENANT, OTHER_EVENT)
+        .await
+        .unwrap();
+    assert_eq!(imported.len(), 1, "{imported:#?}");
+    // The import leaves documents and run_reason out on purpose.
+    assert_eq!(
+        imported[0],
+        TallySessionExecution {
+            id: imported[0].id.clone(),
+            election_event_id: OTHER_EVENT.to_string(),
+            documents: None,
+            run_reason: None,
             ..original
         }
     );
