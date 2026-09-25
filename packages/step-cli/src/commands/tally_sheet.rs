@@ -869,3 +869,7 @@ fn print_json(message: &str, value: &Value) {
 #[cfg(test)]
 #[path = "../../tests/support/tally_input_boundaries.rs"]
 mod boundary_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_sheet_commands.rs"]
+mod command_tests;

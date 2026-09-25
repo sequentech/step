@@ -6,3 +6,4 @@
 //! mutex, so tests can assert requests, uploads and downloads.
 
 pub mod documents;
+pub mod graphql;

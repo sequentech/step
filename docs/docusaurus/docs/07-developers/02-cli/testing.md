@@ -52,3 +52,20 @@ exits with status 0; `command_failures.rs` pins that. From `packages/`:
 ```bash
 cargo test -p step-cli --bin step-cli generate_voters
 ```
+
+Tally-sheet commands reach Hasura through the `GraphqlClient` port and store
+import sources through the `Uploader` and `Downloader` ports (`src/ports`).
+`support/tally_sheet_commands.rs` runs each command against the in-memory
+adapters in `src/adapters/memory`, which queue GraphQL responses and record
+requests, uploads and downloads. It pins the request variables, the UUID checks
+that `import-list`, `import-show`, `import-download-source` and `recount` make
+before sending anything, GraphQL errors winning over returned data, the
+download file name and the import source rules. `tally_sheet_cli.rs` runs the
+shipped commands against a loopback server: failures print the error, including
+the `HTTP Status` and `Error Message` of a rejected request, and only
+`import-preview` and `import-create` exit with status 1. From `packages/`:
+
+```bash
+cargo test -p step-cli --bin step-cli tally_sheet
+cargo test -p step-cli --test tally_sheet_cli
+```

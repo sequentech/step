@@ -24,7 +24,8 @@ pub struct Download {
     pub output_path: PathBuf,
 }
 
-/// Records uploads and downloads without storing any file.
+/// Records uploads and downloads without storing any file. `failing` makes
+/// both fail, after recording the attempt.
 #[derive(Debug, Default)]
 pub struct MemoryDocuments {
     failure: Option<String>,
@@ -33,8 +34,19 @@ pub struct MemoryDocuments {
 }
 
 impl MemoryDocuments {
+    pub fn failing(message: &str) -> Self {
+        Self {
+            failure: Some(message.to_string()),
+            ..Self::default()
+        }
+    }
+
     pub fn uploads(&self) -> Vec<Upload> {
         self.uploads.lock().expect("uploads lock").clone()
+    }
+
+    pub fn downloads(&self) -> Vec<Download> {
+        self.downloads.lock().expect("downloads lock").clone()
     }
 
     fn outcome(&self) -> Result<(), Box<dyn Error>> {
