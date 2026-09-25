@@ -52,12 +52,12 @@ if $down_only && [[ -z "${STEP_E2E_PROJECT:-}" ]]; then
     echo '--down requires an explicit STEP_E2E_PROJECT; no stack was removed' >&2
     exit 2
 fi
-PROJECT=${STEP_E2E_PROJECT:-step-e2e-$(id -u)-$BASHPID-$RANDOM}
+PROJECT=${STEP_E2E_PROJECT:-step-e2e-$(id -u)-$$-$RANDOM}
 [[ "$PROJECT" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "Invalid Compose project: $PROJECT" >&2; exit 2; }
 OUTPUT=${STEP_E2E_OUTPUT_DIR:-$ROOT/.cache/backend-e2e/$PROJECT}
 # The UI wrapper supplies a fresh token to recognize this invocation's claim,
 # even if its caller selected an output directory containing old run markers.
-RUN_TOKEN=${STEP_E2E_RUN_TOKEN:-$BASHPID-$RANDOM-$RANDOM}
+RUN_TOKEN=${STEP_E2E_RUN_TOKEN:-$$-$RANDOM-$RANDOM}
 [[ "$RUN_TOKEN" =~ ^[a-zA-Z0-9_-]+$ ]] || { echo 'Invalid run token' >&2; exit 2; }
 OWNERSHIP_FILE=$OUTPUT/.owned-$RUN_TOKEN
 
