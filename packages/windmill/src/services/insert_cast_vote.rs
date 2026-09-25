@@ -960,6 +960,23 @@ fn parse_election_presentation(
         .map_err(|error| CastVoteError::CheckStatusInternalFailed(error.to_string()))
 }
 
+fn parse_voter_auth_time(auth_time: Option<i64>) -> Result<DateTime<Local>, CastVoteError> {
+    let parsed = if let Some(auth_time_int) = auth_time {
+        if let Ok(auth_time_parsed) = ISO8601::timestamp_secs_utc_to_date_opt(auth_time_int) {
+            auth_time_parsed
+        } else {
+            return Err(CastVoteError::CheckStatusFailed(
+                "Invalid auth_time timestamp".to_string(),
+            ));
+        }
+    } else {
+        return Err(CastVoteError::CheckStatusFailed(
+            "auth_time is not a valid integer".to_string(),
+        ));
+    };
+    Ok(parsed)
+}
+
 #[instrument(skip_all, err)]
 async fn check_status(
     tenant_id: &str,
@@ -979,19 +996,7 @@ async fn check_status(
     }
     let now = ISO8601::now();
 
-    let auth_time_local: DateTime<Local> = if let Some(auth_time_int) = *auth_time {
-        if let Ok(auth_time_parsed) = ISO8601::timestamp_ms_utc_to_date_opt(auth_time_int) {
-            auth_time_parsed
-        } else {
-            return Err(CastVoteError::CheckStatusFailed(
-                "Invalid auth_time timestamp".to_string(),
-            ));
-        }
-    } else {
-        return Err(CastVoteError::CheckStatusFailed(
-            "auth_time is not a valid integer".to_string(),
-        ));
-    };
+    let auth_time_local = parse_voter_auth_time(*auth_time)?;
 
     // Always read the writer: a TTL alone cannot invalidate an administrative
     // close, channel change, or reschedule. One narrow row keeps those updates

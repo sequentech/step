@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
-import {styled} from "@mui/material/styles"
+import {Meta, StoryObj} from "@storybook/react-vite"
+import {getContrastRatio, styled} from "@mui/material/styles"
 import {Box, Typography} from "@mui/material"
 import {theme} from "../../../services/theme"
 
@@ -91,7 +91,14 @@ const ColorTableCell: React.FC<ColorTableCellProps> = ({value, isHeader, color})
         {isHeader ? (
             value
         ) : (
-            <ColoredCell sx={{backgroundColor: value, color: color}}>{value}</ColoredCell>
+            <ColoredCell
+                sx={{
+                    backgroundColor: value,
+                    color: value && getContrastRatio(value, "#fff") >= 4.5 ? "#fff" : "#000",
+                }}
+            >
+                {value}
+            </ColoredCell>
         )}
     </TD>
 )
@@ -110,7 +117,7 @@ const ColorsTable: React.FC<ColorsTableProps> = ({headers, rows}) => (
     <table>
         <tr>
             {headers.map((header, idx) => (
-                <TH key={idx}>{header}</TH>
+                <TH key={idx}>{header ?? "Color"}</TH>
             ))}
         </tr>
         {rows.map((row, rowIdx) => (

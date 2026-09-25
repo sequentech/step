@@ -2,11 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import Container from "@mui/material/Container"
 import {ConfirmationScreen} from "../../screens/ConfirmationScreen"
 import {LanguageSetter} from "@sequentech/ui-essentials"
-import {withRouter} from "storybook-addon-react-router-v6"
 import ConfirmationBallot from "../../fixtures/confirmation_ballot.json"
 import {IConfirmationBallot} from "../../services/BallotService"
 
@@ -22,7 +21,6 @@ interface StoryArgs extends ConfirmationScreenProps {
 const meta = {
     title: "screens/ConfirmationScreen",
     component: ConfirmationScreen,
-    decorators: [withRouter],
     parameters: {
         backgrounds: {default: "white"},
         reactRouter: {routePath: "/confirmation", routeParams: {}},

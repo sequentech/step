@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {Meta, StoryObj} from "@storybook/react"
+import {Meta, StoryObj} from "@storybook/react-vite"
 import {faTimesCircle} from "@fortawesome/free-solid-svg-icons"
 import IconButton from "../IconButton"
 import VerticalBox from "../../VerticalBox/VerticalBox"

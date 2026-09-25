@@ -18,6 +18,8 @@ module.exports = {
         "!src/**/*.test.{ts,tsx}",
         "!src/setupTests.ts",
         "!src/stories/**",
+        "!src/**/*.stories.{ts,tsx}",
+        "!src/**/__stories__/**",
     ],
     coverageProvider: "babel",
     coverageReporters: ["text", "html", "lcov", "json", "json-summary"],

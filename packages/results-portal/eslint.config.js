@@ -13,6 +13,8 @@ export default [
     {
         ignores: [
             "dist/**",
+            "storybook-static/**",
+            "test-results/**",
             "build/**",
             "node_modules/**",
             "public/**",
