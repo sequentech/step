@@ -369,6 +369,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 }
 
 const ConfirmationScreen: React.FC = () => {
+    const {isKiosk} = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -449,7 +450,7 @@ const ConfirmationScreen: React.FC = () => {
             ballotId.current = ballotIdStored
             setIsDemo(isDemoStored ?? false)
             setBallotTrackerUrl(
-                `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}`
+                `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}${isKiosk() ? "?kiosk" : ""}`
             )
         }
     }, [])
