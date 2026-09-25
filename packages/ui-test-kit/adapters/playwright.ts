@@ -28,6 +28,12 @@ async function fulfill(route: Route, response: MockResponse) {
 
 /** A strict boundary: only registered services, SPA navigations and static assets leave the page. */
 export async function routePortal(context: BrowserContext, services: PortalServices) {
+    // HTTP routing does not intercept WebSocket handshakes. Keep this guard for
+    // the context's lifetime; these mocked-service journeys have no WS boundary.
+    await context.routeWebSocket("**/*", async (socket) => {
+        services.violations.add(`Unexpected WebSocket: ${socket.url()}`)
+        await socket.close({code: 1008, reason: "Unexpected test connection"})
+    })
     const handler = async (route: Route) => {
         const request = route.request()
         const url = new URL(request.url())

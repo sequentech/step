@@ -6,12 +6,15 @@ import {buildSchema} from "graphql"
 import {mkdtemp, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
+import {createServer} from "node:http"
+import type {AddressInfo} from "node:net"
 import {GraphQLMock} from "../mocks/graphql"
 import {OidcMock, decodeJwt} from "../mocks/oidc"
 import {S3Mock} from "../mocks/s3"
 import {ViolationLog} from "../mocks/violations"
 import type {MockRequest, MockFulfillment} from "../mocks/http"
 import {serveDist} from "../server/static"
+import {routePortal} from "../adapters/playwright"
 
 const origin = "http://127.0.0.1:12345"
 const request = (path: string, method = "GET", body?: string): MockRequest => ({
@@ -243,5 +246,45 @@ test("production server owns an ephemeral port and never returns HTML for missin
     } finally {
         await server.close()
         await rm(directory, {recursive: true, force: true})
+    }
+})
+
+test("unexpected WebSockets are reported without reaching a server", async ({context, page}) => {
+    let upgrades = 0
+    const server = createServer((_request, response) => response.end("<main>Portal</main>"))
+    server.on("upgrade", (_request, socket) => {
+        upgrades += 1
+        socket.destroy()
+    })
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+    const address = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    const socketUrl = address.replace("http:", "ws:") + "/unexpected"
+    const violations = new ViolationLog()
+    const unroute = await routePortal(context, {
+        origin: address,
+        settings: {},
+        graphql: new GraphQLMock({schema: buildSchema("type Query { ok: Boolean }"), violations}),
+        oidc: new OidcMock({origin: address, violations, realms: []}),
+        s3: new S3Mock({origin: address, violations}),
+        violations,
+    })
+    try {
+        await page.goto(address)
+        await page.evaluate(
+            (url) =>
+                new Promise<void>((resolve) => {
+                    const socket = new WebSocket(url)
+                    socket.onclose = () => resolve()
+                }),
+            socketUrl
+        )
+        expect(violations.list()).toEqual([`Unexpected WebSocket: ${socketUrl}`])
+        expect(upgrades).toBe(0)
+    } finally {
+        await unroute()
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()))
+            server.closeAllConnections()
+        })
     }
 })
