@@ -1081,6 +1081,10 @@ pub async fn begin_tally_session_recount_with(
 }
 
 #[cfg(test)]
+#[path = "tally_ceremony_state_tests.rs"]
+mod state_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use sequent_core::ballot::Contest as SequentContest;
