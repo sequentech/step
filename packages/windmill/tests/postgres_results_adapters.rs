@@ -669,10 +669,13 @@ async fn inserted_election_results_are_stored_under_the_given_results_event() {
         })
         .collect();
     assert_eq!(inserted, expected);
-    let stored: Vec<(Uuid, Uuid, Option<i32>, Option<String>, bool)> = transaction
+    let stored: Vec<Value> = transaction
         .query(
-            "SELECT tenant_id, election_id, blank_ballots, blank_ballots_percent::text,
-                    documents IS NULL AND labels IS NULL AND annotations IS NULL
+            "SELECT jsonb_build_object(
+                        'tenant_id', tenant_id, 'election_id', election_id,
+                        'blank_ballots', blank_ballots,
+                        'blank_ballots_percent', blank_ballots_percent,
+                        'documents', documents, 'labels', labels, 'annotations', annotations)
              FROM sequent_backend.results_election WHERE results_event_id = $1
              ORDER BY election_id",
             &[&uuid(RESULTS)],
@@ -680,19 +683,24 @@ async fn inserted_election_results_are_stored_under_the_given_results_event() {
         .await
         .unwrap()
         .iter()
-        .map(|row| (row.get(0), row.get(1), row.get(2), row.get(3), row.get(4)))
+        .map(|row| row.get(0))
         .collect();
+    let row = |election: &str, blank_ballots: Value, blank_ballots_percent: Value| {
+        json!({
+            "tenant_id": TENANT,
+            "election_id": election,
+            "blank_ballots": blank_ballots,
+            "blank_ballots_percent": blank_ballots_percent,
+            "documents": null,
+            "labels": null,
+            "annotations": null,
+        })
+    };
     assert_eq!(
         stored,
         [
-            (
-                uuid(TENANT),
-                uuid(ELECTION),
-                Some(12),
-                Some("0.0625".to_string()),
-                true
-            ),
-            (uuid(TENANT), uuid(OTHER_ELECTION), None, None, true),
+            row(ELECTION, json!(12), json!(0.0625)),
+            row(OTHER_ELECTION, Value::Null, Value::Null),
         ]
     );
     transaction.rollback().await.unwrap();
