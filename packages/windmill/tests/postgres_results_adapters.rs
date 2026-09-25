@@ -2128,23 +2128,26 @@ async fn import_into_away(
     process_tally_file(tx, &file, file_name, TENANT, OTHER_EVENT, replacements).await
 }
 
-/// `rows` as exports wrote them before the blank-ballot columns existed: the
-/// serialized fields that `header` names, which were then all of them.
-fn export_before_blank_ballots<T: serde::Serialize>(header: &[&str], rows: &[T]) -> Vec<u8> {
+/// Legacy CSV records are explicit wire values, independent of model serialization.
+fn legacy_csv(header: &[&str], values: &[&str]) -> Vec<u8> {
     let mut writer = csv::Writer::from_writer(vec![]);
     writer.write_record(header).unwrap();
-    for row in rows {
-        let values: Vec<String> = serde_json::to_value(row)
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .values()
-            .take(header.len())
-            .map(Value::to_string)
-            .collect();
-        writer.write_record(&values).unwrap();
-    }
+    writer.write_record(values).unwrap();
     writer.into_inner().unwrap()
+}
+
+fn assert_csv_fields(csv: &[u8], expected: &[(&str, &str)]) {
+    let mut reader = csv::Reader::from_reader(csv);
+    let header = reader.headers().unwrap().clone();
+    let rows = reader.records().collect::<Result<Vec<_>, _>>().unwrap();
+    let row = rows
+        .iter()
+        .find(|row| row.get(0) == Some(&format!("\"{ROW_1}\"")))
+        .unwrap();
+    for (name, value) in expected {
+        let column = header.iter().position(|field| field == *name).unwrap();
+        assert_eq!(row.get(column), Some(*value), "column {name}");
+    }
 }
 
 fn tallied_election_result(id: &str, election: &str) -> ResultsElection {
@@ -2178,6 +2181,18 @@ async fn election_results_survive_an_export_and_import_round_trip() {
         .unwrap();
 
     let export = exported(export_results_election(&transaction, TENANT, EVENT).await);
+    assert_csv_fields(
+        &export.1,
+        &[
+            ("name", "\"General\""),
+            ("elegible_census", "200"),
+            ("total_voters", "150"),
+            ("blank_ballots", "12"),
+            ("blank_ballots_percent", "0.0625"),
+            ("labels", r#"{"origin":"tally"}"#),
+            ("annotations", r#"{"results_hash":"hash-0"}"#),
+        ],
+    );
     import_into_away(&transaction, export, same_ids())
         .await
         .unwrap();
@@ -2220,6 +2235,14 @@ async fn election_area_results_survive_an_export_and_import_round_trip() {
         .unwrap();
 
     let export = exported(export_results_election_area(&transaction, TENANT, EVENT).await);
+    assert_csv_fields(
+        &export.1,
+        &[
+            ("name", "\"North\""),
+            ("blank_ballots", "12"),
+            ("blank_ballots_percent", "0.375"),
+        ],
+    );
     import_into_away(&transaction, export, same_ids())
         .await
         .unwrap();
@@ -2249,7 +2272,7 @@ async fn an_election_results_export_from_before_blank_ballots_still_imports() {
     home(&transaction).await;
     away(&transaction).await;
     let original = tallied_election_result(ROW_1, ELECTION);
-    let csv = export_before_blank_ballots(
+    let csv = legacy_csv(
         &[
             "id",
             "tenant_id",
@@ -2266,7 +2289,22 @@ async fn an_election_results_export_from_before_blank_ballots_still_imports() {
             "total_voters_percent",
             "documents",
         ],
-        &[original.clone()],
+        &[
+            r#""90000000-0000-4000-8000-000000000001""#,
+            r#""10000000-0000-4000-8000-000000000001""#,
+            r#""20000000-0000-4000-8000-000000000001""#,
+            r#""30000000-0000-4000-8000-000000000001""#,
+            r#""70000000-0000-4000-8000-000000000001""#,
+            r#""General""#,
+            "200",
+            "150",
+            r#""2026-01-01T00:00:00Z""#,
+            r#""2026-01-02T00:00:00Z""#,
+            r#"{"origin":"tally"}"#,
+            r#"{"results_hash":"hash-0"}"#,
+            "0.75",
+            r#"{"json":"results.json","html":"results.html"}"#,
+        ],
     );
 
     let file_name = ETallyDocuments::RESULTS_ELECTION.to_file_name().to_string();
@@ -2297,7 +2335,7 @@ async fn an_election_area_results_export_from_before_blank_ballots_still_imports
     home(&transaction).await;
     away(&transaction).await;
     let original = election_area_result(AREA);
-    let csv = export_before_blank_ballots(
+    let csv = legacy_csv(
         &[
             "id",
             "tenant_id",
@@ -2310,7 +2348,18 @@ async fn an_election_area_results_export_from_before_blank_ballots_still_imports
             "documents",
             "name",
         ],
-        &[original.clone()],
+        &[
+            r#""90000000-0000-4000-8000-000000000001""#,
+            r#""10000000-0000-4000-8000-000000000001""#,
+            r#""20000000-0000-4000-8000-000000000001""#,
+            r#""30000000-0000-4000-8000-000000000001""#,
+            r#""50000000-0000-4000-8000-000000000001""#,
+            r#""70000000-0000-4000-8000-000000000001""#,
+            r#""2026-01-01T00:00:00Z""#,
+            r#""2026-01-02T00:00:00Z""#,
+            r#"{"json":"results.json","html":"results.html"}"#,
+            r#""North""#,
+        ],
     );
 
     let file_name = ETallyDocuments::RESULTS_ELECTION_AREA
@@ -2467,4 +2516,62 @@ async fn results_events_survive_an_export_and_import_round_trip() {
         }
     );
     transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn partial_blank_ballot_metrics_survive_election_and_area_csv_imports() {
+    for (count, percent) in [(Some(12), None), (None, pct(0.375))] {
+        let mut client = schema::pool().await.get().await.unwrap();
+        let transaction = client.transaction().await.unwrap();
+        home(&transaction).await;
+        away(&transaction).await;
+        insert_many_results_elections(
+            &transaction,
+            vec![ResultsElection {
+                blank_ballots: count,
+                blank_ballots_percent: percent,
+                ..tallied_election_result(ROW_1, ELECTION)
+            }],
+        )
+        .await
+        .unwrap();
+        insert_many_results_elections_areas(
+            &transaction,
+            vec![ResultsElectionArea {
+                blank_ballots: count,
+                blank_ballots_percent: percent,
+                ..election_area_result(AREA)
+            }],
+        )
+        .await
+        .unwrap();
+        for export in [
+            exported(export_results_election(&transaction, TENANT, EVENT).await),
+            exported(export_results_election_area(&transaction, TENANT, EVENT).await),
+        ] {
+            import_into_away(&transaction, export, same_ids())
+                .await
+                .unwrap();
+        }
+        let elections = get_event_results_election(&transaction, TENANT, OTHER_EVENT)
+            .await
+            .unwrap();
+        let areas = get_event_results_election_area(&transaction, TENANT, OTHER_EVENT)
+            .await
+            .unwrap();
+        assert_eq!(elections.len(), 1);
+        assert_eq!(areas.len(), 1);
+        assert_eq!(
+            (
+                elections[0].blank_ballots,
+                elections[0].blank_ballots_percent
+            ),
+            (count, percent)
+        );
+        assert_eq!(
+            (areas[0].blank_ballots, areas[0].blank_ballots_percent),
+            (count, percent)
+        );
+        transaction.rollback().await.unwrap();
+    }
 }
