@@ -4,9 +4,8 @@
 """Backend journeys, run in order against one fresh stack (scripts/e2e/run.sh).
 
 Each journey builds on the previous ones and is skipped when one it needs did
-not pass. Tests named `test_<n>b_...` pin known defects: they assert the
-correct behaviour and are reported as expected failures while the defect
-reproduces; see `known_defect`.
+not pass. Tests marked with `known_defect` assert correct behaviour and report
+only the documented defect as an expected failure while it reproduces.
 """
 
 import collections
@@ -864,12 +863,6 @@ class BackendJourneys(unittest.TestCase):
         self.wait_for_log(self.state.event_id, {"TallyClose": 1})
         self.passed("journey 7")
 
-    @known_defect(
-        "The tally drops ballots from voters whose authorized-election-ids lists the election ID, as "
-        "step-cli generate-voters writes it: for an election without an external ID, "
-        "windmill/src/services/ceremonies/insert_ballots.rs matches voters against an empty alias.",
-        r"^All accepted election-ID ballots are absent from the tally$",
-    )
     def test_7b_tally_counts_voters_listed_by_election_id(self):
         """Voters authorized by election ID have their accepted ballots counted."""
         self.requires("journey 6")
@@ -877,17 +870,6 @@ class BackendJourneys(unittest.TestCase):
         expected = self.expected("C")
         self.assertTrue(sum(expected.values()))
         contest, by_name, by_area = self.results("C")
-        zero_votes = dict.fromkeys(fixtures.AREA["C"].candidates, 0)
-        if (
-            by_name == zero_votes
-            and by_area == zero_votes
-            and contest
-            == {
-                "total_votes": 0,
-                "total_valid_votes": 0,
-            }
-        ):
-            self.fail("All accepted election-ID ballots are absent from the tally")
         self.assertEqual(by_name, expected, "Contest C results")
         self.assertEqual(by_area, expected, "Contest C results in area C")
         self.assertEqual(contest["total_valid_votes"], sum(expected.values()))
