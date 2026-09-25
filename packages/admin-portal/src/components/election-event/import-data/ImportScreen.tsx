@@ -109,12 +109,14 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 }
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
             } catch (_error) {
+                setDocumentId(null)
                 setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
             }
         }
 
         const handleFiles = async (files: FileList | null) => {
+            setDocumentId(null)
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
             setPassword("")
             const theFile = files?.[0]
