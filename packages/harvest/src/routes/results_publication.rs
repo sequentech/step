@@ -165,3 +165,7 @@ pub async fn refresh_results_publication_index(
 #[cfg(test)]
 #[path = "../../tests/support/publication_errors.rs"]
 mod boundary_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/results_service_errors.rs"]
+mod results_service_errors;

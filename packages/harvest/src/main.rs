@@ -14,9 +14,15 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+mod adapters;
+mod ports;
 mod routes;
 mod services;
 mod types;
+
+#[cfg(test)]
+#[path = "../../sequent-core/tests/support/claims.rs"]
+mod test_claims;
 
 #[cfg(test)]
 #[path = "../tests/support/request_boundaries.rs"]

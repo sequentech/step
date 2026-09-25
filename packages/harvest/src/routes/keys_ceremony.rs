@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::access::authorize_any;
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -126,6 +127,26 @@ fn private_key_download_internal_error() -> JsonError {
     )
 }
 
+fn private_key_download_error(
+    error: anyhow::Error,
+    election_event_id: &str,
+    keys_ceremony_id: &str,
+) -> JsonError {
+    if error
+        .downcast_ref::<PrivateKeyDownloadUnavailable>()
+        .is_some()
+    {
+        private_key_download_unavailable()
+    } else {
+        error!(
+            election_event_id = %election_event_id,
+            keys_ceremony_id = %keys_ceremony_id,
+            "Failed to download private key: {error:#}"
+        );
+        private_key_download_internal_error()
+    }
+}
+
 // The main function to get the private key
 #[instrument(skip(claims))]
 #[post("/get-private-key", format = "json", data = "<body>")]
@@ -177,19 +198,11 @@ pub async fn get_private_key(
     )
     .await
     .map_err(|error| {
-        if error
-            .downcast_ref::<PrivateKeyDownloadUnavailable>()
-            .is_some()
-        {
-            private_key_download_unavailable()
-        } else {
-            error!(
-                election_event_id = %input.election_event_id,
-                keys_ceremony_id = %input.keys_ceremony_id,
-                "Failed to download private key: {error:#}"
-            );
-            private_key_download_internal_error()
-        }
+        private_key_download_error(
+            error,
+            &input.election_event_id,
+            &input.keys_ceremony_id,
+        )
     })?;
 
     event!(
@@ -335,24 +348,20 @@ pub async fn list_keys_ceremonies(
     body: Json<ListKeysCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<DataList<KeysCeremony>>, (Status, String)> {
-    let admin_auth = authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_CEREMONY],
-    );
-
-    let trustee_auth = authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TRUSTEE_CEREMONY],
-    );
-    if admin_auth.is_err() {
-        trustee_auth?;
-    } else if trustee_auth.is_err() {
-        admin_auth?;
-    }
+    authorize_any(
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::ADMIN_CEREMONY],
+        ),
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::TRUSTEE_CEREMONY],
+        ),
+    )?;
     let permission_labels = decode_permission_labels(&claims);
 
     let input = body.into_inner();
@@ -410,3 +419,7 @@ pub async fn list_keys_ceremonies(
         },
     }))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/private_key_errors.rs"]
+mod private_key_errors;
