@@ -1280,7 +1280,7 @@ async fn storing_election_area_documents_again_adds_another_area_result() {
 }
 
 #[tokio::test]
-async fn election_area_documents_for_an_area_outside_the_event_fail_with_a_generic_error() {
+async fn election_area_documents_for_an_area_outside_the_event_fail_with_the_database_cause() {
     let mut client = schema::pool().await.get().await.unwrap();
     let transaction = client.transaction().await.unwrap();
     home(&transaction).await;
@@ -1298,10 +1298,15 @@ async fn election_area_documents_for_an_area_outside_the_event_fail_with_a_gener
         None,
     )
     .await
-    .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "Error at inser into results_election_area db error "
+    .unwrap_err()
+    .to_string();
+    assert!(
+        error.starts_with("Error inserting into results_election_area: "),
+        "{error}"
+    );
+    assert!(
+        error.contains("results_election_area_tenant_id_election_event_id_area_id_fkey"),
+        "{error}"
     );
     transaction.rollback().await.unwrap();
 }
