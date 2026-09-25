@@ -21,11 +21,11 @@ if $down_only && [[ -z "${STEP_E2E_PROJECT:-}" ]]; then
     echo '--down requires an explicit STEP_E2E_PROJECT; no stack was removed' >&2
     exit 2
 fi
-export STEP_E2E_PROJECT=${STEP_E2E_PROJECT:-step-e2e-ui-$(id -u)-$BASHPID-$RANDOM}
+export STEP_E2E_PROJECT=${STEP_E2E_PROJECT:-step-e2e-ui-$(id -u)-$$-$RANDOM}
 export STEP_E2E_OUTPUT_DIR=${STEP_E2E_OUTPUT_DIR:-$ROOT/.cache/backend-e2e/$STEP_E2E_PROJECT}
 OUTPUT=$STEP_E2E_OUTPUT_DIR
 # Always create a fresh token; an old output directory cannot confer ownership.
-RUN_TOKEN=$BASHPID-$RANDOM-$RANDOM
+RUN_TOKEN=$$-$RANDOM-$RANDOM
 OWNERSHIP_FILE=$OUTPUT/.owned-$RUN_TOKEN
 
 compose() {

@@ -59,6 +59,8 @@ jobs:
         run: |
           npm install --global yarn@1.22.22
           yarn --cwd packages install --frozen-lockfile --non-interactive
+      - name: Check stack ownership and cleanup
+        run: python3 scripts/e2e/ui/test_run_safety.py
       - name: Check the browser harness
         run: |
           yarn --cwd packages/ui-e2e typecheck
