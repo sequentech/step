@@ -122,6 +122,37 @@ test("OIDC discovery rejects unconfigured realms and wrong methods", () => {
     ])
 })
 
+for (const mode of ["fragment", "query"]) {
+    test(`OIDC silent login returns login_required without a session (${mode})`, () => {
+        const fixture = oidcFixture()
+        fixture.authorize()
+        const url = new URL(fixture.oidc.authorizations[0].url)
+        url.searchParams.set("prompt", "none")
+        url.searchParams.set("response_mode", mode)
+        const signedIn = fixture.oidc.handle(request(url.toString())) as MockFulfillment
+        expect(signedIn.status).toBe(302)
+        const signedInLocation = new URL(signedIn.headers!.location)
+        const signedInValues =
+            mode === "query"
+                ? signedInLocation.searchParams
+                : new URLSearchParams(signedInLocation.hash.slice(1))
+        expect(signedInValues.get("code")).toBeTruthy()
+        expect(signedInValues.has("error")).toBe(false)
+
+        fixture.oidc.signedIn = false
+        const signedOut = fixture.oidc.handle(request(url.toString())) as MockFulfillment
+        expect(signedOut.status).toBe(302)
+        const location = new URL(signedOut.headers!.location)
+        expect(`${location.origin}${location.pathname}`).toBe(`${origin}/callback`)
+        const values =
+            mode === "query" ? location.searchParams : new URLSearchParams(location.hash.slice(1))
+        expect(Object.fromEntries(values)).toEqual({state: "state123", error: "login_required"})
+        expect(fixture.oidc.tokenRequests).toEqual([])
+        expect(fixture.oidc.signedIn).toBe(false)
+        expect(fixture.violations.list()).toEqual([])
+    })
+}
+
 test("OIDC keeps state and nonce, verifies RFC PKCE, refreshes and expires tokens", () => {
     const fixture = oidcFixture()
     const response = fixture.token(fixture.authorize())
