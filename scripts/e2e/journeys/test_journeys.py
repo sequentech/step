@@ -4,12 +4,10 @@
 """Backend journeys, run in order against one fresh stack (scripts/e2e/run.sh).
 
 Each journey builds on the previous ones and is skipped when one it needs did
-not pass. Tests marked with `known_defect` assert correct behaviour and report
-only the documented defect as an expected failure while it reproduces.
+not pass. Skipped journeys fail the run; every scenario must pass.
 """
 
 import collections
-import functools
 import json
 import re
 import unittest
@@ -28,42 +26,12 @@ from .client import (
     Hasura,
     Keycloak,
     StepCli,
-    StepCliError,
     event_realm,
     http_get,
     jwt_claims,
     wait_until,
 )
 from .voting import Portal, candidate_name
-
-
-class KnownDefect(AssertionError):
-    """A failure matching a documented product defect."""
-
-
-def known_defect(description, signature):
-    """Mark a test that fails because of a known defect.
-
-    Only a failure whose message matches `signature` counts as the defect; any
-    other failure is reported as usual. When the test passes, the runner reports
-    an unexpected success so the marker gets removed.
-    """
-
-    def decorate(test):
-        @functools.wraps(test)
-        def run(self):
-            try:
-                test(self)
-            except AssertionError as error:
-                if re.search(signature, str(error)):
-                    raise KnownDefect(f"{description}\n{error}") from error
-                raise
-
-        run.known_defect = description
-        return run
-
-    return decorate
-
 
 ELECTORAL_LOG = """
 query ($eventId: String) {
@@ -244,11 +212,7 @@ class BackendJourneys(unittest.TestCase):
     def test_2_import_election_event(self):
         """Importing an event creates its elections, contests, areas, board and electoral log."""
         self.requires("journey 1")
-        # Publishing fails for events with translations (test_5b), so the
-        # journeys use a single event name.
-        document = fixtures.without_translations(
-            fixtures.election_event(ENV["VOTING_PORTAL_URL"], self.tag)
-        )
+        document = fixtures.election_event(ENV["VOTING_PORTAL_URL"], self.tag)
         self.state.document = document
         started = datetime.now(timezone.utc)
         event_id = self.import_event(document, "event")
@@ -514,7 +478,7 @@ class BackendJourneys(unittest.TestCase):
         data = self.event_rows(
             """query ($event: uuid!) {
               sequent_backend_ballot_publication(where: {election_event_id: {_eq: $event}}) { id is_generated published_at annotations }
-              sequent_backend_ballot_style(where: {election_event_id: {_eq: $event}, deleted_at: {_is_null: true}}) { id election_id area_id ballot_publication_id }
+              sequent_backend_ballot_style(where: {election_event_id: {_eq: $event}, deleted_at: {_is_null: true}}) { id election_id area_id ballot_publication_id ballot_eml ballot_signature }
             }"""
         )
         (publication,) = data["sequent_backend_ballot_publication"]
@@ -554,7 +518,15 @@ class BackendJourneys(unittest.TestCase):
                 [(f["id"], f["election_id"]) for f in files],
                 [(styles[(election_id, self.state.areas[spec.key])], election_id)],
             )
-            style, wrapper = self.state.portal.ballot_style(files[0])
+            raw_eml, wrapper = self.state.portal.ballot_eml(files[0])
+            original = next(
+                row
+                for row in data["sequent_backend_ballot_style"]
+                if row["id"] == files[0]["id"]
+            )
+            self.assertEqual(raw_eml, original["ballot_eml"])
+            self.assertEqual(wrapper["ballot_signature"], original["ballot_signature"])
+            style = json.loads(raw_eml)
             self.assertEqual(style["area_id"], self.state.areas[spec.key])
             self.assertEqual(
                 [c["id"] for c in style["contests"]], [self.state.contests[spec.key]]
@@ -575,42 +547,14 @@ class BackendJourneys(unittest.TestCase):
         self.wait_for_log(event_id, {"ElectionPublish": 1})
         self.passed("journey 5")
 
-    @known_defect(
-        "Publishing fails when the event presentation has translations: each ballot style serializes "
-        "the presentation's i18n HashMap in its own order, and publication_files.rs refuses the "
-        "differing copies with 'Inconsistent event presentation within publication'.",
-        r"^Inconsistent event presentation within publication$",
-    )
     def test_5b_publish_event_with_translations(self):
         """An event whose presentation keeps the fixture's translations publishes too."""
         self.requires("journey 2")
         document = fixtures.election_event(ENV["VOTING_PORTAL_URL"], f"{self.tag}-i18n")
         event_id = self.import_event(document, "translated-event")
-        try:
-            publication_id = StepCli.last_id(
-                self.step("publish", "--election-event-id", event_id)
-            )
-        except StepCliError:
-            tasks = self.admin.query(
-                """query ($event: uuid!) {
-                  sequent_backend_tasks_execution(where: {election_event_id: {_eq: $event}, type: {_eq: "GENERATE_BALLOT_PUBLICATION"}}) {
-                    execution_status logs
-                  }
-                }""",
-                {"event": event_id},
-            )["sequent_backend_tasks_execution"]
-            if (
-                len(tasks) == 1
-                and tasks[0]["execution_status"] == "FAILED"
-                and (
-                    "Inconsistent event presentation within publication"
-                    in json.dumps(tasks[0]["logs"])
-                )
-            ):
-                raise AssertionError(
-                    "Inconsistent event presentation within publication"
-                ) from None
-            raise
+        publication_id = StepCli.last_id(
+            self.step("publish", "--election-event-id", event_id)
+        )
         styles = self.admin.query(
             """query ($event: uuid!, $publication: uuid!) {
               sequent_backend_ballot_style_aggregate(where: {election_event_id: {_eq: $event}, ballot_publication_id: {_eq: $publication}}) { aggregate { count } }
