@@ -11,6 +11,7 @@ const adminConfig = {
     staticDirs: ["../public"],
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
+            define: {"process.env.MAX_DIFF_LINES": "500"},
             css: {postcss: {plugins: [postcssPresetEnv()]}},
             optimizeDeps: {
                 include: [
