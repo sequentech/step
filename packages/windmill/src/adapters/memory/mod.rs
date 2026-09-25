@@ -6,3 +6,4 @@
 //! tests can assert what a service stored, not which calls it made.
 
 pub mod clock;
+pub mod publication_files;

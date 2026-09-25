@@ -190,6 +190,11 @@ async fn list_voter_files(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::memory::clock::SequentialIds;
+    use crate::adapters::memory::publication_files::{
+        MemoryPublicationObjects, MemoryPublicationRows, PublicationRecord,
+    };
+    use crate::domain::publication_files::PublishedBallotStyle;
     use deadpool_postgres::{Manager, Pool};
 
     #[test]
@@ -436,5 +441,731 @@ mod tests {
             .get(0);
         assert_eq!(active, retained);
         Ok(())
+    }
+
+    const TENANT: Uuid = Uuid::from_u128(0xa1);
+    const EVENT: Uuid = Uuid::from_u128(0xe1);
+    const PUBLICATION: Uuid = Uuid::from_u128(0xb1);
+    const OTHER_PUBLICATION: Uuid = Uuid::from_u128(0xb2);
+    const AREA: Uuid = Uuid::from_u128(0xa2);
+    const ELECTION: Uuid = Uuid::from_u128(0xc1);
+    const OTHER_ELECTION: Uuid = Uuid::from_u128(0xc2);
+    const STYLE: Uuid = Uuid::from_u128(0x51);
+    const OTHER_STYLE: Uuid = Uuid::from_u128(0x52);
+    // The first and second attempts, as `SequentialIds` numbers them.
+    const ROOT: &str = "tenant-00000000-0000-0000-0000-0000000000a1/event-00000000-0000-0000-0000-0000000000e1/publication-00000000-0000-0000-0000-0000000000b1/00000000-0000-0000-0000-000000000001";
+    const RETRY_ROOT: &str = "tenant-00000000-0000-0000-0000-0000000000a1/event-00000000-0000-0000-0000-0000000000e1/publication-00000000-0000-0000-0000-0000000000b1/00000000-0000-0000-0000-000000000002";
+    const OTHER_ROOT: &str = "tenant-00000000-0000-0000-0000-0000000000a1/event-00000000-0000-0000-0000-0000000000e1/publication-00000000-0000-0000-0000-0000000000b2/00000000-0000-0000-0000-000000000009";
+    const PRESENTATION: &str = r#"{"language_conf":{"enabled_language_codes":["en","es"]}}"#;
+
+    /// Signed EML bytes, spaced irregularly around the event presentation.
+    fn eml(presentation: &str) -> String {
+        format!(
+            r#"{{"id":"style", "election_event_presentation": {presentation},"area_presentation":{{"name":"North"}},"election_dates":{{"first_started_at":"2026-10-01T08:00:00Z"}},"contests":[]}}"#
+        )
+    }
+
+    fn style_row(id: Uuid, election: Uuid, eml: &str) -> Value {
+        json!({"id": id, "election_id": election, "area_id": AREA, "ballot_eml": eml, "status": "PUBLISHED"})
+    }
+
+    fn event_object() -> Value {
+        json!({"id": EVENT, "presentation": {"name": "Event"}, "description": null})
+    }
+
+    fn election_object(id: Uuid) -> Value {
+        json!({"id": id, "presentation": {"name": "Election"}})
+    }
+
+    fn two_elections(styles: Vec<Value>) -> PublicationRecord {
+        PublicationRecord {
+            elections: vec![election_object(ELECTION), election_object(OTHER_ELECTION)],
+            styles,
+            ..PublicationRecord::default()
+        }
+    }
+
+    fn consistent_styles() -> Vec<Value> {
+        vec![
+            style_row(STYLE, ELECTION, &eml(PRESENTATION)),
+            style_row(OTHER_STYLE, OTHER_ELECTION, &eml(PRESENTATION)),
+        ]
+    }
+
+    fn publication(record: PublicationRecord) -> MemoryPublicationRows {
+        MemoryPublicationRows::default()
+            .with_event(TENANT, EVENT, event_object(), None)
+            .with_publication(TENANT, EVENT, PUBLICATION, record)
+    }
+
+    async fn prepare(
+        rows: &MemoryPublicationRows,
+        objects: &MemoryPublicationObjects,
+        ids: &SequentialIds,
+    ) -> Result<()> {
+        prepare_files(
+            rows,
+            objects,
+            ids,
+            &TENANT.to_string(),
+            &EVENT.to_string(),
+            &PUBLICATION.to_string(),
+        )
+        .await
+    }
+
+    fn keys(root: &str, names: &[String]) -> Vec<String> {
+        names.iter().map(|name| format!("{root}/{name}")).collect()
+    }
+
+    fn election_keys() -> Vec<String> {
+        keys(
+            ROOT,
+            &[
+                format!("election-{ELECTION}.json"),
+                format!("election-{OTHER_ELECTION}.json"),
+            ],
+        )
+    }
+
+    fn files_annotation(root: &str) -> Option<Value> {
+        Some(json!({"ballot_files_v1": root}))
+    }
+
+    #[tokio::test]
+    async fn preparing_writes_elections_then_each_style_then_the_event_under_a_new_root() {
+        let rows = publication(two_elections(consistent_styles()));
+        let objects = MemoryPublicationObjects::default();
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        let mut expected = election_keys();
+        expected.extend(keys(
+            ROOT,
+            &[
+                format!("summary-{STYLE}.json"),
+                format!("style-{STYLE}.json"),
+                format!("summary-{OTHER_STYLE}.json"),
+                format!("style-{OTHER_STYLE}.json"),
+                "event.json".to_owned(),
+            ],
+        ));
+        assert_eq!(objects.keys(), expected);
+        assert_eq!(
+            rows.stored_annotations(TENANT, EVENT, PUBLICATION),
+            files_annotation(ROOT)
+        );
+    }
+
+    #[tokio::test]
+    async fn prepared_styles_drop_their_eml_and_rebuild_it_exactly_with_the_event() {
+        let rows = publication(two_elections(consistent_styles()));
+        let objects = MemoryPublicationObjects::default();
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        let style = objects.json(&format!("{ROOT}/style-{STYLE}.json")).unwrap();
+        assert_eq!(
+            style,
+            json!({
+                "id": STYLE,
+                "election_id": ELECTION,
+                "area_id": AREA,
+                "ballot_eml": null,
+                "status": "PUBLISHED",
+                "ballot_eml_prefix": r#"{"id":"style", "election_event_presentation": "#,
+                "ballot_eml_suffix": r#","area_presentation":{"name":"North"},"election_dates":{"first_started_at":"2026-10-01T08:00:00Z"},"contests":[]}"#,
+            })
+        );
+        let event = objects.json(&format!("{ROOT}/event.json")).unwrap();
+        assert_eq!(
+            event,
+            json!({"id": EVENT, "presentation": {"name": "Event"}, "description": null, "ballot_eml_presentation": PRESENTATION})
+        );
+        let rebuilt = [
+            &style["ballot_eml_prefix"],
+            &event["ballot_eml_presentation"],
+            &style["ballot_eml_suffix"],
+        ]
+        .map(|part| part.as_str().unwrap())
+        .concat();
+        assert_eq!(rebuilt, eml(PRESENTATION));
+        assert_eq!(
+            objects.json(&format!("{ROOT}/summary-{STYLE}.json")),
+            Some(json!({
+                "id": STYLE,
+                "area_presentation": {"name": "North"},
+                "election_dates": {"first_started_at": "2026-10-01T08:00:00Z"},
+            }))
+        );
+        assert_eq!(
+            objects.json(&format!("{ROOT}/election-{ELECTION}.json")),
+            Some(election_object(ELECTION))
+        );
+    }
+
+    #[tokio::test]
+    async fn a_style_without_an_event_presentation_keeps_its_whole_eml() {
+        let eml = r#"{"contests":[]}"#;
+        let rows = publication(two_elections(vec![style_row(STYLE, ELECTION, eml)]));
+        let objects = MemoryPublicationObjects::default();
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        let style = objects.json(&format!("{ROOT}/style-{STYLE}.json")).unwrap();
+        assert_eq!(style["ballot_eml_prefix"], eml);
+        assert_eq!(style["ballot_eml_suffix"], "");
+        assert_eq!(
+            objects.json(&format!("{ROOT}/summary-{STYLE}.json")),
+            Some(json!({"id": STYLE, "area_presentation": null, "election_dates": null}))
+        );
+        assert_eq!(
+            objects.json(&format!("{ROOT}/event.json")).unwrap()["ballot_eml_presentation"],
+            ""
+        );
+    }
+
+    #[tokio::test]
+    async fn a_publication_without_styles_still_gets_its_event_object() {
+        let rows = publication(two_elections(Vec::new()));
+        let objects = MemoryPublicationObjects::default();
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        let mut expected = election_keys();
+        expected.push(format!("{ROOT}/event.json"));
+        assert_eq!(objects.keys(), expected);
+        assert_eq!(
+            objects.json(&format!("{ROOT}/event.json")).unwrap()["ballot_eml_presentation"],
+            ""
+        );
+        assert_eq!(
+            rows.stored_annotations(TENANT, EVENT, PUBLICATION),
+            files_annotation(ROOT)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_prepared_publication_is_kept_without_opening_the_bucket() {
+        let annotations = json!({"ballot_files_v1": ROOT, "imported": true});
+        let rows = publication(PublicationRecord {
+            annotations: Some(annotations.clone()),
+            ..two_elections(consistent_styles())
+        });
+        // Opening this bucket fails, so success shows it was never opened.
+        let objects = MemoryPublicationObjects::unavailable();
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        assert!(objects.keys().is_empty());
+        assert_eq!(
+            rows.stored_annotations(TENANT, EVENT, PUBLICATION),
+            Some(annotations)
+        );
+    }
+
+    #[tokio::test]
+    async fn a_recorded_root_outside_the_publication_is_rejected_without_writing() {
+        for (root, error) in [
+            (OTHER_ROOT.to_owned(), "Publication object scope mismatch"),
+            (
+                format!("tenant-{EVENT}/event-{TENANT}/publication-{PUBLICATION}/{STYLE}"),
+                "Publication object scope mismatch",
+            ),
+            (
+                format!("tenant-{TENANT}/event-{EVENT}/publication-{PUBLICATION}/latest"),
+                "Invalid publication object version",
+            ),
+            (
+                format!("{ROOT}/../../publication-{OTHER_PUBLICATION}"),
+                "Invalid publication object version",
+            ),
+        ] {
+            let annotations = json!({ "ballot_files_v1": root });
+            let rows = publication(PublicationRecord {
+                annotations: Some(annotations.clone()),
+                ..two_elections(consistent_styles())
+            });
+            let objects = MemoryPublicationObjects::default();
+            let result = prepare(&rows, &objects, &SequentialIds::default()).await;
+
+            assert_eq!(result.unwrap_err().to_string(), error, "{root}");
+            assert!(objects.keys().is_empty(), "{root}");
+            assert_eq!(
+                rows.stored_annotations(TENANT, EVENT, PUBLICATION),
+                Some(annotations),
+                "{root}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_files_annotation_that_is_not_text_is_replaced_by_a_new_root() {
+        let rows = publication(PublicationRecord {
+            annotations: Some(json!({"ballot_files_v1": {"root": OTHER_ROOT}})),
+            ..two_elections(consistent_styles())
+        });
+        let objects = MemoryPublicationObjects::default();
+        prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap();
+
+        let annotations = rows.stored_annotations(TENANT, EVENT, PUBLICATION).unwrap();
+        assert_eq!(annotations["ballot_files_v1"], ROOT);
+        assert_eq!(objects.keys().len(), 7);
+    }
+
+    #[tokio::test]
+    async fn a_retry_after_a_failed_attempt_writes_under_a_new_root() {
+        let ids = SequentialIds::default();
+        let rows = publication(two_elections(consistent_styles()));
+        let objects = MemoryPublicationObjects::failing_at(format!("{ROOT}/event.json"));
+        let error = prepare(&rows, &objects, &ids).await.unwrap_err();
+        assert_eq!(error.to_string(), "upload rejected");
+        // The root is recorded only after its last object.
+        assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+        let failed_attempt = objects.keys();
+        assert_eq!(failed_attempt.len(), 6);
+
+        prepare(&rows, &objects, &ids).await.unwrap();
+        assert_eq!(
+            rows.stored_annotations(TENANT, EVENT, PUBLICATION),
+            files_annotation(RETRY_ROOT)
+        );
+        let keys = objects.keys();
+        assert_eq!(keys[..6], failed_attempt[..]);
+        assert_eq!(keys.len(), 13);
+        assert!(keys[6..]
+            .iter()
+            .all(|key| key.starts_with(&format!("{RETRY_ROOT}/"))));
+    }
+
+    #[tokio::test]
+    async fn different_event_presentations_in_one_publication_fail_before_the_event_object() {
+        let other = r#"{"language_conf":{"enabled_language_codes":["en"]}}"#;
+        let rows = publication(two_elections(vec![
+            style_row(STYLE, ELECTION, &eml(PRESENTATION)),
+            style_row(OTHER_STYLE, OTHER_ELECTION, &eml(other)),
+        ]));
+        let objects = MemoryPublicationObjects::default();
+        let error = prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "Inconsistent event presentation within publication"
+        );
+        let mut written = election_keys();
+        written.extend(keys(
+            ROOT,
+            &[
+                format!("summary-{STYLE}.json"),
+                format!("style-{STYLE}.json"),
+            ],
+        ));
+        assert_eq!(objects.keys(), written);
+        assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+    }
+
+    #[tokio::test]
+    async fn rows_without_their_identifiers_or_eml_fail_without_recording_a_root() {
+        for (elections, styles, error) in [
+            (
+                vec![json!({"presentation": null})],
+                vec![],
+                "Missing election id",
+            ),
+            (
+                vec![],
+                vec![json!({"ballot_eml": eml(PRESENTATION)})],
+                "Missing style id",
+            ),
+            (vec![], vec![json!({"id": STYLE})], "Missing ballot EML"),
+            (
+                vec![],
+                vec![json!({"id": STYLE, "ballot_eml": {"contests": []}})],
+                "Missing ballot EML",
+            ),
+        ] {
+            let rows = publication(PublicationRecord {
+                elections,
+                styles,
+                ..PublicationRecord::default()
+            });
+            let objects = MemoryPublicationObjects::default();
+            let result = prepare(&rows, &objects, &SequentialIds::default()).await;
+
+            assert_eq!(result.unwrap_err().to_string(), error);
+            assert!(objects.keys().is_empty(), "{error}");
+            assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_style_with_malformed_eml_fails_after_the_election_objects() {
+        for malformed in ["invalid", r#""contests""#] {
+            let rows = publication(two_elections(vec![style_row(STYLE, ELECTION, malformed)]));
+            let objects = MemoryPublicationObjects::default();
+            let error = prepare(&rows, &objects, &SequentialIds::default())
+                .await
+                .unwrap_err();
+
+            assert!(error.is::<serde_json::Error>(), "{malformed}: {error}");
+            assert_eq!(objects.keys(), election_keys(), "{malformed}");
+            assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failure_while_streaming_styles_records_no_root() {
+        let rows = publication(PublicationRecord {
+            styles_fail_after: Some(1),
+            ..two_elections(consistent_styles())
+        });
+        let objects = MemoryPublicationObjects::default();
+        let error = prepare(&rows, &objects, &SequentialIds::default())
+            .await
+            .unwrap_err();
+
+        assert_eq!(error.to_string(), "style row stream failed");
+        let mut written = election_keys();
+        written.extend(keys(
+            ROOT,
+            &[
+                format!("summary-{STYLE}.json"),
+                format!("style-{STYLE}.json"),
+            ],
+        ));
+        assert_eq!(objects.keys(), written);
+        assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+    }
+
+    #[tokio::test]
+    async fn an_unavailable_bucket_leaves_a_new_publication_unprepared() {
+        let rows = publication(two_elections(consistent_styles()));
+        let error = prepare(
+            &rows,
+            &MemoryPublicationObjects::unavailable(),
+            &SequentialIds::default(),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), "private bucket unavailable");
+        assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+    }
+
+    #[tokio::test]
+    async fn malformed_publication_identifiers_are_rejected() {
+        let rows = publication(two_elections(consistent_styles()));
+        let objects = MemoryPublicationObjects::default();
+        let (tenant, event, id) = (
+            TENANT.to_string(),
+            EVENT.to_string(),
+            PUBLICATION.to_string(),
+        );
+        for (tenant, event, id) in [
+            ("tenant", event.as_str(), id.as_str()),
+            (tenant.as_str(), "event", id.as_str()),
+            (tenant.as_str(), event.as_str(), "publication"),
+        ] {
+            let result = prepare_files(
+                &rows,
+                &objects,
+                &SequentialIds::default(),
+                tenant,
+                event,
+                id,
+            )
+            .await;
+            let error = result.unwrap_err();
+            assert!(error.is::<uuid::Error>(), "{error}");
+        }
+        assert!(objects.keys().is_empty());
+        assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+    }
+
+    fn published(
+        id: Uuid,
+        election: Uuid,
+        publication: Uuid,
+        root: Option<&str>,
+    ) -> PublishedBallotStyle {
+        PublishedBallotStyle {
+            id,
+            election_id: election,
+            publication_id: publication,
+            root: root.map(str::to_owned),
+            status: Some(json!({"voting_status": "OPEN"})),
+            num_allowed_revotes: Some(2),
+            voting_channels: Some(json!({"online": true, "kiosk": false})),
+        }
+    }
+
+    fn voter_rows(styles: Vec<PublishedBallotStyle>) -> MemoryPublicationRows {
+        MemoryPublicationRows::default()
+            .with_event(
+                TENANT,
+                EVENT,
+                event_object(),
+                Some(json!({"is_published": true})),
+            )
+            .with_published_styles(TENANT, EVENT, AREA, styles)
+    }
+
+    async fn files(
+        rows: &MemoryPublicationRows,
+        objects: &MemoryPublicationObjects,
+        elections: &[Uuid],
+    ) -> Result<Value> {
+        let elections: Vec<String> = elections.iter().map(Uuid::to_string).collect();
+        list_voter_files(
+            rows,
+            objects,
+            &TENANT.to_string(),
+            &EVENT.to_string(),
+            &AREA.to_string(),
+            &elections,
+        )
+        .await
+    }
+
+    /// The object and lifetime a fake presigned URL grants, without its signature.
+    fn grant(url: &Value) -> &str {
+        let url = url.as_str().unwrap();
+        &url[..url.find("&signature=").unwrap()]
+    }
+
+    #[tokio::test]
+    async fn voters_get_their_styles_with_the_live_election_policy_and_no_eml() {
+        let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))]);
+        let mut response = files(&rows, &MemoryPublicationObjects::default(), &[ELECTION])
+            .await
+            .unwrap();
+
+        let urls = response["files"][0].as_object_mut().unwrap().remove("urls");
+        assert!(urls.is_some());
+        assert_eq!(
+            response,
+            json!({
+                "event_id": EVENT,
+                "status": {"is_published": true},
+                "files": [{
+                    "id": STYLE,
+                    "election_id": ELECTION,
+                    "version": ROOT,
+                    "status": {"voting_status": "OPEN"},
+                    "num_allowed_revotes": 2,
+                    "voting_channels": {"online": true, "kiosk": false},
+                }],
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn each_file_links_its_event_election_summary_and_style_for_five_minutes() {
+        let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))]);
+        let response = files(&rows, &MemoryPublicationObjects::default(), &[ELECTION])
+            .await
+            .unwrap();
+
+        let urls = &response["files"][0]["urls"];
+        assert_eq!(urls.as_object().unwrap().len(), 4);
+        for (name, object) in [
+            ("event_url", "event.json".to_owned()),
+            ("election_url", format!("election-{ELECTION}.json")),
+            ("summary_url", format!("summary-{STYLE}.json")),
+            ("style_url", format!("style-{STYLE}.json")),
+        ] {
+            assert_eq!(
+                grant(&urls[name]),
+                format!("https://bucket.test/{ROOT}/{object}?expires=300"),
+                "{name}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn an_object_shared_by_several_files_is_signed_once() {
+        let rows = voter_rows(vec![
+            published(STYLE, ELECTION, PUBLICATION, Some(ROOT)),
+            published(OTHER_STYLE, OTHER_ELECTION, PUBLICATION, Some(ROOT)),
+        ]);
+        let response = files(
+            &rows,
+            &MemoryPublicationObjects::default(),
+            &[ELECTION, OTHER_ELECTION],
+        )
+        .await
+        .unwrap();
+
+        let (first, second) = (&response["files"][0]["urls"], &response["files"][1]["urls"]);
+        // Every signature is new, so an identical URL was signed once.
+        assert_eq!(first["event_url"], second["event_url"]);
+        for name in ["election_url", "summary_url", "style_url"] {
+            assert_ne!(grant(&first[name]), grant(&second[name]), "{name}");
+        }
+    }
+
+    #[tokio::test]
+    async fn files_keep_the_newest_publication_first_order_of_the_query() {
+        let rows = voter_rows(vec![
+            published(
+                OTHER_STYLE,
+                OTHER_ELECTION,
+                OTHER_PUBLICATION,
+                Some(OTHER_ROOT),
+            ),
+            published(STYLE, ELECTION, PUBLICATION, Some(ROOT)),
+        ]);
+        let response = files(
+            &rows,
+            &MemoryPublicationObjects::default(),
+            &[ELECTION, OTHER_ELECTION],
+        )
+        .await
+        .unwrap();
+
+        let versions: Vec<&str> = response["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|file| file["version"].as_str().unwrap())
+            .collect();
+        assert_eq!(versions, [OTHER_ROOT, ROOT]);
+    }
+
+    #[tokio::test]
+    async fn only_the_requested_elections_are_served() {
+        let rows = voter_rows(vec![
+            published(STYLE, ELECTION, PUBLICATION, Some(ROOT)),
+            published(OTHER_STYLE, OTHER_ELECTION, PUBLICATION, Some(ROOT)),
+        ]);
+        let objects = MemoryPublicationObjects::default();
+
+        let response = files(&rows, &objects, &[OTHER_ELECTION]).await.unwrap();
+        assert_eq!(response["files"].as_array().unwrap().len(), 1);
+        assert_eq!(response["files"][0]["id"], json!(OTHER_STYLE));
+        assert_eq!(
+            files(&rows, &objects, &[]).await.unwrap(),
+            json!({"event_id": EVENT, "status": {"is_published": true}, "files": []})
+        );
+    }
+
+    #[tokio::test]
+    async fn a_second_active_style_for_one_election_is_rejected() {
+        let rows = voter_rows(vec![
+            published(STYLE, ELECTION, PUBLICATION, Some(ROOT)),
+            published(OTHER_STYLE, ELECTION, OTHER_PUBLICATION, Some(OTHER_ROOT)),
+        ]);
+        let error = files(&rows, &MemoryPublicationObjects::default(), &[ELECTION])
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Multiple active ballot styles for one election"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_publication_without_prepared_objects_cannot_be_served() {
+        let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, None)]);
+        let error = files(&rows, &MemoryPublicationObjects::default(), &[ELECTION])
+            .await
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Publication requires S3 preparation; publish it again before serving voters"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_root_outside_the_style_publication_is_rejected() {
+        for (root, error) in [
+            (OTHER_ROOT.to_owned(), "Publication object scope mismatch"),
+            (
+                format!("tenant-{TENANT}/event-{EVENT}/publication-{PUBLICATION}/latest"),
+                "Invalid publication object version",
+            ),
+        ] {
+            let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(&root))]);
+            let result = files(&rows, &MemoryPublicationObjects::default(), &[ELECTION]).await;
+            assert_eq!(result.unwrap_err().to_string(), error, "{root}");
+        }
+    }
+
+    #[tokio::test]
+    async fn malformed_voter_identifiers_are_rejected() {
+        let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))]);
+        let objects = MemoryPublicationObjects::default();
+        let (tenant, event, area, election) = (
+            TENANT.to_string(),
+            EVENT.to_string(),
+            AREA.to_string(),
+            ELECTION.to_string(),
+        );
+        for (tenant, event, area, elections) in [
+            (
+                "tenant",
+                event.as_str(),
+                area.as_str(),
+                vec![election.clone()],
+            ),
+            (
+                tenant.as_str(),
+                "event",
+                area.as_str(),
+                vec![election.clone()],
+            ),
+            (
+                tenant.as_str(),
+                event.as_str(),
+                "area",
+                vec![election.clone()],
+            ),
+            (
+                tenant.as_str(),
+                event.as_str(),
+                area.as_str(),
+                vec![election.clone(), "election".to_owned()],
+            ),
+        ] {
+            let result = list_voter_files(&rows, &objects, tenant, event, area, &elections).await;
+            let error = result.unwrap_err();
+            assert!(error.is::<uuid::Error>(), "{error}");
+        }
+    }
+
+    #[tokio::test]
+    async fn an_unknown_event_is_rejected_before_opening_the_bucket() {
+        let rows = MemoryPublicationRows::default().with_published_styles(
+            TENANT,
+            EVENT,
+            AREA,
+            vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))],
+        );
+        let error = files(&rows, &MemoryPublicationObjects::unavailable(), &[ELECTION])
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "Election event not found");
+    }
+
+    #[tokio::test]
+    async fn a_url_that_cannot_be_signed_fails_the_whole_response() {
+        let rows = voter_rows(vec![published(STYLE, ELECTION, PUBLICATION, Some(ROOT))]);
+        let error = files(
+            &rows,
+            &MemoryPublicationObjects::failing_presign(),
+            &[ELECTION],
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.to_string(), "presigning failed");
     }
 }
