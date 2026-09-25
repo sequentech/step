@@ -156,6 +156,10 @@ limitations = [
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.harvest.scope_exceptions]
+"src/adapters/memory/mod.rs" = "Module declarations only; user task fakes remain in the source inventory."
+"src/adapters/mod.rs" = "Module declarations only; production adapters are inventoried separately."
+"src/ports/mod.rs" = "Module declarations only."
+"src/ports/user_tasks.rs" = "User task trait and data declarations only; implementations are measured in adapters."
 "src/routes/mod.rs" = "Module declarations only; registered route implementations are inventoried separately."
 "src/services/mod.rs" = "Module declarations only."
 "src/services/authorization.rs" = "Imports and re-exports of Sequent Core authorization; no handwritten executable methods."
