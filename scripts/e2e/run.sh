@@ -59,14 +59,13 @@ PROJECT=${STEP_E2E_PROJECT:-step-e2e-$(id -u)-$$-$RANDOM}
 # browser execution and cleanup. Inspection, builds and explicit --down all lock.
 export STEP_E2E_PROJECT=$PROJECT
 if ! python3 "$ROOT/scripts/e2e/project_lock.py" --check "$PROJECT"; then
-    exec python3 "$ROOT/scripts/e2e/project_lock.py" "$PROJECT" "$0" ${original_args[@]+"${original_args[@]}"}
+    exec python3 "$ROOT/scripts/e2e/project_lock.py" "$PROJECT" "$ROOT/scripts/e2e/run.sh" ${original_args[@]+"${original_args[@]}"}
 fi
 OUTPUT=${STEP_E2E_OUTPUT_DIR:-$ROOT/.cache/backend-e2e/$PROJECT}
 # The UI wrapper supplies a fresh token to recognize this invocation's claim,
 # even if its caller selected an output directory containing old run markers.
 RUN_TOKEN=${STEP_E2E_RUN_TOKEN:-$$-$RANDOM-$RANDOM}
 [[ "$RUN_TOKEN" =~ ^[a-zA-Z0-9_-]+$ ]] || { echo 'Invalid run token' >&2; exit 2; }
-OWNERSHIP_FILE=$OUTPUT/.owned-$RUN_TOKEN
 
 assert_unused_project() {
     local resources kind
@@ -86,6 +85,9 @@ assert_unused_project() {
 $down_only || assert_unused_project
 
 mkdir -p "$OUTPUT/logs" "$STEP_E2E_BIN_DIR"
+OUTPUT=$(cd -- "$OUTPUT" && pwd)
+STEP_E2E_BIN_DIR=$(cd -- "$STEP_E2E_BIN_DIR" && pwd)
+OWNERSHIP_FILE=$OUTPUT/.owned-$RUN_TOKEN
 # The base compose file reads .devcontainer/.env; never replace a developer's own.
 [[ -f "$DEVCONTAINER/.env" ]] || cp "$DEVCONTAINER/.env.development" "$DEVCONTAINER/.env"
 cat > "$OUTPUT/compose.env" <<EOF

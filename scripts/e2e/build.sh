@@ -23,6 +23,7 @@ CARGO_CACHE=${STEP_E2E_CARGO_HOME:-step-e2e-cargo-home}
 DOCKER=${DOCKER:-docker}
 
 mkdir -p "$BIN_DIR"
+BIN_DIR=$(cd -- "$BIN_DIR" && pwd)
 if [[ "$CARGO_CACHE" == /* ]]; then
     mkdir -p "$CARGO_CACHE/registry" "$CARGO_CACHE/git"
     registry="$CARGO_CACHE/registry"

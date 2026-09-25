@@ -44,6 +44,7 @@ class RunSafety(unittest.TestCase):
         script.parent.mkdir(parents=True)
         shutil.copyfile(ROOT / "scripts/e2e/run.sh", script)
         script.chmod(0o755)
+        shutil.copyfile(ROOT / "scripts/e2e/build.sh", script.parent / "build.sh")
         shutil.copyfile(
             ROOT / "scripts/e2e/project_lock.py", script.parent / "project_lock.py"
         )
@@ -55,7 +56,10 @@ class RunSafety(unittest.TestCase):
         self.docker.chmod(0o755)
         self.log = self.root / "docker.jsonl"
         self.env = dict(os.environ)
-        for name in ("STEP_E2E_PROJECT", "STEP_E2E_OUTPUT_DIR", "STEP_E2E_RUN_TOKEN"):
+        for name in (
+            "STEP_E2E_PROJECT", "STEP_E2E_OUTPUT_DIR", "STEP_E2E_RUN_TOKEN",
+            "STEP_E2E_BIN_DIR", "STEP_E2E_CARGO_TARGET", "STEP_E2E_CARGO_HOME",
+        ):
             self.env.pop(name, None)
         self.env.update(DOCKER=str(self.docker), FAKE_DOCKER_LOG=str(self.log))
 
@@ -78,6 +82,79 @@ class RunSafety(unittest.TestCase):
 
     def compose_calls(self, verb):
         return [args for args in self.calls() if args[0] == "compose" and verb in args]
+
+    def test_bash_invocation_from_the_script_directory_retains_arguments(self):
+        script_directory = self.root / "scripts/e2e"
+        result = subprocess.run(
+            ["bash", "run.sh", "--keep", "--skip-images", "--skip-build", "-k", "cast vote"],
+            cwd=script_directory,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(len(self.compose_calls("up")), 1)
+        self.assertEqual(self.compose_calls("down"), [])
+        driver = [call for call in self.compose_calls("run") if "test" in call]
+        self.assertEqual(len(driver), 1)
+        self.assertEqual(driver[0][-3:], ["test", "-k", "cast vote"])
+
+    def test_relative_run_directories_are_resolved_against_the_callers_directory(self):
+        caller = self.root / "caller"
+        caller.mkdir()
+        result = subprocess.run(
+            [str(self.root / "scripts/e2e/run.sh"), "--skip-images", "--skip-build"],
+            cwd=caller,
+            env={
+                **self.env,
+                "STEP_E2E_BIN_DIR": "binaries here",
+                "STEP_E2E_OUTPUT_DIR": "logs/run",
+            },
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = caller / "logs/run"
+        self.assertTrue((caller / "binaries here").is_dir())
+        values = dict(
+            line.split("=", 1) for line in (output / "compose.env").read_text().splitlines()
+        )
+        self.assertEqual(values["STEP_E2E_BIN_DIR"], str(caller / "binaries here"))
+        self.assertEqual(values["STEP_E2E_OUTPUT_DIR"], str(output))
+        for call in self.compose_calls("up") + self.compose_calls("down"):
+            env_files = [
+                call[index + 1] for index, value in enumerate(call) if value == "--env-file"
+            ]
+            self.assertEqual(env_files[-1], str(output / "compose.env"))
+        self.assertFalse(list(output.glob(".owned-*")))
+
+    def test_relative_build_output_is_a_host_bind_mount(self):
+        caller = self.root / "caller"
+        caller.mkdir()
+        for configured in ("bin", ".cache/binaries here"):
+            with self.subTest(configured=configured):
+                result = subprocess.run(
+                    ["bash", str(self.root / "scripts/e2e/build.sh")],
+                    cwd=caller,
+                    env={**self.env, "STEP_E2E_BIN_DIR": configured},
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                build = self.calls()[-1]
+                mounts = [
+                    build[index + 1]
+                    for index, value in enumerate(build)
+                    if value == "--volume"
+                ]
+                self.assertIn(f"{caller / configured}:/out", mounts)
+                self.assertTrue((caller / configured).is_dir())
 
     def test_down_requires_an_explicit_project(self):
         result = self.run_script("--down")
