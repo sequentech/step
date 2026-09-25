@@ -4,10 +4,9 @@
 
 import React, {ReactElement, useState, useContext, useEffect, useCallback} from "react"
 import {useTranslation} from "react-i18next"
-import {Visibility, Preview} from "@mui/icons-material"
-import {IconButton, Dialog} from "@sequentech/ui-essentials"
+import {Add, Visibility, Preview} from "@mui/icons-material"
+import {Dialog} from "@sequentech/ui-essentials"
 import {Box, Typography, Button, DialogContent, DialogActions} from "@mui/material"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
 import {EPublishActions} from "@/types/publishActions"
 
 import {
@@ -120,7 +119,7 @@ export const PublishList: React.FC<TPublishList> = ({
             {canPublishCreate && canReadPublish && (
                 <>
                     <Button onClick={handlePublish} className="publish-add-button">
-                        <IconButton icon={faPlus as any} fontSize="24px" />
+                        <Add aria-hidden="true" />
                         {t("publish.empty.action")}
                     </Button>
                     <Typography variant="body1" paragraph>
