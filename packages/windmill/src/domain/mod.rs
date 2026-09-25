@@ -6,3 +6,4 @@
 //! the current time, and return decisions; services perform the effects.
 
 pub mod datafix_cast_vote;
+pub mod publication_files;

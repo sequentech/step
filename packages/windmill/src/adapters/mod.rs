@@ -9,4 +9,5 @@
 pub mod datafix_cast_vote;
 #[cfg(test)]
 pub mod memory;
+pub mod publication_files;
 pub mod system;

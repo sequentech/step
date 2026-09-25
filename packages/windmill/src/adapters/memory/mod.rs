@@ -7,3 +7,4 @@
 
 pub mod clock;
 pub mod datafix_cast_vote;
+pub mod publication_files;
