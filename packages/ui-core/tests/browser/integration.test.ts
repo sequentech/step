@@ -22,8 +22,16 @@ const unexpectedRequests: string[] = []
 
 async function restrictNetwork(target: Page) {
     await target.route("**/*", (route) => {
-        if (route.request().url().startsWith(`${origin}/`)) return route.continue()
-        unexpectedRequests.push(route.request().url())
+        const request = route.request()
+        const url = new URL(request.url())
+        if (
+            request.method() === "GET" &&
+            url.origin === origin &&
+            ["/", "/fixture.js", "/index_bg.wasm"].includes(url.pathname) &&
+            !url.search
+        )
+            return route.continue()
+        unexpectedRequests.push(`${request.method()} ${request.url()}`)
         return route.abort()
     })
     await target.routeWebSocket("**/*", (socket) => {
@@ -308,4 +316,25 @@ test("a missing WASM resource moves the actual provider to error rather than rea
     } finally {
         await failed.close()
     }
+})
+
+test("the fixture rejects unexpected same-origin requests even when the caller catches them", async () => {
+    const rejected = await page.evaluate(async () => {
+        const outcomes: boolean[] = []
+        for (const [path, method] of [
+            ["/unexpected", "GET"],
+            ["/fixture.js", "POST"],
+        ]) {
+            try {
+                await fetch(path, {method})
+                outcomes.push(false)
+            } catch {
+                outcomes.push(true)
+            }
+        }
+        return outcomes
+    })
+    assert.deepEqual(rejected, [true, true])
+    assert.deepEqual(unexpectedRequests, [`GET ${origin}/unexpected`, `POST ${origin}/fixture.js`])
+    unexpectedRequests.length = 0
 })
