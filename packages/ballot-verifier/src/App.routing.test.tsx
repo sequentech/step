@@ -259,9 +259,7 @@ describe("event routes", () => {
         expect(await screen.findByRole("heading", {name: "Page not found"})).toBeVisible()
     })
 
-    // Expected failure: "Back" (ConfirmationScreen.tsx:225) and the redirect without
-    // a ballot (:379) go to "/", which App.tsx:141-149 sends to the default event.
-    it.failing.each([
+    it.each([
         [
             "goes back",
             async () => {

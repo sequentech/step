@@ -18,6 +18,7 @@ import {
 import "../services/i18n"
 import {ConfirmationScreen} from "./ConfirmationScreen"
 import {IConfirmationBallot} from "../services/BallotService"
+import {TenantEventProvider} from "../providers/TenantEventContext"
 import {resetSequentCore, sequentCore} from "../__mocks__/sequentCore"
 import {ballotStyle, firstCandidateChosen, IDS} from "../__mocks__/auditableBallots"
 
@@ -47,22 +48,22 @@ function renderConfirmation(confirmationBallot: IConfirmationBallot | null, prov
     return render(
         <ThemeProvider theme={theme}>
             <MemoryRouter initialEntries={[`${eventPath}/confirmation`]}>
-                <div className="app-root" data-testid="app-root">
-                    <Routes>
-                        <Route
-                            path={`${eventPath}/confirmation`}
-                            element={
-                                <ConfirmationScreen
-                                    confirmationBallot={confirmationBallot}
-                                    ballotId={providedId}
-                                />
-                            }
-                        />
-                        {/* Wherever the verifier sends the voter, it must be an import step. */}
-                        <Route path="/" element={<p>Import step</p>} />
-                        <Route path={`${eventPath}/start`} element={<p>Import step</p>} />
-                    </Routes>
-                </div>
+                <TenantEventProvider tenantId={IDS.tenant} eventId={IDS.event}>
+                    <div className="app-root" data-testid="app-root">
+                        <Routes>
+                            <Route
+                                path={`${eventPath}/confirmation`}
+                                element={
+                                    <ConfirmationScreen
+                                        confirmationBallot={confirmationBallot}
+                                        ballotId={providedId}
+                                    />
+                                }
+                            />
+                            <Route path={`${eventPath}/start`} element={<p>Import step</p>} />
+                        </Routes>
+                    </div>
+                </TenantEventProvider>
             </MemoryRouter>
         </ThemeProvider>
     )
@@ -186,13 +187,13 @@ describe("decoded selections", () => {
 })
 
 describe("leaving the confirmation step", () => {
-    it("returns to the import step when no ballot has been verified", async () => {
+    it("returns to the event's import step when no ballot has been verified", async () => {
         renderConfirmation(null, "")
 
         expect(await screen.findByText("Import step")).toBeVisible()
     })
 
-    it("goes back to the import step", async () => {
+    it("goes back to the event's import step", async () => {
         renderConfirmation(verified(), ballotId)
 
         userEvent.click(screen.getByRole("link", {name: "Back"}))
