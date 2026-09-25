@@ -13,6 +13,7 @@ members = [
     "strand",
     "immu-board",
     "immudb-rs",
+    "protocol-board",
     "sequent-core",
     "velvet",
     "windmill",

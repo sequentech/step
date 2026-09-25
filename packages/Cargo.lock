@@ -8083,6 +8083,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "protocol-board"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "braid 0.6.4",
+ "hex",
+ "sequent-core",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vsc",
+]
+
+[[package]]
 name = "ptr_meta"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
