@@ -7,6 +7,7 @@ import {GridMoreVertIcon} from "@mui/x-data-grid"
 import React from "react"
 import {useRecordContext} from "react-admin"
 import {Action} from "./ActionButons"
+import {useTranslation} from "react-i18next"
 const PREFIX = "ListActionsMenu"
 
 const classes = {
@@ -34,6 +35,7 @@ interface ListActionsMenuProps {
 }
 
 export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
+    const {t} = useTranslation()
     const record = useRecordContext()
     const {actions} = props
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
@@ -65,6 +67,7 @@ export const ListActionsMenu: React.FC<ListActionsMenuProps> = (props) => {
         <Root>
             <IconButton
                 id="actions-menu-button"
+                aria-label={t("common.label.actions")}
                 aria-controls={open ? "actions-menu" : undefined}
                 aria-haspopup="true"
                 aria-expanded={open ? "true" : undefined}
