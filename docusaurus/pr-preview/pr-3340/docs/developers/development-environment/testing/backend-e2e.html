@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Backend E2E journeys | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3340/docs/developers/development-environment/testing/backend-e2e"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Backend E2E journeys | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3340/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3340/docs/developers/development-environment/testing/backend-e2e"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3340/docs/developers/development-environment/testing/backend-e2e" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3340/docs/developers/development-environment/testing/backend-e2e" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Backend E2E journeys","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3340/docs/developers/development-environment/testing/backend-e2e"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3340/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3340/assets/js/runtime~main.babfa223.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3340/assets/js/runtime~main.be3d93fd.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3340/assets/js/main.9c509345.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -37,7 +37,16 @@ to expose Hasura, Keycloak and MinIO on dynamically allocated loopback ports;
 <p>Results are written to <code>.cache/backend-e2e/&lt;project&gt;/journeys.json</code>, with CLI output and
 service logs beside it. Override this directory with <code>STEP_E2E_OUTPUT_DIR</code>.
 The <code>Backend E2E journeys</code> workflow runs the same command on affected pull
-requests and uploads those artifacts, including after failures.</p>
+requests and uploads those artifacts, including after failures.
+The job summary (<code>scripts/e2e/summary.py &lt;output&gt;</code> writes it to <code>summary.md</code>) lists each
+journey and the bootstrap check with status and duration, then the totals. The
+<code>backend-e2e-results-&lt;attempt&gt;</code> artifact keeps it with the JSON results.</p>
+<p><code>STEP_E2E_COVERAGE=1 scripts/e2e/run.sh</code>, as CI runs it, builds instrumented binaries into
+<code>bin-coverage</code> and stops the services after the journeys so that they write LLVM profiles.
+<code>coverage/summary.md</code> (also in the job summary) and <code>summary.json</code> give lines, functions and
+regions per <code>packages/&lt;package&gt;/src</code> as <code>scripts/coverage</code> defines them, counting only source
+linked into the binaries. The profile table shows each service&#x27;s executed functions and exit
+code (143: stopped by SIGTERM, counters kept by continuous mode); a missing profile fails the run.</p>
 <p>The ordered tests in <code>scripts/e2e/journeys/test_journeys.py</code> cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
 private ballot publication, cast/revote/closing rules and results matching the
