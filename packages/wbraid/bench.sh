@@ -2,31 +2,57 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# Controlled benchmark run for the MSM optimization campaign.
+# Local benchmark run for wbraid's cryptography (bash; PowerShell twin:
+# bench.ps1, same grids, same output).
 #
-# Run this with the machine otherwise quiesced (no other heavy processes) to
-# get authoritative numbers. It builds everything FIRST (untimed), then runs
-# the timed benchmarks, teeing everything to a timestamped results file under
-# bench-results/.
+# What it measures (the two measurement programs in crates/vsc/examples/):
 #
-# Usage (from packages/wbraid, in git bash or a bash shell):
-#   ./bench.sh
+#   targets  The five cryptographic stages of a tally, each timed alone, for one
+#            cell "N:W" -- N ciphertexts of width W: shuffle prove, shuffle
+#            verify, one trustee's partial decryption, combine (verify every
+#            partial and interpolate), and the first mix's Naor-Yung
+#            verify-and-strip. One CSV line per run, milliseconds:
+#              count,width,prove,verify,partial_decrypt,combine,ny_strip,sizeof,ser
+#   tally    The global target: one whole tally replayed with real data flow for
+#            a quorum of Q trustees, cell "N:W:Q", composed into its
+#            critical-path latency T (what the tally takes end to end, each
+#            trustee on its own machine) and V (the external verifier's path).
+#            One CSV line per run, milliseconds, stage breakdown on stderr:
+#              count,width,quorum,ser,strip_prod,strip_ver,prove,verify,partial,combine,ser_ms,t,v
 #
-# Windows/PowerShell twin: bench.ps1 (same grid, same output format).
+# Each cell runs REPS times; read the median. Results are appended to a
+# timestamped file under bench-results/ (git-ignored). Everything is built
+# first, untimed; run with the machine otherwise idle.
 #
-# The criterion benches (parallel_tradeoff, msm_strategy) self-calibrate; the
-# targets example is run over a fixed cell grid, REPS times each, so the
-# median can be taken; the tally example (the global target) runs over
-# TALLY_CELLS ("N:W:Q", empty skips it). Adjust CELLS/REPS below to taste. GUIDANCE=0 skips the
-# criterion guidance benches and runs only the targets grid -- what a reference
-# snapshot (bench-ec2.sh) wants; the guidance results are design inputs
-# recorded in PERFORMANCE.md, not part of the snapshot.
+# These are the local tools. Authoritative numbers come from a fixed EC2
+# reference machine instead -- bench-ec2.sh, documented in BENCH-EC2.md -- and
+# PERFORMANCE.md (Status) is generated from such a session.
+#
+# Usage, from packages/wbraid (Linux, the devcontainer, or Git Bash on Windows):
+#
+#   GUIDANCE=0 ./bench.sh                                   # targets + tally over the default grids
+#   GUIDANCE=0 CELLS="100000:2" TALLY_CELLS="100000:2:3" REPS=5 ./bench.sh
+#   GUIDANCE=0 TALLY_CELLS="" ./bench.sh                    # targets only
+#   GUIDANCE=0 CELLS="" TALLY_CELLS="1000000:1:2" ./bench.sh    # tally only
+#   ./bench.sh                                              # also the criterion guidance benches (slow)
+#
+# Or run the programs directly, once built (cargo build --release -p vsc --examples):
+#
+#   ./target/release/examples/targets 100000 2             # N W
+#   ./target/release/examples/tally 100000 2 3             # N W Q
+#   ./target/release/examples/tally 100000 2 3 --ser       # + encoding/decoding of every posted message
+#
+# Supported widths W: 1 2 3 5 10; quorums Q (tally): 2 3 4 5 7.
+#
+# GUIDANCE=1 (the default) first runs the criterion benches parallel_tradeoff
+# and msm_strategy, which steer implementation choices and are recorded in
+# PERFORMANCE.md; they are not part of a snapshot.
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 REPS="${REPS:-3}"
-CELLS="${CELLS:-1000:2 10000:2 10000:5 100000:2 100000:5}"
+CELLS="${CELLS-1000:2 10000:2 10000:5 100000:2 100000:5}"
 TALLY_CELLS="${TALLY_CELLS-10000:2:3 100000:2:3}"
 GUIDANCE="${GUIDANCE:-1}"
 

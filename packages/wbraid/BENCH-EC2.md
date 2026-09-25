@@ -126,7 +126,7 @@ the region's default VPC), `s3 ls s3://BUCKET`, and the two quotas via
 
 ## Running
 
-From `packages/wbraid`:
+From `packages/wbraid`, in bash — on Windows that is Git Bash, which ships with Git for Windows (the driver finds `aws.exe` in its default install locations and converts paths with `cygpath`; the remote half runs on Ubuntu). For local runs without EC2, `bench.ps1` / `bench.sh` document the targets and tally benches in their headers.
 
 ```sh
 ./bench-ec2.sh smoke                         # first, and after any change to the script

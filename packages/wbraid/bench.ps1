@@ -1,22 +1,51 @@
 # SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# Controlled benchmark run for the MSM optimization campaign (Windows twin of
-# bench.sh).
+# Local benchmark run for wbraid's cryptography (PowerShell; bash twin: bench.sh,
+# same grids, same output).
 #
-# Run this with the machine otherwise quiesced (no other heavy processes) to
-# get authoritative numbers. It builds everything FIRST (untimed), then runs
-# the timed benchmarks, teeing everything to a timestamped results file under
-# bench-results/.
+# What it measures (the two measurement programs in crates/vsc/examples/):
 #
-# Usage (from packages/wbraid, in PowerShell):
-#   .\bench.ps1
-#   .\bench.ps1 -Reps 5
+#   targets  The five cryptographic stages of a tally, each timed alone, for one
+#            cell "N:W" -- N ciphertexts of width W: shuffle prove, shuffle
+#            verify, one trustee's partial decryption, combine (verify every
+#            partial and interpolate), and the first mix's Naor-Yung
+#            verify-and-strip. One CSV line per run, milliseconds:
+#              count,width,prove,verify,partial_decrypt,combine,ny_strip,sizeof,ser
+#   tally    The global target: one whole tally replayed with real data flow for
+#            a quorum of Q trustees, cell "N:W:Q", composed into its
+#            critical-path latency T (what the tally takes end to end, each
+#            trustee on its own machine) and V (the external verifier's path).
+#            One CSV line per run, milliseconds, stage breakdown on stderr:
+#              count,width,quorum,ser,strip_prod,strip_ver,prove,verify,partial,combine,ser_ms,t,v
 #
-# The criterion benches (parallel_tradeoff, msm_strategy) self-calibrate; the
-# targets example runs over a fixed cell grid, -Reps times each, so the median
-# can be taken; the tally example (the global target) runs over -TallyCells
-# ("N:W:Q"). Override the grids with -Cells ("N:W") and -TallyCells.
+# Each cell runs REPS times; read the median. Results are appended to a
+# timestamped file under bench-results/ (git-ignored). Everything is built
+# first, untimed; run with the machine otherwise idle.
+#
+# These are the local tools. Authoritative numbers come from a fixed EC2
+# reference machine instead -- bench-ec2.sh, documented in BENCH-EC2.md -- and
+# PERFORMANCE.md (Status) is generated from such a session.
+#
+# Usage, from packages/wbraid in PowerShell:
+#
+#   .\bench.ps1 -Guidance 0                            # targets + tally over the default grids
+#   .\bench.ps1 -Guidance 0 -Cells '100000:2' -TallyCells '100000:2:3' -Reps 5
+#   .\bench.ps1 -Guidance 0 -TallyCells @()            # targets only
+#   .\bench.ps1 -Guidance 0 -Cells @() -TallyCells '1000000:1:2'   # tally only
+#   .\bench.ps1                                        # also the criterion guidance benches (slow)
+#
+# Or run the programs directly, once built (cargo build --release -p vsc --examples):
+#
+#   .\target\release\examples\targets.exe 100000 2          # N W
+#   .\target\release\examples\tally.exe 100000 2 3          # N W Q
+#   .\target\release\examples\tally.exe 100000 2 3 --ser    # + encoding/decoding of every posted message
+#
+# Supported widths W: 1 2 3 5 10; quorums Q (tally): 2 3 4 5 7.
+#
+# -Guidance 1 (the default) first runs the criterion benches parallel_tradeoff
+# and msm_strategy, which steer implementation choices and are recorded in
+# PERFORMANCE.md; they are not part of a snapshot.
 
 [CmdletBinding()]
 param(
