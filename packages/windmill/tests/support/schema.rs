@@ -5,6 +5,10 @@
 //! once per test binary on the PostgreSQL server that `HASURA_DB__*` names.
 //! Tests work inside a transaction and roll it back, so they only see their
 //! own rows. Include it with `#[path = "support/schema.rs"] mod schema;`.
+//!
+//! A connection is driven by the runtime that opened it, and `#[tokio::test]`
+//! gives each test its own runtime, so every call to [`pool`] returns a new
+//! pool whose connections end with the test.
 
 use deadpool_postgres::{Pool, Runtime};
 use std::path::{Path, PathBuf};
@@ -14,7 +18,7 @@ use tokio_postgres::NoTls;
 use windmill::services::database::PgConfig;
 
 const PREFIX: &str = "windmill_schema_";
-static POOL: OnceCell<Pool> = OnceCell::const_new();
+static DATABASE: OnceCell<String> = OnceCell::const_new();
 
 fn pool_for(database: &str) -> Pool {
     let mut config = PgConfig::from_env()
@@ -50,7 +54,7 @@ fn migrations() -> Vec<PathBuf> {
     directories.into_iter().map(|(_, path)| path).collect()
 }
 
-async fn create() -> Pool {
+async fn create() -> String {
     let maintenance = pool_for(
         &PgConfig::from_env()
             .expect("HASURA_DB__* must name the test PostgreSQL server")
@@ -84,6 +88,7 @@ async fn create() -> Pool {
         .await
         .expect("create fixture database");
 
+    anchor(&database).await;
     let pool = pool_for(&database);
     let mut client = pool.get().await.expect("fixture connection");
     // The extensions .devcontainer/postgresql/init.sh creates.
@@ -102,10 +107,30 @@ async fn create() -> Pool {
             .unwrap_or_else(|error| panic!("{}: {error:?}", migration.display()));
         transaction.commit().await.expect("commit migration");
     }
-    pool
+    database
 }
 
-/// The shared pool of the migrated database.
-pub async fn pool() -> &'static Pool {
-    POOL.get_or_init(create).await
+/// Keeps one connection open until the process exits, on a thread of its own,
+/// so another binary's cleanup above cannot drop the database between tests.
+async fn anchor(database: &str) {
+    let (connected, ready) = tokio::sync::oneshot::channel();
+    let database = database.to_owned();
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("anchor runtime")
+            .block_on(async move {
+                let pool = pool_for(&database);
+                let _connection = pool.get().await.expect("anchor connection");
+                let _ = connected.send(());
+                std::future::pending::<()>().await
+            })
+    });
+    ready.await.expect("anchor connected");
+}
+
+/// A new pool on the migrated database, for the calling test only.
+pub async fn pool() -> Pool {
+    pool_for(DATABASE.get_or_init(create).await)
 }
