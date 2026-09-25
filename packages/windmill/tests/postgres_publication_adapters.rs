@@ -2103,6 +2103,35 @@ async fn get_ballot_styles_by_elections_returns_live_styles_of_the_requested_ele
 }
 
 #[tokio::test]
+async fn get_ballot_styles_by_elections_includes_live_styles_of_unpublished_publications() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let election = f.election(a).await;
+    let area = f.area(a).await;
+    let live = f.publication(a, published(1)).await;
+    let draft = f.publication(a, PublicationRow::default()).await;
+    let live_style = f.style(a, live, election, area).await;
+    let draft_style = f.style(a, draft, election, area).await;
+
+    let styles = ballot_style::get_ballot_styles_by_elections(
+        &tx,
+        &a.tenant_id(),
+        &a.event_id(),
+        &strings(&[election]),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        style_ids(&styles),
+        sorted(strings(&[live_style, draft_style]))
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn get_publication_ballot_styles_orders_by_election_and_area_and_honours_the_limit() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
@@ -2423,6 +2452,25 @@ async fn insert_cast_vote_rejects_a_second_area_even_with_unlimited_revotes() {
 
     assert_trigger_rejection(&error, "check_votes_in_other_areas_failed");
     assert_eq!(vote_count(&tx, a, "voter").await, 1);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn insert_cast_vote_reports_a_second_area_before_an_exhausted_revote_limit() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let election = f.election(a).await;
+    let (first_area, second_area) = (f.area(a).await, f.area(a).await);
+    cast(&tx, a, [election, first_area], valid("voter"))
+        .await
+        .unwrap();
+
+    // Both rules reject this vote; the area rule is checked first.
+    let error = rejected(&tx, a, [election, second_area], valid("voter")).await;
+
+    assert_trigger_rejection(&error, "check_votes_in_other_areas_failed");
     tx.rollback().await.unwrap();
 }
 

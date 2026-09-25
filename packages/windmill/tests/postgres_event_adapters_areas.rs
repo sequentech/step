@@ -1747,6 +1747,43 @@ async fn export_candidates_and_get_candidates_by_contest_id_filter_by_event_and_
 }
 
 #[tokio::test]
+async fn candidate_adapters_reject_invalid_uuids() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let (tenant, event, id) = (a.tenant_id(), a.event_id(), f.id());
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("candidates.csv");
+
+    for (tenant, event) in [(BAD_UUID, event.as_str()), (tenant.as_str(), BAD_UUID)] {
+        assert_invalid_uuid(candidate::export_candidates(&tx, tenant, event).await);
+        assert_invalid_uuid(
+            candidate::get_candidates_by_contest_id(&tx, tenant, event, &id.to_string()).await,
+        );
+        assert_invalid_uuid(
+            candidate::insert_candidates(&tx, tenant, event, &vec![candidate_data(a, id, None)])
+                .await,
+        );
+        assert_invalid_uuid(
+            candidate::export_candidate_csv(&tx, &path, &vec![], tenant, event).await,
+        );
+    }
+    assert_invalid_uuid(
+        candidate::get_candidates_by_contest_id(&tx, &tenant, &event, BAD_UUID).await,
+    );
+    let mut invalid = candidate_data(a, id, None);
+    invalid.id = BAD_UUID.to_string();
+    tx.batch_execute("SAVEPOINT import").await.unwrap();
+    assert_invalid_uuid(candidate::insert_candidates(&tx, &tenant, &event, &vec![invalid]).await);
+    tx.batch_execute("ROLLBACK TO SAVEPOINT import")
+        .await
+        .unwrap();
+    assert!(ids_of(&tx, "candidate", a).await.is_empty());
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
 async fn export_candidate_csv_writes_the_candidates_of_the_requested_contests() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
