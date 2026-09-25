@@ -10,13 +10,14 @@ module.exports = {
         "^sequent-core$": "<rootDir>/src/__mocks__/sequentCore.ts",
         "\\.(css|png|svg)$": "<rootDir>/src/__mocks__/staticAsset.ts",
     },
-    // Coverage runs apply this list to the base revision too, where
-    // src/App.test.tsx is still the obsolete Create React App scaffold.
+    // src/App.test.tsx is an obsolete Create React App scaffold, and coverage
+    // runs apply this list to the base revision too, so App tests use another name.
     testMatch: [
         "<rootDir>/src/services/**/*.test.ts",
         "<rootDir>/src/store/**/*.test.ts",
         "<rootDir>/src/providers/**/*.test.tsx",
         "<rootDir>/src/screens/**/*.test.tsx",
+        "<rootDir>/src/App.routing.test.tsx",
     ],
     collectCoverageFrom: [
         "src/**/*.{ts,tsx}",
