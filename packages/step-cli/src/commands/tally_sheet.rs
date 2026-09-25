@@ -363,7 +363,6 @@ impl CreateTallySheetCommand {
         };
 
         match create_tally_sheet(
-            &HasuraGraphql,
             &self.election_event_id,
             &self.area_id,
             &self.contest_id,
@@ -378,12 +377,7 @@ impl CreateTallySheetCommand {
 
 impl ReviewTallySheetCommand {
     fn run(&self) {
-        match review_tally_sheet(
-            &HasuraGraphql,
-            &self.election_event_id,
-            &self.tally_sheet_id,
-            self.status,
-        ) {
+        match review_tally_sheet(&self.election_event_id, &self.tally_sheet_id, self.status) {
             Ok(sheet) => print_json("Success! Reviewed tally sheet:", &sheet),
             Err(err) => eprintln!("Error! Failed to review tally sheet: {}", err),
         }
@@ -408,7 +402,6 @@ impl PreviewTallySheetImportCommand {
         };
 
         match preview_tally_sheet_import(
-            &HasuraGraphql,
             &self.election_event_id,
             &document.document_id,
             document.sha256.as_deref(),
@@ -442,7 +435,6 @@ impl CreateTallySheetImportCommand {
         };
 
         match create_tally_sheet_import(
-            &HasuraGraphql,
             &self.election_event_id,
             &document.document_id,
             document.sha256.as_deref(),
@@ -460,12 +452,7 @@ impl CreateTallySheetImportCommand {
 
 impl ReviewTallySheetImportCommand {
     fn run(&self) {
-        match review_tally_sheet_import(
-            &HasuraGraphql,
-            &self.election_event_id,
-            &self.import_id,
-            self.decision,
-        ) {
+        match review_tally_sheet_import(&self.election_event_id, &self.import_id, self.decision) {
             Ok(import) => print_json("Success! Reviewed tally sheet import:", &import),
             Err(err) => eprintln!("Error! Failed to review tally sheet import: {}", err),
         }
@@ -474,7 +461,7 @@ impl ReviewTallySheetImportCommand {
 
 impl ListTallySheetImportsCommand {
     fn run(&self) {
-        match list_tally_sheet_imports(&HasuraGraphql, &self.election_event_id, self.limit) {
+        match list_tally_sheet_imports(&self.election_event_id, self.limit) {
             Ok(imports) => print_json("Success! Tally sheet imports:", &imports),
             Err(err) => eprintln!("Error! Failed to list tally sheet imports: {}", err),
         }
@@ -483,7 +470,7 @@ impl ListTallySheetImportsCommand {
 
 impl ShowTallySheetImportCommand {
     fn run(&self) {
-        match get_tally_sheet_import(&HasuraGraphql, &self.election_event_id, &self.import_id) {
+        match get_tally_sheet_import(&self.election_event_id, &self.import_id) {
             Ok(import) => print_json("Success! Tally sheet import:", &import),
             Err(err) => eprintln!("Error! Failed to show tally sheet import: {}", err),
         }
@@ -493,8 +480,6 @@ impl ShowTallySheetImportCommand {
 impl DownloadTallySheetImportSourceCommand {
     fn run(&self) {
         match download_tally_sheet_import_source(
-            &HasuraGraphql,
-            &HasuraDocuments,
             &self.election_event_id,
             &self.import_id,
             &self.output_dir,
@@ -514,7 +499,7 @@ impl DownloadTallySheetImportSourceCommand {
 
 impl RecountTallySessionCommand {
     fn run(&self) {
-        match recount_tally_session(&HasuraGraphql, &self.election_event_id, &self.tally_id) {
+        match recount_tally_session(&self.election_event_id, &self.tally_id) {
             Ok(tally_id) => {
                 println!(
                     "{} {}",
@@ -541,6 +526,108 @@ impl ConvertEssXmlCommand {
 }
 
 pub fn create_tally_sheet(
+    election_event_id: &str,
+    area_id: &str,
+    contest_id: &str,
+    channel: VotingChannelArg,
+    content: Value,
+) -> Result<Value, Box<dyn Error>> {
+    create_tally_sheet_with(
+        &HasuraGraphql,
+        election_event_id,
+        area_id,
+        contest_id,
+        channel,
+        content,
+    )
+}
+
+pub fn review_tally_sheet(
+    election_event_id: &str,
+    tally_sheet_id: &str,
+    status: TallySheetStatusArg,
+) -> Result<Value, Box<dyn Error>> {
+    review_tally_sheet_with(&HasuraGraphql, election_event_id, tally_sheet_id, status)
+}
+
+pub fn preview_tally_sheet_import(
+    election_event_id: &str,
+    document_id: &str,
+    sha256: Option<&str>,
+    source_format: TallySheetImportSourceFormatArg,
+    selected_channel: VotingChannelArg,
+) -> Result<Value, Box<dyn Error>> {
+    preview_tally_sheet_import_with(
+        &HasuraGraphql,
+        election_event_id,
+        document_id,
+        sha256,
+        source_format,
+        selected_channel,
+    )
+}
+
+pub fn create_tally_sheet_import(
+    election_event_id: &str,
+    document_id: &str,
+    sha256: Option<&str>,
+    source_format: TallySheetImportSourceFormatArg,
+    selected_channel: VotingChannelArg,
+) -> Result<Value, Box<dyn Error>> {
+    create_tally_sheet_import_with(
+        &HasuraGraphql,
+        election_event_id,
+        document_id,
+        sha256,
+        source_format,
+        selected_channel,
+    )
+}
+
+pub fn review_tally_sheet_import(
+    election_event_id: &str,
+    import_id: &str,
+    decision: TallySheetImportDecisionArg,
+) -> Result<Value, Box<dyn Error>> {
+    review_tally_sheet_import_with(&HasuraGraphql, election_event_id, import_id, decision)
+}
+
+pub fn list_tally_sheet_imports(
+    election_event_id: &str,
+    limit: i64,
+) -> Result<Value, Box<dyn Error>> {
+    list_tally_sheet_imports_with(&HasuraGraphql, election_event_id, limit)
+}
+
+pub fn get_tally_sheet_import(
+    election_event_id: &str,
+    import_id: &str,
+) -> Result<Value, Box<dyn Error>> {
+    get_tally_sheet_import_with(&HasuraGraphql, election_event_id, import_id)
+}
+
+pub fn download_tally_sheet_import_source(
+    election_event_id: &str,
+    import_id: &str,
+    output_dir: &Path,
+) -> Result<PathBuf, Box<dyn Error>> {
+    download_tally_sheet_import_source_with(
+        &HasuraGraphql,
+        &HasuraDocuments,
+        election_event_id,
+        import_id,
+        output_dir,
+    )
+}
+
+pub fn recount_tally_session(
+    election_event_id: &str,
+    tally_id: &str,
+) -> Result<String, Box<dyn Error>> {
+    recount_tally_session_with(&HasuraGraphql, election_event_id, tally_id)
+}
+
+pub fn create_tally_sheet_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     area_id: &str,
@@ -564,7 +651,7 @@ pub fn create_tally_sheet(
     Ok(serde_json::to_value(sheet)?)
 }
 
-pub fn review_tally_sheet(
+pub fn review_tally_sheet_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     tally_sheet_id: &str,
@@ -584,7 +671,7 @@ pub fn review_tally_sheet(
     Ok(serde_json::to_value(sheet)?)
 }
 
-pub fn preview_tally_sheet_import(
+pub fn preview_tally_sheet_import_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     document_id: &str,
@@ -610,7 +697,7 @@ pub fn preview_tally_sheet_import(
     Ok(preview)
 }
 
-pub fn create_tally_sheet_import(
+pub fn create_tally_sheet_import_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     document_id: &str,
@@ -636,7 +723,7 @@ pub fn create_tally_sheet_import(
     Ok(import)
 }
 
-pub fn review_tally_sheet_import(
+pub fn review_tally_sheet_import_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     import_id: &str,
@@ -658,7 +745,7 @@ pub fn review_tally_sheet_import(
     Ok(import)
 }
 
-pub fn list_tally_sheet_imports(
+pub fn list_tally_sheet_imports_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     limit: i64,
@@ -675,7 +762,7 @@ pub fn list_tally_sheet_imports(
     )?)
 }
 
-pub fn get_tally_sheet_import(
+pub fn get_tally_sheet_import_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     import_id: &str,
@@ -695,14 +782,14 @@ pub fn get_tally_sheet_import(
     Ok(serde_json::to_value(tally_sheet_import)?)
 }
 
-pub fn download_tally_sheet_import_source(
+pub fn download_tally_sheet_import_source_with(
     graphql: &impl GraphqlClient,
     downloader: &impl Downloader,
     election_event_id: &str,
     import_id: &str,
     output_dir: &Path,
 ) -> Result<PathBuf, Box<dyn Error>> {
-    let tally_sheet_import = get_tally_sheet_import(graphql, election_event_id, import_id)?;
+    let tally_sheet_import = get_tally_sheet_import_with(graphql, election_event_id, import_id)?;
     let document_id = tally_sheet_import
         .get("source_document_id")
         .and_then(Value::as_str)
@@ -720,7 +807,7 @@ pub fn download_tally_sheet_import_source(
     Ok(output_path)
 }
 
-pub fn recount_tally_session(
+pub fn recount_tally_session_with(
     graphql: &impl GraphqlClient,
     election_event_id: &str,
     tally_id: &str,

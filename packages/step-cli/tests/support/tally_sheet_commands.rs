@@ -77,7 +77,7 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
             "create_new_tally_sheet",
             json!({"id": "sheet-1", "status": "PENDING", "version": 1}),
             |graphql| {
-                create_tally_sheet(
+                create_tally_sheet_with(
                     graphql,
                     EVENT,
                     "area-1",
@@ -91,14 +91,16 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
             "review",
             "review_tally_sheet",
             json!({"id": "sheet-1", "status": "APPROVED", "version": 2}),
-            |graphql| review_tally_sheet(graphql, EVENT, "sheet-1", TallySheetStatusArg::Approved),
+            |graphql| {
+                review_tally_sheet_with(graphql, EVENT, "sheet-1", TallySheetStatusArg::Approved)
+            },
         ),
         (
             "import-preview",
             "preview_tally_sheet_import",
             json!({"preview": {"sheets": 1}}),
             |graphql| {
-                preview_tally_sheet_import(
+                preview_tally_sheet_import_with(
                     graphql,
                     EVENT,
                     "document-1",
@@ -113,7 +115,7 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
             "create_tally_sheet_import",
             json!({"tally_sheet_import": {"id": "import-1"}}),
             |graphql| {
-                create_tally_sheet_import(
+                create_tally_sheet_import_with(
                     graphql,
                     EVENT,
                     "document-1",
@@ -128,7 +130,7 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
             "review_tally_sheet_import",
             json!({"tally_sheet_import": {"id": "import-1"}}),
             |graphql| {
-                review_tally_sheet_import(
+                review_tally_sheet_import_with(
                     graphql,
                     EVENT,
                     "import-1",
@@ -140,20 +142,20 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
             "import-list",
             "sequent_backend_tally_sheet_import",
             json!([import_row(Value::Null)]),
-            |graphql| list_tally_sheet_imports(graphql, EVENT_UUID, 50),
+            |graphql| list_tally_sheet_imports_with(graphql, EVENT_UUID, 50),
         ),
         (
             "import-show",
             "sequent_backend_tally_sheet_import",
             json!([import_with_items(Value::Null)]),
-            |graphql| get_tally_sheet_import(graphql, EVENT_UUID, IMPORT_UUID),
+            |graphql| get_tally_sheet_import_with(graphql, EVENT_UUID, IMPORT_UUID),
         ),
         (
             "import-download-source",
             "sequent_backend_tally_sheet_import",
             json!([import_with_items(Value::Null)]),
             |graphql| {
-                download_tally_sheet_import_source(
+                download_tally_sheet_import_source_with(
                     graphql,
                     &MemoryDocuments::default(),
                     EVENT_UUID,
@@ -167,7 +169,7 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
             "recount",
             "recount_tally_session",
             json!({"tally_session_id": TALLY_UUID}),
-            |graphql| recount_tally_session(graphql, EVENT_UUID, TALLY_UUID).map(Value::from),
+            |graphql| recount_tally_session_with(graphql, EVENT_UUID, TALLY_UUID).map(Value::from),
         ),
     ]
 }
@@ -176,7 +178,7 @@ fn commands() -> [(&'static str, &'static str, Value, Run); 9] {
 fn creating_a_tally_sheet_posts_its_content_for_the_area_and_contest() {
     let sheet = json!({"id": "sheet-1", "status": "PENDING", "version": 1});
     let graphql = answering("create_new_tally_sheet", sheet.clone());
-    let created = create_tally_sheet(
+    let created = create_tally_sheet_with(
         &graphql,
         EVENT,
         "area-1",
@@ -210,7 +212,7 @@ fn reviewing_a_tally_sheet_posts_the_new_status() {
         let sheet = json!({"id": "sheet-1", "status": sent, "version": 2});
         let graphql = answering("review_tally_sheet", sheet.clone());
         assert_eq!(
-            review_tally_sheet(&graphql, EVENT, "sheet-1", status).unwrap(),
+            review_tally_sheet_with(&graphql, EVENT, "sheet-1", status).unwrap(),
             sheet
         );
         assert_eq!(
@@ -229,7 +231,7 @@ fn previewing_an_import_posts_the_document_digest_format_and_channel() {
         "preview_tally_sheet_import",
         json!({"preview": {"sheets": 3}}),
     );
-    let preview = preview_tally_sheet_import(
+    let preview = preview_tally_sheet_import_with(
         &graphql,
         EVENT,
         "document-1",
@@ -260,7 +262,7 @@ fn creating_an_import_without_a_digest_sends_a_null_sha256() {
         "create_tally_sheet_import",
         json!({"tally_sheet_import": {"id": "import-1"}}),
     );
-    let import = create_tally_sheet_import(
+    let import = create_tally_sheet_import_with(
         &graphql,
         EVENT,
         "document-1",
@@ -296,7 +298,7 @@ fn reviewing_an_import_posts_the_decision() {
             json!({"tally_sheet_import": {"id": "import-1", "status": sent}}),
         );
         assert_eq!(
-            review_tally_sheet_import(&graphql, EVENT, "import-1", decision).unwrap(),
+            review_tally_sheet_import_with(&graphql, EVENT, "import-1", decision).unwrap(),
             json!({"id": "import-1", "status": sent})
         );
         assert_eq!(
@@ -314,7 +316,7 @@ fn listing_imports_sends_the_normalized_event_uuid_and_the_limit() {
     let rows = json!([import_row(json!("results.xml")), import_row(Value::Null)]);
     let graphql = answering("sequent_backend_tally_sheet_import", rows.clone());
     assert_eq!(
-        list_tally_sheet_imports(&graphql, &EVENT_UUID.to_uppercase(), 5).unwrap(),
+        list_tally_sheet_imports_with(&graphql, &EVENT_UUID.to_uppercase(), 5).unwrap(),
         rows
     );
     assert_eq!(
@@ -330,7 +332,7 @@ fn listing_imports_sends_the_normalized_event_uuid_and_the_limit() {
 fn an_empty_import_list_is_an_empty_result() {
     let graphql = answering("sequent_backend_tally_sheet_import", json!([]));
     assert_eq!(
-        list_tally_sheet_imports(&graphql, EVENT_UUID, 50).unwrap(),
+        list_tally_sheet_imports_with(&graphql, EVENT_UUID, 50).unwrap(),
         json!([])
     );
 }
@@ -343,7 +345,7 @@ fn showing_an_import_returns_the_first_row_with_its_items() {
         json!([row.clone(), import_with_items(json!("other.xml"))]),
     );
     assert_eq!(
-        get_tally_sheet_import(
+        get_tally_sheet_import_with(
             &graphql,
             &EVENT_UUID.to_uppercase(),
             &IMPORT_UUID.to_uppercase()
@@ -367,7 +369,7 @@ fn recounting_sends_normalized_uuids_and_returns_the_new_session() {
         json!({"tally_session_id": "ffffffff-0000-4000-8000-000000000009"}),
     );
     assert_eq!(
-        recount_tally_session(
+        recount_tally_session_with(
             &graphql,
             &EVENT_UUID.to_uppercase(),
             &TALLY_UUID.to_uppercase()
@@ -389,16 +391,16 @@ fn list_show_download_and_recount_reject_invalid_uuids_without_a_request() {
     // The other commands send their ids as given; see the tests above.
     let invalid: [(&str, Run); 6] = [
         ("import-list", |graphql| {
-            list_tally_sheet_imports(graphql, EVENT, 50)
+            list_tally_sheet_imports_with(graphql, EVENT, 50)
         }),
         ("import-show event", |graphql| {
-            get_tally_sheet_import(graphql, EVENT, IMPORT_UUID)
+            get_tally_sheet_import_with(graphql, EVENT, IMPORT_UUID)
         }),
         ("import-show import", |graphql| {
-            get_tally_sheet_import(graphql, EVENT_UUID, "import-1")
+            get_tally_sheet_import_with(graphql, EVENT_UUID, "import-1")
         }),
         ("import-download-source", |graphql| {
-            download_tally_sheet_import_source(
+            download_tally_sheet_import_source_with(
                 graphql,
                 &MemoryDocuments::default(),
                 EVENT_UUID,
@@ -408,10 +410,10 @@ fn list_show_download_and_recount_reject_invalid_uuids_without_a_request() {
             .map(|path| json!(path))
         }),
         ("recount event", |graphql| {
-            recount_tally_session(graphql, EVENT, TALLY_UUID).map(Value::from)
+            recount_tally_session_with(graphql, EVENT, TALLY_UUID).map(Value::from)
         }),
         ("recount tally", |graphql| {
-            recount_tally_session(graphql, EVENT_UUID, "tally-1").map(Value::from)
+            recount_tally_session_with(graphql, EVENT_UUID, "tally-1").map(Value::from)
         }),
     ];
     for (name, run) in invalid {
@@ -493,7 +495,7 @@ fn download(
         "sequent_backend_tally_sheet_import",
         json!([import_with_items(source_file_name)]),
     );
-    download_tally_sheet_import_source(
+    download_tally_sheet_import_source_with(
         &graphql,
         documents,
         &EVENT_UUID.to_uppercase(),
@@ -550,7 +552,7 @@ fn a_source_without_a_file_name_is_downloaded_under_the_import_id() {
 fn an_import_that_is_not_found_downloads_nothing() {
     let documents = MemoryDocuments::default();
     let graphql = answering("sequent_backend_tally_sheet_import", json!([]));
-    download_tally_sheet_import_source(
+    download_tally_sheet_import_source_with(
         &graphql,
         &documents,
         EVENT_UUID,
