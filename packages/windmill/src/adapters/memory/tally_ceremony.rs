@@ -4,15 +4,19 @@
 
 use crate::domain::tally_ceremony::TallyExecuter;
 use crate::ports::tally_ceremony::{
-    ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader, TallyCeremonyAudit,
-    TallySessions, TrusteePrivateKeys,
+    DecryptionSet, ElectionEventReader, ElectionsById, EnvironmentSlug, KeysCeremonyReader,
+    NewTallySession, TallyCeremonyAudit, TallyCreationReader, TallyEventSnapshot, TallySessions,
+    TrusteePrivateKeys,
 };
 use anyhow::{anyhow, Result};
+use b4::messages::newtypes::BatchNumber;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::ceremonies::{TallyCeremonyStatus, TallyExecutionStatus, TallyRunReason};
 use sequent_core::types::hasura::core::{
-    Election, ElectionEvent, KeysCeremony, TallySession, TallySessionExecution,
+    Area, AreaContest, BallotStyle, Contest, Election, ElectionEvent, KeysCeremony, TallySession,
+    TallySessionContest, TallySessionExecution, TallySheet,
 };
+use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
@@ -26,6 +30,12 @@ pub enum TallyCall {
     AppendExecution,
     SetStatus,
     MarkCompleted,
+    InsertSession,
+    NextBatch,
+    InsertContest,
+    EventSnapshot,
+    PublishedBallotStyles,
+    ApprovedTallySheets,
     GetKeysCeremony,
     GetPrivateKey,
     GetElections,
@@ -33,6 +43,7 @@ pub enum TallyCall {
     EnvSlug,
     TallyOpened,
     KeyRestored,
+    KeyInsertionStarted,
     TallyClosed,
 }
 
@@ -55,6 +66,14 @@ pub enum TallyAuditEntry {
         trustee_name: String,
         user_id: String,
         username: Option<String>,
+    },
+    KeyInsertionStarted {
+        board_name: String,
+        tenant_id: String,
+        election_event_id: String,
+        election_ids: Vec<String>,
+        user_id: String,
+        username: String,
     },
     TallyClosed {
         board_name: String,
@@ -82,6 +101,12 @@ fn is_session(
 struct State {
     sessions: Vec<TallySession>,
     executions: Vec<TallySessionExecution>,
+    session_contests: Vec<TallySessionContest>,
+    contests: Vec<Contest>,
+    areas: Vec<Area>,
+    area_contests: Vec<AreaContest>,
+    ballot_styles: Vec<BallotStyle>,
+    tally_sheets: Vec<TallySheet>,
     keys_ceremonies: Vec<KeysCeremony>,
     private_keys: HashMap<(String, String), String>,
     elections: Vec<Election>,
@@ -167,6 +192,30 @@ impl InMemoryTallyCeremony {
         self.state().executions.push(execution);
     }
 
+    pub fn add_session_contest(&self, session_contest: TallySessionContest) {
+        self.state().session_contests.push(session_contest);
+    }
+
+    pub fn add_contest(&self, contest: Contest) {
+        self.state().contests.push(contest);
+    }
+
+    pub fn add_area(&self, area: Area) {
+        self.state().areas.push(area);
+    }
+
+    pub fn add_area_contest(&self, area_contest: AreaContest) {
+        self.state().area_contests.push(area_contest);
+    }
+
+    pub fn add_ballot_style(&self, ballot_style: BallotStyle) {
+        self.state().ballot_styles.push(ballot_style);
+    }
+
+    pub fn add_tally_sheet(&self, tally_sheet: TallySheet) {
+        self.state().tally_sheets.push(tally_sheet);
+    }
+
     pub fn add_keys_ceremony(&self, keys_ceremony: KeysCeremony) {
         self.state().keys_ceremonies.push(keys_ceremony);
     }
@@ -214,6 +263,19 @@ impl InMemoryTallyCeremony {
             .executions
             .iter()
             .filter(|execution| execution.tally_session_id == tally_session_id)
+            .cloned()
+            .collect()
+    }
+
+    pub fn sessions(&self) -> Vec<TallySession> {
+        self.state().sessions.clone()
+    }
+
+    pub fn session_contests(&self, tally_session_id: &str) -> Vec<TallySessionContest> {
+        self.state()
+            .session_contests
+            .iter()
+            .filter(|session_contest| session_contest.tally_session_id == tally_session_id)
             .cloned()
             .collect()
     }
@@ -352,6 +414,162 @@ impl TallySessions for InMemoryTallyCeremony {
         });
         Ok(())
     }
+
+    async fn insert(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        tally_session: NewTallySession,
+    ) -> Result<()> {
+        let mut state = self.state();
+        state.check(TallyCall::InsertSession)?;
+        state.sessions.push(TallySession {
+            id: tally_session.id,
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: Some(tally_session.annotations),
+            election_ids: Some(tally_session.election_ids),
+            area_ids: Some(tally_session.area_ids),
+            is_execution_completed: false,
+            keys_ceremony_id: tally_session.keys_ceremony_id,
+            execution_status: Some(tally_session.execution_status.to_string()),
+            threshold: i64::from(tally_session.threshold),
+            configuration: tally_session.configuration,
+            tally_type: Some(tally_session.tally_type),
+            permission_label: Some(tally_session.permission_labels),
+        });
+        Ok(())
+    }
+
+    /// Like `get_tally_session_highest_batch`, skips a whole run of
+    /// `VOTE_WEIGHT_BATCHES` after the highest stored batch.
+    async fn next_batch(&self, tenant_id: &str, election_event_id: &str) -> Result<BatchNumber> {
+        let state = self.state();
+        state.check(TallyCall::NextBatch)?;
+        Ok(state
+            .session_contests
+            .iter()
+            .filter(|session_contest| {
+                session_contest.tenant_id == tenant_id
+                    && session_contest.election_event_id == election_event_id
+            })
+            .map(|session_contest| session_contest.session_id as BatchNumber)
+            .max()
+            .map_or(0, |highest| {
+                highest + BatchNumber::from(VOTE_WEIGHT_BATCHES)
+            }))
+    }
+
+    async fn insert_contest(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        tally_session_id: &str,
+        (election_id, area_id, contest_id): &DecryptionSet,
+        batch: BatchNumber,
+    ) -> Result<()> {
+        let mut state = self.state();
+        state.check(TallyCall::InsertContest)?;
+        let session_contest = TallySessionContest {
+            id: format!("session-contest-{}", state.session_contests.len() + 1),
+            tenant_id: tenant_id.to_string(),
+            election_event_id: election_event_id.to_string(),
+            area_id: area_id.clone(),
+            contest_id: contest_id.clone(),
+            session_id: batch as i32,
+            created_at: None,
+            last_updated_at: None,
+            labels: None,
+            annotations: None,
+            tally_session_id: tally_session_id.to_string(),
+            election_id: election_id.clone(),
+        };
+        state.session_contests.push(session_contest);
+        Ok(())
+    }
+}
+
+impl TallyCreationReader for InMemoryTallyCeremony {
+    async fn event_snapshot(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> Result<TallyEventSnapshot> {
+        let election_event = ElectionEventReader::get(self, tenant_id, election_event_id).await;
+        let state = self.state();
+        state.check(TallyCall::EventSnapshot)?;
+        Ok(TallyEventSnapshot {
+            election_event: election_event?,
+            elections: state
+                .elections
+                .iter()
+                .filter(|election| {
+                    election.tenant_id == tenant_id
+                        && election.election_event_id == election_event_id
+                })
+                .cloned()
+                .collect(),
+            contests: state
+                .contests
+                .iter()
+                .filter(|contest| {
+                    contest.tenant_id == tenant_id && contest.election_event_id == election_event_id
+                })
+                .cloned()
+                .collect(),
+            areas: state
+                .areas
+                .iter()
+                .filter(|area| {
+                    area.tenant_id == tenant_id && area.election_event_id == election_event_id
+                })
+                .cloned()
+                .collect(),
+            area_contests: state.area_contests.clone(),
+        })
+    }
+
+    async fn published_ballot_styles(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: &[String],
+    ) -> Result<Vec<BallotStyle>> {
+        let state = self.state();
+        state.check(TallyCall::PublishedBallotStyles)?;
+        Ok(state
+            .ballot_styles
+            .iter()
+            .filter(|ballot_style| {
+                ballot_style.tenant_id == tenant_id
+                    && ballot_style.election_event_id == election_event_id
+                    && election_ids.contains(&ballot_style.election_id)
+                    && ballot_style.deleted_at.is_none()
+            })
+            .cloned()
+            .collect())
+    }
+
+    async fn approved_tally_sheets(
+        &self,
+        tenant_id: &str,
+        election_event_id: &str,
+    ) -> Result<Vec<TallySheet>> {
+        let state = self.state();
+        state.check(TallyCall::ApprovedTallySheets)?;
+        Ok(state
+            .tally_sheets
+            .iter()
+            .filter(|tally_sheet| {
+                tally_sheet.tenant_id == tenant_id
+                    && tally_sheet.election_event_id == election_event_id
+            })
+            .cloned()
+            .collect())
+    }
 }
 
 impl KeysCeremonyReader for InMemoryTallyCeremony {
@@ -481,6 +699,28 @@ impl TallyCeremonyAudit for InMemoryTallyCeremony {
                 trustee_name: trustee_name.to_string(),
                 user_id: claims.hasura_claims.user_id.clone(),
                 username: claims.preferred_username.clone(),
+            },
+        )
+    }
+
+    async fn key_insertion_started(
+        &self,
+        board_name: &str,
+        tenant_id: &str,
+        election_event_id: &str,
+        election_ids: Vec<String>,
+        user_id: &str,
+        username: &str,
+    ) -> Result<()> {
+        self.record(
+            TallyCall::KeyInsertionStarted,
+            TallyAuditEntry::KeyInsertionStarted {
+                board_name: board_name.to_string(),
+                tenant_id: tenant_id.to_string(),
+                election_event_id: election_event_id.to_string(),
+                election_ids,
+                user_id: user_id.to_string(),
+                username: username.to_string(),
             },
         )
     }
