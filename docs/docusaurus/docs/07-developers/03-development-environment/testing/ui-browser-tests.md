@@ -84,3 +84,5 @@ Fixtures live in `packages/results-portal/tests/fixtures/`, browser cases in
 Use literal expected counts and scoped publications. A rejected publication or
 artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
+
+Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.

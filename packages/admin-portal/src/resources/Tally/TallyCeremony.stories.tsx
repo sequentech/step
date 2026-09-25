@@ -226,6 +226,23 @@ export const SelectAndCreateManualCeremony: Story = {
                 tally_type: "ELECTORAL_RESULTS",
             },
         })
+        expect(data.calls).toEqual(
+            expect.arrayContaining([
+                {
+                    method: "getList",
+                    args: [
+                        "sequent_backend_election",
+                        expect.objectContaining({
+                            pagination: {page: 1, perPage: 9999},
+                            filter: expect.objectContaining({
+                                tenant_id: TENANT_ID,
+                                election_event_id: EVENT_ID,
+                            }),
+                        }),
+                    ],
+                },
+            ])
+        )
         expect(boundary.calls[0]).toEqual({
             name: "ListKeysCeremony",
             variables: {tenantId: TENANT_ID, electionEventId: EVENT_ID},
@@ -300,9 +317,11 @@ export const ServiceFailureAllowsRetry: Story = {
     play: async ({canvasElement}) => {
         const {next} = await ready(canvasElement)
         await confirm(next)
-        await expect(
-            await within(document.body).findByText("Synthetic tally service unavailable")
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(document.body).getByText("Synthetic tally service unavailable")
+            ).toBeVisible()
+        )
         await waitFor(() => expect(next).toBeEnabled())
         expect(mutations()).toHaveLength(1)
     },
