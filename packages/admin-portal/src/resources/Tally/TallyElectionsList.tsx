@@ -114,6 +114,7 @@ export const TallyElectionsList: React.FC<TallyElectionsListProps> = (props) => 
             renderCell: (props: GridRenderCellParams<any, boolean>) => (
                 <Checkbox
                     checked={props.value}
+                    inputProps={{"aria-label": aliasRenderer(props.row)}}
                     disabled={disabled}
                     onChange={() => handleConfirmChange(props.row)}
                 />
