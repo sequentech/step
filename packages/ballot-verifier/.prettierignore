@@ -45,3 +45,6 @@ pkg/
 build/
 .github
 .direnv
+storybook-static/
+test-results/
+coverage/

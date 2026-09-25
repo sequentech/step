@@ -10,6 +10,7 @@ const sourceEntry = (workspace: string) =>
 
 const config: StorybookConfig = {
     stories: ["../src/**/*.mdx", "../src/**/*.stories.tsx"],
+    staticDirs: ["../public"],
     addons: [
         "@storybook/addon-docs",
         "@storybook/addon-a11y",
@@ -32,11 +33,22 @@ const config: StorybookConfig = {
     viteFinal: (viteConfig) =>
         mergeConfig(viteConfig, {
             resolve: {
+                dedupe: ["react", "react-dom"],
                 // Exact match: only the package entry moves to its source.
-                alias: [{find: /^@sequentech\/ui-core$/, replacement: sourceEntry("ui-core")}],
+                alias: [
+                    {find: /^@sequentech\/ui-core$/, replacement: sourceEntry("ui-core")},
+                    {
+                        find: /^@sequentech\/ui-essentials$/,
+                        replacement: sourceEntry("ui-essentials"),
+                    },
+                ],
             },
             // sequent-core fetches its .wasm relative to its own module URL.
-            optimizeDeps: {exclude: ["sequent-core"]},
+            optimizeDeps: {
+                // Nightwatch brings Vue test-utils into this React workspace;
+                // Vitest otherwise discovers it and requires absent Vue peers.
+                exclude: ["sequent-core", "@vue/test-utils"],
+            },
         }),
 }
 

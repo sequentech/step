@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Frontend UI tests
+
+on:
+  pull_request:
+    paths: ["packages/**", ".github/workflows/frontend-ui-tests.yml"]
+  push:
+    branches: [main]
+    paths: ["packages/**", ".github/workflows/frontend-ui-tests.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ui-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stories:
+    name: ${{ matrix.package }} stories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          [
+            ui-essentials,
+            voting-portal,
+            admin-portal,
+            results-portal,
+            ballot-verifier,
+          ]
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.22.0"
+      - name: Install locked workspace dependencies
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd packages install --frozen-lockfile --non-interactive
+      - name: Run interactions and accessibility checks in Chromium
+        working-directory: packages/${{ matrix.package }}
+        run: yarn test:stories --coverage --reporter=default --reporter=junit --outputFile=test-results/stories.xml
+      - name: Build the Storybook catalog
+        working-directory: packages/${{ matrix.package }}
+        run: yarn build-storybook --quiet
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: stories-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/test-results
+          if-no-files-found: warn

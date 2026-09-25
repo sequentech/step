@@ -58,7 +58,6 @@ const preview: Preview = {
                     {value: "en", title: "English"},
                     {value: "es", title: "Spanish"},
                 ],
-                showName: true,
             },
         },
     },

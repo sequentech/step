@@ -91,3 +91,7 @@ airgapped-artifacts
 /runs/
 
 /packages/voting-load/__pycache__/
+
+# Storybook browser-test reports and static catalogs.
+/packages/*/storybook-static/
+/packages/*/test-results/
