@@ -26,6 +26,10 @@ if args[0] != "compose":
     if mode == "collision-" + kind:
         print("owned-by-another-run")
     sys.exit(0)
+with open(os.environ["FAKE_DOCKER_ENV_LOG"], "a") as output:
+    output.write(json.dumps({name: os.environ.get(name) for name in (
+        "STEP_E2E_BIN_DIR", "STEP_E2E_OUTPUT_DIR"
+    )}) + "\n")
 if "up" in args and mode == "held-start":
     Path(os.environ["FAKE_START_MARKER"]).touch()
     while not Path(os.environ["FAKE_RELEASE_MARKER"]).exists():
@@ -55,13 +59,22 @@ class RunSafety(unittest.TestCase):
         self.docker.write_text(FAKE_DOCKER)
         self.docker.chmod(0o755)
         self.log = self.root / "docker.jsonl"
+        self.environment_log = self.root / "docker-env.jsonl"
         self.env = dict(os.environ)
         for name in (
-            "STEP_E2E_PROJECT", "STEP_E2E_OUTPUT_DIR", "STEP_E2E_RUN_TOKEN",
-            "STEP_E2E_BIN_DIR", "STEP_E2E_CARGO_TARGET", "STEP_E2E_CARGO_HOME",
+            "STEP_E2E_PROJECT",
+            "STEP_E2E_OUTPUT_DIR",
+            "STEP_E2E_RUN_TOKEN",
+            "STEP_E2E_BIN_DIR",
+            "STEP_E2E_CARGO_TARGET",
+            "STEP_E2E_CARGO_HOME",
         ):
             self.env.pop(name, None)
-        self.env.update(DOCKER=str(self.docker), FAKE_DOCKER_LOG=str(self.log))
+        self.env.update(
+            DOCKER=str(self.docker),
+            FAKE_DOCKER_LOG=str(self.log),
+            FAKE_DOCKER_ENV_LOG=str(self.environment_log),
+        )
 
     def run_script(self, *args, **environment):
         return subprocess.run(
@@ -131,6 +144,18 @@ class RunSafety(unittest.TestCase):
             ]
             self.assertEqual(env_files[-1], str(output / "compose.env"))
         self.assertFalse(list(output.glob(".owned-*")))
+        environments = [
+            json.loads(line) for line in self.environment_log.read_text().splitlines()
+        ]
+        self.assertTrue(environments)
+        for environment in environments:
+            self.assertEqual(
+                environment,
+                {
+                    "STEP_E2E_BIN_DIR": str(caller / "binaries here"),
+                    "STEP_E2E_OUTPUT_DIR": str(output),
+                },
+            )
 
     def test_relative_build_output_is_a_host_bind_mount(self):
         caller = self.root / "caller"

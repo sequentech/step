@@ -86,6 +86,7 @@ $down_only || assert_unused_project
 
 mkdir -p "$OUTPUT/logs" "$STEP_E2E_BIN_DIR"
 OUTPUT=$(cd -- "$OUTPUT" && pwd)
+export STEP_E2E_OUTPUT_DIR=$OUTPUT
 STEP_E2E_BIN_DIR=$(cd -- "$STEP_E2E_BIN_DIR" && pwd)
 OWNERSHIP_FILE=$OUTPUT/.owned-$RUN_TOKEN
 # The base compose file reads .devcontainer/.env; never replace a developer's own.
