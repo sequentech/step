@@ -107,6 +107,8 @@ const meta = {
             sessionStorage.removeItem(`${key}_CHANNELS`)
         }
         localStorage.removeItem("electionEventPublishTabIndex")
+        const storyBoundary = boundary
+        return () => expect(storyBoundary.unexpected).toEqual([])
     },
     render: (args) => <PublicationFixture {...args} />,
 } satisfies Meta<Props>

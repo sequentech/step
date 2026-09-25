@@ -95,6 +95,12 @@ const meta = {
                 throw new Error(`Unexpected record: ${resource}/${id}`)
             },
         })
+        const storyBoundary = boundary
+        const storyUnexpectedReads = unexpectedReads
+        return () => {
+            expect(storyBoundary.unexpected).toEqual([])
+            expect(storyUnexpectedReads).toEqual([])
+        }
     },
     render: (args) => (
         <AdminStoryProvider boundary={boundary} dataProvider={dataProvider}>
