@@ -322,12 +322,16 @@ export const ConfigureStep: React.FC<ConfigureStepProps> = ({
     }
 
     // validates selected trustees
-    const trusteeListValidator = (value: string[]): ValidationErrorMessage | null => {
+    const trusteeListValidator = (
+        value: string[],
+        values: FieldValues
+    ): ValidationErrorMessage | null => {
         const length = value && value ? value.length : 0
-        if (length < threshold) {
+        const requiredTrustees = Number(values.threshold)
+        if (length < requiredTrustees) {
             return t("keysGeneration.configureStep.errorMinTrustees", {
                 selected: length,
-                threshold: threshold,
+                threshold: requiredTrustees,
                 count: length,
             })
         } else {
