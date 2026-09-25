@@ -30,6 +30,15 @@ Conventions:
   stored rows, audit entries and errors. They do not assert which calls were
   made.
 
+Tally execution uses pure plans for eligible trustees, board-message replay,
+and whether an execution waits for tie resolution or completes. Trustee
+ordering is an injected resource so tests can select a deterministic subset.
+The execution ledger borrows the task's transaction and records the snapshot
+before changing the session status. Its ports retain Windmill's task error type
+to preserve conversions from database and serialization failures. In-memory
+ledger tests inject failures at each write and check which state was persisted;
+the outer task still controls commit and rollback.
+
 Run the unit tests from `packages/`:
 
 ```bash
