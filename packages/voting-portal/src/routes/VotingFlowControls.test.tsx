@@ -603,3 +603,19 @@ describe("Apollo 4 cast failures", () => {
         expect(mockInsertCastVote.mock.calls[1]).toEqual(mockInsertCastVote.mock.calls[0])
     })
 })
+
+describe("review ballot hash integrity", () => {
+    it("renders the hash-integrity error instead of crashing when only the recorded hash differs", () => {
+        const validReview = renderRoute(<ReviewScreen />, "review")
+        expect(screen.queryByRole("alert")).toBeNull()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+        validReview.unmount()
+
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        renderRoute(<ReviewScreen />, "review")
+        expect(screen.getByRole("alert")).toHaveTextContent("reviewScreen.error.INCONSISTENT_HASH")
+        expect(screen.queryByText("errors.encoding.writeInCharsExceeded")).toBeNull()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+})

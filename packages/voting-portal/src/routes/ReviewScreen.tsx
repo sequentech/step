@@ -671,18 +671,17 @@ export const ReviewScreen: React.FC = () => {
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
-    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
-        // errorMsg is rendered as HTML below, so its interpolated values are escaped
-        setErrorMsg(
-            t(
-                "errors.encoding.writeInCharsExceeded",
-                escapeTranslationValues({
-                    ballotId,
-                    auditableBallotHash: auditableBallot.ballot_hash,
-                })
-            )
-        )
-    }
+    const hashErrorMsg =
+        ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash
+            ? t(
+                  `reviewScreen.error.${CastBallotsErrorType.INCONSISTENT_HASH}`,
+                  escapeTranslationValues({
+                      ballotId,
+                      auditableBallotHash: auditableBallot.ballot_hash,
+                  })
+              )
+            : undefined
+    const displayedErrorMsg = hashErrorMsg ?? errorMsg
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -945,13 +944,13 @@ export const ReviewScreen: React.FC = () => {
                     )}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && (
+            {displayedErrorMsg && (
                 <WarnBox
                     className="cast-ballot-error"
                     variant="error"
                     announcement={EWarnBoxAnnouncement.ASSERTIVE}
                 >
-                    {stringToHtml(errorMsg)}
+                    {stringToHtml(displayedErrorMsg ?? "")}
                 </WarnBox>
             )}
             <Typography
