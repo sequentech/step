@@ -4,11 +4,11 @@
 
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 FAKE_DOCKER = r"""#!/usr/bin/env python3
@@ -118,13 +118,18 @@ class MetadataCleanup(unittest.TestCase):
 
     def assert_owned_resources_removed(self):
         self.assertFalse(
-            any(row["owner"] == "this-run" for row in json.loads(self.state.read_text()).values())
+            any(
+                row["owner"] == "this-run"
+                for row in json.loads(self.state.read_text()).values()
+            )
         )
 
     def assert_valid_control(self):
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("Hasura applied 1 migrations and reports consistent metadata", result.stdout)
+        self.assertIn(
+            "Hasura applied 1 migrations and reports consistent metadata", result.stdout
+        )
         self.assertEqual(json.loads(self.state.read_text()), {})
 
     def test_consistent_metadata_cleans_up_created_containers_and_volumes(self):
@@ -139,14 +144,20 @@ class MetadataCleanup(unittest.TestCase):
 
     def test_collisions_preserve_every_existing_resource(self):
         self.assert_valid_control()
-        for service, code, count in (("network", 17, 3), ("postgres", 18, 1), ("hasura", 19, 1)):
+        for service, code, count in (
+            ("network", 17, 3),
+            ("postgres", 18, 1),
+            ("hasura", 19, 1),
+        ):
             with self.subTest(service=service):
                 result = self.run_check(service + "-collision")
                 self.assertEqual(result.returncode, code, result.stderr)
                 self.assertNotIn("reports consistent metadata", result.stdout)
                 remaining = json.loads(self.state.read_text())
                 self.assertEqual(len(remaining), count)
-                self.assertTrue(all(row["owner"] == "other" for row in remaining.values()))
+                self.assertTrue(
+                    all(row["owner"] == "other" for row in remaining.values())
+                )
                 self.assert_owned_resources_removed()
 
     def test_start_failure_cleans_up_resources_created_before_start(self):
