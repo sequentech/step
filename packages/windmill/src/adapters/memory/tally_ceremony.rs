@@ -87,6 +87,12 @@ pub enum TallyAuditEntry {
 
 type LockHook = Box<dyn FnOnce(&mut TallySession) + Send>;
 
+struct ScopedAreaContest {
+    tenant_id: String,
+    election_event_id: String,
+    link: AreaContest,
+}
+
 fn is_session(
     session: &TallySession,
     tenant_id: &str,
@@ -105,7 +111,7 @@ struct State {
     session_contests: Vec<TallySessionContest>,
     contests: Vec<Contest>,
     areas: Vec<Area>,
-    area_contests: Vec<AreaContest>,
+    area_contests: Vec<ScopedAreaContest>,
     ballot_styles: Vec<BallotStyle>,
     tally_sheets: Vec<TallySheet>,
     keys_ceremonies: Vec<KeysCeremony>,
@@ -208,8 +214,13 @@ impl InMemoryTallyCeremony {
         self.state().areas.push(area);
     }
 
-    pub fn add_area_contest(&self, area_contest: AreaContest) {
-        self.state().area_contests.push(area_contest);
+    pub fn add_area_contest(&self, tenant_id: &str, election_event_id: &str, link: AreaContest) {
+        // AreaContest is the SQL projection without its row's scope columns.
+        self.state().area_contests.push(ScopedAreaContest {
+            tenant_id: tenant_id.into(),
+            election_event_id: election_event_id.into(),
+            link,
+        });
     }
 
     pub fn add_ballot_style(&self, ballot_style: BallotStyle) {
@@ -546,7 +557,14 @@ impl TallyCreationReader for InMemoryTallyCeremony {
                 })
                 .cloned()
                 .collect(),
-            area_contests: state.area_contests.clone(),
+            area_contests: state
+                .area_contests
+                .iter()
+                .filter(|row| {
+                    row.tenant_id == tenant_id && row.election_event_id == election_event_id
+                })
+                .map(|row| row.link.clone())
+                .collect(),
         })
     }
 
