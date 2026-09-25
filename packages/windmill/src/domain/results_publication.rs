@@ -271,3 +271,721 @@ pub fn artifact_document_ids_for_reader(
             })
     }
 }
+
+/// Synthetic readers and publications for tenant `TENANT_ID` and event
+/// `ELECTION_EVENT_ID`.
+#[cfg(test)]
+pub(crate) mod fixtures {
+    use super::*;
+    use crate::types::results_publication::{
+        ResultsManifestArtifact, ResultsManifestArtifacts, ResultsManifestCustomCss,
+        ResultsPublicationStatus,
+    };
+    use serde_json::{json, Value};
+    use std::collections::HashMap;
+
+    pub const TENANT_ID: &str = "tenant-1";
+    pub const ELECTION_EVENT_ID: &str = "event-1";
+    pub const ELECTION_ID: &str = "election-1";
+    pub const OTHER_ELECTION_ID: &str = "election-2";
+    pub const UNPUBLISHED_ELECTION_ID: &str = "election-3";
+    pub const AREA_ID: &str = "area-1";
+    pub const OTHER_AREA_ID: &str = "area-2";
+    pub const EVENT_REALM_ISSUER: &str =
+        "https://keycloak.invalid/realms/tenant-tenant-1-event-event-1";
+    pub const ADMIN_CLIENT_ID: &str = "admin-portal";
+    pub const READ_ROLE: &str = "publish-results-read";
+    pub const WRITE_ROLE: &str = "publish-results-write";
+
+    /// A results portal voter of `AREA_ID` authorized for `ELECTION_ID`.
+    pub fn voter_claims() -> JwtClaims {
+        serde_json::from_value(json!({
+            "exp": 2_000_000_000,
+            "iat": 1_900_000_000,
+            "jti": "token-1",
+            "iss": EVENT_REALM_ISSUER,
+            "sub": "voter-1",
+            "typ": "Bearer",
+            "azp": "results-portal",
+            "acr": "1",
+            "allowed-origins": [],
+            "scope": "openid",
+            "email_verified": false,
+            "https://hasura.io/jwt/claims": {
+                "x-hasura-default-role": "user",
+                "x-hasura-tenant-id": TENANT_ID,
+                "x-hasura-user-id": "voter-1",
+                "x-hasura-area-id": AREA_ID,
+                "authorized-election-ids": [ELECTION_ID],
+                "x-hasura-allowed-roles": ["user"]
+            }
+        }))
+        .unwrap()
+    }
+
+    /// An admin portal user from the tenant realm with the read permission.
+    pub fn admin_claims() -> JwtClaims {
+        let mut claims = voter_claims();
+        claims.azp = ADMIN_CLIENT_ID.to_string();
+        claims.iss = "https://keycloak.invalid/realms/tenant-tenant-1".to_string();
+        claims.hasura_claims.area_id = None;
+        claims.hasura_claims.authorized_election_ids = None;
+        claims.hasura_claims.allowed_roles = vec![READ_ROLE.to_string()];
+        claims
+    }
+
+    /// A published event route publication of both elections.
+    pub fn publication() -> TallyResultsPublication {
+        TallyResultsPublication {
+            id: "publication-1".to_string(),
+            tenant_id: TENANT_ID.to_string(),
+            election_event_id: ELECTION_EVENT_ID.to_string(),
+            tally_session_id: "session-1".to_string(),
+            tally_session_execution_id: "execution-1".to_string(),
+            results_event_id: "results-event-1".to_string(),
+            task_execution_id: None,
+            route_scope: ResultsRouteScope::Event,
+            route_election_id: None,
+            election_ids: vec![ELECTION_ID.to_string(), OTHER_ELECTION_ID.to_string()],
+            access: ResultsWebsiteAccess::Authenticated,
+            visibility_scope: ResultsWebsiteVisibilityScope::FullEvent,
+            published_contest_ids: vec!["contest-1".to_string()],
+            contest_publication_state: HashMap::new(),
+            documents: json!({}),
+            manifest: None,
+            publication_status: ResultsPublicationStatus::Published,
+            version: 1,
+            error_message: None,
+            published_by_user_id: None,
+        }
+    }
+
+    pub fn election_route_publication(election_id: Option<&str>) -> TallyResultsPublication {
+        TallyResultsPublication {
+            route_scope: ResultsRouteScope::Election,
+            route_election_id: election_id.map(str::to_string),
+            election_ids: election_id.into_iter().map(str::to_string).collect(),
+            ..publication()
+        }
+    }
+
+    pub fn artifact(document_id: &str) -> ResultsManifestArtifact {
+        ResultsManifestArtifact {
+            document_id: Some(document_id.to_string()),
+            public_path: None,
+        }
+    }
+
+    pub fn manifest(artifacts: ResultsManifestArtifacts) -> Value {
+        serde_json::to_value(ResultsPublicationManifest {
+            schema_version: 1,
+            tenant_id: TENANT_ID.to_string(),
+            election_event_id: ELECTION_EVENT_ID.to_string(),
+            election_ids: vec![ELECTION_ID.to_string()],
+            route_scope: ResultsRouteScope::Event,
+            route_election_id: None,
+            publication_id: "publication-1".to_string(),
+            tally_session_id: "session-1".to_string(),
+            tally_session_execution_id: "execution-1".to_string(),
+            results_event_id: "results-event-1".to_string(),
+            version: 1,
+            access: ResultsWebsiteAccess::Authenticated,
+            visibility_scope: ResultsWebsiteVisibilityScope::AreaBased,
+            default_locale: Some("en".to_string()),
+            available_languages: vec!["en".to_string()],
+            title: HashMap::new(),
+            custom_css: ResultsManifestCustomCss::default(),
+            contests: vec![],
+            artifacts,
+        })
+        .unwrap()
+    }
+
+    /// An area-based publication with artifacts for both areas.
+    pub fn area_based_publication() -> TallyResultsPublication {
+        let areas = HashMap::from([
+            (AREA_ID.to_string(), artifact("area-1-sqlite")),
+            (OTHER_AREA_ID.to_string(), artifact("area-2-sqlite")),
+        ]);
+        TallyResultsPublication {
+            visibility_scope: ResultsWebsiteVisibilityScope::AreaBased,
+            documents: json!({ "area_sqlite": areas }),
+            manifest: Some(manifest(ResultsManifestArtifacts {
+                full_sqlite: None,
+                areas: Some(areas),
+            })),
+            ..publication()
+        }
+    }
+
+    pub fn presentation(policy: Option<Value>) -> ElectionEventPresentation {
+        ElectionEventPresentation {
+            results_website: policy.map(|policy| policy.to_string()),
+            ..Default::default()
+        }
+    }
+
+    pub fn policy(status: &str, access: &str, visibility_scope: &str) -> Option<Value> {
+        Some(json!({
+            "status": status,
+            "access": access,
+            "visibility_scope": visibility_scope,
+        }))
+    }
+
+    /// The variant and message of an error, which is what Harvest maps to
+    /// a response.
+    pub fn denial<T: std::fmt::Debug>(
+        result: ResultsPublicationServiceResult<T>,
+    ) -> (&'static str, String) {
+        let error = result.unwrap_err();
+        let variant = match &error {
+            ResultsPublicationServiceError::BadRequest(_) => "BadRequest",
+            ResultsPublicationServiceError::Unauthorized(_) => "Unauthorized",
+            ResultsPublicationServiceError::Forbidden(_) => "Forbidden",
+            ResultsPublicationServiceError::NotFound(_) => "NotFound",
+            ResultsPublicationServiceError::Conflict(_) => "Conflict",
+            ResultsPublicationServiceError::Internal(_) => "Internal",
+        };
+        (variant, error.to_string())
+    }
+
+    pub fn forbidden(message: &str) -> (&'static str, String) {
+        ("Forbidden", message.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fixtures::*;
+    use super::*;
+    use crate::types::results_publication::{
+        ResultsManifestArtifacts, ResultsPublicationManifestDocument,
+    };
+    use serde_json::{json, Value};
+    use std::collections::HashSet;
+
+    const NOT_AUTHORIZED: &str = "Not authorized to view these election results";
+    const WRONG_REALM: &str = "Token is not valid for this election event";
+    const NO_AREA_ARTIFACT: &str = "No results artifact is available for this voter area";
+
+    /// Authorizes a reader of the event publication of both elections.
+    fn authorize(
+        claims: &JwtClaims,
+        requested_election_id: Option<&str>,
+    ) -> ResultsPublicationServiceResult<()> {
+        authorize_results_reader(
+            claims,
+            ELECTION_EVENT_ID,
+            &publication(),
+            requested_election_id,
+        )
+    }
+
+    fn voter_authorized_for(election_ids: &[&str]) -> JwtClaims {
+        let mut claims = voter_claims();
+        claims.hasura_claims.authorized_election_ids =
+            Some(election_ids.iter().map(|id| id.to_string()).collect());
+        claims
+    }
+
+    fn with_documents(
+        documents: Value,
+        publication: TallyResultsPublication,
+    ) -> TallyResultsPublication {
+        TallyResultsPublication {
+            documents,
+            ..publication
+        }
+    }
+
+    fn manifest_areas(
+        publication: &TallyResultsPublication,
+        claims: &JwtClaims,
+    ) -> HashSet<String> {
+        let manifest = manifest_for_reader(publication, claims).unwrap().unwrap();
+        manifest.artifacts.areas.unwrap().into_keys().collect()
+    }
+
+    #[test]
+    fn the_results_website_is_enabled_only_by_an_enabled_policy() {
+        for (policy, enabled) in [
+            (None, false),
+            (policy("disabled", "authenticated", "full_event"), false),
+            (policy("enabled", "authenticated", "full_event"), true),
+        ] {
+            let presentation = presentation(policy.clone());
+            assert_eq!(
+                is_results_website_enabled(&presentation).unwrap(),
+                enabled,
+                "{policy:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unreadable_policy_is_an_error_rather_than_a_disabled_website() {
+        let presentation = ElectionEventPresentation {
+            results_website: Some("{\"status\":\"enabled\"".to_string()),
+            ..Default::default()
+        };
+
+        for error in [
+            results_website_policy(&presentation).unwrap_err(),
+            is_results_website_enabled(&presentation).unwrap_err(),
+            publication_matches_results_website_policy(&presentation, &publication()).unwrap_err(),
+            validate_results_website_policy(
+                &presentation,
+                ResultsWebsiteAccess::Authenticated,
+                ResultsWebsiteVisibilityScope::FullEvent,
+            )
+            .unwrap_err(),
+        ] {
+            assert_eq!(error.to_string(), "Invalid results website policy");
+        }
+    }
+
+    #[test]
+    fn publications_match_an_enabled_policy_with_their_access_and_visibility() {
+        let presentation = presentation(policy("enabled", "authenticated", "full_event"));
+
+        assert!(publication_matches_results_website_policy(&presentation, &publication()).unwrap());
+    }
+
+    #[test]
+    fn publications_do_not_match_a_missing_disabled_or_different_policy() {
+        for policy in [
+            None,
+            policy("disabled", "authenticated", "full_event"),
+            policy("enabled", "public", "full_event"),
+            policy("enabled", "authenticated", "area_based"),
+        ] {
+            let presentation = presentation(policy.clone());
+            assert!(
+                !publication_matches_results_website_policy(&presentation, &publication()).unwrap(),
+                "{policy:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn new_publications_must_match_an_enabled_policy() {
+        let validate = |policy| {
+            validate_results_website_policy(
+                &presentation(policy),
+                ResultsWebsiteAccess::Authenticated,
+                ResultsWebsiteVisibilityScope::FullEvent,
+            )
+            .map_err(|error| error.to_string())
+        };
+
+        assert_eq!(
+            validate(policy("enabled", "authenticated", "full_event")),
+            Ok(())
+        );
+        for (policy, message) in [
+            (None, "Results website policy is not configured"),
+            (
+                policy("disabled", "authenticated", "full_event"),
+                "Results website publishing is disabled for this election event",
+            ),
+            (
+                policy("enabled", "public", "full_event"),
+                "Results access does not match the election event results website policy",
+            ),
+            (
+                policy("enabled", "authenticated", "area_based"),
+                "Results visibility does not match the election event results website policy",
+            ),
+        ] {
+            assert_eq!(validate(policy), Err(message.to_string()));
+        }
+    }
+
+    #[test]
+    fn election_routes_serve_only_their_route_election() {
+        let publication = election_route_publication(Some(ELECTION_ID));
+
+        assert!(publication_matches_requested_route(
+            &publication,
+            Some(ELECTION_ID)
+        ));
+        assert!(!publication_matches_requested_route(
+            &publication,
+            Some(OTHER_ELECTION_ID)
+        ));
+        assert!(!publication_matches_requested_route(&publication, None));
+    }
+
+    #[test]
+    fn election_routes_without_a_route_election_serve_no_page() {
+        let publication = election_route_publication(None);
+
+        assert!(!publication_matches_requested_route(&publication, None));
+    }
+
+    #[test]
+    fn event_routes_serve_the_event_page_and_each_published_election() {
+        let publication = publication();
+
+        assert!(publication_matches_requested_route(&publication, None));
+        assert!(publication_matches_requested_route(
+            &publication,
+            Some(OTHER_ELECTION_ID)
+        ));
+        assert!(!publication_matches_requested_route(
+            &publication,
+            Some(UNPUBLISHED_ELECTION_ID)
+        ));
+    }
+
+    #[test]
+    fn results_portal_voters_read_an_authorized_published_election() {
+        for client_id in ["results-portal", "voting-portal"] {
+            let mut claims = voter_claims();
+            claims.azp = client_id.to_string();
+
+            assert!(authorize(&claims, Some(ELECTION_ID)).is_ok(), "{client_id}");
+        }
+    }
+
+    #[test]
+    fn a_trailing_slash_after_the_issuer_realm_is_ignored() {
+        let mut claims = voter_claims();
+        claims.iss = format!("{EVENT_REALM_ISSUER}//");
+
+        assert!(authorize(&claims, None).is_ok());
+    }
+
+    #[test]
+    fn results_portal_tokens_must_come_from_the_event_realm() {
+        for issuer in [
+            "https://keycloak.invalid/realms/tenant-tenant-1",
+            "https://keycloak.invalid/realms/tenant-tenant-1-event-event-2",
+            "https://keycloak.invalid/realms/tenant-tenant-1-event-event-1/account",
+            "tenant-tenant-1-event-event-1x",
+        ] {
+            let mut claims = voter_claims();
+            claims.iss = issuer.to_string();
+
+            assert_eq!(
+                denial(authorize(&claims, Some(ELECTION_ID))),
+                forbidden(WRONG_REALM),
+                "{issuer}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_event_realm_is_that_of_the_requested_event_and_token_tenant() {
+        let result = authorize_results_reader(&voter_claims(), "event-2", &publication(), None);
+
+        assert_eq!(denial(result), forbidden(WRONG_REALM));
+    }
+
+    #[test]
+    fn results_portal_tokens_need_authorized_elections() {
+        let mut claims = voter_claims();
+        claims.hasura_claims.authorized_election_ids = None;
+
+        assert_eq!(
+            denial(authorize(&claims, None)),
+            forbidden("No authorized elections are available")
+        );
+    }
+
+    #[test]
+    fn a_requested_election_must_be_both_authorized_and_published() {
+        for (claims, requested) in [
+            (voter_claims(), OTHER_ELECTION_ID),
+            (
+                voter_authorized_for(&[UNPUBLISHED_ELECTION_ID]),
+                UNPUBLISHED_ELECTION_ID,
+            ),
+        ] {
+            assert_eq!(
+                denial(authorize(&claims, Some(requested))),
+                forbidden(NOT_AUTHORIZED),
+                "{requested}"
+            );
+        }
+    }
+
+    #[test]
+    fn without_a_requested_election_one_authorized_published_election_suffices() {
+        let claims = voter_authorized_for(&[UNPUBLISHED_ELECTION_ID, OTHER_ELECTION_ID]);
+
+        assert!(authorize(&claims, None).is_ok());
+    }
+
+    #[test]
+    fn without_a_requested_election_voters_need_an_authorized_published_election() {
+        for authorized in [&[][..], &[UNPUBLISHED_ELECTION_ID]] {
+            assert_eq!(
+                denial(authorize(&voter_authorized_for(authorized), None)),
+                forbidden(NOT_AUTHORIZED),
+                "{authorized:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_results_publication_permission_lets_other_clients_read_any_election() {
+        for role in [READ_ROLE, WRITE_ROLE] {
+            let mut claims = admin_claims();
+            claims.hasura_claims.allowed_roles = vec!["user".to_string(), role.to_string()];
+
+            assert!(
+                authorize(&claims, Some(UNPUBLISHED_ELECTION_ID)).is_ok(),
+                "{role}"
+            );
+        }
+    }
+
+    #[test]
+    fn other_clients_without_a_results_publication_permission_are_unauthorized() {
+        // An event realm voter token with authorized elections does not
+        // stand in for the permission outside the results portal.
+        let mut claims = voter_claims();
+        claims.azp = ADMIN_CLIENT_ID.to_string();
+        claims.hasura_claims.allowed_roles = vec!["user".to_string(), "publish-read".to_string()];
+
+        assert_eq!(
+            denial(authorize(&claims, Some(ELECTION_ID))),
+            (
+                "Unauthorized",
+                "Missing results publication permission".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn a_results_publication_permission_does_not_exempt_results_portal_tokens() {
+        let mut claims = voter_claims();
+        claims.iss = "https://keycloak.invalid/realms/tenant-tenant-1".to_string();
+        claims.hasura_claims.allowed_roles = vec![READ_ROLE.to_string()];
+
+        assert_eq!(
+            denial(authorize(&claims, Some(ELECTION_ID))),
+            forbidden(WRONG_REALM)
+        );
+    }
+
+    #[test]
+    fn full_event_manifests_are_shown_unchanged() {
+        let publication = TallyResultsPublication {
+            manifest: Some(manifest(ResultsManifestArtifacts {
+                full_sqlite: Some(artifact("full-sqlite")),
+                areas: None,
+            })),
+            ..publication()
+        };
+
+        let manifest = manifest_for_reader(&publication, &voter_claims()).unwrap();
+        assert_eq!(
+            serde_json::to_value(manifest).unwrap(),
+            publication.manifest.unwrap()
+        );
+    }
+
+    #[test]
+    fn publications_without_a_manifest_show_none() {
+        assert!(manifest_for_reader(&publication(), &voter_claims())
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn an_unreadable_stored_manifest_is_an_internal_error() {
+        let publication = TallyResultsPublication {
+            manifest: Some(json!({ "schema_version": "one" })),
+            ..publication()
+        };
+
+        assert_eq!(
+            denial(manifest_for_reader(&publication, &voter_claims())),
+            (
+                "Internal",
+                "Invalid stored results publication manifest".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn results_portal_voters_see_only_their_area_of_an_area_based_manifest() {
+        assert_eq!(
+            manifest_areas(&area_based_publication(), &voter_claims()),
+            HashSet::from([AREA_ID.to_string()])
+        );
+    }
+
+    #[test]
+    fn other_clients_see_every_area_of_an_area_based_manifest() {
+        assert_eq!(
+            manifest_areas(&area_based_publication(), &admin_claims()),
+            HashSet::from([AREA_ID.to_string(), OTHER_AREA_ID.to_string()])
+        );
+    }
+
+    #[test]
+    fn area_based_manifests_need_a_voter_area() {
+        let mut claims = voter_claims();
+        claims.hasura_claims.area_id = None;
+
+        assert_eq!(
+            denial(manifest_for_reader(&area_based_publication(), &claims)),
+            forbidden("No voter area is available")
+        );
+    }
+
+    #[test]
+    fn area_based_manifests_without_area_artifacts_are_not_found() {
+        for manifest in [
+            None,
+            Some(manifest(ResultsManifestArtifacts {
+                full_sqlite: Some(artifact("full-sqlite")),
+                areas: None,
+            })),
+        ] {
+            let publication = TallyResultsPublication {
+                manifest,
+                ..area_based_publication()
+            };
+
+            assert_eq!(
+                denial(manifest_for_reader(&publication, &voter_claims())),
+                (
+                    "NotFound",
+                    "No area results artifacts are available".to_string()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn voters_of_an_area_without_an_artifact_are_forbidden_the_manifest() {
+        let mut claims = voter_claims();
+        claims.hasura_claims.area_id = Some("area-3".to_string());
+
+        assert_eq!(
+            denial(manifest_for_reader(&area_based_publication(), &claims)),
+            forbidden(NO_AREA_ARTIFACT)
+        );
+    }
+
+    #[test]
+    fn full_event_readers_download_the_full_sqlite() {
+        let publication = with_documents(
+            json!({ "full_sqlite": artifact("full-sqlite") }),
+            publication(),
+        );
+
+        for claims in [voter_claims(), admin_claims()] {
+            assert_eq!(
+                artifact_document_ids_for_reader(&publication, &claims).unwrap(),
+                vec!["full-sqlite"]
+            );
+        }
+    }
+
+    #[test]
+    fn full_event_publications_without_a_full_sqlite_document_are_not_found() {
+        for documents in [json!({}), json!({ "full_sqlite": {} })] {
+            let publication = with_documents(documents, publication());
+
+            assert_eq!(
+                denial(artifact_document_ids_for_reader(
+                    &publication,
+                    &voter_claims()
+                )),
+                ("NotFound", "No results artifact is available".to_string())
+            );
+        }
+    }
+
+    #[test]
+    fn area_based_readers_download_their_area_sqlite() {
+        assert_eq!(
+            artifact_document_ids_for_reader(&area_based_publication(), &voter_claims()).unwrap(),
+            vec!["area-1-sqlite"]
+        );
+    }
+
+    #[test]
+    fn area_based_downloads_need_a_voter_area_even_for_other_clients() {
+        assert_eq!(
+            denial(artifact_document_ids_for_reader(
+                &area_based_publication(),
+                &admin_claims()
+            )),
+            forbidden("No voter area is available")
+        );
+    }
+
+    #[test]
+    fn area_based_downloads_without_a_document_for_the_voter_area_are_forbidden() {
+        for documents in [
+            json!({}),
+            json!({ "area_sqlite": { OTHER_AREA_ID: artifact("area-2-sqlite") } }),
+            json!({ "area_sqlite": { AREA_ID: {} } }),
+        ] {
+            let publication = with_documents(documents.clone(), area_based_publication());
+
+            assert_eq!(
+                denial(artifact_document_ids_for_reader(
+                    &publication,
+                    &voter_claims()
+                )),
+                forbidden(NO_AREA_ARTIFACT),
+                "{documents}"
+            );
+        }
+    }
+
+    #[test]
+    fn unreadable_stored_documents_are_an_internal_error() {
+        let publication = with_documents(json!({ "full_sqlite": "full-sqlite" }), publication());
+        let expected = (
+            "Internal",
+            "Invalid stored results publication documents".to_string(),
+        );
+
+        assert_eq!(
+            denial(artifact_document_ids_for_reader(
+                &publication,
+                &voter_claims()
+            )),
+            expected
+        );
+        assert_eq!(
+            denial(manifest_public_path(&publication).map_err(Into::into)),
+            expected
+        );
+    }
+
+    #[test]
+    fn the_latest_manifest_path_is_preferred_over_the_versioned_one() {
+        let manifest_path = |latest_public_path: Option<&str>| {
+            let manifest = ResultsPublicationManifestDocument {
+                document_id: None,
+                public_path: Some("results/manifest-v1.json".to_string()),
+                latest_public_path: latest_public_path.map(str::to_string),
+            };
+            manifest_public_path(&with_documents(
+                json!({ "manifest": manifest }),
+                publication(),
+            ))
+            .unwrap()
+        };
+
+        assert_eq!(
+            manifest_path(Some("results/manifest-latest.json")).as_deref(),
+            Some("results/manifest-latest.json")
+        );
+        assert_eq!(
+            manifest_path(None).as_deref(),
+            Some("results/manifest-v1.json")
+        );
+        assert_eq!(manifest_public_path(&publication()).unwrap(), None);
+    }
+}

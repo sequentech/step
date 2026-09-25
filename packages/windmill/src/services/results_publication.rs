@@ -1973,6 +1973,10 @@ pub async fn refresh_results_publication_index_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::memory::results_publication::{
+        InMemoryResultsDocumentUrls, InMemoryResultsEventPresentation, InMemoryResultsPublications,
+    };
+    use crate::domain::results_publication::fixtures::*;
     use sequent_core::ballot::{ResultsWebsitePolicy, ResultsWebsiteStatus};
 
     fn row_count(conn: &Connection, table: &str) -> Result<i64> {
@@ -2251,5 +2255,476 @@ mod tests {
             .any(|bytes| bytes == OTHER_AREA_SENTINEL.as_bytes()));
 
         Ok(())
+    }
+
+    const FULL_SQLITE_URL: &str = "https://storage.invalid/full.sqlite";
+    const AREA_SQLITE_URL: &str = "https://storage.invalid/area-1.sqlite";
+    const UNAVAILABLE_FOR_ROUTE: &str = "Results publication is not available for this route";
+
+    /// What readers of `ELECTION_EVENT_ID` can reach, with an enabled
+    /// authenticated full-event results website unless told otherwise.
+    struct Site {
+        publications: InMemoryResultsPublications,
+        presentations: InMemoryResultsEventPresentation,
+        document_urls: InMemoryResultsDocumentUrls,
+    }
+
+    impl Site {
+        fn with(publications: impl IntoIterator<Item = TallyResultsPublication>) -> Self {
+            Self::with_policy(
+                policy("enabled", "authenticated", "full_event"),
+                publications,
+            )
+        }
+
+        fn with_policy(
+            policy: Option<Value>,
+            publications: impl IntoIterator<Item = TallyResultsPublication>,
+        ) -> Self {
+            let document_urls = InMemoryResultsDocumentUrls::default();
+            for (document_id, url) in [
+                ("full-sqlite", FULL_SQLITE_URL),
+                ("area-1-sqlite", AREA_SQLITE_URL),
+                ("area-2-sqlite", "https://storage.invalid/area-2.sqlite"),
+            ] {
+                document_urls.insert(TENANT_ID, ELECTION_EVENT_ID, document_id, url);
+            }
+            Self {
+                publications: InMemoryResultsPublications::with(publications),
+                presentations: InMemoryResultsEventPresentation::with(
+                    TENANT_ID,
+                    ELECTION_EVENT_ID,
+                    presentation(policy),
+                ),
+                document_urls,
+            }
+        }
+
+        fn with_unreadable_policy(self) -> Self {
+            let presentations = InMemoryResultsEventPresentation::with(
+                TENANT_ID,
+                ELECTION_EVENT_ID,
+                ElectionEventPresentation {
+                    results_website: Some("enabled".to_string()),
+                    ..Default::default()
+                },
+            );
+            Self {
+                presentations,
+                ..self
+            }
+        }
+
+        async fn resolve(
+            &self,
+            claims: &JwtClaims,
+            election_id: Option<&str>,
+        ) -> ResultsPublicationServiceResult<Option<ResolveResultsPublicationOutput>> {
+            let input = ResolveResultsPublicationInput {
+                ee_id: ELECTION_EVENT_ID.to_string(),
+                election_id: election_id.map(str::to_string),
+            };
+            resolve_results_publication(&self.publications, &self.presentations, claims, &input)
+                .await
+        }
+
+        async fn fetch(
+            &self,
+            claims: &JwtClaims,
+            election_id: Option<&str>,
+        ) -> ResultsPublicationServiceResult<Vec<String>> {
+            let input = FetchResultsArtifactInput {
+                election_event_id: ELECTION_EVENT_ID.to_string(),
+                election_id: election_id.map(str::to_string),
+                publication_id: "publication-1".to_string(),
+            };
+            let output = fetch_results_artifact(
+                &self.publications,
+                &self.presentations,
+                &self.document_urls,
+                claims,
+                &input,
+            )
+            .await?;
+            Ok(output.urls)
+        }
+    }
+
+    fn with_id(id: &str, publication: TallyResultsPublication) -> TallyResultsPublication {
+        TallyResultsPublication {
+            id: id.to_string(),
+            ..publication
+        }
+    }
+
+    fn full_event_publication() -> TallyResultsPublication {
+        TallyResultsPublication {
+            documents: json!({ "full_sqlite": artifact("full-sqlite") }),
+            ..publication()
+        }
+    }
+
+    /// A voter with a valid event realm token who may not see `ELECTION_ID`.
+    fn voter_of_an_unpublished_election() -> JwtClaims {
+        let mut claims = voter_claims();
+        claims.hasura_claims.authorized_election_ids =
+            Some(vec![UNPUBLISHED_ELECTION_ID.to_string()]);
+        claims
+    }
+
+    fn resolved_id(output: Option<ResolveResultsPublicationOutput>) -> Option<String> {
+        output.map(|output| output.publication_id)
+    }
+
+    #[tokio::test]
+    async fn no_publication_is_resolved_unless_the_results_website_is_enabled() {
+        for policy in [None, policy("disabled", "authenticated", "full_event")] {
+            let site = Site::with_policy(policy, [publication()]);
+
+            assert!(site.resolve(&voter_claims(), None).await.unwrap().is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn the_event_page_resolves_the_event_publication() {
+        let output = Site::with([publication()])
+            .resolve(&voter_claims(), None)
+            .await
+            .unwrap();
+
+        assert_eq!(resolved_id(output), Some("publication-1".to_string()));
+    }
+
+    #[tokio::test]
+    async fn an_election_page_resolves_its_own_publication_before_the_event_one() {
+        let site = Site::with([
+            with_id("event-publication", publication()),
+            with_id(
+                "election-publication",
+                election_route_publication(Some(ELECTION_ID)),
+            ),
+        ]);
+
+        let output = site
+            .resolve(&voter_claims(), Some(ELECTION_ID))
+            .await
+            .unwrap();
+        assert_eq!(
+            resolved_id(output),
+            Some("election-publication".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn an_election_page_without_its_own_publication_shows_the_event_publication() {
+        let site = Site::with([
+            with_id("event-publication", publication()),
+            with_id(
+                "other-election-publication",
+                election_route_publication(Some(OTHER_ELECTION_ID)),
+            ),
+        ]);
+
+        let output = site
+            .resolve(&voter_claims(), Some(ELECTION_ID))
+            .await
+            .unwrap();
+        assert_eq!(resolved_id(output), Some("event-publication".to_string()));
+    }
+
+    #[tokio::test]
+    async fn the_event_publication_is_not_shown_for_an_election_it_does_not_publish() {
+        let output = Site::with([publication()])
+            .resolve(
+                &voter_of_an_unpublished_election(),
+                Some(UNPUBLISHED_ELECTION_ID),
+            )
+            .await
+            .unwrap();
+
+        assert!(output.is_none());
+    }
+
+    #[tokio::test]
+    async fn publications_that_no_longer_match_the_policy_are_not_shown() {
+        let site = Site::with_policy(policy("enabled", "public", "full_event"), [publication()]);
+
+        assert!(site.resolve(&voter_claims(), None).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn an_off_policy_election_publication_does_not_fall_back_to_the_event_one() {
+        let site = Site::with([
+            publication(),
+            TallyResultsPublication {
+                access: ResultsWebsiteAccess::Public,
+                ..election_route_publication(Some(ELECTION_ID))
+            },
+        ]);
+
+        let output = site
+            .resolve(&voter_claims(), Some(ELECTION_ID))
+            .await
+            .unwrap();
+        assert!(output.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_resolved_publication_carries_its_route_and_latest_manifest_path() {
+        let stored_manifest = manifest(Default::default());
+        let site = Site::with([TallyResultsPublication {
+            documents: json!({
+                "manifest": {
+                    "public_path": "results/manifest-v1.json",
+                    "latest_public_path": "results/manifest-latest.json"
+                }
+            }),
+            manifest: Some(stored_manifest.clone()),
+            ..publication()
+        }]);
+
+        let output = site.resolve(&voter_claims(), None).await.unwrap().unwrap();
+        assert_eq!(
+            serde_json::to_value(&output).unwrap(),
+            json!({
+                "tenant_id": TENANT_ID,
+                "election_event_id": ELECTION_EVENT_ID,
+                "access": "authenticated",
+                "route_scope": "event",
+                "election_ids": [ELECTION_ID, OTHER_ELECTION_ID],
+                "publication_id": "publication-1",
+                "manifest_public_path": "results/manifest-latest.json",
+                "manifest_url": null,
+                "manifest": stored_manifest,
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn voters_resolve_only_their_area_of_an_area_based_publication() {
+        let site = Site::with_policy(
+            policy("enabled", "authenticated", "area_based"),
+            [area_based_publication()],
+        );
+
+        let output = site.resolve(&voter_claims(), None).await.unwrap().unwrap();
+        let areas = output.manifest.unwrap().artifacts.areas.unwrap();
+        assert_eq!(areas.into_keys().collect::<Vec<_>>(), vec![AREA_ID]);
+    }
+
+    #[tokio::test]
+    async fn resolving_a_publication_the_reader_may_not_see_fails_authorization() {
+        let site = Site::with([publication()]);
+        let mut admin_without_permission = admin_claims();
+        admin_without_permission.hasura_claims.allowed_roles = vec![];
+
+        assert_eq!(
+            denial(
+                site.resolve(&voter_of_an_unpublished_election(), None)
+                    .await
+            ),
+            forbidden("Not authorized to view these election results")
+        );
+        assert_eq!(
+            denial(site.resolve(&admin_without_permission, None).await),
+            (
+                "Unauthorized",
+                "Missing results publication permission".to_string()
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn resolving_with_an_unknown_event_or_unreadable_policy_is_a_bad_request() {
+        let unknown_event = Site {
+            presentations: InMemoryResultsEventPresentation::default(),
+            ..Site::with([])
+        };
+        let unreadable_policy = Site::with([]).with_unreadable_policy();
+
+        assert_eq!(
+            denial(unknown_event.resolve(&voter_claims(), None).await),
+            ("BadRequest", "Election event event-1 not found".to_string())
+        );
+        assert_eq!(
+            denial(unreadable_policy.resolve(&voter_claims(), None).await),
+            ("BadRequest", "Invalid results website policy".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn publication_lookup_failures_while_resolving_are_internal_errors() {
+        let site = Site::with([]);
+        site.publications.fail_with("connection reset");
+
+        assert_eq!(
+            denial(site.resolve(&voter_claims(), Some(ELECTION_ID)).await),
+            ("Internal", "connection reset".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn readers_fetch_the_full_sqlite_of_a_full_event_publication() {
+        let site = Site::with([full_event_publication()]);
+
+        for election_id in [None, Some(ELECTION_ID)] {
+            let urls = site.fetch(&voter_claims(), election_id).await.unwrap();
+            assert_eq!(urls, vec![FULL_SQLITE_URL]);
+        }
+    }
+
+    #[tokio::test]
+    async fn voters_fetch_only_their_area_sqlite_of_an_area_based_publication() {
+        let site = Site::with_policy(
+            policy("enabled", "authenticated", "area_based"),
+            [area_based_publication()],
+        );
+
+        let urls = site.fetch(&voter_claims(), None).await.unwrap();
+        assert_eq!(urls, vec![AREA_SQLITE_URL]);
+    }
+
+    #[tokio::test]
+    async fn no_artifact_is_fetched_unless_the_results_website_is_enabled() {
+        for policy in [None, policy("disabled", "authenticated", "full_event")] {
+            let site = Site::with_policy(policy, [full_event_publication()]);
+
+            assert_eq!(
+                denial(site.fetch(&voter_claims(), None).await),
+                (
+                    "NotFound",
+                    "Results publication is not available".to_string()
+                )
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn only_published_publications_serve_artifacts() {
+        for status in [
+            ResultsPublicationStatus::Publishing,
+            ResultsPublicationStatus::Failed,
+            ResultsPublicationStatus::Revoked,
+            ResultsPublicationStatus::Superseded,
+        ] {
+            let site = Site::with([TallyResultsPublication {
+                publication_status: status,
+                ..full_event_publication()
+            }]);
+
+            assert_eq!(
+                denial(site.fetch(&voter_claims(), None).await),
+                ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string()),
+                "{status}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn artifacts_are_fetched_only_for_a_page_the_publication_serves() {
+        let election_publication = TallyResultsPublication {
+            documents: json!({ "full_sqlite": artifact("full-sqlite") }),
+            ..election_route_publication(Some(ELECTION_ID))
+        };
+
+        for (publication, election_id) in [
+            (full_event_publication(), Some(UNPUBLISHED_ELECTION_ID)),
+            (election_publication, None),
+        ] {
+            let site = Site::with([publication]);
+            assert_eq!(
+                denial(site.fetch(&voter_claims(), election_id).await),
+                ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string())
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn publications_that_no_longer_match_the_policy_serve_no_artifacts() {
+        let site = Site::with_policy(
+            policy("enabled", "authenticated", "area_based"),
+            [full_event_publication()],
+        );
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn unavailable_publications_are_not_found_before_readers_are_authorized() {
+        let site = Site::with([TallyResultsPublication {
+            publication_status: ResultsPublicationStatus::Revoked,
+            ..full_event_publication()
+        }]);
+
+        assert_eq!(
+            denial(site.fetch(&voter_of_an_unpublished_election(), None).await),
+            ("NotFound", UNAVAILABLE_FOR_ROUTE.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn readers_are_authorized_before_the_artifacts_are_looked_up() {
+        // The publication has no artifacts, which would be NotFound.
+        let site = Site::with([publication()]);
+
+        assert_eq!(
+            denial(site.fetch(&voter_of_an_unpublished_election(), None).await),
+            forbidden("Not authorized to view these election results")
+        );
+    }
+
+    #[tokio::test]
+    async fn fetching_an_unknown_publication_is_an_internal_error() {
+        let site = Site::with([]);
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("Internal", "Publication not found".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn an_artifact_without_a_stored_document_is_not_found() {
+        let site = Site {
+            document_urls: InMemoryResultsDocumentUrls::default(),
+            ..Site::with([full_event_publication()])
+        };
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("NotFound", "Document not found".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn document_url_failures_are_internal_errors() {
+        let site = Site::with([full_event_publication()]);
+        site.document_urls.fail_with("presigning failed");
+
+        assert_eq!(
+            denial(site.fetch(&voter_claims(), None).await),
+            ("Internal", "presigning failed".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn fetching_with_an_unknown_event_or_unreadable_policy_is_a_bad_request() {
+        let unknown_event = Site {
+            presentations: InMemoryResultsEventPresentation::default(),
+            ..Site::with([full_event_publication()])
+        };
+        let unreadable_policy = Site::with([full_event_publication()]).with_unreadable_policy();
+
+        assert_eq!(
+            denial(unknown_event.fetch(&voter_claims(), None).await),
+            ("BadRequest", "Election event event-1 not found".to_string())
+        );
+        assert_eq!(
+            denial(unreadable_policy.fetch(&voter_claims(), None).await),
+            ("BadRequest", "Invalid results website policy".to_string())
+        );
     }
 }
