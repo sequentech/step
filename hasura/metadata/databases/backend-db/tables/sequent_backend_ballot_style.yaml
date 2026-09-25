@@ -2,6 +2,16 @@ table:
     name: ballot_style
     schema: sequent_backend
 object_relationships:
+    - name: ballot_publication
+      using:
+          manual_configuration:
+              column_mapping:
+                  tenant_id: tenant_id
+                  election_event_id: election_event_id
+                  ballot_publication_id: id
+              remote_table:
+                  name: ballot_publication
+                  schema: sequent_backend
     - name: election
       using:
           manual_configuration:
@@ -189,6 +199,13 @@ select_permissions:
                         _eq: X-Hasura-Area-Id
                   - election_id:
                         _in: X-Hasura-Authorized-Election-Ids
+                  - deleted_at:
+                        _is_null: true
+                  - ballot_publication:
+                        published_at:
+                            _is_null: false
+                        deleted_at:
+                            _is_null: true
       role: user
 update_permissions:
     - comment: ""
