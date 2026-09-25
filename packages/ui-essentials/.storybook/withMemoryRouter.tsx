@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
 import type {Decorator} from "@storybook/react-vite"
-import {createMemoryRouter, Outlet, useLocation, type ActionFunction} from "react-router"
+import {
+    createMemoryRouter,
+    Outlet,
+    useLocation,
+    type ActionFunction,
+    type LoaderFunction,
+} from "react-router"
 import {RouterProvider} from "react-router/dom"
 
 /** `parameters.router` of a story. */
@@ -16,6 +22,9 @@ export interface RouterParameters {
     parentPath?: string
     /** Real route action used by screens submitting through the data router. */
     action?: ActionFunction
+    /** Real route loader and boundary for failure-state stories. */
+    loader?: LoaderFunction
+    errorElement?: React.ReactNode
 }
 
 // The router is created once per story, so the story element reaches its route
@@ -45,7 +54,7 @@ const CurrentLocation: React.FC = () => {
 
 const MemoryRouterHost: React.FC<
     RouterParameters & {path: string; initialEntries: string[]; story: React.ReactNode}
-> = ({path, initialEntries, parentPath, action, story}) => {
+> = ({path, initialEntries, parentPath, action, loader, errorElement, story}) => {
     const [router] = useState(() =>
         createMemoryRouter(
             [
@@ -59,9 +68,9 @@ const MemoryRouterHost: React.FC<
                     ),
                     children:
                         path === "*"
-                            ? [{path, action, element: <StoryRoute />}]
+                            ? [{path, action, loader, errorElement, element: <StoryRoute />}]
                             : [
-                                  {path, action, element: <StoryRoute />},
+                                  {path, action, loader, errorElement, element: <StoryRoute />},
                                   {path: "*", element: null},
                               ],
                 },
@@ -84,6 +93,8 @@ export const withMemoryRouter: Decorator = (Story, {parameters}) => {
         initialEntries = ["/"],
         parentPath,
         action,
+        loader,
+        errorElement,
     }: RouterParameters = parameters.router ?? {}
 
     return (
@@ -93,6 +104,8 @@ export const withMemoryRouter: Decorator = (Story, {parameters}) => {
             initialEntries={initialEntries}
             parentPath={parentPath}
             action={action}
+            loader={loader}
+            errorElement={errorElement}
             story={<Story />}
         />
     )
