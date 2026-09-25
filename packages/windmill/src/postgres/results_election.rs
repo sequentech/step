@@ -78,7 +78,7 @@ pub async fn update_results_election_documents(
     let tenant_uuid: uuid::Uuid = parse_uuid_v4(&tenant_id)
         .map_err(|err| anyhow!("Error parsing tenant_id as UUID: {}", err))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(&results_event_id)
-        .map_err(|err| anyhow!("Error parsing results_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
     let election_event_uuid: uuid::Uuid = parse_uuid_v4(&election_event_id)
         .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
     let election_uuid: uuid::Uuid = parse_uuid_v4(&election_id)
@@ -124,11 +124,11 @@ pub async fn update_results_election_documents(
         Ok(())
     } else if rows.len() > 1 {
         Err(anyhow!(
-            "Too many affected rows in table results_contest: {}",
+            "Too many affected rows in table results_election: {}",
             rows.len()
         ))
     } else {
-        Err(anyhow!("Rows not found in table results_contest"))
+        Err(anyhow!("Rows not found in table results_election"))
     }
 }
 
@@ -284,7 +284,7 @@ pub async fn get_results_election_by_results_event_id(
     let election_uuid: uuid::Uuid = parse_uuid_v4(election_id)
         .map_err(|err| anyhow!("Error parsing election_id as UUID: {}", err))?;
     let results_event_uuid: uuid::Uuid = parse_uuid_v4(results_event_id)
-        .map_err(|err| anyhow!("Error parsing election_event_id as UUID: {}", err))?;
+        .map_err(|err| anyhow!("Error parsing results_event_id as UUID: {}", err))?;
 
     let statement = hasura_transaction
         .prepare(
