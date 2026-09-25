@@ -84,8 +84,13 @@ pub fn sort_logs(logs: &Vec<Log>) -> Vec<Log> {
     sorted
 }
 
+#[instrument]
+pub fn generate_keys_initial_log(trustee_names: &Vec<String>) -> Vec<Log> {
+    generate_keys_initial_log_at(trustee_names, ISO8601::now())
+}
+
 #[instrument(skip(now))]
-pub fn generate_keys_initial_log(trustee_names: &Vec<String>, now: DateTime<Local>) -> Vec<Log> {
+pub fn generate_keys_initial_log_at(trustee_names: &Vec<String>, now: DateTime<Local>) -> Vec<Log> {
     vec![Log {
         created_date: ISO8601::to_string(&now),
         log_text: format!("Created Keys Ceremony with trustees: {:?}", trustee_names,),
@@ -102,8 +107,13 @@ pub fn append_tally_trustee_log(current_logs: &Vec<Log>, trustee_name: &str) -> 
     sort_logs(&logs)
 }
 
+#[instrument(skip(current_logs))]
+pub fn append_keys_trustee_download_log(current_logs: &Vec<Log>, trustee_name: &str) -> Vec<Log> {
+    append_keys_trustee_download_log_at(current_logs, trustee_name, ISO8601::now())
+}
+
 #[instrument(skip(current_logs, now))]
-pub fn append_keys_trustee_download_log(
+pub fn append_keys_trustee_download_log_at(
     current_logs: &Vec<Log>,
     trustee_name: &str,
     now: DateTime<Local>,
@@ -116,8 +126,13 @@ pub fn append_keys_trustee_download_log(
     sort_logs(&logs)
 }
 
+#[instrument(skip(current_logs))]
+pub fn append_keys_trustee_check_log(current_logs: &Vec<Log>, trustee_name: &str) -> Vec<Log> {
+    append_keys_trustee_check_log_at(current_logs, trustee_name, ISO8601::now())
+}
+
 #[instrument(skip(current_logs, now))]
-pub fn append_keys_trustee_check_log(
+pub fn append_keys_trustee_check_log_at(
     current_logs: &Vec<Log>,
     trustee_name: &str,
     now: DateTime<Local>,

@@ -21,8 +21,8 @@ use crate::ports::keys_ceremony::{
     KeysCeremonyElections, KeysCeremonyTasks, KeysCeremonyTrustees,
 };
 use crate::services::ceremonies::serialize_logs::{
-    append_keys_trustee_check_log, append_keys_trustee_download_log, generate_keys_initial_log,
-    sort_logs,
+    append_keys_trustee_check_log_at, append_keys_trustee_download_log_at,
+    generate_keys_initial_log_at, sort_logs,
 };
 use crate::services::election_event_board::get_election_event_board;
 use anyhow::{anyhow, Context, Result};
@@ -168,7 +168,8 @@ where
 
     // Update ceremony with the information that this trustee did get the
     // private key
-    let logs = append_keys_trustee_download_log(&current_status.logs, &trustee_name, clock.now());
+    let logs =
+        append_keys_trustee_download_log_at(&current_status.logs, &trustee_name, clock.now());
     let status: Value =
         serde_json::to_value(with_key_retrieved(&current_status, &trustee_name, logs))?;
 
@@ -310,7 +311,7 @@ where
         return Ok(false);
     }
 
-    let logs = append_keys_trustee_check_log(&current_status.logs, &trustee_name, clock.now());
+    let logs = append_keys_trustee_check_log_at(&current_status.logs, &trustee_name, clock.now());
     let (new_status, new_execution_status) = with_key_checked(&current_status, &trustee_name, logs);
 
     store
@@ -417,7 +418,7 @@ where
     let keys_ceremony_id = ids.new_id().to_string();
     let status = serde_json::to_value(initial_status(
         &trustees,
-        generate_keys_initial_log(&trustee_names, clock.now()),
+        generate_keys_initial_log_at(&trustee_names, clock.now()),
     )?)?;
     let is_default = election_id.is_none();
 
