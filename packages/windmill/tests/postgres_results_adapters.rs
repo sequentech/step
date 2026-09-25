@@ -838,7 +838,7 @@ async fn an_election_result_without_annotations_gets_just_the_results_hash() {
 }
 
 #[tokio::test]
-async fn recording_documents_of_a_missing_election_result_fails_naming_the_contest_table() {
+async fn recording_documents_of_a_missing_election_result_fails() {
     let mut client = schema::pool().await.get().await.unwrap();
     let transaction = client.transaction().await.unwrap();
     home(&transaction).await;
@@ -854,7 +854,10 @@ async fn recording_documents_of_a_missing_election_result_fails_naming_the_conte
     )
     .await
     .unwrap_err();
-    assert_eq!(error.to_string(), "Rows not found in table results_contest");
+    assert_eq!(
+        error.to_string(),
+        "Rows not found in table results_election"
+    );
     transaction.rollback().await.unwrap();
 }
 
@@ -887,7 +890,7 @@ async fn recording_documents_of_a_repeated_election_result_updates_every_copy_an
     .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "Too many affected rows in table results_contest: 2"
+        "Too many affected rows in table results_election: 2"
     );
     let hashed = |id: &str| {
         (
@@ -921,7 +924,7 @@ async fn recording_election_result_documents_needs_a_v4_results_event_id() {
     .unwrap_err()
     .to_string();
     assert!(
-        error.starts_with("Error parsing results_id as UUID: invalid UUID 'results-1'"),
+        error.starts_with("Error parsing results_event_id as UUID: invalid UUID 'results-1'"),
         "{error}"
     );
     transaction.rollback().await.unwrap();
@@ -1056,7 +1059,7 @@ async fn an_election_result_of_another_tenant_is_not_found() {
 }
 
 #[tokio::test]
-async fn an_invalid_results_event_id_is_reported_as_an_election_event_id() {
+async fn reading_an_election_result_needs_a_v4_results_event_id() {
     let mut client = schema::pool().await.get().await.unwrap();
     let transaction = client.transaction().await.unwrap();
 
@@ -1066,7 +1069,7 @@ async fn an_invalid_results_event_id_is_reported_as_an_election_event_id() {
             .unwrap_err()
             .to_string();
     assert!(
-        error.starts_with("Error parsing election_event_id as UUID: invalid UUID 'results-1'"),
+        error.starts_with("Error parsing results_event_id as UUID: invalid UUID 'results-1'"),
         "{error}"
     );
     transaction.rollback().await.unwrap();
