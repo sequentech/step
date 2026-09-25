@@ -134,8 +134,24 @@ pub fn get_tally_ceremony_status(input: Option<Value>) -> Result<TallyCeremonySt
         .flatten()
 }
 
-#[instrument(skip(keys_ceremonies), err)]
+#[instrument(skip(transaction), err)]
 pub async fn find_keys_ceremony(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    elections: &Vec<Election>,
+) -> Result<KeysCeremony> {
+    find_keys_ceremony_with(
+        &PgKeysCeremonies::new(transaction),
+        tenant_id,
+        election_event_id,
+        elections,
+    )
+    .await
+}
+
+#[instrument(skip(keys_ceremonies), err)]
+pub async fn find_keys_ceremony_with(
     keys_ceremonies: &impl KeysCeremonyReader,
     tenant_id: &str,
     election_event_id: &str,
@@ -204,8 +220,28 @@ fn generate_initial_tally_status(
     }
 }
 
-#[instrument(err, skip(sessions))]
+#[instrument(err, skip(hasura_transaction))]
 pub async fn insert_tally_session_contests(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+    published_ballot_styles: &[SequentBallotStyle],
+    configuration: &TallySessionConfiguration,
+) -> Result<()> {
+    insert_tally_session_contests_with(
+        &PgTallySessions::new(hasura_transaction),
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        published_ballot_styles,
+        configuration,
+    )
+    .await
+}
+
+#[instrument(err, skip(sessions))]
+pub async fn insert_tally_session_contests_with(
     sessions: &impl TallySessions,
     tenant_id: &str,
     election_event_id: &str,
@@ -488,7 +524,8 @@ pub async fn create_tally_ceremony_with(
         .collect();
 
     let keys_ceremony =
-        find_keys_ceremony(keys_ceremonies, &tenant_id, &election_event_id, &elections).await?;
+        find_keys_ceremony_with(keys_ceremonies, &tenant_id, &election_event_id, &elections)
+            .await?;
     let keys_ceremony_status = keys_ceremony.status()?;
     let keys_ceremony_id = keys_ceremony.id.clone();
     let initial_status = generate_initial_tally_status(&election_ids, &keys_ceremony_status);
@@ -536,7 +573,7 @@ pub async fn create_tally_ceremony_with(
         )
         .await?;
 
-    insert_tally_session_contests(
+    insert_tally_session_contests_with(
         sessions,
         &tenant_id,
         &election_event_id,
