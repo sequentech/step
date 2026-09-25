@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::services::access::{read_permission, UserScope};
 use crate::services::authorization::authorize;
 
 use crate::types::optional::OptionalId;
@@ -125,16 +126,14 @@ pub async fn list_user_roles(
     body: Json<ListUserRolesBody>,
 ) -> Result<Json<Vec<Role>>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm, Permissions::ROLE_READ],
+        vec![
+            read_permission(UserScope::of(input.election_event_id.as_deref())),
+            Permissions::ROLE_READ,
+        ],
     )?;
     let realm = match input.election_event_id {
         Some(election_event_id) => {

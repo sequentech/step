@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::access::authorize_any;
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -335,24 +336,20 @@ pub async fn list_keys_ceremonies(
     body: Json<ListKeysCeremonyInput>,
     claims: JwtClaims,
 ) -> Result<Json<DataList<KeysCeremony>>, (Status, String)> {
-    let admin_auth = authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::ADMIN_CEREMONY],
-    );
-
-    let trustee_auth = authorize(
-        &claims,
-        true,
-        Some(claims.hasura_claims.tenant_id.clone()),
-        vec![Permissions::TRUSTEE_CEREMONY],
-    );
-    if admin_auth.is_err() {
-        trustee_auth?;
-    } else if trustee_auth.is_err() {
-        admin_auth?;
-    }
+    authorize_any(
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::ADMIN_CEREMONY],
+        ),
+        authorize(
+            &claims,
+            true,
+            Some(claims.hasura_claims.tenant_id.clone()),
+            vec![Permissions::TRUSTEE_CEREMONY],
+        ),
+    )?;
     let permission_labels = decode_permission_labels(&claims);
 
     let input = body.into_inner();

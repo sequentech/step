@@ -201,6 +201,8 @@ fn cases() -> Vec<Case> {
         // VOTER_EMAIL_TLF_EDIT substitutes for VOTER_WRITE, whichever fields change.
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID, "first_name": "Ada"}, [VOTER_EMAIL_TLF_EDIT], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID, "password": "test-password"}, [VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
+        // A temporary password is still a password-only edit.
+        case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID, "password": "test-password", "temporary": true}, [VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID, "password": "test-password", "first_name": "Ada"}, [VOTER_WRITE, VOTER_CHANGE_PASSWORD], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/edit-user", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "user_id": USER_ID, "secret_attributes": {"test-secret": ["value"]}}, [VOTER_WRITE, VOTER_SECRET_ATTRIBUTE_WRITE], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/election-event/stats", {"election_event_id": EVENT_ID, "start_date": "2026-01-01", "end_date": "2026-01-02", "user_timezone": "UTC"}, [ADMIN_DASHBOARD_VIEW], BACKEND, UNAUTHORIZED),

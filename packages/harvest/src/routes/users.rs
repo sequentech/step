@@ -2,6 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::services::access::{
+    create_permission, create_user_permissions, delete_permission,
+    edit_user_access, read_permission, writes_secret_attributes, UserEdit,
+    UserEditAccess, UserScope,
+};
 use crate::services::authorization::authorize;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::optional::OptionalId;
@@ -21,8 +26,7 @@ use sequent_core::services::keycloak::{
 };
 use sequent_core::services::keycloak::{GroupInfo, KeycloakAdminClient};
 use sequent_core::types::keycloak::{
-    User, UserProfileAttribute, UserProfileConfiguration, PERMISSION_LABELS,
-    TENANT_ID_ATTR_NAME,
+    User, UserProfileAttribute, UserProfileConfiguration, TENANT_ID_ATTR_NAME,
 };
 use sequent_core::types::permissions::Permissions;
 use serde::Deserialize;
@@ -232,16 +236,13 @@ pub async fn delete_user(
     body: Json<DeleteUserBody>,
 ) -> Result<Json<OptionalId>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_DELETE
-    } else {
-        Permissions::USER_WRITE
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![delete_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
     if let Some(election_event_id) = input.election_event_id.as_deref() {
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
@@ -303,16 +304,13 @@ pub async fn delete_users(
     body: Json<DeleteUsersBody>,
 ) -> Result<Json<DeleteUsersOutput>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_DELETE
-    } else {
-        Permissions::USER_WRITE
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![delete_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
 
     let select_all = input.select_all.unwrap_or(false);
@@ -490,16 +488,13 @@ pub async fn count_users(
     body: Json<GetUsersBody>,
 ) -> Result<Json<CountUserOutput>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![read_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
 
     let realm = match input.election_event_id {
@@ -593,16 +588,13 @@ pub async fn get_users(
     body: Json<GetUsersBody>,
 ) -> Result<Json<DataList<User>>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![read_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
 
     let realm = match input.election_event_id {
@@ -824,33 +816,20 @@ pub async fn create_user(
     body: Json<CreateUserBody>,
 ) -> Result<Json<User>, JsonError> {
     let input = body.into_inner();
-    let has_secret_attributes = input
-        .secret_attributes
-        .as_ref()
-        .is_some_and(|attributes| !attributes.is_empty());
-    let mut required_perms = Vec::<Permissions>::new();
-    if input.election_event_id.is_some() {
-        required_perms.push(Permissions::VOTER_CREATE);
-        if has_secret_attributes {
-            required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
-        }
-    } else {
-        if has_secret_attributes {
-            return Err(ErrorResponse::new(
-                Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters",
-                ErrorCode::UnknownError,
-            ));
-        }
-        required_perms.push(Permissions::USER_CREATE);
-        if let Some(attributes) = &input.user.attributes {
-            if attributes.contains_key(PERMISSION_LABELS) {
-                // only user who has this permission can edit the user
-                // permission_labels if it present in the body.
-                required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
-            }
-        }
-    };
+    let has_secret_attributes =
+        writes_secret_attributes(input.secret_attributes.as_ref());
+    let required_perms = create_user_permissions(
+        UserScope::of(input.election_event_id.as_deref()),
+        input.secret_attributes.as_ref(),
+        input.user.attributes.as_ref(),
+    )
+    .map_err(|error| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            &error.to_string(),
+            ErrorCode::UnknownError,
+        )
+    })?;
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)
         .map_err(|(status, message)| {
             let code = if status == Status::InternalServerError {
@@ -1241,72 +1220,30 @@ pub async fn edit_user(
     body: Json<EditUserBody>,
 ) -> Result<Json<EditUserOutput>, EditUserError> {
     let input = body.into_inner();
-    let password_only = input.election_event_id.is_some()
-        && input.password.is_some()
-        && input.enabled.is_none()
-        && input.attributes.is_none()
-        && input.secret_attributes.is_none()
-        && input.email.is_none()
-        && input.first_name.is_none()
-        && input.last_name.is_none()
-        && input.username.is_none();
-    let mut required_perms = Vec::<Permissions>::new();
-    let has_secret_changes = input
-        .secret_attributes
-        .as_ref()
-        .is_some_and(|attributes| !attributes.is_empty());
-    let mut voter_voted_edit = false;
-    let mut voter_email_tlf_edit = false;
-    if input.election_event_id.is_some() {
-        if password_only {
-            required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
-        }
-        voter_voted_edit = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_VOTED_EDIT.to_string());
-        voter_email_tlf_edit = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_EMAIL_TLF_EDIT.to_string());
-        let voter_write = claims
-            .hasura_claims
-            .allowed_roles
-            .contains(&Permissions::VOTER_WRITE.to_string());
-
-        if !password_only {
-            if voter_write {
-                required_perms.push(Permissions::VOTER_WRITE);
-            } else {
-                required_perms.push(Permissions::VOTER_EMAIL_TLF_EDIT);
-            }
-            if input.password.is_some() {
-                required_perms.push(Permissions::VOTER_CHANGE_PASSWORD);
-            }
-            if has_secret_changes {
-                required_perms.push(Permissions::VOTER_SECRET_ATTRIBUTE_WRITE);
-                if !voter_write {
-                    required_perms.push(Permissions::VOTER_WRITE);
-                }
-            }
-        }
-    } else {
-        if has_secret_changes {
-            return Err((
-                Status::BadRequest,
-                "Encrypted attributes are only supported for election-event voters".to_string(),
-            )
-                .into());
-        }
-        required_perms.push(Permissions::USER_WRITE);
-        if let Some(attributes) = &input.attributes {
-            if attributes.contains_key(PERMISSION_LABELS) {
-                // only user who has this permission can edit the user
-                // permission_labels if it present in the body.
-                required_perms.push(Permissions::PERMISSION_LABEL_WRITE);
-            }
-        }
-    };
+    let has_secret_changes =
+        writes_secret_attributes(input.secret_attributes.as_ref());
+    let UserEditAccess {
+        permissions: required_perms,
+        password_only,
+        voter_voted_edit,
+        voter_email_tlf_edit,
+    } = edit_user_access(
+        &UserEdit {
+            scope: UserScope::of(input.election_event_id.as_deref()),
+            enabled: input.enabled,
+            attributes: input.attributes.as_ref(),
+            secret_attributes: input.secret_attributes.as_ref(),
+            email: input.email.as_deref(),
+            first_name: input.first_name.as_deref(),
+            last_name: input.last_name.as_deref(),
+            username: input.username.as_deref(),
+            password: input.password.as_deref(),
+        },
+        &claims.hasura_claims.allowed_roles,
+    )
+    .map_err(|error| {
+        EditUserError::from((Status::BadRequest, error.to_string()))
+    })?;
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
     let realm = match input.election_event_id.clone() {
@@ -1673,16 +1610,13 @@ pub async fn get_user(
     body: Json<GetUserBody>,
 ) -> Result<Json<User>, (Status, String)> {
     let input = body.into_inner();
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
-        vec![required_perm],
+        vec![read_permission(UserScope::of(
+            input.election_event_id.as_deref(),
+        ))],
     )?;
     let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
@@ -1824,11 +1758,8 @@ pub async fn import_users_f(
         .name
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
-    let required_perm: Permissions = if input.election_event_id.is_some() {
-        Permissions::VOTER_CREATE
-    } else {
-        Permissions::USER_CREATE
-    };
+    let required_perm =
+        create_permission(UserScope::of(input.election_event_id.as_deref()));
 
     // Insert the task execution record
     let task_execution = post(
@@ -1904,11 +1835,8 @@ pub async fn export_users_f(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    let required_perm = if body.election_event_id.clone().is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
+    let required_perm =
+        read_permission(UserScope::of(body.election_event_id.as_deref()));
 
     authorize(
         &claims,
@@ -2099,11 +2027,8 @@ pub async fn get_user_profile_attributes(
     claims: jwt::JwtClaims,
     body: Json<GetUserProfileAttributesBody>,
 ) -> Result<Json<Vec<UserProfileAttribute>>, (Status, String)> {
-    let required_perm = if body.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
+    let required_perm =
+        read_permission(UserScope::of(body.election_event_id.as_deref()));
 
     let input = body.into_inner();
     authorize(
@@ -2138,11 +2063,8 @@ pub async fn get_user_profile_configuration(
     claims: jwt::JwtClaims,
     body: Json<GetUserProfileAttributesBody>,
 ) -> Result<Json<UserProfileConfiguration>, (Status, String)> {
-    let required_perm = if body.election_event_id.is_some() {
-        Permissions::VOTER_READ
-    } else {
-        Permissions::USER_READ
-    };
+    let required_perm =
+        read_permission(UserScope::of(body.election_event_id.as_deref()));
 
     let input = body.into_inner();
     authorize(
