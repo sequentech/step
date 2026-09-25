@@ -1091,9 +1091,12 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                     },
                 })
                 if (!isCurrent() || closedRef.current) return
+                if (!data?.reveal_voter_secret_attribute) {
+                    throw new Error("Missing voter secret attribute response")
+                }
                 setSecretAttributeValues((previous) => ({
                     ...previous,
-                    [name]: data?.reveal_voter_secret_attribute.values ?? [],
+                    [name]: data.reveal_voter_secret_attribute.values ?? [],
                 }))
             } catch {
                 if (!isCurrent() || closedRef.current) return
@@ -1658,7 +1661,7 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
                                         electionEventId={electionEventId}
                                         source={createMode ? "attributes.area-id[0]" : "area.id"}
                                         onSelectArea={handleAreaSelection}
-                                        label=""
+                                        label={String(t("usersAndRolesScreen.users.fields.area"))}
                                         isRequired={true}
                                         disabled={
                                             !(
