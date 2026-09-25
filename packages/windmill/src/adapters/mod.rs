@@ -7,7 +7,12 @@
 //! in-memory adapters used by unit tests.
 
 pub mod datafix_cast_vote;
+pub mod keys_ceremony;
 #[cfg(test)]
 pub mod memory;
 pub mod publication_files;
+pub mod results_publication;
+pub mod results_publication_lifecycle;
 pub mod system;
+pub mod tally_ceremony;
+pub mod tally_execution;
