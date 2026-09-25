@@ -13,3 +13,4 @@ pub mod memory;
 pub mod publication_files;
 pub mod system;
 pub mod tally_ceremony;
+pub mod tally_execution;

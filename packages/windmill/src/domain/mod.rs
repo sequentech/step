@@ -10,3 +10,4 @@ pub mod keys_ceremony;
 pub mod publication_files;
 pub mod tally_ceremony;
 pub mod tally_creation;
+pub mod tally_execution;
