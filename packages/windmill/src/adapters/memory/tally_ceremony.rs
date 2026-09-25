@@ -169,12 +169,12 @@ impl State {
     ) -> Option<TallySessionExecution> {
         self.executions
             .iter()
-            .rev()
-            .find(|execution| {
+            .filter(|execution| {
                 execution.tenant_id == tenant_id
                     && execution.election_event_id == election_event_id
                     && execution.tally_session_id == tally_session_id
             })
+            .max_by_key(|execution| execution.created_at)
             .cloned()
     }
 }
@@ -184,12 +184,27 @@ impl State {
 /// Tests use one logical transaction per fixture. `on_lock` models a commit
 /// observed while waiting for the row lock; this fake does not run competing
 /// database transactions or emulate their rollback.
-#[derive(Default)]
+/// The transaction timestamp defaults to Unix epoch; fixtures with dated
+/// history can set it with [`Self::with_transaction_time`].
 pub struct InMemoryTallyCeremony {
     state: Mutex<State>,
+    transaction_time: chrono::DateTime<chrono::Local>,
+}
+
+impl Default for InMemoryTallyCeremony {
+    fn default() -> Self {
+        Self::with_transaction_time(chrono::DateTime::<chrono::Utc>::UNIX_EPOCH.into())
+    }
 }
 
 impl InMemoryTallyCeremony {
+    pub fn with_transaction_time(transaction_time: chrono::DateTime<chrono::Local>) -> Self {
+        Self {
+            state: Mutex::default(),
+            transaction_time,
+        }
+    }
+
     fn state(&self) -> MutexGuard<'_, State> {
         self.state.lock().expect("tally ceremony state lock")
     }
@@ -381,7 +396,7 @@ impl TallySessions for InMemoryTallyCeremony {
             id: format!("execution-{}", state.executions.len() + 1),
             tenant_id: tenant_id.to_string(),
             election_event_id: election_event_id.to_string(),
-            created_at: None,
+            created_at: Some(self.transaction_time),
             last_updated_at: None,
             labels: None,
             annotations: None,
