@@ -33,6 +33,7 @@ SERVICES=(
 )
 IMAGES=(postgres postgres-b4 minio configure-minio keycloak harvest)
 
+original_args=("$@")
 keep=false images=true build=true down_only=false bootstrap_only=false pattern=()
 while (($#)); do
     case "$1" in
@@ -56,6 +57,12 @@ if $down_only && [[ -z "${STEP_E2E_PROJECT:-}" ]]; then
 fi
 PROJECT=${STEP_E2E_PROJECT:-step-e2e-$(id -u)-$$-$RANDOM}
 [[ "$PROJECT" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "Invalid Compose project: $PROJECT" >&2; exit 2; }
+# The inherited descriptor also lets the UI wrapper retain this claim through
+# browser execution and cleanup. Inspection, builds and explicit --down all lock.
+export STEP_E2E_PROJECT=$PROJECT
+if ! python3 "$ROOT/scripts/e2e/project_lock.py" --check "$PROJECT"; then
+    exec python3 "$ROOT/scripts/e2e/project_lock.py" "$PROJECT" "$0" ${original_args[@]+"${original_args[@]}"}
+fi
 OUTPUT=${STEP_E2E_OUTPUT_DIR:-$ROOT/.cache/backend-e2e/$PROJECT}
 # The UI wrapper supplies a fresh token to recognize this invocation's claim,
 # even if its caller selected an output directory containing old run markers.

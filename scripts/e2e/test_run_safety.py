@@ -7,12 +7,13 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 FAKE_DOCKER = r"""#!/usr/bin/env python3
-import json, os, sys
+import json, os, sys, time
 from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_DOCKER_LOG"], "a") as output:
@@ -25,6 +26,10 @@ if args[0] != "compose":
     if mode == "collision-" + kind:
         print("owned-by-another-run")
     sys.exit(0)
+if "up" in args and mode == "held-start":
+    Path(os.environ["FAKE_START_MARKER"]).touch()
+    while not Path(os.environ["FAKE_RELEASE_MARKER"]).exists():
+        time.sleep(0.01)
 if "up" in args and mode == "partial-start":
     sys.exit(19)
 """
@@ -39,6 +44,9 @@ class RunSafety(unittest.TestCase):
         script.parent.mkdir(parents=True)
         shutil.copyfile(ROOT / "scripts/e2e/run.sh", script)
         script.chmod(0o755)
+        shutil.copyfile(
+            ROOT / "scripts/e2e/project_lock.py", script.parent / "project_lock.py"
+        )
         devcontainer = self.root / ".devcontainer"
         devcontainer.mkdir()
         (devcontainer / ".env.development").write_text("# synthetic test environment\n")
@@ -137,6 +145,58 @@ class RunSafety(unittest.TestCase):
         self.assertFalse(
             list((self.root / ".cache/backend-e2e/partial-stack").glob(".owned-*"))
         )
+
+    def test_concurrent_project_claim_refuses_start_and_down_across_checkouts(self):
+        project = "concurrent-" + self.root.name.lower()
+        started = self.root / "started"
+        release = self.root / "release"
+        process = subprocess.Popen(
+            [str(self.root / "scripts/e2e/run.sh"), "--skip-images", "--skip-build"],
+            env={
+                **self.env,
+                "STEP_E2E_PROJECT": project,
+                "FAKE_DOCKER_MODE": "held-start",
+                "FAKE_START_MARKER": str(started),
+                "FAKE_RELEASE_MARKER": str(release),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while not started.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(started.exists(), "First launcher never reached compose up")
+            # A different checkout/output directory must contend on the same lock.
+            second_root = self.root / "second-checkout"
+            shutil.copytree(self.root / "scripts", second_root / "scripts")
+            shutil.copytree(self.root / ".devcontainer", second_root / ".devcontainer")
+            for arguments in (("--skip-images", "--skip-build"), ("--down",)):
+                with self.subTest(arguments=arguments):
+                    prior = self.calls()
+                    result = subprocess.run(
+                        [str(second_root / "scripts/e2e/run.sh"), *arguments],
+                        env={**self.env, "STEP_E2E_PROJECT": project},
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        check=False,
+                    )
+                    self.assertNotEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("already claimed", result.stderr)
+                    self.assertEqual(self.calls(), prior)
+        finally:
+            release.touch()
+            stdout, stderr = process.communicate(timeout=10)
+        self.assertEqual(process.returncode, 0, stdout + stderr)
+        self.assertEqual(len(self.compose_calls("up")), 1)
+        self.assertEqual(len(self.compose_calls("down")), 1)
+        # Completion releases the lock, including after ordinary owned cleanup.
+        result = self.run_script(
+            "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_keep_can_be_removed_by_an_explicit_down(self):
         result = self.run_script(
