@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::tally_sheet_validation::validate_area_contest_results;
 use sequent_core::types::ceremonies::{
@@ -36,10 +38,7 @@ use windmill::postgres::{
     tally_sheet_import::get_tally_sheet_import_items_for_review,
 };
 use windmill::services::{
-    celery_app::get_celery_app,
     ceremonies::tally_ceremony::begin_tally_session_recount,
-    database::get_hasura_pool,
-    documents::get_document_as_temp_file,
     ess_xml_converter::{
         convert_ess_enhanced_xml_to_csv_for_reporting_group, ContestVoteConfig,
         DEFAULT_IMPORT_REPORTING_GROUP_ID, ESS_AREA_GROUPING_ANNOTATION_KEY,
@@ -85,11 +84,12 @@ pub struct CreateNewTallySheetInput {
     area_id: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/create-new-tally-sheet", format = "json", data = "<body>")]
 pub async fn create_new_tally_sheet(
     body: Json<CreateNewTallySheetInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<TallySheet>, (Status, String)> {
     authorize(
         &claims,
@@ -99,7 +99,9 @@ pub async fn create_new_tally_sheet(
     )?;
     let input = body.into_inner();
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -247,11 +249,12 @@ pub struct TallySheetImportOutput {
     import: Value,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/review-tally-sheet", format = "json", data = "<body>")]
 pub async fn review_tally_sheet(
     body: Json<ReviewTallySheetInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<TallySheet>, (Status, String)> {
     authorize(
         &claims,
@@ -260,7 +263,9 @@ pub async fn review_tally_sheet(
         vec![Permissions::TALLY_SHEET_REVIEW],
     )?;
     let input = body.into_inner();
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -319,11 +324,12 @@ pub async fn review_tally_sheet(
     Ok(Json(tally_sheet.clone()))
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/preview-tally-sheet-import", format = "json", data = "<body>")]
 pub async fn preview_tally_sheet_import(
     body: Json<PreviewTallySheetImportInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<TallySheetImportPreviewOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -332,7 +338,9 @@ pub async fn preview_tally_sheet_import(
         vec![Permissions::TALLY_SHEET_IMPORT_CREATE],
     )?;
     let input = body.into_inner();
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -342,6 +350,7 @@ pub async fn preview_tally_sheet_import(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let (_document, source_bytes) = read_import_document(
+        services,
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
@@ -386,11 +395,12 @@ pub async fn preview_tally_sheet_import(
     }))
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/create-tally-sheet-import", format = "json", data = "<body>")]
 pub async fn create_tally_sheet_import(
     body: Json<CreateTallySheetImportInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<TallySheetImportOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -399,7 +409,9 @@ pub async fn create_tally_sheet_import(
         vec![Permissions::TALLY_SHEET_IMPORT_CREATE],
     )?;
     let input = body.into_inner();
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -409,6 +421,7 @@ pub async fn create_tally_sheet_import(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     let (document, source_bytes) = read_import_document(
+        services,
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
         &input.election_event_id,
@@ -460,11 +473,12 @@ pub async fn create_tally_sheet_import(
     }))
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/review-tally-sheet-import", format = "json", data = "<body>")]
 pub async fn review_tally_sheet_import(
     body: Json<ReviewTallySheetImportInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<TallySheetImportOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -479,7 +493,9 @@ pub async fn review_tally_sheet_import(
     } = body.into_inner();
     let should_trigger_recount =
         decision == TallySheetImportReviewDecision::APPROVE;
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -514,6 +530,7 @@ pub async fn review_tally_sheet_import(
         // that already succeeded (and get "cannot be reviewed from status
         // APPROVED"). Log it instead so it can be triaged/retried out of band.
         match maybe_trigger_automatic_recount_for_import(
+            services,
             &claims.hasura_claims.tenant_id,
             &election_event_id,
             &import_id,
@@ -545,12 +562,18 @@ pub async fn review_tally_sheet_import(
 }
 
 async fn maybe_trigger_automatic_recount_for_import(
+    services: &HarvestServices,
     tenant_id: &str,
     election_event_id: &str,
     import_id: &str,
 ) -> Result<usize> {
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.with_context(|| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .with_context(|| {
             "error getting hasura db pool for automatic recount"
         })?;
     let hasura_transaction =
@@ -635,6 +658,7 @@ async fn maybe_trigger_automatic_recount_for_import(
     for tally_session in sessions_to_recount {
         let tally_session_id = tally_session.id.clone();
         match request_automatic_recount_tally_session(
+            services,
             tenant_id,
             election_event_id,
             &tally_session,
@@ -661,14 +685,20 @@ async fn maybe_trigger_automatic_recount_for_import(
 /// Returns `Ok(false)` if the session is no longer eligible or has no
 /// execution history to recount.
 async fn request_automatic_recount_tally_session(
+    services: &HarvestServices,
     tenant_id: &str,
     election_event_id: &str,
     tally_session: &TallySession,
 ) -> Result<bool> {
     let tally_session_id = tally_session.id.clone();
     let election_ids = tally_session.election_ids.clone().unwrap_or_default();
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.with_context(|| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .with_context(|| {
             "error getting hasura db pool for automatic recount status update"
         })?;
     let hasura_transaction =
@@ -700,7 +730,7 @@ async fn request_automatic_recount_tally_session(
         .await
         .with_context(|| "error committing automatic recount status update")?;
 
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await;
     let task = celery_app
         .send_task(execute_tally_session::new(
             tenant_id.to_string(),
@@ -734,6 +764,7 @@ async fn request_automatic_recount_tally_session(
 const MAX_TALLY_SHEET_IMPORT_BYTES: u64 = 50 * 1024 * 1024;
 
 async fn read_import_document(
+    services: &HarvestServices,
     transaction: &deadpool_postgres::Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
@@ -766,7 +797,7 @@ async fn read_import_document(
         }
     }
 
-    let file = get_document_as_temp_file(tenant_id, &document).await?;
+    let file = services.documents.download(tenant_id, &document).await?;
     let file_size = tokio::fs::metadata(file.path()).await?.len();
     if file_size > MAX_TALLY_SHEET_IMPORT_BYTES {
         return Err(TallySheetImportError::DocumentTooLarge {

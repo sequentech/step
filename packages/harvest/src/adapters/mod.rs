@@ -2,6 +2,11 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+pub mod database;
+pub mod documents;
+pub mod identity;
 #[cfg(test)]
 pub mod memory;
+pub mod task_ledger;
+pub mod task_queue;
 pub mod user_tasks;
