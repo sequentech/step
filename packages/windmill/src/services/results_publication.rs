@@ -6,6 +6,7 @@ use crate::adapters::results_publication::{
     CeleryResultsPublicationTasks, ElectoralLogResultsPublicationAudit, PgResultsEventPresentation,
     PgResultsPublications, S3ResultsDocumentUrls,
 };
+use crate::adapters::results_publication_lifecycle::StoredResultsArtifacts;
 use crate::domain::results_publication::{
     artifact_document_ids_for_reader, authorize_results_reader, check_publication_source,
     manifest_for_reader, manifest_public_path, publication_matches_requested_route,
@@ -21,13 +22,14 @@ use crate::ports::results_publication::{
     ResultsPublicationReader, ResultsPublicationRequestSteps, ResultsPublicationTasks,
     ResultsPublicationWriter,
 };
-use crate::postgres::document::{delete_documents, get_document};
+use crate::ports::results_publication_lifecycle::{
+    ResultsPublicationArtifactStore, ResultsPublicationLifecycle, ResultsPublicationRenderer,
+};
+use crate::postgres::document::get_document;
 use crate::postgres::election_event::{
     get_election_event_by_id, update_election_event_presentation,
 };
 use crate::postgres::tally_results_publication::{
-    get_publication_by_id, list_active_public_publications, list_superseded_publications,
-    mark_publication_published, mark_publication_superseded, set_publication_finalization_error,
     NewTallyResultsPublication, TallyResultsPublication,
 };
 use crate::postgres::tally_session_execution::get_tally_session_execution_documents;
@@ -676,7 +678,7 @@ fn query_manifest_custom_css(
 }
 
 #[derive(Clone)]
-struct ManifestLanguageConfig {
+pub(crate) struct ManifestLanguageConfig {
     default_locale: String,
     available_languages: Vec<String>,
 }
@@ -804,7 +806,7 @@ fn event_public_path(tenant_id: &str, election_event_id: &str, name: &str) -> St
     s3::get_public_election_event_document_name_key(tenant_id, election_event_id, name)
 }
 
-async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
+pub(crate) async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
     let (_file, path, _size) = write_json_file("results-public-index", value)?;
     s3::upload_file_to_s3(
         key.to_string(),
@@ -819,15 +821,16 @@ async fn upload_public_json_key(key: &str, value: &Value) -> Result<()> {
     Ok(())
 }
 
-async fn delete_public_results_artifacts(tenant_id: &str, election_event_id: &str) -> Result<()> {
-    let prefix = event_public_path(tenant_id, election_event_id, "results");
-    s3::delete_files_from_s3(s3::get_public_bucket()?, prefix, s3::S3Endpoint::Server).await
-}
-
 pub async fn delete_public_publication_route_artifacts(
     publication: &TallyResultsPublication,
 ) -> Result<()> {
-    delete_public_publication_artifacts(publication, true).await
+    let mut paths = HashSet::new();
+    collect_publication_public_paths(&publication.documents, true, &mut paths);
+    paths.extend(expected_publication_public_paths(publication, true));
+    for path in paths {
+        s3::delete_files_from_s3(s3::get_public_bucket()?, path, s3::S3Endpoint::Server).await?;
+    }
+    Ok(())
 }
 
 fn collect_publication_document_ids(value: &Value, ids: &mut HashSet<String>) {
@@ -901,7 +904,8 @@ fn expected_publication_public_paths(
     paths
 }
 
-async fn delete_public_publication_artifacts(
+async fn delete_public_publication_artifacts_with(
+    artifacts: &impl ResultsPublicationArtifactStore,
     publication: &TallyResultsPublication,
     include_latest: bool,
 ) -> Result<()> {
@@ -913,13 +917,13 @@ async fn delete_public_publication_artifacts(
     ));
 
     for path in paths {
-        s3::delete_files_from_s3(s3::get_public_bucket()?, path, s3::S3Endpoint::Server).await?;
+        artifacts.delete_public_path(path).await?;
     }
     Ok(())
 }
 
-async fn delete_publication_artifacts_internal(
-    tx: &Transaction<'_>,
+pub async fn delete_publication_artifacts_with(
+    artifacts: &impl ResultsPublicationArtifactStore,
     publication: &TallyResultsPublication,
     include_latest: bool,
 ) -> Result<()> {
@@ -927,17 +931,10 @@ async fn delete_publication_artifacts_internal(
     collect_publication_document_ids(&publication.documents, &mut document_ids);
 
     if publication.access == ResultsWebsiteAccess::Public {
-        delete_public_publication_artifacts(publication, include_latest).await?;
+        delete_public_publication_artifacts_with(artifacts, publication, include_latest).await?;
     } else {
         for document_id in &document_ids {
-            let Some(document) = get_document(
-                tx,
-                &publication.tenant_id,
-                Some(publication.election_event_id.clone()),
-                document_id,
-            )
-            .await?
-            else {
+            let Some(document) = artifacts.document(publication, document_id).await? else {
                 continue;
             };
             let key = s3::get_document_key(
@@ -946,19 +943,14 @@ async fn delete_publication_artifacts_internal(
                 document_id,
                 document.name.as_deref().unwrap_or_default(),
             );
-            s3::delete_files_from_s3(s3::get_private_bucket()?, key, s3::S3Endpoint::Server)
-                .await?;
+            artifacts.delete_private_path(key).await?;
         }
     }
 
     let document_ids = document_ids.into_iter().collect::<Vec<_>>();
-    delete_documents(
-        tx,
-        &publication.tenant_id,
-        &publication.election_event_id,
-        &document_ids,
-    )
-    .await?;
+    artifacts
+        .delete_documents(publication, &document_ids)
+        .await?;
     Ok(())
 }
 
@@ -966,14 +958,12 @@ pub async fn delete_publication_artifacts(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
 ) -> Result<()> {
-    delete_publication_artifacts_internal(tx, publication, true).await
-}
-
-async fn delete_superseded_publication_artifacts(
-    tx: &Transaction<'_>,
-    publication: &TallyResultsPublication,
-) -> Result<()> {
-    delete_publication_artifacts_internal(tx, publication, false).await
+    delete_publication_artifacts_with(
+        &StoredResultsArtifacts { transaction: tx },
+        publication,
+        true,
+    )
+    .await
 }
 
 async fn source_sqlite_file(
@@ -1043,7 +1033,7 @@ fn build_manifest(
     }
 }
 
-async fn publish_public_artifacts(
+pub(crate) async fn publish_public_artifacts(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
     source_path: &Path,
@@ -1126,7 +1116,7 @@ async fn publish_public_artifacts(
     Ok((serde_json::to_value(documents)?, manifest))
 }
 
-async fn publish_private_artifacts(
+pub(crate) async fn publish_private_artifacts(
     tx: &Transaction<'_>,
     publication: &TallyResultsPublication,
     source_path: &Path,
@@ -1223,15 +1213,15 @@ async fn publish_private_artifacts(
     Ok((serde_json::to_value(documents)?, manifest))
 }
 
-pub async fn refresh_public_results_index(
-    tx: &Transaction<'_>,
+pub async fn refresh_public_results_index_with(
+    publications: &impl ResultsPublicationLifecycle,
+    presentations: &impl ResultsEventPresentation,
+    artifacts: &impl ResultsPublicationArtifactStore,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<()> {
-    let election_event = get_election_event_by_id(tx, tenant_id, election_event_id).await?;
-    let presentation = election_event.get_presentation()?.unwrap_or_default();
-    let active_publications =
-        list_active_public_publications(tx, tenant_id, election_event_id).await?;
+    let presentation = presentations.get(tenant_id, election_event_id).await?;
+    let active_publications = publications.active(tenant_id, election_event_id).await?;
     let active_publications = if is_results_website_enabled(&presentation)? {
         let mut policy_matching_publications = Vec::new();
 
@@ -1239,17 +1229,19 @@ pub async fn refresh_public_results_index(
             if publication_matches_results_website_policy(&presentation, &publication)? {
                 policy_matching_publications.push(publication);
             } else {
-                delete_publication_artifacts(tx, &publication).await?;
-                mark_publication_superseded(tx, &publication).await?;
+                delete_publication_artifacts_with(artifacts, &publication, true).await?;
+                publications.mark_superseded(&publication).await?;
             }
         }
 
         policy_matching_publications
     } else {
-        delete_public_results_artifacts(tenant_id, election_event_id).await?;
+        artifacts
+            .delete_public_path(event_public_path(tenant_id, election_event_id, "results"))
+            .await?;
         for publication in active_publications {
-            delete_publication_artifacts(tx, &publication).await?;
-            mark_publication_superseded(tx, &publication).await?;
+            delete_publication_artifacts_with(artifacts, &publication, true).await?;
+            publications.mark_superseded(&publication).await?;
         }
         Vec::new()
     };
@@ -1297,31 +1289,37 @@ pub async fn refresh_public_results_index(
         "publications": publications
     });
     let key = format!("results-index/{election_event_id}.json");
-    upload_public_json_key(&key, &index).await
+    artifacts.upload_index(&key, &index).await
 }
 
-pub async fn publish_results_website_artifacts(
+pub async fn refresh_public_results_index(
     tx: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
-    publication_id: &str,
 ) -> Result<()> {
-    let publication =
-        get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
-    match publication.publication_status {
-        ResultsPublicationStatus::Published => {
-            return Ok(());
-        }
-        ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed => {}
-        ResultsPublicationStatus::Revoked | ResultsPublicationStatus::Superseded => {
-            return Err(anyhow!(
-                "Cannot publish a {} results publication",
-                publication.publication_status
-            ));
-        }
-    }
-    let selected_contests = selected_contest_ids(&publication)?;
-    let source_sqlite = source_sqlite_file(tx, &publication).await?;
+    refresh_public_results_index_with(
+        &PgResultsPublications { transaction: tx },
+        &PgResultsEventPresentation { transaction: tx },
+        &StoredResultsArtifacts { transaction: tx },
+        tenant_id,
+        election_event_id,
+    )
+    .await
+}
+
+pub struct PreparedPublicationSource {
+    pub(crate) file: NamedTempFile,
+    pub(crate) contests: Vec<ResultsManifestContest>,
+    pub(crate) custom_css: ResultsManifestCustomCss,
+    pub(crate) language_config: ManifestLanguageConfig,
+}
+
+pub(crate) async fn prepare_publication_source(
+    tx: &Transaction<'_>,
+    publication: &TallyResultsPublication,
+    selected_contests: &[String],
+) -> Result<PreparedPublicationSource> {
+    let source_sqlite = source_sqlite_file(tx, publication).await?;
     let source_path: PathBuf = source_sqlite.path().to_path_buf();
     let current_presentation =
         get_election_event_by_id(tx, &publication.tenant_id, &publication.election_event_id)
@@ -1339,53 +1337,77 @@ pub async fn publish_results_website_artifacts(
         current_translation_overrides.as_ref(),
     )?;
     drop(source_connection);
-    let contests = query_manifest_contests(&source_path, &publication, &selected_contests)?;
-    let custom_css = query_manifest_custom_css(&source_path, &publication)?;
-    let language_config = query_manifest_language_config(&source_path, &publication)?;
+    let contests = query_manifest_contests(&source_path, publication, selected_contests)?;
+    let custom_css = query_manifest_custom_css(&source_path, publication)?;
+    let language_config = query_manifest_language_config(&source_path, publication)?;
 
+    Ok(PreparedPublicationSource {
+        file: source_sqlite,
+        contests,
+        custom_css,
+        language_config,
+    })
+}
+
+pub async fn publish_results_website_artifacts_with(
+    publications: &impl ResultsPublicationLifecycle,
+    renderer: &impl ResultsPublicationRenderer,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> Result<()> {
+    let publication = publications
+        .get(tenant_id, election_event_id, publication_id)
+        .await?;
+    match publication.publication_status {
+        ResultsPublicationStatus::Published => {
+            return Ok(());
+        }
+        ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed => {}
+        ResultsPublicationStatus::Revoked | ResultsPublicationStatus::Superseded => {
+            return Err(anyhow!(
+                "Cannot publish a {} results publication",
+                publication.publication_status
+            ));
+        }
+    }
+    let selected_contests = selected_contest_ids(&publication)?;
+    let source = renderer.prepare(&publication, &selected_contests).await?;
     let (documents, manifest) = if publication.access == ResultsWebsiteAccess::Public {
-        publish_public_artifacts(
-            tx,
-            &publication,
-            &source_path,
-            &selected_contests,
-            contests,
-            custom_css,
-            &language_config,
-        )
-        .await?
+        renderer
+            .publish_public(&publication, &source, &selected_contests)
+            .await?
     } else {
-        publish_private_artifacts(
-            tx,
-            &publication,
-            &source_path,
-            &selected_contests,
-            contests,
-            custom_css,
-            &language_config,
-        )
-        .await?
+        renderer
+            .publish_private(&publication, &source, &selected_contests)
+            .await?
     };
-
-    mark_publication_published(
-        tx,
-        &publication,
-        documents,
-        serde_json::to_value(&manifest)?,
-    )
-    .await?;
+    publications
+        .mark_published(&publication, documents, serde_json::to_value(&manifest)?)
+        .await?;
     Ok(())
 }
 
-async fn upload_latest_public_manifest(publication: &TallyResultsPublication) -> Result<()> {
-    if publication.access != ResultsWebsiteAccess::Public {
-        return Ok(());
-    }
+pub async fn publish_results_website_artifacts(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+) -> Result<()> {
+    publish_results_website_artifacts_with(
+        &PgResultsPublications { transaction: tx },
+        &StoredResultsArtifacts { transaction: tx },
+        tenant_id,
+        election_event_id,
+        publication_id,
+    )
+    .await
+}
 
-    let manifest = publication
-        .manifest
-        .as_ref()
-        .ok_or_else(|| anyhow!("Published results publication has no manifest"))?;
+pub(crate) async fn upload_latest_public_manifest_value(
+    publication: &TallyResultsPublication,
+    manifest: &Value,
+) -> Result<()> {
     let (_manifest_file, manifest_path, _manifest_size) =
         write_json_file("results-manifest-latest", manifest)?;
     let latest_manifest_name = format!(
@@ -1408,6 +1430,67 @@ async fn upload_latest_public_manifest(publication: &TallyResultsPublication) ->
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn finalize_results_website_publication_with(
+    publications: &impl ResultsPublicationLifecycle,
+    presentations: &impl ResultsEventPresentation,
+    artifacts: &impl ResultsPublicationArtifactStore,
+    audit: &impl ResultsPublicationAudit,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication_id: &str,
+    user_id: &str,
+    username: Option<String>,
+) -> Result<()> {
+    let publication = publications
+        .get(tenant_id, election_event_id, publication_id)
+        .await?;
+    if publication.publication_status != ResultsPublicationStatus::Published {
+        return Err(anyhow!("Results publication is not published"));
+    }
+
+    if publication.access == ResultsWebsiteAccess::Public {
+        let manifest = publication
+            .manifest
+            .as_ref()
+            .ok_or_else(|| anyhow!("Published results publication has no manifest"))?;
+        artifacts
+            .upload_latest_manifest(&publication, manifest)
+            .await?;
+    } else {
+        delete_public_publication_artifacts_with(artifacts, &publication, true).await?;
+    }
+    refresh_public_results_index_with(
+        publications,
+        presentations,
+        artifacts,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+
+    for superseded in publications
+        .superseded(tenant_id, election_event_id)
+        .await?
+    {
+        delete_publication_artifacts_with(artifacts, &superseded, false).await?;
+    }
+
+    audit
+        .action(
+            &publication,
+            ResultsPublicationAction::Publish,
+            user_id,
+            username,
+        )
+        .await?;
+    publications
+        .clear_finalization_error(tenant_id, election_event_id, publication_id)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn finalize_results_website_publication(
     tx: &Transaction<'_>,
     tenant_id: &str,
@@ -1416,34 +1499,37 @@ pub async fn finalize_results_website_publication(
     user_id: &str,
     username: Option<String>,
 ) -> Result<()> {
-    let publication =
-        get_publication_by_id(tx, tenant_id, election_event_id, publication_id).await?;
-    if publication.publication_status != ResultsPublicationStatus::Published {
-        return Err(anyhow!("Results publication is not published"));
-    }
-
-    upload_latest_public_manifest(&publication).await?;
-    if publication.access != ResultsWebsiteAccess::Public {
-        delete_public_publication_route_artifacts(&publication).await?;
-    }
-    refresh_public_results_index(tx, tenant_id, election_event_id).await?;
-
-    for superseded in list_superseded_publications(tx, tenant_id, election_event_id).await? {
-        delete_superseded_publication_artifacts(tx, &superseded).await?;
-    }
-
-    post_results_publication_action(
-        tx,
-        &publication,
-        ResultsPublicationAction::Publish,
+    finalize_results_website_publication_with(
+        &PgResultsPublications { transaction: tx },
+        &PgResultsEventPresentation { transaction: tx },
+        &StoredResultsArtifacts { transaction: tx },
+        &ElectoralLogResultsPublicationAudit { transaction: tx },
+        tenant_id,
+        election_event_id,
+        publication_id,
         user_id,
         username,
     )
-    .await?;
-    set_publication_finalization_error(tx, tenant_id, election_event_id, publication_id, None)
-        .await?;
+    .await
+}
 
-    Ok(())
+pub async fn cleanup_revoked_results_publication(
+    publications: &impl ResultsPublicationLifecycle,
+    presentations: &impl ResultsEventPresentation,
+    artifacts: &impl ResultsPublicationArtifactStore,
+    tenant_id: &str,
+    election_event_id: &str,
+    publication: &TallyResultsPublication,
+) -> Result<()> {
+    refresh_public_results_index_with(
+        publications,
+        presentations,
+        artifacts,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    delete_publication_artifacts_with(artifacts, publication, true).await
 }
 
 pub async fn configure_results_website_policy_request(
@@ -1954,8 +2040,15 @@ pub async fn revoke_results_publication_request(
         .transaction()
         .await
         .context("Failed to start results revocation cleanup transaction")?;
-    refresh_public_results_index(&tx, tenant_id, &input.election_event_id).await?;
-    delete_publication_artifacts(&tx, &publication).await?;
+    cleanup_revoked_results_publication(
+        &PgResultsPublications { transaction: &tx },
+        &PgResultsEventPresentation { transaction: &tx },
+        &StoredResultsArtifacts { transaction: &tx },
+        tenant_id,
+        &input.election_event_id,
+        &publication,
+    )
+    .await?;
     tx.commit()
         .await
         .context("Failed to commit results revocation cleanup")?;
@@ -3202,3 +3295,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "results_publication_lifecycle_tests.rs"]
+mod lifecycle_tests;

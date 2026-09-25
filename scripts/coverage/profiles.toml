@@ -198,6 +198,9 @@ LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
 
+[profiles.windmill.excluded_files]
+"src/services/results_publication_lifecycle_tests.rs" = "Standalone results publication lifecycle test module; no production code."
+
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
 "src/adapters/mod.rs" = "Module declarations only; the adapters remain in the source inventory."
@@ -206,6 +209,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/ports/clock.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/mod.rs" = "Module declarations only; the port traits carry no executable code."
 "src/ports/results_publication.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/results_publication_lifecycle.rs" = "Trait declarations for results publication lifecycle ports."
 "src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ceremonies/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."

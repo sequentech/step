@@ -328,6 +328,7 @@ pub fn publication_source(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn publication_source_from_ids(
     tenant_id: &str,
     election_event_id: &str,

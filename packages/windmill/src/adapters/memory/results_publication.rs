@@ -36,6 +36,11 @@ pub enum PublicationCall {
     InsertPublishing,
     MarkFailed,
     Revoke,
+    Active,
+    Superseded,
+    MarkPublished,
+    MarkSuperseded,
+    ClearFinalizationError,
 }
 
 #[derive(Debug, Default)]
@@ -509,6 +514,128 @@ impl ResultsPublicationAudit for InMemoryResultsPublicationAudit {
             user_id: user_id.to_string(),
             username,
         });
+        Ok(())
+    }
+}
+
+impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
+    for InMemoryResultsPublications
+{
+    async fn active(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+    ) -> Result<Vec<TallyResultsPublication>> {
+        let state = self.state();
+        state.check(PublicationCall::Active)?;
+        let mut publications: Vec<_> = state
+            .publications
+            .iter()
+            .filter(|p| {
+                p.tenant_id == tenant_id
+                    && p.election_event_id == event_id
+                    && p.publication_status == ResultsPublicationStatus::Published
+            })
+            .cloned()
+            .collect();
+        publications.sort_by(|a, b| {
+            a.route_scope
+                .as_ref()
+                .cmp(b.route_scope.as_ref())
+                .then(a.route_election_id.cmp(&b.route_election_id))
+                .then(b.version.cmp(&a.version))
+        });
+        Ok(publications)
+    }
+    async fn superseded(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+    ) -> Result<Vec<TallyResultsPublication>> {
+        let state = self.state();
+        state.check(PublicationCall::Superseded)?;
+        Ok(state
+            .publications
+            .iter()
+            .filter(|p| {
+                p.tenant_id == tenant_id
+                    && p.election_event_id == event_id
+                    && p.publication_status == ResultsPublicationStatus::Superseded
+            })
+            .cloned()
+            .collect())
+    }
+    async fn mark_published(
+        &self,
+        publication: &TallyResultsPublication,
+        documents: serde_json::Value,
+        manifest: serde_json::Value,
+    ) -> Result<()> {
+        let mut state = self.state();
+        state.check(PublicationCall::MarkPublished)?;
+        for stored in &mut state.publications {
+            if stored.tenant_id == publication.tenant_id
+                && stored.election_event_id == publication.election_event_id
+                && stored.id != publication.id
+                && stored.route_scope == publication.route_scope
+                && stored.route_election_id == publication.route_election_id
+                && stored.publication_status == ResultsPublicationStatus::Published
+            {
+                stored.publication_status = ResultsPublicationStatus::Superseded;
+            }
+        }
+        let stored = state
+            .find_mut(
+                &publication.tenant_id,
+                &publication.election_event_id,
+                &publication.id,
+            )
+            .ok_or_else(|| anyhow!("Publication not found"))?;
+        if !matches!(
+            stored.publication_status,
+            ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed
+        ) {
+            return Err(anyhow!(
+                "Publication is not in a state that can be activated"
+            ));
+        }
+        stored.publication_status = ResultsPublicationStatus::Published;
+        stored.documents = documents;
+        stored.manifest = Some(manifest);
+        stored.error_message = None;
+        Ok(())
+    }
+    async fn mark_superseded(&self, publication: &TallyResultsPublication) -> Result<()> {
+        let mut state = self.state();
+        state.check(PublicationCall::MarkSuperseded)?;
+        if let Some(stored) = state.find_mut(
+            &publication.tenant_id,
+            &publication.election_event_id,
+            &publication.id,
+        ) {
+            if stored.publication_status == ResultsPublicationStatus::Published {
+                stored.publication_status = ResultsPublicationStatus::Superseded;
+            }
+        }
+        Ok(())
+    }
+    async fn clear_finalization_error(
+        &self,
+        tenant_id: &str,
+        event_id: &str,
+        publication_id: &str,
+    ) -> Result<()> {
+        let mut state = self.state();
+        state.check(PublicationCall::ClearFinalizationError)?;
+        let stored = state
+            .find_mut(tenant_id, event_id, publication_id)
+            .filter(|publication| {
+                publication.publication_status == ResultsPublicationStatus::Published
+            })
+            .ok_or_else(|| {
+                anyhow!("Published publication was not available to update its finalization error")
+            })?;
+        stored.error_message = None;
         Ok(())
     }
 }

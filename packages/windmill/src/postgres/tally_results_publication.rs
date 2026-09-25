@@ -120,6 +120,7 @@ pub struct PublicationSourceFacts {
     pub tallied_contest_count: i64,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn validate_new_publication_source(
     tx: &Transaction<'_>,
     tenant_id: &str,

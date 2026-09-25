@@ -9,4 +9,5 @@
 #[cfg(test)]
 pub mod memory;
 pub mod results_publication;
+pub mod results_publication_lifecycle;
 pub mod system;

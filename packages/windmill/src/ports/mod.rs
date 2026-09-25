@@ -8,3 +8,4 @@
 
 pub mod clock;
 pub mod results_publication;
+pub mod results_publication_lifecycle;
