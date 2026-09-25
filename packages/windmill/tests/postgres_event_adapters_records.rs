@@ -173,14 +173,27 @@ impl<'t, 'c> Fixture<'t, 'c> {
         .await;
     }
 
+    async fn election(&self, scope: Scope, permission_label: Option<&str>) -> Uuid {
+        let id = self.id();
+        self.execute(
+            "INSERT INTO sequent_backend.election
+                 (id, tenant_id, election_event_id, permission_label)
+             VALUES ($1, $2, $3, $4)",
+            &[&id, &scope.tenant, &scope.event, &permission_label],
+        )
+        .await;
+        id
+    }
+
     /// An application written with SQL.
     async fn application(&self, scope: Scope, row: ApplicationRow) -> Uuid {
         let id = self.id();
         self.execute(
             "INSERT INTO sequent_backend.applications
                  (id, tenant_id, election_event_id, area_id, applicant_id, status,
-                  verification_type, applicant_data, annotations, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, '{}', $8, $9)",
+                  verification_type, applicant_data, annotations, created_at,
+                  permission_label)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, '{}', $8, $9, $10)",
             &[
                 &id,
                 &scope.tenant,
@@ -191,6 +204,7 @@ impl<'t, 'c> Fixture<'t, 'c> {
                 &row.verification_type,
                 &row.annotations,
                 &row.created_at,
+                &row.permission_label,
             ],
         )
         .await;
@@ -204,6 +218,7 @@ struct ApplicationRow {
     verification_type: &'static str,
     annotations: Option<Value>,
     created_at: DateTime<Utc>,
+    permission_label: Option<&'static str>,
 }
 
 fn pending(area: Uuid, day: u32) -> ApplicationRow {
@@ -213,6 +228,7 @@ fn pending(area: Uuid, day: u32) -> ApplicationRow {
         verification_type: "MANUAL",
         annotations: None,
         created_at: at(day),
+        permission_label: None,
     }
 }
 
@@ -769,9 +785,87 @@ async fn count_applications_counts_by_area_status_type_and_verifier_role() {
     tx.rollback().await.unwrap();
 }
 
+/// Exports the applications of `election`, or of the whole event, sorted by id.
+async fn exported(tx: &Transaction<'_>, scope: Scope, election: Option<Uuid>) -> Vec<String> {
+    let election = election.map(|id| id.to_string());
+    let applications = application::get_applications_by_election(
+        tx,
+        &scope.tenant_id(),
+        &scope.event_id(),
+        election.as_deref(),
+    )
+    .await
+    .unwrap();
+    sorted(application_ids(&applications))
+}
+
+fn labelled(area: Uuid, permission_label: &'static str) -> ApplicationRow {
+    ApplicationRow {
+        permission_label: Some(permission_label),
+        ..pending(area, 1)
+    }
+}
+
 #[tokio::test]
-async fn get_applications_by_election_returns_every_application_of_the_event_whatever_the_election()
-{
+async fn get_applications_by_election_returns_the_applications_with_the_elections_label() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let area = f.area(a, "Area", "Post").await;
+    let (north, south) = (
+        f.election(a, Some("north")).await,
+        f.election(a, Some("south")).await,
+    );
+    let north_applicants = [
+        f.application(a, labelled(area, "north")).await,
+        f.application(a, labelled(area, "north")).await,
+    ];
+    let south_applicant = f.application(a, labelled(area, "south")).await;
+    f.application(a, pending(area, 1)).await;
+    f.application(sibling, labelled(area, "north")).await;
+
+    // The election's Approvals tab filters on its permission label.
+    assert_eq!(
+        exported(&tx, a, Some(north)).await,
+        sorted(strings(&north_applicants))
+    );
+    assert_eq!(
+        exported(&tx, a, Some(south)).await,
+        strings(&[south_applicant])
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_applications_by_election_returns_the_whole_event_for_an_election_without_a_label() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let area = f.area(a, "Area", "Post").await;
+    let (unlabelled, blank) = (f.election(a, None).await, f.election(a, Some("")).await);
+    f.election(a, Some("north")).await;
+    let applicants = [
+        f.application(a, labelled(area, "north")).await,
+        f.application(a, pending(area, 1)).await,
+    ];
+    f.application(sibling, pending(area, 1)).await;
+
+    // The tab adds no label filter when the label is missing or empty.
+    for election in [unlabelled, blank] {
+        assert_eq!(
+            exported(&tx, a, Some(election)).await,
+            sorted(strings(&applicants))
+        );
+    }
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_applications_by_election_without_an_election_returns_every_application_of_the_event() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -781,21 +875,38 @@ async fn get_applications_by_election_returns_every_application_of_the_event_wha
         f.area(a, "Area", "Post").await,
         f.area(a, "Other", "Post").await,
     );
-    let first = f.application(a, pending(area, 1)).await;
-    let second = f.application(a, pending(other_area, 2)).await;
+    f.election(a, Some("north")).await;
+    let applicants = [
+        f.application(a, labelled(area, "north")).await,
+        f.application(a, pending(other_area, 2)).await,
+    ];
     f.application(sibling, pending(area, 1)).await;
-    let unrelated_election = f.id().to_string();
 
-    for election in [None, Some(unrelated_election.as_str())] {
-        let applications =
-            application::get_applications_by_election(&tx, &a.tenant_id(), &a.event_id(), election)
-                .await
-                .unwrap();
-        assert_eq!(
-            sorted(application_ids(&applications)),
-            strings(&[first, second])
-        );
-    }
+    assert_eq!(exported(&tx, a, None).await, sorted(strings(&applicants)));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_applications_by_election_fails_for_an_election_outside_the_event() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    let area = f.area(a, "Area", "Post").await;
+    let elsewhere = f.election(sibling, Some("north")).await;
+    f.application(a, labelled(area, "north")).await;
+
+    let error = application::get_applications_by_election(
+        &tx,
+        &a.tenant_id(),
+        &a.event_id(),
+        Some(&elsewhere.to_string()),
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(error.to_string(), "No election found");
     tx.rollback().await.unwrap();
 }
 
