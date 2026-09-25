@@ -8,6 +8,7 @@ import {Provider} from "react-redux"
 import {MemoryRouter, useLocation} from "react-router-dom"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
+import {ELanguageDetectionPolicy} from "@sequentech/ui-core"
 import {electionFixture, FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
 import App from "./App"
 import {KeycloakProviderContainer} from "./index"
@@ -54,7 +55,10 @@ const eventPath = (tenant: string, event: string) => `/tenant/${tenant}/event/${
 const voterEvent = eventPath(IDS.tenant, IDS.event)
 
 /** Answers the verifier's HTTP requests as the journeys' S3 and Hasura mocks do. */
-function serve(overrides: Partial<GlobalSettings> = {}, {eventConfig = true} = {}) {
+function serve(
+    overrides: Partial<GlobalSettings> = {},
+    {eventConfig = true, eventPresentation = {}} = {}
+) {
     const served = {...settings, ...overrides}
     const unexpected: string[] = []
     const graphql: Array<{operationName: string; authorization?: string}> = []
@@ -77,7 +81,10 @@ function serve(overrides: Partial<GlobalSettings> = {}, {eventConfig = true} = {
                 id: config[2],
                 tenant_id: config[1],
                 election_event_id: config[2],
-                election_event_presentation: electionFixture().event.presentation,
+                election_event_presentation: {
+                    ...electionFixture().event.presentation,
+                    ...eventPresentation,
+                },
             })
         }
         if (config) return reply({message: "Not Found"}, 404)
@@ -163,6 +170,7 @@ afterEach(() => {
     expect(services.unexpected).toEqual([])
     jest.restoreAllMocks()
     document.cookie = "USER_LANGUAGE=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
+    window.history.replaceState(null, "", "/?lang=en")
 })
 
 describe("event routes", () => {
@@ -208,6 +216,31 @@ describe("event routes", () => {
         expect(await screen.findByText("Alice Example", {exact: true})).toBeVisible()
         expect(screen.getAllByText(ballotId)).toHaveLength(2)
         expect(screen.queryByText("Bob Example", {exact: true})).not.toBeInTheDocument()
+    })
+
+    // With no lang parameter or saved choice, a forced default language applies
+    // (docs: election managers' Languages reference).
+    it("signs in to Keycloak in the event's forced default language", async () => {
+        window.history.replaceState(null, "", "/")
+        services = serve(
+            {},
+            {
+                eventPresentation: {
+                    language_conf: {
+                        language_detection_policy: ELanguageDetectionPolicy.FORCE_DEFAULT,
+                        default_language_code: "es",
+                        enabled_language_codes: ["en", "es"],
+                    },
+                },
+            }
+        )
+        launch(`${voterEvent}/start`)
+
+        await waitFor(() =>
+            expect(FakeKeycloak.instances[0]?.init).toHaveBeenCalledWith(
+                expect.objectContaining({locale: "es"})
+            )
+        )
     })
 
     it("still signs in when the event's configuration cannot be downloaded", async () => {

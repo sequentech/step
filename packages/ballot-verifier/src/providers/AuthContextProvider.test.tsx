@@ -206,9 +206,7 @@ describe("the Keycloak login language", () => {
         expect(client().init).toHaveBeenCalledWith(expect.objectContaining({locale: undefined}))
     })
 
-    // Expected failure: AuthContextProvider.tsx:292-296 drops login()'s
-    // defaultLocale argument, so a forced default language never reaches Keycloak.
-    it.failing("uses the election's forced default language otherwise", async () => {
+    it("uses the election's forced default language otherwise", async () => {
         withoutLanguageParameter()
         const {openEvent} = renderProvider()
 
