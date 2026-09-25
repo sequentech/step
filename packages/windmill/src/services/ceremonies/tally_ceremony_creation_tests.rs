@@ -164,7 +164,7 @@ fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
     ceremony.add_contest(contest("mayor", ELECTION));
     for area_id in ["north", "south"] {
         ceremony.add_area(area(area_id));
-        ceremony.add_area_contest(area_contest(area_id, "mayor"));
+        ceremony.add_area_contest(TENANT, EVENT, area_contest(area_id, "mayor"));
         ceremony.add_ballot_style(published(ELECTION, area_id, vec![plurality("mayor")], None));
     }
     ceremony.add_keys_ceremony(keys_ceremony("SUCCESS", "manual-ceremonies"));
@@ -173,6 +173,69 @@ fn closed_event(presentation: Value) -> InMemoryTallyCeremony {
 
 fn voter_weighted() -> Value {
     json!({"weighted_voting_policy": "voters-weighted-voting"})
+}
+
+#[tokio::test]
+async fn event_snapshot_excludes_area_contest_links_outside_its_scope() {
+    for (foreign_tenant, foreign_event) in [("another-tenant", EVENT), (TENANT, "another-event")] {
+        let ceremony = closed_event(json!({}));
+        let expected = vec!["north-mayor".to_string(), "south-mayor".to_string()];
+        let snapshot = ceremony.event_snapshot(TENANT, EVENT).await.unwrap();
+        assert_eq!(
+            sorted(
+                snapshot
+                    .area_contests
+                    .into_iter()
+                    .map(|link| link.id)
+                    .collect()
+            ),
+            expected
+        );
+
+        let mut outside_area = area("outside-area");
+        outside_area.tenant_id = foreign_tenant.into();
+        outside_area.election_event_id = foreign_event.into();
+        ceremony.add_area(outside_area);
+        let mut outside_contest = contest("outside-contest", ELECTION);
+        outside_contest.tenant_id = foreign_tenant.into();
+        outside_contest.election_event_id = foreign_event.into();
+        ceremony.add_contest(outside_contest);
+        for (area_id, contest_id) in [
+            ("outside-area", "mayor"),
+            ("north", "outside-contest"),
+            ("outside-area", "outside-contest"),
+        ] {
+            ceremony.add_area_contest(
+                foreign_tenant,
+                foreign_event,
+                area_contest(area_id, contest_id),
+            );
+        }
+        // Filtering must use the link row's scope, not infer it from joined IDs.
+        ceremony.add_area_contest(
+            foreign_tenant,
+            foreign_event,
+            AreaContest {
+                id: "foreign-owned-link".into(),
+                area_id: "north".into(),
+                contest_id: "mayor".into(),
+            },
+        );
+
+        let snapshot = ceremony.event_snapshot(TENANT, EVENT).await.unwrap();
+        assert_eq!(
+            sorted(
+                snapshot
+                    .area_contests
+                    .into_iter()
+                    .map(|link| link.id)
+                    .collect()
+            ),
+            expected
+        );
+        assert_eq!(snapshot.areas.len(), 2);
+        assert_eq!(snapshot.contests.len(), 1);
+    }
 }
 
 async fn create_tally(
