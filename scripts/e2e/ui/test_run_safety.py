@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Exercise the UI cleanup handshake against the backend's fake Docker harness."""
 
+import json
 import shutil
 import subprocess
 import sys
@@ -121,6 +122,44 @@ class UIRunSafety(backend_safety.RunSafety):
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("STEP_E2E_PROJECT", result.stderr)
         self.assertEqual(self.calls(), [])
+
+    def test_ui_down_normalizes_retained_relative_output(self):
+        caller = self.root / "caller"
+        output = caller / "retained logs"
+        output.mkdir(parents=True)
+        environment = output / "compose.env"
+        environment.write_text(f"STEP_E2E_OUTPUT_DIR={output}\n")
+        marker = output / ".owned-retained"
+        marker.write_text("retained-ui\n")
+        result = subprocess.run(
+            [str(self.root / "scripts/e2e/ui/run.sh"), "--down"],
+            cwd=caller,
+            env={
+                **self.env,
+                "STEP_E2E_PROJECT": "retained-ui",
+                "STEP_E2E_OUTPUT_DIR": "retained logs",
+                "STEP_E2E_BIN_DIR": "uncreated binaries",
+            },
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (down,) = self.calls()
+        self.assertEqual(
+            down[-5:], ["down", "--volumes", "--remove-orphans", "--timeout", "20"]
+        )
+        env_files = [
+            down[i + 1] for i, value in enumerate(down) if value == "--env-file"
+        ]
+        self.assertEqual(env_files[-1], str(environment))
+        exported = json.loads(self.environment_log.read_text())
+        self.assertEqual(exported["STEP_E2E_OUTPUT_DIR"], str(output))
+        self.assertEqual(environment.read_text(), f"STEP_E2E_OUTPUT_DIR={output}\n")
+        self.assertEqual(marker.read_text(), "retained-ui\n")
+        self.assertFalse((output / "logs").exists())
+        self.assertFalse((caller / "uncreated binaries").exists())
 
     def test_ui_collision_and_stale_marker_never_remove_existing_project(self):
         control = self.run_ui("--skip-ui-build", "--skip-images", "--skip-build")

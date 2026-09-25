@@ -42,6 +42,8 @@ compose() {
 }
 
 if $down_only; then
+    OUTPUT=$(cd -- "$OUTPUT" && pwd)
+    STEP_E2E_OUTPUT_DIR=$OUTPUT
     compose down --volumes --remove-orphans --timeout 20
     exit 0
 fi
