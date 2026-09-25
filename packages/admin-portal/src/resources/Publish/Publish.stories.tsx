@@ -204,7 +204,7 @@ const meta = {
                     throw new Error(`Unexpected list ${resource}`)
                 }
                 return {
-                    data: (published ? [publication()] : []) as RecordType[],
+                    data: (published ? [publication()] : []) as unknown as RecordType[],
                     total: published ? 1 : 0,
                 }
             },
@@ -216,7 +216,7 @@ const meta = {
                     data.unexpected.push(`${resource}/${id}`)
                     throw new Error("Unexpected publication record")
                 }
-                return {data: publication() as RecordType}
+                return {data: publication() as unknown as RecordType}
             },
         })
         return () => {
