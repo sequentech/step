@@ -377,8 +377,8 @@ struct LocksState {
     release_failure: Option<String>,
 }
 
-/// Datafix voter locks by key. As with `PgLock`, only the holder that took a
-/// lock renews or releases it.
+/// Datafix voter locks by key. Acquisition and renewal can replace an expired
+/// lease, while release only removes a lease with the same holder value.
 pub struct InMemoryDatafixVoterLocks {
     state: Mutex<LocksState>,
     clock: FixedClock,
@@ -401,11 +401,24 @@ impl InMemoryDatafixVoterLocks {
         self.state.lock().expect("voter locks lock")
     }
 
+    fn can_take(&self, state: &LocksState, key: &str, value: &str) -> bool {
+        state.holders.get(key).is_none_or(|holder| holder == value)
+            || state
+                .expiries
+                .get(key)
+                .is_some_and(|expiry| *expiry < self.clock.now())
+    }
+
     pub fn hold_for_another_operation(&self, key: &str) {
         let mut state = self.state();
         state
             .holders
             .insert(key.to_string(), ANOTHER_OPERATION.to_string());
+        state.expiries.remove(key);
+    }
+
+    pub fn advance(&self, by: Duration) {
+        self.clock.advance(by);
     }
 
     pub fn holder(&self, key: &str) -> Option<String> {
@@ -443,11 +456,7 @@ impl DatafixVoterLocks for InMemoryDatafixVoterLocks {
         expiry_date: DateTime<Local>,
     ) -> anyhow::Result<InMemoryVoterLock> {
         let mut state = self.state();
-        if state
-            .holders
-            .get(&key)
-            .is_some_and(|holder| *holder != value)
-        {
+        if !self.can_take(&state, &key, &value) {
             return Err(anyhow::Error::msg(LOCK_HELD_ELSEWHERE));
         }
         state.holders.insert(key.clone(), value.clone());
@@ -467,8 +476,10 @@ impl DatafixVoterLocks for InMemoryDatafixVoterLocks {
             state
                 .holders
                 .insert(lock.key.clone(), ANOTHER_OPERATION.to_string());
+            state.expiries.remove(&lock.key);
         }
-        if state.holders.get(&lock.key) == Some(&lock.value) {
+        if self.can_take(&state, &lock.key, &lock.value) {
+            state.holders.insert(lock.key.clone(), lock.value.clone());
             state.expiries.insert(
                 lock.key.clone(),
                 self.clock.now() + Duration::seconds(seconds),
