@@ -95,7 +95,9 @@ def measure_python(root: Path, output: Path) -> dict[str, Any]:
     return python_metrics(read_json(output / "coverage.json"))
 
 
-def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
+def measure_rust(
+    root: Path, package: str, output: Path, comparison_base: bool = False
+) -> dict[str, Any]:
     """Use the candidate runner/profile for both revisions' native tests."""
     parent = output / "native" / package
     before = set(parent.glob("*/summary.json"))
@@ -109,6 +111,7 @@ def measure_rust(root: Path, package: str, output: Path) -> dict[str, Any]:
             str(root),
             "--output-dir",
             str(output / "native"),
+            *(["--comparison-base"] if comparison_base else []),
         ],
         root,
         output,
@@ -135,13 +138,15 @@ def measure_frontend(root: Path, package: str, output: Path) -> dict[str, Any]:
     return frontend_metrics(read_json(output / "coverage-summary.json"))
 
 
-def measure(root: Path, kind: str, package: str, output: Path) -> dict[str, Any]:
+def measure(
+    root: Path, kind: str, package: str, output: Path, comparison_base: bool = False
+) -> dict[str, Any]:
     output.mkdir()
     if kind == "python":
         return measure_python(root, output)
     if kind == "frontend":
         return measure_frontend(root, package, output)
-    return measure_rust(root, package, output)
+    return measure_rust(root, package, output, comparison_base)
 
 
 def paired_run(base: Path, head: Path, kind: str, package: str, parent: Path) -> int:
@@ -178,7 +183,9 @@ def paired_run(base: Path, head: Path, kind: str, package: str, parent: Path) ->
                 ),
             )
         else:
-            base_report = measure(base, kind, package, output / "base")
+            base_report = measure(
+                base, kind, package, output / "base", comparison_base=True
+            )
             verdict = (
                 compare_rust(base_report, head_report)
                 if kind == "rust"

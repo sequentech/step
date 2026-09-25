@@ -29,6 +29,22 @@ pub struct DeleteTenantInput {
     tenant_id: String,
 }
 
+/// Only the super-admin tenant passes `authorize` here, and it holds the
+/// realm of the administrators who manage every other tenant, so it can never
+/// be the deletion target.
+fn check_deletion_target(
+    claims: &JwtClaims,
+    tenant_id: &str,
+) -> Result<(), (Status, String)> {
+    if tenant_id == claims.hasura_claims.tenant_id {
+        return Err((
+            Status::BadRequest,
+            "The super-admin tenant cannot delete itself".to_string(),
+        ));
+    }
+    Ok(())
+}
+
 /// Deletes a tenant. Only callable by the super-admin tenant (same
 /// authorization model as insertTenant), and only once the target tenant has
 /// no election events left — see count_tenant_election_events.
@@ -69,6 +85,11 @@ pub async fn delete_tenant_f(
         return Err(error);
     };
 
+    if let Err(error) = check_deletion_target(&claims, &input.tenant_id) {
+        let _ = update_fail(&task_execution, &error.1).await;
+        return Err(error);
+    }
+
     let celery_app = get_celery_app().await;
 
     let realm = get_tenant_realm(&input.tenant_id);
@@ -102,4 +123,30 @@ pub async fn delete_tenant_f(
         error_msg: None,
         task_execution,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn super_admin_claims() -> JwtClaims {
+        serde_json::from_value(serde_json::json!({
+            "exp": 1, "iat": 0, "jti": "test", "iss": "test", "sub": "admin", "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
+            "https://hasura.io/jwt/claims": {"x-hasura-default-role":"admin-user", "x-hasura-tenant-id":"super-admin-tenant", "x-hasura-user-id":"admin", "x-hasura-allowed-roles":["tenant-delete"]}
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn the_super_admin_tenant_cannot_be_the_deletion_target() {
+        let claims = super_admin_claims();
+        assert_eq!(
+            check_deletion_target(&claims, "super-admin-tenant"),
+            Err((
+                Status::BadRequest,
+                "The super-admin tenant cannot delete itself".to_string()
+            ))
+        );
+        assert_eq!(check_deletion_target(&claims, "other-tenant"), Ok(()));
+    }
 }
