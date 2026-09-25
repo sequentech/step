@@ -472,7 +472,10 @@ pub async fn find_scheduled_event_by_election_event_id_and_event_processor(
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&statement, &[&tenant_uuid, &election_event_uuid])
+        .query(
+            &statement,
+            &[&tenant_uuid, &election_event_uuid, &event_processor],
+        )
         .await
         .map_err(|err| anyhow!("Error running the find_scheduled_event_by_task_id query: {err}"))?;
 

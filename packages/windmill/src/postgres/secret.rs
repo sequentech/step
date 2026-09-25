@@ -177,14 +177,14 @@ pub async fn insert_secret(
             "#,
         )
         .await
-        .map_err(|err| anyhow!("Error preparing scheduled event statement: {}", err))?;
+        .map_err(|err| anyhow!("Error preparing secret statement: {}", err))?;
     let rows: Vec<Row> = hasura_transaction
         .query(
             &statement,
             &[&tenant_uuid, &key, &encrypted_bytes, &election_event_uuid],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting scheduled event: {}", err))?;
+        .map_err(|err| anyhow!("Error inserting secret: {}", err))?;
 
     let rows: Vec<Secret> = rows
         .into_iter()
