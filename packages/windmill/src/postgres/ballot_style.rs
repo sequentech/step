@@ -115,6 +115,13 @@ pub async fn get_all_ballot_styles(
     area_id: &str,
     authorized_election_ids: &Vec<String>,
 ) -> Result<Vec<BallotStyle>> {
+    let tenant_uuid = parse_uuid_v4(tenant_id)?;
+    let area_uuid = parse_uuid_v4(area_id)?;
+    let authorized_election_uuids: Vec<Uuid> = authorized_election_ids
+        .iter()
+        .map(|id| parse_uuid_v4(id))
+        .collect::<Result<_>>()?;
+
     let query: tokio_postgres::Statement = hasura_transaction
         .prepare(
             r#"
@@ -133,7 +140,10 @@ pub async fn get_all_ballot_styles(
         .map_err(|err| anyhow!("Error preparing statement: {}", err))?;
 
     let rows: Vec<Row> = hasura_transaction
-        .query(&query, &[&tenant_id, &area_id, authorized_election_ids])
+        .query(
+            &query,
+            &[&tenant_uuid, &area_uuid, &authorized_election_uuids],
+        )
         .await
         .map_err(|err| anyhow!("Error executing query: {}", err))?;
 
