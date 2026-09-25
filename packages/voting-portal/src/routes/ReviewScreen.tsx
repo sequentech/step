@@ -676,16 +676,18 @@ export const ReviewScreen: React.FC = () => {
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
-    const hashErrorMsg =
+    const hasInconsistentHash = Boolean(
         ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash
-            ? t(
-                  `reviewScreen.error.${CastBallotsErrorType.INCONSISTENT_HASH}`,
-                  escapeTranslationValues({
-                      ballotId,
-                      auditableBallotHash: auditableBallot.ballot_hash,
-                  })
-              )
-            : undefined
+    )
+    const hashErrorMsg = hasInconsistentHash
+        ? t(
+              `reviewScreen.error.${CastBallotsErrorType.INCONSISTENT_HASH}`,
+              escapeTranslationValues({
+                  ballotId,
+                  auditableBallotHash: auditableBallot?.ballot_hash ?? "",
+              })
+          )
+        : undefined
     const displayedErrorMsg = hashErrorMsg ?? errorMsg
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
@@ -994,7 +996,7 @@ export const ReviewScreen: React.FC = () => {
                     castVoteConfirmModal={castVoteConfirmModal}
                     ballotId={ballotId ?? ""}
                     setErrorMsg={setErrorMsg}
-                    hasInconsistentHash={Boolean(hashErrorMsg)}
+                    hasInconsistentHash={hasInconsistentHash}
                     isGoldenPolicy={isGoldenPolicy ?? false}
                     isMultiContest={isMultiContest}
                     isDeclineToVote={isDeclineToVote}

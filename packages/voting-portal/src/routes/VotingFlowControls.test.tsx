@@ -38,7 +38,11 @@ import ConfirmationScreen from "./ConfirmationScreen"
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
-            key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
+            key === "reviewScreen.error.INCONSISTENT_HASH" && mockEmptyHashTranslation
+                ? ""
+                : key === "ballotHash"
+                  ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}`
+                  : key,
         i18n: {language: "en"},
     }),
 }))
@@ -144,6 +148,7 @@ const mockDispatch = jest.fn()
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 const routeAction = jest.fn(() => null)
+let mockEmptyHashTranslation = false
 let mockIsGoldUser = false
 let mockDisableAuth = true
 let mockElectionQueryData:
@@ -271,6 +276,7 @@ beforeEach(() => {
     mockInsertCastVote.mockResolvedValue(CAST_VOTE_RESULT)
     mockReauthWithGold.mockResolvedValue(undefined)
     mockIsGoldUser = false
+    mockEmptyHashTranslation = false
     mockDisableAuth = true
     mockElectionQueryData = undefined
     sessionStorage.clear()
@@ -648,3 +654,15 @@ it.each([false, true])(
         expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
     }
 )
+
+it("keeps the integrity guard active with an empty custom error translation", () => {
+    mockEmptyHashTranslation = true
+    mockDisableAuth = false
+    mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+    renderRoute(<ReviewScreen />, "review")
+    const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+    fireEvent.click(cast)
+    expect(cast).toBeDisabled()
+    expect(mockInsertCastVote).not.toHaveBeenCalled()
+    expect(mockReauthWithGold).not.toHaveBeenCalled()
+})
