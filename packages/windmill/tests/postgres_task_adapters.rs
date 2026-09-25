@@ -1611,9 +1611,7 @@ async fn get_template_alias_for_report_returns_the_alias_of_the_election_report(
 }
 
 #[tokio::test]
-async fn get_template_alias_for_report_falls_back_to_a_report_of_another_election() {
-    // Without a report for the election, any report of the type in the event
-    // is used, whatever election it belongs to.
+async fn get_template_alias_for_report_uses_only_event_templates_as_fallback() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1629,17 +1627,42 @@ async fn get_template_alias_for_report_falls_back_to_a_report_of_another_electio
     )
     .await;
 
-    let alias = reports::get_template_alias_for_report(
+    for election_id in [Some(w.id(20)), None] {
+        let alias = reports::get_template_alias_for_report(
+            &tx,
+            &w.tenant,
+            &w.event,
+            &ReportType::ELECTORAL_RESULTS,
+            election_id.as_deref(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(alias, None);
+    }
+    report_row(&tx, &w.tenant, &w.event, &w.id(11), "ELECTORAL_RESULTS").await;
+    set(&tx, "report", &w.id(11), "template_alias = 'event-alias'").await;
+    for election_id in [Some(w.id(20)), None] {
+        let alias = reports::get_template_alias_for_report(
+            &tx,
+            &w.tenant,
+            &w.event,
+            &ReportType::ELECTORAL_RESULTS,
+            election_id.as_deref(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(alias.as_deref(), Some("event-alias"));
+    }
+    let exact = reports::get_template_alias_for_report(
         &tx,
         &w.tenant,
         &w.event,
         &ReportType::ELECTORAL_RESULTS,
-        Some(&w.id(20)),
+        Some(&w.id(21)),
     )
     .await
     .unwrap();
-
-    assert_eq!(alias.as_deref(), Some("other-alias"));
+    assert_eq!(exact.as_deref(), Some("other-alias"));
     tx.rollback().await.unwrap();
 }
 
