@@ -149,6 +149,9 @@ impl State {
 
 /// Tally sessions, their executions, the keys ceremony, trustee keys,
 /// elections and the electoral log, kept in memory.
+/// Tests use one logical transaction per fixture. `on_lock` models a commit
+/// observed while waiting for the row lock; this fake does not run competing
+/// database transactions or emulate their rollback.
 #[derive(Default)]
 pub struct InMemoryTallyCeremony {
     state: Mutex<State>,
@@ -349,6 +352,20 @@ impl TallySessions for InMemoryTallyCeremony {
         state.update_session(tenant_id, election_event_id, tally_session_id, |session| {
             session.execution_status = Some(execution_status.to_string());
             session.is_execution_completed = true;
+            session.annotations = session.annotations.take().map(|annotations| {
+                let pending = serde_json::json!({"is_post_task_completed": false});
+                match annotations {
+                    serde_json::Value::Object(mut object) => {
+                        object.insert("is_post_task_completed".into(), false.into());
+                        serde_json::Value::Object(object)
+                    }
+                    serde_json::Value::Array(mut values) => {
+                        values.push(pending);
+                        serde_json::Value::Array(values)
+                    }
+                    value => serde_json::json!([value, pending]),
+                }
+            });
         });
         Ok(())
     }
