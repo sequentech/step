@@ -22,6 +22,11 @@ if $down_only && [[ -z "${STEP_E2E_PROJECT:-}" ]]; then
     exit 2
 fi
 export STEP_E2E_PROJECT=${STEP_E2E_PROJECT:-step-e2e-ui-$(id -u)-$$-$RANDOM}
+# Keep the claim through backend startup, browser execution and outer cleanup.
+# The backend inherits and validates the same locked descriptor.
+if ! python3 "$ROOT/scripts/e2e/project_lock.py" --check "$STEP_E2E_PROJECT"; then
+    exec python3 "$ROOT/scripts/e2e/project_lock.py" "$STEP_E2E_PROJECT" "$0" "$@"
+fi
 export STEP_E2E_OUTPUT_DIR=${STEP_E2E_OUTPUT_DIR:-$ROOT/.cache/backend-e2e/$STEP_E2E_PROJECT}
 OUTPUT=$STEP_E2E_OUTPUT_DIR
 # Always create a fresh token; an old output directory cannot confer ownership.

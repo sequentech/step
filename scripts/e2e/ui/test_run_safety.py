@@ -5,6 +5,7 @@
 import shutil
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -19,6 +20,12 @@ class UIRunSafety(backend_safety.RunSafety):
         script.parent.mkdir()
         shutil.copyfile(backend_safety.ROOT / "scripts/e2e/ui/run.sh", script)
         script.chmod(0o755)
+        self.docker.write_text(
+            self.docker.read_text().replace(
+                'if "up" in args and mode == "held-start":',
+                'if ("up" in args and mode == "held-start") or ("exec" in args and mode == "held-ui"):',
+            )
+        )
 
     def run_ui(self, *args, **environment):
         return subprocess.run(
@@ -29,6 +36,57 @@ class UIRunSafety(backend_safety.RunSafety):
             timeout=10,
             check=False,
         )
+
+    def test_ui_retains_project_claim_through_browser_execution(self):
+        project = "concurrent-ui-" + self.root.name.lower()
+        started, release = self.root / "started", self.root / "release"
+        process = subprocess.Popen(
+            [
+                str(self.root / "scripts/e2e/ui/run.sh"),
+                "--skip-ui-build",
+                "--skip-images",
+                "--skip-build",
+            ],
+            env={
+                **self.env,
+                "STEP_E2E_PROJECT": project,
+                "FAKE_DOCKER_MODE": "held-ui",
+                "FAKE_START_MARKER": str(started),
+                "FAKE_RELEASE_MARKER": str(release),
+            },
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while not started.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(
+                started.exists(), "First UI launcher never reached browser execution"
+            )
+            for run, arguments in (
+                (self.run_ui, ("--skip-ui-build", "--skip-images", "--skip-build")),
+                (self.run_ui, ("--down",)),
+                (self.run_script, ("--skip-images", "--skip-build")),
+                (self.run_script, ("--down",)),
+            ):
+                with self.subTest(launcher=run.__name__, arguments=arguments):
+                    prior = self.calls()
+                    result = run(*arguments, STEP_E2E_PROJECT=project)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("already claimed", result.stderr)
+                    self.assertEqual(self.calls(), prior)
+        finally:
+            release.touch()
+            stdout, stderr = process.communicate(timeout=10)
+        self.assertEqual(process.returncode, 0, stdout + stderr)
+        self.assertEqual(len(self.compose_calls("up")), 2)
+        self.assertEqual(len(self.compose_calls("down")), 1)
+        result = self.run_ui(
+            "--skip-ui-build", "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_ui_down_requires_explicit_project(self):
         result = self.run_ui("--down")
