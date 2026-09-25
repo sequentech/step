@@ -8,6 +8,7 @@ use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::keycloak::get_tenant_realm;
+use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
@@ -36,7 +37,13 @@ fn check_deletion_target(
     claims: &JwtClaims,
     tenant_id: &str,
 ) -> Result<(), (Status, String)> {
-    if tenant_id == claims.hasura_claims.tenant_id {
+    let target = parse_uuid_v4(tenant_id)
+        .map_err(|_| (Status::BadRequest, "Invalid tenant ID".to_string()))?;
+    let caller =
+        parse_uuid_v4(&claims.hasura_claims.tenant_id).map_err(|_| {
+            (Status::Unauthorized, "Invalid tenant identity".to_string())
+        })?;
+    if target == caller {
         return Err((
             Status::BadRequest,
             "The super-admin tenant cannot delete itself".to_string(),
@@ -132,7 +139,7 @@ mod tests {
     fn super_admin_claims() -> JwtClaims {
         serde_json::from_value(serde_json::json!({
             "exp": 1, "iat": 0, "jti": "test", "iss": "test", "sub": "admin", "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
-            "https://hasura.io/jwt/claims": {"x-hasura-default-role":"admin-user", "x-hasura-tenant-id":"super-admin-tenant", "x-hasura-user-id":"admin", "x-hasura-allowed-roles":["tenant-delete"]}
+            "https://hasura.io/jwt/claims": {"x-hasura-default-role":"admin-user", "x-hasura-tenant-id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "x-hasura-user-id":"admin", "x-hasura-allowed-roles":["tenant-delete"]}
         }))
         .unwrap()
     }
@@ -141,12 +148,65 @@ mod tests {
     fn the_super_admin_tenant_cannot_be_the_deletion_target() {
         let claims = super_admin_claims();
         assert_eq!(
-            check_deletion_target(&claims, "super-admin-tenant"),
+            check_deletion_target(
+                &claims,
+                "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+            ),
             Err((
                 Status::BadRequest,
                 "The super-admin tenant cannot delete itself".to_string()
             ))
         );
-        assert_eq!(check_deletion_target(&claims, "other-tenant"), Ok(()));
+        assert_eq!(
+            check_deletion_target(
+                &claims,
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ),
+            Ok(())
+        );
+    }
+    #[test]
+    fn alternate_uuid_spellings_cannot_bypass_the_self_deletion_guard() {
+        let claims = super_admin_claims();
+        for target in [
+            "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+            "aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa",
+            "urn:uuid:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            "{aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa}",
+        ] {
+            assert_eq!(
+                check_deletion_target(&claims, target),
+                Err((
+                    Status::BadRequest,
+                    "The super-admin tenant cannot delete itself".into()
+                )),
+                "{target}"
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_or_non_v4_targets_are_rejected_before_dispatch() {
+        let claims = super_admin_claims();
+        for target in ["", "not-a-uuid", "00000000-0000-0000-0000-000000000000"]
+        {
+            assert_eq!(
+                check_deletion_target(&claims, target),
+                Err((Status::BadRequest, "Invalid tenant ID".into()))
+            );
+        }
+    }
+
+    #[test]
+    fn an_invalid_caller_tenant_cannot_authorize_deletion() {
+        let mut claims = super_admin_claims();
+        claims.hasura_claims.tenant_id = "not-a-uuid".into();
+        assert_eq!(
+            check_deletion_target(
+                &claims,
+                "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ),
+            Err((Status::Unauthorized, "Invalid tenant identity".into()))
+        );
     }
 }
