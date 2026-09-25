@@ -239,6 +239,18 @@ export class OidcMock {
         }
         const endpoint = match[2]
         switch (`${request.method} ${endpoint}`) {
+            case "GET .well-known/openid-configuration": {
+                const issuer = this.issuer(realm.name)
+                return json(200, {
+                    issuer,
+                    authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
+                    token_endpoint: `${issuer}/protocol/openid-connect/token`,
+                    end_session_endpoint: `${issuer}/protocol/openid-connect/logout`,
+                    response_types_supported: ["code"],
+                    grant_types_supported: ["authorization_code", "refresh_token"],
+                    code_challenge_methods_supported: ["S256"],
+                })
+            }
             case "GET protocol/openid-connect/auth":
                 return this.authorize(realm, request, "login")
             case "GET protocol/openid-connect/registrations":
@@ -311,6 +323,19 @@ export class OidcMock {
             return html(400, `<h1>Invalid request</h1><p>${escapeHtml(problems.join("; "))}</p>`)
         }
         if (!this.signedIn) {
+            if (params.prompt === "none") {
+                const response = new URLSearchParams({
+                    state: params.state,
+                    error: "login_required",
+                })
+                const target = new URL(params.redirect_uri)
+                if (params.response_mode === "query") {
+                    response.forEach((value, name) => target.searchParams.set(name, value))
+                } else {
+                    target.hash = response.toString()
+                }
+                return redirect(target.toString())
+            }
             const loginId = this.nextId("login")
             this.pendingLogins.set(loginId, record)
             return html(

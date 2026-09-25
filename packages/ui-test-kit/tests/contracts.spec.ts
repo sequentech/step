@@ -86,6 +86,73 @@ function oidcFixture() {
     }
 }
 
+test("OIDC discovery scopes supported endpoints to each configured realm", () => {
+    const fixture = oidcFixture()
+    for (const realm of ["election", "other"]) {
+        const response = fixture.oidc.handle(
+            request(`/keycloak/realms/${realm}/.well-known/openid-configuration`)
+        ) as MockFulfillment
+        expect(response.status).toBe(200)
+        const issuer = `${origin}/keycloak/realms/${realm}`
+        expect(bodyOf(response)).toEqual({
+            issuer,
+            authorization_endpoint: `${issuer}/protocol/openid-connect/auth`,
+            token_endpoint: `${issuer}/protocol/openid-connect/token`,
+            end_session_endpoint: `${issuer}/protocol/openid-connect/logout`,
+            response_types_supported: ["code"],
+            grant_types_supported: ["authorization_code", "refresh_token"],
+            code_challenge_methods_supported: ["S256"],
+        })
+    }
+    expect(fixture.violations.list()).toEqual([])
+})
+test("OIDC discovery rejects unconfigured realms and wrong methods", () => {
+    const fixture = oidcFixture()
+    const unknown = fixture.oidc.handle(
+        request("/keycloak/realms/unconfigured/.well-known/openid-configuration")
+    ) as MockFulfillment
+    expect(unknown.status).toBe(404)
+    const wrongMethod = fixture.oidc.handle(
+        request("/keycloak/realms/election/.well-known/openid-configuration", "POST")
+    ) as MockFulfillment
+    expect(wrongMethod.status).toBe(404)
+    expect(fixture.violations.list()).toEqual([
+        `Keycloak request for an unknown realm: ${origin}/keycloak/realms/unconfigured/.well-known/openid-configuration`,
+        `Unexpected Keycloak request: POST ${origin}/keycloak/realms/election/.well-known/openid-configuration`,
+    ])
+})
+
+for (const mode of ["fragment", "query"]) {
+    test(`OIDC silent login returns login_required without a session (${mode})`, () => {
+        const fixture = oidcFixture()
+        fixture.authorize()
+        const url = new URL(fixture.oidc.authorizations[0].url)
+        url.searchParams.set("prompt", "none")
+        url.searchParams.set("response_mode", mode)
+        const signedIn = fixture.oidc.handle(request(url.toString())) as MockFulfillment
+        expect(signedIn.status).toBe(302)
+        const signedInLocation = new URL(signedIn.headers!.location)
+        const signedInValues =
+            mode === "query"
+                ? signedInLocation.searchParams
+                : new URLSearchParams(signedInLocation.hash.slice(1))
+        expect(signedInValues.get("code")).toBeTruthy()
+        expect(signedInValues.has("error")).toBe(false)
+
+        fixture.oidc.signedIn = false
+        const signedOut = fixture.oidc.handle(request(url.toString())) as MockFulfillment
+        expect(signedOut.status).toBe(302)
+        const location = new URL(signedOut.headers!.location)
+        expect(`${location.origin}${location.pathname}`).toBe(`${origin}/callback`)
+        const values =
+            mode === "query" ? location.searchParams : new URLSearchParams(location.hash.slice(1))
+        expect(Object.fromEntries(values)).toEqual({state: "state123", error: "login_required"})
+        expect(fixture.oidc.tokenRequests).toEqual([])
+        expect(fixture.oidc.signedIn).toBe(false)
+        expect(fixture.violations.list()).toEqual([])
+    })
+}
+
 test("OIDC keeps state and nonce, verifies RFC PKCE, refreshes and expires tokens", () => {
     const fixture = oidcFixture()
     const response = fixture.token(fixture.authorize())
