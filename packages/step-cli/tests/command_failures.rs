@@ -50,3 +50,22 @@ fn failed_http_commands_exit_nonzero() {
     }
     handler.join().unwrap();
 }
+
+#[test]
+fn a_failed_voter_generation_reports_the_error_but_exits_zero() {
+    let working_directory = tempfile::tempdir().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_step-cli"))
+        .args(["step", "generate-voters", "--num-users", "1"])
+        .arg("--working-directory")
+        .arg(working_directory.path())
+        .output()
+        .unwrap();
+    // Pinned as found: scripts cannot tell this failure from a success.
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&output.stderr),
+        "Error! Failed to generate voters: Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n"
+    );
+    assert!(output.stdout.is_empty());
+    assert_eq!(fs::read_dir(working_directory.path()).unwrap().count(), 0);
+}

@@ -41,3 +41,14 @@ HTTP peer with a private executable/config directory. Partial GraphQL data is
 rejected before upload and after import, errors reach shell callers through a
 nonzero exit, and empty error lists remain valid. Existing and dangling output
 symlinks are rejected without changing either the link or its target. Each rejected input has a successful control.
+
+Voter generation rules live in `src/domain/generate_voters.rs` and take the
+random number generator and the current date as arguments, so
+`support/voter_generation_boundaries.rs` uses seeded or scripted generators and
+a fixed date. `support/voter_csv_boundaries.rs` writes the CSV to memory and to
+a private directory. A failed `generate-voters` run prints the error and still
+exits with status 0; `command_failures.rs` pins that. From `packages/`:
+
+```bash
+cargo test -p step-cli --bin step-cli generate_voters
+```

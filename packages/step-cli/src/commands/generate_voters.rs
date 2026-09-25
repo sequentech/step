@@ -98,3 +98,7 @@ fn write_voters<W: Write>(
     wtr.flush()?;
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/voter_csv_boundaries.rs"]
+mod boundary_tests;

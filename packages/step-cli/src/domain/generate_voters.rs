@@ -413,3 +413,7 @@ fn unique_in_order(items: Vec<&str>) -> Vec<&str> {
         .filter(|item| seen.insert(*item))
         .collect()
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/voter_generation_boundaries.rs"]
+mod boundary_tests;
