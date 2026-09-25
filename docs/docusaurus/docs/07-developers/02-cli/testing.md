@@ -51,6 +51,7 @@ exits with status 0; `command_failures.rs` pins that. From `packages/`:
 
 ```bash
 cargo test -p step-cli --bin step-cli generate_voters
+cargo test -p step-cli --test command_failures
 ```
 
 Tally-sheet commands reach Hasura through the `GraphqlClient` port and store
