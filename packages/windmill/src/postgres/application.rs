@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    postgres::election::get_election_permission_label,
     services::application::ApplicationAnnotations,
     types::application::{ApplicationStatus, ApplicationType},
 };
@@ -509,7 +510,27 @@ pub async fn get_applications_by_election(
     let parsed_tenant_id = parse_uuid_v4(tenant_id)?;
     let parsed_election_event_id = parse_uuid_v4(election_event_id)?;
 
+    // List what the election's Approvals tab lists: the applications with
+    // the election's permission label, or every application of the event
+    // when that label is missing or empty.
+    let permission_label = match election_id {
+        Some(election_id) => get_election_permission_label(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            Some(election_id.to_string()),
+        )
+        .await?
+        .into_iter()
+        .find(|label| !label.is_empty()),
+        None => None,
+    };
+
     let mut params: Vec<&(dyn ToSql + Sync)> = vec![&parsed_tenant_id, &parsed_election_event_id];
+    if let Some(permission_label) = &permission_label {
+        query.push_str(" AND permission_label = $3");
+        params.push(permission_label);
+    }
 
     let statement = hasura_transaction
         .prepare(&query)
