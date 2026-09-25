@@ -14,3 +14,4 @@ pub mod publication_files;
 pub mod results_publication;
 pub mod system;
 pub mod tally_ceremony;
+pub mod tally_execution;
