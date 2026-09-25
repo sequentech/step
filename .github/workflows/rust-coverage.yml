@@ -191,10 +191,10 @@ jobs:
     name: Coverage summary
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # Failed, cancelled and skipped comparisons are reported too. Those jobs
+    # Failed and skipped comparisons are reported too. Those jobs
     # keep the gate; this one only repeats the verdicts they recorded.
     needs: [reporter-tests, package-comparison]
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

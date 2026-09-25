@@ -74,10 +74,10 @@ jobs:
     name: Frontend coverage summary
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # Failed and cancelled comparisons are reported too. Those jobs keep the
+    # Failed comparisons are reported too. Those jobs keep the
     # gate; this one only repeats the verdicts they recorded.
     needs: comparison
-    if: always()
+    if: ${{ !cancelled() }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
