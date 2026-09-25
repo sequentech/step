@@ -1901,17 +1901,35 @@ async fn preview_wrapper_maps_every_column_of_a_preview_row() {
 }
 
 #[tokio::test]
-async fn insert_preview_reports_either_invalid_id_as_a_tenant_id_error() {
+async fn insert_preview_names_the_invalid_id_argument() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
     let (tenant, document) = (f.tenant().await.to_string(), f.id().to_string());
 
-    for (tenant, document) in [(tenant.as_str(), BAD_UUID), (BAD_UUID, document.as_str())] {
+    for (tenant, document, expected) in [
+        (
+            tenant.as_str(),
+            BAD_UUID,
+            "Error parsing document_id as UUID",
+        ),
+        (
+            BAD_UUID,
+            document.as_str(),
+            "Error parsing tenant_id as UUID",
+        ),
+    ] {
         let error = preview::insert_preview(&tx, tenant, document, "url".to_string(), "admin")
             .await
             .unwrap_err();
-        assert_eq!(error.to_string(), "Error parsing tenant_id as UUID");
+        assert_eq!(error.to_string(), expected);
     }
+    let count: i64 = scalar(
+        &tx,
+        "SELECT count(*) FROM sequent_backend.preview WHERE requested_by = 'admin' AND url = 'url'",
+        &[],
+    )
+    .await;
+    assert_eq!(count, 0);
     tx.rollback().await.unwrap();
 }
