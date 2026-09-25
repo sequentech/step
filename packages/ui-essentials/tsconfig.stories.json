@@ -1,0 +1,17 @@
+{
+    "extends": "./tsconfig.tests.json",
+    "compilerOptions": {
+        "declaration": false,
+        "moduleResolution": "Bundler",
+        "types": ["node"]
+    },
+    "include": [
+        "src/**/*.stories.tsx",
+        "src/**/__stories__/**/*",
+        "src/**/*.d.ts",
+        ".storybook/**/*",
+        "vitest.config.ts",
+        "../test-support/storybook/**/*.ts"
+    ],
+    "exclude": []
+}

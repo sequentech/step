@@ -49,10 +49,14 @@ jobs:
         run: |
           npm install --global yarn@1.22.22
           yarn --cwd packages install --frozen-lockfile --non-interactive
-      - name: Typecheck admin stories
-        if: matrix.package == 'admin-portal'
-        working-directory: packages/admin-portal
+      - name: Typecheck component stories
+        if: matrix.package == 'admin-portal' || matrix.package == 'ui-essentials'
+        working-directory: packages/${{ matrix.package }}
         run: yarn typecheck:stories
+      - name: Typecheck voting stories and tests
+        if: matrix.package == 'voting-portal'
+        working-directory: packages/voting-portal
+        run: yarn test:types
       - name: Run interactions and accessibility checks in Chromium
         working-directory: packages/${{ matrix.package }}
         run: yarn test:stories --coverage --reporter=default --reporter=junit --outputFile=test-results/stories.xml
