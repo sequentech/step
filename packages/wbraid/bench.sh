@@ -42,7 +42,9 @@
 #   ./target/release/examples/tally 100000 2 3             # N W Q
 #   ./target/release/examples/tally 100000 2 3 --ser       # + encoding/decoding of every posted message
 #
-# Supported widths W: 1 2 3 5 10; quorums Q (tally): 2 3 4 5 7.
+# W and Q are compile-time parameters: the programs are built for exactly the
+# values braid's runtime accepts (crates/braid/src/dispatch.rs), widths W 1-8
+# and quorums Q 2-8; anything else is rejected with a usage error.
 #
 # GUIDANCE=1 (the default) first runs the criterion benches parallel_tradeoff
 # and msm_strategy, which steer implementation choices and are recorded in

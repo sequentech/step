@@ -85,8 +85,12 @@ const SHUFFLE_CTX: &[u8] = b"targets shuffle context";
 const DEC_CTX: &[u8] = b"targets decryption context";
 const GEN_SEED: &[u8] = b"targets ind_generators seed";
 
-/// Ciphertext widths `W` this binary can instantiate (`W` is const generic).
-const SUPPORTED_WIDTHS: &[usize] = &[1, 2, 3, 5, 10];
+/// Ciphertext widths `W` this binary can instantiate (`W` is const generic):
+/// exactly the widths braid's runtime dispatches (`dispatch_ciphertext_width!`
+/// in `crates/braid/src/dispatch.rs`), so any width braid accepts can be
+/// measured. Keep this list, the one in the `dispatch` call below and that
+/// macro in step.
+const SUPPORTED_WIDTHS: &[usize] = &[1, 2, 3, 4, 5, 6, 7, 8];
 
 /// One `(count, width)` cell. Returns the five target timings (ms) plus the two
 /// ciphertext byte counts.
@@ -272,7 +276,7 @@ fn main() {
     eprintln!("running targets: count={count} width={width} T={T} P={P}");
 
     let (prove, verify, partial, combine_ms, ny_strip, sizeof, ser) =
-        dispatch_width!(width, count, [1, 2, 3, 5, 10]);
+        dispatch_width!(width, count, [1, 2, 3, 4, 5, 6, 7, 8]);
 
     println!("{count},{width},{prove},{verify},{partial},{combine_ms},{ny_strip},{sizeof},{ser}");
 }
