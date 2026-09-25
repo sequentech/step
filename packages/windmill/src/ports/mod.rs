@@ -7,5 +7,7 @@
 //! Production implementations live in `crate::adapters`.
 
 pub mod clock;
+pub mod datafix_cast_vote;
+pub mod publication_files;
 pub mod tally_ceremony;
 pub mod tally_execution;

@@ -5,6 +5,8 @@
 //! Business rules without I/O. Functions here take plain values, including
 //! the current time, and return decisions; services perform the effects.
 
+pub mod datafix_cast_vote;
+pub mod publication_files;
 pub mod tally_ceremony;
 pub mod tally_creation;
 pub mod tally_execution;
