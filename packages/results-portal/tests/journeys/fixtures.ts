@@ -125,6 +125,8 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
             await use(portal)
         } finally {
             await unroute()
+            // Expected accessibility failures cannot excuse unrelated browser/service failures.
+            if (violations.list().length || errors.length) test.info().expectedStatus = "passed"
             expect(violations.list(), "unexpected service requests").toEqual([])
             expect(errors, "unhandled page exceptions").toEqual([])
         }
