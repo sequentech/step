@@ -68,6 +68,9 @@ class JourneyResult(unittest.TextTestResult):
 def run_tests(pattern):
     loader = unittest.TestLoader()
     tests = list(loader.loadTestsFromTestCase(test_journeys.BackendJourneys))
+    if not tests:
+        print("No backend journeys were discovered", file=sys.stderr)
+        return 2
     if pattern:
         matching = [
             index for index, test in enumerate(tests) if pattern in test._testMethodName
