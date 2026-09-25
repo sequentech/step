@@ -233,7 +233,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                     helperText={false}
                                     onChange={(e) => setPassword(e.target.value)}
                                     inputProps={{
-                                        ref: passwordInputRef,
+                                        "ref": passwordInputRef,
+                                        "aria-label": t(
+                                            "electionEventScreen.import.passwordDialog.label"
+                                        ),
                                     }}
                                 />
                             </Box>
