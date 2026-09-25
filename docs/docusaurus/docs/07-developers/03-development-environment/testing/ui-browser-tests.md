@@ -84,3 +84,5 @@ Fixtures live in `packages/results-portal/tests/fixtures/`, browser cases in
 Use literal expected counts and scoped publications. A rejected publication or
 artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
+
+The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan pin the existing candidate-list accessibility violation as expected failures, so fixing it requires removing the marker.
