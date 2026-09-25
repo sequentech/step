@@ -7,3 +7,4 @@
 
 pub mod tally_ceremony;
 pub mod tally_creation;
+pub mod tally_execution;

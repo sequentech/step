@@ -8,3 +8,4 @@
 
 pub mod clock;
 pub mod tally_ceremony;
+pub mod tally_execution;

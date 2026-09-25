@@ -201,6 +201,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 [profiles.windmill.excluded_files]
 "src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
 "src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."
+"src/services/ceremonies/tally_execution_tests.rs" = "Standalone tally execution planner and orchestration unit tests; production remains measured."
 
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
@@ -210,6 +211,7 @@ DEFAULT_SQL_BATCH_SIZE = "1000"
 "src/ports/clock.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/mod.rs" = "Module declarations only; the port traits carry no executable code."
 "src/ports/tally_ceremony.rs" = "Trait, plain struct and type alias declarations only; the trait implementations are measured in src/adapters."
+"src/ports/tally_execution.rs" = "Tally execution ports and value declarations only; production adapters and orchestration remain measured."
 "src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ceremonies/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
