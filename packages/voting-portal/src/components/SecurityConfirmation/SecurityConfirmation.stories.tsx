@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {EConsolidatedReportPolicy} from "@sequentech/ui-core"
 import React, {useState} from "react"
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, within} from "storybook/test"
@@ -17,6 +18,7 @@ const meta = {
             image_document_id: "",
             contests: [],
             presentation: {
+                consolidated_report_policy: EConsolidatedReportPolicy.DO_NOT_GENERATE,
                 i18n: {en: {security_confirmation_html: "<p>I am eligible to vote.</p>"}},
             },
         },

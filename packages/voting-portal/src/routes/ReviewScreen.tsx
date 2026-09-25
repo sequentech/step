@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
+import {CombinedGraphQLErrors} from "@apollo/client/errors"
+import {isApolloTransportError} from "../services/ApolloErrors"
 import {
     Link as RouterLink,
     useNavigate,
@@ -29,6 +31,7 @@ import {
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
+    IExtensionError,
     EGraphQLInternalErrorMessage,
     EGraphQLErrorCode,
     IAuditableSingleBallot,
@@ -275,14 +278,17 @@ const useTryInsertCastVote = () => {
         } catch (error) {
             console.log(error)
             let castError = error as IGraphQLActionError
-            let errorExtensions = castError?.graphQLErrors?.[0]?.extensions
+            let errorExtensions = (
+                CombinedGraphQLErrors.is(error)
+                    ? error.errors[0]?.extensions
+                    : castError?.graphQLErrors?.[0]?.extensions
+            ) as IExtensionError | undefined
             if (castError?.message?.includes("internal error")) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
             } else if (errorExtensions?.code) {
                 let errorCode = errorExtensions?.code
                 console.log(castError.name, castError.message)
-                let internalErrMessage =
-                    castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
+                let internalErrMessage = errorExtensions?.internal?.error?.message
                 console.log(errorCode, internalErrMessage)
                 if (
                     errorCode === EGraphQLErrorCode.UNEXPECTED &&
@@ -295,17 +301,12 @@ const useTryInsertCastVote = () => {
                     )
                 }
             } else if (
-                error &&
-                typeof error === "object" &&
-                "networkError" in error &&
-                error.networkError
+                isApolloTransportError(error instanceof Error ? error : undefined) ||
+                (error &&
+                    typeof error === "object" &&
+                    "networkError" in error &&
+                    error.networkError)
             ) {
-                console.log(
-                    (error as any).name,
-                    (error as any).message,
-                    (error as any).cause,
-                    (error as any).networkError
-                )
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error

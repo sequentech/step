@@ -12,6 +12,19 @@ const adminConfig = {
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
             css: {postcss: {plugins: [postcssPresetEnv()]}},
+            optimizeDeps: {
+                include: [
+                    "ra-i18n-polyglot",
+                    "ra-language-english",
+                    "keycloak-js",
+                    "@mui/icons-material/Download",
+                    "@mui/icons-material/Upload",
+                    "@mui/icons-material/ExpandMore",
+                    "@mui/icons-material/Close",
+                    "@mui/icons-material/ContentCopy",
+                    "@mui/icons-material/Visibility",
+                ],
+            },
         }),
 } satisfies StorybookConfig
 

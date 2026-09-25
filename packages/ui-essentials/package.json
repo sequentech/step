@@ -125,7 +125,7 @@
     "@testing-library/user-event": "^14.6.1",
     "esbuild": "0.25.12",
     "playwright": "1.62.1",
-    "playwright-core": "1.58.2",
+    "playwright-core": "1.62.1",
     "vite": "^7.3.5",
     "vitest": "4.1.11",
     "@vitest/browser-playwright": "4.1.11"

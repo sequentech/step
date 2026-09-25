@@ -20,6 +20,7 @@ export type ParsedLoginHints = {
 export class InvalidLoginHintsError extends Error {
     constructor() {
         super("Invalid login hint parameters")
+        Object.setPrototypeOf(this, InvalidLoginHintsError.prototype)
         this.name = "InvalidLoginHintsError"
     }
 }
