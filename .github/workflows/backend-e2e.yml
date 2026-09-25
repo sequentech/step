@@ -73,6 +73,10 @@ jobs:
             sudo chown -R "$(id -u):$(id -g)" .cache/backend-e2e
           fi
 
+      - name: Summarize the journey results
+        if: always()
+        run: python3 scripts/e2e/summary.py .cache/backend-e2e/run >> "$GITHUB_STEP_SUMMARY"
+
       # run.sh writes the marker just before compose up: earlier failures have
       # no results, while a started run without any still fails the upload.
       - name: Upload journey results and service logs
@@ -86,3 +90,14 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload the results summary
+        if: always() && hashFiles('.cache/backend-e2e/run/summary.md') != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-e2e-results-${{ github.run_attempt }}
+          path: |
+            .cache/backend-e2e/run/summary.md
+            .cache/backend-e2e/run/journeys.json
+            .cache/backend-e2e/run/bootstrap.json
+          retention-days: 30

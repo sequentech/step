@@ -47,6 +47,9 @@ Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI ou
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
 The `Backend E2E journeys` workflow runs the same command on affected pull
 requests and uploads those artifacts, including after failures.
+The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each
+journey and the bootstrap check with status and duration, then the totals. The
+`backend-e2e-results-<attempt>` artifact keeps it with the JSON results.
 
 The ordered tests in `scripts/e2e/journeys/test_journeys.py` cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
