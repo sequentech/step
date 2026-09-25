@@ -19,10 +19,13 @@ export type Portal = PortalServices & {
     publish: () => void
     previewPath: string
     now: number
+    castVotes: Record<string, unknown>[]
 }
 
 export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<typeof serveDist>>}>({
     dist: [
+        // Playwright requires an object pattern even for a fixture without dependencies.
+        // eslint-disable-next-line no-empty-pattern
         async ({}, use) => {
             const dist = await serveDist(resolve(directory, "dist"))
             try {
@@ -83,6 +86,7 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
             KEYCLOAK_ACCESS_TOKEN_LIFESPAN_SECS: 900,
             POLLING_DURATION_TIMEOUT: 12000,
         }
+        portal.castVotes = []
         portal.data = electionFixture()
         portal.previewPath = `/preview/${IDS.tenant}/preview-document/${IDS.area}/publication?lang=en`
         portal.publish = () => {
@@ -141,7 +145,7 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
                             },
                         ],
                     },
-                    sequent_backend_cast_vote: [],
+                    sequent_backend_cast_vote: portal.castVotes,
                 },
             }
         })

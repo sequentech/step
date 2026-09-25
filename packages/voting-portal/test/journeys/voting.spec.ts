@@ -3,6 +3,7 @@
 
 import {test, expect, eventPath, realm, IDS, electionFixture, type Portal} from "./fixtures"
 import type {Page} from "@playwright/test"
+import type {IDecodedVoteContest} from "sequent-core"
 import {readFile} from "node:fs/promises"
 import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 
@@ -85,7 +86,7 @@ test("audit download independently decodes to the selected candidate and never c
     const download = await pending
     const bytes = await readFile((await download.path())!, "utf8")
     const core = await loadCore()
-    const decoded = core.decode_auditable_ballot_js(JSON.parse(bytes))
+    const decoded = core.decode_auditable_ballot_js(JSON.parse(bytes)) as IDecodedVoteContest[]
     expect(decoded).toMatchObject([
         {contest_id: IDS.contest, is_blank_ballot: false, is_explicit_invalid: false},
     ])
@@ -265,4 +266,54 @@ test("mobile voter can choose, review and cast with no accessibility violations"
         "Mobile Header language button has no accessible name; pinned in HeaderPrimaryMobile story too"
     )
     expect(violations).toEqual([])
+})
+
+test("invalid login hints show a link error before authenticating", async ({page, portal}) => {
+    await page.goto(`${portal.origin}${eventPath}/login?lang=en&login_hint__username=`)
+    await expect(page.getByRole("heading", {name: "Invalid voting link"})).toBeVisible()
+    expect(page.url()).not.toContain("login_hint")
+    expect(portal.oidc.authorizations).toEqual([])
+    expect(portal.graphql.calls).toEqual([])
+})
+
+test("a closed election remains visible without an active vote action", async ({page, portal}) => {
+    portal.data.election.status.voting_status = "CLOSED"
+    portal.publish()
+    await page.goto(`${portal.origin}${eventPath}?lang=en`)
+    await expect(page.getByRole("heading", {name: "Community Council"})).toBeVisible()
+    await expect(page.getByRole("button", {name: /click to vote/i})).toHaveCount(0)
+    expect(portal.graphql.callsTo("InsertCastVote")).toEqual([])
+})
+
+test("a voter at the revote limit cannot select the election", async ({page, portal}) => {
+    portal.data.election.num_allowed_revotes = 1
+    portal.castVotes = [
+        {
+            id: "90000000-0000-4000-8000-000000000001",
+            tenant_id: IDS.tenant,
+            election_id: IDS.election,
+            election_event_id: IDS.event,
+            status: "valid",
+        },
+    ]
+    portal.publish()
+    await page.goto(`${portal.origin}${eventPath}?lang=en`)
+    await expect(page.getByRole("heading", {name: "Community Council"})).toBeVisible()
+    await expect(page.getByRole("button", {name: /click to vote/i})).toBeDisabled()
+})
+
+test("finishing the last allowed vote logs out to the event completion URL", async ({
+    page,
+    portal,
+}) => {
+    const finishUrl = `${portal.origin}/finished`
+    portal.data = electionFixture({finishUrl})
+    portal.data.election.num_allowed_revotes = 1
+    portal.publish()
+    await review(page, portal)
+    await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
+    await expect(page).toHaveURL(/\/confirmation/)
+    await page.getByRole("button", {name: "Finish", exact: true}).click()
+    await expect(page).toHaveURL(finishUrl)
+    expect(portal.oidc.logouts[0].params.post_logout_redirect_uri).toBe(finishUrl)
 })
