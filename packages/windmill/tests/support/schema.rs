@@ -66,11 +66,15 @@ pub(super) async fn create_database() -> (String, deadpool_postgres::ClientWrapp
         )
         .await
         .expect("fixture creation lock");
-    // Earlier runs leave their databases behind. Drop those nobody uses;
-    // a database another test binary is using right now refuses to drop.
+    // Earlier runs leave their databases behind. Skip active anchors;
+    // DROP without FORCE also protects a connection opened after this query.
     for row in admin
         .query(
-            "SELECT datname FROM pg_database WHERE starts_with(datname, $1)",
+            "SELECT datname FROM pg_database AS fixture
+             WHERE starts_with(datname, $1)
+             AND NOT EXISTS (
+                 SELECT 1 FROM pg_stat_activity WHERE datname = fixture.datname
+             )",
             &[&PREFIX],
         )
         .await
