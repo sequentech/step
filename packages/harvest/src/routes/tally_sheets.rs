@@ -920,3 +920,7 @@ fn verify_source_sha256(
 #[cfg(test)]
 #[path = "../../tests/support/tally_import_boundaries.rs"]
 mod boundary_tests;
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_import_errors.rs"]
+mod tally_import_errors;

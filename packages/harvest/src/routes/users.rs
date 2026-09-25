@@ -2236,3 +2236,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/user_service_errors.rs"]
+mod user_service_errors;
