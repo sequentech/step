@@ -84,7 +84,7 @@ pub async fn export_tally_session(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -141,7 +141,7 @@ pub async fn export_tally_session_execution(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -198,7 +198,7 @@ pub async fn export_tally_session_contest(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -250,7 +250,7 @@ pub async fn export_results_event(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -307,7 +307,7 @@ pub async fn export_results_election_area(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -366,7 +366,7 @@ pub async fn export_results_election(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -442,7 +442,7 @@ pub async fn export_results_contest(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -503,7 +503,7 @@ pub async fn export_results_contest_candidate(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -579,7 +579,7 @@ pub async fn export_results_area_contest(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
@@ -643,7 +643,7 @@ pub async fn export_results_area_contest_candidate(
             .map(|value| value.to_string())
             .collect();
 
-        writer.write_record(&values);
+        writer.write_record(&values)?;
     }
 
     writer
