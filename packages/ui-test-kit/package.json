@@ -1,0 +1,44 @@
+{
+  "name": "@sequentech/ui-test-kit",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "description": "Fixtures, service mocks and adapters shared by the frontend browser tests",
+  "exports": {
+    "./adapters/axe": "./adapters/axe.ts",
+    "./adapters/playwright": "./adapters/playwright.ts",
+    "./fixtures": "./fixtures/index.ts",
+    "./mocks/graphql": "./mocks/graphql.ts",
+    "./mocks/oidc": "./mocks/oidc.ts",
+    "./mocks/s3": "./mocks/s3.ts",
+    "./mocks/violations": "./mocks/violations.ts",
+    "./server/static": "./server/static.ts",
+    "./wasm/node": "./wasm/node.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "prettify": "prettier --check . --ignore-path .prettierignore",
+    "prettify:fix": "prettier --write . --ignore-path .prettierignore",
+    "test": "playwright test --config playwright.config.ts",
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "4.11.1",
+    "graphql": "^16.8.1",
+    "sql.js": "^1.13.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": "1.62.1",
+    "sequent-core": "*"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.3.3",
+    "@typescript-eslint/parser": "^8.46.4",
+    "eslint": "^9.39.1",
+    "globals": "^15.9.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  }
+}
