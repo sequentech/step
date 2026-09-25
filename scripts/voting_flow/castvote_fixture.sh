@@ -7,12 +7,13 @@
 # ignored Windmill database tests against it from packages/:
 #
 #   export CAST_VOTE_TEST_DATABASE_URL=$(../scripts/voting_flow/castvote_fixture.sh)
-#   cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored
+#   cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --ignored
 #   docker rm --force step-castvote-fixture
 #
 # Usage: scripts/voting_flow/castvote_fixture.sh [container-name] [host-port]
-# A previous container with the same name is replaced. Without a port, Docker
-# publishes a free one on 127.0.0.1.
+# An existing container with the same name is left untouched. Without a port,
+# Docker publishes a free one on 127.0.0.1. Failed fixture setup removes the
+# container; after success, the caller owns its cleanup.
 
 set -euo pipefail
 
@@ -21,10 +22,16 @@ migrations=$root/hasura/migrations/backend-db
 name=${1:-step-castvote-fixture}
 port=${2:-}
 
-docker rm --force "$name" >/dev/null 2>&1 || true
-docker run --detach --name "$name" --publish "127.0.0.1:$port:5432" \
+docker create --name "$name" --publish "127.0.0.1:$port:5432" \
     --env POSTGRES_HOST_AUTH_METHOD=trust \
     postgres:18-bookworm -c shared_preload_libraries=pg_stat_statements >/dev/null
+cleanup_on_error() {
+    if [ "$?" -ne 0 ]; then
+        docker rm --force "$name" >/dev/null 2>&1 || true
+    fi
+}
+trap cleanup_on_error EXIT
+docker start "$name" >/dev/null
 
 # The image only listens on TCP once its initialization has finished.
 ready=false

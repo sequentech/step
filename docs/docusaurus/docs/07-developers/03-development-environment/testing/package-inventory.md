@@ -80,6 +80,6 @@ fixture in a Docker container. From `packages/`:
 
 ```sh
 export CAST_VOTE_TEST_DATABASE_URL=$(../scripts/voting_flow/castvote_fixture.sh)
-cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored
+cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --ignored
 docker rm --force step-castvote-fixture
 ```

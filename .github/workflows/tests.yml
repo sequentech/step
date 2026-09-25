@@ -138,11 +138,15 @@ jobs:
       - name: Run the ignored insert_cast_vote PostgreSQL tests
         shell: bash
         run: |
-          cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --include-ignored \
+          cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --ignored \
             | tee "$RUNNER_TEMP/insert-cast-vote-tests.log"
           # An empty filter also succeeds; require that the tests actually ran.
           grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/insert-cast-vote-tests.log"
         working-directory: packages
+
+      - name: Remove the voting-flow database fixture
+        if: always()
+        run: docker rm --force step-castvote-fixture
 
   # ===========================================================================
   # JOB: run-frontend-tests
