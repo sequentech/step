@@ -29,8 +29,6 @@ impl IdentityAdmin for KeycloakIdentityAdmin {
         get_realm_password_policy(tenant_id, election_event_id).await
     }
 
-
-
     async fn update_voter_enrollment(
         &self,
         tenant_id: Option<String>,
@@ -53,6 +51,4 @@ impl IdentityAdmin for KeycloakIdentityAdmin {
     ) -> WindmillResult<()> {
         update_keycloak_otp(tenant_id, election_event_id, new_otp_state).await
     }
-
-
 }

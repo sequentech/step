@@ -4,8 +4,8 @@
 
 use deadpool_postgres::Transaction;
 use windmill::services::electoral_log::{
-    ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
 
 /// A phone blacklist entry that was added or removed.

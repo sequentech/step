@@ -7,8 +7,6 @@ use deadpool_postgres::Transaction;
 /// Document passwords and report key pairs kept in the vault.
 #[rocket::async_trait]
 pub trait SecretVault: Send + Sync {
-
-
     /// Returns the id of the stored secret.
     async fn save_document_password(
         &self,

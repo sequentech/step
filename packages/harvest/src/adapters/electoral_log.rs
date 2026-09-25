@@ -10,8 +10,7 @@ use deadpool_postgres::Transaction;
 use windmill::postgres::election_event::get_election_event_by_id;
 use windmill::services::election_event_board::get_election_event_board;
 use windmill::services::electoral_log::{
-    post_voter_secret_attribute_audit,
-    ElectoralLog, ElectoralLogAdminContext,
+    post_voter_secret_attribute_audit, ElectoralLog, ElectoralLogAdminContext,
     VoterSecretAttributeAction, VoterSecretAttributeAudit,
 };
 
@@ -37,8 +36,6 @@ impl ElectoralLogs for BoardElectoralLogs {
         )
         .await
     }
-
-
 
     async fn phone_blacklist_entry(
         &self,

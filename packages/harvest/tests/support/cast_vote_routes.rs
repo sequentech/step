@@ -424,7 +424,11 @@ async fn exhausted_retries_return_the_last_error_without_enqueuing() {
 async fn only_telephone_votes_use_token_issue_time_when_auth_time_is_absent() {
     for (client_id, channel, auth_time) in [
         ("voting-portal", VotingStatusChannel::ONLINE, None),
-        ("ivr-voting", VotingStatusChannel::TELEPHONE, Some(1_900_000_000)),
+        (
+            "ivr-voting",
+            VotingStatusChannel::TELEPHONE,
+            Some(1_900_000_000),
+        ),
         ("voting-portal-kiosk", VotingStatusChannel::KIOSK, None),
     ] {
         let services = Services::without_database().with_cast_votes(
@@ -445,6 +449,10 @@ async fn only_telephone_votes_use_token_issue_time_when_auth_time_is_absent() {
         expected.voting_channel = channel;
         expected.auth_time = auth_time;
         expected.username = None;
-        assert_eq!(services.cast_votes.attempts(), vec![expected], "{client_id}");
+        assert_eq!(
+            services.cast_votes.attempts(),
+            vec![expected],
+            "{client_id}"
+        );
     }
 }

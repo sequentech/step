@@ -33,10 +33,6 @@ impl MemoryVault {
 
 #[rocket::async_trait]
 impl SecretVault for MemoryVault {
-
-
-
-
     async fn save_document_password(
         &self,
         _transaction: &Transaction<'_>,

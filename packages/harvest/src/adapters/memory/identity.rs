@@ -75,8 +75,6 @@ impl IdentityAdmin for LocalIdentityAdmin {
         self.password_policy.clone().ok_or_else(refused)
     }
 
-
-
     async fn update_voter_enrollment(
         &self,
         _tenant_id: Option<String>,
@@ -94,6 +92,4 @@ impl IdentityAdmin for LocalIdentityAdmin {
     ) -> WindmillResult<()> {
         self.update(AuthenticationUpdate::Otp(new_otp_state))
     }
-
-
 }

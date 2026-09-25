@@ -28,8 +28,6 @@ impl TaskLedger for WindmillTaskLedger {
         .await
     }
 
-
-
     async fn update_complete(
         &self,
         task: &TasksExecution,

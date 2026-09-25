@@ -12,10 +12,6 @@ pub struct WindmillVault;
 
 #[rocket::async_trait]
 impl SecretVault for WindmillVault {
-
-
-
-
     async fn save_document_password(
         &self,
         transaction: &Transaction<'_>,

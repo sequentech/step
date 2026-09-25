@@ -31,5 +31,4 @@ pub trait IdentityAdmin: Send + Sync {
         election_event_id: Option<String>,
         new_otp_state: String,
     ) -> WindmillResult<()>;
-
 }

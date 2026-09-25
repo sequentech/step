@@ -9,8 +9,8 @@ use anyhow::anyhow;
 use deadpool_postgres::Transaction;
 use std::sync::Mutex;
 use windmill::services::electoral_log::{
-    ElectoralLogAdminContext,
-    VoterSecretAttributeAction, VoterSecretAttributeAudit,
+    ElectoralLogAdminContext, VoterSecretAttributeAction,
+    VoterSecretAttributeAudit,
 };
 
 /// An entry as the electoral log received it.
@@ -80,8 +80,6 @@ impl ElectoralLogs for MemoryElectoralLogs {
             document_id: audit.document_id.map(str::to_string),
         })
     }
-
-
 
     async fn phone_blacklist_entry(
         &self,
