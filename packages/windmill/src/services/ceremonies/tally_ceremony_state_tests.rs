@@ -96,6 +96,114 @@ fn execution(status: Option<&TallyCeremonyStatus>) -> TallySessionExecution {
     }
 }
 
+fn execution_time(value: &str) -> chrono::DateTime<chrono::Local> {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .unwrap()
+        .with_timezone(&chrono::Local)
+}
+
+#[tokio::test]
+async fn current_execution_uses_creation_time_and_keeps_undated_rows_last() {
+    for (rows, expected) in [
+        (
+            vec![
+                ("newest", Some("2026-01-03T00:00:00Z")),
+                ("older", Some("2026-01-01T00:00:00Z")),
+                ("undated", None),
+            ],
+            Some("newest"),
+        ),
+        (
+            vec![
+                ("undated", None),
+                ("newest", Some("2026-01-03T00:00:00Z")),
+                ("older", Some("2026-01-01T00:00:00Z")),
+            ],
+            Some("newest"),
+        ),
+        (
+            vec![("first-undated", None), ("last-undated", None)],
+            Some("last-undated"),
+        ),
+        (vec![], None),
+    ] {
+        let ceremony = InMemoryTallyCeremony::default();
+        ceremony.add_session(tally_session(&STARTED));
+        for (id, created_at) in rows {
+            let mut row = execution(None);
+            row.id = id.into();
+            row.created_at = created_at.map(execution_time);
+            ceremony.add_execution(row);
+        }
+        for (tenant, event, session) in [
+            ("other-tenant", EVENT, SESSION),
+            (TENANT, "other-event", SESSION),
+            (TENANT, EVENT, "other-session"),
+        ] {
+            let mut row = execution(None);
+            row.id = "foreign-future-execution".into();
+            row.tenant_id = tenant.into();
+            row.election_event_id = event.into();
+            row.tally_session_id = session.into();
+            row.created_at = Some(execution_time("2030-01-01T00:00:00Z"));
+            ceremony.add_execution(row);
+        }
+        let current = ceremony
+            .last_execution(TENANT, EVENT, SESSION)
+            .await
+            .unwrap();
+        assert_eq!(current.as_ref().map(|row| row.id.as_str()), expected);
+        let with_session = ceremony
+            .last_execution_and_session(TENANT, EVENT, SESSION, vec![ELECTION.into()])
+            .await
+            .unwrap();
+        assert_eq!(
+            with_session.as_ref().map(|(row, _)| row.id.as_str()),
+            expected
+        );
+    }
+}
+
+#[tokio::test]
+async fn appended_execution_uses_the_transaction_time_and_becomes_current() {
+    let transaction_time = execution_time("2026-01-03T00:00:00Z");
+    let ceremony = InMemoryTallyCeremony::with_transaction_time(transaction_time);
+    ceremony.add_session(tally_session(&STARTED));
+    let mut previous = execution(None);
+    previous.created_at = Some(execution_time("2026-01-01T00:00:00Z"));
+    ceremony.add_execution(previous);
+    assert_eq!(
+        ceremony
+            .last_execution(TENANT, EVENT, SESSION)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        "first-execution"
+    );
+
+    ceremony
+        .append_execution(
+            TENANT,
+            EVENT,
+            SESSION,
+            99,
+            ceremony_status(&[]),
+            TallyRunReason::RECOUNT,
+        )
+        .await
+        .unwrap();
+    let current = ceremony
+        .last_execution(TENANT, EVENT, SESSION)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.id, "execution-2");
+    assert_eq!(current.created_at, Some(transaction_time));
+    assert_eq!(current.current_message_id, 99);
+    assert_eq!(current.run_reason.as_deref(), Some("RECOUNT"));
+}
+
 fn keys_ceremony(threshold: i64) -> KeysCeremony {
     KeysCeremony {
         id: KEYS_CEREMONY.into(),
