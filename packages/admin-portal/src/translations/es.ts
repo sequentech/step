@@ -2246,6 +2246,12 @@ const spanishTranslation: TranslationType = {
                 tallyDisallowed: "El recuento está deshabilitado para una elección seleccionada.",
                 endVoting:
                     "Finaliza la votación en cada elección seleccionada y detén sus canales activos antes de crear el recuento.",
+                keysCeremonyMissing:
+                    "Asigna una ceremonia de claves a cada elección seleccionada antes de crear el recuento.",
+                keysCeremonyMismatch:
+                    "Las elecciones seleccionadas usan ceremonias de claves distintas. Haz su recuento por separado.",
+                keysCeremonyIncomplete:
+                    "Completa la ceremonia de claves antes de crear el recuento.",
             },
             createTallySuccess: "Recuento creado",
             createTallyError: "Error creando recuento",

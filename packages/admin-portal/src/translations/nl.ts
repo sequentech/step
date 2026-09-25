@@ -2243,6 +2243,12 @@ const dutchTranslation: TranslationType = {
                 tallyDisallowed: "Tellen is uitgeschakeld voor een geselecteerde verkiezing.",
                 endVoting:
                     "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
+                keysCeremonyMissing:
+                    "Wijs aan elke geselecteerde verkiezing een sleutelceremonie toe voordat u de telling aanmaakt.",
+                keysCeremonyMismatch:
+                    "De geselecteerde verkiezingen gebruiken verschillende sleutelceremonies. Tel ze afzonderlijk.",
+                keysCeremonyIncomplete:
+                    "Voltooi de sleutelceremonie voordat u de telling aanmaakt.",
             },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",

@@ -29,7 +29,14 @@ let mockElections = [
 ]
 const mockKeys = {
     list_keys_ceremony: {
-        items: [{id: "keys", name: "Keys", settings: {policy: "manual-ceremonies"}}],
+        items: [
+            {
+                id: "keys",
+                name: "Keys",
+                execution_status: "SUCCESS",
+                settings: {policy: "manual-ceremonies"},
+            },
+        ],
     },
 }
 const mockStore = {
