@@ -1189,27 +1189,63 @@ async fn find_scheduled_event_by_election_event_id_returns_the_unarchived_event_
 }
 
 #[tokio::test]
-async fn find_scheduled_event_by_election_event_id_and_event_processor_never_binds_the_processor() {
-    // The query names $3 but only the tenant and event are passed, so every
-    // call fails before reaching the database.
+async fn find_scheduled_event_by_election_event_id_and_event_processor_returns_its_unarchived_schedules(
+) {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
     schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(10), "task-10").await;
+    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(11), "task-11").await;
+    set(
+        &tx,
+        "scheduled_event",
+        &w.id(11),
+        &format!("stopped_at = '{H10}'"),
+    )
+    .await;
+    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(12), "task-12").await;
+    set(
+        &tx,
+        "scheduled_event",
+        &w.id(12),
+        &format!("archived_at = '{H10}'"),
+    )
+    .await;
+    schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(13), "task-13").await;
+    set(
+        &tx,
+        "scheduled_event",
+        &w.id(13),
+        "event_processor = 'SEND_TEMPLATE'",
+    )
+    .await;
+    schedule_row(
+        &tx,
+        Some(&w.tenant),
+        Some(&w.other_event),
+        &w.id(14),
+        "task-14",
+    )
+    .await;
+    schedule_row(
+        &tx,
+        Some(&w.other_tenant),
+        Some(&w.event),
+        &w.id(15),
+        "task-15",
+    )
+    .await;
 
-    let error = scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor(
+    let schedules = scheduled_event::find_scheduled_event_by_election_event_id_and_event_processor(
         &tx,
         &w.tenant,
         &w.event,
         "CREATE_REPORT",
     )
     .await
-    .unwrap_err();
+    .unwrap();
 
-    assert_eq!(
-        error.to_string(),
-        "Error running the find_scheduled_event_by_task_id query: expected 3 parameters but got 2"
-    );
+    assert_eq!(schedule_ids(schedules), [w.id(10), w.id(11)]);
     tx.rollback().await.unwrap();
 }
 
