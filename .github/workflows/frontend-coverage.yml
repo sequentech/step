@@ -70,3 +70,38 @@ jobs:
           path: ${{ runner.temp }}/coverage/frontend/
           if-no-files-found: error
           retention-days: 7
+  summary:
+    name: Frontend coverage summary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Failed and cancelled comparisons are reported too. Those jobs keep the
+    # gate; this one only repeats the verdicts they recorded.
+    needs: comparison
+    if: always()
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: head
+          persist-credentials: false
+          sparse-checkout: scripts/coverage
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          pattern: frontend-coverage-*
+          path: ${{ runner.temp }}/artifacts
+      - name: Summarize every paired verdict
+        id: summary
+        if: always()
+        # The comparison matrix: a package without a verdict is a row.
+        run: |
+          python3 head/scripts/coverage/summary.py "$RUNNER_TEMP/artifacts" \
+            --expect ui-core voting-portal ui-essentials results-portal ballot-verifier admin-portal \
+            > "$RUNNER_TEMP/frontend-coverage-summary.md"
+          cat "$RUNNER_TEMP/frontend-coverage-summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && steps.summary.outcome == 'success'
+        with:
+          name: frontend-coverage-summary
+          path: ${{ runner.temp }}/frontend-coverage-summary.md
+          if-no-files-found: error
+          retention-days: 7

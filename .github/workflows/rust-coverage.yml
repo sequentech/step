@@ -186,3 +186,41 @@ jobs:
           path: ${{ runner.temp }}/coverage/electoral-database/
           if-no-files-found: error
           retention-days: 7
+
+  summary:
+    name: Coverage summary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Failed, cancelled and skipped comparisons are reported too. Those jobs
+    # keep the gate; this one only repeats the verdicts they recorded.
+    needs: [reporter-tests, package-comparison]
+    if: always()
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.HEAD_REF }}
+          path: head
+          persist-credentials: false
+          sparse-checkout: scripts/coverage
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          pattern: coverage-*
+          path: ${{ runner.temp }}/artifacts
+      - name: Summarize every paired verdict
+        id: summary
+        if: always()
+        env:
+          # The package-comparison matrix: a profile without a verdict is a row.
+          PROFILES: ${{ inputs.profile || 'sequent-core strand velvet wrap-map-err harvest windmill step-cli electoral-log-native b4 braid immudb-rs' }}
+        run: |
+          read -ra profiles <<< "$PROFILES"
+          python3 head/scripts/coverage/summary.py "$RUNNER_TEMP/artifacts" \
+            --expect coverage-tooling "${profiles[@]}" > "$RUNNER_TEMP/coverage-summary.md"
+          cat "$RUNNER_TEMP/coverage-summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && steps.summary.outcome == 'success'
+        with:
+          name: coverage-summary
+          path: ${{ runner.temp }}/coverage-summary.md
+          if-no-files-found: error
+          retention-days: 7
