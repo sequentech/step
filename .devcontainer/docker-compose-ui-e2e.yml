@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+services:
+  ui-browser:
+    profiles: [ui-e2e]
+    image: mcr.microsoft.com/playwright:v1.62.1-noble
+    init: true
+    shm_size: 2gb
+    user: ${STEP_E2E_UID:-0}:${STEP_E2E_GID:-0}
+    working_dir: /workspaces/step
+    command: [node, --experimental-strip-types, packages/ui-e2e/server.mts]
+    volumes:
+      - ..:/workspaces/step
+      - type: bind
+        source: ${STEP_E2E_BIN_DIR:?set STEP_E2E_BIN_DIR}
+        target: /opt/step-e2e/bin
+        read_only: true
+      - type: bind
+        source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR}
+        target: /out
+    environment:
+      HOME: /tmp
+      CI: "true"
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      STEP_UI_E2E_OUTPUT_DIR: /out
+      SUPER_ADMIN_TENANT_ID: ${SUPER_ADMIN_TENANT_ID}
+      HASURA_ADMIN_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+      HASURA_ENDPOINT: ${HASURA_ENDPOINT}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      ADMIN_USERNAME: ${ADMIN_PORTAL_TEST_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PORTAL_TEST_PASSWORD}
+      API_KEY_CLIENT_SECRET: ${API_KEY_CLIENT_SECRET}
+    healthcheck:
+      test: [CMD, node, -e, "require('fs').accessSync('/out/origins.json')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

@@ -38,7 +38,11 @@ import ConfirmationScreen from "./ConfirmationScreen"
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, values?: {ballotId?: string}) =>
-            key === "ballotHash" ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}` : key,
+            key === "reviewScreen.error.INCONSISTENT_HASH" && mockEmptyHashTranslation
+                ? ""
+                : key === "ballotHash"
+                  ? `Ballot ID: ${values?.ballotId?.slice(0, 8)}`
+                  : key,
         i18n: {language: "en"},
     }),
 }))
@@ -144,6 +148,7 @@ const mockDispatch = jest.fn()
 const mockReauthWithGold = jest.fn()
 const mockInsertCastVote = jest.fn()
 const routeAction = jest.fn(() => null)
+let mockEmptyHashTranslation = false
 let mockIsGoldUser = false
 let mockDisableAuth = true
 let mockElectionQueryData:
@@ -271,6 +276,7 @@ beforeEach(() => {
     mockInsertCastVote.mockResolvedValue(CAST_VOTE_RESULT)
     mockReauthWithGold.mockResolvedValue(undefined)
     mockIsGoldUser = false
+    mockEmptyHashTranslation = false
     mockDisableAuth = true
     mockElectionQueryData = undefined
     sessionStorage.clear()
@@ -602,4 +608,61 @@ describe("Apollo 4 cast failures", () => {
         expect(mockInsertCastVote).toHaveBeenCalledTimes(2)
         expect(mockInsertCastVote.mock.calls[1]).toEqual(mockInsertCastVote.mock.calls[0])
     })
+})
+
+describe("review ballot hash integrity", () => {
+    it("renders the hash-integrity error instead of crashing when only the recorded hash differs", () => {
+        const validReview = renderRoute(<ReviewScreen />, "review")
+        expect(screen.queryByRole("alert")).toBeNull()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+        validReview.unmount()
+
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        renderRoute(<ReviewScreen />, "review")
+        expect(screen.getByRole("alert")).toHaveTextContent("reviewScreen.error.INCONSISTENT_HASH")
+        expect(screen.queryByText("errors.encoding.writeInCharsExceeded")).toBeNull()
+        expect(screen.getByRole("heading", {name: "First contest"})).toBeVisible()
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+    })
+})
+
+it.each([false, true])(
+    "blocks a mismatched ballot before casting or gold reauthentication: gold=%s",
+    async (gold) => {
+        mockDisableAuth = false
+        if (gold)
+            mockState.elections["election-1"]!.presentation!.cast_vote_gold_level =
+                ECastVoteGoldLevelPolicy.GOLD_LEVEL
+        const user = userEvent.setup()
+        const valid = renderRoute(<ReviewScreen />, "review")
+        await user.click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() =>
+            expect(gold ? mockReauthWithGold : mockInsertCastVote).toHaveBeenCalledTimes(1)
+        )
+        valid.unmount()
+        jest.clearAllMocks()
+        sessionStorage.clear()
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        const invalid = renderRoute(<ReviewScreen />, "review")
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(mockReauthWithGold).not.toHaveBeenCalled()
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        expect(cast).toBeDisabled()
+        await user.click(screen.getByRole("link", {name: "reviewScreen.backButton"}))
+        expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    }
+)
+
+it("keeps the integrity guard active with an empty custom error translation", () => {
+    mockEmptyHashTranslation = true
+    mockDisableAuth = false
+    mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+    renderRoute(<ReviewScreen />, "review")
+    const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+    fireEvent.click(cast)
+    expect(cast).toBeDisabled()
+    expect(mockInsertCastVote).not.toHaveBeenCalled()
+    expect(mockReauthWithGold).not.toHaveBeenCalled()
 })
