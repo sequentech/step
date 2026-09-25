@@ -17,8 +17,9 @@ yarn --cwd packages/ui-essentials test:stories --coverage
 yarn --cwd packages/ui-essentials build-storybook
 ```
 
-Replace `ui-essentials` with `voting-portal`, `admin-portal`, `results-portal` or
-`ballot-verifier`. `yarn --cwd packages/<package> storybook` opens the interactive
+For the story commands, replace `ui-essentials` with `voting-portal`, `admin-portal`,
+`results-portal` or `ballot-verifier`. Semantic checks use `typecheck:stories` for
+UI Essentials/admin and `test:types` for the other three portals. `yarn --cwd packages/<package> storybook` opens the interactive
 catalog. CI runs interactions, accessibility checks and a catalog build for each
 package using the pinned Playwright image. Its JUnit, screenshots and separate
 Istanbul coverage reports are uploaded from `test-results/`.
