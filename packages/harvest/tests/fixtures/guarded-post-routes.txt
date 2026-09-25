@@ -25,6 +25,7 @@
 /delete-phone-blacklist-entry
 /delete-role
 /delete-role-permission
+/delete-tenant
 /delete-user
 /delete-user-role
 /delete-users
@@ -53,6 +54,7 @@
 /generate-report
 /generate-template
 /generate-voter-information-letter
+/get-ballot-files-urls
 /get-ballot-publication-changes
 /get-custom-url
 /get-document-password
