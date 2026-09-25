@@ -88,6 +88,34 @@ class UIRunSafety(backend_safety.RunSafety):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_ui_bash_invocation_preserves_relative_artifact_paths(self):
+        working = self.root / "scripts/e2e/ui"
+        result = subprocess.run(
+            ["bash", "run.sh", "--skip-ui-build", "--skip-images", "--skip-build"],
+            cwd=working,
+            env={
+                **self.env,
+                "STEP_E2E_PROJECT": "relative-" + self.root.name.lower(),
+                "STEP_E2E_BIN_DIR": "relative binaries",
+                "STEP_E2E_OUTPUT_DIR": "relative logs",
+            },
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        environment = (working / "relative logs/compose.env").read_text()
+        self.assertIn(f"STEP_E2E_BIN_DIR={working}/relative binaries\n", environment)
+        self.assertIn(f"STEP_E2E_OUTPUT_DIR={working}/relative logs\n", environment)
+        for call in self.compose_calls("up"):
+            env_files = [
+                call[i + 1] for i, value in enumerate(call) if value == "--env-file"
+            ]
+            self.assertEqual(env_files[-1], str(working / "relative logs/compose.env"))
+        self.assertEqual(len(self.compose_calls("down")), 1)
+        self.assertFalse(list((working / "relative logs").glob(".owned-*")))
+
     def test_ui_down_requires_explicit_project(self):
         result = self.run_ui("--down")
         self.assertEqual(result.returncode, 2, result.stderr)
