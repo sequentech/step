@@ -47,6 +47,16 @@ Results are written to `.cache/backend-e2e/<project>/journeys.json`, with CLI ou
 service logs beside it. Override this directory with `STEP_E2E_OUTPUT_DIR`.
 The `Backend E2E journeys` workflow runs the same command on affected pull
 requests and uploads those artifacts, including after failures.
+The job summary (`scripts/e2e/summary.py <output>` writes it to `summary.md`) lists each
+journey and the bootstrap check with status and duration, then the totals. The
+`backend-e2e-results-<attempt>` artifact keeps it with the JSON results.
+
+`STEP_E2E_COVERAGE=1 scripts/e2e/run.sh`, as CI runs it, builds instrumented binaries into
+`bin-coverage` and stops the services after the journeys so that they write LLVM profiles.
+`coverage/summary.md` (also in the job summary) and `summary.json` give lines, functions and
+regions per `packages/<package>/src` as `scripts/coverage` defines them, counting only source
+linked into the binaries. The profile table shows each service's executed functions and exit
+code (143: stopped by SIGTERM, counters kept by continuous mode); a missing profile fails the run.
 
 The ordered tests in `scripts/e2e/journeys/test_journeys.py` cover tenant bootstrap,
 event import and invalid bundles, voter import, automatic key generation,
