@@ -7,3 +7,4 @@
 
 pub mod documents;
 pub mod graphql;
+pub(crate) mod load_setup;

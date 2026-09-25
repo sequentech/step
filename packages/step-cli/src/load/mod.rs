@@ -12,14 +12,14 @@
 //! Playwright adapters are checked before provisioning.
 //! Administrator credentials remain on the coordinator; workers receive only the
 //! synthetic password named by the configuration. See [`config::Settings`].
-mod census;
-mod config;
+pub(crate) mod census;
+pub(crate) mod config;
 mod coordinator;
 mod encryption;
 mod executor;
 pub(crate) mod files;
 mod image;
-mod input;
+pub(crate) mod input;
 mod presentation;
 mod provision;
 mod reference;
@@ -361,3 +361,6 @@ impl Command {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod setup_tests;
