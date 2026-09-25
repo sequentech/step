@@ -44,7 +44,9 @@
     "storybook": "storybook dev -p 6009 --no-open",
     "build-storybook": "storybook build",
     "test:stories": "vitest run --project=storybook",
-    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts"
+    "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
+    "test:journeys": "playwright test --config playwright.journeys.config.ts",
+    "test:types": "tsc -p tsconfig.tests.json"
   },
   "browserslist": {
     "production": [
@@ -100,6 +102,8 @@
     "typescript": "^5.9.2",
     "webpack": "5.104.1",
     "webpack-cli": "6.0.1",
-    "webpack-dev-server": "5.2.6"
+    "webpack-dev-server": "5.2.6",
+    "@playwright/test": "1.62.1",
+    "@sequentech/ui-test-kit": "*"
   }
 }

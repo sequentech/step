@@ -62,8 +62,12 @@ jobs:
           path: packages/${{ matrix.package }}/test-results
           if-no-files-found: warn
 
-  voting-journeys:
-    name: Voting production browser journeys
+  portal-journeys:
+    name: ${{ matrix.package }} production browser journeys
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [voting-portal, results-portal]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -85,19 +89,23 @@ jobs:
         run: |
           yarn --cwd packages/ui-test-kit typecheck
           yarn --cwd packages/ui-test-kit test
-          yarn --cwd packages/voting-portal tsc -p tsconfig.journeys.json
+          if [ "${{ matrix.package }}" = "voting-portal" ]; then
+            yarn --cwd packages/voting-portal tsc -p tsconfig.journeys.json
+          else
+            yarn --cwd packages/${{ matrix.package }} test:types
+          fi
       - name: Build the production portal
         run: |
           yarn --cwd packages build:ui-core
           yarn --cwd packages build:ui-essentials
-          yarn --cwd packages build:voting-portal
+          yarn --cwd packages build:${{ matrix.package }}
       - name: Run mocked service journeys in Chromium
-        run: yarn --cwd packages/voting-portal test:journeys
+        run: yarn --cwd packages/${{ matrix.package }} test:journeys
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: voting-production-journeys
+          name: ${{ matrix.package }}-production-journeys
           path: |
-            packages/voting-portal/test-results
+            packages/${{ matrix.package }}/test-results
             packages/ui-test-kit/test-results
           if-no-files-found: error
