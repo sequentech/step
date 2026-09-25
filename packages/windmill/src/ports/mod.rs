@@ -7,3 +7,4 @@
 //! Production implementations live in `crate::adapters`.
 
 pub mod clock;
+pub mod keys_ceremony;
