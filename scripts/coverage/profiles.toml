@@ -202,13 +202,28 @@ LOW_SQL_LIMIT = "1000"
 DEFAULT_SQL_LIMIT = "20"
 DEFAULT_SQL_BATCH_SIZE = "1000"
 
+[profiles.windmill.excluded_files]
+"src/services/ceremonies/keys_ceremony_tests.rs" = "Standalone unit-test module under cfg(test); the keys ceremony use cases remain measured."
+"src/services/ceremonies/tally_ceremony_creation_tests.rs" = "Standalone unit-test module under cfg(test); the tally creation use case remains measured."
+"src/services/ceremonies/tally_ceremony_state_tests.rs" = "Standalone unit-test module under cfg(test); the tally ceremony use case remains measured."
+"src/services/external/datafix_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the Datafix vote use case remains measured."
+"src/services/insert_cast_vote_database_tests.rs" = "Standalone PostgreSQL test module under cfg(test); the cast-vote service and its queries remain measured."
+"src/services/insert_cast_vote_tests.rs" = "Standalone unit-test module under cfg(test); the cast-vote service remains measured."
+"src/services/results_publication_lifecycle_tests.rs" = "Standalone results publication lifecycle test module; no production code."
+
 [profiles.windmill.scope_exceptions]
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
 "src/adapters/mod.rs" = "Module declarations only; the adapters remain in the source inventory."
 "src/domain/mod.rs" = "Module declarations only; the domain rules remain in the source inventory."
 "src/lib.rs" = "Module declarations and a test allocator static; no handwritten executable function bodies."
 "src/ports/clock.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/datafix_cast_vote.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/keys_ceremony.rs" = "Trait declarations only; their implementations are measured in src/adapters."
 "src/ports/mod.rs" = "Module declarations only; the port traits carry no executable code."
+"src/ports/publication_files.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/results_publication.rs" = "Trait declarations only; their implementations are measured in src/adapters."
+"src/ports/results_publication_lifecycle.rs" = "Trait declarations for results publication lifecycle ports."
+"src/ports/tally_ceremony.rs" = "Trait, plain struct and type alias declarations only; the trait implementations are measured in src/adapters."
 "src/postgres/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ballot_styles/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
 "src/services/ceremonies/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
@@ -244,6 +259,9 @@ limitations = [
     "Existing inline unit tests contribute to LLVM source counters; this aggregate is not production-only coverage.",
 ]
 issue = "https://github.com/sequentech/meta/issues/13302"
+
+[profiles.step-cli.excluded_files]
+"src/load/tests.rs" = "Standalone unit-test module under cfg(test); the load command modules remain measured."
 
 [profiles.step-cli.scope_exceptions]
 "src/commands/mod.rs" = "Module declarations and re-exports only; their implementations remain in the source inventory."
