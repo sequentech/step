@@ -122,7 +122,7 @@ fi
 
 phase "Running the journeys"
 set +e
-compose run --rm --no-deps driver test "${pattern[@]}"
+compose run --rm --no-deps driver test ${pattern[@]+"${pattern[@]}"}
 status=$?
 set -e
 phase "Finished with status $status; logs in $OUTPUT"
