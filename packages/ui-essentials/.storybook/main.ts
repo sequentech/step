@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
 import {fileURLToPath} from "node:url"
+import {resolve} from "node:path"
 import {mergeConfig} from "vite"
 
 const sourceEntry = (workspace: string) =>
@@ -36,6 +37,14 @@ const config: StorybookConfig = {
                 dedupe: ["react", "react-dom"],
                 // Exact match: only the package entry moves to its source.
                 alias: [
+                    {
+                        find: /^@\//,
+                        replacement: `${resolve(viteConfig.root ?? process.cwd(), "src")}/`,
+                    },
+                    {
+                        find: /^@root\//,
+                        replacement: `${resolve(viteConfig.root ?? process.cwd(), "src")}/`,
+                    },
                     {find: /^@sequentech\/ui-core$/, replacement: sourceEntry("ui-core")},
                     {
                         find: /^@sequentech\/ui-essentials$/,
