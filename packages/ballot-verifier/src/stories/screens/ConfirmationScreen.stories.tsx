@@ -6,9 +6,12 @@ import {expect, userEvent, within} from "storybook/test"
 import {initCore, type IContest, type IDecodedVoteContest} from "@sequentech/ui-core"
 import {ConfirmationScreen} from "../../screens/ConfirmationScreen"
 import type {IConfirmationBallot} from "../../services/BallotService"
+import {TenantEventProvider} from "../../providers/TenantEventContext"
 
 const hash = "ab".repeat(32)
 const scope = {tenant_id: "tenant", election_event_id: "event", election_id: "election"}
+const eventPath = "/tenant/tenant/event/event"
+const importStep = new RegExp(`^${eventPath}/start$`)
 const contest = (id: string, name: string, candidate: string): IContest => ({
     ...scope,
     id,
@@ -45,8 +48,19 @@ const meta = {
     args: {confirmationBallot: confirmation(), ballotId: hash},
     parameters: {
         backgrounds: {default: "white"},
-        router: {path: "/confirmation", initialEntries: ["/confirmation"]},
+        router: {
+            path: "/tenant/:tenantId/event/:eventId/confirmation",
+            initialEntries: [`${eventPath}/confirmation`],
+        },
     },
+    // App provides the route's tenant and event to every screen.
+    decorators: [
+        (Story) => (
+            <TenantEventProvider tenantId="tenant" eventId="event">
+                <Story />
+            </TenantEventProvider>
+        ),
+    ],
     loaders: [
         async () => {
             await initCore()
@@ -118,14 +132,14 @@ export const BackToImport: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(canvas.getByRole("link", {name: "Back"}))
-        await expect(canvas.getByLabelText("Current location")).toHaveTextContent(/^\/$/)
+        await expect(canvas.getByLabelText("Current location")).toHaveTextContent(importStep)
     },
 }
 export const Loading: Story = {
     args: {confirmationBallot: null},
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByLabelText("Current location")).toHaveTextContent(
-            /^\/$/
+            importStep
         )
     },
 }

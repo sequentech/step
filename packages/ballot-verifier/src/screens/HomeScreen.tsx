@@ -191,8 +191,9 @@ export const HomeScreen: React.FC<IProps> = ({
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
 
+        // sequent-core also rejects a signature without its public key, and the reverse.
         if (
-            auditableBallot?.voter_ballot_signature !== undefined &&
+            auditableBallot?.voter_ballot_signature !== undefined ||
             auditableBallot?.voter_signing_pk !== undefined
         ) {
             try {
