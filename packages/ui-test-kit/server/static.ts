@@ -44,7 +44,11 @@ export async function serveDist(directory: string) {
                 return
             }
             // Only navigations fall back to the SPA. Missing assets must remain failures.
-            if (request.headers.accept?.includes("text/html")) file = resolve(root, "index.html")
+            if (
+                request.headers["sec-fetch-mode"] === "navigate" &&
+                request.headers.accept?.includes("text/html")
+            )
+                file = resolve(root, "index.html")
             const canonical = await realpath(file)
             if (!canonical.startsWith(root + sep)) {
                 response.writeHead(403).end()

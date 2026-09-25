@@ -362,24 +362,46 @@ test("S3 delivers exact bytes, HEAD metadata, expiring URL overrides and detects
     expect(violations.list()).toHaveLength(1)
 })
 
-test("production server owns an ephemeral port and never returns HTML for missing assets", async () => {
+test("production server limits SPA fallback to document navigations", async ({
+    page,
+    request: api,
+}) => {
     const directory = await mkdtemp(join(tmpdir(), "ui-kit-"))
     await writeFile(join(directory, "index.html"), "<main>Portal</main>")
     await writeFile(join(directory, "asset.js"), "export const value = 7")
     const server = await serveDist(directory)
     try {
+        const navigationHeaders = {"accept": "text/html", "sec-fetch-mode": "navigate"}
         expect(
             await (
-                await fetch(`${server.origin}/tenant/event`, {headers: {accept: "text/html"}})
+                await api.get(`${server.origin}/tenant/event`, {headers: navigationHeaders})
             ).text()
         ).toBe("<main>Portal</main>")
         expect(
-            await (await fetch(`${server.origin}/`, {headers: {accept: "text/html"}})).text()
+            await (await api.get(`${server.origin}/`, {headers: navigationHeaders})).text()
         ).toBe("<main>Portal</main>")
+        expect((await page.goto(`${server.origin}/tenant/event`))?.status()).toBe(200)
+        await expect(page.getByRole("main")).toHaveText("Portal")
         expect(await (await fetch(`${server.origin}/asset.js`)).text()).toBe(
             "export const value = 7"
         )
+        const htmlFetch = {headers: {accept: "text/html"}}
+        const asset = await fetch(`${server.origin}/asset.js`, htmlFetch)
+        expect.soft(asset.headers.get("content-type")).toBe("text/javascript")
+        expect.soft(await asset.text()).toBe("export const value = 7")
+        for (const path of ["/tenant/event", "/missing.js", "/api/missing"])
+            expect.soft((await fetch(`${server.origin}${path}`, htmlFetch)).status).toBe(404)
+        expect(
+            await page.evaluate(async () => {
+                const response = await fetch("/missing.js", {headers: {Accept: "text/html"}})
+                return response.status
+            })
+        ).toBe(404)
         expect((await fetch(`${server.origin}/missing.js`)).status).toBe(404)
+        const head = await fetch(`${server.origin}/asset.js`, {method: "HEAD"})
+        expect(head.status).toBe(200)
+        expect(head.headers.get("content-type")).toBe("text/javascript")
+        expect(await head.text()).toBe("")
         expect((await fetch(`${server.origin}/asset.js`, {method: "POST"})).status).toBe(405)
     } finally {
         await server.close()
