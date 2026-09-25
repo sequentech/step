@@ -131,6 +131,25 @@ test("OIDC authorization codes cannot be replayed", () => {
     expect(fixture.violations.list()[0]).toContain("already used")
 })
 
+test("OIDC authorization codes expire at the exact deadline", () => {
+    const valid = oidcFixture()
+    const validCode = valid.authorize()
+    valid.advance(59999)
+    expect(valid.token(validCode).status).toBe(200)
+    expect(valid.violations.list()).toEqual([])
+
+    const expired = oidcFixture()
+    const expiredCode = expired.authorize()
+    expired.advance(60000)
+    const response = expired.token(expiredCode)
+    expect(response.status).toBe(400)
+    expect(bodyOf(response)).toMatchObject({error: "invalid_grant"})
+    expect(expired.oidc.tokenRequests[0].issued).toBeUndefined()
+    expect(expired.violations.list()).toEqual([
+        "Rejected authorization_code token request: code already used or expired",
+    ])
+})
+
 test("OIDC refresh token cannot cross realms", () => {
     const fixture = oidcFixture()
     const tokens = bodyOf(fixture.token(fixture.authorize()))
@@ -205,6 +224,25 @@ test("GraphQL infers a sole operation and rejects ambiguous or unknown names", a
     expect(fixture.graphql.calls).toHaveLength(2)
     expect(fixture.violations.list()).toHaveLength(2)
 })
+
+for (const variables of [[], "invalid", 42, true]) {
+    test(`GraphQL rejects non-object variables ${JSON.stringify(variables)}`, async () => {
+        const fixture = graphqlFixture()
+        const query = 'query Greeting($name: String = "Voter") { greeting(name: $name) }'
+        fixture.graphql.on("Greeting", () => ({data: {greeting: "Hello Voter"}}))
+        for (const valid of [{}, null, undefined]) {
+            const response = (await fixture.graphql.handle(
+                request("/v1/graphql", "POST", JSON.stringify({query, variables: valid}))
+            )) as MockFulfillment
+            expect(bodyOf(response)).toEqual({data: {greeting: "Hello Voter"}})
+        }
+        const response = (await fixture.send(query, variables)) as MockFulfillment
+        expect(response.status).toBe(400)
+        expect(bodyOf(response)).toHaveProperty("errors")
+        expect(fixture.graphql.calls).toHaveLength(3)
+        expect(fixture.violations.list()).toEqual(["GraphQL variables must be an object"])
+    })
+}
 
 for (const [name, query, variables] of [
     ["unknown field", "query Greeting { unknown }", {}],

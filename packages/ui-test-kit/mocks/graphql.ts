@@ -110,7 +110,11 @@ export class GraphQLMock {
             return json(400, {errors: [{message: "Missing query"}]})
         }
         let operationName = typeof body.operationName === "string" ? body.operationName : ""
-        const variables = isRecord(body.variables) ? body.variables : {}
+        if (body.variables != null && !isRecord(body.variables)) {
+            this.violations.add("GraphQL variables must be an object")
+            return json(400, {errors: [{message: "Variables must be an object"}]})
+        }
+        const variables = body.variables ?? {}
         let document: DocumentNode
         try {
             document = parse(body.query)
