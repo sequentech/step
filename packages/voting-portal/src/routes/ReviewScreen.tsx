@@ -743,7 +743,7 @@ export const ReviewScreen: React.FC = () => {
 
     // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
-        if (castingRef.current) {
+        if (castingRef.current || hasInconsistentHash) {
             return
         }
         setCasting(true)

@@ -666,3 +666,58 @@ it("keeps the integrity guard active with an empty custom error translation", ()
     expect(mockInsertCastVote).not.toHaveBeenCalled()
     expect(mockReauthWithGold).not.toHaveBeenCalled()
 })
+
+it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+])(
+    "blocks an inconsistent automatic gold cast: demo=%s, empty translation=%s",
+    async (isDemo, emptyTranslation) => {
+        mockDisableAuth = false
+        mockIsGoldUser = true
+        mockState.elections["election-1"]!.presentation!.cast_vote_gold_level =
+            ECastVoteGoldLevelPolicy.GOLD_LEVEL
+        // Match the supported partial-state reauthentication path: the ballot
+        // is still available for integrity checking, but selections are absent.
+        mockState = {...mockState, ballotSelections: {}}
+        const storeBallot = () => {
+            const ballotData: SessionBallotData = {
+                ballotId: BALLOT_ID,
+                electionId: "election-1",
+                isDemo,
+                ballot: "{}",
+            }
+            sessionStorage.setItem(BALLOT_DATA_KEY, JSON.stringify(ballotData))
+            sessionStorage.setItem(BALLOT_DATA_EXPIRATION_KEY, String(Date.now() + 60_000))
+        }
+        storeBallot()
+        const valid = renderRoute(<ReviewScreen />, "review")
+        await waitFor(() => expect(routeAction).toHaveBeenCalledTimes(1))
+        expect(mockInsertCastVote).toHaveBeenCalledTimes(isDemo ? 0 : 1)
+        expect(mockDispatch).toHaveBeenCalledWith(
+            expect.objectContaining({type: "castVotes/addCastVotes"})
+        )
+        valid.unmount()
+        jest.clearAllMocks()
+
+        storeBallot()
+        mockEmptyHashTranslation = emptyTranslation
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        const invalid = renderRoute(<ReviewScreen />, "review")
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(mockDispatch).not.toHaveBeenCalledWith(
+            expect.objectContaining({type: "castVotes/addCastVotes"})
+        )
+        expect(routeAction).not.toHaveBeenCalled()
+        expect(mockReauthWithGold).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", {name: "reviewScreen.castBallotButton"})).toBeDisabled()
+        if (!emptyTranslation)
+            expect(screen.getByRole("alert")).toHaveTextContent(
+                "reviewScreen.error.INCONSISTENT_HASH"
+            )
+        await userEvent.setup().click(screen.getByRole("link", {name: "reviewScreen.backButton"}))
+        expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    }
+)
