@@ -63,6 +63,9 @@ jobs:
       - name: Build the Storybook catalog
         working-directory: packages/${{ matrix.package }}
         run: yarn build-storybook --quiet
+      - name: Summarize stories and Istanbul coverage
+        if: ${{ !cancelled() }}
+        run: node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts stories packages/${{ matrix.package }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -111,7 +114,12 @@ jobs:
             yarn --cwd packages build:voting-portal
           fi
       - name: Run mocked service journeys in Chromium
+        env:
+          STEP_UI_JOURNEY_COVERAGE: "1"
         run: yarn --cwd packages/${{ matrix.package }} test:journeys
+      - name: Summarize journeys and V8 coverage
+        if: ${{ !cancelled() }}
+        run: node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/${{ matrix.package }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

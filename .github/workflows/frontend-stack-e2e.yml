@@ -71,6 +71,9 @@ jobs:
       - name: Restore ownership for cache upload
         if: always()
         run: sudo chown -R "$(id -u):$(id -g)" .cache/backend-e2e
+      - name: Summarize browser journeys
+        if: ${{ !cancelled() }}
+        run: node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts results "$STEP_E2E_OUTPUT_DIR/ui-journeys.xml" "Real-stack UI journeys"
       - name: Upload traces, screenshots, reports and service logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
