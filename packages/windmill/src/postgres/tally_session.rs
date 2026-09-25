@@ -473,7 +473,7 @@ pub async fn set_post_tally_task_completed(
             UPDATE
                 sequent_backend.tally_session
             SET
-                annotations = annotations || '{"is_post_task_completed": true}'
+                annotations = COALESCE(annotations, '{}'::jsonb) || '{"is_post_task_completed": true}'
             WHERE
                 id = $1 AND
                 tenant_id = $2 AND
@@ -513,7 +513,7 @@ pub async fn set_tally_session_completed(
             SET
                 execution_status = $1,
                 is_execution_completed = TRUE,
-                annotations = annotations || '{"is_post_task_completed": false}'
+                annotations = COALESCE(annotations, '{}'::jsonb) || '{"is_post_task_completed": false}'
             WHERE
                 id = $2 AND
                 tenant_id = $3 AND

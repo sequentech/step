@@ -1442,9 +1442,7 @@ async fn set_post_tally_task_completed_adds_the_flag_to_existing_annotations() {
 }
 
 #[tokio::test]
-async fn set_post_tally_task_completed_leaves_null_annotations_null() {
-    // `NULL || jsonb` is NULL, so a session without annotations never records
-    // the flag.
+async fn set_post_tally_task_completed_initializes_missing_annotations() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1456,7 +1454,7 @@ async fn set_post_tally_task_completed_leaves_null_annotations_null() {
 
     assert_eq!(
         stored(&tx, "tally_session", &w.id(10)).await["annotations"],
-        Value::Null
+        json!({"is_post_task_completed": true})
     );
     tx.rollback().await.unwrap();
 }
@@ -1512,9 +1510,7 @@ async fn set_tally_session_completed_records_completion_and_a_pending_post_task(
 }
 
 #[tokio::test]
-async fn set_tally_session_completed_without_annotations_leaves_no_pending_post_task() {
-    // `NULL || jsonb` is NULL: the completed session is never listed as
-    // awaiting its post-tally task.
+async fn set_tally_session_completed_without_annotations_queues_the_post_task() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1533,14 +1529,20 @@ async fn set_tally_session_completed_without_annotations_leaves_no_pending_post_
     let row = stored(&tx, "tally_session", &w.id(10)).await;
     assert_eq!(
         (&row["is_execution_completed"], &row["annotations"]),
-        (&json!(true), &Value::Null)
+        (&json!(true), &json!({"is_post_task_completed": false}))
     );
     let pending = tally_session::get_tally_session_by_election_event_id_pending_post_tally_task(
         &tx, &w.tenant, &w.event,
     )
     .await
     .unwrap();
-    assert!(pending.is_empty());
+    assert_eq!(
+        pending
+            .into_iter()
+            .map(|session| session.id)
+            .collect::<Vec<_>>(),
+        [w.id(10)]
+    );
     tx.rollback().await.unwrap();
 }
 

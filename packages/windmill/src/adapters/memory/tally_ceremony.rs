@@ -426,7 +426,11 @@ impl TallySessions for InMemoryTallyCeremony {
         state.update_session(tenant_id, election_event_id, tally_session_id, |session| {
             session.execution_status = Some(execution_status.to_string());
             session.is_execution_completed = true;
-            session.annotations = session.annotations.take().map(|annotations| {
+            let annotations = session
+                .annotations
+                .take()
+                .unwrap_or_else(|| serde_json::json!({}));
+            session.annotations = Some({
                 let pending = serde_json::json!({"is_post_task_completed": false});
                 match annotations {
                     serde_json::Value::Object(mut object) => {
