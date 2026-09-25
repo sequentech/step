@@ -632,7 +632,7 @@ async fn insert_new_scheduled_event_accepts_a_schedule_without_tenant_or_event()
 }
 
 #[tokio::test]
-async fn find_all_active_events_returns_every_unstopped_schedule_of_any_tenant() {
+async fn find_all_active_events_excludes_stopped_and_archived_schedules() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -654,8 +654,6 @@ async fn find_all_active_events_returns_every_unstopped_schedule_of_any_tenant()
         &format!("stopped_at = '{H10}'"),
     )
     .await;
-    // Archiving normally stops a schedule too; one archived but never stopped
-    // is still active here.
     schedule_row(&tx, Some(&w.tenant), Some(&w.event), &w.id(14), "task-14").await;
     set(
         &tx,
@@ -674,7 +672,7 @@ async fn find_all_active_events_returns_every_unstopped_schedule_of_any_tenant()
                 .filter(|schedule| w.owns(&schedule.id))
                 .collect()
         ),
-        [w.id(10), w.id(11), w.id(12), w.id(14)]
+        [w.id(10), w.id(11), w.id(12)]
     );
     tx.rollback().await.unwrap();
 }
@@ -1005,7 +1003,7 @@ async fn archive_scheduled_event_stops_and_archives_only_the_target_schedule() {
 }
 
 #[tokio::test]
-async fn archive_scheduled_event_overwrites_an_earlier_stop_time() {
+async fn archive_scheduled_event_preserves_an_earlier_stop_time() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1025,7 +1023,7 @@ async fn archive_scheduled_event_overwrites_an_earlier_stop_time() {
     let started = now(&tx).await;
     assert_eq!(
         schedule_times(&tx, &w.id(10)).await,
-        (Some(started), Some(started))
+        (Some(utc(H10)), Some(started))
     );
     tx.rollback().await.unwrap();
 }
