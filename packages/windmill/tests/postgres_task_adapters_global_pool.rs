@@ -25,11 +25,13 @@ use tokio::sync::OnceCell;
 use windmill::postgres::{maintenance, tasks_execution};
 use windmill::services::database::{get_hasura_pool, get_keycloak_pool};
 
-static FIXTURE: OnceCell<&'static Pool> = OnceCell::const_new();
+static FIXTURE: OnceCell<Pool> = OnceCell::const_new();
 
-/// One runtime for every test. Pooled connections are driven by the runtime
-/// that opened them, and these pools hand a connection to whichever test asks
-/// next, so a runtime per test would close connections other tests still use.
+/// One runtime for every test, because Windmill's process-wide pools
+/// (`get_hasura_pool`, `get_keycloak_pool`) outlive any one test: a pooled
+/// connection is driven by the runtime that opened it, so with a runtime per
+/// test it would close when the test that opened it ended, under whichever
+/// test was using it by then.
 static RUNTIME: LazyLock<Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -63,10 +65,10 @@ fn pool_settings() -> Vec<(String, OsString)> {
 /// Every test calls this first, so no test reads the environment while it is
 /// being changed.
 async fn fixture() -> &'static Pool {
-    *FIXTURE
+    FIXTURE
         .get_or_init(|| async {
             let pool = schema::pool().await;
-            let database = current_database(pool).await;
+            let database = current_database(&pool).await;
             let saved = pool_settings();
             // Both pools get the fixture's server settings and database.
             for (key, _) in &saved {
