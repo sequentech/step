@@ -96,6 +96,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 })
 
                 if (!data?.get_upload_url?.url) {
+                    setIsUploading(false)
                     notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
                     return
                 }
