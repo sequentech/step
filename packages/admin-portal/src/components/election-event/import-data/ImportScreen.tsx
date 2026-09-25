@@ -70,13 +70,16 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         }, [passwordDialogOpen, passwordInputRef.current])
 
         const uploadFile = async (url: string, file: File) => {
-            await fetch(url, {
+            const response = await fetch(url, {
                 method: "PUT",
                 headers: {
                     "Content-Type": file.type,
                 },
                 body: file,
             })
+            if (!response.ok) {
+                throw new Error("File upload failed")
+            }
             setIsUploading(false)
         }
 
