@@ -116,7 +116,7 @@ fn processor() -> TestProcessor {
         election_events: InMemoryDatafixElectionEvents::default(),
         voters: InMemoryDatafixVoterDirectory::default(),
         voter_view: InMemoryVoterView::default(),
-        locks: InMemoryDatafixVoterLocks::default(),
+        locks: InMemoryDatafixVoterLocks::at(now()),
         audit: InMemoryDatafixAudit::default(),
         clock: FixedClock::at(now()),
         ids: SequentialIds::default(),
@@ -302,6 +302,35 @@ async fn the_voter_lock_is_taken_per_event_voter_for_300_seconds_and_released() 
         }]
     );
     assert_eq!(processor.locks.holder(&lock_key()), None);
+}
+
+#[tokio::test]
+async fn the_lease_after_keycloak_lookup_expires_300_seconds_after_renewal() {
+    let mut processor = processor();
+    processor.locks = InMemoryDatafixVoterLocks::at(now() + Duration::seconds(90));
+    processor.voters.insert(&realm(), voter(Some(false), None));
+
+    process(&processor).await.unwrap();
+
+    assert_eq!(status(&processor), Some(CastVoteStatus::Discarded));
+    assert_eq!(
+        processor.locks.released()[0].expiry_date,
+        now() + Duration::seconds(390)
+    );
+}
+
+#[tokio::test]
+async fn the_lease_before_set_voted_expires_300_seconds_after_renewal() {
+    let mut processor = processor();
+    processor.locks = InMemoryDatafixVoterLocks::at(now() + Duration::seconds(90));
+
+    process(&processor).await.unwrap();
+
+    assert_eq!(processor.voter_view.sent(), vec![USERNAME]);
+    assert_eq!(
+        processor.locks.released()[0].expiry_date,
+        now() + Duration::seconds(390)
+    );
 }
 
 #[tokio::test]

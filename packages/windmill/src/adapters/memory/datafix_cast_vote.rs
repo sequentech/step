@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::adapters::memory::clock::FixedClock;
+use crate::ports::clock::Clock;
 use crate::ports::datafix_cast_vote::{
     DatafixAudit, DatafixElectionEvents, DatafixVoterDirectory, DatafixVoterLocks, DatafixVotes,
     PreparedSetVoted, VoterView,
@@ -10,7 +12,7 @@ use crate::services::cast_votes::{CastVote, CastVoteStatus};
 use crate::services::external::datafix_types::{SoapRequestResponse, SoapRequestResult};
 use crate::services::external::voterview_requests::SoapSendError;
 use anyhow::anyhow;
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Duration, Local};
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::keycloak::User;
 use std::collections::HashMap;
@@ -367,7 +369,9 @@ pub struct LockAcquisition {
 #[derive(Default)]
 struct LocksState {
     holders: HashMap<String, String>,
+    expiries: HashMap<String, DateTime<Local>>,
     acquisitions: Vec<LockAcquisition>,
+    released: Vec<LockAcquisition>,
     renewals: usize,
     lost_before_renewal: Option<usize>,
     release_failure: Option<String>,
@@ -375,8 +379,10 @@ struct LocksState {
 
 /// Datafix voter locks by key. As with `PgLock`, only the holder that took a
 /// lock renews or releases it.
-#[derive(Default)]
-pub struct InMemoryDatafixVoterLocks(Mutex<LocksState>);
+pub struct InMemoryDatafixVoterLocks {
+    state: Mutex<LocksState>,
+    clock: FixedClock,
+}
 
 pub struct InMemoryVoterLock {
     key: String,
@@ -384,8 +390,15 @@ pub struct InMemoryVoterLock {
 }
 
 impl InMemoryDatafixVoterLocks {
+    pub fn at(now: DateTime<Local>) -> Self {
+        Self {
+            state: Mutex::new(LocksState::default()),
+            clock: FixedClock::at(now),
+        }
+    }
+
     fn state(&self) -> MutexGuard<'_, LocksState> {
-        self.0.lock().expect("voter locks lock")
+        self.state.lock().expect("voter locks lock")
     }
 
     pub fn hold_for_another_operation(&self, key: &str) {
@@ -402,6 +415,11 @@ impl InMemoryDatafixVoterLocks {
     /// Every lock taken, including the released ones.
     pub fn acquisitions(&self) -> Vec<LockAcquisition> {
         self.state().acquisitions.clone()
+    }
+
+    /// The lease stored when its holder released it.
+    pub fn released(&self) -> Vec<LockAcquisition> {
+        self.state().released.clone()
     }
 
     /// Another operation takes the lock over right before renewal `number`,
@@ -433,6 +451,7 @@ impl DatafixVoterLocks for InMemoryDatafixVoterLocks {
             return Err(anyhow::Error::msg(LOCK_HELD_ELSEWHERE));
         }
         state.holders.insert(key.clone(), value.clone());
+        state.expiries.insert(key.clone(), expiry_date);
         state.acquisitions.push(LockAcquisition {
             key: key.clone(),
             value: value.clone(),
@@ -441,7 +460,7 @@ impl DatafixVoterLocks for InMemoryDatafixVoterLocks {
         Ok(InMemoryVoterLock { key, value })
     }
 
-    async fn extend(&self, lock: &InMemoryVoterLock, _seconds: i64) -> anyhow::Result<()> {
+    async fn extend(&self, lock: &InMemoryVoterLock, seconds: i64) -> anyhow::Result<()> {
         let mut state = self.state();
         state.renewals += 1;
         if state.lost_before_renewal == Some(state.renewals) {
@@ -450,6 +469,10 @@ impl DatafixVoterLocks for InMemoryDatafixVoterLocks {
                 .insert(lock.key.clone(), ANOTHER_OPERATION.to_string());
         }
         if state.holders.get(&lock.key) == Some(&lock.value) {
+            state.expiries.insert(
+                lock.key.clone(),
+                self.clock.now() + Duration::seconds(seconds),
+            );
             Ok(())
         } else {
             Err(anyhow::Error::msg(LOCK_HELD_ELSEWHERE))
@@ -461,6 +484,15 @@ impl DatafixVoterLocks for InMemoryDatafixVoterLocks {
         fail_if_set(&state.release_failure)?;
         if state.holders.get(&lock.key) == Some(&lock.value) {
             state.holders.remove(&lock.key);
+            let expiry_date = state
+                .expiries
+                .remove(&lock.key)
+                .expect("owned lease expiry");
+            state.released.push(LockAcquisition {
+                key: lock.key,
+                value: lock.value,
+                expiry_date,
+            });
         }
         Ok(())
     }
