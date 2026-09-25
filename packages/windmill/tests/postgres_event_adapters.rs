@@ -334,6 +334,34 @@ impl<'t, 'c> Fixture<'t, 'c> {
         )
         .await;
     }
+
+    /// A tally session with a pending recount resolution for one contest.
+    async fn tally_session_resolution(&self, scope: Scope) {
+        let election = self.election(scope).await;
+        let contest = self.contest(scope, election).await;
+        let (ceremony, session) = (self.id(), self.id());
+        self.execute(
+            "INSERT INTO sequent_backend.keys_ceremony
+                 (id, tenant_id, election_event_id, trustee_ids, threshold)
+             VALUES ($1, $2, $3, '{}', 1)",
+            &[&ceremony, &scope.tenant, &scope.event],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_session
+                 (id, tenant_id, election_event_id, keys_ceremony_id, threshold)
+             VALUES ($1, $2, $3, $4, 1)",
+            &[&session, &scope.tenant, &scope.event, &ceremony],
+        )
+        .await;
+        self.execute(
+            "INSERT INTO sequent_backend.tally_session_resolution
+                 (tenant_id, election_event_id, tally_session_id, contest_id, resolution_type)
+             VALUES ($1, $2, $3, $4, 'manual_recount')",
+            &[&scope.tenant, &scope.event, &session, &contest],
+        )
+        .await;
+    }
 }
 
 const POPULATED_TABLES: [&str; 13] = [
@@ -1316,6 +1344,33 @@ async fn delete_election_event_removes_the_events_tally_sheet_imports() {
             ("document", 1),
         ]
     );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn delete_election_event_removes_the_events_tally_session_resolutions() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let sibling = f.event_in(a.tenant).await;
+    f.tally_session_resolution(a).await;
+    f.tally_session_resolution(sibling).await;
+
+    election_event::delete_election_event(&tx, &a.tenant_id(), &a.event_id())
+        .await
+        .unwrap();
+
+    let tables = ["tally_session_resolution", "tally_session", "keys_ceremony"];
+    assert!(!event_exists(&tx, a.event).await);
+    assert!(row_counts(&tx, a, &tables)
+        .await
+        .iter()
+        .all(|(_, count)| *count == 0));
+    assert!(row_counts(&tx, sibling, &tables)
+        .await
+        .iter()
+        .all(|(_, count)| *count == 1));
     tx.rollback().await.unwrap();
 }
 
