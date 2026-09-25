@@ -23,6 +23,8 @@ if args[0] != "compose":
     if mode == "daemon-failure":
         sys.exit(125)
     if args[0] == "run":
+        if mode == "build-failure":
+            sys.exit(101)
         # Emulate the build container's install(1): each file in /out becomes a
         # new inode that a concurrent reader can observe half-written.
         mounts = [args[i + 1] for i, arg in enumerate(args) if arg == "--volume"]
@@ -52,6 +54,8 @@ if "up" in args and mode == "held-start":
     Path(os.environ["FAKE_START_MARKER"]).touch()
     while not Path(os.environ["FAKE_RELEASE_MARKER"]).exists():
         time.sleep(0.01)
+if "build" in args and mode == "image-failure":
+    sys.exit(17)
 if "up" in args and mode == "partial-start":
     sys.exit(19)
 """
@@ -67,6 +71,7 @@ class RunSafety(unittest.TestCase):
         shutil.copyfile(ROOT / "scripts/e2e/run.sh", script)
         script.chmod(0o755)
         shutil.copyfile(ROOT / "scripts/e2e/build.sh", script.parent / "build.sh")
+        (script.parent / "build.sh").chmod(0o755)
         shutil.copyfile(
             ROOT / "scripts/e2e/project_lock.py", script.parent / "project_lock.py"
         )
@@ -385,6 +390,37 @@ class RunSafety(unittest.TestCase):
             "--skip-images", "--skip-build", STEP_E2E_PROJECT=project
         )
         self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_ci_uploads_results_only_for_runs_that_reached_compose_up(self):
+        marker = ".compose-started"
+        workflow = (ROOT / ".github/workflows/backend-e2e.yml").read_text()
+        upload = workflow[workflow.index("name: Upload journey results") :]
+        self.assertIn(f"hashFiles('.cache/backend-e2e/run/{marker}') != ''", upload)
+        # Excluded, so a started run without any results still fails the upload.
+        self.assertIn(f"!.cache/backend-e2e/run/{marker}", upload)
+        self.assertIn("if-no-files-found: error", upload)
+        output = self.root / "results"
+        for mode, arguments, status in (
+            ("daemon-failure", ("--skip-images", "--skip-build"), 125),
+            ("image-failure", ("--skip-build",), 17),
+            ("build-failure", ("--skip-images",), 101),
+            ("partial-start", ("--skip-images", "--skip-build"), 19),
+            ("success", ("--skip-images", "--skip-build"), 0),
+        ):
+            with self.subTest(mode=mode):
+                output.mkdir(exist_ok=True)
+                (output / marker).write_text("left by an earlier run\n")
+                result = self.run_script(
+                    *arguments,
+                    STEP_E2E_PROJECT=mode,
+                    STEP_E2E_OUTPUT_DIR=str(output),
+                    FAKE_DOCKER_MODE=mode,
+                )
+                self.assertEqual(result.returncode, status, result.stderr)
+                if status in (0, 19):
+                    self.assertEqual((output / marker).read_text(), f"{mode}\n")
+                else:
+                    self.assertFalse((output / marker).exists())
 
     def test_keep_can_be_removed_by_an_explicit_down(self):
         result = self.run_script(
