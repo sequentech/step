@@ -188,12 +188,14 @@ interface LoadingOrCastButtonProps {
     onClick: () => void
     className?: string
     isCastingBallot: boolean
+    hasInconsistentHash: boolean
     isFullyAcclaimed: boolean
 }
 
 const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     onClick,
     isCastingBallot,
+    hasInconsistentHash,
     className,
     isFullyAcclaimed,
 }) => {
@@ -203,7 +205,7 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
         <StyledButton
             className={className}
             sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            disabled={isCastingBallot}
+            disabled={isCastingBallot || hasInconsistentHash}
             onClick={onClick}
         >
             <Box className="cast-ballot-label">
@@ -340,6 +342,7 @@ interface ActionButtonProps {
     isDeclineToVote: boolean
     isBlankBallot: boolean
     isFullyAcclaimed: boolean
+    hasInconsistentHash: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -354,6 +357,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isDeclineToVote,
     isBlankBallot,
     isFullyAcclaimed,
+    hasInconsistentHash,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -418,7 +422,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     const castBallotAction = async () => {
-        if (castingRef.current) {
+        if (castingRef.current || hasInconsistentHash) {
             return
         }
         // A fully acclaimed election produces no ballot, so there is nothing
@@ -528,6 +532,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <LoadingOrCastButton
                     className="cast-ballot-button"
                     isCastingBallot={isCasting}
+                    hasInconsistentHash={hasInconsistentHash}
                     isFullyAcclaimed={isFullyAcclaimed}
                     onClick={() =>
                         castVoteConfirmModal && !isFullyAcclaimed
@@ -989,6 +994,7 @@ export const ReviewScreen: React.FC = () => {
                     castVoteConfirmModal={castVoteConfirmModal}
                     ballotId={ballotId ?? ""}
                     setErrorMsg={setErrorMsg}
+                    hasInconsistentHash={Boolean(hashErrorMsg)}
                     isGoldenPolicy={isGoldenPolicy ?? false}
                     isMultiContest={isMultiContest}
                     isDeclineToVote={isDeclineToVote}

@@ -619,3 +619,32 @@ describe("review ballot hash integrity", () => {
         expect(mockInsertCastVote).not.toHaveBeenCalled()
     })
 })
+
+it.each([false, true])(
+    "blocks a mismatched ballot before casting or gold reauthentication: gold=%s",
+    async (gold) => {
+        mockDisableAuth = false
+        if (gold)
+            mockState.elections["election-1"]!.presentation!.cast_vote_gold_level =
+                ECastVoteGoldLevelPolicy.GOLD_LEVEL
+        const user = userEvent.setup()
+        const valid = renderRoute(<ReviewScreen />, "review")
+        await user.click(screen.getByRole("button", {name: "reviewScreen.castBallotButton"}))
+        await waitFor(() =>
+            expect(gold ? mockReauthWithGold : mockInsertCastVote).toHaveBeenCalledTimes(1)
+        )
+        valid.unmount()
+        jest.clearAllMocks()
+        sessionStorage.clear()
+        mockState.auditableBallots["election-1"]!.auditableBallot.ballot_hash = "f".repeat(64)
+        const invalid = renderRoute(<ReviewScreen />, "review")
+        const cast = screen.getByRole("button", {name: "reviewScreen.castBallotButton"})
+        fireEvent.click(cast)
+        expect(mockInsertCastVote).not.toHaveBeenCalled()
+        expect(mockReauthWithGold).not.toHaveBeenCalled()
+        expect(sessionStorage.getItem(BALLOT_DATA_KEY)).toBeNull()
+        expect(cast).toBeDisabled()
+        await user.click(screen.getByRole("link", {name: "reviewScreen.backButton"}))
+        expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
+    }
+)
