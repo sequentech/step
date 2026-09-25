@@ -68,3 +68,19 @@ unexpected requests fail teardown. Audit assertions decode downloaded ballots
 with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from `test-results/`. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.
+
+Results portal journeys use the same boundaries and export a real SQLite fixture
+with `sql.js`; the production browser reads it through its own WASM loader.
+After building the shared UI packages, run:
+
+```sh
+yarn --cwd packages build:results-portal
+yarn --cwd packages/results-portal test:types
+yarn --cwd packages/results-portal test:journeys
+```
+
+Fixtures live in `packages/results-portal/tests/fixtures/`, browser cases in
+`tests/journeys/`, and component interactions in `src/components/__stories__/`.
+Use literal expected counts and scoped publications. A rejected publication or
+artifact should settle without repeating authentication; include a valid control
+and assert that a route change uses the new event's token.
