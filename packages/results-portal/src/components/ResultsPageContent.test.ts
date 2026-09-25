@@ -35,18 +35,21 @@ describe("buildAreaElectionSummaries", () => {
         const summaries = buildAreaElectionSummaries(
             dataset([
                 {
+                    contest_id: "synthetic-contest-1",
                     election_id: "election-1",
                     area_id: "area-1",
                     elegible_census: 10,
                     total_votes: 4,
                 },
                 {
+                    contest_id: "synthetic-contest-2",
                     election_id: "election-1",
                     area_id: "area-1",
                     elegible_census: 10,
                     total_votes: 3,
                 },
                 {
+                    contest_id: "synthetic-contest-3",
                     election_id: "election-1",
                     area_id: "another-area",
                     elegible_census: 99,
@@ -68,6 +71,7 @@ describe("buildAreaElectionSummaries", () => {
         const summaries = buildAreaElectionSummaries(
             dataset([
                 {
+                    contest_id: "synthetic-contest-4",
                     election_id: "election-1",
                     area_id: "area-1",
                     elegible_census: 0,
@@ -87,12 +91,14 @@ describe("buildAreaElectionSummaries", () => {
         const summaries = buildAreaElectionSummaries(
             dataset([
                 {
+                    contest_id: "synthetic-contest-5",
                     election_id: "election-1",
                     area_id: "area-1",
                     elegible_census: 10,
                     total_votes: 4,
                 },
                 {
+                    contest_id: "synthetic-contest-6",
                     election_id: "election-1",
                     area_id: "area-1",
                     elegible_census: 5,
