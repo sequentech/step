@@ -31,8 +31,7 @@
     "graphql": "^16.8.1",
     "istanbul-lib-coverage": "^3.2.2",
     "sql.js": "^1.13.0",
-    "typescript": "^5.9.2",
-    "v8-to-istanbul": "^9.0.1"
+    "typescript": "^5.9.2"
   },
   "peerDependencies": {
     "@playwright/test": "1.62.1",
