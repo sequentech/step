@@ -214,3 +214,103 @@ it("reports an upload URL request failure without issuing a PUT", async () => {
     expect(callbacks.uploadCallback).not.toHaveBeenCalled()
     expect(screen.getByLabelText("electionEventScreen.import.sha")).toBeEnabled()
 })
+
+it.each([
+    [
+        "missing URL",
+        () =>
+            mockGetUploadUrl.mockResolvedValueOnce({
+                data: {get_upload_url: {document_id: "second-document"}},
+            }),
+    ],
+    ["HTTP 503", () => mockFetch.mockResolvedValueOnce({ok: false, status: 503})],
+    ["connection failure", () => mockFetch.mockRejectedValueOnce(new TypeError("connection lost"))],
+    [
+        "URL service failure",
+        () => mockGetUploadUrl.mockRejectedValueOnce(new Error("service unavailable")),
+    ],
+])(
+    "invalidates the previous uploaded document when a replacement fails with %s",
+    async (_reason, injectFailure) => {
+        const callbacks = renderImport()
+        const importButton = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+        fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
+            target: {value: CHECKSUM},
+        })
+        uploadFile()
+        await waitFor(() =>
+            expect(callbacks.uploadCallback).toHaveBeenCalledWith(DOCUMENT_ID, "", CHECKSUM)
+        )
+        expect(importButton).toBeEnabled()
+
+        const replacementChecksum = "23".repeat(32)
+        fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
+            target: {value: replacementChecksum},
+        })
+        injectFailure()
+        uploadFile()
+        await waitFor(() =>
+            expect(mockNotify).toHaveBeenCalledWith("electionEventScreen.import.fileUploadError", {
+                type: "error",
+            })
+        )
+        expect(importButton).toBeDisabled()
+        fireEvent.click(importButton)
+        expect(callbacks.doImport).not.toHaveBeenCalled()
+        expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1)
+        expect(screen.getByLabelText("electionEventScreen.import.sha")).toBeEnabled()
+
+        mockGetUploadUrl.mockResolvedValueOnce({
+            data: {get_upload_url: {url: UPLOAD_URL, document_id: "replacement-document"}},
+        })
+        uploadFile()
+        await waitFor(() =>
+            expect(callbacks.uploadCallback).toHaveBeenCalledWith(
+                "replacement-document",
+                "",
+                replacementChecksum
+            )
+        )
+        fireEvent.click(importButton)
+        await waitFor(() =>
+            expect(callbacks.doImport).toHaveBeenCalledWith(
+                "replacement-document",
+                replacementChecksum,
+                ""
+            )
+        )
+        expect(callbacks.doImport).toHaveBeenCalledTimes(1)
+    }
+)
+
+it("keeps import unavailable when the replacement upload callback fails", async () => {
+    const callbacks = renderImport()
+    uploadFile()
+    await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
+    const importButton = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+    expect(importButton).toBeEnabled()
+    callbacks.uploadCallback.mockRejectedValueOnce(new Error("invalid replacement document"))
+    uploadFile()
+    await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith("electionEventScreen.import.fileUploadError", {
+            type: "error",
+        })
+    )
+    expect(importButton).toBeDisabled()
+    expect(callbacks.doImport).not.toHaveBeenCalled()
+})
+
+it("invalidates a previous document as soon as a replacement encrypted file is selected", async () => {
+    const callbacks = renderImport()
+    uploadFile()
+    await waitFor(() => expect(callbacks.uploadCallback).toHaveBeenCalledTimes(1))
+    const importButton = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+    expect(importButton).toBeEnabled()
+    fireEvent.change(screen.getByLabelText("Import file"), {
+        target: {files: [new File(["encrypted"], "event.ezip")]},
+    })
+    expect(screen.getByRole("dialog")).toBeInTheDocument()
+    expect(importButton).toBeDisabled()
+    expect(mockGetUploadUrl).toHaveBeenCalledTimes(1)
+    expect(callbacks.doImport).not.toHaveBeenCalled()
+})
