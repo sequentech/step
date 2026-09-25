@@ -1,6 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::postgres::publication_files::{
+    get_election_event_status, get_publication_annotations, get_publication_elections,
+    get_publication_event, get_published_ballot_styles, merge_ballot_publication_annotation,
+    stream_publication_styles,
+};
 use anyhow::{bail, Context, Result};
 use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, Client};
 use deadpool_postgres::Transaction;
@@ -91,8 +96,7 @@ pub async fn prepare_publication_files(
     let tenant = Uuid::parse_str(tenant)?;
     let event = Uuid::parse_str(event)?;
     let publication = Uuid::parse_str(publication)?;
-    let row = tx.query_one("SELECT annotations FROM sequent_backend.ballot_publication WHERE tenant_id=$1 AND election_event_id=$2 AND id=$3", &[&tenant, &event, &publication]).await?;
-    let annotations: Option<Value> = row.get(0);
+    let annotations = get_publication_annotations(tx, tenant, event, publication).await?;
     if let Some(root) = annotations
         .as_ref()
         .and_then(|v| v.get(FILES_ANNOTATION))
@@ -108,35 +112,9 @@ pub async fn prepare_publication_files(
     );
     let bucket = get_private_bucket()?;
     let client = get_s3_client(get_s3_aws_config(true).await?).await?;
-    let mut event_data: Value = tx.query_one("SELECT jsonb_build_object('id', id, 'presentation', presentation, 'description', description) FROM sequent_backend.election_event WHERE tenant_id=$1 AND id=$2", &[&tenant,&event]).await?.get(0);
+    let mut event_data = get_publication_event(tx, tenant, event).await?;
 
-    let elections = tx
-        .query(
-            r#"
-            SELECT jsonb_build_object('id', id,
-                'tenant_id', tenant_id,
-                'election_event_id', election_event_id,
-                'annotations', annotations,
-                'created_at', created_at,
-                'description', description,
-                'is_consolidated_ballot_encoding', is_consolidated_ballot_encoding,
-                'labels', labels,
-                'last_updated_at', last_updated_at,
-                'presentation', presentation,
-                'spoil_ballot_option', spoil_ballot_option)
-            FROM sequent_backend.election
-            WHERE tenant_id=$1
-              AND election_event_id=$2
-              AND id = ANY(SELECT unnest(election_ids)
-            FROM sequent_backend.ballot_publication
-            WHERE id=$3
-              AND tenant_id=$1)
-        "#,
-            &[&tenant, &event, &publication],
-        )
-        .await?;
-    for row in elections {
-        let data: Value = row.get(0);
+    for data in get_publication_elections(tx, tenant, event, publication).await? {
         let id = data["id"].as_str().context("Missing election id")?;
         upload(
             &client,
@@ -146,35 +124,10 @@ pub async fn prepare_publication_files(
         )
         .await?;
     }
-    // Stream full styles: publication memory does not grow with the number of areas.
-    let rows = tx
-        .query_raw(
-            r#"
-            SELECT jsonb_build_object('id', id,
-                'tenant_id', tenant_id,
-                'election_event_id', election_event_id,
-                'election_id', election_id,
-                'area_id', area_id,
-                'created_at', created_at,
-                'last_updated_at', last_updated_at,
-                'annotations', annotations,
-                'labels', labels,
-                'ballot_eml', ballot_eml,
-                'ballot_signature', ballot_signature,
-                'status', status,
-                'deleted_at', deleted_at)
-            FROM sequent_backend.ballot_style
-            WHERE tenant_id=$1
-              AND election_event_id=$2
-              AND ballot_publication_id=$3
-        "#,
-            [&tenant, &event, &publication],
-        )
-        .await?;
-    futures::pin_mut!(rows);
+    let styles = stream_publication_styles(tx, tenant, event, publication).await?;
+    futures::pin_mut!(styles);
     let mut shared_presentation: Option<String> = None;
-    while let Some(row) = rows.try_next().await? {
-        let mut data: Value = row.get(0);
+    while let Some(mut data) = styles.try_next().await? {
         let id = data["id"].as_str().context("Missing style id")?.to_owned();
         let eml: Value =
             serde_json::from_str(data["ballot_eml"].as_str().context("Missing ballot EML")?)?;
@@ -203,14 +156,8 @@ pub async fn prepare_publication_files(
     }
     event_data["ballot_eml_presentation"] = Value::String(shared_presentation.unwrap_or_default());
     upload(&client, &bucket, &format!("{root}/event.json"), &event_data).await?;
-    tx.execute(r#"
-            UPDATE sequent_backend.ballot_publication
-            SET annotations=COALESCE(annotations,'{}'::jsonb) || jsonb_build_object($4::text,$5::text)
-            WHERE tenant_id=$1
-              AND election_event_id=$2
-              AND id=$3
-        "#, &[&tenant,&event,&publication,&FILES_ANNOTATION,&root]).await?;
-    Ok(())
+    merge_ballot_publication_annotation(tx, tenant, event, publication, FILES_ANNOTATION, &root)
+        .await
 }
 
 /// Only identifiers, active references and live policy are read here, never EML.
@@ -228,48 +175,26 @@ pub async fn voter_files(
         .iter()
         .map(|id| Uuid::parse_str(id))
         .collect::<Result<Vec<_>, _>>()?;
-    let rows=tx.query(r#"
-            SELECT s.id, s.election_id, p.id AS publication_id, p.annotations->>$5::text AS root, e.status, e.num_allowed_revotes::bigint AS num_allowed_revotes, e.voting_channels
-            FROM sequent_backend.ballot_style s
-            JOIN sequent_backend.ballot_publication p ON p.id=s.ballot_publication_id
-              AND p.tenant_id=s.tenant_id
-              AND p.election_event_id=s.election_event_id
-            JOIN sequent_backend.election e ON e.id=s.election_id
-              AND e.tenant_id=s.tenant_id
-              AND e.election_event_id=s.election_event_id
-            WHERE s.tenant_id=$1
-              AND s.election_event_id=$2
-              AND s.area_id=$3
-              AND s.election_id=ANY($4)
-              AND s.deleted_at IS NULL
-              AND p.published_at IS NOT NULL
-              AND p.deleted_at IS NULL
-            ORDER BY p.published_at DESC, s.election_id
-        "#, &[&tenant,&event,&area,&elections,&FILES_ANNOTATION]).await?;
-    let event_row = tx
-        .query_opt(
-            "SELECT status FROM sequent_backend.election_event WHERE tenant_id=$1 AND id=$2",
-            &[&tenant, &event],
-        )
+    let styles =
+        get_published_ballot_styles(tx, tenant, event, area, &elections, FILES_ANNOTATION).await?;
+    let status = get_election_event_status(tx, tenant, event)
         .await?
         .context("Election event not found")?;
-    let status: Option<Value> = event_row.get(0);
     let bucket = get_private_bucket()?;
     let client = get_s3_client(get_s3_aws_config(false).await?).await?;
     let mut files = Vec::new();
     let mut seen = HashSet::new();
     let mut signed_urls = HashMap::<String, String>::new();
-    for row in rows {
-        let id: Uuid = row.get("id");
-        let election: Uuid = row.get("election_id");
+    for style in styles {
+        let id = style.id;
+        let election = style.election_id;
         if !seen.insert(election) {
             bail!("Multiple active ballot styles for one election");
         }
-        let root: Option<String> = row.get("root");
-        let root = root.context(
+        let root = style.root.context(
             "Publication requires S3 preparation; publish it again before serving voters",
         )?;
-        validate_publication_root(&root, tenant, event, row.get("publication_id"))?;
+        validate_publication_root(&root, tenant, event, style.publication_id)?;
         let mut urls = serde_json::Map::new();
         for (name, key) in [
             ("event_url", format!("{root}/event.json")),
@@ -292,7 +217,7 @@ pub async fn voter_files(
             };
             urls.insert(name.into(), Value::String(url));
         }
-        files.push(json!({"id":id,"election_id":election,"version":root,"urls":urls,"status":row.get::<_,Option<Value>>("status"),"num_allowed_revotes":row.try_get::<_,Option<i64>>("num_allowed_revotes")?,"voting_channels":row.get::<_,Option<Value>>("voting_channels")}));
+        files.push(json!({"id":id,"election_id":election,"version":root,"urls":urls,"status":style.status,"num_allowed_revotes":style.num_allowed_revotes,"voting_channels":style.voting_channels}));
     }
     Ok(json!({"event_id":event,"status":status,"files":files}))
 }
