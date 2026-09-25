@@ -11,7 +11,8 @@
       "admin-portal",
       "keycloak-extensions/sequent-theme",
       "ballot-verifier",
-      "results-portal"
+      "results-portal",
+      "ui-test-kit"
     ]
   },
   "resolutions": {
