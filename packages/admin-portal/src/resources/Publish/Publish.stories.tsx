@@ -47,6 +47,7 @@ const record = {
     voting_channels: {online: true},
     presentation: {},
 }
+const electionRecord = {...record, id: ELECTION_ID, election_event_id: EVENT_ID}
 
 function Fixture({election}: Scenario) {
     const auth = useContext(AuthContext)
@@ -72,7 +73,7 @@ function Fixture({election}: Scenario) {
                         globalSettings: {...settings.globalSettings, QUERY_POLL_INTERVAL_MS: 50},
                     }}
                 >
-                    <RecordContextProvider value={record}>
+                    <RecordContextProvider value={election ? electionRecord : record}>
                         <main>
                             <Publish
                                 electionEventId={EVENT_ID}
@@ -366,11 +367,24 @@ export const LargeDiffRequiresConfirmationBeforeFetchingAllStyles: Story = {
         expect(initialRequests[0].variables.limit).toBe(50)
         const showMore = () => canvas.getAllByRole("button", {name: "Show More"})[0]
         await expect(showMore()).toHaveAttribute("aria-expanded", "false")
+        const current = canvas.getByRole("region", {name: "Current"})
+        const changes = canvas.getByRole("region", {name: "Changes to Publish"})
+        const controlled = document.getElementById(showMore().getAttribute("aria-controls")!)
+        expect(controlled).toContainElement(current)
+        expect(controlled).toContainElement(changes)
+        current.focus()
+        await expect(current).toHaveFocus()
+        await userEvent.tab()
+        await expect(showMore()).toHaveFocus()
+        await userEvent.tab()
+        await expect(changes).toHaveFocus()
         await userEvent.click(showMore())
         let dialog = within(await within(document.body).findByRole("dialog"))
-        await expect(
-            dialog.getByText(/Rendering all changes might make the page unresponsive/)
-        ).toBeVisible()
+        await waitFor(() =>
+            expect(
+                dialog.getByText(/Rendering all changes might make the page unresponsive/)
+            ).toBeVisible()
+        )
         await userEvent.click(dialog.getByRole("button", {name: "Cancel"}))
         await waitFor(() =>
             expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()

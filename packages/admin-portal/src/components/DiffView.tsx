@@ -191,11 +191,15 @@ const DiffViewMemo = React.memo(
 
         return (
             <>
-                <DiffViewStyled.Container>
+                <DiffViewStyled.Container id="diff-content">
                     <DiffViewStyled.Content>
                         <DiffViewStyled.Header>{currentTitle}</DiffViewStyled.Header>
                         <DiffViewStyled.Block>
-                            <DiffViewStyled.Json>
+                            <DiffViewStyled.Json
+                                tabIndex={0}
+                                role="region"
+                                aria-label={currentTitle}
+                            >
                                 {diff?.map((line: any, index: number) =>
                                     !line.added ? (
                                         line.removed && type === "modify" ? (
@@ -246,7 +250,11 @@ const DiffViewMemo = React.memo(
                         <DiffViewStyled.Content>
                             <DiffViewStyled.Header>{diffTitle}</DiffViewStyled.Header>
                             <DiffViewStyled.Block>
-                                <DiffViewStyled.Json>
+                                <DiffViewStyled.Json
+                                    tabIndex={0}
+                                    role="region"
+                                    aria-label={diffTitle}
+                                >
                                     {diff?.map((line: any, index: number) =>
                                         !line.removed ? (
                                             line.added ? (
