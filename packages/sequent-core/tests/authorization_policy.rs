@@ -14,7 +14,7 @@ use claims::Claims;
 use rocket::http::Status;
 use sequent_core::ballot::VotingStatusChannel;
 use sequent_core::services::authorization::{
-    authorize, authorize_voter_election,
+    authorize, authorize_voter_election, authorize_with,
 };
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
@@ -185,4 +185,130 @@ fn voter_access_requires_role_area_election_and_known_client() {
         .expect_err("a missing prerequisite must deny voter access");
         assert_eq!(error, (Status::Unauthorized, message.into()));
     }
+}
+
+#[test]
+fn the_super_admin_tenant_is_looked_up_only_for_another_tenant() {
+    let lookups = std::cell::Cell::new(0);
+    let super_admin_tenant = || {
+        lookups.set(lookups.get() + 1);
+        Some(SUPER_ADMIN_TENANT_ID.to_string())
+    };
+    let own_tenant = authorize_with(
+        &claims(),
+        true,
+        Some(TENANT_ID.into()),
+        vec![Permissions::TENANT_READ],
+        super_admin_tenant,
+    );
+    assert_eq!((own_tenant, lookups.get()), (Ok(()), 0));
+
+    let super_admins_not_allowed = authorize_with(
+        &claims(),
+        false,
+        Some(OTHER_TENANT_ID.into()),
+        vec![Permissions::TENANT_READ],
+        super_admin_tenant,
+    );
+    assert!(super_admins_not_allowed.is_err());
+    assert_eq!(lookups.get(), 0);
+
+    for requested_tenant in [Some(OTHER_TENANT_ID.to_string()), None] {
+        let other_tenant = authorize_with(
+            &claims(),
+            true,
+            requested_tenant,
+            vec![Permissions::TENANT_READ],
+            super_admin_tenant,
+        );
+        assert!(other_tenant.is_err());
+    }
+    assert_eq!(lookups.get(), 2);
+}
+
+#[test]
+fn without_a_configured_super_admin_tenant_only_the_own_tenant_passes() {
+    let unconfigured = || None;
+    assert_eq!(
+        authorize_with(
+            &claims(),
+            true,
+            Some(OTHER_TENANT_ID.into()),
+            vec![Permissions::TENANT_READ],
+            unconfigured,
+        ),
+        Err((
+            Status::Unauthorized,
+            "SUPER_ADMIN_TENANT_ID must be set".to_string()
+        ))
+    );
+    assert_eq!(
+        authorize_with(
+            &claims(),
+            true,
+            Some(TENANT_ID.into()),
+            vec![Permissions::TENANT_READ],
+            unconfigured,
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn the_configured_super_admin_tenant_may_act_on_any_tenant() {
+    let configured = || Some(SUPER_ADMIN_TENANT_ID.to_string());
+    let mut super_admin = claims();
+    super_admin.hasura_claims.tenant_id = SUPER_ADMIN_TENANT_ID.into();
+    for requested_tenant in [Some(OTHER_TENANT_ID.to_string()), None] {
+        assert_eq!(
+            authorize_with(
+                &super_admin,
+                true,
+                requested_tenant,
+                vec![Permissions::TENANT_READ],
+                configured,
+            ),
+            Ok(())
+        );
+    }
+    assert_eq!(
+        authorize_with(
+            &claims(),
+            true,
+            Some(OTHER_TENANT_ID.into()),
+            vec![Permissions::TENANT_READ],
+            configured,
+        ),
+        Err((
+            Status::Unauthorized,
+            "Unathorized: not a super admin or invalid tenant_id Some(\"tenant-b\")"
+                .to_string()
+        ))
+    );
+}
+
+#[test]
+fn a_denial_lists_the_requested_permissions_in_order() {
+    // One held role keeps the unordered set in the message deterministic.
+    let claims = Claims::new(TENANT_ID, USER_ID)
+        .roles([Permissions::TENANT_READ])
+        .build();
+    assert_eq!(
+        authorize_with(
+            &claims,
+            false,
+            Some(TENANT_ID.into()),
+            vec![
+                Permissions::TENANT_WRITE,
+                Permissions::TENANT_READ,
+                Permissions::TENANT_DELETE,
+            ],
+            || None,
+        ),
+        Err((
+            Status::Unauthorized,
+            r#"Unathorized: ["tenant-write", "tenant-read", "tenant-delete"] not in {"tenant-read"}"#
+                .to_string()
+        ))
+    );
 }
