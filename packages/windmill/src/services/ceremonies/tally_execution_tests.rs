@@ -428,3 +428,39 @@ async fn initialization_failure_stops_after_previously_marked_elections() {
     assert_eq!(state.refreshed_events, vec![scope()]);
     assert_eq!(state.initialized, vec![(scope(), "election-a".into())]);
 }
+
+#[tokio::test]
+async fn trustee_threshold_comes_from_the_linked_ceremony() {
+    for (other_threshold, linked_threshold, expected) in [
+        (3, 2, TrusteeSelection::Ready(vec!["c".into(), "a".into()])),
+        (1, 2, TrusteeSelection::Ready(vec!["c".into(), "a".into()])),
+        (
+            2,
+            3,
+            TrusteeSelection::Insufficient {
+                available: 2,
+                threshold: 3,
+            },
+        ),
+    ] {
+        let store = MemoryTallyExecution::default();
+        let linked = ceremony(linked_threshold, false);
+        let mut other = ceremony(other_threshold, false);
+        other.id = "unrelated-ceremony".into();
+        store.0.lock().unwrap().ceremonies = vec![other, linked.clone()];
+        let selection = select_execution_trustees_with(
+            &store,
+            &ReverseTrusteeOrder::default(),
+            "tenant-a",
+            "event-a",
+            &linked,
+            status(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            selection, expected,
+            "unrelated threshold {other_threshold}, linked threshold {linked_threshold}"
+        );
+    }
+}

@@ -23,10 +23,10 @@ pub async fn select_execution_trustees_with(
         .list(tenant_id, event_id)
         .await
         .with_context(|| "error listing existing keys ceremonies")?;
-    let Some(first) = existing.first() else {
+    if existing.is_empty() {
         return Ok(TrusteeSelection::NoCeremony);
-    };
-    let threshold = first.threshold as usize;
+    }
+    let threshold = linked_ceremony.threshold as usize;
     let mut available = eligible_trustees(status.trustees, linked_ceremony.policy());
     order.shuffle(&mut available);
     Ok(select_trustees(available, threshold))
