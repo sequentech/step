@@ -26,9 +26,13 @@ Place typed `*.stories.tsx` beside components, or under their `__stories__`
 directory. Use `storybook/test` assertions and spies, query accessible names, and
 assert rendered outcomes and callback values. The shared preview supplies the
 theme, deterministic English translations and an in-memory router. Configure
-`parameters.router` for route parameters and initial history. Browser contexts
+`parameters.router` for route parameters and initial history. Screen stories can
+provide the real route `action` and its `parentPath` so relative redirects resolve
+as they do in the application. Browser contexts
 use an English locale and UTC. Mock external services; initialize real WASM in a
-story loader when the component needs it. Tests block unexpected network requests;
+story loader when the component needs it. Voting ballot stories also reset the
+Redux voter session before loading each fixture; see `Question/__stories__` and
+`routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
 Stories are excluded from production type builds and the existing Jest coverage
@@ -39,3 +43,23 @@ the exact axe rule IDs. The Vitest hook marks only matching failures as expected
 unrelated failures still fail, and a repaired defect causes an unexpected-pass
 failure until its marker is removed. Use `expectedFailure: null` to clear a marker inherited
 from the component meta.
+
+The voting journeys exercise the production bundle with local OIDC, GraphQL and
+S3 boundaries. Build first, then run:
+
+```sh
+yarn --cwd packages build:ui-core
+yarn --cwd packages build:ui-essentials
+yarn --cwd packages build:voting-portal
+yarn --cwd packages/ui-test-kit test
+yarn --cwd packages/voting-portal test:journeys
+```
+
+Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
+fixture for a fresh browser context, clock and service mocks. The shared
+`packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
+PKCE and owns ephemeral static-server ports. Register every service response;
+unexpected requests fail teardown. Audit assertions decode downloaded ballots
+with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
+from `test-results/`. Known accessibility failures are marked only after the
+journey and the exact known rule/target have been checked.

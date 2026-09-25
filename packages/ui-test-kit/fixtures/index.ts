@@ -15,7 +15,7 @@ export const IDS = {
 } as const
 
 /** Synthetic wire documents: expectations in specs use the literal voter choices, not these builders. */
-export function electionFixture({demo = false, gold = false} = {}) {
+export function electionFixture({demo = false, gold = false, finishUrl = ""} = {}) {
     const scope = {tenant_id: IDS.tenant, election_event_id: IDS.event, election_id: IDS.election}
     const status = {
         is_published: true,
@@ -29,6 +29,7 @@ export function electionFixture({demo = false, gold = false} = {}) {
         language_conf: {default_language_code: "en", enabled_language_codes: ["en", "es"]},
         show_user_profile: false,
         skip_election_list: false,
+        redirect_finish_url: finishUrl || null,
         logo_url: null,
         materials: {policy: "off"},
         delegated_voting_policy: "disabled",
