@@ -84,7 +84,7 @@ services:
     container_name: !reset null
     ports: !reset []
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
       interval: 5s
       timeout: 10s
       retries: 60

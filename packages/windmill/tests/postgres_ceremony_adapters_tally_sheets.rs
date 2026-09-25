@@ -840,33 +840,114 @@ async fn lock_ballot_box_version_assignment_makes_another_assignment_to_the_ball
 }
 
 #[tokio::test]
-async fn lock_ballot_box_version_assignment_keys_the_lock_on_the_ids_as_written() {
-    // The same ballot box written with an upper-case id takes a different lock.
+async fn lock_ballot_box_version_assignment_uses_one_lock_for_equivalent_uuid_spellings() {
     let pool = schema::pool().await;
     let ids = ids!();
-    let area = ids.id(6).replace("-0000-", "-abcd-");
-    let upper_case_area = area.to_uppercase();
-    assert_eq!(
-        Uuid::parse_str(&area).unwrap(),
-        Uuid::parse_str(&upper_case_area).unwrap()
-    );
+    let keys = [1, 2, 5, 6, 8].map(|n| ids.id(n).replace("-0000-", "-abcd-"));
     let mut holder = pool.get().await.unwrap();
     let held = holder.transaction().await.unwrap();
-    lock_ballot_box(&held, &ids, &area, &VotingChannel::PAPER)
-        .await
-        .unwrap();
+    tally_sheet::lock_ballot_box_version_assignment(
+        &held,
+        &keys[0],
+        &keys[1],
+        &keys[2],
+        &keys[3],
+        &keys[4],
+        &VotingChannel::PAPER,
+    )
+    .await
+    .unwrap();
 
     let mut contender = pool.get().await.unwrap();
-    let waiting = contender.transaction().await.unwrap();
-    waiting
-        .batch_execute("SET LOCAL lock_timeout = '10ms'")
+    for index in 0..keys.len() {
+        let mut equivalent = keys.clone();
+        equivalent[index] = equivalent[index].to_uppercase();
+        assert_ne!(keys[index], equivalent[index]);
+        assert_eq!(
+            Uuid::parse_str(&keys[index]).unwrap(),
+            Uuid::parse_str(&equivalent[index]).unwrap()
+        );
+        let waiting = contender.transaction().await.unwrap();
+        waiting
+            .batch_execute("SET LOCAL lock_timeout = '10ms'")
+            .await
+            .unwrap();
+        tally_sheet::lock_ballot_box_version_assignment(
+            &waiting,
+            &equivalent[0],
+            &equivalent[1],
+            &equivalent[2],
+            &equivalent[3],
+            &equivalent[4],
+            &VotingChannel::POSTAL,
+        )
         .await
         .unwrap();
-    let result = lock_ballot_box(&waiting, &ids, &upper_case_area, &VotingChannel::PAPER).await;
-
-    assert!(result.is_ok());
-    waiting.rollback().await.unwrap();
+        let error = tally_sheet::lock_ballot_box_version_assignment(
+            &waiting,
+            &equivalent[0],
+            &equivalent[1],
+            &equivalent[2],
+            &equivalent[3],
+            &equivalent[4],
+            &VotingChannel::PAPER,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(
+            sql_state(&error),
+            Some(SqlState::LOCK_NOT_AVAILABLE),
+            "UUID field {index}"
+        );
+        waiting.rollback().await.unwrap();
+    }
     held.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn lock_ballot_box_version_assignment_rejects_each_invalid_uuid_before_querying() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let ids = ids!();
+    let keys = [1, 2, 5, 6, 8].map(|n| ids.id(n));
+    tally_sheet::lock_ballot_box_version_assignment(
+        &tx,
+        &keys[0],
+        &keys[1],
+        &keys[2],
+        &keys[3],
+        &keys[4],
+        &VotingChannel::PAPER,
+    )
+    .await
+    .unwrap();
+    for index in 0..keys.len() {
+        let mut invalid = keys.clone();
+        invalid[index] = "not-a-uuid".into();
+        let error = tally_sheet::lock_ballot_box_version_assignment(
+            &tx,
+            &invalid[0],
+            &invalid[1],
+            &invalid[2],
+            &invalid[3],
+            &invalid[4],
+            &VotingChannel::PAPER,
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            error.to_string().starts_with("invalid UUID 'not-a-uuid':"),
+            "{error}"
+        );
+    }
+    assert_eq!(
+        tx.query_one("SELECT 1::int4", &[])
+            .await
+            .unwrap()
+            .get::<_, i32>(0),
+        1
+    );
+    tx.rollback().await.unwrap();
 }
 
 #[tokio::test]

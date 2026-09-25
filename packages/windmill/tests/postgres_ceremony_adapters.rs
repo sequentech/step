@@ -1442,9 +1442,7 @@ async fn set_post_tally_task_completed_adds_the_flag_to_existing_annotations() {
 }
 
 #[tokio::test]
-async fn set_post_tally_task_completed_leaves_null_annotations_null() {
-    // `NULL || jsonb` is NULL, so a session without annotations never records
-    // the flag.
+async fn set_post_tally_task_completed_initializes_missing_annotations() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1456,7 +1454,7 @@ async fn set_post_tally_task_completed_leaves_null_annotations_null() {
 
     assert_eq!(
         stored(&tx, "tally_session", &w.id(10)).await["annotations"],
-        Value::Null
+        json!({"is_post_task_completed": true})
     );
     tx.rollback().await.unwrap();
 }
@@ -1512,9 +1510,7 @@ async fn set_tally_session_completed_records_completion_and_a_pending_post_task(
 }
 
 #[tokio::test]
-async fn set_tally_session_completed_without_annotations_leaves_no_pending_post_task() {
-    // `NULL || jsonb` is NULL: the completed session is never listed as
-    // awaiting its post-tally task.
+async fn set_tally_session_completed_without_annotations_queues_the_post_task() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1533,14 +1529,20 @@ async fn set_tally_session_completed_without_annotations_leaves_no_pending_post_
     let row = stored(&tx, "tally_session", &w.id(10)).await;
     assert_eq!(
         (&row["is_execution_completed"], &row["annotations"]),
-        (&json!(true), &Value::Null)
+        (&json!(true), &json!({"is_post_task_completed": false}))
     );
     let pending = tally_session::get_tally_session_by_election_event_id_pending_post_tally_task(
         &tx, &w.tenant, &w.event,
     )
     .await
     .unwrap();
-    assert!(pending.is_empty());
+    assert_eq!(
+        pending
+            .into_iter()
+            .map(|session| session.id)
+            .collect::<Vec<_>>(),
+        [w.id(10)]
+    );
     tx.rollback().await.unwrap();
 }
 
@@ -1813,8 +1815,7 @@ async fn insert_tally_session_contest_without_a_contest_stores_a_null_contest() 
 }
 
 #[tokio::test]
-async fn insert_tally_session_contest_wraps_a_batch_number_beyond_the_int4_column() {
-    // The batch number is a u64 cast with `as i32` into an int4 column.
+async fn insert_tally_session_contest_rejects_a_batch_number_beyond_the_int4_column() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -1827,7 +1828,20 @@ async fn insert_tally_session_contest_wraps_a_batch_number_beyond_the_int4_colum
     )
     .await;
 
-    let inserted = tally_session_contest::insert_tally_session_contest(
+    let valid = tally_session_contest::insert_tally_session_contest(
+        &tx,
+        &w.tenant,
+        &w.event,
+        &area_id,
+        None,
+        i32::MAX as u64,
+        &session,
+        &election_id,
+    )
+    .await
+    .unwrap();
+    assert_eq!(valid.session_id, i32::MAX);
+    let error = tally_session_contest::insert_tally_session_contest(
         &tx,
         &w.tenant,
         &w.event,
@@ -1838,9 +1852,12 @@ async fn insert_tally_session_contest_wraps_a_batch_number_beyond_the_int4_colum
         &election_id,
     )
     .await
-    .unwrap();
-
-    assert_eq!(inserted.session_id, i32::MIN);
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Tally session batch number exceeds the database integer range"
+    );
+    assert_eq!(count(&tx, "tally_session_contest", &w.tenant).await, 1);
     tx.rollback().await.unwrap();
 }
 
@@ -2499,9 +2516,7 @@ async fn get_last_tally_session_execution_is_none_without_executions() {
 }
 
 #[tokio::test]
-async fn get_last_tally_session_execution_prefers_an_execution_without_created_at() {
-    // `ORDER BY created_at DESC` puts NULL first, so an undated execution (as
-    // the bulk insert can write) outranks every dated one.
+async fn get_last_tally_session_execution_prefers_dated_history_and_lists_undated_history_last() {
     let mut client = schema::pool().await.get().await.unwrap();
     let tx = client.transaction().await.unwrap();
     let w = World::new(&tx, ids!()).await;
@@ -2519,7 +2534,18 @@ async fn get_last_tally_session_execution_prefers_an_execution_without_created_a
     .unwrap()
     .unwrap();
 
-    assert_eq!(last.id, w.id(20));
+    assert_eq!(last.id, w.id(21));
+    let executions =
+        tally_session_execution::get_tally_session_executions(&tx, &w.tenant, &w.event, &w.id(10))
+            .await
+            .unwrap();
+    assert_eq!(
+        executions
+            .into_iter()
+            .map(|execution| execution.id)
+            .collect::<Vec<_>>(),
+        [w.id(21), w.id(20)]
+    );
     tx.rollback().await.unwrap();
 }
 
