@@ -15,7 +15,6 @@ use sequent_core::types::results::{
     ResultsContestCandidate,
 };
 use serde_json::{json, Value};
-use tokio_postgres::error::SqlState;
 use tokio_postgres::types::WasNull;
 use uuid::Uuid;
 use windmill::postgres::results_area_contest::{
@@ -734,19 +733,129 @@ async fn replacing_the_documents_of_a_repeated_contest_result_updates_every_copy
 }
 
 #[tokio::test]
-async fn reading_one_contest_result_always_fails_because_its_query_does_not_parse() {
+async fn one_contest_result_is_read_by_its_election_and_contest() {
     let mut client = schema::pool().await.get().await.unwrap();
     let transaction = client.transaction().await.unwrap();
     home(&transaction).await;
     store_contest_result(&transaction, STORED).await;
+    for row in [
+        Stored {
+            id: ROW_2,
+            contest: OTHER_CONTEST,
+            ..STORED
+        },
+        Stored {
+            id: ROW_3,
+            election: OTHER_ELECTION,
+            ..STORED
+        },
+    ] {
+        store_contest_result(&transaction, row).await;
+    }
+
+    let result = get_results_contest(&transaction, TENANT, EVENT, ELECTION, CONTEST)
+        .await
+        .unwrap();
+    assert_eq!(
+        [
+            result.id.as_str(),
+            result.tenant_id.as_str(),
+            result.election_event_id.as_str(),
+            result.election_id.as_str(),
+            result.contest_id.as_str(),
+            result.results_event_id.as_str(),
+        ],
+        [ROW_1, TENANT, EVENT, ELECTION, CONTEST, RESULTS]
+    );
+    assert_eq!(result.created_at, Some(local(STORED.created_at)));
+    assert_eq!(result.total_votes_percent, pct(0.0));
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn reading_one_contest_result_ignores_other_events_and_tenants() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    stranger(&transaction).await;
+    store_contest_result(&transaction, STORED).await;
+    for row in [
+        Stored {
+            id: ROW_2,
+            event: OTHER_EVENT,
+            ..STORED
+        },
+        Stored {
+            id: ROW_3,
+            tenant: OTHER_TENANT,
+            ..STORED
+        },
+    ] {
+        store_contest_result(&transaction, row).await;
+    }
+
+    let result = get_results_contest(&transaction, TENANT, EVENT, ELECTION, CONTEST)
+        .await
+        .unwrap();
+    assert_eq!(result.id, ROW_1);
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_contest_result_missing_from_the_tenant_and_event_is_not_found() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    away(&transaction).await;
+    stranger(&transaction).await;
+    for row in [
+        Stored {
+            event: OTHER_EVENT,
+            ..STORED
+        },
+        Stored {
+            id: ROW_2,
+            tenant: OTHER_TENANT,
+            ..STORED
+        },
+    ] {
+        store_contest_result(&transaction, row).await;
+    }
 
     let error = get_results_contest(&transaction, TENANT, EVENT, ELECTION, CONTEST)
         .await
         .unwrap_err();
-    let code = error
-        .downcast_ref::<tokio_postgres::Error>()
-        .and_then(tokio_postgres::Error::code);
-    assert_eq!(code, Some(&SqlState::SYNTAX_ERROR), "{error:?}");
+    assert_eq!(
+        error.to_string(),
+        "No results contest found with the provided data"
+    );
+    transaction.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_contest_with_results_in_several_results_events_cannot_be_read_as_one() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let transaction = client.transaction().await.unwrap();
+    home(&transaction).await;
+    store_contest_result(&transaction, STORED).await;
+    store_contest_result(
+        &transaction,
+        Stored {
+            id: ROW_2,
+            results: OTHER_RESULTS,
+            ..STORED
+        },
+    )
+    .await;
+
+    let error = get_results_contest(&transaction, TENANT, EVENT, ELECTION, CONTEST)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Error running the query: query returned an unexpected number of rows"
+    );
     transaction.rollback().await.unwrap();
 }
 
