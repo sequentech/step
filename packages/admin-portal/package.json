@@ -90,7 +90,9 @@
     "typecheck:stories": "tsc --project tsconfig.stories.json",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
-    "postinstall": "node ./postinstall.cjs"
+    "postinstall": "node ./postinstall.cjs",
+    "test:journeys": "playwright test --config playwright.journeys.config.ts",
+    "test:types": "tsc --project tsconfig.journeys.json"
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {
@@ -166,7 +168,8 @@
     "typescript": "^5.9.2",
     "webpack": "5.104.1",
     "webpack-cli": "6.0.1",
-    "webpack-dev-server": "5.2.6"
+    "webpack-dev-server": "5.2.6",
+    "@sequentech/ui-test-kit": "*"
   },
   "overrides": {
     "@types/react": "^19.1.13",

@@ -28,7 +28,8 @@ assert rendered outcomes and callback values. The shared preview supplies the
 theme, deterministic English translations and an in-memory router. Configure
 `parameters.router` for route parameters and initial history. Screen stories can
 provide the real route `action` and its `parentPath` so relative redirects resolve
-as they do in the application. Browser contexts
+as they do in the application. The router also accepts a `loader` and
+`errorElement` for actual route error boundaries. Browser contexts
 use an English locale and UTC. Mock external services; initialize real WASM in a
 story loader when the component needs it. Voting ballot stories also reset the
 Redux voter session before loading each fixture; see `Question/__stories__` and
@@ -69,6 +70,19 @@ with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from `test-results/`. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.
 
+Voting matrices also exercise chooser eligibility, practice-election gating,
+mandatory materials, review and cast errors, gold-session restoration, receipts,
+and ballot lookup. Integrity stories encrypt real ballots before changing only
+the recorded hash. Receipt tests independently decode the rendered QR and compare
+the downloaded document bytes. Chromium can fetch downloads outside page routing,
+so the receipt fixture also serves those same bytes from its owned loopback
+server and removes them in teardown.
+
+Infrastructure-recovery and receipt-polling tests first assert the exact existing
+failure state, then mark only the missing recovery UI assertion as expected to
+fail. A fixed defect becomes an unexpected pass. Those markers do not waive
+unexpected requests or unhandled page exceptions.
+
 Results portal journeys use the same boundaries and export a real SQLite fixture
 with `sql.js`; the production browser reads it through its own WASM loader.
 After building the shared UI packages, run:
@@ -86,3 +100,5 @@ artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
 
 The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan pin the existing candidate-list accessibility violation as expected failures, so fixing it requires removing the marker.
+
+Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.

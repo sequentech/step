@@ -36,7 +36,7 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
         },
         {scope: "worker"},
     ],
-    portal: async ({context, page, dist}, use) => {
+    portal: async ({context, page, dist}, use, testInfo) => {
         const {origin} = dist
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
@@ -176,6 +176,8 @@ export const test = base.extend<{portal: Portal}, {dist: Awaited<ReturnType<type
             await use(portal)
         } finally {
             await unroute()
+            // A known UI assertion failure must never hide a broken service boundary.
+            if (violations.list().length || errors.length) testInfo.expectedStatus = "passed"
             expect(violations.list(), "unexpected service requests").toEqual([])
             expect(errors, "unhandled page exceptions").toEqual([])
         }

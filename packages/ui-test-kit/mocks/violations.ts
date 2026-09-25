@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Requests that no mock expected. A test fixture asserts that the log is empty
+ * Records requests that no mock expected. A test fixture asserts that the log is empty
  * once the test body has finished, so an unexpected request fails the test even
  * when the page recovered from it.
  */
