@@ -96,7 +96,9 @@ function prepare(scenario: Scenario) {
         }
     }
     if (scenario === "wasm-error")
-        Object.assign(ballot.election_event_presentation!, {contest_encryption_policy: "unsupported-encryption-policy"})
+        Object.assign(ballot.election_event_presentation!, {
+            contest_encryption_policy: "unsupported-encryption-policy",
+        })
     const ballotStyle: IBallotStyle = {
         id: ballot.id,
         tenant_id: IDS.tenant,

@@ -92,7 +92,11 @@ function renderMaterials() {
 it.each([false, true])(
     "requires viewing and explicit acknowledgement with a loaded ballot style: %s",
     async (hasStyle) => {
-        if (hasStyle)
+        if (hasStyle) {
+            // A loaded style remains authoritative even when the event policy differs.
+            mockState.electionEvent["event-1"]!.presentation!.materials = {
+                policy: ESupportMaterialsPolicy.OPTIONAL,
+            }
             mockState.ballotStyles = {
                 "election-1": {
                     id: "style-1",
@@ -110,6 +114,7 @@ it.each([false, true])(
                     },
                 },
             }
+        }
         const user = userEvent.setup()
         const router = renderMaterials()
         const checkbox = await screen.findByRole("checkbox", {

@@ -4,8 +4,8 @@
 import type {Page} from "@playwright/test"
 import {expect, eventPath, type Portal} from "./fixtures"
 
-export async function review(page: Page, portal: Portal, preview = false) {
-    await page.goto(`${portal.origin}${preview ? portal.previewPath : eventPath + "?lang=en"}`)
+export async function review(page: Page, portal: Portal, preview = false, query = "?lang=en") {
+    await page.goto(`${portal.origin}${preview ? portal.previewPath : eventPath + query}`)
     await page.getByRole("button", {name: /click to vote/i}).click()
     if (preview)
         await page.getByRole("button", {name: "I understand that my vote will not be cast"}).click()
