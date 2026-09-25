@@ -42,13 +42,25 @@ const meta = {
                 }
             },
         })
+        const unexpectedUploads: string[] = []
         upload = fn<typeof fetch>(async (url) => {
-            if (url !== UPLOAD_URL) throw new Error(`Unexpected upload URL: ${String(url)}`)
+            if (url !== UPLOAD_URL) {
+                unexpectedUploads.push(String(url))
+                throw new Error(`Unexpected upload URL: ${String(url)}`)
+            }
             if (args.outcome === "network-error") throw new TypeError("Upload connection failed")
             return new Response(null, {status: args.outcome === "http-error" ? 503 : 200})
         })
         const fetchMock = spyOn(window, "fetch").mockImplementation(upload)
-        return () => fetchMock.mockRestore()
+        const storyBoundary = boundary
+        return () => {
+            try {
+                expect(storyBoundary.unexpected).toEqual([])
+                expect(unexpectedUploads).toEqual([])
+            } finally {
+                fetchMock.mockRestore()
+            }
+        }
     },
     render: (args) => (
         <AdminStoryProvider boundary={boundary}>
