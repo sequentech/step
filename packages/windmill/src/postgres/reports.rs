@@ -209,7 +209,7 @@ pub async fn get_template_alias_for_report(
             WHERE tenant_id = $1
               AND election_event_id = $2
               AND report_type = $3
-              AND ($4::uuid IS NULL OR election_id = $4::uuid)
+              AND election_id IS NOT DISTINCT FROM $4::uuid
             LIMIT 1
             "#,
         )
@@ -253,6 +253,7 @@ pub async fn get_template_alias_for_report(
                 tenant_id = $1
                 AND election_event_id = $2
                 AND report_type = $3
+                AND election_id IS NULL
             LIMIT 1
             "#,
         )

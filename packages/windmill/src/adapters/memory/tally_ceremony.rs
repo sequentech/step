@@ -426,7 +426,11 @@ impl TallySessions for InMemoryTallyCeremony {
         state.update_session(tenant_id, election_event_id, tally_session_id, |session| {
             session.execution_status = Some(execution_status.to_string());
             session.is_execution_completed = true;
-            session.annotations = session.annotations.take().map(|annotations| {
+            let annotations = session
+                .annotations
+                .take()
+                .unwrap_or_else(|| serde_json::json!({}));
+            session.annotations = Some({
                 let pending = serde_json::json!({"is_post_task_completed": false});
                 match annotations {
                     serde_json::Value::Object(mut object) => {
@@ -502,13 +506,16 @@ impl TallySessions for InMemoryTallyCeremony {
     ) -> Result<()> {
         let mut state = self.state();
         state.check(TallyCall::InsertContest)?;
+        let session_id = i32::try_from(batch).map_err(|_| {
+            anyhow!("Tally session batch number exceeds the database integer range")
+        })?;
         let session_contest = TallySessionContest {
             id: format!("session-contest-{}", state.session_contests.len() + 1),
             tenant_id: tenant_id.to_string(),
             election_event_id: election_event_id.to_string(),
             area_id: area_id.clone(),
             contest_id: contest_id.clone(),
-            session_id: batch as i32,
+            session_id,
             created_at: None,
             last_updated_at: None,
             labels: None,

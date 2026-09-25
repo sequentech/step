@@ -48,7 +48,12 @@ impl ExecutionCeremonies for MemoryTallyExecution {
         if let Some(message) = state.read_failure {
             anyhow::bail!(message);
         }
-        Ok(state.ceremonies.clone())
+        Ok(state
+            .ceremonies
+            .iter()
+            .filter(|keys| keys.tenant_id == tenant && keys.election_event_id == event)
+            .cloned()
+            .collect())
     }
 }
 impl ExecutionLedger for MemoryTallyExecution {

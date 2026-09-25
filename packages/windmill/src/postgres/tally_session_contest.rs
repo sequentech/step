@@ -93,6 +93,8 @@ pub async fn insert_tally_session_contest(
     tally_session_id: &str,
     election_id: &str,
 ) -> Result<TallySessionContest> {
+    let session_id = i32::try_from(session_id)
+        .map_err(|_| anyhow!("Tally session batch number exceeds the database integer range"))?;
     let contest_uuid = contest_id.map(|val| parse_uuid_v4(&val)).transpose()?;
 
     let statement = hasura_transaction
@@ -123,7 +125,7 @@ pub async fn insert_tally_session_contest(
                 &parse_uuid_v4(election_event_id)?,
                 &parse_uuid_v4(area_id)?,
                 &contest_uuid,
-                &(session_id as i32),
+                &session_id,
                 &parse_uuid_v4(tally_session_id)?,
                 &parse_uuid_v4(election_id)?,
             ],

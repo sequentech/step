@@ -781,7 +781,7 @@ async fn completing_a_session_marks_it_successful_and_completed() {
 #[tokio::test]
 async fn completion_marks_post_processing_pending_and_preserves_other_annotations() {
     for (before, expected) in [
-        (None, None),
+        (None, Some(json!({"is_post_task_completed": false}))),
         (
             Some(json!({})),
             Some(json!({"is_post_task_completed": false})),

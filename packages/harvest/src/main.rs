@@ -8,6 +8,7 @@ extern crate rocket;
 use dotenv::dotenv;
 use sequent_core::services::connection::LastDatafixAccessToken;
 use sequent_core::util::init_log::init_log;
+use services::dependencies::HarvestServices;
 use windmill::services::{
     celery_app::set_is_app_active,
     plugins_manager::plugin_manager::init_plugin_manager,
@@ -32,6 +33,10 @@ mod request_boundaries;
 #[path = "../tests/support/error_contracts.rs"]
 mod error_contracts;
 
+#[cfg(test)]
+#[path = "../tests/support/route_services.rs"]
+mod route_services;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
@@ -47,6 +52,12 @@ async fn rocket() -> _ {
 /// Register the same routes and managed state for production and local HTTP
 /// tests. Starting probes, plugins and worker processes remains a startup step.
 fn build_application() -> rocket::Rocket<rocket::Build> {
+    build_application_with(HarvestServices::production())
+}
+
+fn build_application_with(
+    services: HarvestServices,
+) -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .register(
             "/",
@@ -199,4 +210,5 @@ fn build_application() -> rocket::Rocket<rocket::Build> {
         )
         .mount("/", routes![routes::plugins::plugin_routes])
         .manage(LastDatafixAccessToken::init())
+        .manage(services)
 }
