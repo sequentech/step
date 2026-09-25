@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::ports::cast_votes::CastVotes;
+use crate::ports::cast_votes::{CastVoter, CastVotes};
 use sequent_core::ballot::VotingStatusChannel;
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -55,27 +55,20 @@ impl CastVotes for ScriptedCastVotes {
     async fn try_insert(
         &self,
         input: InsertCastVoteInput,
-        tenant_id: &str,
-        voter_id: &str,
-        area_id: &str,
-        voting_channel: VotingStatusChannel,
-        auth_time: &Option<i64>,
-        voter_ip: &Option<String>,
-        voter_country: &Option<String>,
-        username: &Option<String>,
+        voter: CastVoter<'_>,
     ) -> Result<InsertCastVoteResult, CastVoteError> {
         self.attempts.lock().unwrap().push(Attempt {
             ballot_id: input.ballot_id,
             election_id: input.election_id.to_string(),
             content: input.content,
-            tenant_id: tenant_id.to_string(),
-            auth_time: *auth_time,
-            username: username.clone(),
-            voter_id: voter_id.to_string(),
-            area_id: area_id.to_string(),
-            voting_channel,
-            voter_ip: voter_ip.clone(),
-            voter_country: voter_country.clone(),
+            tenant_id: voter.tenant_id.to_string(),
+            auth_time: *voter.auth_time,
+            username: voter.username.clone(),
+            voter_id: voter.voter_id.to_string(),
+            area_id: voter.area_id.to_string(),
+            voting_channel: voter.voting_channel,
+            voter_ip: voter.voter_ip.clone(),
+            voter_country: voter.voter_country.clone(),
         });
         self.outcomes
             .lock()

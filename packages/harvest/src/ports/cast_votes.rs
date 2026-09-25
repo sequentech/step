@@ -7,6 +7,18 @@ use windmill::services::insert_cast_vote::{
     CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
 
+/// Authenticated voter context forwarded to Windmill's insertion.
+pub struct CastVoter<'a> {
+    pub tenant_id: &'a str,
+    pub voter_id: &'a str,
+    pub area_id: &'a str,
+    pub voting_channel: VotingStatusChannel,
+    pub auth_time: &'a Option<i64>,
+    pub voter_ip: &'a Option<String>,
+    pub voter_country: &'a Option<String>,
+    pub username: &'a Option<String>,
+}
+
 /// Where a voter's ballot is checked and stored.
 #[rocket::async_trait]
 pub trait CastVotes: Send + Sync {
@@ -14,13 +26,6 @@ pub trait CastVotes: Send + Sync {
     async fn try_insert(
         &self,
         input: InsertCastVoteInput,
-        tenant_id: &str,
-        voter_id: &str,
-        area_id: &str,
-        voting_channel: VotingStatusChannel,
-        auth_time: &Option<i64>,
-        voter_ip: &Option<String>,
-        voter_country: &Option<String>,
-        username: &Option<String>,
+        voter: CastVoter<'_>,
     ) -> Result<InsertCastVoteResult, CastVoteError>;
 }
