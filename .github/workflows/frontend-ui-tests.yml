@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [voting-portal, results-portal]
+        package: [voting-portal, results-portal, ballot-verifier]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -103,6 +103,9 @@ jobs:
           yarn --cwd packages build:ui-core
           yarn --cwd packages build:ui-essentials
           yarn --cwd packages build:${{ matrix.package }}
+          if [ "${{ matrix.package }}" = "ballot-verifier" ]; then
+            yarn --cwd packages build:voting-portal
+          fi
       - name: Run mocked service journeys in Chromium
         run: yarn --cwd packages/${{ matrix.package }} test:journeys
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
