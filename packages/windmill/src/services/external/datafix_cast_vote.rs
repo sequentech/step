@@ -360,3 +360,7 @@ where
 fn task_error(err: anyhow::Error) -> Error {
     Error::String(err.to_string())
 }
+
+#[cfg(test)]
+#[path = "datafix_cast_vote_tests.rs"]
+mod tests;

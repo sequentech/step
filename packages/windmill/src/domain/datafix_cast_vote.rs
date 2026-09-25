@@ -152,3 +152,88 @@ pub fn set_voted_retry(err: &SoapSendError, template_sha256: &str) -> SetVotedRe
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::types::keycloak::VOTED_CHANNEL;
+
+    fn voter(enabled: Option<bool>, voted_channels: &[&str]) -> User {
+        let channels = voted_channels.iter().map(|channel| channel.to_string());
+        User {
+            enabled,
+            attributes: (!voted_channels.is_empty())
+                .then(|| HashMap::from([(VOTED_CHANNEL.to_string(), channels.collect())])),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn voters_who_are_not_enabled_are_discarded_whatever_their_channel() {
+        for enabled in [Some(false), None] {
+            for channels in [&[][..], &["Internet"]] {
+                assert_eq!(
+                    screen_voter(&voter(enabled, channels)),
+                    VoterScreening::Discard,
+                    "enabled={enabled:?} channels={channels:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn voters_whose_latest_channel_is_not_the_internet_are_discarded() {
+        for channels in [&["Paper"][..], &["Internet", "Kiosk"]] {
+            assert_eq!(
+                screen_voter(&voter(Some(true), channels)),
+                VoterScreening::Discard,
+                "{channels:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn enabled_voters_are_eligible_and_their_latest_channel_says_if_they_are_marked() {
+        let cases: [(&[&str], InternetChannel); 5] = [
+            (&[], InternetChannel::NotMarked),
+            (&["NONE"], InternetChannel::NotMarked),
+            (&[""], InternetChannel::NotMarked),
+            (&["Internet"], InternetChannel::Marked),
+            (&["Paper", "internet"], InternetChannel::Marked),
+        ];
+        for (channels, expected) in cases {
+            assert_eq!(
+                screen_voter(&voter(Some(true), channels)),
+                VoterScreening::Eligible(expected),
+                "{channels:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn voters_marked_via_the_internet_are_validated_without_a_new_mark() {
+        for prior_valid_vote in [false, true] {
+            assert_eq!(
+                pre_send_decision(InternetChannel::Marked, prior_valid_vote),
+                PreSendDecision::Validate(InternetChannelUpdate::Leave),
+                "prior_valid_vote={prior_valid_vote}"
+            );
+        }
+    }
+
+    #[test]
+    fn re_votes_of_unmarked_voters_are_validated_and_marked() {
+        assert_eq!(
+            pre_send_decision(InternetChannel::NotMarked, true),
+            PreSendDecision::Validate(InternetChannelUpdate::Mark)
+        );
+    }
+
+    #[test]
+    fn first_votes_of_unmarked_voters_need_set_voted() {
+        assert_eq!(
+            pre_send_decision(InternetChannel::NotMarked, false),
+            PreSendDecision::SendSetVoted
+        );
+    }
+}
