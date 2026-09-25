@@ -169,7 +169,7 @@ export const fullAdminTheme = {
                     "fontFamily": "Roboto",
                     "lineHeight": "24px",
                     "color": "#000",
-                    "opacity": 0.4,
+                    "opacity": 0.6,
                     "letter": "0.4",
                     "cursor": "pointer",
                     "&:hover": {

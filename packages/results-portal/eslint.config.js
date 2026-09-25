@@ -13,6 +13,7 @@ export default [
     {
         ignores: [
             "dist/**",
+            "coverage/**",
             "storybook-static/**",
             "test-results/**",
             "build/**",

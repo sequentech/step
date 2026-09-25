@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {createContext, useContext, useState} from "react"
 import type {Decorator} from "@storybook/react-vite"
-import {createMemoryRouter, Outlet, useLocation} from "react-router"
+import {
+    createMemoryRouter,
+    Outlet,
+    useLocation,
+    type ActionFunction,
+    type LoaderFunction,
+} from "react-router"
 import {RouterProvider} from "react-router/dom"
 
 /** `parameters.router` of a story. */
@@ -12,6 +18,13 @@ export interface RouterParameters {
     path?: string
     /** Initial history stack; the last entry is the current location. */
     initialEntries?: string[]
+    /** Optional parent route for screens whose action redirects relative to a sibling. */
+    parentPath?: string
+    /** Real route action used by screens submitting through the data router. */
+    action?: ActionFunction
+    /** Real route loader and boundary for failure-state stories. */
+    loader?: LoaderFunction
+    errorElement?: React.ReactNode
 }
 
 // The router is created once per story, so the story element reaches its route
@@ -39,15 +52,14 @@ const CurrentLocation: React.FC = () => {
     )
 }
 
-const MemoryRouterHost: React.FC<Required<RouterParameters> & {story: React.ReactNode}> = ({
-    path,
-    initialEntries,
-    story,
-}) => {
+const MemoryRouterHost: React.FC<
+    RouterParameters & {path: string; initialEntries: string[]; story: React.ReactNode}
+> = ({path, initialEntries, parentPath, action, loader, errorElement, story}) => {
     const [router] = useState(() =>
         createMemoryRouter(
             [
                 {
+                    path: parentPath,
                     element: (
                         <>
                             <Outlet />
@@ -56,9 +68,9 @@ const MemoryRouterHost: React.FC<Required<RouterParameters> & {story: React.Reac
                     ),
                     children:
                         path === "*"
-                            ? [{path, element: <StoryRoute />}]
+                            ? [{path, action, loader, errorElement, element: <StoryRoute />}]
                             : [
-                                  {path, element: <StoryRoute />},
+                                  {path, action, loader, errorElement, element: <StoryRoute />},
                                   {path: "*", element: null},
                               ],
                 },
@@ -76,13 +88,24 @@ const MemoryRouterHost: React.FC<Required<RouterParameters> & {story: React.Reac
 
 /** Renders every story inside an in-memory data router (`parameters.router`). */
 export const withMemoryRouter: Decorator = (Story, {parameters}) => {
-    const {path = "*", initialEntries = ["/"]}: RouterParameters = parameters.router ?? {}
+    const {
+        path = "*",
+        initialEntries = ["/"],
+        parentPath,
+        action,
+        loader,
+        errorElement,
+    }: RouterParameters = parameters.router ?? {}
 
     return (
         <MemoryRouterHost
-            key={JSON.stringify([path, initialEntries])}
+            key={JSON.stringify([path, initialEntries, parentPath])}
             path={path}
             initialEntries={initialEntries}
+            parentPath={parentPath}
+            action={action}
+            loader={loader}
+            errorElement={errorElement}
             story={<Story />}
         />
     )

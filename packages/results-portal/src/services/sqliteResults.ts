@@ -43,7 +43,7 @@ export const queryRows = <T extends ResultsRow = ResultsRow>(
 
     try {
         while (statement.step()) {
-            rows.push(statement.getAsObject() as T)
+            rows.push(statement.getAsObject() as unknown as T)
         }
     } finally {
         statement.free()

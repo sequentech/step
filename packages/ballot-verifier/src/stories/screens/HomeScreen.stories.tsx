@@ -55,28 +55,30 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Primary: Story = {
-    parameters: {
-        expectedFailure: {
-            reason: "DropFile renders an empty file-name heading before upload.",
-            a11y: ["empty-heading"],
-        },
-    },
     play: async ({canvasElement}) => {
         await expect(within(canvasElement).getByRole("button", {name: /Next/})).toBeDisabled()
     },
 }
 export const InvalidJson: Story = {
-    parameters: {
-        expectedFailure: {
-            reason: "DropFile file name has insufficient contrast after upload.",
-            a11y: ["color-contrast"],
-        },
-    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const file = new File(["{invalid JSON"], "ballot.json", {type: "application/json"})
         await userEvent.upload(canvas.getByTestId<HTMLInputElement>("drop-input-file"), file)
         await expect(await canvas.findByRole("alert")).toBeVisible()
         await expect(canvas.getByRole("button", {name: /Next/})).toBeDisabled()
+    },
+}
+
+export const SampleBallot: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(canvas.getByRole("button", {name: "Use a sample ballot"}))
+        await expect(
+            canvas.getByRole<HTMLInputElement>("textbox", {name: "Ballot ID"}).value
+        ).toMatch(/^[0-9a-f]{64}$/)
+        await expect(canvas.getByText("Uploaded", {exact: true})).toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Next"})).toBeEnabled()
+        await userEvent.clear(canvas.getByRole("textbox", {name: "Ballot ID"}))
+        await expect(canvas.getByRole("button", {name: "Next"})).toBeDisabled()
     },
 }
