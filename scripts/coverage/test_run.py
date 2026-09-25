@@ -329,7 +329,14 @@ HASURA_DB__HOST = "127.0.0.1"
         with patch.object(sys, "argv", ["run.py", "sequent-core", "--baseline"]):
             with patch.object(run, "measure", return_value=1) as measure:
                 self.assertEqual(run.main(), 1)
-            measure.assert_called_once_with("sequent-core", True, False, None)
+            measure.assert_called_once_with("sequent-core", True, False, None, False)
+
+    def test_main_passes_the_comparison_base_flag(self) -> None:
+        arguments = ["run.py", "sequent-core", "--baseline", "--comparison-base"]
+        with patch.object(sys, "argv", arguments):
+            with patch.object(run, "measure", return_value=0) as measure:
+                self.assertEqual(run.main(), 0)
+            measure.assert_called_once_with("sequent-core", True, False, None, True)
 
     def test_overlapping_runs_cannot_clear_each_others_counters(self) -> None:
         lock_path = self.root / ".git" / "package-coverage.lock"
@@ -436,6 +443,35 @@ HASURA_DB__HOST = "127.0.0.1"
             self.config.read_text()
             + ('[profiles.sequent-core.excluded_files]\n"src/*.rs" = "Too broad."\n')
         )
+        with patch.object(run, "execute") as command:
+            self.assertEqual(run.measure("sequent-core", True, True), 2)
+            command.assert_not_called()
+
+    def newer_policy_files(self) -> None:
+        """Name a declarations-only file and a test module that the head adds."""
+        self.config.write_text(
+            self.config.read_text()
+            + '"src/ports.rs" = "Trait declarations only."\n'
+            + "[profiles.sequent-core.excluded_files]\n"
+            + '"src/load_tests.rs" = "Test module only."\n'
+        )
+
+    def test_a_comparison_base_skips_policy_entries_for_files_it_predates(self):
+        self.newer_policy_files()
+        with patch.object(run, "execute", side_effect=self.tool_output):
+            code = run.measure("sequent-core", True, True, comparison_base=True)
+        self.assertEqual(code, 0)
+        summary = json.loads(
+            next(self.root.glob("coverage/sequent-core/*/summary.json")).read_text()
+        )
+        self.assertEqual(
+            summary["policy_files_absent_from_base"],
+            ["src/load_tests.rs", "src/ports.rs"],
+        )
+        self.assertEqual(summary["excluded_files"], {})
+
+    def test_policy_entries_for_missing_files_fail_outside_a_comparison_base(self):
+        self.newer_policy_files()
         with patch.object(run, "execute") as command:
             self.assertEqual(run.measure("sequent-core", True, True), 2)
             command.assert_not_called()

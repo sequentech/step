@@ -6,4 +6,8 @@
 //! tests can assert what a service stored, not which calls it made.
 
 pub mod clock;
+pub mod datafix_cast_vote;
+pub mod keys_ceremony;
+pub mod publication_files;
 pub mod results_publication;
+pub mod tally_ceremony;
