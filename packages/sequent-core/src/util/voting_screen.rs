@@ -287,6 +287,7 @@ pub fn get_contest_plurality(
     let min_votes = min_votes.unwrap_or(1);
 
     Contest {
+        external_id: None,
         created_at: None,
         id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
         tenant_id: "1fc963b1-f93b-4151-93d6-bbe0ea5eac46".into(),
