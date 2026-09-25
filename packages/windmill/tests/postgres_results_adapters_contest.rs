@@ -15,6 +15,8 @@ use sequent_core::types::results::{
     ResultsContestCandidate,
 };
 use serde_json::{json, Value};
+use std::{collections::HashMap, io::Write};
+use tempfile::NamedTempFile;
 use tokio_postgres::types::WasNull;
 use uuid::Uuid;
 use windmill::postgres::results_area_contest::{
@@ -33,6 +35,11 @@ use windmill::postgres::results_contest_candidate::{
     get_event_results_contest_candidates, insert_many_results_contest_candidates,
     insert_results_contest_candidates,
 };
+use windmill::services::export::export_tally::{
+    export_results_area_contest, export_results_area_contest_candidate, export_results_contest,
+    export_results_contest_candidate,
+};
+use windmill::services::import::import_tally::process_tally_file;
 
 const TENANT: &str = "10000000-0000-4000-8000-000000000001";
 const OTHER_TENANT: &str = "10000000-0000-4000-8000-000000000002";
@@ -1860,3 +1867,158 @@ async fn copied_area_candidate_results_keep_every_given_column() {
     .await;
     transaction.rollback().await.unwrap();
 }
+
+macro_rules! results_csv_round_trip {
+    ($name:ident, $row_type:ident, $fixture:expr, $insert:ident, $export:ident, $read:ident, $expected:expr) => {
+        #[tokio::test]
+        async fn $name() {
+            let mut client = schema::pool().await.get().await.unwrap();
+            let transaction = client.transaction().await.unwrap();
+            home(&transaction).await;
+            away(&transaction).await;
+            let original = $row_type {
+                id: ROW_1.to_string(),
+                tenant_id: TENANT.to_string(),
+                election_event_id: EVENT.to_string(),
+                results_event_id: RESULTS.to_string(),
+                created_at: Some(local("2026-01-01T00:00:00Z")),
+                last_updated_at: Some(local("2026-01-02T00:00:00Z")),
+                ..$fixture
+            };
+            $insert(&transaction, vec![original.clone()]).await.unwrap();
+            let (name, path) = $export(&transaction, TENANT, EVENT).await.unwrap();
+            let bytes = std::fs::read(&path).unwrap();
+            let mut reader = csv::Reader::from_reader(bytes.as_slice());
+            let header = reader.headers().unwrap().clone();
+            let rows = reader.records().collect::<Result<Vec<_>, _>>().unwrap();
+            assert_eq!(rows.len(), 1);
+            // Literal expected values check the named wire columns independently of import.
+            for (name, value) in $expected {
+                let column = header.iter().position(|field| field == name).unwrap();
+                assert_eq!(rows[0].get(column), Some(value), "column {name}");
+            }
+            let replacements: HashMap<String, String> =
+                [ELECTION, CONTEST, AREA, CANDIDATE, RESULTS]
+                    .into_iter()
+                    .map(|id| (id.to_string(), id.to_string()))
+                    .collect();
+            let mut file = NamedTempFile::new().unwrap();
+            file.write_all(&bytes).unwrap();
+            process_tally_file(&transaction, &file, name, TENANT, OTHER_EVENT, replacements)
+                .await
+                .unwrap();
+            let imported = $read(&transaction, TENANT, OTHER_EVENT).await.unwrap();
+            assert_eq!(imported.len(), 1);
+            assert_eq!(
+                imported[0],
+                $row_type {
+                    id: imported[0].id.clone(),
+                    election_event_id: OTHER_EVENT.to_string(),
+                    ..original
+                }
+            );
+            transaction.rollback().await.unwrap();
+        }
+    };
+}
+
+results_csv_round_trip!(
+    contest_results_survive_an_export_and_import_round_trip,
+    ResultsContest,
+    contest_result(CONTEST),
+    insert_many_results_contests,
+    export_results_contest,
+    get_event_results_contest,
+    [
+        ("name", r#""Mayor""#),
+        ("voting_type", r#""online""#),
+        ("counting_algorithm", r#""plurality-at-large""#),
+        ("elegible_census", "200"),
+        ("total_valid_votes", "75"),
+        ("total_invalid_votes", "25"),
+        ("explicit_invalid_votes", "12"),
+        ("implicit_invalid_votes", "13"),
+        ("total_blank_votes", "19"),
+        ("explicit_blank_votes", "16"),
+        ("implicit_blank_votes", "3"),
+        ("total_valid_votes_percent", "0.75"),
+        ("total_invalid_votes_percent", "0.25"),
+        ("explicit_invalid_votes_percent", "0.125"),
+        ("implicit_invalid_votes_percent", "0.0625"),
+        ("total_blank_votes_percent", "0.1875"),
+        ("explicit_blank_votes_percent", "0.15625"),
+        ("implicit_blank_votes_percent", "0.03125"),
+        ("total_votes", "100"),
+        ("total_votes_percent", "0.5"),
+        ("total_auditable_votes", "87"),
+        ("total_auditable_votes_percent", "0.4375"),
+        ("labels", r#"{"origin":"tally"}"#),
+        ("annotations", r#"{"extended_metrics":{"under_votes":2}}"#),
+    ]
+);
+
+results_csv_round_trip!(
+    area_contest_results_survive_an_export_and_import_round_trip,
+    ResultsAreaContest,
+    area_contest_result(AREA),
+    insert_many_results_area_contests,
+    export_results_area_contest,
+    get_event_results_area_contest,
+    [
+        ("elegible_census", "200"),
+        ("total_valid_votes", "75"),
+        ("total_invalid_votes", "25"),
+        ("explicit_invalid_votes", "12"),
+        ("implicit_invalid_votes", "13"),
+        ("total_blank_votes", "19"),
+        ("explicit_blank_votes", "16"),
+        ("implicit_blank_votes", "3"),
+        ("total_valid_votes_percent", "0.75"),
+        ("total_invalid_votes_percent", "0.25"),
+        ("explicit_invalid_votes_percent", "0.125"),
+        ("implicit_invalid_votes_percent", "0.0625"),
+        ("total_blank_votes_percent", "0.1875"),
+        ("explicit_blank_votes_percent", "0.15625"),
+        ("implicit_blank_votes_percent", "0.03125"),
+        ("total_votes", "100"),
+        ("total_votes_percent", "0.5"),
+        ("total_auditable_votes", "87"),
+        ("total_auditable_votes_percent", "0.4375"),
+        ("labels", r#"{"origin":"tally"}"#),
+        ("annotations", r#"{"extended_metrics":{"under_votes":2}}"#),
+    ]
+);
+
+results_csv_round_trip!(
+    candidate_results_survive_an_export_and_import_round_trip,
+    ResultsContestCandidate,
+    candidate_result(CANDIDATE),
+    insert_many_results_contest_candidates,
+    export_results_contest_candidate,
+    get_event_results_contest_candidates,
+    [
+        ("cast_votes", "42"),
+        ("winning_position", "1"),
+        ("points", "7"),
+        ("cast_votes_percent", "0.625"),
+        ("labels", r#"{"origin":"tally"}"#),
+        ("annotations", r#"{"tie":false}"#),
+    ]
+);
+
+results_csv_round_trip!(
+    area_candidate_results_survive_an_export_and_import_round_trip,
+    ResultsAreaContestCandidate,
+    area_candidate_result(AREA),
+    insert_many_results_area_contest_candidates,
+    export_results_area_contest_candidate,
+    get_event_results_area_contest_candidates,
+    [
+        ("cast_votes", "42"),
+        ("winning_position", "1"),
+        ("points", "7"),
+        ("cast_votes_percent", "0.625"),
+        ("labels", r#"{"origin":"tally"}"#),
+        ("annotations", r#"{"tie":false}"#),
+    ]
+);
