@@ -760,6 +760,37 @@ async fn each_contest_area_gets_its_own_run_of_batches_after_the_existing_ones()
 }
 
 #[tokio::test]
+async fn a_session_after_the_maximum_stored_batch_fails_before_inserting_contests() {
+    let control = closed_event(json!({}));
+    create(&control).await.unwrap();
+    assert_creation_writes(&control, 1, 1, 2);
+
+    let ceremony = closed_event(json!({}));
+    ceremony.add_session_contest(TallySessionContest {
+        id: "earlier".into(),
+        tenant_id: TENANT.into(),
+        election_event_id: EVENT.into(),
+        area_id: "north".into(),
+        contest_id: Some("mayor".into()),
+        session_id: i32::MAX,
+        created_at: None,
+        last_updated_at: None,
+        labels: None,
+        annotations: None,
+        tally_session_id: "earlier-session".into(),
+        election_id: ELECTION.into(),
+    });
+
+    let error = create(&ceremony).await.unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Tally session batch number exceeds the database integer range"
+    );
+    assert_creation_writes(&ceremony, 1, 1, 0);
+    assert!(ceremony.audit_entries().is_empty());
+}
+
+#[tokio::test]
 async fn the_first_session_of_an_event_starts_at_batch_zero() {
     let stride = VOTE_WEIGHT_BATCHES as i32;
     let ceremony = closed_event(json!({}));
