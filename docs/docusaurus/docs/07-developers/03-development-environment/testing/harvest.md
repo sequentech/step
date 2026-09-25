@@ -12,8 +12,8 @@ This coverage slice exercises actual Rocket routes, request guards and
 error catchers with the local HTTP client. It uses the same route builder as production while avoiding startup of
 service workers, probes and plugins. A static inventory covers the registered
 POST routes that require forwarded JWT claims, so removing a guard cannot
-silently remove the corresponding denial check. No production credentials or
-external services belong in these tests.
+silently remove the corresponding denial check. Use synthetic credentials and isolated local fixtures; never point these tests
+at a deployment.
 
 `support/request_boundaries.rs` includes a valid forwarded-claims control before
 checking missing/malformed credentials, document permissions, role mutation
@@ -48,8 +48,8 @@ For a complete native report, from the repository root:
 python3 scripts/coverage/run.py harvest --baseline --offline
 ```
 
-The package profile supplies public local SQL configuration for the existing
-query-builder tests; no database is contacted by this Harvest slice. Each run
+The package profile supplies public local SQL configuration. Complete route
+tests also need the PostgreSQL fixture described below. Each run
 clears old LLVM counters and workspace binaries, so compile-time macro counters
 are collected again; external dependencies stay cached. Never store deployment
 secrets in `test_environment`.
@@ -85,17 +85,43 @@ permission tables, including the order a denial lists them in. Sequent Core's
 the current time as arguments, so their tests need neither the environment nor
 the wall clock.
 
-Most route bodies require configured database
-transactions, Keycloak, brokers, storage or worker state; the denial checks and
-complete-permission controls exercise their entry guards, not complete service
-workflows. Functions
-also include generated routing and error closures. The successful role-creation
-protocol control adds assurance even though its containing function was already
-entered by denial tests. Keep generated functions and uncovered service modules in the source inventory.
+`HarvestServices`, managed by Rocket, provides database pools, document storage,
+Keycloak administration, the task ledger, task queue, cast-vote insertion and
+secret storage. Production adapters call the existing Windmill helpers. Route
+tests inject in-memory adapters and a bounded local HTTP peer for Keycloak;
+SQL still runs against real PostgreSQL. Task rows, queued messages, stored
+secrets and electoral-log entries are observable test results. The adapters
+preserve typed errors and the existing order of authorization and side effects.
 
-Further service-backed coverage needs explicit bounded local fixtures. Actual
-branches, deployed JWT validation and optional feature/target configurations
-remain separate obligations; this native LLVM result does not close them.
+The database fixture in `support/schema.rs` creates a private database, applies
+all Hasura backend migrations in version order, and creates the Keycloak table
+subset its queries use. Every test gets fresh pools and synthetic tenants because
+route handlers commit their transactions. The configured PostgreSQL user needs
+permission to create databases. On an isolated PostgreSQL 16 server, export the
+following synthetic configuration before running the complete suite:
+
+```sh
+# From packages/. The server must already be running on this local port.
+export HASURA_DB__HOST=127.0.0.1 HASURA_DB__PORT=5432
+export HASURA_DB__USER=test HASURA_DB__PASSWORD=test HASURA_DB__DBNAME=test
+export KEYCLOAK_DB__HOST=127.0.0.1 KEYCLOAK_DB__PORT=5432
+export KEYCLOAK_DB__USER=test KEYCLOAK_DB__PASSWORD=test KEYCLOAK_DB__DBNAME=test
+export LOW_SQL_LIMIT=1000 DEFAULT_SQL_LIMIT=20 DEFAULT_SQL_BATCH_SIZE=1000
+cargo test -p harvest --locked
+```
+
+The route suites exercise tally sheets and ceremonies, report generation,
+publication and statistics, the phone blacklist, cast-vote responses,
+voter-authentication settings and voter-information letters. They cover valid
+requests, backend failures, permission denials, task dispatch and committed
+state. Cast-vote tests additionally pin each typed error's HTTP response and the
+retry boundary. Complete-permission controls for routes that still use globals
+stop at their first backend; they do not claim full service workflows.
+
+Deployed workers, identity-provider signatures, RabbitMQ, S3 and ImmuDB remain
+outside this profile. Functions include generated routing and error closures;
+keep these and uncovered service modules in the source inventory. Actual
+branches and optional feature/target configurations remain separate obligations.
 
 The child fixtures reject stale markers. A private temporary nonce selects
 its child path, the parent owns cleanup, and unrelated ambient credentials must
