@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+use crate::ports::cast_votes::CastVoter;
 use crate::services::authorization::authorize_voter_election;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -75,17 +76,19 @@ pub async fn insert_cast_vote(
                 .cast_votes
                 .try_insert(
                     input.clone(),
-                    &claims.hasura_claims.tenant_id,
-                    &claims.hasura_claims.user_id,
-                    &area_id,
-                    voting_channel,
-                    auth_time,
-                    &user_info.ip.map(|ip| ip.to_string()),
-                    &user_info
-                        .country_code
-                        .clone()
-                        .map(|country_code| country_code.to_string()),
-                    &claims.preferred_username,
+                    CastVoter {
+                        tenant_id: &claims.hasura_claims.tenant_id,
+                        voter_id: &claims.hasura_claims.user_id,
+                        area_id: &area_id,
+                        voting_channel,
+                        auth_time,
+                        voter_ip: &user_info.ip.map(|ip| ip.to_string()),
+                        voter_country: &user_info
+                            .country_code
+                            .clone()
+                            .map(|country_code| country_code.to_string()),
+                        username: &claims.preferred_username,
+                    },
                 )
                 .await
         },
