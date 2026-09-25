@@ -270,7 +270,7 @@ const ElectionWrapper: React.FC<ElectionWrapperProps> = ({
             return false
         }
 
-        if (!canVoteTest && !election.name?.includes("TEST")) {
+        if (!canVoteTest) {
             return false
         }
 
@@ -855,7 +855,7 @@ const ElectionSelectionScreen: React.FC = () => {
                             electionId={electionId}
                             key={electionId}
                             bypassChooser={bypassChooser}
-                            canVoteTest={canVoteTest}
+                            canVoteTest={canVoteTest || electionId === testElectionId}
                             materialsGate={materialsGate}
                         />
                     ))
