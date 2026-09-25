@@ -95,7 +95,11 @@ test("audit download independently decodes to the selected candidate and never c
     expect(portal.graphql.callsTo("InsertCastVote")).toEqual([])
 })
 
-for (const code of ["AreaNotFound", "CheckStatusFailed", "InsertFailedExceedsAllowedRevotes"]) {
+for (const [code, message] of [
+    ["AreaNotFound", "Area not found"],
+    ["CheckStatusFailed", "This election does not allow casting a vote"],
+    ["InsertFailedExceedsAllowedRevotes", "You have exceeded the revote limit"],
+]) {
     test(`cast ${code} keeps the ballot available and retries successfully`, async ({
         page,
         portal,
@@ -105,7 +109,7 @@ for (const code of ["AreaNotFound", "CheckStatusFailed", "InsertFailedExceedsAll
             errors: [{message: "Cannot cast this ballot", extensions: {code}}],
         }))
         await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
-        await expect(page.getByRole("alert")).toBeVisible()
+        await expect(page.getByRole("alert")).toContainText(message, {timeout: 1500})
         await expect(page).toHaveURL(/\/review/)
         await expect(page.getByText("Alice Example", {exact: true})).toBeVisible()
         await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
@@ -120,7 +124,9 @@ test("aborted cast remains on review and can retry the same ballot", async ({pag
     await review(page, portal)
     portal.graphql.once("InsertCastVote", () => ({abort: "connectionfailed"}))
     await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
-    await expect(page.getByRole("alert")).toBeVisible()
+    await expect(page.getByRole("alert")).toContainText("A network problem occurred", {
+        timeout: 1500,
+    })
     await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
     await expect(page).toHaveURL(/\/confirmation/)
     const calls = portal.graphql.callsTo("InsertCastVote")
