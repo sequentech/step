@@ -118,6 +118,7 @@
     "html-webpack-plugin": "^5.5.4",
     "jest": "30",
     "jest-environment-jsdom": "30",
+    "jsqr": "1.4.0",
     "nightwatch": "^3.3.8",
     "prettier": "^3.6.2",
     "prop-types": "^15.8.1",
