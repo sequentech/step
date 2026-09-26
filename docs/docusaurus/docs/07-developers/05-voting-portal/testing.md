@@ -68,7 +68,6 @@ separate accounting. Authentication, GraphQL failure handling and ballot
 submission need explicit service fixtures; do not substitute deployed elections.
 Run `test:types` as well as unit tests and inspect any dependency diagnostics.
 
-
 The election chooser and materials acknowledgement screen resolve the same
 published materials policy. A loaded ballot-style presentation takes precedence;
 before any style is loaded, the published event presentation supplies the policy.
