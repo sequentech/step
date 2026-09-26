@@ -36,14 +36,6 @@ from .results import CacheState, SampleRole
 
 SCENARIO = "ui-update"
 PROBE = Path(__file__).with_name("probe.mjs")
-# The probe command whose failure makes waiting for each event pointless.
-EVENT_COMMANDS = {
-    "opened": "open",
-    "visible": "wait",
-    "gone": "gone",
-    "visited": "visit",
-    "watched": "watch",
-}
 
 
 @dataclass(frozen=True)
@@ -111,12 +103,12 @@ class BrowserError(RuntimeError):
 
 
 def ends_wait(
-    message: Mapping[str, Any], event: str, ids: Sequence[str], text: str | None
+    message: Mapping[str, Any], command: str, ids: Sequence[str], text: str | None
 ) -> bool:
-    """Whether a probe error concerns the awaited event, not an abandoned wait."""
+    """Whether a probe error concerns the awaited command, not an abandoned wait."""
     return (
         message.get("id") in ids
-        and message.get("cmd") == EVENT_COMMANDS.get(event, message.get("cmd"))
+        and message.get("cmd") == command
         and (text is None or message.get("text") == text)
     )
 
@@ -152,9 +144,17 @@ class BrowserProbe:
         self.process.stdin.flush()
 
     def collect(
-        self, event: str, ids: Sequence[str], timeout: float, text: str | None = None
+        self,
+        event: str,
+        command: str,
+        ids: Sequence[str],
+        timeout: float,
+        text: str | None = None,
     ) -> dict[str, dict[str, Any]]:
-        """The ``event`` of every id (for ``text``); fails on an error or timeout."""
+        """The ``event`` that ``command`` sends for every id (and ``text``).
+
+        Fails when that command fails or the timeout passes.
+        """
         received: dict[str, dict[str, Any]] = {}
         deadline = time.monotonic() + timeout
         while len(received) < len(ids):
@@ -168,7 +168,7 @@ class BrowserProbe:
             if message["event"] == "exit":
                 raise BrowserError(f"the probe exited; see {self._log.name}")
             if message["event"] == "error":
-                if ends_wait(message, event, ids, text):
+                if ends_wait(message, command, ids, text):
                     raise BrowserError(f"probe {message.get('id')}: {message}")
                 continue
             if (
@@ -250,7 +250,7 @@ def run_ui_update(options: UiUpdateOptions) -> list[Path]:
                 origin=f"http://127.0.0.1:{options.port_base + offset}",
                 timeout=options.startup_timeout,
             )
-        probe.collect("opened", options.targets, options.startup_timeout)
+        probe.collect("opened", "open", options.targets, options.startup_timeout)
         first_render = time.monotonic() - opened_at
         for name in options.targets:
             runs[name] = start_run(
@@ -324,16 +324,11 @@ def measure(
     apply: bool,
 ) -> None:
     """One edit (or the final revert) until every target shows its result."""
-    event = "visible" if apply else "gone"
+    event, command = ("visible", "wait") if apply else ("gone", "gone")
     timers = {name: SampleTimer(index, role) for name in options.targets}
     for name in options.targets:
-        probe.send(
-            cmd="wait" if apply else "gone",
-            id=name,
-            text=marker,
-            timeout=options.sample_timeout,
-        )
-    probe.collect("waiting", options.targets, 60, marker)
+        probe.send(cmd=command, id=name, text=marker, timeout=options.sample_timeout)
+    probe.collect("waiting", command, options.targets, 60, marker)
     saved = edit.apply(marker) if apply else edit.restore()
     phases: dict[str, float] = {}
     rebuild: CommandResult | None = None
@@ -352,7 +347,7 @@ def measure(
     if error is None:
         try:
             events = probe.collect(
-                event, options.targets, options.sample_timeout, marker
+                event, command, options.targets, options.sample_timeout, marker
             )
         except BrowserError as failure:
             error = str(failure)
