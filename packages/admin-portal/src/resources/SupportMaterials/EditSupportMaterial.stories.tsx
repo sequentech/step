@@ -85,10 +85,17 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-const titleField = (canvasElement: HTMLElement) =>
-    within(canvasElement).findByRole("textbox", {
-        name: i18n.t("electionEventScreen.field.materialTitle"),
-    })
+const titleLabel = () => i18n.t("electionEventScreen.field.materialTitle")
+
+/** The title field, once the material has loaded into it. */
+async function titleField(canvasElement: HTMLElement) {
+    await waitFor(() =>
+        expect(within(canvasElement).getByRole("textbox", {name: titleLabel()})).toHaveValue(
+            "Voting guide"
+        )
+    )
+    return within(canvasElement).getByRole("textbox", {name: titleLabel()})
+}
 
 async function expectNotification(text: string) {
     const message = await within(document.body).findByText(text)
@@ -97,7 +104,6 @@ async function expectNotification(text: string) {
 
 async function renameTheGuide(canvasElement: HTMLElement) {
     const title = await titleField(canvasElement)
-    await waitFor(() => expect(title).toHaveValue("Voting guide"))
     await userEvent.clear(title)
     await userEvent.type(title, "Voter handbook")
     await userEvent.click(within(canvasElement).getByRole("button", {name: "Save"}))
@@ -107,7 +113,7 @@ export const Populated: Story = {
     parameters: {widgets: ["GetPublicURL"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(await titleField(canvasElement)).toHaveValue("Voting guide")
+        await expect(await titleField(canvasElement)).toBeVisible()
         await expect(
             canvas.getByRole("textbox", {
                 name: i18n.t("electionEventScreen.field.materialSubTitle"),
@@ -192,9 +198,7 @@ export const ReplaceTheDocument: Story = {
 
 export const RequireATitle: Story = {
     play: async ({canvasElement, args}) => {
-        const title = await titleField(canvasElement)
-        await waitFor(() => expect(title).toHaveValue("Voting guide"))
-        await userEvent.clear(title)
+        await userEvent.clear(await titleField(canvasElement))
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Save"}))
         await expect(
             await within(canvasElement).findByText(i18n.t("materials.error.title"))
