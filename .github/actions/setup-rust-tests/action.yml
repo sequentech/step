@@ -6,6 +6,9 @@ name: Set up Rust tests
 description: Install the Rust toolchain, restore Cargo caches, and install native test dependencies
 
 inputs:
+  cache-epoch:
+    description: Explicit compiler-cache reset version
+    default: v1
   cargo-build-name:
     description: Stable name used to isolate the Cargo build cache
     required: true
@@ -44,6 +47,7 @@ runs:
     - name: Restore compatible compiler units
       uses: ./.github/actions/setup-rust-cache
       with:
+        epoch: ${{ inputs.cache-epoch }}
         name: ${{ inputs.cargo-build-name }}
         target-dir: ${{ inputs.cargo-build-path }}
         lockfile: ${{ inputs.cargo-lock-path }}

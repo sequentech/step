@@ -3,6 +3,9 @@
 name: Restore Rust compiler units
 description: Optional bounded compiler cache; every caller still runs Cargo
 inputs:
+  epoch:
+    description: Explicit cache reset version, supplied by the calling workflow
+    default: v1
   name:
     description: Stable compilation group
     required: true
@@ -35,7 +38,7 @@ runs:
         CACHE_PROFILE: ${{ inputs.profile }}
         CACHE_FEATURES: ${{ inputs.features }}
         CACHE_TARGETS: ${{ inputs.targets }}
-        CACHE_EPOCH: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+        CACHE_EPOCH: ${{ inputs.epoch }}
       run: |
         python3 -m scripts.dev.rust_cache --name "$CACHE_NAME" --lockfile "$CACHE_LOCKFILE" \
           --target-dir "$CACHE_TARGET_DIR" --profile "$CACHE_PROFILE" --features "$CACHE_FEATURES" \
