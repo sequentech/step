@@ -471,3 +471,22 @@ fn tally_patch_carries_exactly_the_rules_the_architect_lists() {
          decide whether the new rule belongs on the Contest Ballot Rules card"
     );
 }
+
+/// A level that says only how a tie is broken has still said something.
+///
+/// `Overrides` is skipped when empty on save, so a contest whose only override was
+/// the tie-breaking policy lost it the moment the plan was written, and fell back
+/// to whatever the election said.
+#[test]
+fn a_level_that_only_breaks_ties_its_own_way_is_not_empty() {
+    let overrides = Overrides {
+        tally: TallyPatch {
+            tie_breaking_policy: Some("random".to_string()),
+            ..TallyPatch::default()
+        },
+        ..Overrides::default()
+    };
+
+    assert!(!overrides.tally.is_empty());
+    assert!(!overrides.is_empty());
+}
