@@ -201,10 +201,6 @@
       "probe": ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3030/ready"]
     },
     {
-      "name": "beat",
-      "probe": ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:3030/ready"]
-    },
-    {
       "name": "b4",
       "probe": ["curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:50051/boards"]
     }
