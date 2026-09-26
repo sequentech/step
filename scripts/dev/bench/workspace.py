@@ -126,6 +126,16 @@ class MemorySampler:
             self._stop.wait(self.interval)
 
 
+def conditions(options: WorkspaceOptions) -> list[str]:
+    """What readiness means for this series, for tables that compare series."""
+    optional = sorted(probe.name for probe in options.probes if not probe.required)
+    return [
+        f"ready: {', '.join(probe.name for probe in options.probes if probe.required)}",
+        f"optional: {', '.join(optional) or 'none'}",
+        f"after up: {options.after_up or 'nothing'}",
+    ]
+
+
 def optional_names(probes: list[Probe]) -> set[str]:
     return {
         probe.name
@@ -437,6 +447,7 @@ def run_workspace(options: WorkspaceOptions) -> Path:
             "dind_image": options.dind_image,
             "docker_host": options.docker_host,
             "seeded_images": [f"{source}={target}" for source, target in options.seeds],
+            "conditions": conditions(options),
         },
         extra_tools={"devcontainer": (options.devcontainer, "--version")},
     )
