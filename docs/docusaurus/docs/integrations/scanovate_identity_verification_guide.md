@@ -174,9 +174,10 @@ offers the voter these document types, each with its own rules:
 | Integrated Bar of the Philippines ID | `iBP` |
 | Seafarer’s Book | `seamanBook` |
 
-All of them require liveness, a minimum face match score, an authentic
-document and a document that hasn't expired. All but the Integrated Bar of the
-Philippines ID must also be issued by the Philippines (`PHL`).
+All of them require liveness, a minimum face match score and an authentic
+document. All but the PhilSys ID, which has no expiry date, must not have
+expired, and all but the Integrated Bar of the Philippines ID must be issued by
+the Philippines (`PHL`).
 
 Only Filipino citizens can enroll. The document rules alone don't guarantee
 it: a Philippine driver's license or PhilSys ID can also be issued to foreign
@@ -358,36 +359,126 @@ voter, so voters go through enrollment without any B-Trust UI. The step-cli
 test election templates (`packages/step-cli/data/*.json`) use this mode against
 `http://mock_server:8500`. Never use `auto-complete` against the real B-Trust.
 
-### Testing against B-Trust
+### Testing against the Scanovate test environment
 
-1. Ask Scanovate for sandbox credentials and a flow configured with the tasks
-   you want to validate (OCR, Liveness Plus, Biometrics and, optionally,
-   Document Liveness Plus). Add the Keycloak host to the allowed redirect URLs
-   if B-Trust requires it.
-2. Set `base-url`, `client-id`, `client-secret` and `flow-id`, with
-   `execution-mode` set to `interactive`.
-3. Enroll with each accepted document type, preferably from a phone. Log the
-   response of `results_with_image_names` (for example by calling the API with
-   the process id from the `scanovate_process_id` event detail) and check that
-   every `attributePath` in your rules resolves.
-4. Tune the `biometric_match` threshold with real documents, and check that
-   expired documents, another person's selfie and a photo of a screen are
-   rejected.
-5. If `save-option` is `do_not_save`, remember that fetching the results deletes
-   the session data in B-Trust.
+This is the real voter journey: the voter scans their ID and records a selfie
+video in B-Trust, from a browser. The same steps apply to production, with
+production values.
+
+#### What to ask Scanovate for
+
+- The test environment API base URL, and a `client_id` and `client_secret`.
+- A flow (`flow_id`) built in the B-Trust Flow Builder with:
+  - OCR for the accepted documents: the Philippine passport (MRZ) and the
+    driver's license, PhilSys ID, IBP ID and Seafarer's Book (read with Regula).
+  - Liveness Plus, Biometrics (face match) and Document Liveness Plus.
+  - The voter journey used with Inetum: selfie, photo of the ID, and a short
+    video holding the ID.
+  - If voters may start on a computer and continue on their phone (QR code),
+    desktop sync. Keycloak sends the return URL as both `redirect_url` and
+    `desktop_redirect_url`, so the computer, which holds the Keycloak session,
+    returns to the enrollment.
+- A callback URL configured for the company. Otherwise the session token
+  endpoint that Keycloak calls fails with `Company {companyId} callback url not
+  defined`.
+- If B-Trust restricts redirect URLs, allow
+  `https://<keycloak host>/realms/<realm>/scanovate/return` for each realm.
+- Test documents, if available (see
+  [Testing without your own documents](#testing-without-your-own-documents)).
+
+#### Pointing a realm to a B-Trust environment
+
+`packages/keycloak-extensions/scanovate-authenticator/scripts/btrust.sh`
+updates every Scanovate step of a realm. It needs `curl` and `jq`:
+
+```bash
+export SCANOVATE_BASE_URL=<test environment API base URL>
+export SCANOVATE_CLIENT_ID=<client id>
+export SCANOVATE_CLIENT_SECRET=<client secret>
+export SCANOVATE_FLOW_ID=<flow id>
+packages/keycloak-extensions/scanovate-authenticator/scripts/btrust.sh \
+  configure tenant-<tenant id>-event-<election event id>
+```
+
+It sets `execution-mode` to `interactive`, unless `SCANOVATE_EXECUTION_MODE`
+says otherwise, and `save-option` from `SCANOVATE_SAVE_OPTION`. `KEYCLOAK_URL`,
+`KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` default to the dev container
+Keycloak (`http://127.0.0.1:8090`, `admin`/`admin`). Run it again with the mock
+server values (`http://mock_server:8500`, `mock-client`, `mock-secret`, flow
+`1`) to go back to the mock. The same settings can be edited in the Keycloak
+admin console: **Authentication**, the registration flow, then the settings of
+the Scanovate step.
+
+#### Enrolling
+
+1. Import the [sample election event](#sample-election-event) and point its
+   realm to the test environment as shown above.
+2. The data read from the ID must match a voter of the registry. Import a
+   voters CSV with the document holder's data instead of the sample voter:
+
+   ```csv
+   username,first_name,last_name,enabled,area_name,dateOfBirth,embassy,country
+   tester,<FIRST NAME>,<LAST NAME>,true,Japan - Tokyo PE,<yyyy-MM-dd>,Tokyo PE,Japan/Tokyo PE
+   ```
+
+   Names are compared ignoring case, accents, hyphens and dots. For Seafarer's
+   Books and driver's licenses, the first and middle names are compared
+   together.
+3. Enroll from a browser with a camera. With the dev container, Keycloak's URLs
+   use `KC_HOSTNAME` (`localhost`), so B-Trust can only bring the voter back to
+   the computer running it. To enroll from a phone, or to try desktop sync,
+   expose Keycloak over HTTPS, for example with
+   `cloudflared tunnel --url http://127.0.0.1:8090`. Then set `KC_HOSTNAME` to
+   the tunnel URL in `.devcontainer/.env` and recreate the `keycloak`
+   container.
+4. Complete the B-Trust flow: selfie, ID, video. You're back in Keycloak on
+   the Voter Validation page.
+5. Look up the process id in the Keycloak log (`startVerification: created
+   B-Trust session <process id>`) or in the `scanovate_process_id` event
+   detail, and fetch the results:
+
+   ```bash
+   packages/keycloak-extensions/scanovate-authenticator/scripts/btrust.sh results <process id>
+   ```
+
+   Check that every `attributePath` of the rules for that document type
+   resolves. The OCR fields of documents read with Regula depend on the
+   document. In particular, check `/issuingCountry/alpha3` and `/expiryDate` for
+   the driver's license, IBP ID and Seafarer's Book. The PhilSys ID has no
+   expiry date, so it has no expiry rule. A missing value rejects the voter.
+6. Tune the `biometric_match` threshold with real documents. Check that expired
+   documents, another person's selfie and a photo of a screen are rejected.
+7. If `save-option` is `do_not_save`, remember that fetching the results
+   deletes the session data in B-Trust, including through `btrust.sh results`.
+
+#### Going to production
+
+Only configuration changes, never code:
+
+- New election events: set the `keycloak_scanovate_base_url`,
+  `keycloak_scanovate_client_id`, `keycloak_scanovate_client_secret` and
+  `keycloak_scanovate_flow_id` settings of the janitor spreadsheet to the
+  production values, and leave `keycloak_scanovate_execution_mode` as
+  `interactive` (see [COMELEC janitor](#comelec-janitor)).
+- Existing election events: run `btrust.sh configure` with the production
+  values, and `KEYCLOAK_URL`, `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` of
+  the production Keycloak.
+- Ask Scanovate to set up the production flow with the same tasks as the
+  tested one, the company callback URL, and the production return URLs.
+- Never use `auto-complete`, or rules relaxed for testing, in production.
 
 #### Testing without your own documents
 
 With the mock server, no document is needed at all. Against B-Trust, avoid
 using personal documents in shared environments:
 
-- Ask Scanovate for test documents. B-Trust sandboxes usually come with sample
-  documents, or can be configured to accept them.
+- Ask Scanovate for test documents. B-Trust test environments usually come
+  with sample documents, or can be configured to accept them.
 - Official specimen images (for example the passport and PhilSys specimens
   published by the issuing agencies) are useful to check that OCR fields
   resolve. Expect Document Liveness Plus to reject them when shown on a screen
   or printed, and the face match to fail because the selfie isn't the holder's.
-  To exercise the whole flow with them, use a separate sandbox authenticator
+  To exercise the whole flow with them, use a separate test authenticator
   config without the `document_liveness_plus` rule and with a lower
   `biometric_match` threshold. Never use that config in production.
 - Real voters' documents must never be used for testing.
