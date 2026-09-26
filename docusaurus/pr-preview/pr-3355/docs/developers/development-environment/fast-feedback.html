@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3355/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3355/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3355/assets/js/runtime~main.98f103d6.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3355/assets/js/runtime~main.6b267ce1.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3355/assets/js/main.8db03542.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -23,15 +23,16 @@ configurations; the <code>devcontainer</code> CLI selects one with <code>--confi
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev mode list</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev mode status</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev mode up ui-keycloak</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev mode switch backend</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev mode stop</span><br></span></code></pre></div></div>
 <p>They work inside the devcontainer and on the host. <code>up</code> starts the mode&#x27;s
 services, waits for their health checks and probes, starts the mode&#x27;s default
-dev servers (<code>--servers none</code>, or a comma-separated list) and prints the URLs. A
-server already listening on its port is reused rather than started again; the
-ones <code>step-dev</code> starts log to <code>.cache/dev-mode/</code>. <code>switch</code> first stops the
-services and <code>step-dev</code> servers the target mode does not use; <code>stop</code> stops all
-of them except the devcontainer. Nothing removes containers, volumes or caches,
-and <code>up</code> reuses existing containers as they are: rebuild the devcontainer to
-apply Compose changes. <code>up</code>, <code>switch</code> and the devcontainer&#x27;s initialize command
-fail before touching a container when another Compose project publishes a port
-or holds a container name the mode needs.</p>
+dev servers (<code>--servers none</code>, or a comma-separated list) and prints the URLs.
+Dev servers need <code>yarn --cwd packages install --frozen-lockfile</code> first. A server
+already listening on its port is reused rather than started again; the ones
+<code>step-dev</code> starts log to <code>.cache/dev-mode/</code>. <code>switch</code> first stops the services
+and <code>step-dev</code> servers the target mode does not use; <code>stop</code> stops all of them
+except the devcontainer. Nothing removes volumes or caches. <code>up</code> starts existing
+containers as they are, replacing only one whose health check changed; rebuild
+the devcontainer to apply other Compose changes. <code>up</code>, <code>switch</code> and the
+devcontainer&#x27;s initialize command fail before touching a container when another
+Compose project publishes a port or holds a container name the mode needs.</p>
 <p>Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode&#x27;s services: run <code>step-dev mode switch</code>,
 or <strong>Dev Containers: Rebuild Container</strong> and pick the configuration.</p>
@@ -46,11 +47,13 @@ local Cargo builds use <code>rust-local-target</code>.</p>
 <p>Dependency caches live in Docker volumes shared by all checkouts, so a new
 worktree or a recreated container does not download them again:</p>
 <table><thead><tr><th>Volume</th><th>Mounted at</th><th>Holds</th><th>Refreshed</th></tr></thead><tbody><tr><td><code>step-devcontainer-nix-&lt;image tag&gt;</code></td><td><code>/nix</code></td><td>Nix store with the devenv toolchains</td><td>a devcontainer image upgrade starts a new volume</td></tr><tr><td><code>step-devcontainer-cache</code></td><td><code>~/.cache</code></td><td>Yarn, Nix fetcher and Playwright caches</td><td>never stale: entries are versioned</td></tr><tr><td><code>step-devcontainer-cargo</code></td><td><code>~/.cargo</code></td><td>Cargo registry and git checkouts</td><td>never stale: entries are versioned</td></tr></tbody></table>
-<p><code>docker compose down --volumes</code> leaves them alone. To reset one, stop the
-devcontainers using it (<code>docker ps --filter volume=&lt;name&gt;</code>) and
-<code>docker volume rm &lt;name&gt;</code>; the next start recreates it. Garbage-collecting the
-Nix store only keeps what the checkouts visible in that container use, so run
-<code>nix-collect-garbage</code> while no other devcontainer builds.</p>
+<p><code>docker compose down --volumes</code> leaves them alone. To reset one, remove the
+containers that mount it, <code>docker ps --all --filter volume=&lt;name&gt;</code> (the Rust
+services and Hasura share the devcontainer&#x27;s mounts), then
+<code>docker volume rm &lt;name&gt;</code>; the next start recreates them. Every devcontainer
+runs its own Nix daemon on the shared store. A garbage collection sees only the
+roots and builds of its own container, so run <code>nix-collect-garbage</code> while no
+other devcontainer is up; <code>.devcontainer/scripts/free-space.sh</code> skips it then.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-ui-hot-reload">Shared UI hot reload<a href="#shared-ui-hot-reload" class="hash-link" aria-label="Direct link to Shared UI hot reload" title="Direct link to Shared UI hot reload" translate="no">​</a></h2>
 <p>Portal dev servers compile <code>@sequentech/ui-core</code> and <code>@sequentech/ui-essentials</code>
 from <code>src</code>, so a shared component edit reaches every running portal without a
