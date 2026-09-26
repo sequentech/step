@@ -149,6 +149,10 @@ services:
     environment:
       # Issue login URLs and tokens for the address the driver can reach.
       KC_HOSTNAME: http://keycloak:8090
+    # The realms only: tests use the themes packaged in the image, not the
+    # checkout's live theme sources.
+    volumes: !override
+      - ./keycloak/import:/opt/keycloak/data/import:ro,z
     healthcheck:
       # Ready once the imported tenant realm serves its discovery document.
       test:
