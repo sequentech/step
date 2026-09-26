@@ -109,7 +109,9 @@ export const SaveChangedElections: Story = {
                 }),
             ])
         )
-        await expect(await within(document.body).findByText("Area updated")).toBeVisible()
+        // The snackbar fades in after its message mounts.
+        const updated = await within(document.body).findByText("Area updated")
+        await waitFor(() => expect(updated).toBeVisible())
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
     },
 }
@@ -120,7 +122,8 @@ export const SaveFailure: Story = {
         const canvas = within(canvasElement)
         await userEvent.click(await loadedElection(canvasElement, STORY_IDS.secondElection))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        await expect(await within(document.body).findByText("Could not update Area")).toBeVisible()
+        const failure = await within(document.body).findByText("Could not update Area")
+        await waitFor(() => expect(failure).toBeVisible())
         expect(data.writes).toHaveLength(1)
         await waitFor(() => expect(args.close).toHaveBeenCalledTimes(1))
     },
