@@ -9,6 +9,7 @@ import {
     CONTEST_ID,
     EVENT_ID,
     FIXED_TIME,
+    RESULTS_ID,
     TALLY_ID,
     TALLY_ROLES,
     TRUSTEES,
@@ -149,3 +150,255 @@ function tie(overrides: Record<string, unknown> = {}) {
         ...overrides,
     }
 }
+
+const JSON_DOCUMENT_ID = "64000000-0000-4000-8000-000000000001"
+const HTML_DOCUMENT_ID = "64000000-0000-4000-8000-000000000002"
+const PDF_DOCUMENT_ID = "64000000-0000-4000-8000-000000000003"
+const XLSX_DOCUMENT_ID = "64000000-0000-4000-8000-000000000004"
+const TASK_ID = "65000000-0000-4000-8000-000000000001"
+
+/** A completed tally whose results database and event documents are ready. */
+async function completedTally(portal: AdminPortal) {
+    const world = tallyWorld(portal)
+    await serveResults(portal, world)
+    world.session.execution_status = "SUCCESS"
+    world.session.is_execution_completed = true
+    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "KEY_RESTORED"}))
+    world.execution.status.elections_status = [
+        {election_id: world.election.id as string, status: "SUCCESS", progress: 100},
+    ]
+    return world
+}
+
+function task(type: string, status = "SUCCESS") {
+    return {
+        id: TASK_ID,
+        tenant_id: TENANT_ID,
+        election_event_id: EVENT_ID,
+        name: type,
+        type,
+        execution_status: status,
+        created_at: FIXED_TIME,
+        start_at: FIXED_TIME,
+        end_at: FIXED_TIME,
+        logs: [],
+        annotations: {},
+        labels: {},
+        executed_by_user: "harbour-admin",
+    }
+}
+
+test("a completed tally shows global and per-area results and exports its documents", async ({
+    page,
+    portal,
+}) => {
+    const world = await completedTally(portal)
+    world.resultsDocuments.json = JSON_DOCUMENT_ID
+    world.resultsDocuments.html = HTML_DOCUMENT_ID
+    const jsonUrl = portal.s3.presign(`${TENANT_ID}/${EVENT_ID}/results.json`, "json")
+    world.documentUrls.set(JSON_DOCUMENT_ID, jsonUrl)
+    portal.graphql.on("RenderDocumentPdf", () => ({
+        data: {
+            render_document_pdf: {
+                document_id: PDF_DOCUMENT_ID,
+                task_execution: task("RENDER_DOCUMENT_PDF", "IN_PROGRESS"),
+            },
+        },
+    }))
+    portal.graphql.on("GetTaskById", () => ({
+        data: {sequent_backend_tasks_execution: [task("RENDER_DOCUMENT_PDF", "IN_PROGRESS")]},
+    }))
+
+    const row = await openTallyList(page, portal)
+    await rowAction(row, "View Tally Ceremony").click()
+    await expect(page.getByText("Status: SUCCESS", {exact: true})).toBeVisible()
+    await expect(
+        page
+            .getByRole("row", {name: /Alice Example/})
+            .getByRole("gridcell", {name: "37", exact: true})
+    ).toBeVisible()
+    await page.getByRole("tab", {name: "North precinct", exact: true}).click()
+    await expect(
+        page
+            .getByRole("row", {name: /Alice Example/})
+            .getByRole("gridcell", {name: "20", exact: true})
+    ).toBeVisible()
+    await expect(
+        page
+            .getByRole("row", {name: /Bob Example/})
+            .getByRole("gridcell", {name: "10", exact: true})
+    ).toBeVisible()
+
+    await page.getByLabel("export election data").first().click()
+    const download = page.waitForEvent("download")
+    await page
+        .getByRole("menuitem", {name: "Export in JSON format - 'Harbour event' results"})
+        .click()
+    const file = await download
+    expect(file.suggestedFilename()).toBe("report.json")
+    expect(file.url()).toBe(jsonUrl)
+    expect(portal.graphql.callsTo("FetchDocument").map(({variables}) => variables)).toContainEqual({
+        electionEventId: EVENT_ID,
+        documentId: JSON_DOCUMENT_ID,
+    })
+
+    const pdfUrl = portal.s3.presign(`${TENANT_ID}/${EVENT_ID}/results.pdf`, "pdf")
+    world.documentUrls.set(PDF_DOCUMENT_ID, pdfUrl)
+    portal.graphql.on("GetDocument", () => ({
+        data: {sequent_backend_document: [{name: "results.pdf", annotations: {}}]},
+    }))
+    await page.getByLabel("export election data").first().click()
+    const pdf = page.waitForEvent("download")
+    await page
+        .getByRole("menuitem", {name: "Export in PDF format - 'Harbour event' results"})
+        .click()
+    expect((await pdf).url()).toBe(pdfUrl)
+    expect(portal.graphql.callsTo("GetDocument")[0].variables).toEqual({
+        id: PDF_DOCUMENT_ID,
+        tenantId: TENANT_ID,
+    })
+    const render = portal.graphql.callsTo("RenderDocumentPdf")[0]
+    expect(render.variables).toEqual({
+        documentId: HTML_DOCUMENT_ID,
+        tallySessionId: TALLY_ID,
+        electionEventId: EVENT_ID,
+    })
+    expect(render.headers["x-hasura-role"]).toBe("report-read")
+
+    const xlsxUrl = portal.s3.presign(`${TENANT_ID}/${EVENT_ID}/results.xlsx`, "xlsx")
+    world.documentUrls.set(XLSX_DOCUMENT_ID, xlsxUrl)
+    portal.graphql.on("GetTallySessionExecution", () => ({
+        data: {sequent_backend_tally_session_execution: [world.execution]},
+    }))
+    portal.graphql.on("ExportTallyResults", () => ({
+        data: {
+            export_tally_results: {
+                document_id: XLSX_DOCUMENT_ID,
+                task_execution: task("EXPORT_TALLY_RESULTS_XLSX", "IN_PROGRESS"),
+                error_msg: null,
+            },
+        },
+    }))
+    await page.getByLabel("export election data").first().click()
+    const xlsx = page.waitForEvent("download")
+    await page
+        .getByRole("menuitem", {name: "Export in XLSX format - 'Harbour event' results"})
+        .click()
+    expect((await xlsx).url()).toBe(xlsxUrl)
+    expect(portal.graphql.callsTo("GetTallySessionExecution")[0].variables).toEqual({
+        tallySessionId: TALLY_ID,
+        tenantId: TENANT_ID,
+        resultsEventId: RESULTS_ID,
+    })
+    const exported = portal.graphql.callsTo("ExportTallyResults")
+    expect(exported.map(({variables}) => variables)).toEqual([
+        {electionEventId: EVENT_ID, tallySessionId: TALLY_ID},
+    ])
+    expect(exported[0].headers["x-hasura-role"]).toBe("tally-results-read")
+})
+
+/** A Hasura action error whose webhook answered with a readable reason. */
+const actionError = (reason: string) => ({
+    errors: [
+        {
+            message: "http exception when calling webhook",
+            extensions: {
+                code: "unexpected",
+                internal: {response: {status: 400, body: JSON.stringify({message: reason})}},
+            },
+        },
+    ],
+})
+
+test("reports the backend reason when the tally cannot start and when a tie cannot be resolved", async ({
+    page,
+    portal,
+}) => {
+    const world = tallyWorld(portal)
+    world.session.execution_status = "CONNECTED"
+    world.execution.status.trustees = TRUSTEES.map((name) => ({name, status: "KEY_RESTORED"}))
+    portal.graphql.on("UpdateTallyCeremony", () => actionError("Trustee Bob Trustee is offline"))
+
+    const row = await openTallyList(page, portal)
+    await rowAction(row, "View Tally Ceremony").click()
+    await page.getByRole("button", {name: "Start Tally", exact: true}).click()
+    await page.getByRole("dialog").getByRole("button", {name: "Start Tally", exact: true}).click()
+    await expect(page.getByText("Trustee Bob Trustee is offline", {exact: true})).toBeVisible()
+    await expect(page.getByRole("button", {name: "Start Tally", exact: true})).toBeEnabled()
+    expect(portal.graphql.callsTo("UpdateTallyCeremony")[0].variables).toMatchObject({
+        status: "IN_PROGRESS",
+    })
+
+    await serveResults(portal, world)
+    world.session.execution_status = "AWAITING_INPUT"
+    world.resolutions = [tie()]
+    portal.graphql.on("SubmitTallyResolution", () => actionError("tie already resolved"))
+    await page.clock.runFor(101)
+    await page.getByText("Tie Resolution Required", {exact: true}).click()
+    await page.getByRole("combobox").last().click()
+    await page.getByRole("option", {name: "Bob Example", exact: true}).click()
+    await page.getByRole("button", {name: "Save", exact: true}).click()
+    await page.getByRole("button", {name: "Apply Resolutions and Recalculate"}).click()
+    await expect(
+        page.getByText("Failed to submit resolutions. Please try again.", {exact: true})
+    ).toBeVisible()
+    await expect(page.getByText("Pending calculation", {exact: true})).toBeVisible()
+    expect(portal.graphql.callsTo("SubmitTallyResolution")[0].variables).toMatchObject({
+        resolutions: [{contest_id: CONTEST_ID, selected_candidate_id: BOB_ID}],
+    })
+})
+
+test("cancels a started tally and recounts a completed one from the tally list", async ({
+    page,
+    portal,
+}) => {
+    const world = tallyWorld(portal)
+    const completed = {
+        ...world.session,
+        id: "61000000-0000-4000-8000-000000000009",
+        execution_status: "SUCCESS",
+        is_execution_completed: true,
+    }
+    world.sessions = [world.session, completed]
+    portal.graphql.on("UpdateTallyCeremony", ({variables}) => {
+        world.session.execution_status = String(variables.status)
+        return {data: {update_tally_ceremony: {tally_session_id: TALLY_ID}}}
+    })
+    portal.graphql.once("RecountTallySession", () => actionError("results are locked"))
+    portal.graphql.on("RecountTallySession", () => ({
+        data: {recount_tally_session: {tally_session_id: completed.id}},
+    }))
+
+    const row = await openTallyList(page, portal)
+    await expect(row).toContainText("STARTED")
+    await expect(rowAction(row, "Recount tally")).toHaveCount(0)
+    await rowAction(row, "Cancel Tally Ceremony").click()
+    const dialog = page.getByRole("dialog")
+    await expect(dialog).toContainText(
+        "You are about to cancel the tally ceremony. This action is not undoable."
+    )
+    await dialog.getByRole("button", {name: "Close", exact: true}).click()
+    expect(portal.graphql.callsTo("UpdateTallyCeremony")).toEqual([])
+    await rowAction(row, "Cancel Tally Ceremony").click()
+    await dialog.getByRole("button", {name: "Cancel Tally", exact: true}).click()
+    await expect(page.getByText("Tally Ceremony canceled", {exact: true})).toBeVisible()
+    expect(portal.graphql.callsTo("UpdateTallyCeremony").map(({variables}) => variables)).toEqual([
+        {election_event_id: EVENT_ID, tally_session_id: TALLY_ID, status: "CANCELLED"},
+    ])
+    await expect(row).toContainText("CANCELLED")
+    await expect(rowAction(row, "Cancel Tally Ceremony")).toHaveCount(0)
+
+    const done = page.getByRole("row").filter({hasText: completed.id})
+    await expect(rowAction(done, "Cancel Tally Ceremony")).toHaveCount(0)
+    for (const outcome of ["Could not start recount", "Recount started"]) {
+        await rowAction(done, "Recount tally").click()
+        await expect(dialog).toContainText(
+            "This will generate a fresh results event for the completed tally session."
+        )
+        await dialog.getByRole("button", {name: "Recount", exact: true}).click()
+        await expect(page.getByText(outcome, {exact: true})).toBeVisible()
+    }
+    expect(portal.graphql.callsTo("RecountTallySession").map(({variables}) => variables)).toEqual(
+        Array(2).fill({election_event_id: EVENT_ID, tally_session_id: completed.id})
+    )
+})

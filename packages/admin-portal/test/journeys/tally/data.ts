@@ -154,6 +154,7 @@ export const TALLY_ROLES = [
     "tally-results-read",
     "tally-resolution-submit",
     "tally-recount-execute",
+    "export-ceremony",
     "election-event-tally-tab",
     "election-event-tally-columns",
 ]
@@ -288,7 +289,16 @@ export function tallyWorld(portal: AdminPortal) {
         execution,
         sessions: [session] as Row[],
         resolutions: [] as Row[],
+        resultsDocuments: {} as Row,
+        /** Presigned URLs FetchDocument returns, by document ID. */
+        documentUrls: new Map<string, string>(),
     }
+    portal.graphql.on("FetchDocument", ({variables}) => {
+        const url = state.documentUrls.get(String(variables.documentId))
+        return url
+            ? {data: {fetchDocument: {url}}}
+            : {errors: [{message: `unknown document ${String(variables.documentId)}`}]}
+    })
     table(portal, "sequent_backend_tally_session", () => state.sessions)
     table(portal, "sequent_backend_tally_session_execution", () => [execution])
     table(portal, "sequent_backend_tally_session_resolution", () => state.resolutions)
@@ -301,7 +311,7 @@ export function tallyWorld(portal: AdminPortal) {
                       id: RESULTS_ID,
                       created_at: FIXED_TIME,
                       last_updated_at: FIXED_TIME,
-                      documents: {},
+                      documents: state.resultsDocuments,
                       annotations: {},
                   },
               ]
@@ -434,12 +444,7 @@ export async function serveResults(portal: AdminPortal, world: ReturnType<typeof
     })
     const key = `${TENANT_ID}/${EVENT_ID}/results.sqlite`
     portal.s3.putBytes("private", key, bytes, "application/vnd.sqlite3")
-    const url = portal.s3.presign(key, "results")
-    portal.graphql.on("FetchDocument", ({variables}) =>
-        variables.documentId === SQLITE_DOCUMENT_ID
-            ? {data: {fetchDocument: {url}}}
-            : {errors: [{message: `unknown document ${String(variables.documentId)}`}]}
-    )
+    world.documentUrls.set(SQLITE_DOCUMENT_ID, portal.s3.presign(key, "results"))
     world.execution.results_event_id = RESULTS_ID
     world.execution.documents = {sqlite: SQLITE_DOCUMENT_ID}
     return key
