@@ -6,6 +6,7 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within, type Mock} from "storybook/test"
 import {SaveButton, SimpleForm, Toolbar} from "react-admin"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import {storyId} from "@/__stories__/fixtures"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ETemplateType} from "@/types/templates"
@@ -20,6 +21,8 @@ interface Scenario {
     value?: string
     isRequired: boolean
     disabled: boolean
+    /** Whether the tenant has more credentials templates, stored out of name order. */
+    moreTemplates: boolean
     onSelectTemplate: Mock<(template: {alias: string}) => void>
     onSubmit: Mock<(values: Record<string, unknown>) => void>
 }
@@ -35,6 +38,7 @@ const meta = {
         templateType: ETemplateType.CREDENTIALS,
         isRequired: false,
         disabled: false,
+        moreTemplates: false,
         onSelectTemplate: fn(),
         onSubmit: fn(),
     },
@@ -43,7 +47,25 @@ const meta = {
         templateType: {control: "select", options: Object.values(ETemplateType)},
     },
     beforeEach: async ({args}) => {
-        data = resourceBoundary({[TEMPLATE_RESOURCE]: templateRecords()}, {reads: args.reads})
+        const templates = templateRecords()
+        if (args.moreTemplates) {
+            const [credentials] = templates
+            templates.unshift(
+                {
+                    ...credentials,
+                    id: storyId(7, 9),
+                    alias: "reminder-credentials",
+                    template: {...credentials.template, name: "Reminder credentials"},
+                },
+                {
+                    ...credentials,
+                    id: storyId(7, 8),
+                    alias: "admin-credentials",
+                    template: {...credentials.template, name: "Admin credentials"},
+                }
+            )
+        }
+        data = resourceBoundary({[TEMPLATE_RESOURCE]: templates}, {reads: args.reads})
         graphql = graphqlBoundary({}, {schema: true})
         await graphql.ready
     },
@@ -109,6 +131,19 @@ export const Populated: Story = {
     },
 }
 
+export const SortedByName: Story = {
+    args: {moreTemplates: true},
+    play: async ({canvasElement}) => {
+        await waitFor(async () =>
+            expect(await openOptions(canvasElement)).toEqual([
+                "Admin credentials",
+                "Reminder credentials",
+                "Voter credentials",
+            ])
+        )
+    },
+}
+
 export const ChooseATemplate: Story = {
     play: async ({canvasElement, args}) => {
         await waitFor(async () => expect(await openOptions(canvasElement)).toHaveLength(1))
@@ -169,7 +204,8 @@ export const LoadError: Story = {
     args: {reads: "error"},
     play: async ({canvasElement}) => {
         await waitFor(() => expect(data.calls).toHaveLength(1))
-        // The failure is not reported; the input just offers nothing.
+        const message = await within(document.body).findByText("Synthetic service unavailable")
+        await waitFor(() => expect(message).toBeVisible())
         await userEvent.click(templateInput(canvasElement))
         await expect(await within(document.body).findByText("No options")).toBeVisible()
     },
