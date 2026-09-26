@@ -75,6 +75,27 @@ runs its own Nix daemon on the shared store. A garbage collection sees only the
 roots and builds of its own container, so run `nix-collect-garbage` while no
 other devcontainer is up; `.devcontainer/scripts/free-space.sh` skips it then.
 
+### Prebuilt toolchains
+
+On the host, `scripts/dev/step-dev prebuild pull` fetches the environment image
+matching this checkout; `prebuild status` shows whether it is available. Rebuild
+the devcontainer after pulling. Initialization uses only a local image whose
+content label and architecture match, otherwise it uses the existing devenv
+image and evaluates the shell locally. An unavailable registry never blocks
+that fallback. Each prebuild gets its own shared Nix volume so an older volume
+cannot hide the image's populated store.
+
+The **Prebuild development tools** workflow builds native amd64 and arm64 images
+from `devenv.nix`, `devenv.lock`, `devenv.yaml` and the locked devcontainer
+features. The build context contains no application source or local `.env`.
+PRs build without publishing; pushes to `main`/`ovcs` and manual runs on those
+branches publish `ghcr.io/sequentech/step-devenv:env-<input hash>`. GHCR package
+write permission is needed for trusted publishing and the package must be public
+for anonymous pulls. Change a toolchain/feature input to get a new tag, or
+manually run the workflow to refresh an existing recipe, then pull again.
+`prebuild fingerprint` prints the key; `prebuild context --destination <empty-dir>`
+creates the same small build context for local inspection.
+
 ## Shared UI hot reload
 
 Portal dev servers compile `@sequentech/ui-core` and `@sequentech/ui-essentials`
@@ -317,3 +338,27 @@ $B ci --label before --pr "$PR"
 ```
 
 ## Incremental CI
+
+## Rust compiler caches in CI
+
+Rust test and CLI jobs restore Cargo downloads separately from a bounded local
+sccache store. The compiler key includes OS/architecture, rustc identity,
+workspace manifests and Cargo configuration, the actual workspace lockfile,
+profiles, features, targets and compiler flags. Source edits reuse compatible
+units; a lockfile change can restore the prior compatible snapshot. Cargo still
+builds and runs tests every time, and sccache validates each compilation's inputs.
+A snapshot hit never skips a test.
+
+The job summary reports the key and restore status; the sccache post-step reports
+compiler hits, misses and unsupported calls. Each compiler snapshot is limited
+to 512 MiB and only successful pushes to `main`, `ovcs` and `release/**` save it.
+PRs and manual runs only restore. Snapshots are immutable per compatibility key;
+set the repository variable `STEP_RUST_CACHE_EPOCH` to a new value to force a new
+snapshot. GitHub may evict older entries within its repository cache quota. A
+missing download or compiler snapshot builds normally; an unavailable sccache
+installer falls back to rustc. To reproduce an identity locally:
+
+```sh
+scripts/dev/step-dev rust_cache --name sequent-core --lockfile packages/Cargo.lock \
+  --target-dir packages/rust-local-target --profile dev --features default_features,keycloak
+```

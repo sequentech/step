@@ -898,7 +898,11 @@ class ComposeFilesTest(unittest.TestCase):
 
     def test_nix_store_volume_follows_the_image_tag(self):
         base = (DEVCONTAINER / "docker-compose-base.yml").read_text()
-        [tag] = re.findall(r"image: ghcr\.io/cachix/devenv/devcontainer:(\S+)", base)
+        [tag] = re.findall(
+            r"image: \$\{DEVCONTAINER_IMAGE:-"
+            r"ghcr\.io/cachix/devenv/devcontainer:([^}]+)\}",
+            base,
+        )
         env = parse_dotenv((DEVCONTAINER / ".env.development").read_text())
         self.assertEqual(env["DEVCONTAINER_NIX_VOLUME"], f"step-devcontainer-nix-{tag}")
 
