@@ -55,10 +55,7 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-/**
- * The checkbox of an election. The widget labels each one with the election's
- * `name`, a column elections do not have, so every label reads "undefined".
- */
+/** The checkbox of an election. */
 const election = (canvasElement: HTMLElement, id: string) =>
     waitFor(() => {
         const checkbox = canvasElement.querySelector<HTMLInputElement>(
@@ -77,9 +74,11 @@ async function loadedElection(canvasElement: HTMLElement, id: string) {
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
-        await loadedElection(canvasElement, STORY_IDS.election)
+        const council = await loadedElection(canvasElement, STORY_IDS.election)
         const deputy = await loadedElection(canvasElement, STORY_IDS.secondElection)
-        expect(deputy).toHaveAccessibleName("undefined")
+        // Election names live in the presentation since migration 1772358027729.
+        expect(council).toHaveAccessibleName("Council election")
+        expect(deputy).toHaveAccessibleName("Deputy election")
         await expect(within(canvasElement).getByText(i18n.t("tally.common.title"))).toBeVisible()
         expect(data.calls.map(({method, args}) => `${method} ${String(args[0])}`)).toEqual(
             expect.arrayContaining([
