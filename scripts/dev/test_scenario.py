@@ -828,7 +828,7 @@ class KeycloakLoginTest(unittest.TestCase):
             state.update(value=query["state"][0], nonce=query["nonce"][0])
             return response(
                 f'<form id="kc-form-login" action="{origin}/realms/tenant/'
-                'login-actions/'
+                "login-actions/"
                 'authenticate?session_code=first&amp;execution=password">'
                 '<input name="username"><input name="password"></form>',
                 url,
