@@ -26,6 +26,15 @@ Chromium opens the real portal, renders the election list, selects candidates an
 
 Run against a deployment with the S3 voting path enabled, its portal and cast services running, and a tenant reserved for synthetic voters. The tenant must have automatic trustees registered and running. The default fixture uses a threshold of two; `preparation.threshold` is configurable.
 
+When upgrading an existing deployment to the S3 voting path, deploy the backend and Hasura metadata first. Before deploying the portal, prepare each existing active publication using the backend's configured database and S3 environment, from the repository's `packages` directory:
+
+```bash
+cargo run --locked -p windmill --example prepare_ballot_files -- \
+  "$TENANT_ID" "$EVENT_ID" "$PUBLICATION_ID"
+```
+
+The writer is idempotent and commits its verified file metadata atomically. Newly generated publications prepare these files automatically. An unprepared publication fails closed; a changed presentation requires regeneration and publication rather than reusing stale signed content.
+
 Install and authenticate the CLI using [CLI setup](../02-cli/01-cli_cli.md). In a repository devcontainer, enter `devenv shell` from the repository root; it provides k6. Coordination, census generation, encryption and reporting run natively in Rust. The devcontainer also provides Chromium; initialization records its executable automatically. `load check` launches it before browser preparation to verify dependencies. Outside devenv, follow the browser installation instructions in CLI setup.
 
 ## Prepare and run
