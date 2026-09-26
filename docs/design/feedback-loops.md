@@ -527,6 +527,45 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   Sequent asset is served. Actual Apollo cache validation fails before the fixture
   correction and passes afterward. Six Storybooks and the workbench remain in a
   separate UI-only project within a task-owned isolated Docker daemon.
+- **Admin widget catalog** (separate stacked PR https://github.com/sequentech/step/pull/3361):
+  - **Coverage.** All 330 inventoried admin-portal widgets (of 493 scanned components) have an
+    `Admin/<Feature>/<Component>` section that renders the production component with typed
+    synthetic fixtures, with no backend or login. The stories assert the visible result and the
+    boundary calls. The 163 styled primitives, providers and render-nothing helpers are excluded
+    with reasons. The admin stories job runs `stories:inventory --check`, so a new widget needs
+    its section.
+  - **Harness decisions.**
+    - Fixtures use only schema columns (`StoryRecord<T>`).
+    - The resource boundary evaluates the Hasura `where` that ra-data-hasura builds.
+    - Deep MUI imports are pre-bundled, so Vite never reloads mid-run.
+    - Download helpers live once, in `src/__stories__/downloads.ts`.
+    - Axe defects already present in production are marked per story with their exact rules
+      (strict: a listed rule that stops firing fails the story).
+  - **How the catalog was built.** Up to six agents in separate worktrees wrote the sections. The
+    coordinator cherry-picked their commits and gated each push on `typecheck:stories`, eslint,
+    prettier and the changed stories.
+  - **Production defects the isolated stories exposed.** Each was fixed with a failing story or
+    test first:
+    - Election, event, contest and candidate screens still searched, sorted, showed and saved the
+      `name`/`alias` columns that migration `1772358027729` removed. Election search found nothing.
+    - Tenant options read a missing `username`.
+    - Several forms crashed or read by the wrong ID before their record loaded.
+    - Create and edit failures were silent or discarded the input.
+    - Menu controls were unreachable by keyboard.
+    - The archived event tab read an empty ID.
+    - The dashboards spun forever on error.
+    - Notification dates read a missing column.
+    - Reported, not fixed: the unused `CreateContestData`, ListTally's unreachable filters, and
+      the notification create button, which has no create form behind it.
+  - **Measurements.**
+    - At `8e69814e85` the suite is 246 story files and 1355 tests. All pass locally (aarch64,
+      one Vitest worker, load 4–7, n=1) in 1100 s. The three `--shard=i/3` runs took 380, 355
+      and 365 s. `build-storybook` took 51 s.
+    - Hosted, the job took 8m22s for 518 tests and 11m44s for about 680, so the full suite would
+      pass the job's 20-minute limit.
+    - A three-shard matrix like the journeys job's was proposed to the CI workstream
+      (https://github.com/sequentech/step/pull/3360#issuecomment-5849901470) rather than
+      changed here.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and
