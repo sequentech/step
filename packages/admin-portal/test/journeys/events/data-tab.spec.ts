@@ -639,6 +639,75 @@ test.describe("results website policy", () => {
 test.describe("Keycloak realm attributes", () => {
     const attributes = {frontendUrl: "https://login.example", displayName: "Council"}
 
+    test.describe("editable", () => {
+        test.use({
+            roles: [
+                ...EVENT_ROLES,
+                "election-event-data-tab",
+                "keycloak-realm-attributes-read",
+                "keycloak-realm-attributes-write",
+            ],
+        })
+
+        function realmAttributes(portal: AdminPortal) {
+            portal.graphql.on("GetRealmAttributes", () => ({
+                data: {get_realm_attributes: {attributes}},
+            }))
+            portal.graphql.on("UpdateRealmAttributes", () => ({
+                data: {update_realm_attributes: {updated: true}},
+            }))
+        }
+
+        async function editFrontendUrl(page: Page) {
+            await page.getByRole("button", {name: "Keycloak realm attributes", exact: true}).click()
+            await page.getByText("https://login.example").dblclick()
+            return page.getByRole("region").filter({hasText: "frontendUrl"})
+        }
+
+        test("edits a realm attribute and saves it to Keycloak", async ({page, portal}) => {
+            editableEvent(portal)
+            realmAttributes(portal)
+            await openEvent(page, portal)
+            const region = await editFrontendUrl(page)
+            const input = region.getByRole("textbox")
+            await input.fill("https://vote.example")
+            await input.press("Enter")
+            await expect(region).toContainText(/frontendUrl:\s*"https:\/\/vote\.example"/)
+            await save(page, portal)
+            const updates = portal.graphql.callsTo("UpdateRealmAttributes")
+            expect(updates.map(({variables}) => variables)).toEqual([
+                {
+                    election_event_id: EVENT_ID,
+                    attributes: {frontendUrl: "https://vote.example", displayName: "Council"},
+                },
+            ])
+            expect(updates[0].headers["x-hasura-role"]).toBe("keycloak-realm-attributes-write")
+            await expect.poll(() => portal.graphql.callsTo("GetRealmAttributes").length).toBe(2)
+        })
+
+        // An invalid draft never marks the attributes dirty, so Save silently drops it and saves
+        // the event; refusing it would also need the aborted-save rejection fixed.
+        test.fail("refuses to save an invalid realm attribute draft", async ({page, portal}) => {
+            const rejections = await captureRejections(page)
+            editableEvent(portal)
+            realmAttributes(portal)
+            await openEvent(page, portal)
+            const region = await editFrontendUrl(page)
+            await region.getByRole("combobox").selectOption("number")
+            await page.keyboard.press("Enter")
+            await expect(
+                region.getByText("Realm attribute values must be strings", {exact: true})
+            ).toBeVisible()
+            await page.getByRole("button", {name: "Save", exact: true}).click()
+            await expect(
+                page.getByRole("alert").filter({hasText: "Realm attribute values must be strings"})
+            ).toBeVisible()
+            expect(portal.graphql.callsTo("UpdateRealmAttributes")).toHaveLength(0)
+            expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
+            expect(await rejections()).toEqual([])
+        })
+    })
+
     test.describe("read only", () => {
         test.use({
             roles: [
