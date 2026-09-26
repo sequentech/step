@@ -67,6 +67,12 @@ impl GetUploadUrl {
 
         if response.status().is_success() {
             let response_body: Response<get_upload_url::ResponseData> = response.json()?;
+            // A GraphQL response can contain usable-looking data and errors.
+            // Reject the partial operation before acting on any returned ID/URL.
+            if let Some(errors) = response_body.errors.filter(|errors| !errors.is_empty()) {
+                let messages: Vec<_> = errors.into_iter().map(|error| error.message).collect();
+                return Err(Box::from(messages.join(", ")));
+            }
             if let Some(data) = response_body.data {
                 if let Some(e) = data.get_upload_url {
                     let upload_url = e.url.clone();
@@ -101,9 +107,6 @@ impl GetUploadUrl {
                 } else {
                     Err(Box::from("failed uploading document"))
                 }
-            } else if let Some(errors) = response_body.errors {
-                let error_messages: Vec<String> = errors.into_iter().map(|e| e.message).collect();
-                Err(Box::from(error_messages.join(", ")))
             } else {
                 Err(Box::from("Unknown error occurred"))
             }
