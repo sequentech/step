@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const englishTranslation = {
     translations: {
+        startup: {
+            error: "The voting portal could not start. Please try again.",
+            retry: "Try again",
+        },
         common: {
             goBack: "Back",
             showMore: "Show more",
