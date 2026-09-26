@@ -128,6 +128,7 @@ public class ScanovateAuthenticator implements Authenticator {
     ExecutionMode mode;
     SaveOption saveOption;
     Map<String, String> params;
+    URI redirectUrl;
     try {
       flowId = Integer.parseInt(config.getOrDefault(ScanovateAuthenticatorFactory.FLOW_ID, ""));
       mode =
@@ -140,6 +141,7 @@ public class ScanovateAuthenticator implements Authenticator {
           SaveOption.fromValue(config.get(ScanovateAuthenticatorFactory.SAVE_OPTION))
               .orElseThrow(() -> new ScanovateException("Invalid save option"));
       params = linkParams(config, authSession);
+      redirectUrl = ReturnUrl.fromActionUrl(context.getActionUrl(context.generateAccessCode()));
     } catch (NumberFormatException | ScanovateException e) {
       log.error("startVerification: invalid authenticator configuration", e);
       showError(context, ScanovateError.INTERNAL, false);
@@ -149,13 +151,12 @@ public class ScanovateAuthenticator implements Authenticator {
     String docIdNote =
         config.getOrDefault(
             ScanovateAuthenticatorFactory.DOC_ID, ScanovateAuthenticatorFactory.DEFAULT_DOC_ID);
-    String redirectUrl = context.getActionUrl(context.generateAccessCode()).toString();
     LinkRequest request =
         new LinkRequest(
             flowId,
             UUID.randomUUID().toString(),
             authSession.getAuthNote(docIdNote),
-            redirectUrl,
+            redirectUrl.toString(),
             params,
             saveOption);
 

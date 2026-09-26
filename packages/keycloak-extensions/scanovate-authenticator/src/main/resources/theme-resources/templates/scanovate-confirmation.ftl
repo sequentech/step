@@ -14,8 +14,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <p>${msg("ConfirmationDescription")}</p>
                 <#list storedAttributes as attribute>
                     <div class="${properties.kcFormGroupClass!}">
-                        <label for="${attribute.key()}" class="${properties.kcLabelClass!}">${msg(attribute.key())}</label>
-                        <input id="${attribute.key()}" class="${properties.kcInputClass!}" type="${attribute.type()}"
+                        <#-- Prefixed so realm CSS aimed at the registration form fields doesn't apply here -->
+                        <label for="scanovate-${attribute.key()}" class="${properties.kcLabelClass!}">${msg(attribute.key())}</label>
+                        <input id="scanovate-${attribute.key()}" class="${properties.kcInputClass!}" type="${attribute.type()}"
                             value="${attribute.value()}" disabled />
                     </div>
                 </#list>

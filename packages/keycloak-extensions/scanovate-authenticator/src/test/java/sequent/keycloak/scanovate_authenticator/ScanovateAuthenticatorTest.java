@@ -151,7 +151,9 @@ class ScanovateAuthenticatorTest {
     ArgumentCaptor<LinkRequest> request = ArgumentCaptor.forClass(LinkRequest.class);
     verify(client).createSessionLink(eq("jwt"), request.capture());
     assertEquals(3659, request.getValue().flowId());
-    assertEquals(ACTION_URL, request.getValue().redirectUrl());
+    assertEquals(
+        "https://kc/realms/r/scanovate/return?flow=authenticate&session_code=c&execution=e",
+        request.getValue().redirectUrl());
     assertEquals("123456789", request.getValue().idNumber());
     assertEquals(Map.of("country", "Spain"), request.getValue().params());
     assertEquals(SaveOption.DEFAULT, request.getValue().saveOption());
