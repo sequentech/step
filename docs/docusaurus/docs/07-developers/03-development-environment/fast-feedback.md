@@ -19,8 +19,8 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
-| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
-| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6010 | Login and account themes |
+| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
+| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
 | `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
 | `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
@@ -28,6 +28,7 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 scripts/dev/step-dev mode list
 scripts/dev/step-dev mode status
 scripts/dev/step-dev mode up ui-only --servers storybook-ui-essentials,workbench
+scripts/dev/step-dev mode up ui-only --servers storybook-keycloak-ui
 scripts/dev/step-dev mode up ui-keycloak
 scripts/dev/step-dev mode switch backend
 scripts/dev/step-dev mode stop

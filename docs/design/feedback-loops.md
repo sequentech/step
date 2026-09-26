@@ -284,7 +284,7 @@ rate-limited.
   0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
   0.595–0.715 for published results (n=10 each, one excluded warmup). These are
   current-state timings under concurrent load, not before/after speedups.
-  All 84 scenario tests and the integrated 435 developer-tool tests pass.
+  All 84 scenario tests and the integrated 439 developer-tool tests pass.
 - **Browser runner preflight**: focused journey/workbench commands launch the
   suite's configured Chromium before executing tests and give an actionable
   error when the pinned runtime cannot start. An actual pinned-browser launch
