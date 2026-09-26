@@ -156,10 +156,8 @@ export const ShowArchivedEvents: Story = {
             isArchived: true,
         })
         expect(currentLocation(canvasElement)).toHaveTextContent("/sequent_backend_election_event/")
-        // The events list has no event id, yet the menu reloads the selected event with an empty one.
-        await waitFor(() =>
-            expect(services.invalidReads).toEqual(["sequent_backend_election_event"])
-        )
+        // The events list has no event id, so no event is read.
+        expect(services.invalidReads).toEqual([])
     },
 }
 
