@@ -27,7 +27,7 @@ use sequent_core::election_config::{
 };
 use sequent_core::types::ceremonies::CeremoniesPolicy;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// Build an importable election event from an `.xlsx` workbook
 #[derive(Args)]
@@ -353,8 +353,28 @@ impl BuildElectionEvent {
     }
 }
 
-fn write_artifact(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
-    let path = directory.join(name);
+/// Write one artifact of a layout under `directory`, creating its parents.
+///
+/// The name is checked first. Most of a layout's names are fixed, but an image's
+/// and a support material's end in the file name the plan or the workbook gave
+/// it, so `../../somewhere` there would otherwise be written outside the output
+/// directory — and an absolute name would replace `directory` altogether. Only
+/// plain relative components are accepted.
+///
+/// Shared with `compile-plan`, whose layouts have the same nested members.
+pub(crate) fn write_artifact(directory: &Path, name: &str, bytes: &[u8]) -> Result<()> {
+    let relative = Path::new(name);
+    if name.is_empty()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(anyhow!(
+            "refusing to write the artifact {name:?}: it is not a plain relative path \
+             inside the output directory"
+        ));
+    }
+    let path = directory.join(relative);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("could not create {}", parent.display()))?;
@@ -389,4 +409,45 @@ fn problem_error(problem: Problem) -> anyhow::Error {
         Severity::Warning => "warning",
     };
     anyhow!("{label}: {}: {}", problem.path, problem.message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A nested member gets its directory.
+    #[test]
+    fn a_nested_artifact_is_written_with_its_directory() {
+        let out = tempfile::tempdir().unwrap();
+
+        write_artifact(out.path(), "images/document_1_photo.png", b"png").unwrap();
+
+        assert_eq!(
+            fs::read(out.path().join("images/document_1_photo.png")).unwrap(),
+            b"png"
+        );
+    }
+
+    /// A name that leaves the output directory is refused, and nothing is written.
+    ///
+    /// An image's or a material's entry ends in a file name the plan chose, so
+    /// `export_S3_files/document_<id>_../../../x` climbed out of the directory.
+    #[test]
+    fn a_name_that_leaves_the_output_directory_is_refused() {
+        let root = tempfile::tempdir().unwrap();
+        let out = root.path().join("out");
+        fs::create_dir(&out).unwrap();
+        let outside = root.path().join("escaped");
+
+        for name in [
+            "export_S3_files/document_1_../../../escaped",
+            "../escaped",
+            outside.to_str().unwrap(),
+            "",
+        ] {
+            let error = write_artifact(&out, name, b"x").expect_err(name);
+            assert!(error.to_string().contains("refusing"), "{error}");
+        }
+        assert!(!outside.exists());
+    }
 }
