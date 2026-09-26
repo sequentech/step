@@ -13,16 +13,27 @@ on:
       - 'packages/wbraid/**'
       - '.github/workflows/wbraid.yml'
       - '.github/actions/setup-rust-tests/**'
+      - '.github/actions/setup-rust-cache/**'
+      - 'scripts/dev/rust_cache.py'
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+' ]
     paths:
       - 'packages/wbraid/**'
       - '.github/workflows/wbraid.yml'
       - '.github/actions/setup-rust-tests/**'
+      - '.github/actions/setup-rust-cache/**'
+      - 'scripts/dev/rust_cache.py'
 
 defaults:
   run:
     working-directory: packages/wbraid
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
@@ -36,6 +47,8 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          profile: dev
+          features: default,sqlite,postgres
           cargo-build-name: wbraid-lint
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -67,6 +80,8 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          profile: release
+          features: default,sqlite,postgres
           cargo-build-name: wbraid-test
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -90,6 +105,8 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          profile: release
+          features: no-default-features,wasm-core
           cargo-build-name: wbraid-wasm
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -156,6 +173,8 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust-tests
         with:
+          profile: release
+          features: default,sqlite,postgres
           cargo-build-name: wbraid-test
           cargo-build-path: packages/wbraid/target
           cargo-lock-path: packages/wbraid/Cargo.lock
@@ -171,12 +190,13 @@ jobs:
 
       - name: Start b4v6 sqlite
         id: b4v6-sqlite
-        background: true
         env:
           DATABASE_URL: 'sqlite:${{ runner.temp }}/b4.db'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.SQLITE_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.SQLITE_B4_PORT }}'
-        run: target/release/b4v6
+        run: |
+          nohup target/release/b4v6 > "$RUNNER_TEMP/b4v6-sqlite.log" 2>&1 &
+          echo "pid=$!" >> "$GITHUB_OUTPUT"
 
       - name: Wait b4v6 sqlite
         env:
@@ -203,12 +223,13 @@ jobs:
 
       - name: Start b4v6 postgres
         id: b4v6-postgres
-        background: true
         env:
           DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/b4'
           WBRAID_B4_BIND: '127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
-        run: target/release/b4v6
+        run: |
+          nohup target/release/b4v6 > "$RUNNER_TEMP/b4v6-postgres.log" 2>&1 &
+          echo "pid=$!" >> "$GITHUB_OUTPUT"
 
       - name: Wait b4v6 postgres
         env:
@@ -234,7 +255,19 @@ jobs:
           WBRAID_B4_URL: 'http://127.0.0.1:${{ env.POSTGRES_B4_PORT }}'
 
       - name: Stop sqlite b4v6
-        cancel: b4v6-sqlite
+        if: always()
+        env:
+          SERVER_PID: ${{ steps.b4v6-sqlite.outputs.pid }}
+        run: |
+          if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+            kill "$SERVER_PID"
+          fi
 
       - name: Stop postgres b4v6
-        cancel: b4v6-postgres
+        if: always()
+        env:
+          SERVER_PID: ${{ steps.b4v6-postgres.outputs.pid }}
+        run: |
+          if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+            kill "$SERVER_PID"
+          fi
