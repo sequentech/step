@@ -112,6 +112,10 @@ export const TreeUnavailable: Story = {
 export const OnAContestPage: Story = {
     parameters: {
         router: {initialEntries: [`/sequent_backend_contest/${STORY_IDS.contest}`]},
+        expectedFailure: {
+            ...menuDefect("image-redundant-alt"),
+            reason: "The event tree sits inside a menu that may only own menu items, and an election image repeats its name as alt text.",
+        },
     },
     play: async ({canvasElement}) => {
         // The contest's branch loads and opens down to its candidates.

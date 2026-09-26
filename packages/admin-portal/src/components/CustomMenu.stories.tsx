@@ -202,7 +202,13 @@ export const LeaveTheEventList: Story = {
 }
 
 export const StayOnAnEvent: Story = {
-    parameters: {router: {initialEntries: [`/sequent_backend_election_event/${EVENT_ID}`]}},
+    parameters: {
+        router: {initialEntries: [`/sequent_backend_election_event/${EVENT_ID}`]},
+        expectedFailure: {
+            ...menuDefect("image-redundant-alt"),
+            reason: "The side menu owns more than menu items, and an election image repeats its name as alt text.",
+        },
+    },
     play: async ({canvasElement}) => {
         await expect(await within(canvasElement).findByRole("link", {name: "Seats"})).toBeVisible()
         expect(currentLocation(canvasElement)).toHaveTextContent(
