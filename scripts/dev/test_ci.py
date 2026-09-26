@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """CI must preserve affected checks and reject absent or cancelled results."""
 
+import json
+import os
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -155,6 +159,88 @@ class RequiredChecksTests(unittest.TestCase):
         self.assertEqual(
             len(check_results({"test": False}, {"test": {"result": "success"}})), 1
         )
+
+
+class VerifyCommandTests(unittest.TestCase):
+    def verify(self, selection, results, scope="jobs"):
+        environment = dict(os.environ, CI_RESULTS=results)
+        environment.pop("CI_SELECTION", None)
+        if selection is not None:
+            environment["CI_SELECTION"] = selection
+        return subprocess.run(
+            [sys.executable, "-m", "scripts.dev.ci", "verify", "--scope", scope],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+
+    def assert_error(self, result, message):
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn(f"::error::{message}", result.stdout)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_failed_plan_is_reported_before_reading_empty_selection(self):
+        for state in ("failure", "cancelled", "skipped", "missing"):
+            with self.subTest(state=state):
+                results = {} if state == "missing" else {"plan": {"result": state}}
+                self.assert_error(
+                    self.verify("", json.dumps(results)), "plan did not succeed"
+                )
+
+    def test_successful_plan_requires_a_selection_document(self):
+        for selection in (None, "", "{broken", "null", "[]"):
+            with self.subTest(selection=selection):
+                self.assert_error(
+                    self.verify(selection, '{"plan":{"result":"success"}}'),
+                    "CI_SELECTION must contain a JSON object",
+                )
+
+    def test_selection_requires_nonempty_boolean_job_choices(self):
+        for selection in ({}, {"jobs": {}}, {"jobs": []}, {"jobs": {"test": "yes"}}):
+            with self.subTest(selection=selection):
+                self.assert_error(
+                    self.verify(json.dumps(selection), '{"plan":{"result":"success"}}'),
+                    "CI_SELECTION.jobs must be a non-empty object "
+                    "of boolean job selections",
+                )
+
+    def test_malformed_results_are_reported_without_a_traceback(self):
+        for results in ("", "{broken", "null", "[]"):
+            with self.subTest(results=results):
+                self.assert_error(
+                    self.verify("", results), "CI_RESULTS must contain a JSON object"
+                )
+        self.assert_error(
+            self.verify("", '{"plan":null}'),
+            "CI_RESULTS must map job names to result objects",
+        )
+
+    def test_selected_success_and_unselected_skip_pass_through_cli(self):
+        result = self.verify(
+            '{"jobs":{"test":true,"docs":false}}',
+            '{"plan":{"result":"success"},"test":{"result":"success"},'
+            '"docs":{"result":"skipped"}}',
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("All selected feedback checks succeeded", result.stdout)
+
+    def test_selected_failure_remains_a_required_check_failure(self):
+        self.assert_error(
+            self.verify(
+                '{"jobs":{"test":true}}',
+                '{"plan":{"result":"success"},"test":{"result":"failure"}}',
+            ),
+            "test: expected success, got failure",
+        )
+
+    def test_reusable_ui_workflow_does_not_require_a_plan_job(self):
+        result = self.verify(
+            '{"ui_jobs":{"stories":true,"fixtures":false}}',
+            '{"stories":{"result":"success"},"fixtures":{"result":"skipped"}}',
+            scope="ui_jobs",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
