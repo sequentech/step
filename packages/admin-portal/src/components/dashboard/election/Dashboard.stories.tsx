@@ -151,7 +151,10 @@ export const StatsUnavailable: Story = {
         const canvas = within(canvasElement)
         const eligible = await canvas.findByText("Eligible Voters")
         await expect(within(eligible.parentElement as HTMLElement).getByText("-")).toBeVisible()
-        await expect(canvas.getByRole("progressbar")).toBeVisible()
+        // The votes chart shows it has no data instead of loading forever.
+        expect(canvas.queryByRole("progressbar")).toBeNull()
+        const votes = canvas.getByText("Votes over time").closest(".MuiPaper-root") as HTMLElement
+        await expect(within(votes).getByText("-")).toBeVisible()
     },
 }
 

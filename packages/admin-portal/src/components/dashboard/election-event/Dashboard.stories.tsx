@@ -195,10 +195,12 @@ export const StatsUnavailable: Story = {
     parameters: progressDefect,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        // Without statistics every count is unknown and the votes chart keeps waiting.
+        // Without statistics every count is unknown, and so are the votes over time.
         const eligible = await canvas.findByText("Eligible Voters")
         await expect(within(eligible.parentElement as HTMLElement).getByText("-")).toBeVisible()
-        await expect(canvas.getByRole("progressbar")).toBeVisible()
+        expect(canvas.queryByRole("progressbar")).toBeNull()
+        const votes = canvas.getByText("Votes over time").closest(".MuiPaper-root") as HTMLElement
+        await expect(within(votes).getByText("-")).toBeVisible()
         expect(statsCalls()).toHaveLength(1)
     },
 }
