@@ -22,6 +22,8 @@ import {VoterPreview} from "./VoterPreview"
 jest.mock("@sequentech/ui-essentials", () => ({
     // ElectionConfigService re-exports the shared presentation helpers.
     ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/engine"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/selection"),
     Loader: () => <div role="progressbar" />,
     theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
 }))
