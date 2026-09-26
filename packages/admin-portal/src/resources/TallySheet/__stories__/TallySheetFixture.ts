@@ -157,3 +157,24 @@ export function withDistinctBallotBoxes(provider: DataProvider): DataProvider {
         },
     } as DataProvider
 }
+
+/**
+ * ra-data-hasura filters a String column by substring (`_ilike`), so the tally
+ * sheet form's empty area name search lists every area.
+ */
+export function withAreaNameSearch(provider: DataProvider): DataProvider {
+    return {
+        ...provider,
+        getList: (resource: string, params: GetListParams) => {
+            if (
+                resource !== "sequent_backend_area" ||
+                !params.filter ||
+                !("name" in params.filter)
+            ) {
+                return provider.getList(resource, params)
+            }
+            const {name, ...filter} = params.filter
+            return provider.getList(resource, {...params, filter: {...filter, "name@_ilike": name}})
+        },
+    } as DataProvider
+}
