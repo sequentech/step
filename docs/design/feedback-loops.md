@@ -326,8 +326,8 @@ received Lite reviews after runner timeouts. CodeRabbit requests remain rate-lim
   0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
   0.595–0.715 for published results (n=10 each, one excluded warmup). These are
   current-state timings under concurrent load, not before/after speedups.
-  All 84 scenario tests and the latest integrated 445 developer-tool tests pass.
-  The subsequent CI-classification and cache-epoch checks pass (16 focused tests).
+  All 84 scenario tests and the final integrated 459 developer-tool tests pass;
+  Ruff lint and formatting pass after the final source merges.
 - **Browser runner preflight**: focused journey/workbench commands launch the
   suite's configured Chromium before executing tests and give an actionable
   error when the pinned runtime cannot start. An actual pinned-browser launch
