@@ -787,6 +787,8 @@ def create_voters_file(sqlite_output_path):
     print(f"CSV file '{csv_filename}' created successfully.")
         
 
+DEFAULT_SCANOVATE_MIN_BIOMETRIC_SCORE = 0.67
+
 def gen_keycloak_context(excel_data, areas_dict):
     print(f"generating keycloak context")
     country_set = set()
@@ -809,23 +811,32 @@ def gen_keycloak_context(excel_data, areas_dict):
         "country_list": ",".join(sorted_country_list),
     }
 
-    key_mappings = {
-        "philis_id_inetum_min_value_documental_score": "keycloak_inetum_min_value_philis_id_documental_score",
-        "philis_id_inetum_min_value_facial_score": "keycloak_inetum_min_value_philis_id_facial_score",
-        "seaman_book_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_seaman_book_val_campos_criticos_score",
-        "seaman_book_inetum_min_value_facial_score": "keycloak_inetum_min_value_seaman_book_facial_score",
-        "passport_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_passport_val_campos_criticos_score",
-        "passport_inetum_min_value_facial_score": "keycloak_inetum_min_value_passport_facial_score",
-        "driver_license_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_driver_license_val_campos_criticos_score",
-        "driver_license_inetum_min_value_facial_score": "keycloak_inetum_min_value_driver_license_facial_score",
-        "ibp_inetum_min_value_val_campos_criticos_score": "keycloak_inetum_min_value_ibp_val_campos_criticos_score",
-        "ibp_inetum_min_value_facial_score": "keycloak_inetum_min_value_ibp_facial_score",
-    }
-
     keycloak_settings_dict = {row["key"]: row["value"] for row in keycloak_settings}
 
-    for context_key, settings_key in key_mappings.items():
-        keycloak_context[context_key] = int(keycloak_settings_dict.get(settings_key, 50))
+    # B-Trust biometric match scores go from 0.0 to 1.0
+    score_mappings = {
+        "philis_id_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_philis_id",
+        "seaman_book_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_seaman_book",
+        "passport_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_passport",
+        "driver_license_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_driver_license",
+        "ibp_scanovate_min_biometric_score": "keycloak_scanovate_min_biometric_score_ibp",
+    }
+    for context_key, settings_key in score_mappings.items():
+        keycloak_context[context_key] = float(
+            keycloak_settings_dict.get(settings_key, DEFAULT_SCANOVATE_MIN_BIOMETRIC_SCORE)
+        )
+
+    # These values are rendered inside JSON strings, so they are escaped
+    string_mappings = {
+        "scanovate_base_url": ("keycloak_scanovate_base_url", ""),
+        "scanovate_client_id": ("keycloak_scanovate_client_id", ""),
+        "scanovate_client_secret": ("keycloak_scanovate_client_secret", ""),
+        "scanovate_flow_id": ("keycloak_scanovate_flow_id", ""),
+        "scanovate_execution_mode": ("keycloak_scanovate_execution_mode", "interactive"),
+    }
+    for context_key, (settings_key, default) in string_mappings.items():
+        value = str(keycloak_settings_dict.get(settings_key, default))
+        keycloak_context[context_key] = json.dumps(value)[1:-1]
     return keycloak_context
 
 def load_sqlite_query(script_dir):
