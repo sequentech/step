@@ -299,7 +299,6 @@ test.describe("area administrator", () => {
     })
 
     test("notifies a failed area import", async ({page, portal}) => {
-        test.fail(true, "handleImportAreas lets Apollo's rejection escape (Area/ListArea.tsx:192)")
         areas(portal)
         const rejections = await catchRejections(page, "Synthetic invalid CSV")
         const url = portal.s3.presign("documents/areas.csv", "areas-upload")
@@ -333,15 +332,12 @@ test.describe("area administrator", () => {
             electionEventId: IDS.event,
             sha256: "",
         })
+        test.fail(true, "handleImportAreas lets Apollo's rejection escape (Area/ListArea.tsx:192)")
         await expect(notification(page, "Error importing Areas")).toBeVisible({timeout: 3000})
         expect(await rejections()).toEqual([])
     })
 
     test("sends an UpsertArea document that passes GraphQL validation", async ({page, portal}) => {
-        test.fail(
-            true,
-            "UPSERT_AREA declares $presentation but never uses it (queries/UpsertArea.ts:11)"
-        )
         areas(portal)
         const documents = dropUnusedVariables(portal, "UpsertArea", ["presentation"])
         await openAreas(page, portal)
@@ -351,6 +347,10 @@ test.describe("area administrator", () => {
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(notification(page, "Area updated")).toBeVisible()
         expect(documents).toHaveLength(1)
+        test.fail(
+            true,
+            "UPSERT_AREA declares $presentation but never uses it (queries/UpsertArea.ts:11)"
+        )
         expect(
             validate(loadClientSchema(SCHEMA), parse(documents[0])).map((error) => error.message)
         ).toEqual([])
@@ -360,10 +360,6 @@ test.describe("area administrator", () => {
         page,
         portal,
     }) => {
-        test.fail(
-            true,
-            "UpsertArea runs GET_AREAS_EXTENDED with an undefined areaId (Area/UpsertArea.tsx:51)"
-        )
         areas(portal)
         const invalid = answerInvalid(
             portal,
@@ -376,6 +372,10 @@ test.describe("area administrator", () => {
         await expect(
             page.getByRole("dialog").getByRole("textbox", {name: "Name", exact: true})
         ).toBeVisible()
+        test.fail(
+            true,
+            "UpsertArea runs GET_AREAS_EXTENDED with an undefined areaId (Area/UpsertArea.tsx:51)"
+        )
         expect(invalid).toEqual([])
     })
 })
@@ -384,10 +384,6 @@ test.describe("area contest search", () => {
     test.use({roles: writerRoles})
 
     test("filters the contest choices by the typed text", async ({page, portal}) => {
-        test.fail(
-            true,
-            "customBuildQuery drops the name@_ilike,alias@_ilike filter (queries/customBuildQuery.ts:65)"
-        )
         areas(portal)
         answerInvalid(
             portal,
@@ -399,6 +395,10 @@ test.describe("area contest search", () => {
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await page.getByRole("dialog").getByRole("combobox", {name: "Area contest"}).fill("Coun")
         await page.clock.runFor(500)
+        test.fail(
+            true,
+            "customBuildQuery drops the name@_ilike,alias@_ilike filter (queries/customBuildQuery.ts:65)"
+        )
         expect(
             portal.graphql
                 .callsTo("sequent_backend_contest")

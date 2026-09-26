@@ -167,15 +167,15 @@ test.describe("support material editor", () => {
     })
 
     test("explains which support material fields are missing", async ({page, portal}) => {
-        test.fail(
-            true,
-            "formValidator keys its errors to data and document_id, which no input renders (SupportMaterials/CreateSupportMaterial.tsx:164)"
-        )
         materials(portal)
         await openMaterials(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Enter support material data."})
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        test.fail(
+            true,
+            "formValidator keys its errors to data and document_id, which no input renders (SupportMaterials/CreateSupportMaterial.tsx:164)"
+        )
         await expect(drawer.getByText("Title is required")).toBeVisible({timeout: 3000})
     })
 
@@ -223,16 +223,16 @@ test.describe("support material create drawer", () => {
     test.use({roles: writerRoles})
 
     test("opens a single create drawer", async ({page, portal}) => {
-        test.fail(
-            true,
-            "ListActions and ListSupportMaterials each render a create drawer bound to openCreate (SupportMaterials/ListSuportMaterial.tsx:163,226)"
-        )
         materials(portal)
         await openMaterials(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await expect(
             page.getByRole("dialog").filter({hasText: "Enter support material data."})
         ).toBeVisible()
+        test.fail(
+            true,
+            "ListActions and ListSupportMaterials each render a create drawer bound to openCreate (SupportMaterials/ListSuportMaterial.tsx:163,226)"
+        )
         await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
             timeout: 1000,
         })

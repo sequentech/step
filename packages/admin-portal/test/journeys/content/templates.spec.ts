@@ -276,14 +276,14 @@ test.describe("template administrator", () => {
     })
 
     test("opens a single create drawer", async ({page, portal}) => {
-        test.fail(
-            true,
-            "ListActions and TemplateList each render a create drawer bound to openDrawer (Template/TemplateList.tsx:255,276)"
-        )
         templates(portal)
         await openTemplates(page, portal)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         await expect(page.getByRole("dialog").filter({hasText: "Create a Template"})).toBeVisible()
+        test.fail(
+            true,
+            "ListActions and TemplateList each render a create drawer bound to openDrawer (Template/TemplateList.tsx:255,276)"
+        )
         await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
             timeout: 1000,
         })
@@ -305,12 +305,12 @@ test.describe("template reader", () => {
     test.use({roles: readerRoles})
 
     test("sees the tenant's templates without tenant write access", async ({page, portal}) => {
+        templates(portal)
+        await page.goto(`${portal.origin}/sequent_backend_template?lang=en`)
         test.fail(
             true,
             "TemplateList shows only the empty state unless the user can write the tenant (Template/TemplateList.tsx:233)"
         )
-        templates(portal)
-        await page.goto(`${portal.origin}/sequent_backend_template?lang=en`)
         await expect(page.getByRole("cell", {name: "Welcome letter"})).toBeVisible({
             timeout: 3000,
         })

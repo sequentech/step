@@ -107,10 +107,6 @@ test.describe("ballot content editor", () => {
     })
 
     test("creates a contest in an election and opens it", async ({page, portal}) => {
-        test.fail(
-            true,
-            'CreateContest sends the default vote limits as strings (Contest/CreateContest.tsx:103-104: defaultValue="0"/"1")'
-        )
         const {contests} = ballot(portal)
         // Hasura rejects string Int variables; answer that way so the defect stays visible.
         answerInvalid(
@@ -132,6 +128,10 @@ test.describe("ballot content editor", () => {
         )
         await page.getByRole("button", {name: "Save", exact: true}).click()
         const insert = (await request).postDataJSON().variables
+        test.fail(
+            true,
+            'CreateContest sends the default vote limits as strings (Contest/CreateContest.tsx:103-104: defaultValue="0"/"1")'
+        )
         expect(insert).toEqual({
             objects: {
                 description: "Yes or no",
