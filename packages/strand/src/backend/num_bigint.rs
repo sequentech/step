@@ -416,13 +416,38 @@ pub trait BigintCtxParams:
     fn co_factor(&self) -> &BigUint;
     fn new() -> Self;
 }
-#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Eq, PartialEq, Clone, Debug, BorshSerialize)]
 pub struct P2048 {
     generator: BigUintE<Self>,
     modulus: BigUintE<Self>,
     exp_modulus: BigUintX<Self>,
     co_factor: BigUintCoFactor<Self>,
 }
+// Parameters contain p and q themselves, which are outside the valid element
+// and exponent ranges. Read their wire integers without those value checks,
+// then require the exact fixed group before constructing a usable context.
+impl BorshDeserialize for P2048 {
+    fn deserialize_reader<R: std::io::Read>(
+        reader: &mut R,
+    ) -> std::io::Result<Self> {
+        let supplied = <[Vec<u8>; 4]>::deserialize_reader(reader)?;
+        let params = Self::new();
+        let expected = [
+            params.generator.0.to_bytes_le(),
+            params.modulus.0.to_bytes_le(),
+            params.exp_modulus.0.to_bytes_le(),
+            params.co_factor().to_bytes_le(),
+        ];
+        if supplied != expected {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Unexpected group parameters",
+            ));
+        }
+        Ok(params)
+    }
+}
+
 impl BigintCtxParams for P2048 {
     #[inline(always)]
     fn generator(&self) -> &BigUintE<Self> {
