@@ -251,6 +251,34 @@ async fn get_election_ids_for_publication(
 }
 
 #[instrument(err)]
+pub async fn prepare_ballot_publication(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: String,
+    election_event_id: String,
+    election_id: Option<String>,
+    user_id: String,
+) -> Result<BallotPublication> {
+    let election_ids = get_election_ids_for_publication(
+        hasura_transaction,
+        tenant_id.clone(),
+        election_event_id.clone(),
+        election_id.clone(),
+    )
+    .await?;
+
+    insert_ballot_publication(
+        hasura_transaction,
+        &tenant_id.clone(),
+        &election_event_id.clone(),
+        election_ids.clone(),
+        user_id.clone(),
+        election_id.clone(),
+    )
+    .await?
+    .with_context(|| "can't find inserted ballot publication")
+}
+
+#[instrument(err)]
 pub async fn add_ballot_publication(
     hasura_transaction: &Transaction<'_>,
     tenant_id: String,
@@ -260,25 +288,14 @@ pub async fn add_ballot_publication(
     executer_name: &str,
 ) -> Result<(String, TasksExecution)> {
     let celery_app = get_celery_app().await;
-
-    let election_ids = get_election_ids_for_publication(
+    let ballot_publication = prepare_ballot_publication(
         hasura_transaction,
         tenant_id.clone(),
         election_event_id.clone(),
-        election_id.clone(),
+        election_id,
+        user_id,
     )
     .await?;
-
-    let ballot_publication = insert_ballot_publication(
-        hasura_transaction,
-        &tenant_id.clone(),
-        &election_event_id.clone(),
-        election_ids.clone(),
-        user_id.clone(),
-        election_id.clone(),
-    )
-    .await?
-    .with_context(|| "can't find inserted ballot publication")?;
 
     let task_execution = post_task_execution(
         &tenant_id,

@@ -4,7 +4,7 @@
 use crate::services::authorization::authorize;
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -22,10 +22,11 @@ use tracing::instrument;
 use windmill::{
     postgres::election_event::get_election_event_by_id,
     services::ballot_styles::ballot_publication::{
-        add_ballot_publication, get_ballot_publication_diff,
+        get_ballot_publication_diff, prepare_ballot_publication,
         update_publish_ballot, BallotPublicationValidationError,
         PublicationDiff,
     },
+    tasks::update_election_event_ballot_styles::update_election_event_ballot_styles,
     types::tasks::ETasksExecution,
 };
 
@@ -156,23 +157,60 @@ async fn generate_ballot_publication_response(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    let (ballot_publication_id, task_execution) = add_ballot_publication(
+    let broker = services.tasks.connect().await;
+    let ballot_publication = prepare_ballot_publication(
         &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.election_id.clone(),
         user_id.clone(),
-        &executer_name,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let task_execution = services
+        .ledger
+        .post(
+            &tenant_id,
+            Some(&input.election_event_id),
+            ETasksExecution::GENERATE_BALLOT_PUBLICATION,
+            &executer_name,
+        )
+        .await
+        .context("Failed to insert task execution record")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let task = match broker
+        .send_task(update_election_event_ballot_styles::new(
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+            ballot_publication.id.clone(),
+            task_execution.clone(),
+        ))
+        .await
+    {
+        Ok(task) => task,
+        Err(err) => {
+            let message =
+                format!("Failed to enqueue ballot style generation: {err}");
+            services
+                .ledger
+                .update_fail(&task_execution, &message)
+                .await
+                .ok();
+            return Err((Status::InternalServerError, message));
+        }
+    };
+    info!(
+        "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
+        task.task_id
+    );
 
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
     Ok(Json(GenerateBallotPublicationOutput {
-        ballot_publication_id,
+        ballot_publication_id: ballot_publication.id,
         task_execution,
     }))
 }
