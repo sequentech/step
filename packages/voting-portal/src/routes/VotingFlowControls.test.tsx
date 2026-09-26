@@ -327,12 +327,16 @@ describe("Confirmation ballot locator links", () => {
         mockState.confirmationScreenData["election-1"] = {ballotId: BALLOT_ID, isDemo: false}
         mockIsKiosk = kiosk
         mockInsertCastVote.mockResolvedValue({data: {create_ballot_receipt: {id: "receipt-1"}}})
-        renderRoute(<ConfirmationScreen />, "confirmation")
+        const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
 
         const locatorUrl = `${window.location.origin}${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
         for (const link of screen.getAllByTestId("ballot-id")) {
             expect(link).toHaveAttribute("href", locatorUrl)
-            expect(link).toHaveAttribute("target", "_blank")
+            if (kiosk) {
+                expect(link).not.toHaveAttribute("target")
+            } else {
+                expect(link).toHaveAttribute("target", "_blank")
+            }
         }
         await userEvent
             .setup()
@@ -346,6 +350,15 @@ describe("Confirmation ballot locator links", () => {
                 election_id: "election-1",
             },
         })
+        if (kiosk) {
+            for (const link of screen.getAllByTestId("ballot-id")) {
+                await userEvent.setup().click(link)
+                expect(router.state.location.pathname + router.state.location.search).toBe(
+                    `${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
+                )
+                expect(mockLogout).not.toHaveBeenCalled()
+            }
+        }
     })
 })
 
