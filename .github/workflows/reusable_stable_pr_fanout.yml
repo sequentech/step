@@ -1,0 +1,178 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+#
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Reusable Stable PR Fanout
+
+on:
+  workflow_call:
+    inputs:
+      source_pr_number:
+        description: Pull request number that triggered the fanout.
+        required: true
+        type: number
+      source_pr_title:
+        description: Pull request title.
+        required: true
+        type: string
+      source_pr_body:
+        description: Pull request body.
+        required: false
+        type: string
+      source_head_ref:
+        description: Pull request head branch.
+        required: true
+        type: string
+      source_base_ref:
+        description: Pull request base branch.
+        required: true
+        type: string
+      source_pr_url:
+        description: Pull request URL.
+        required: true
+        type: string
+      stable_branches_json:
+        description: JSON array of stable target branches.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      meta_issue_url: ${{ steps.prepare.outputs.meta_issue_url }}
+      stable_branches_json: ${{ steps.prepare.outputs.stable_branches_json }}
+    steps:
+      - name: Validate inputs and extract parent meta issue
+        id: prepare
+        uses: actions/github-script@v7
+        env:
+          SOURCE_BASE_REF: ${{ inputs.source_base_ref }}
+          SOURCE_HEAD_REF: ${{ inputs.source_head_ref }}
+          SOURCE_PR_BODY: ${{ inputs.source_pr_body }}
+          STABLE_BRANCHES_JSON: ${{ inputs.stable_branches_json }}
+        with:
+          script: |
+            if (process.env.SOURCE_BASE_REF !== 'main') {
+              core.setFailed('Fanout only supports source pull requests that target main.');
+              return;
+            }
+            if (!process.env.SOURCE_HEAD_REF.endsWith('/main')) {
+              core.setFailed('Fanout only supports source branches ending with /main.');
+              return;
+            }
+
+            const body = process.env.SOURCE_PR_BODY || '';
+            const match = body.match(/https:\/\/github\.com\/sequentech\/meta\/issues\/(\d+)/i);
+            if (!match) {
+              core.setFailed('The source pull request must link a sequentech/meta issue URL.');
+              return;
+            }
+
+            let branches;
+            try {
+              branches = JSON.parse(process.env.STABLE_BRANCHES_JSON);
+            } catch (error) {
+              core.setFailed(`stable_branches_json must be valid JSON: ${error.message}`);
+              return;
+            }
+
+            if (!Array.isArray(branches) || branches.length === 0) {
+              core.setFailed('stable_branches_json must contain at least one stable branch.');
+              return;
+            }
+
+            const sanitizedBranches = branches
+              .map((branch) => String(branch).trim())
+              .filter(Boolean);
+
+            if (sanitizedBranches.length !== branches.length) {
+              core.setFailed('stable_branches_json contains empty branch values.');
+              return;
+            }
+
+            core.setOutput('meta_issue_url', `https://github.com/sequentech/meta/issues/${match[1]}`);
+            core.setOutput('stable_branches_json', JSON.stringify(sanitizedBranches));
+
+  create-copilot-agent-issues:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        stable_branch: ${{ fromJson(needs.prepare.outputs.stable_branches_json) }}
+    steps:
+      - name: Open Copilot coding task for stable PR
+        uses: actions/github-script@v7
+        env:
+          SOURCE_PR_NUMBER: ${{ inputs.source_pr_number }}
+          SOURCE_PR_TITLE: ${{ inputs.source_pr_title }}
+          SOURCE_PR_URL: ${{ inputs.source_pr_url }}
+          SOURCE_HEAD_REF: ${{ inputs.source_head_ref }}
+          STABLE_BRANCH: ${{ matrix.stable_branch }}
+          META_ISSUE_URL: ${{ needs.prepare.outputs.meta_issue_url }}
+        with:
+          script: |
+            const stableBranch = process.env.STABLE_BRANCH;
+            const sourceHead = process.env.SOURCE_HEAD_REF;
+            const targetHead = sourceHead.replace(/\/main$/, '/' + stableBranch);
+            const issueTitle = `[Copilot Stable PR] #${process.env.SOURCE_PR_NUMBER} -> ${stableBranch}`;
+            const copilotAssigneeCandidates = [
+              ['copilot-swe-agent[bot]'],
+              ['github-copilot[bot]'],
+            ];
+            const body = [
+              `Create a stable-branch pull request for ${context.repo.owner}/${context.repo.repo}.`,
+              '',
+              `Source pull request: ${process.env.SOURCE_PR_URL}`,
+              `Source branch: \`${sourceHead}\``,
+              `Target branch: \`${stableBranch}\``,
+              `Required stable branch head: \`${targetHead}\``,
+              '',
+              'Requirements:',
+              `1. Create or update branch \`${targetHead}\` from \`${stableBranch}\`.`,
+              `2. Adapt the source pull request changes from #${process.env.SOURCE_PR_NUMBER} for backward compatibility and semantic versioning constraints of \`${stableBranch}\` (no intentional breaking API or schema changes).`,
+              '3. Ensure code compiles, linting passes, and tests pass for that stable branch adaptation.',
+              `4. Open a pull request from \`${targetHead}\` to \`${stableBranch}\` in ${context.repo.owner}/${context.repo.repo}.`,
+              `5. Include this exact parent issue link in the PR body: ${process.env.META_ISSUE_URL}.`,
+              `6. Mention source PR #${process.env.SOURCE_PR_NUMBER} and title "${process.env.SOURCE_PR_TITLE}" in the PR body.`,
+            ].join('\n');
+
+            const existingIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+
+            const existingIssue = existingIssues.find(
+              (issue) => !issue.pull_request && issue.title === issueTitle
+            );
+
+            if (existingIssue) {
+              core.info(`Copilot task already exists for ${stableBranch}: ${existingIssue.html_url}`);
+              return;
+            }
+
+            for (const candidateAssignees of copilotAssigneeCandidates) {
+              try {
+                const issue = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: issueTitle,
+                  body,
+                  assignees: candidateAssignees,
+                });
+                core.info(`Created Copilot stable PR task: ${issue.data.html_url}`);
+                return;
+              } catch (error) {
+                core.warning(`Copilot issue creation with assignee ${candidateAssignees[0]} failed: ${error.message}`);
+              }
+            }
+
+            core.setFailed(`Failed to create Copilot stable PR task for ${stableBranch}.`);
