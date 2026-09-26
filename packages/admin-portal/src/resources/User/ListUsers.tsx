@@ -124,7 +124,7 @@ import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider
 import {UserActionTypes} from "@/components/types"
 import {useUsersPermissions} from "./useUsersPermissions"
 import {Check, FilterAltOff} from "@mui/icons-material"
-import {useLocation} from "react-router-dom"
+import {useLocation, useMatch, useNavigate} from "react-router-dom"
 import {getPreferenceKey} from "@/lib/helpers"
 import {isEqual} from "lodash"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
@@ -235,6 +235,9 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const {globalSettings} = useContext(SettingsContext)
     const [isOpenSidebar] = useSidebarState()
     const location = useLocation()
+    const navigate = useNavigate()
+    const editRoute = useMatch("/user/:id")
+    const routeUserId = !electionEventId ? editRoute?.params.id : undefined
     const aliasRenderer = useAliasRenderer()
 
     const [open, setOpen] = useState(false)
@@ -449,6 +452,24 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
      * Permissions
      */
 
+    const {data: routeUsers} = useGetList(
+        "user",
+        {
+            pagination: {page: 1, perPage: 1},
+            sort: {field: "id", order: "ASC"},
+            filter: {tenant_id: tenantId, user_ids: [routeUserId]},
+        },
+        {enabled: Boolean(routeUserId && tenantId && canEditVoters)}
+    )
+
+    useEffect(() => {
+        const requestedUser = routeUsers?.find((user) => user.id === routeUserId)
+        if (!requestedUser || !canEditVoters) return
+        setUserRecord(requestedUser)
+        setRecordIds([requestedUser.id])
+        setOpen(true)
+    }, [routeUserId, routeUsers, canEditVoters])
+
     const handleClose = () => {
         setRecordIds([])
         setOpenUsersLogsModal(false)
@@ -462,6 +483,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         setOpenNew(false)
         setOpen(false)
         unselectAll()
+        if (routeUserId) navigate("/user")
     }
 
     const editAction = (id: Identifier) => {

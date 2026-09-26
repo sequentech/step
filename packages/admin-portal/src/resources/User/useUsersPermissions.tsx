@@ -42,11 +42,9 @@ export function useUsersPermissions(electionEventId?: string) {
         tenantId,
         IPermissions.VOTER_VOTED_EDIT
     )
-    const canEditVotersEmailTlf = authContext.isAuthorized(
-        true,
-        tenantId,
-        IPermissions.VOTER_EMAIL_TLF_EDIT
-    )
+    const canEditVotersEmailTlf =
+        Boolean(electionEventId) &&
+        authContext.isAuthorized(true, tenantId, IPermissions.VOTER_EMAIL_TLF_EDIT)
     const canDeleteVoters = authContext.isAuthorized(
         true,
         tenantId,
