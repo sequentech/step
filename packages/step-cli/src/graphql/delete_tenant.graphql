@@ -1,0 +1,10 @@
+mutation DeleteTenant($tenantId: String!) {
+    delete_tenant(tenant_id: $tenantId) {
+        id
+        error_msg
+        task_execution {
+            id
+            execution_status
+        }
+    }
+}
