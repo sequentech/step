@@ -11,8 +11,9 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from . import summarize, workspace
+from . import summarize, ui_update, workspace
 from .common import default_output_dir
+from .edits import EditError, EditSpec, load_edits
 from .isolation import Dind, IsolationError, parse_seed, remove_as_root
 from .probes import ProbeError, resolve_probes
 from .results import CacheState, validate_label
@@ -209,6 +210,108 @@ def run_workspace(arguments: argparse.Namespace) -> Path:
     return workspace.run_workspace(options)
 
 
+def edit_choice(
+    value: str, edits_file: Path | None, builtin: dict[str, EditSpec]
+) -> EditSpec:
+    edits = dict(builtin)
+    if edits_file is not None:
+        edits.update(load_edits(edits_file))
+    if value not in edits:
+        raise EditError(f"unknown edit {value!r} (choose {', '.join(sorted(edits))})")
+    return edits[value]
+
+
+def key_values(values: Sequence[str], option: str) -> dict[str, str]:
+    pairs = {}
+    for value in values:
+        key, separator, text = value.partition("=")
+        if not separator:
+            raise ValueError(f"{option} expects NAME=VALUE: {value!r}")
+        pairs[key] = text
+    return pairs
+
+
+def add_ui_update(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    parser = subparsers.add_parser(
+        "ui-update",
+        help="save-to-browser-visible time of a UI edit in running dev servers",
+        description=ui_update.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    common_options(parser)
+    parser.add_argument(
+        "--edit",
+        required=True,
+        help=f"named edit: {', '.join(ui_update.EDITS)} or one from --edits",
+    )
+    parser.add_argument(
+        "--edits",
+        type=caller_path,
+        help="JSON file of named edits {name: {path, anchor, template}}",
+    )
+    parser.add_argument(
+        "--target",
+        action="append",
+        required=True,
+        choices=sorted(ui_update.TARGETS),
+        help="dev server and page to watch (repeat to run them together)",
+    )
+    parser.add_argument(
+        "--server-cmd",
+        action="append",
+        default=[],
+        metavar="TARGET=CMD",
+        help="override a target's dev server command ({port} expands)",
+    )
+    parser.add_argument(
+        "--rebuild-cmd",
+        help="command run from the checkout after each save, e.g. "
+        "'yarn --cwd packages build:ui-essentials'",
+    )
+    parser.add_argument("--samples", type=positive_int, default=10)
+    parser.add_argument("--warmup", type=int, default=1)
+    parser.add_argument(
+        "--port-base",
+        type=int,
+        default=41000,
+        help="first port; targets use consecutive ports",
+    )
+    parser.add_argument("--startup-timeout", type=float, default=900.0)
+    parser.add_argument("--sample-timeout", type=float, default=600.0)
+    parser.add_argument(
+        "--settle",
+        type=float,
+        default=3.0,
+        help="seconds to wait after each sample before the next save",
+    )
+
+
+def run_ui_update(arguments: argparse.Namespace) -> list[Path]:
+    servers = key_values(arguments.server_cmd, "--server-cmd")
+    unknown = set(servers) - set(arguments.target)
+    if unknown:
+        raise ValueError(f"--server-cmd for targets not selected: {sorted(unknown)}")
+    options = ui_update.UiUpdateOptions(
+        checkout=arguments.checkout,
+        label=arguments.label,
+        edit_name=arguments.edit,
+        edit=edit_choice(arguments.edit, arguments.edits, ui_update.EDITS),
+        targets=list(dict.fromkeys(arguments.target)),
+        servers=servers,
+        rebuild=arguments.rebuild_cmd,
+        samples=arguments.samples,
+        warmup=arguments.warmup,
+        port_base=arguments.port_base,
+        startup_timeout=arguments.startup_timeout,
+        sample_timeout=arguments.sample_timeout,
+        settle=arguments.settle,
+        output_dir=arguments.output_dir,
+    )
+    return ui_update.run_ui_update(options)
+
+
 def add_summarize(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
@@ -255,6 +358,7 @@ def parser() -> argparse.ArgumentParser:
     )
     subparsers = root.add_subparsers(dest="scenario", required=True)
     add_workspace(subparsers)
+    add_ui_update(subparsers)
     add_summarize(subparsers)
     add_clean(subparsers)
     return root
@@ -278,6 +382,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         runners = {
             "workspace": run_workspace,
+            "ui-update": run_ui_update,
         }
         written = runners[arguments.scenario](arguments)
     except (IsolationError, ProbeError, ValueError) as error:
