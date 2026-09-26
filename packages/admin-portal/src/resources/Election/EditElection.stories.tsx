@@ -114,7 +114,7 @@ export const OpenTheVoting: Story = {
         )
         expect(
             graphqlCalls().find(({name}) => name === "CreateScheduledEvent")?.variables
-        ).toMatchObject({
+        ).toEqual({
             tenantId: TENANT_ID,
             electionEventId: STORY_IDS.event,
             eventProcessor: "UPDATE_VOTING_STATUS",
