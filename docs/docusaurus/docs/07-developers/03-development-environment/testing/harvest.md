@@ -118,6 +118,12 @@ state. Cast-vote tests additionally pin each typed error's HTTP response and the
 retry boundary. Complete-permission controls for routes that still use globals
 stop at their first backend; they do not claim full service workflows.
 
+The failed-cast diagnostic runs in a fresh child process with an explicit Rocket
+log level and no tracing subscriber. Rocket changes the process-wide log level
+while initializing clients, and tracing's log fallback stops after a subscriber
+has been installed. The child preserves LLVM instrumentation and checks the
+actual error message and elapsed milliseconds; a zero duration is valid.
+
 Deployed workers, identity-provider signatures, RabbitMQ, S3 and ImmuDB remain
 outside this profile. Functions include generated routing and error closures;
 keep these and uncovered service modules in the source inventory. Actual

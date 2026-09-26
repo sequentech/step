@@ -139,6 +139,28 @@ pub async fn delete_tenant_f(
 mod tests {
     use super::*;
 
+    #[test]
+    fn only_full_administrators_receive_tenant_deletion_by_default() {
+        let template: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../windmill/external-bin/janitor/templates/COMELEC/keycloakAdmin.hbs"
+        ))
+        .unwrap();
+        let permitted_groups: Vec<_> = template["groups"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|group| {
+                group["realmRoles"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|role| role == "tenant-delete")
+            })
+            .map(|group| group["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(permitted_groups, ["admin"]);
+    }
+
     fn super_admin_claims() -> JwtClaims {
         serde_json::from_value(serde_json::json!({
             "exp": 1, "iat": 0, "jti": "test", "iss": "test", "sub": "admin", "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [], "scope": "openid", "email_verified": false,
