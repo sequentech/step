@@ -82,6 +82,7 @@ jobs:
         with:
           name: prebuild-smoke-${{ matrix.arch }}
           path: ${{ runner.temp }}/prebuild-smoke/
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
   publish:
@@ -141,6 +142,7 @@ jobs:
         with:
           name: prebuild-smoke-${{ matrix.arch }}
           path: ${{ runner.temp }}/prebuild-smoke/
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
       - name: Publish trusted architecture image
