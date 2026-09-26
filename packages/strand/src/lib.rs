@@ -254,6 +254,12 @@ macro_rules! debug_log {
 #[cfg(test)]
 mod keymaker;
 
+// Keep the adversarial fixtures outside src so package source coverage does
+// not grow merely because more test setup was added.
+#[cfg(test)]
+#[path = "../tests/support/proof_shapes.rs"]
+mod proof_shape_tests;
+
 use std::collections::HashMap;
 
 pub fn info() -> HashMap<&'static str, String> {
