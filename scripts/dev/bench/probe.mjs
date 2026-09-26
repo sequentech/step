@@ -425,7 +425,13 @@ for await (const line of lines) {
     if (message.cmd === "close") break
     // Waits for several targets run concurrently; each reports on its own line.
     handlers[message.cmd](message).catch((error) =>
-        emit({event: "error", id: message.id, cmd: message.cmd, message: String(error)})
+        emit({
+            event: "error",
+            id: message.id,
+            cmd: message.cmd,
+            text: message.text,
+            message: String(error),
+        })
     )
 }
 await browser.close()

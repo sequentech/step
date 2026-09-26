@@ -36,6 +36,13 @@ from .results import CacheState, SampleRole
 
 SCENARIO = "ui-update"
 PROBE = Path(__file__).with_name("probe.mjs")
+# The probe command whose failure makes waiting for each event pointless.
+EVENT_COMMANDS = {
+    "opened": "open",
+    "visible": "wait",
+    "gone": "gone",
+    "visited": "visit",
+}
 
 
 @dataclass(frozen=True)
@@ -102,6 +109,17 @@ class BrowserError(RuntimeError):
     pass
 
 
+def ends_wait(
+    message: Mapping[str, Any], event: str, ids: Sequence[str], text: str | None
+) -> bool:
+    """Whether a probe error concerns the awaited event, not an abandoned wait."""
+    return (
+        message.get("id") in ids
+        and message.get("cmd") == EVENT_COMMANDS.get(event, message.get("cmd"))
+        and (text is None or message.get("text") == text)
+    )
+
+
 class BrowserProbe:
     """The Node probe process, spoken to in JSON lines."""
 
@@ -146,8 +164,12 @@ class BrowserProbe:
                 raise BrowserError(
                     f"no {event} from {missing} within {timeout:.0f}s"
                 ) from None
-            if message["event"] in ("error", "exit"):
-                raise BrowserError(f"probe {message.get('id')}: {message}")
+            if message["event"] == "exit":
+                raise BrowserError(f"the probe exited; see {self._log.name}")
+            if message["event"] == "error":
+                if ends_wait(message, event, ids, text):
+                    raise BrowserError(f"probe {message.get('id')}: {message}")
+                continue
             if (
                 message["event"] == event
                 and message.get("id") in ids
