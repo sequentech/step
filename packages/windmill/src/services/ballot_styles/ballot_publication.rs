@@ -258,6 +258,10 @@ pub async fn prepare_ballot_publication(
     election_id: Option<String>,
     user_id: String,
 ) -> Result<BallotPublication> {
+    // A queued worker takes this same lock before reading the publication.
+    // Hold it until commit while allowing the task ledger's foreign-key insert.
+    lock_publication_event(hasura_transaction, &tenant_id, &election_event_id).await?;
+
     let election_ids = get_election_ids_for_publication(
         hasura_transaction,
         tenant_id.clone(),
