@@ -22,7 +22,7 @@ CREATE TABLE sequent_backend.election_voting_window (
     PRIMARY KEY (tenant_id, election_event_id, election_id)
 );
 
--- Match the same task names and exact payload as generate_voting_period_dates.
+-- Match canonical voting-period tasks, allowing the optional channel selection.
 -- Ignore unrelated tasks without attempting to cast their arbitrary payloads.
 CREATE FUNCTION sequent_backend.voting_window_election_id(
     schedule sequent_backend.scheduled_event
@@ -34,7 +34,7 @@ BEGIN
     IF schedule.tenant_id IS NULL OR schedule.election_event_id IS NULL
        OR election_text IS NULL
        OR election_text !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-       OR schedule.event_payload <> jsonb_build_object('election_id', election_text)
+       OR (schedule.event_payload - 'voting_channels') <> jsonb_build_object('election_id', election_text)
     THEN
         RETURN NULL;
     END IF;
@@ -101,6 +101,9 @@ BEGIN
           task_prefix || 'START_VOTING_PERIOD', task_prefix || 'END_VOTING_PERIOD'
       )
       AND sequent_backend.voting_window_election_id(schedule) = target_election
+      AND (COALESCE(schedule.event_payload -> 'voting_channels', 'null'::jsonb)
+           IN ('null'::jsonb, '[]'::jsonb)
+           OR schedule.event_payload -> 'voting_channels' ? 'ONLINE')
       AND archived_at IS NULL;
 
     -- Previously duplicate active tasks were selected in unspecified row order.

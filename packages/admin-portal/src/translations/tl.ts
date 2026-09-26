@@ -801,6 +801,10 @@ const tagalogTranslation: TranslationType = {
                 statusLabel: "Katayuan",
                 waitingKeys: "Naghihintay sa Paglikha ng mga Susi..",
                 started: "Nagsimula noong",
+                actions: {
+                    participate: "Lumahok sa seremonya ng mga susi",
+                    view: "Tingnan ang seremonya ng mga susi",
+                },
                 breadCrumbs: {
                     configure: "I-configure",
                     ceremony: "Seremonya",
@@ -1550,6 +1554,8 @@ const tagalogTranslation: TranslationType = {
                 createError: "Error sa paglikha ng Naka-schedule na Kaganapan",
                 editSuccess: "Matagumpay na na-edit ang Naka-schedule na Kaganapan",
                 editError: "Error sa pag-edit ng Naka-schedule na Kaganapan",
+                onlineWithEarlyVoting:
+                    "Hindi maaaring buksan ng iskedyul ng pagsisimula ang Online at Maagang pagboto nang sabay: ang maagang pagboto ay dapat magsimula bago ang online na pagboto.",
             },
             eventType: {
                 label: "Uri",
@@ -2053,8 +2059,12 @@ const tagalogTranslation: TranslationType = {
                 subtitle:
                     "Upang magpatuloy, mangyaring i-download at itago ang iyong Encrypted Private Key sa hindi bababa sa dalawang magkaibang device:",
                 downloadButton: "I-download ang iyong Encrypted Private Key",
-                errorDownloading: "Error sa pag-download: {{error}}",
+                downloaded: "Matagumpay na na-download ang Encrypted Private Key.",
                 errorEmptyKey: "Error sa pag-download, walang laman na file",
+                unexpectedError: "Hindi ma-download ang pribadong key. Pakisubukang muli.",
+                alreadyVerified: "Na-download at na-verify na ang iyong pribadong key.",
+                unavailable:
+                    "Hindi na maaaring i-download ang pribadong key dahil nagpatuloy na ang seremonya.",
                 confirmdDialog: {
                     ok: "Kumpirmahin ang mga Backup at Magpatuloy",
                     cancel: "Bumalik",
@@ -2069,12 +2079,12 @@ const tagalogTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Suriin ang Iyong Encrypted Private Key Backups",
+                verifyButton: "Beripikahin ang key",
                 subtitle:
                     "I-upload ang isang Backup ng Encrypted Private Key upang suriin kung ito ay tama. Maaari mong subukan ng maraming beses hangga't kinakailangan, mula sa iyong iba't ibang backups:",
                 errorUploading: "Di-wastong Encrypted Private Key Backup, mangyaring subukan muli",
                 errorEmptyFile: "Walang laman na file o hindi natagpuan",
                 verified: "Backup ay matagumpay na nasuri.",
-                downloaded: "Encrypted Private Key ay matagumpay na nabuo.",
             },
         },
         miruExport: {
@@ -2233,6 +2243,15 @@ const tagalogTranslation: TranslationType = {
             generalInfoTitle: "Pangkalahatang Impormasyon",
             trusteeTallyTitle: "Tagapagtiwala",
             trusteeTallySubTitle: "Katayuan ng pag-import ng fragment ng key",
+            eligibility: {
+                selectElection: "Pumili ng kahit isang halalan.",
+                publishElection:
+                    "I-publish ang bawat napiling halalan bago gumawa ng pagbibilang nito.",
+                tallyDisallowed:
+                    "Hindi pinapayagan ang pagbibilang para sa isang napiling halalan.",
+                endVoting:
+                    "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
+            },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
             startTallySuccess: "Nagsimula ang pagbibilang",

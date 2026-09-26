@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-FROM minio/mc
+FROM quay.io/minio/mc
 
 WORKDIR /scripts
 COPY . .

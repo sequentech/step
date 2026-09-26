@@ -24,6 +24,8 @@ use std::collections::HashMap;
 use tracing::{error, info, instrument, warn};
 use uuid::Uuid;
 
+/// Datafix annotations must never be published.
+pub const DATAFIX_ANNOTATIONS_PREFIX: &str = "datafix:";
 pub const DATAFIX_ID_KEY: &str = "datafix:id";
 pub const DATAFIX_PSW_POLICY_KEY: &str = "datafix:password_policy";
 pub const DATAFIX_VOTERVIEW_REQ_KEY: &str = "datafix:voterview_request";
@@ -52,6 +54,15 @@ pub fn external_voter_lock_key(
     voter_id: &Uuid,
 ) -> String {
     format!("datafix-voter-{tenant_id}-{election_event_id}-{voter_id}")
+}
+
+/// Strips Datafix annotations so they are not published. Takes the
+/// annotations themselves, so it serves both a typed row and one held as JSON
+/// in a publication payload.
+pub fn remove_datafix_annotations(annotations: Option<&mut serde_json::Value>) {
+    if let Some(serde_json::Value::Object(map)) = annotations {
+        map.retain(|key, _| !key.starts_with(DATAFIX_ANNOTATIONS_PREFIX));
+    }
 }
 
 /// Returns true if the voter has voted via Sequent´s system -
@@ -128,14 +139,9 @@ pub async fn get_event_id_and_datafix_annotations(
     return Err(DatafixResponse::error(DatafixErrorCode::EventNotFound));
 }
 
-/// Composes the area name from the voter information, following the naming contract:
-/// a concatenation of `Ward-SchoolSupportCode-Poll`. `None` (or empty) values are
-/// ignored (e.g. `WARD-POLL` when there is no SchoolSupportCode,
-/// `WARD-SCHOOL` when there is no Poll). All values are uppercased.
-/// `pub(crate)` (rather than private) so `reconciliation::diff` can reuse the
-/// exact same Ward-SchoolSupportCode-Poll composition/uppercasing rule when
-/// comparing a reconciliation file row's area against a voter's resolved
-/// `Area::name`.
+/// Composes WARD[-SCHOOLSUPPORT]-000 for Datafix API requests and
+/// reconciliation. Missing or empty school support is omitted; the incoming
+/// poll is ignored. All values are uppercased.
 #[instrument(skip_all)]
 pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
     let mut parts = vec![voter_info.ward.clone()];
@@ -146,20 +152,13 @@ pub(crate) fn compose_area_name(voter_info: &VoterInformationBody) -> String {
         }
     }
 
-    if let Some(poll) = &voter_info.poll {
-        if !poll.is_empty() {
-            parts.push(poll.clone());
-        }
-    }
+    parts.push(DATAFIX_POLL.to_string());
 
     parts.join("-").to_uppercase()
 }
 
 /// Returns the UserArea object. If it cannot find the area id by name returns an error.
-/// Area names are a concatenation of Ward-SchoolSupportCode-Poll. The contract: <br>
-/// If any of the values is empty or None, it is omitted. <br>
-/// i.e. Ward-Poll (no SchoolSupportCode), Ward-SchoolSupportCode (no Poll) <br>
-/// All values are set to uppercase
+/// Area names use WARD[-SCHOOLSUPPORT]-000, uppercased.
 #[instrument(skip_all)]
 pub async fn find_user_area_by_name(
     hasura_transaction: &Transaction<'_>,
@@ -354,6 +353,7 @@ pub async fn post_operation_result_to_electoral_log(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn voter_info(
         ward: &str,
@@ -371,34 +371,48 @@ mod tests {
     }
 
     #[test]
-    fn composes_all_parts_when_present() {
-        let info = voter_info("ward", Some("school"), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-POLL");
+    fn remove_datafix_annotations_keeps_only_non_datafix_keys() {
+        let mut annotations = Some(json!({
+            DATAFIX_ID_KEY: "event",
+            DATAFIX_VOTERVIEW_REQ_KEY: "secret",
+            DATAFIX_LAST_APPLIED_SEQUENCE_KEY: "3",
+            "miru:election-event-id": "miru-event",
+        }));
+
+        remove_datafix_annotations(annotations.as_mut());
+
+        assert_eq!(
+            annotations,
+            Some(json!({ "miru:election-event-id": "miru-event" }))
+        );
     }
 
     #[test]
-    fn renders_missing_poll_omitted() {
-        let info = voter_info("ward", Some("school"), None);
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL");
+    fn remove_datafix_annotations_handles_missing_annotations() {
+        let mut annotations: Option<serde_json::Value> = None;
+        remove_datafix_annotations(annotations.as_mut());
+        assert_eq!(annotations, None);
     }
 
     #[test]
-    fn renders_both_optionals_missing_omitted() {
-        let info = voter_info("ward", None, None);
-        assert_eq!(compose_area_name(&info), "WARD");
+    fn remove_datafix_annotations_leaves_non_object_values_untouched() {
+        let mut annotations = Some(json!(["datafix:id"]));
+        remove_datafix_annotations(annotations.as_mut());
+        assert_eq!(annotations, Some(json!(["datafix:id"])));
     }
 
     #[test]
-    fn treats_empty_string_the_same_as_none() {
-        let info = voter_info("ward", Some(""), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD-POLL");
-    }
-
-    #[test]
-    fn uppercases_all_values() {
-        let info = voter_info("ward", Some("school"), Some("poll"));
-        assert_eq!(compose_area_name(&info), "WARD-SCHOOL-POLL");
-        let mixed = voter_info("Ward-A", Some("Sb_2"), Some("p3"));
-        assert_eq!(compose_area_name(&mixed), "WARD-A-SB_2-P3");
+    fn poll_is_always_000_with_or_without_school_support() {
+        for poll in [Some("017"), Some("000"), Some("NONE"), Some(""), None] {
+            for school in [Some("Sb_2"), Some(""), None] {
+                let info = voter_info("Ward-A", school, poll);
+                let expected = if school == Some("Sb_2") {
+                    "WARD-A-SB_2-000"
+                } else {
+                    "WARD-A-000"
+                };
+                assert_eq!(compose_area_name(&info), expected);
+            }
+        }
     }
 }

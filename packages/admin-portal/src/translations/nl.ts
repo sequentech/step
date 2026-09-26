@@ -802,6 +802,10 @@ const dutchTranslation: TranslationType = {
                 statusLabel: "Status",
                 waitingKeys: "Wachten op sleutelgeneratie...",
                 started: "Gestart op",
+                actions: {
+                    participate: "Deelnemen aan sleutelceremonie",
+                    view: "Sleutelceremonie bekijken",
+                },
                 breadCrumbs: {
                     configure: "Configureren",
                     ceremony: "Ceremonie",
@@ -1548,6 +1552,8 @@ const dutchTranslation: TranslationType = {
                 createError: "Fout bij aanmaken geplande gebeurtenis",
                 editSuccess: "Geplande gebeurtenis succesvol bewerkt",
                 editError: "Fout bij bewerken geplande gebeurtenis",
+                onlineWithEarlyVoting:
+                    "Een startplanning kan online stemmen en vervroegd stemmen niet tegelijk openen: vervroegd stemmen moet vóór online stemmen beginnen.",
             },
             eventType: {
                 label: "Type",
@@ -2047,8 +2053,12 @@ const dutchTranslation: TranslationType = {
                 subtitle:
                     "Om door te gaan, download en bewaar uw Versleutelde Privésleutel op minstens twee verschillende apparaten:",
                 downloadButton: "Download uw Versleutelde Privésleutel",
-                errorDownloading: "Downloadfout: {{error}}",
+                downloaded: "Versleutelde privésleutel succesvol gedownload.",
                 errorEmptyKey: "Downloadfout, leeg bestand",
+                unexpectedError: "De privésleutel kon niet worden gedownload. Probeer het opnieuw.",
+                alreadyVerified: "Uw privésleutel was al gedownload en geverifieerd.",
+                unavailable:
+                    "De privésleutel kan niet meer worden gedownload omdat de ceremonie is gevorderd.",
                 confirmdDialog: {
                     ok: "Back-ups Bevestigen en Doorgaan",
                     cancel: "Terug",
@@ -2063,12 +2073,12 @@ const dutchTranslation: TranslationType = {
             },
             checkStep: {
                 title: "Controleer uw Back-ups van de Versleutelde Privésleutel",
+                verifyButton: "Sleutel verifiëren",
                 subtitle:
                     "Upload een Back-up van de Versleutelde Privésleutel om te controleren of deze correct is. U kunt het zo vaak als nodig proberen, vanaf uw verschillende back-ups:",
                 errorUploading: "Ongeldige Back-up van Versleutelde Privésleutel, probeer opnieuw",
                 errorEmptyFile: "Bestand leeg of niet gevonden",
                 verified: "Back-up succesvol geverifieerd.",
-                downloaded: "Versleutelde Privésleutel succesvol gegenereerd.",
             },
         },
         miruExport: {
@@ -2226,6 +2236,14 @@ const dutchTranslation: TranslationType = {
             generalInfoTitle: "Algemene Informatie",
             trusteeTallyTitle: "Trustees",
             trusteeTallySubTitle: "Status import sleutelfragment",
+            eligibility: {
+                selectElection: "Selecteer ten minste één verkiezing.",
+                publishElection:
+                    "Publiceer elke geselecteerde verkiezing voordat u de telling aanmaakt.",
+                tallyDisallowed: "Tellen is uitgeschakeld voor een geselecteerde verkiezing.",
+                endVoting:
+                    "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
+            },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
             startTallySuccess: "Telling gestart",

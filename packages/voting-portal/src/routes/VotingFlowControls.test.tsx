@@ -307,6 +307,50 @@ describe("selection-screen Back", () => {
     )
 })
 
+describe("Confirmation ballot locator links", () => {
+    it.each([
+        [true, "?kiosk"],
+        [false, ""],
+    ] as const)("preserves the authenticated voting mode: kiosk=%s", async (kiosk, search) => {
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {ballotId: BALLOT_ID, isDemo: false}
+        mockIsKiosk = kiosk
+        mockInsertCastVote.mockResolvedValue({data: {create_ballot_receipt: {id: "receipt-1"}}})
+        const {router} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        const locatorUrl = `${window.location.origin}${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
+        for (const link of screen.getAllByTestId("ballot-id")) {
+            expect(link).toHaveAttribute("href", locatorUrl)
+            if (kiosk) {
+                expect(link).not.toHaveAttribute("target")
+            } else {
+                expect(link).toHaveAttribute("target", "_blank")
+            }
+        }
+        await userEvent
+            .setup()
+            .click(screen.getByRole("button", {name: "confirmationScreen.printButton"}))
+        expect(mockInsertCastVote).toHaveBeenCalledWith({
+            variables: {
+                ballot_id: BALLOT_ID,
+                ballot_tracker_url: locatorUrl,
+                election_event_id: "event-1",
+                tenant_id: "tenant-1",
+                election_id: "election-1",
+            },
+        })
+        if (kiosk) {
+            for (const link of screen.getAllByTestId("ballot-id")) {
+                await userEvent.setup().click(link)
+                expect(router.state.location.pathname + router.state.location.search).toBe(
+                    `${ELECTION_PATH}/ballot-locator/${BALLOT_ID}${search}`
+                )
+                expect(mockLogout).not.toHaveBeenCalled()
+            }
+        }
+    })
+})
+
 describe("Ballot ID copy visibility", () => {
     it("can hide the complete receipt ID row without hiding verification or actions", async () => {
         setUpState({storedConfirmation: true})

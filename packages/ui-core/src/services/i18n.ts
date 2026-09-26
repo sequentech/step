@@ -179,6 +179,9 @@ export const initializeLanguages = (
         keySeparator: ".",
 
         interpolation: {
+            // React escapes string children, so values need no escaping here.
+            // Translations rendered as HTML are the exception: they escape their
+            // own values through translateHtml/escapeTranslationValues.
             escapeValue: false,
         },
         react: {
