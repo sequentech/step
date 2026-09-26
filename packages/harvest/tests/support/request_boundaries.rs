@@ -35,7 +35,7 @@ const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
 // A leftover environment flag must not bypass the clean child environment.
 // Only the parent's private, short-lived nonce can select the child branch.
-fn is_isolated_child() -> bool {
+pub(crate) fn is_isolated_child() -> bool {
     std::env::var(CHILD)
         .ok()
         .and_then(|value| {
@@ -50,7 +50,7 @@ fn is_isolated_child() -> bool {
 // Keycloak's token cache and environment are process-global. A fresh child
 // isolates them from all other tests and from developer settings; its only
 // identity provider is the local peer and it has no database settings.
-fn run_isolated(test: &str, keycloak_url: &str) {
+pub(crate) fn run_isolated(test: &str, keycloak_url: &str) -> String {
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
     let marker = tempfile::NamedTempFile::new().unwrap();
@@ -92,11 +92,9 @@ fn run_isolated(test: &str, keycloak_url: &str) {
         }
         std::thread::sleep(Duration::from_millis(25));
     };
-    assert!(
-        status.success(),
-        "{}",
-        std::fs::read_to_string(log.path()).unwrap()
-    );
+    let output = std::fs::read_to_string(log.path()).unwrap();
+    assert!(status.success(), "{output}");
+    output
 }
 
 #[rocket::async_test]
