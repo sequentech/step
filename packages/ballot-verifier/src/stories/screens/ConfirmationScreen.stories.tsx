@@ -71,12 +71,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const candidateListFailure = {
-    expectedFailure: {
-        reason: "PlaintextVoteContest renders candidate li elements under a div instead of a list.",
-        a11y: ["listitem"],
-    },
-}
+const candidateListFailure = {}
 export const Primary: Story = {
     parameters: candidateListFailure,
     play: async ({canvasElement}) => {

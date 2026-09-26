@@ -31,6 +31,7 @@ jobs:
           [
             ui-essentials,
             voting-portal,
+            admin-portal,
             results-portal,
             ballot-verifier,
           ]
@@ -49,7 +50,7 @@ jobs:
           npm install --global yarn@1.22.22
           yarn --cwd packages install --frozen-lockfile --non-interactive
       - name: Typecheck component stories
-        if: matrix.package == 'ui-essentials'
+        if: matrix.package == 'admin-portal' || matrix.package == 'ui-essentials'
         working-directory: packages/${{ matrix.package }}
         run: yarn typecheck:stories
       - name: Typecheck voting stories and tests
@@ -77,7 +78,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [voting-portal, results-portal, ballot-verifier]
+        package: [voting-portal, results-portal, ballot-verifier, admin-portal]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble

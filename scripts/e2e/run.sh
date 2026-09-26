@@ -10,6 +10,7 @@
 #   --down          remove the explicitly named STEP_E2E_PROJECT and its volumes
 #   --skip-images   reuse the service images already built
 #   --skip-build    reuse the binaries already in STEP_E2E_BIN_DIR
+#   --bootstrap-only prepare services and the administrator for another driver
 #   -k PATTERN      run through the last matching journey, including prerequisites
 #
 # Environment:
@@ -45,13 +46,14 @@ IMAGES=(postgres postgres-b4 minio configure-minio keycloak harvest)
 INSTRUMENTED=(immudb-init harvest windmill beat b4 trustee1 trustee2)
 
 original_args=("$@")
-keep=false images=true build=true down_only=false pattern=()
+keep=false images=true build=true down_only=false bootstrap_only=false pattern=()
 while (($#)); do
     case "$1" in
         --keep) keep=true ;;
         --down) down_only=true ;;
         --skip-images) images=false ;;
         --skip-build) build=false ;;
+        --bootstrap-only) bootstrap_only=true ;;
         -k)
             [[ $# -ge 2 && -n "$2" ]] || { echo '-k requires a pattern' >&2; exit 2; }
             pattern=(-k "$2"); shift ;;
@@ -201,6 +203,11 @@ if ((bootstrapped == 3)); then
     compose run --rm --no-deps driver bootstrap
 elif ((bootstrapped != 0)); then
     exit "$bootstrapped"
+fi
+
+if $bootstrap_only; then
+    phase "Bootstrap complete"
+    exit 0
 fi
 
 phase "Running the journeys"

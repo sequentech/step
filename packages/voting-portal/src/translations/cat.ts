@@ -5,6 +5,10 @@ import {TranslationType} from "./en"
 
 const catalanTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "No s’ha pogut iniciar el portal de votació. Torneu-ho a provar.",
+            retry: "Torneu-ho a provar",
+        },
         common: {
             goBack: "Tornar",
             showMore: "Mostra'n més",

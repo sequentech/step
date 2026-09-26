@@ -49,7 +49,6 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [isUploading, setIsUploading] = React.useState<boolean>(false)
         const [documentId, setDocumentId] = React.useState<string | null>(null)
         const [getUploadUrl] = useMutation<GetUploadUrlMutation>(GET_UPLOAD_URL)
-        const [isEncrypted, setIsEncrypted] = useState<boolean>(false)
         const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false)
         const passwordInputRef = useRef<HTMLInputElement>(null)
         const [password, setPassword] = useState<string>("")
@@ -70,23 +69,28 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         }, [passwordDialogOpen, passwordInputRef.current])
 
         const uploadFile = async (url: string, file: File) => {
-            await fetch(url, {
+            const response = await fetch(url, {
                 method: "PUT",
                 headers: {
                     "Content-Type": file.type,
                 },
                 body: file,
             })
-            setIsUploading(false)
+            if (!response.ok) {
+                throw new Error("File upload failed")
+            }
         }
 
-        const uploadFileToS3 = async (theFile: File) => {
+        const uploadFileToS3 = async (theFile: File, uploadPassword: string) => {
+            setIsUploading(true)
             try {
                 // Get the Upload URL
                 let {data} = await getUploadUrl({
                     variables: {
                         name: theFile.name,
-                        media_type: isEncrypted ? "application/ezip" : theFile.type,
+                        media_type: theFile.name.endsWith(".ezip")
+                            ? "application/ezip"
+                            : theFile.type,
                         size: theFile.size,
                         is_public: false,
                     },
@@ -101,30 +105,36 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 setDocumentId(data.get_upload_url.document_id)
                 if (uploadCallback) {
                     console.log("uploadCallback call")
-                    await uploadCallback?.(data.get_upload_url.document_id, password, shaField)
+                    await uploadCallback?.(
+                        data.get_upload_url.document_id,
+                        uploadPassword,
+                        shaField
+                    )
                 }
                 notify(t("electionEventScreen.import.fileUploadSuccess"), {type: "success"})
             } catch (_error) {
-                setIsUploading(false)
+                setDocumentId(null)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
+            } finally {
+                setIsUploading(false)
             }
         }
 
         const handleFiles = async (files: FileList | null) => {
+            if (loading || isUploading || passwordDialogOpen) return
+            setDocumentId(null)
             // https://fullstackdojo.medium.com/s3-upload-with-presigned-url-react-and-nodejs-b77f348d54cc
             setPassword("")
             const theFile = files?.[0]
             setTheFile(theFile)
             const isEncrypted = theFile?.name.endsWith(".ezip") || false
-            setIsEncrypted(isEncrypted)
             if (isEncrypted) {
                 setPasswordDialogOpen(true)
                 return
             }
 
             if (theFile) {
-                setIsUploading(true)
-                await uploadFileToS3(theFile)
+                await uploadFileToS3(theFile, "")
             } else {
                 setIsUploading(false)
                 notify(t("electionEventScreen.import.fileUploadError"), {type: "error"})
@@ -136,7 +146,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             if (!theFile || !value) {
                 return
             }
-            await uploadFileToS3(theFile)
+            await uploadFileToS3(theFile, password)
         }
 
         const onImportButtonClick = async () => {
@@ -164,7 +174,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                     }
                 />
 
-                <DropFile handleFiles={async (files) => handleFiles(files)} />
+                <Box component="fieldset" disabled={isWorking()} sx={{border: 0, m: 0, p: 0}}>
+                    <DropFile handleFiles={async (files) => handleFiles(files)} />
+                </Box>
 
                 <FormStyles.StatusBox>
                     {isWorking() ? <FormStyles.ShowProgress /> : null}
@@ -229,7 +241,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                                     helperText={false}
                                     onChange={(e) => setPassword(e.target.value)}
                                     inputProps={{
-                                        ref: passwordInputRef,
+                                        "ref": passwordInputRef,
+                                        "aria-label": t(
+                                            "electionEventScreen.import.passwordDialog.label"
+                                        ),
                                     }}
                                 />
                             </Box>

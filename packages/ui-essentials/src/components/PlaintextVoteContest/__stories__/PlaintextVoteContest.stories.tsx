@@ -179,10 +179,6 @@ export const NormalVote: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -211,10 +207,6 @@ export const SingleSelection: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -222,6 +214,7 @@ export const BlankVote: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Blank Vote")).toBeVisible()
+        await expect(canvas.getByText("Blank Vote").closest("li")?.parentElement).toHaveRole("list")
         await expect(canvas.queryByText("Alice Johnson")).not.toBeInTheDocument()
     },
     render: () => (
@@ -243,10 +236,6 @@ export const BlankVote: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -279,10 +268,6 @@ export const ExplicitInvalidVote: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["list", "listitem"],
-        },
     },
 }
 
@@ -342,10 +327,6 @@ export const WithValidationWarnings: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -384,10 +365,6 @@ export const PreferentialVote: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -419,10 +396,6 @@ export const WriteInVote: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -451,10 +424,6 @@ export const WithPoints: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -481,6 +450,9 @@ export const DeclineToVote: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Declined to vote")).toBeVisible()
+        await expect(canvas.getByText("Declined to vote").closest("li")?.parentElement).toHaveRole(
+            "list"
+        )
         await expect(canvas.queryByText("Ballot explicitly marked invalid")).not.toBeInTheDocument()
     },
     render: () => (
@@ -504,10 +476,6 @@ export const DeclineToVote: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }
 
@@ -515,6 +483,9 @@ export const BlankBallot: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Blank ballot")).toBeVisible()
+        await expect(canvas.getByText("Blank ballot").closest("li")?.parentElement).toHaveRole(
+            "list"
+        )
         await expect(canvas.queryByText("Alice Johnson")).not.toBeInTheDocument()
     },
     render: () => (
@@ -539,9 +510,5 @@ export const BlankBallot: Story = {
     ),
     parameters: {
         ...commonParameters,
-        expectedFailure: {
-            reason: "Rendered ballot choices are not direct children of their semantic list.",
-            a11y: ["listitem"],
-        },
     },
 }

@@ -33,8 +33,7 @@ import {
 } from "@mui/icons-material"
 import {useInterval} from "react-use"
 
-// Import the WASM package (already in your dependencies)
-import init, {initThreadPool, WasmSession, WasmVerifier} from "braid-wasm"
+import {loadBraid} from "@/services/Braid"
 
 let trustee: any = null
 
@@ -100,8 +99,7 @@ export const TrusteeDashboard = () => {
     useEffect(() => {
         async function load() {
             try {
-                await init({})
-                await initThreadPool(navigator.hardwareConcurrency || 4)
+                await loadBraid()
                 log("braid-wasm loaded and thread pool initialized")
             } catch (e: any) {
                 log(`WASM init failed: ${e.message}`, "error")
@@ -143,6 +141,7 @@ export const TrusteeDashboard = () => {
         }
 
         try {
+            const {WasmSession} = await loadBraid()
             trustee = new WasmSession(JSON.stringify(config))
             setInitialized(true)
             log(`Trustee initialized: ${config.name}`)

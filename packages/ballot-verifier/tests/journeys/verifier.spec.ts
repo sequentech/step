@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Page} from "@playwright/test"
-import {test, expect, eventPath, realm} from "./fixtures"
+import {test, expect, eventPath, realm, IDS} from "./fixtures"
 import {signedBallot} from "./ballots"
 import {scanPage} from "@sequentech/ui-test-kit/adapters/axe"
 
@@ -134,9 +134,36 @@ test("verified selections expose no accessibility violations", async ({page, por
             {id: "listitem", impact: "serious", targets: [[".candidate-item"]]},
         ])
     }
-    test.fail(
-        true,
-        "PlaintextVoteContest renders candidate li elements under a div instead of a list."
-    )
     expect(violations).toEqual([])
 })
+
+for (const configStatus of [200, 404]) {
+    test(`authentication-disabled verifier checks a signed ballot with public metadata status ${configStatus}`, async ({
+        page,
+        portal,
+    }) => {
+        portal.settings.DISABLE_AUTH = true
+        const key = `tenant-${IDS.tenant}/event-${IDS.event}/election_event_config.json`
+        if (configStatus === 404) {
+            portal.s3.override((request) => request.bucket === "public" && request.key === key, {
+                status: 404,
+                body: "NoSuchKey",
+            })
+        }
+        const {ballot, hash} = await signedBallot()
+        await verify(page, portal.origin, ballot, hash)
+        await expect.poll(() => portal.s3.requestsFor(key).length).toBe(1)
+        expect(portal.s3.requestsFor(key)[0]).toMatchObject({
+            method: "GET",
+            url: portal.s3.url("public", key),
+            bucket: "public",
+            key,
+            query: {},
+            status: configStatus,
+        })
+        expect(portal.s3.requestsFor(key)[0].headers.authorization).toBeUndefined()
+        expect(portal.oidc.authorizations).toEqual([])
+        expect(portal.oidc.tokenRequests).toEqual([])
+        expect(portal.graphql.calls).toEqual([])
+    })
+}

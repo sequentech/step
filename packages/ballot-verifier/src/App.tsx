@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useEffect, useMemo, useState} from "react"
-import {Routes, Route, useNavigate, Navigate, useMatch} from "react-router-dom"
+import {Routes, Route, Navigate, useMatch} from "react-router-dom"
 import {styled} from "@mui/material/styles"
 import {Footer, Header, NotFoundScreen, PageBanner} from "@sequentech/ui-essentials"
 import {
@@ -82,7 +82,6 @@ const HeaderWithContext: React.FC = () => {
 }
 
 const App = () => {
-    const navigate = useNavigate()
     const {globalSettings} = useContext(SettingsContext)
     const [confirmationBallot, setConfirmationBallot] = useState<IConfirmationBallot | null>(null)
     const [ballotId, setBallotId] = useState<string>("")
@@ -93,6 +92,49 @@ const App = () => {
     const currentEventId = routeMatch?.params.eventId
     const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(currentEventId))
 
+    // Offline verification can still use public presentation metadata. It must
+    // never need an authenticated ballot-style query or block local import.
+    const tenantId = routeMatch?.params.tenantId
+    const publicConfigUrl =
+        globalSettings.DISABLE_AUTH && tenantId && currentEventId
+            ? `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/event-${currentEventId}/election_event_config.json`
+            : undefined
+    const [publicConfig, setPublicConfig] = useState<{
+        url: string
+        presentation: IElectionEventPresentation | undefined
+    }>()
+    useEffect(() => {
+        if (!publicConfigUrl) return
+        const controller = new AbortController()
+        let active = true
+        void (async () => {
+            try {
+                const response = await fetch(publicConfigUrl, {signal: controller.signal})
+                if (!response.ok) return
+                const config = await response.json()
+                if (
+                    active &&
+                    config.tenant_id === tenantId &&
+                    config.election_event_id === currentEventId
+                ) {
+                    setPublicConfig({
+                        url: publicConfigUrl,
+                        presentation: config.election_event_presentation,
+                    })
+                }
+            } catch {
+                // Public metadata is optional when verifying a local ballot offline.
+            }
+        })()
+        return () => {
+            active = false
+            controller.abort()
+        }
+    }, [publicConfigUrl, tenantId, currentEventId])
+    const presentation =
+        ballotStyle?.ballot_eml?.election_event_presentation ??
+        (publicConfig?.url === publicConfigUrl ? publicConfig?.presentation : undefined)
+
     useEffect(() => {
         setConfirmationBallot(null)
         setBallotId("")
@@ -100,15 +142,6 @@ const App = () => {
     }, [currentEventId])
 
     useEffect(() => {
-        if (globalSettings.DISABLE_AUTH) {
-            navigate(
-                `/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/start`
-            )
-        }
-    }, [navigate])
-
-    useEffect(() => {
-        const presentation = ballotStyle?.ballot_eml?.election_event_presentation
         overwriteTranslations(presentation, {
             scope: ETranslationScope.BALLOT_VERIFIER,
             changeDefaultLanguage: false,
@@ -121,7 +154,7 @@ const App = () => {
                 changeDefaultLanguage: false,
             })
         }
-    }, [ballotStyle?.ballot_eml?.election_event_presentation])
+    }, [presentation])
 
     const customCss = useMemo(
         () =>
@@ -143,7 +176,7 @@ const App = () => {
                             element={
                                 <Navigate
                                     replace
-                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/login`}
+                                    to={`/tenant/${globalSettings.DEFAULT_TENANT_ID}/event/${globalSettings.DEFAULT_EVENT_ID}/${globalSettings.DISABLE_AUTH ? "start" : "login"}`}
                                 />
                             }
                         />

@@ -846,6 +846,7 @@ export const TallyCeremony: React.FC = () => {
 
                                 <Select
                                     id="keys-ceremony-for-tally"
+                                    inputProps={{"aria-label": t("tally.keysCeremonyTitle")}}
                                     value={keysCeremonyId ?? ""}
                                     label={String(t("tally.keysCeremonyTitle"))}
                                     onChange={(props) => {

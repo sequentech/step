@@ -247,10 +247,6 @@ test("mobile voter can choose, review and cast with no accessibility violations"
                 JSON.stringify(targets) !== JSON.stringify([["#lang-button"]])
         )
     ).toEqual([])
-    test.fail(
-        true,
-        "Mobile Header language button has no accessible name; pinned in HeaderPrimaryMobile story too"
-    )
     expect(violations).toEqual([])
 })
 

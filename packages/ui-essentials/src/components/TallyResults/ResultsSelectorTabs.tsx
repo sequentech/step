@@ -151,6 +151,7 @@ const TabRow: React.FC<{
                     key={areaOptionKey(option.id)}
                     label={option.label}
                     disabled={option.disabled}
+                    sx={{"&.Mui-selected": {color: "text.primary"}}}
                 />
             ))}
         </Tabs>

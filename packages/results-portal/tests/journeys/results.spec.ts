@@ -187,7 +187,6 @@ test("published results meet accessibility rules", async ({page, portal}) => {
                 ],
             },
         ])
-    test.fail(true, "Selected results tabs fail contrast on the production page background.")
     expect(violations).toEqual([])
 })
 

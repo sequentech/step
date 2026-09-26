@@ -17,9 +17,9 @@ yarn --cwd packages/ui-essentials test:stories --coverage
 yarn --cwd packages/ui-essentials build-storybook
 ```
 
-For the story commands, replace `ui-essentials` with `voting-portal`,
+For the story commands, replace `ui-essentials` with `voting-portal`, `admin-portal`,
 `results-portal` or `ballot-verifier`. Semantic checks use `typecheck:stories` for
-UI Essentials and `test:types` for the three portals. `yarn --cwd packages/<package> storybook` opens the interactive
+UI Essentials/admin and `test:types` for the other three portals. `yarn --cwd packages/<package> storybook` opens the interactive
 catalog. CI runs interactions, accessibility checks and a catalog build for each
 package using the pinned Playwright image. Its JUnit, screenshots and separate
 Istanbul coverage reports are uploaded from `test-results/`.
@@ -37,6 +37,11 @@ story loader when the component needs it. Voting ballot stories also reset the
 Redux voter session before loading each fixture; see `Question/__stories__` and
 `routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
+
+Admin stories cover event uploads, keys ceremony thresholds and publication controls.
+Their provider supplies the production admin theme, tenant and recorded Apollo responses;
+assert mutation variables, permission headers, callbacks and visible errors. Run
+`yarn --cwd packages/admin-portal typecheck:stories` to check these fixtures and stories.
 
 Stories are excluded from production type builds and the existing Jest coverage
 profile. Storybook coverage is reported separately from that gate. Shared test
@@ -96,7 +101,11 @@ Use literal expected counts and scoped publications. A rejected publication or
 artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
 
-The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan pin the existing candidate-list accessibility violation as expected failures, so fixing it requires removing the marker.
+The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan require semantic candidate lists, including blank selections and grouped contest choices. Authentication-disabled journeys complete verification without private service requests.
+
+Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.
+
+Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
 
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
 failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the

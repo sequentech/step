@@ -288,6 +288,7 @@ export const CreateElectionEventProvider = ({children}: any) => {
                     tenantId,
                     documentId,
                     password,
+                    sha256,
                 },
             })
             if (data?.import_election_event?.error) {

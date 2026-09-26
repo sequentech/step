@@ -747,9 +747,12 @@ export const EditTallySheet: React.FC<EditTallySheetProps> = (props) => {
                 </FormControl>
 
                 <FormControl size="small" sx={{width: 300}}>
-                    <InputLabel>{t("tallysheet.label.channel")}</InputLabel>
+                    <InputLabel id="tally-sheet-channel-label">
+                        {t("tallysheet.label.channel")}
+                    </InputLabel>
                     <Select
                         name="channel"
+                        labelId="tally-sheet-channel-label"
                         value={channel || ""}
                         label={String(t("tallysheet.label.channel"))}
                         onChange={(e: SelectChangeEvent) => {
