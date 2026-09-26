@@ -243,3 +243,16 @@ export const CancelKeepsTheRole: Story = {
         await expect(await roleRow(canvasElement, "auditor")).toBeVisible()
     },
 }
+
+export const DeleteFailure: Story = {
+    args: {failure: true},
+    play: async ({canvasElement}) => {
+        await confirmDelete(canvasElement)
+        const message = await within(document.body).findByText(
+            i18n.t("usersAndRolesScreen.roles.notifications.deleteError")
+        )
+        await waitFor(() => expect(message).toBeVisible())
+        expect(graphql.calls.map(({name}) => name)).toEqual(["DeleteRole"])
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+    },
+}

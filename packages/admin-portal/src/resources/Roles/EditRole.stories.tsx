@@ -135,6 +135,23 @@ export const RevokeAPermission: Story = {
     },
 }
 
+export const PermissionChangeFailure: Story = {
+    args: {failure: true},
+    play: async ({canvasElement}) => {
+        await userEvent.click(await permissionCheckbox(canvasElement, "role-write"))
+        const message = await within(document.body).findByText(
+            i18n.t("usersAndRolesScreen.roles.notifications.permissionEditError")
+        )
+        await waitFor(() => expect(message).toBeVisible())
+        expect(boundary.calls.map(({name}) => name)).toEqual(["SetRolePermission"])
+        expect(
+            within(document.body).queryByText(
+                i18n.t("usersAndRolesScreen.roles.notifications.permissionEditSuccess")
+            )
+        ).not.toBeInTheDocument()
+    },
+}
+
 export const WaitingForTheRoles: Story = {
     args: {loading: true},
     parameters: {expectedFailure: null},
