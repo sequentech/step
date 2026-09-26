@@ -369,6 +369,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 }
 
 const ConfirmationScreen: React.FC = () => {
+    const {isKiosk} = useContext(AuthContext)
     const {tenantId, eventId} = useParams<TenantEventType>()
     const {electionId} = useParams<{electionId?: string}>()
     const auditableBallot = useAppSelector(selectAuditableBallot(String(electionId)))
@@ -449,7 +450,7 @@ const ConfirmationScreen: React.FC = () => {
             ballotId.current = ballotIdStored
             setIsDemo(isDemoStored ?? false)
             setBallotTrackerUrl(
-                `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}`
+                `${window.location.protocol}//${window.location.host}/tenant/${tenantId}/event/${eventId}/election/${electionId}/ballot-locator/${ballotIdStored}${isKiosk() ? "?kiosk" : ""}`
             )
         }
     }, [])
@@ -458,6 +459,11 @@ const ConfirmationScreen: React.FC = () => {
         if (isDemo) {
             event.preventDefault()
             setDemoBallotUrlHelp(true)
+        } else if (isKiosk() && ballotTrackerUrl) {
+            // Keep the in-memory kiosk session; a new tab starts a fresh login.
+            event.preventDefault()
+            const {pathname, search} = new URL(ballotTrackerUrl)
+            navigate({pathname, search})
         }
     }
 
@@ -572,7 +578,7 @@ const ConfirmationScreen: React.FC = () => {
                             <BallotIdLink
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo ? "_blank" : undefined}
+                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
                                 sx={{display: {xs: "none", sm: "block"}}}
                                 onClick={handleBallotIdLinkClick}
                             >
@@ -581,7 +587,7 @@ const ConfirmationScreen: React.FC = () => {
                             <BallotIdLink
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={!isDemo ? ballotTrackerUrl : undefined}
-                                target={!isDemo ? "_blank" : undefined}
+                                target={!isDemo && !isKiosk() ? "_blank" : undefined}
                                 sx={{display: {xs: "block", sm: "none"}}}
                                 onClick={handleBallotIdLinkClick}
                             >
