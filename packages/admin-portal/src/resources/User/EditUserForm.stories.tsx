@@ -193,6 +193,10 @@ async function loaded(canvasElement: HTMLElement) {
     ).toMatchObject({
         filter: {tenant_id: TENANT_ID, election_event_id: EVENT_ID, voter_id_string: USER_ID},
     })
+    // Elections have no name column since migration 1772358027729; external_id is the former alias.
+    expect(
+        data.calls.find((call) => call.args[0] === "sequent_backend_election")?.args[1]
+    ).toMatchObject({sort: {field: "external_id", order: "DESC"}})
     return canvas
 }
 function secret(canvasElement: HTMLElement) {

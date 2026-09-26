@@ -115,6 +115,7 @@ export const ConfigurationForm: Story = {
             expect(reads("sequent_backend_election")).toEqual([
                 expect.objectContaining({
                     filter: {tenant_id: TENANT_ID, election_event_id: EVENT_ID},
+                    sort: {field: "external_id", order: "DESC"},
                 }),
             ])
         )
