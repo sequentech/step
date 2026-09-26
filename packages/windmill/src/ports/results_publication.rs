@@ -99,6 +99,13 @@ pub trait ResultsPublicationTasks: Sync {
         executed_by_user: &str,
     ) -> impl Future<Output = Result<TasksExecution>> + Send;
 
+    /// Marks the execution failed when the request cannot start its worker.
+    fn mark_failed(
+        &self,
+        task_execution: &TasksExecution,
+        error_message: &str,
+    ) -> impl Future<Output = Result<()>> + Send;
+
     /// Sends the publish task. The error message is the broker error's
     /// debug output.
     fn enqueue_publish(

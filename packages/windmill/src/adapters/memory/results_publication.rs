@@ -385,6 +385,7 @@ struct TasksState {
     enqueued: Vec<EnqueuedPublish>,
     execution_failure: Option<String>,
     enqueue_failure: Option<String>,
+    status_failure: Option<String>,
 }
 
 /// Task executions and a broker that remember what they were given.
@@ -398,6 +399,10 @@ impl InMemoryResultsPublicationTasks {
 
     pub fn fail_enqueues_with(&self, message: &str) {
         self.state().enqueue_failure = Some(message.to_string());
+    }
+
+    pub fn fail_status_updates_with(&self, message: &str) {
+        self.state().status_failure = Some(message.to_string());
     }
 
     pub fn executions(&self) -> Vec<TasksExecution> {
@@ -440,6 +445,24 @@ impl ResultsPublicationTasks for InMemoryResultsPublicationTasks {
         };
         state.executions.push(execution.clone());
         Ok(execution)
+    }
+
+    async fn mark_failed(
+        &self,
+        task_execution: &TasksExecution,
+        _error_message: &str,
+    ) -> Result<()> {
+        let mut state = self.state();
+        injected(&state.status_failure)?;
+        let stored = state
+            .executions
+            .iter_mut()
+            .find(|stored| {
+                stored.id == task_execution.id && stored.tenant_id == task_execution.tenant_id
+            })
+            .ok_or_else(|| anyhow!("Task execution not found"))?;
+        stored.execution_status = TasksExecutionStatus::FAILED.to_string();
+        Ok(())
     }
 
     async fn enqueue_publish(

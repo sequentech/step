@@ -59,6 +59,7 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::s3;
 use sequent_core::sqlite::election_event::replace_election_event_translation_overrides_sqlite;
 use sequent_core::temp_path::{generate_temp_file, get_file_size};
+use sequent_core::types::hasura::extra::TasksExecutionStatus;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -1683,8 +1684,8 @@ impl ResultsPublicationRequestSteps for HasuraPublicationRequestSteps {
 }
 
 /// Stores a `Publishing` publication and sends the task that publishes its
-/// artifacts. When the task cannot be sent, the publication is marked
-/// failed and the response says why.
+/// artifacts. Insertion or send failures mark the task execution failed;
+/// send failures also mark the publication failed and the response says why.
 pub async fn start_results_website_publication(
     steps: &impl ResultsPublicationRequestSteps,
     tasks: &impl ResultsPublicationTasks,
@@ -1699,10 +1700,10 @@ pub async fn start_results_website_publication(
     })?;
     steps.validate(tenant_id, input).await?;
 
-    let task_execution = tasks
+    let mut task_execution = tasks
         .new_task_execution(tenant_id, &input.election_event_id, executed_by_user)
         .await?;
-    let publication = steps
+    let publication = match steps
         .insert_publishing(NewTallyResultsPublication {
             tenant_id,
             election_event_id: &input.election_event_id,
@@ -1718,7 +1719,19 @@ pub async fn start_results_website_publication(
             contest_ids: &input.contest_ids,
             published_by_user_id: Some(user_id),
         })
-        .await?;
+        .await
+    {
+        Ok(publication) => publication,
+        Err(err) => {
+            tasks
+                .mark_failed(&task_execution, &err.to_string())
+                .await
+                .map_err(|update_error| {
+                    anyhow!("{err}; Failed to record publication task failure: {update_error}")
+                })?;
+            return Err(err);
+        }
+    };
 
     let publication_id = publication.id;
     let error_msg = match tasks
@@ -1735,14 +1748,19 @@ pub async fn start_results_website_publication(
         Ok(()) => None,
         Err(err) => {
             let message = format!("Failed to send PUBLISH_RESULTS_WEBSITE task: {err}");
-            steps
+            let task_failure = tasks.mark_failed(&task_execution, &message).await;
+            // Attempt both writes even if one store is unavailable.
+            let publication_failure = steps
                 .mark_failed(
                     tenant_id,
                     &input.election_event_id,
                     &publication_id,
                     &message,
                 )
-                .await?;
+                .await;
+            publication_failure?;
+            task_failure.context("Failed to record publication task failure")?;
+            task_execution.execution_status = TasksExecutionStatus::FAILED.to_string();
             Some(message)
         }
     };
@@ -3026,6 +3044,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_task_that_cannot_be_sent_marks_the_publication_failed() {
+        assert_valid_request_starts_a_task().await;
         let lifecycle = Lifecycle::with([]);
         lifecycle.tasks.fail_enqueues_with("broker unavailable");
 
@@ -3041,6 +3060,9 @@ mod tests {
         assert_eq!(output.publication_id, publication.id);
         assert_eq!(output.publication_status, ResultsPublicationStatus::Failed);
         assert_eq!(output.error_msg.as_deref(), Some(message));
+        assert_eq!(lifecycle.tasks.executions()[0].execution_status, "FAILED");
+        assert_eq!(output.task_execution.execution_status, "FAILED");
+        assert!(lifecycle.tasks.enqueued().is_empty());
     }
 
     #[tokio::test]
@@ -3163,6 +3185,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_request_whose_publication_cannot_be_stored_sends_no_task() {
+        assert_valid_request_starts_a_task().await;
         let lifecycle = Lifecycle::with([]);
         lifecycle
             .publications
@@ -3173,10 +3196,24 @@ mod tests {
             ("Internal", "unique violation".to_string())
         );
         assert!(lifecycle.tasks.enqueued().is_empty());
+        assert!(lifecycle.publications.stored().is_empty());
+        assert_eq!(lifecycle.tasks.executions()[0].execution_status, "FAILED");
+    }
+
+    async fn assert_valid_request_starts_a_task() {
+        let lifecycle = Lifecycle::with([]);
+        let output = lifecycle.request(&publication_request()).await.unwrap();
+        assert_eq!(output.error_msg, None);
+        assert_eq!(lifecycle.tasks.enqueued().len(), 1);
+        assert_eq!(
+            lifecycle.tasks.executions()[0].execution_status,
+            "IN_PROGRESS"
+        );
     }
 
     #[tokio::test]
     async fn a_send_failure_that_cannot_be_recorded_fails_the_request() {
+        assert_valid_request_starts_a_task().await;
         let lifecycle = Lifecycle::with([]);
         lifecycle.tasks.fail_enqueues_with("broker unavailable");
         lifecycle
@@ -3191,6 +3228,50 @@ mod tests {
             lifecycle.statuses(),
             vec![ResultsPublicationStatus::Publishing]
         );
+        assert_eq!(lifecycle.tasks.executions()[0].execution_status, "FAILED");
+    }
+
+    #[tokio::test]
+    async fn a_task_failure_write_error_does_not_prevent_publication_cleanup() {
+        assert_valid_request_starts_a_task().await;
+        let lifecycle = Lifecycle::with([]);
+        lifecycle.tasks.fail_enqueues_with("broker unavailable");
+        lifecycle
+            .tasks
+            .fail_status_updates_with("tasks table unavailable");
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            (
+                "Internal",
+                "Failed to record publication task failure".to_string()
+            )
+        );
+        assert_eq!(lifecycle.statuses(), vec![ResultsPublicationStatus::Failed]);
+        assert_eq!(
+            lifecycle.publications.stored()[0].error_message.as_deref(),
+            Some("Failed to send PUBLISH_RESULTS_WEBSITE task: broker unavailable")
+        );
+        assert!(lifecycle.tasks.enqueued().is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_insert_error_is_preserved_when_task_failure_cannot_be_recorded() {
+        assert_valid_request_starts_a_task().await;
+        let lifecycle = Lifecycle::with([]);
+        lifecycle
+            .publications
+            .fail_on(PublicationCall::InsertPublishing, "unique violation");
+        lifecycle
+            .tasks
+            .fail_status_updates_with("tasks table unavailable");
+
+        assert_eq!(
+            denial(lifecycle.request(&publication_request()).await),
+            ("Internal", "unique violation; Failed to record publication task failure: tasks table unavailable".to_string())
+        );
+        assert!(lifecycle.publications.stored().is_empty());
+        assert!(lifecycle.tasks.enqueued().is_empty());
     }
 
     #[tokio::test]
