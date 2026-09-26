@@ -638,7 +638,6 @@ export default function ElectionEvents() {
 
     const debouncedSearchChange = useMemo(() => {
         const debouncedFn = debounce((value: string) => {
-            console.log(`edu: debounce: ${value}`)
             // Expensive operation or API call
             setSearchInput(value)
         }, 300)
