@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Preview} from "@storybook/react-vite"
 import preview from "../../ui-essentials/.storybook/preview"
-import {DEFAULT_STORY_GLOBALS} from "../../ui-essentials/.storybook/globals"
+import {DEFAULT_STORY_GLOBALS, storyGlobalTypes} from "../../ui-essentials/.storybook/globals"
 import {initializeLanguages} from "@sequentech/ui-core"
 import englishTranslation from "../src/translations/en"
 import spanishTranslation from "../src/translations/es"
@@ -25,4 +25,7 @@ initializeLanguages(
     DEFAULT_STORY_GLOBALS.locale
 )
 
-export default {...preview} satisfies Preview
+export default {
+    ...preview,
+    globalTypes: {...preview.globalTypes, tenant: storyGlobalTypes.tenant},
+} satisfies Preview

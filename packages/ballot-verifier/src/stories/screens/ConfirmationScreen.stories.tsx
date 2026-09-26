@@ -43,7 +43,7 @@ const confirmation = (): IConfirmationBallot => ({
     decoded_questions: [decoded("council")],
 })
 const meta = {
-    title: "screens/ConfirmationScreen",
+    title: "Screens/Verifier/Confirmation screen",
     component: ConfirmationScreen,
     args: {confirmationBallot: confirmation(), ballotId: hash},
     parameters: {

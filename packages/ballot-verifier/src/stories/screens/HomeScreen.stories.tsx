@@ -42,7 +42,7 @@ const HomeFixture = () => {
     )
 }
 const meta = {
-    title: "screens/HomeScreen",
+    title: "Screens/Verifier/Home screen",
     render: () => <HomeFixture />,
     loaders: [
         async () => {
