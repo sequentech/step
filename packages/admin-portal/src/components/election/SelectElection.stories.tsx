@@ -30,13 +30,10 @@ interface Scenario {
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
-// The search filters the name and alias columns.
 const elections = [
-    electionRecord(undefined, {name: "Council election", alias: "Council"}),
+    electionRecord(),
     electionRecord(undefined, {
         id: STORY_IDS.secondElection,
-        name: "Deputy election",
-        alias: "Deputy",
         presentation: electionPresentation("Deputy election"),
     }),
 ]
@@ -110,33 +107,26 @@ export const SavedElection: Story = {
     },
 }
 
-export const SearchAndSelect: Story = {
+/**
+ * The search filters the election's name and alias columns, which migration
+ * 1772358027729 moved into `presentation` and renamed to `external_id`, so no
+ * election matches a search and none can be picked.
+ */
+export const SearchFindsNoElection: Story = {
     play: async ({canvasElement, args}) => {
-        const canvas = within(canvasElement)
         await userEvent.type(electionInput(canvasElement), "Deputy")
         // Every search stays within the tenant's event, 200 elections at a time.
-        await waitFor(() => expect(searches().length).toBeGreaterThan(1))
-        for (const {args: search} of searches()) {
-            expect(search[1]).toMatchObject({
-                filter: expect.objectContaining(eventScope),
+        await waitFor(() =>
+            expect(searches().at(-1)?.args[1]).toMatchObject({
+                filter: {...eventScope, "name@_ilike,alias@_ilike": "Deputy"},
                 pagination: {page: 1, perPage: 200},
             })
+        )
+        for (const {args: search} of searches()) {
+            expect(search[1]).toMatchObject({filter: expect.objectContaining(eventScope)})
         }
-        // The debounced search replaces the options; click only the filtered list.
-        const options = () => within(document.body).queryAllByRole("option")
-        await waitFor(() =>
-            expect(options().map(({textContent}) => textContent)).toEqual(["Deputy"])
-        )
-        await userEvent.click(options()[0])
-        await waitFor(() =>
-            expect(args.onSelectElection).toHaveBeenLastCalledWith(
-                STORY_IDS.secondElection,
-                expect.anything()
-            )
-        )
-        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        await waitFor(() => expect(args.onSubmit).toHaveBeenCalledTimes(1))
-        expect(args.onSubmit.mock.calls[0][0]).toEqual({election_id: STORY_IDS.secondElection})
+        await waitFor(() => expect(within(document.body).queryAllByRole("option")).toHaveLength(0))
+        expect(args.onSelectElection).not.toHaveBeenCalled()
     },
 }
 
