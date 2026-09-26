@@ -277,7 +277,7 @@ const App: React.FC<AppProps> = () => {
 
                 <Resource
                     name="user"
-                    edit={UpsertArea}
+                    edit={ListUsers}
                     list={ListUsers}
                     options={{label: "Users"}}
                 />

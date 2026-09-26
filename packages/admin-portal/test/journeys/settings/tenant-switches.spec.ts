@@ -59,11 +59,10 @@ test("undoing a voting channel change restores the switch and sends nothing", as
 })
 
 test("shows online voting as off when the tenant disabled it", async ({page, portal}) => {
-    // Defect: SettingsVotingChannel reads `voting_channels.online || true`, so a stored false renders as on.
     mockTenant(portal, tenantRow({voting_channels: {online: false, kiosk: true, telephone: false}}))
     await openSettings(page, portal, "VOTING CHANELS")
     await expect(switchFor(page, "Kiosk Voting")).toBeChecked()
-    test.fail(true, "The online voting switch coerces the stored false value to true")
+
     await expect(switchFor(page, "Online Voting")).not.toBeChecked({timeout: 2_000})
 })
 

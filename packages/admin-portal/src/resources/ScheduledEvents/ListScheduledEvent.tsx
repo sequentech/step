@@ -321,14 +321,9 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
                         withExport={false}
                         open={openCreateEvent}
                         setOpen={onOpenDrawer}
-                        Component={
-                            <CreateEvent
-                                electionEventId={electionEventId}
-                                setIsOpenDrawer={setOpenCreateEvent}
-                                getElectionName={getElectionName}
-                            />
-                        }
-                        withComponent={canCreateScheduledEvent}
+                        withAction={canCreateScheduledEvent}
+                        doAction={onOpenDrawer}
+                        actionLabel="common.label.add"
                     />
                 }
                 disableSyncWithLocation

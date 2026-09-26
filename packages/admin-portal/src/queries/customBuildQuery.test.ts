@@ -153,9 +153,7 @@ describe("resource list variables", () => {
         expect(built.variables.where).toEqual({_and: []})
     })
 
-    // The import_id column is missing from the tally sheet column whitelist, which
-    // strips the filter before the uuid check can forward it.
-    it.failing("filters tally sheets by a complete import id", () => {
+    it("filters tally sheets by a complete import id", () => {
         const built = list("sequent_backend_tally_sheet", {filter: {import_id: IMPORT}})
         expect(built.variables.where).toEqual({_and: [{import_id: {_eq: IMPORT}}]})
     })

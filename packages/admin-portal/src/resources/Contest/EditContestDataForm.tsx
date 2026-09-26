@@ -6,6 +6,7 @@ import {
     TextInput,
     useRecordContext,
     SimpleForm,
+    useSaveContext,
     useGetOne,
     Toolbar,
     SaveButton,
@@ -292,6 +293,7 @@ const ListsPresentationEditor: React.FC<IListsPresentationEditorProps> = ({
 }
 
 export const ContestDataForm: React.FC = () => {
+    const {save} = useSaveContext()
     const record = useRecordContext<Sequent_Backend_Contest>()
 
     const {t} = useTranslation()
@@ -647,6 +649,14 @@ export const ContestDataForm: React.FC = () => {
 
                 return (
                     <SimpleForm
+                        onSubmit={async (values: FieldValues) => {
+                            try {
+                                return await save?.(values)
+                            } catch {
+                                // The transform reports the error; retain the editable form.
+                                return undefined
+                            }
+                        }}
                         defaultValues={{candidatesOrder: sortedCandidates}}
                         validate={formValidator}
                         record={parsedValue}
@@ -946,7 +956,8 @@ export const ContestDataForm: React.FC = () => {
                                 <Grid container spacing={1}>
                                     <Grid size={2}>
                                         {parsedValue?.image_document_id &&
-                                        parsedValue?.image_document_id !== "" ? (
+                                        imageData?.id === parsedValue.image_document_id &&
+                                        imageData.name ? (
                                             <img
                                                 width={200}
                                                 height={200}

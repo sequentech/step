@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
+import i18n from "i18next"
 import {render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {configureStore} from "@reduxjs/toolkit"
@@ -160,7 +161,8 @@ async function importAndContinue() {
 }
 
 let services: ReturnType<typeof serve>
-beforeEach(() => {
+beforeEach(async () => {
+    await i18n.changeLanguage("en")
     resetKeycloak()
     resetSequentCore()
     jest.spyOn(console, "log").mockImplementation(() => undefined)
@@ -301,6 +303,19 @@ describe("the header", () => {
 })
 
 describe("with authentication disabled", () => {
+    it("opens a direct login link for its requested event without private services", async () => {
+        services = serve({DISABLE_AUTH: true})
+        launch(`${voterEvent}/login`)
+
+        await expectLocation(`${voterEvent}/start`)
+        expect(await importStep()).toBeVisible()
+        await importAndContinue()
+        await expectLocation(`${voterEvent}/confirmation`)
+        expect(await screen.findByText("Alice Example", {exact: true})).toBeVisible()
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+    })
+
     it("sends the voter to the default event without contacting Keycloak", async () => {
         services = serve({DISABLE_AUTH: true})
         launch("/")
@@ -309,12 +324,21 @@ describe("with authentication disabled", () => {
         expect(FakeKeycloak.instances).toHaveLength(0)
     })
 
-    // Expected failure: ApolloContextProvider.tsx:458-468 creates a client only
-    // for a signed-in voter, so ApolloWrapper shows a spinner instead.
-    it.failing("opens the import step", async () => {
+    it("verifies an imported ballot without redirecting confirmation back to import", async () => {
+        services = serve({DISABLE_AUTH: true})
+        launch("/")
+        await importAndContinue()
+        await expectLocation(`${eventPath(defaultEvent.tenant, defaultEvent.event)}/confirmation`)
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+    })
+
+    it("opens the import step", async () => {
         services = serve({DISABLE_AUTH: true})
         launch("/")
 
         expect(await importStep()).toBeVisible()
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
     })
 })

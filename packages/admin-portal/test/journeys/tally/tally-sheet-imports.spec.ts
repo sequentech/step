@@ -507,7 +507,6 @@ test("reports a failed source URL request instead of downloading the previous UR
         {electionEventId: EVENT_ID, documentId: DOCUMENT_ID},
         {electionEventId: EVENT_ID, documentId: DOCUMENT_ID},
     ])
-    test.fail(true, "a FetchDocument error keeps the previous result, so the stale URL downloads")
     await expect(
         page.getByText(/^(document expired|Could not create source download URL)$/)
     ).toBeVisible({timeout: 5000})
@@ -520,10 +519,6 @@ test("names the import format and channel selectors after their labels", async (
     await page.getByRole("button", {name: "Import tally sheets", exact: true}).click()
     const drawer = page.getByRole("presentation").filter({hasText: "Import tally sheets"})
     await expect(drawer.getByRole("combobox").first()).toHaveText("ES&S Enhanced XML")
-    test.fail(
-        true,
-        "the Format and Channel selects have no labelId, so their comboboxes are unnamed"
-    )
     await expect(drawer.getByRole("combobox", {name: "Format"})).toHaveText("ES&S Enhanced XML", {
         timeout: 2000,
     })

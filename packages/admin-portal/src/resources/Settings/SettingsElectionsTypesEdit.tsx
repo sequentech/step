@@ -25,6 +25,7 @@ interface EditProps {
 export const SettingselectionsTypesEdit: React.FC<EditProps> = (props) => {
     const {id, close} = props
     const refresh = useRefresh()
+    const notify = useNotify()
     const {t} = useTranslation()
 
     const onSuccess = async () => {
@@ -35,7 +36,8 @@ export const SettingselectionsTypesEdit: React.FC<EditProps> = (props) => {
         }
     }
 
-    const onError = async () => {
+    const onError = (error: Error) => {
+        notify(error.message, {type: "error"})
         refresh()
 
         if (close) {

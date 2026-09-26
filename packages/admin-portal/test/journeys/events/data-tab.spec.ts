@@ -343,19 +343,15 @@ test("saves ballot design, channel, language and advanced policy choices in one 
     ).toEqual([{electionEventId: EVENT_ID, enrollment: "enabled", otp: "disabled"}])
 })
 
-/**
- * Records unhandled promise rejections instead of letting them surface as page errors, for the
- * tests that pin a rejected save: they assert the list explicitly, so nothing is hidden.
- */
-async function captureRejections(page: Page, expectedMessage: string) {
-    await page.addInitScript((expected) => {
+/** Records rejected saves without suppressing the fixture’s page-error checks. */
+async function captureRejections(page: Page) {
+    await page.addInitScript(() => {
         const log: string[] = []
         Object.assign(window, {unhandledRejections: log})
         window.addEventListener("unhandledrejection", (event) => {
             log.push(String(event.reason instanceof Error ? event.reason.message : event.reason))
-            if (log.at(-1) === expected) event.preventDefault()
         })
-    }, expectedMessage)
+    })
     return () =>
         page.evaluate(
             () => (window as unknown as {unhandledRejections: string[]}).unhandledRejections
@@ -416,7 +412,7 @@ test("exports chosen content unencrypted and marks a failed export task", async 
     rejectExport()
     await expect(page.getByRole("button", {name: "Export", exact: true})).toBeEnabled()
     await expect(page.getByRole("dialog", {name: "Password"})).toHaveCount(0)
-    test.fail(true, "An export error after the task widget mounts leaves its status in progress")
+
     await expect(page.getByText("FAILED", {exact: true})).toBeVisible()
 })
 
@@ -558,7 +554,7 @@ test("keeps the saved custom URL prefixes when saving an unrelated change", asyn
     await page.getByRole("button", {name: "General", exact: true}).click()
     await page.getByRole("textbox", {name: "Description", exact: true}).fill("Renewed council")
     await save(page, portal)
-    test.fail(true, "Saving unrelated fields clears the stored custom URL prefixes")
+
     expect(portal.graphql.callsTo("SetCustomUrls").map(({variables}) => variables)).toEqual(
         customUrlCalls(portal, {
             login: "council",
@@ -568,12 +564,11 @@ test("keeps the saved custom URL prefixes when saving an unrelated change", asyn
     )
 })
 
-// A failed SetVoterAuthentication is not awaited, so its error escapes as an unhandled rejection.
 test("handles a failed voter authentication update without an unhandled rejection", async ({
     page,
     portal,
 }) => {
-    const rejections = await captureRejections(page, "Keycloak unavailable")
+    const rejections = await captureRejections(page)
     editableEvent(portal)
     portal.graphql.on("SetVoterAuthentication", () => ({
         errors: [{message: "Keycloak unavailable"}],
@@ -583,7 +578,7 @@ test("handles a failed voter authentication update without an unhandled rejectio
     await save(page, portal)
     expect(portal.graphql.callsTo("SetVoterAuthentication")).toHaveLength(1)
     await expect(page.getByRole("button", {name: "Save", exact: true})).toBeDisabled()
-    test.fail(true, "The voter authentication mutation rejection is not handled")
+
     expect(await rejections()).toEqual([])
 })
 
@@ -668,12 +663,11 @@ test("applies the defaults when saving an unconfigured password policy", async (
     ])
 })
 
-// An aborted save rethrows from the form's transform, which surfaces as an unhandled rejection.
 test("blocks an invalid password length range without an unhandled rejection", async ({
     page,
     portal,
 }) => {
-    const rejections = await captureRejections(page, "Password policy could not be updated")
+    const rejections = await captureRejections(page)
     editableEvent(portal)
     passwordPolicy(portal, CONFIGURED_POLICY)
     await openEvent(page, portal)
@@ -688,16 +682,15 @@ test("blocks an invalid password length range without an unhandled rejection", a
     ).toBeVisible()
     expect(portal.graphql.callsTo("UpdateRealmPasswordPolicy")).toHaveLength(0)
     expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
-    test.fail(true, "Aborting an invalid password policy save leaks a rejected promise")
+
     expect(await rejections()).toEqual([])
 })
 
-// Same aborted-save rejection as above, reached through a policy Keycloak did not apply.
 test("reports a password policy Keycloak did not apply without an unhandled rejection", async ({
     page,
     portal,
 }) => {
-    const rejections = await captureRejections(page, "Password policy could not be updated")
+    const rejections = await captureRejections(page)
     editableEvent(portal)
     passwordPolicy(portal, CONFIGURED_POLICY, false)
     await openEvent(page, portal)
@@ -709,7 +702,7 @@ test("reports a password policy Keycloak did not apply without an unhandled reje
     ).toBeVisible()
     expect(portal.graphql.callsTo("UpdateRealmPasswordPolicy")).toHaveLength(1)
     expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
-    test.fail(true, "A rejected Keycloak policy save leaks a rejected promise")
+
     expect(await rejections()).toEqual([])
 })
 
@@ -757,15 +750,11 @@ test.describe("results website policy", () => {
         })
     })
 
-    // Same aborted-save rejection as the invalid password policy.
     test("rejects public results limited to areas without an unhandled rejection", async ({
         page,
         portal,
     }) => {
-        const rejections = await captureRejections(
-            page,
-            "Public results must use full event visibility"
-        )
+        const rejections = await captureRejections(page)
         editableEvent(portal)
         await openEvent(page, portal)
         await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
@@ -778,7 +767,7 @@ test.describe("results website policy", () => {
         ).toBeVisible()
         expect(portal.graphql.callsTo("ConfigureResultsWebsitePolicy")).toHaveLength(0)
         expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
-        test.fail(true, "Aborting an invalid results policy save leaks a rejected promise")
+
         expect(await rejections()).toEqual([])
     })
 })
@@ -835,10 +824,7 @@ test.describe("Keycloak realm attributes", () => {
         // An invalid draft never marks the attributes dirty, so Save silently drops it and saves
         // the event; refusing it would also need the aborted-save rejection fixed.
         test("refuses to save an invalid realm attribute draft", async ({page, portal}) => {
-            const rejections = await captureRejections(
-                page,
-                "Realm attribute values must be strings"
-            )
+            const rejections = await captureRejections(page)
             editableEvent(portal)
             realmAttributes(portal)
             await openEvent(page, portal)
@@ -849,7 +835,7 @@ test.describe("Keycloak realm attributes", () => {
                 region.getByText("Realm attribute values must be strings", {exact: true})
             ).toBeVisible()
             await page.getByRole("button", {name: "Save", exact: true}).click()
-            test.fail(true, "The form silently drops an invalid realm attribute draft on save")
+
             await expect(
                 page.getByRole("alert").filter({hasText: "Realm attribute values must be strings"})
             ).toBeVisible()

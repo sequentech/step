@@ -93,10 +93,7 @@ for (const item of items) {
         expectRole(portal, operation, `${item.kind}-delete`)
         expect(records[item.kind]).toEqual([])
         await expect(page.getByRole("link", {name: item.name, exact: true})).toHaveCount(0)
-        test.fail(
-            item.kind !== "election",
-            "TreeMenu forwards the event as every node's parent, so child deletions navigate to the event instead of their immediate parent"
-        )
+
         await expect(page).toHaveURL(
             (url) => url.pathname === `/sequent_backend_${item.parent}/${item.parentId}`
         )
@@ -139,10 +136,7 @@ test.describe("sidebar deletion permissions", () => {
         )
         await page.getByRole("link", {name: "Alice Adams", exact: true}).hover()
         expect(portal.graphql.callsTo("delete_sequent_backend_candidate")).toEqual([])
-        test.fail(
-            true,
-            "TreeMenu hides all child deletion controls unless the operator can create election events"
-        )
+
         await expect(
             page.locator(".menu-actions-sequent_backend_candidate #MoreHorizIcon")
         ).toBeVisible()

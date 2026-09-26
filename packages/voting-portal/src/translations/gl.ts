@@ -6,6 +6,10 @@ import {TranslationType} from "./en"
 // SPDX-License-Identifier: AGPL-3.0-only
 const galegoTranslation: TranslationType = {
     translations: {
+        startup: {
+            error: "Non se puido iniciar o portal de votación. Téntao de novo.",
+            retry: "Tentar de novo",
+        },
         common: {
             goBack: "Volver",
             showMore: "Mostrar Máis",

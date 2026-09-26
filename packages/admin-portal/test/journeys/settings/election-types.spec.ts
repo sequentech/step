@@ -105,20 +105,17 @@ test("creates an election type from its own route and returns to settings", asyn
 })
 
 test("offers a way to add another election type once some exist", async ({page, portal}) => {
-    // Defect: SettingsElectionsTypes passes the create drawer to ListActions without `withComponent`,
-    // so once the list has rows there is no create button at all.
     mockTenant(portal)
     mockElectionTypes(portal, [electionType()])
     await openSettings(page, portal)
     await expect(rowWith(page, "General election")).toBeVisible()
-    test.fail(true, "A populated election-type list has no create action")
+
     await expect(
         page.getByRole("button", {name: /^(Add|Create Election Type)$/}).first()
     ).toBeVisible({timeout: 2_000})
 })
 
 test("tells the user when renaming an election type fails", async ({page, portal}) => {
-    // Defect: the edit drawer's onError only refreshes and closes, so the failure is silent.
     mockTenant(portal)
     mockElectionTypes(portal, [electionType()])
     portal.graphql.on("update_sequent_backend_election_type", () => ({
@@ -132,7 +129,7 @@ test("tells the user when renaming an election type fails", async ({page, portal
     await expect
         .poll(() => portal.graphql.callsTo("update_sequent_backend_election_type"))
         .toHaveLength(1)
-    test.fail(true, "Election-type rename failures close the drawer without an error notification")
+
     await expect(page.getByText("Uniqueness violation on election type name")).toBeVisible({
         timeout: 2_000,
     })

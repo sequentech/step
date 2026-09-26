@@ -187,13 +187,13 @@ test.describe("voter editor without the voted-voter permission", () => {
         await expect
             .poll(() => portal.graphql.callsTo("sequent_backend_cast_vote").length)
             .toBeGreaterThan(0)
-        test.fail(
-            true,
-            "EditUserForm enables fields through canEditVoters before the has-voted check; Harvest refuses the edit"
-        )
+
         await expect(drawer.getByRole("textbox", {name: "Email", exact: true})).toBeDisabled({
             timeout: 2000,
         })
+        await expect(drawer.getByRole("textbox", {name: "Nickname"})).toBeDisabled()
+        await expect(drawer.getByRole("combobox", {name: "Country"})).toBeDisabled()
+        await expect(drawer.getByRole("checkbox", {name: "By SMS"})).toBeDisabled()
     })
 })
 
@@ -204,10 +204,7 @@ test.describe("voter contact editor", () => {
         mockVoters(portal, {attributes: ATTRIBUTES, users: [alice]})
         await openVoters(page, portal)
         await expect(page.getByRole("cell", {name: "alice", exact: true})).toBeVisible()
-        test.fail(
-            true,
-            "ListUsers hides the Actions column unless voter-write or another action permission is held, so voter-email-tlf-edit never reaches Edit"
-        )
+
         expect(await page.getByRole("button", {name: "Actions", exact: true}).count()).toBe(1)
         await rowAction(page, "Edit")
         const drawer = page.getByRole("dialog")

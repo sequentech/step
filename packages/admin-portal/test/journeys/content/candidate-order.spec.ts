@@ -8,7 +8,6 @@ import {
     BASE_ROLES,
     CONTENT_IDS,
     candidateRow,
-    catchRejections,
     contestRow,
     electionRow,
     eventPage,
@@ -127,7 +126,8 @@ test("reports a rejected candidate reorder and does not save the contest", async
     page,
     portal,
 }) => {
-    const rejections = await catchRejections(page, "ordering denied")
+    const rejections: string[] = []
+    page.on("pageerror", (error) => rejections.push(error.message))
     ballot(portal)
     portal.graphql.on("update_sequent_backend_candidate", () => ({
         errors: [{message: "ordering denied"}],
@@ -143,9 +143,6 @@ test("reports a rejected candidate reorder and does not save the contest", async
         },
     ])
     expect(portal.graphql.callsTo("update_sequent_backend_contest")).toEqual([])
-    test.fail(
-        true,
-        "EditContestData rethrows a rejected candidate reorder out of the async save transform"
-    )
-    expect(await rejections()).toEqual([])
+
+    expect(rejections).toEqual([])
 })

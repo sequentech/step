@@ -40,10 +40,6 @@ export const PrimaryMobile: Story = {
         logoutFn: () => {},
     },
     parameters: {
-        expectedFailure: {
-            reason: "The mobile language button has no accessible name.",
-            a11y: ["button-name"],
-        },
         viewport: {
             defaultViewport: "iphone6",
         },

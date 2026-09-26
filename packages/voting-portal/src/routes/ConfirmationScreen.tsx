@@ -174,6 +174,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
 
     const {
         data: ballotReceiptDocuments,
+        error: receiptError,
         startPolling,
         stopPolling,
     } = useQuery<GetDocumentQuery>(GET_DOCUMENT, {
@@ -182,6 +183,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             electionEventId: eventId,
             tenantId: tenantId || "",
         },
+        fetchPolicy: "network-only",
         skip: !documentId, // Skip query if no documentId
     })
 
@@ -253,26 +255,50 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             setOpenPrintDemoModal(true)
             return
         }
-        if (!documentId) {
-            if (!ballotTrackerUrl) {
-                setIsHitPrint(false)
-                return
+        try {
+            setErrorDialog(false)
+            if (!documentId) {
+                if (!ballotTrackerUrl) {
+                    setIsHitPrint(false)
+                    return
+                }
+                const res = await createBallotReceipt({
+                    variables: {
+                        ballot_id: ballotId,
+                        ballot_tracker_url: ballotTrackerUrl,
+                        election_event_id: eventId,
+                        tenant_id: tenantId,
+                        election_id: electionId,
+                    },
+                })
+                const docId = res.data?.create_ballot_receipt?.id
+                if (!docId) throw new Error("Receipt generation returned no document")
+                setDocumentId(docId)
             }
-            const res = await createBallotReceipt({
-                variables: {
-                    ballot_id: ballotId,
-                    ballot_tracker_url: ballotTrackerUrl,
-                    election_event_id: eventId,
-                    tenant_id: tenantId,
-                    election_id: electionId,
-                },
-            })
-            let docId = res.data?.create_ballot_receipt?.id
-            console.log("docId: ", docId)
-            setDocumentId(docId)
+            setIsDownloadingReport(true)
+        } catch {
+            failReceipt()
         }
-        setIsDownloadingReport(true)
     }
+
+    const failReceipt = useCallback(() => {
+        stopPolling()
+        setDocumentId(null)
+        setIsPolling(false)
+        setIsDownloadingReport(false)
+        setIsHitPrint(false)
+        setErrorDialog(true)
+    }, [stopPolling])
+
+    useEffect(() => {
+        if (documentId && receiptError) failReceipt()
+    }, [documentId, receiptError, failReceipt])
+
+    useEffect(() => {
+        if (!documentId) return
+        const timeout = setTimeout(failReceipt, globalSettings.POLLING_DURATION_TIMEOUT)
+        return () => clearTimeout(timeout)
+    }, [documentId, globalSettings.POLLING_DURATION_TIMEOUT, failReceipt])
 
     async function downloadFileWithRetry(url: string, name: string, retries = 0) {
         try {
@@ -290,7 +316,11 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
     }
 
     useEffect(() => {
-        if (ballotReceiptDocuments?.sequent_backend_document?.[0]?.id && documentId) {
+        if (
+            documentId &&
+            !receiptError &&
+            ballotReceiptDocuments?.sequent_backend_document?.[0]?.id === documentId
+        ) {
             const fileName = `ballot_receipt_${eventId}.pdf`
             const documentUrl = getDocumentUrl(documentId!, fileName)
             downloadFileWithRetry(documentUrl, fileName)
@@ -300,14 +330,14 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
             setDocumentId(null)
             stopPolling()
         }
-    }, [ballotReceiptDocuments?.sequent_backend_document?.[0]?.id, documentId])
+    }, [ballotReceiptDocuments?.sequent_backend_document?.[0]?.id, documentId, receiptError])
 
     useEffect(() => {
-        if (!isPolling && documentId) {
+        if (!isPolling && documentId && !receiptError) {
             setIsPolling(true)
             startPolling(globalSettings.QUERY_POLL_INTERVAL_MS)
         }
-    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, documentId, isPolling])
+    }, [startPolling, globalSettings.QUERY_POLL_INTERVAL_MS, documentId, isPolling, receiptError])
 
     return (
         <>

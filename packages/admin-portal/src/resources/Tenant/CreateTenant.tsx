@@ -26,11 +26,14 @@ import {WidgetProps} from "@/components/Widget"
 import {ETasksExecution} from "@/types/tasksExecution"
 
 interface CreateTenantProps {
-    isDrawerOpen: boolean
-    setIsDrawerOpen: (value: boolean) => void
+    isDrawerOpen?: boolean
+    setIsDrawerOpen?: (value: boolean) => void
 }
 
-export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDrawerOpen}) => {
+export const CreateTenant: React.FC<CreateTenantProps> = ({
+    isDrawerOpen = true,
+    setIsDrawerOpen,
+}) => {
     const [createTenant] = useMutation<InsertTenantMutation>(INSERT_TENANT)
     const [newId, setNewId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -39,6 +42,10 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
     const {t} = useTranslation()
     const navigate = useNavigate()
     const refresh = useRefresh()
+    const closeDrawer = () => {
+        if (setIsDrawerOpen) setIsDrawerOpen(false)
+        else navigate("/sequent_backend_tenant")
+    }
     const {
         data: newTenant,
         isLoading: isOneLoading,
@@ -53,13 +60,13 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         }
         if (isLoading && error && !isOneLoading) {
             setIsLoading(false)
-            setIsDrawerOpen(false)
+            closeDrawer()
             refresh()
             return
         }
         if (isLoading && !error && !isOneLoading && newTenant) {
             setIsLoading(false)
-            setIsDrawerOpen(false)
+            closeDrawer()
         }
     }, [isLoading, newTenant, isOneLoading, error, newId, refresh, authContext, navigate])
 
@@ -90,7 +97,7 @@ export const CreateTenant: React.FC<CreateTenantProps> = ({isDrawerOpen, setIsDr
         <Drawer
             anchor="right"
             open={isDrawerOpen}
-            onClose={() => setIsDrawerOpen(false)}
+            onClose={() => closeDrawer()}
             PaperProps={{
                 sx: {width: "30%"},
             }}

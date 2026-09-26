@@ -179,7 +179,7 @@ test.describe("tenant selection", () => {
         await tryTenant(page, "   ")
         await expect(page.getByRole("button", {name: "Continue", exact: true})).toBeEnabled()
         expect(portal.graphql.callsTo("GetTenantBySlug")).toHaveLength(0)
-        test.fail(true, "SelectTenant sets the empty-name error without opening its snackbar")
+
         await expect(page.getByText("Please enter a tenant name", {exact: true})).toBeVisible({
             timeout: 2000,
         })

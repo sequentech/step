@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {StartupError} from "../components/StartupError"
 import React, {useContext} from "react"
 
 import Keycloak, {KeycloakConfig, KeycloakInitOptions} from "keycloak-js"
@@ -145,6 +146,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
     const [keycloakAccessToken, setKeycloakAccessToken] = useState<string | undefined>()
 
     // Create the local state in which we will keep track if a user is authenticated
+    const [initializationFailed, setInitializationFailed] = useState(false)
     const [isAuthenticated, setAuthenticated] = useState<boolean>(false)
 
     // Local state that will contain the users name once it is loaded
@@ -337,6 +339,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 setKeycloakAccessToken(keycloak.token)
                 updateTokenPeriodically()
             } catch (error) {
+                setInitializationFailed(true)
                 console.log("error initializing Keycloak")
                 console.log(error)
                 setAuthenticated(false)
@@ -513,7 +516,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
                 reauthWithGold,
             }}
         >
-            {props.children}
+            {initializationFailed ? <StartupError /> : props.children}
         </AuthContext.Provider>
     )
 }

@@ -116,42 +116,58 @@ test("demo receipt explains that no receipt exists and sends no creation mutatio
     expect(portal.graphql.callsTo("createBallotReceipt")).toEqual([])
 })
 
-test("receipt generation failure offers a retry instead of polling indefinitely", async ({
-    page,
-    portal,
-}) => {
-    portal.settings.QUERY_POLL_INTERVAL_MS = 1000
-    portal.settings.POLLING_DURATION_TIMEOUT = 5000
-    portal.graphql.on("createBallotReceipt", ({variables}) => ({
-        data: {
-            create_ballot_receipt: {
-                id: documentId,
-                ballot_id: variables.ballot_id,
-                status: "pending",
-            },
-        },
-    }))
-    portal.graphql.on("GetDocument", () => ({
-        errors: [{message: "Synthetic receipt generation failed"}],
-    }))
-    await review(page, portal)
-    await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
-    await expect(page).toHaveURL(/\/confirmation/)
-    await page.getByRole("button", {name: "Print", exact: true}).click()
-    await expect.poll(() => portal.graphql.callsTo("GetDocument").length).toBeGreaterThan(0)
-    for (let attempt = 0; attempt < 6; attempt++) {
-        const before = portal.graphql.callsTo("GetDocument").length
-        await page.clock.runFor(1100)
+for (const fault of ["query", "timeout", "create"] as const) {
+    test(`receipt ${fault} failure stops polling and permits another attempt`, async ({
+        page,
+        portal,
+    }) => {
+        portal.settings.QUERY_POLL_INTERVAL_MS = 1000
+        portal.settings.POLLING_DURATION_TIMEOUT = 5000
+        let fail = true
+        portal.graphql.on("createBallotReceipt", ({variables}) =>
+            fail && fault === "create"
+                ? {
+                      errors: [{message: "Synthetic receipt creation failed"}],
+                  }
+                : {
+                      data: {
+                          create_ballot_receipt: {
+                              id: documentId,
+                              ballot_id: variables.ballot_id,
+                              status: "pending",
+                          },
+                      },
+                  }
+        )
+        portal.graphql.on("GetDocument", () =>
+            fail && fault === "query"
+                ? {
+                      errors: [{message: "Synthetic receipt generation failed"}],
+                  }
+                : {data: {sequent_backend_document: []}}
+        )
+        await review(page, portal)
+        await page.getByRole("button", {name: "Cast ballot", exact: true}).click()
+        await expect(page).toHaveURL(/\/confirmation/)
+        await page.getByRole("button", {name: "Print", exact: true}).click()
+        if (fault !== "create") {
+            await expect.poll(() => portal.graphql.callsTo("GetDocument").length).toBeGreaterThan(0)
+        }
+        if (fault === "timeout") await page.clock.runFor(5100)
+        await expect(page.getByRole("dialog")).toBeVisible()
+        const requests = portal.graphql.callsTo("GetDocument").length
+        await page.clock.runFor(7000)
+        expect(portal.graphql.callsTo("GetDocument")).toHaveLength(requests)
+        expect(portal.graphql.callsTo("createBallotReceipt")).toHaveLength(1)
+        await page.getByRole("dialog").getByRole("button", {name: "OK", exact: true}).click()
+        await expect(page.getByRole("button", {name: "Print", exact: true})).toBeEnabled()
+        fail = false
+        await page.getByRole("button", {name: "Print", exact: true}).click()
+        await expect.poll(() => portal.graphql.callsTo("createBallotReceipt").length).toBe(2)
         await expect
             .poll(() => portal.graphql.callsTo("GetDocument").length)
-            .toBeGreaterThan(before)
-    }
-    expect(portal.graphql.callsTo("createBallotReceipt")).toHaveLength(1)
-    expect(portal.graphql.callsTo("GetDocument").length).toBeGreaterThan(5)
-    await expect(page.getByRole("button", {name: "Print", exact: true})).toBeDisabled()
-    test.fail(
-        true,
-        "ConfirmationScreen never sets its receipt error dialog and does not bound GetDocument polling after failure"
-    )
-    await expect(page.getByRole("dialog")).toBeVisible({timeout: 1000})
-})
+            .toBeGreaterThan(requests)
+        await expect(page.getByRole("button", {name: "Print", exact: true})).toBeDisabled()
+        await expect(page.getByRole("dialog")).toHaveCount(0)
+    })
+}

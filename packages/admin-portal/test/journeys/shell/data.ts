@@ -485,4 +485,19 @@ export function serveAdminTenant(portal: PortalServices, tables = adminTables())
                 })),
         },
     }))
+    portal.graphql.on("sequent_backend_area_extended", ({variables}) => ({
+        data: {
+            sequent_backend_area_contest: (all.sequent_backend_area_contest ?? [])
+                .filter(
+                    (row) =>
+                        row.area_id === variables.areaId &&
+                        row.election_event_id === variables.electionEventId
+                )
+                .map((row) => ({
+                    contest: all.sequent_backend_contest?.find(
+                        (item) => item.id === row.contest_id
+                    ),
+                })),
+        },
+    }))
 }

@@ -573,7 +573,7 @@ test.describe("blocklist", () => {
             await expect(
                 page.getByText("There are no entries in the blocklist", {exact: true})
             ).toBeVisible()
-            test.fail(true, "The empty-state Add button ignores phone-blacklist-create")
+
             await expect(page.getByRole("button", {name: "Add", exact: true})).toHaveCount(0)
         })
     })

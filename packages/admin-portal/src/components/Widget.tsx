@@ -125,6 +125,10 @@ export const Widget: React.FC<WidgetProps> = ({
     })
 
     useEffect(() => {
+        setTaskDataStatus(status)
+    }, [status])
+
+    useEffect(() => {
         if (taskData && taskData.sequent_backend_tasks_execution.length > 0) {
             const task = taskData.sequent_backend_tasks_execution[0]
             setTaskDataType(task.type as ETasksExecution)
