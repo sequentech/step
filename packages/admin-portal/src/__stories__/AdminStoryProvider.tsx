@@ -83,9 +83,9 @@ export function graphqlBoundary(
 ) {
     const calls: RecordedOperation[] = []
     const unexpected: string[] = []
-    const answer = async (operation: Operation): Promise<FetchResult> => {
+    // Schema mode: validate the operation, then execute the handler's reply.
+    const executed = async (operation: Operation): Promise<FetchResult> => {
         const handler = handlers[operation.operationName]
-        if (!schema) return handler(operation)
         const types = await loadAdminSchema()
         const problems = validate(types, operation.query).map(({message}) => message)
         if (problems.length) {
@@ -129,7 +129,7 @@ export function graphqlBoundary(
                     }
                     try {
                         const result = schema
-                            ? answer(operation)
+                            ? executed(operation)
                             : handlers[operation.operationName](operation)
                         if (result instanceof Promise) {
                             result.then(

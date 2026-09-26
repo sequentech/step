@@ -30,9 +30,10 @@ function matches(record: RaRecord, filter: Record<string, unknown> = {}) {
     return Object.entries(filter).every(([key, expected]) => {
         if (expected === undefined || key === "q") return true
         if (ILIKE.test(key)) {
+            // As in SQL, a null column matches no pattern.
             const value = record[key.replace(ILIKE, "")]
             const pattern = String(expected).replaceAll("%", "").toLowerCase()
-            return value == null || String(value).toLowerCase().includes(pattern)
+            return value != null && String(value).toLowerCase().includes(pattern)
         }
         if (key.includes("@") || !(key in record)) return true
         const value = record[key]
@@ -142,8 +143,12 @@ export function resourceBoundary(
             write("update", resource, params, () => {
                 const list = rows(resource)
                 const index = list.findIndex((row) => row.id === params.id)
+                if (index < 0) {
+                    boundary.unexpected.push(`update ${resource}/${String(params.id)}`)
+                    throw new Error(`No synthetic ${resource} ${String(params.id)}`)
+                }
                 const record = {...list[index], ...params.data, id: params.id} as RaRecord
-                if (index >= 0) list[index] = record
+                list[index] = record
                 return {data: record} as never
             }),
         updateMany: (resource, params) =>
