@@ -67,12 +67,6 @@ function Fixture({permissions, eventScope}: Scenario) {
 const meta = {
     title: "Admin/Voter list permissions",
     component: Fixture,
-    parameters: {
-        expectedFailure: {
-            reason: "React-admin row selection places its accessible label on a MUI 7 span instead of the checkbox input.",
-            a11y: ["aria-prohibited-attr", "label"],
-        },
-    },
     args: {
         permissions: [
             "voter-create",

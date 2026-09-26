@@ -191,12 +191,6 @@ export const ContestReadOnlyHidesSave: Story = {
     },
 }
 export const ElectionPolicySave: Story = {
-    parameters: {
-        expectedFailure: {
-            reason: "The existing JSON configuration editors have low-contrast counts and an unlabeled file input.",
-            a11y: ["color-contrast", "label"],
-        },
-    },
     args: {kind: "election"},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
@@ -419,7 +413,6 @@ export const ContestSelectionAndDisplaySettingsSave: Story = {
 
 export const ElectionAdvancedPoliciesSaveAndRestore: Story = {
     args: {kind: "election"},
-    parameters: ElectionPolicySave.parameters,
     play: async ({canvasElement}) => {
         const canvas = await openPolicies(canvasElement, "election")
         await userEvent.click(canvas.getByRole("button", {name: "Advanced Configuration"}))
