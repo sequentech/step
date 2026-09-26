@@ -318,6 +318,8 @@ test.describe("report administrator", () => {
                 tenant_id: TENANT_ID,
                 election_event_id: IDS.event,
                 cron_config: null,
+                created_at: FIXED_TIME,
+                permission_label: null,
             },
         })
 
