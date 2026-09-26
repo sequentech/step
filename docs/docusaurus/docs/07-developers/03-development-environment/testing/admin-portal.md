@@ -31,6 +31,8 @@ statements, functions and branches separately with the actual PR base. UI browse
 interactions, Keycloak redirects, GraphQL services and the real cryptographic WASM
 boundary remain separate integration scopes.
 
+## Event and settings workflows
+
 Production event and settings journeys live in `test/journeys/events/` and
 `test/journeys/settings/`, with local fixture builders in each directory's
 `data.ts`. After building the shared UI packages and admin portal as described in
@@ -46,3 +48,22 @@ bodies. Keep known-defect markers immediately before the failing assertion, afte
 verifying the setup and request. A captured promise rejection must match the
 specific documented defect; unrelated requests and page exceptions still fail
 the fixture. Password-policy boundaries belong in the Node Jest validator tests.
+
+## Access workflows
+
+The production journeys in `test/journeys/access/` cover voter and tenant-user
+management, roles, approvals, reconciliation uploads, notifications and tenant
+selection. Their local data builders serve the same strict GraphQL, OIDC and
+object-storage boundaries as the other admin journeys. Prepare the production
+bundle and browser as described in [UI browser tests](./ui-browser-tests.md),
+then run from `packages/`:
+
+```sh
+yarn workspace admin-portal test:journeys 'test/journeys/access/[^/]+\.spec\.ts$' --workers=2 --repeat-each=3
+```
+
+Assert the full variables for each write, the permission role, and the visible
+result. Upload checks include the exact presigned URL and bytes. After a write,
+wait for its refreshed list data before opening another row action. Defect tests
+must establish their setup before marking only the affected assertion as an
+expected failure; unrelated service requests and browser errors still fail them.
