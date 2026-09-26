@@ -45,6 +45,9 @@ export const Populated: Story = {
         const council = await row(canvasElement, "Choose the council members")
         await expect(council).toBeVisible()
         await expect(await row(canvasElement, "Choose the mayor")).toBeVisible()
+        // Names live in the presentation since elections and events lost their name column.
+        await expect(within(council).getByText("Council election")).toBeVisible()
+        await expect(await within(council).findByText("Council event")).toBeVisible()
         // The contest chips link to the council election's contests.
         await waitFor(() =>
             expect(
@@ -96,6 +99,26 @@ export const LoadError: Story = {
         const message = await within(document.body).findByText("Synthetic service unavailable")
         await waitFor(() => expect(message).toBeVisible())
         expect(within(canvasElement).queryByRole("row", {name: /Choose/})).toBeNull()
+    },
+}
+
+export const SearchByName: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await row(canvasElement, "Choose the council members")
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Name"})
+        )
+        await userEvent.type(await canvas.findByRole("textbox", {name: "Name"}), "Mayoral")
+        await waitFor(() =>
+            expect(canvas.queryByRole("row", {name: /Choose the council members/})).toBeNull()
+        )
+        await expect(await row(canvasElement, "Choose the mayor")).toBeVisible()
+        expect(reads("getList", "sequent_backend_election").at(-1)?.args[1]).toMatchObject({
+            filter: {tenant_id: TENANT_ID, _or: {format: "hasura-raw-query"}},
+        })
+        await expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("Mayoral")
     },
 }
 
