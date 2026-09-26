@@ -117,10 +117,11 @@ const ListScheduledEvents: React.FC<EditEventsProps> = ({electionEventId}) => {
     const {data: scheduledEventToDelete} = useGetOne<Sequent_Backend_Scheduled_Event>(
         "sequent_backend_scheduled_event",
         {
-            id: isDeleteId ?? tenantId,
+            id: isDeleteId,
             meta: {tenant_id: tenantId},
         },
         {
+            enabled: !!isDeleteId,
             refetchInterval: globalSettings.QUERY_POLL_INTERVAL_MS,
             refetchIntervalInBackground: true,
             refetchOnWindowFocus: false,
