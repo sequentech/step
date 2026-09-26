@@ -99,9 +99,9 @@ export const SaveFailure: Story = {
         expect(data.writes.map(({method}) => method)).toEqual(["update"])
         // The drawer stays open with the new key.
         expect(args.close).not.toHaveBeenCalled()
-        await expect(
-            within(canvasElement).getByRole("textbox", {name: "Public key"})
-        ).toHaveValue("bmV3IGtleQ")
+        await expect(within(canvasElement).getByRole("textbox", {name: "Public key"})).toHaveValue(
+            "bmV3IGtleQ"
+        )
     },
 }
 

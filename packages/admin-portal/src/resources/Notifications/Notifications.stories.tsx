@@ -62,9 +62,7 @@ type Story = StoryObj<Scenario>
 export const Populated: Story = {
     play: async ({canvasElement}) => {
         const rows = await within(canvasElement).findAllByRole("row")
-        await expect(
-            within(rows[1]).getByText(new Date(FIXED_TIME).toLocaleString())
-        ).toBeVisible()
+        await expect(within(rows[1]).getByText(new Date(FIXED_TIME).toLocaleString())).toBeVisible()
         expect(within(canvasElement).queryByText("Invalid Date")).toBeNull()
         expect(data.calls).toEqual([
             {

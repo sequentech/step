@@ -88,7 +88,9 @@ export const CreateFailure: Story = {
         expect(data.writes.map(({method}) => method)).toEqual(["create"])
         // The drawer stays open with what was typed.
         expect(args.close).not.toHaveBeenCalled()
-        expect(within(canvasElement).getByRole("textbox", {name: "Name"})).toHaveValue("By-election")
+        expect(within(canvasElement).getByRole("textbox", {name: "Name"})).toHaveValue(
+            "By-election"
+        )
     },
 }
 
