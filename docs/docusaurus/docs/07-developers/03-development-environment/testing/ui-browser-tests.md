@@ -88,7 +88,24 @@ Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
 fixture for a fresh browser context, clock and service mocks. The shared
 `packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
 PKCE and owns ephemeral static-server ports. Register every service response;
-unexpected requests fail teardown. Audit assertions decode downloaded ballots
+unexpected requests fail teardown. With no `STEP_UI_TEST_PORT_BASE` (or a value of
+`0`), the kernel assigns each server an ephemeral port. To use an assigned range,
+set `STEP_UI_TEST_PORT_BASE` and optionally `STEP_UI_TEST_PORT_LIMIT` (inclusive;
+default `65535`). This command stays inside the assigned range:
+
+```sh
+STEP_UI_TEST_PORT_BASE=44000 STEP_UI_TEST_PORT_LIMIT=44999 yarn --cwd packages/voting-portal test:journeys
+```
+
+Playwright fixtures pass their `workerInfo` to `serveDist` as
+the third argument: parallel slot 0 uses base, base + workers, and so on; slot 1
+uses base + 1, base + 1 + workers, and so on. Retries reuse their parallel slot.
+Standalone callers and a one-worker run retain consecutive ports starting at the
+base. Exhaustion and occupied ports fail explicitly; the server never probes a
+port and rebinds it or silently leaves the selected range. Assign disjoint ranges
+to concurrent Playwright invocations.
+
+Audit assertions decode downloaded ballots
 with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from `test-results/`. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.

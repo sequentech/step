@@ -369,7 +369,7 @@ test("production server limits SPA fallback to document navigations", async ({
     const directory = await mkdtemp(join(tmpdir(), "ui-kit-"))
     await writeFile(join(directory, "index.html"), "<main>Portal</main>")
     await writeFile(join(directory, "asset.js"), "export const value = 7")
-    const server = await serveDist(directory)
+    const server = await serveDist(directory, undefined, test.info())
     try {
         const navigationHeaders = {"accept": "text/html", "sec-fetch-mode": "navigate"}
         expect(
