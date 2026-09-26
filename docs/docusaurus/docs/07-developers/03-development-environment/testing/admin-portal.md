@@ -31,6 +31,13 @@ statements, functions and branches separately with the actual PR base. UI browse
 interactions, Keycloak redirects, GraphQL services and the real cryptographic WASM
 boundary remain separate integration scopes.
 
+The trustee startup journey uses the real vendored Braid WASM and browser worker
+pool. The admin build copies that package to `dist/braid-wasm/` without bundling
+its ES modules: the rayon helper must resolve its own browser URL. Serve those
+assets with the application and keep the cross-origin isolation headers required
+for shared WebAssembly memory. Its journey fixture permits only the same-origin
+rayon helper GET; unexpected service requests remain failures.
+
 ## Event and settings workflows
 
 Production event and settings journeys live in `test/journeys/events/` and
