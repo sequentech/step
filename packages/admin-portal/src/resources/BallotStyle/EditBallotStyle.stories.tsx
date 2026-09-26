@@ -8,7 +8,7 @@ import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {STORY_IDS} from "@/__stories__/fixtures"
 import {EditBallotStyle} from "./EditBallotStyle"
 import {
-    BallotStyleFixture,
+    BallotStyleLayout,
     dataWrites,
     northBallot,
     reads,
@@ -17,7 +17,6 @@ import {
 } from "./__stories__/BallotStyleFixture"
 
 const formDefects = {
-    widgets: ["BallotStyleForm"],
     expectedFailure: {
         reason:
             "React-admin row selection labels a MUI 7 span instead of its checkbox, " +
@@ -35,14 +34,11 @@ const meta = {
         router: {
             path: "/sequent_backend_ballot_style/:id",
             initialEntries: [`/sequent_backend_ballot_style/${northBallot.id}`],
+            layout: BallotStyleLayout,
         },
     },
     beforeEach: ({args}) => setUpBallotStyles(args),
-    render: () => (
-        <BallotStyleFixture>
-            <EditBallotStyle />
-        </BallotStyleFixture>
-    ),
+    render: () => <EditBallotStyle />,
 } satisfies WidgetMeta<BallotStyleServices>
 export default meta
 type Story = StoryObj<BallotStyleServices>
@@ -51,7 +47,7 @@ const areaSelect = (canvasElement: HTMLElement) =>
     within(canvasElement).findByRole("combobox", {name: "Area"})
 
 export const Populated: Story = {
-    parameters: formDefects,
+    parameters: {widgets: ["BallotStyleForm"], ...formDefects},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText(northBallot.id)).toBeVisible()
@@ -71,8 +67,22 @@ export const Loading: Story = {
     },
 }
 
+export const LoadError: Story = {
+    args: {reads: "error"},
+    parameters: {expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const message = await within(document.body).findByText("Element does not exist")
+        await waitFor(() => expect(message).toBeVisible())
+        expect(reads("getOne", "sequent_backend_ballot_style")).toHaveLength(1)
+        await expect(
+            within(canvasElement).getByRole("status", {name: "Current location"})
+        ).toHaveTextContent(/^\/sequent_backend_ballot_style$/)
+    },
+}
+
 export const MoveToAnotherArea: Story = {
-    parameters: formDefects,
+    // Saving returns to the empty list route, where axe finds no defect of the form.
+    parameters: {widgets: ["BallotStyleForm"], expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.click(await areaSelect(canvasElement))
@@ -80,13 +90,16 @@ export const MoveToAnotherArea: Story = {
             await within(document.body).findByRole("option", {name: "South district"})
         )
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
-        // The update is undoable: it reaches the service once its notification is dismissed.
+        // The update is undoable: it reaches the service once its notification closes.
         const notification = await within(document.body).findByText("Element updated")
         expect(dataWrites()).toEqual([])
-        await userEvent.click(canvas.getByText("Ballot Style configuration"))
+        await waitFor(() =>
+            expect(canvas.getByRole("status", {name: "Current location"})).toHaveTextContent(
+                /^\/sequent_backend_ballot_style$/
+            )
+        )
+        await userEvent.click(canvasElement)
         await waitFor(() => expect(notification).not.toBeInTheDocument())
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        console.log("DEBUG calls", JSON.stringify(document.body.innerText.slice(-400)), JSON.stringify(dataWrites()))
         await waitFor(() => expect(dataWrites()).toHaveLength(1))
         expect(dataWrites()[0]).toEqual({
             method: "update",
@@ -96,5 +109,23 @@ export const MoveToAnotherArea: Story = {
                 data: expect.objectContaining({area_id: STORY_IDS.secondArea}),
             }),
         })
+    },
+}
+
+export const UndoTheAreaChange: Story = {
+    // Saving returns to the empty list route, where axe finds no defect of the form.
+    parameters: {widgets: ["BallotStyleForm"], expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await areaSelect(canvasElement))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "South district"})
+        )
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await userEvent.click(await within(document.body).findByRole("button", {name: "Undo"}))
+        await waitFor(() =>
+            expect(within(document.body).queryByText("Element updated")).not.toBeInTheDocument()
+        )
+        expect(dataWrites()).toEqual([])
     },
 }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {type PropsWithChildren} from "react"
 import {ResourceContextProvider, ResourceDefinitionContextProvider} from "react-admin"
+import {Outlet} from "react-router"
 import {
     AdminStoryProvider,
     EVENT_ID,
@@ -28,6 +29,8 @@ export interface BallotStyleServices {
     reads: ReadState
     /** Whether the tenant has ballot styles. */
     empty: boolean
+    /** A save rejects with this message. */
+    writeError?: string
 }
 
 const RESOURCE = "sequent_backend_ballot_style"
@@ -56,7 +59,7 @@ export const southBallot = ballotStyle(storyId(9, 3), STORY_IDS.secondArea)
 let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
-export async function setUpBallotStyles({reads, empty}: BallotStyleServices) {
+export async function setUpBallotStyles({reads, empty, writeError}: BallotStyleServices) {
     data = resourceBoundary(
         {
             [RESOURCE]: empty ? [] : [northBallot, southBallot],
@@ -65,7 +68,7 @@ export async function setUpBallotStyles({reads, empty}: BallotStyleServices) {
             sequent_backend_election_event: [eventRecord()],
             sequent_backend_tenant: [tenantRecord],
         },
-        {reads: {[RESOURCE]: reads}}
+        {reads: {[RESOURCE]: reads}, writeError}
     )
     graphql = graphqlBoundary({}, {schema: true})
     await graphql.ready
@@ -90,6 +93,18 @@ export function BallotStyleFixture({children}: PropsWithChildren) {
                 <ResourceContextProvider value={RESOURCE}>{children}</ResourceContextProvider>
             </ResourceDefinitionContextProvider>
         </AdminStoryProvider>
+    )
+}
+
+/**
+ * The fixture as the route layout, so that its notifications outlive the
+ * redirect that follows a save, as the application's layout does.
+ */
+export function BallotStyleLayout() {
+    return (
+        <BallotStyleFixture>
+            <Outlet />
+        </BallotStyleFixture>
     )
 }
 

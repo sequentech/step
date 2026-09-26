@@ -63,7 +63,7 @@ export const Populated: Story = {
 export const CreateForAnArea: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await userEvent.type(canvas.getByRole("textbox", {name: "Ballot eml"}), "{{}}")
+        await userEvent.type(canvas.getByRole("textbox", {name: "Ballot eml"}), "{{}")
         await choose(canvasElement, "Tenant", TENANT_ID)
         await choose(canvasElement, "Election event", EVENT_ID)
         await choose(canvasElement, "Election", STORY_IDS.election)
@@ -90,6 +90,23 @@ export const CreateForAnArea: Story = {
             expect(canvas.getByRole("status", {name: "Current location"})).toHaveTextContent(
                 "/sequent_backend_ballot_style/created-1"
             )
+        )
+    },
+}
+
+export const SaveFailure: Story = {
+    args: {writeError: "Synthetic ballot style rejected"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.type(canvas.getByRole("textbox", {name: "Ballot eml"}), "{{}")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        const message = await within(document.body).findByText("Synthetic ballot style rejected")
+        await waitFor(() => expect(message).toBeVisible())
+        expect(dataWrites().map(({method, resource}) => [method, resource])).toEqual([
+            ["create", "sequent_backend_ballot_style"],
+        ])
+        await expect(canvas.getByRole("status", {name: "Current location"})).toHaveTextContent(
+            "/sequent_backend_ballot_style/create"
         )
     },
 }
