@@ -379,11 +379,16 @@ def command_stop(context: Context) -> int:
     if not stopped and not stopped_servers:
         context.say("nothing to stop")
     context.say("volumes and caches are kept; the devcontainer keeps running")
+    if context.output is OutputFormat.JSON:
+        print(json.dumps({"services": stopped, "servers": stopped_servers}, indent=2))
     return EXIT_OK
 
 
 def command_preflight(context: Context, mode: Mode) -> int:
     plan = _plan(context, mode)
+    if context.output is OutputFormat.JSON:
+        conflicts = [str(conflict) for conflict in plan.conflicts]
+        print(json.dumps({"mode": mode.name, "conflicts": conflicts}, indent=2))
     if plan.conflicts:
         _report_conflicts(context, plan)
         return EXIT_FAILED
@@ -421,12 +426,13 @@ def command_status(context: Context) -> int:
     known += sorted(service for service in states if service not in known)
     devcontainer = Devcontainer(checkout, states.get(DEVCONTAINER_SERVICE))
     servers = devcontainer.states(context.manifest.servers.values())
+    in_modes = set().union(*mode_services.values())
     covering = [
         mode.name
         for mode in context.manifest.modes
-        if active <= set(mode_services[mode.name])
+        if active & in_modes <= set(mode_services[mode.name])
     ]
-    current = covering[0] if active and covering else None
+    current = covering[0] if active & in_modes else None
     containers = list_containers()
     conflicts: dict[str, list[str]] = {}
     for mode in context.manifest.modes:
@@ -444,6 +450,8 @@ def command_status(context: Context) -> int:
         "project": checkout.project,
         "containerPrefix": checkout.name_prefix,
         "mode": current,
+        # Running services no mode starts, such as the opt-in wbraid profile.
+        "outsideModes": sorted(active - in_modes),
         "services": {
             service: {
                 "container": states[service].name if service in states else None,
@@ -483,6 +491,8 @@ def _print_status(document: dict[str, Any], servers: list[ServerState]) -> None:
     names = f"container names {prefix}*" if prefix else "unprefixed container names"
     _say(f"project   {document['project']} ({names})")
     _say(f"mode      {document['mode'] or 'none running'}")
+    if document["outsideModes"]:
+        _say(f"also      {', '.join(document['outsideModes'])} (in no mode)")
     _say()
     _say(f"{'service':<24}{'status':<14}{'health':<11}container")
     for service, info in document["services"].items():

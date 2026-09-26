@@ -10,13 +10,17 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from scripts.dev.mode.checkout import Checkout, parse_dotenv
+from scripts.dev.mode.cli import ModeError, _selected_servers
 from scripts.dev.mode.docker import (
+    Compose,
     ContainerState,
     ContainerSummary,
     PortBinding,
+    container_state,
     parse_ports,
     parse_ps,
 )
@@ -31,7 +35,7 @@ from scripts.dev.mode.plan import (
     published_ports,
     readiness,
 )
-from scripts.dev.mode.servers import listening_sockets
+from scripts.dev.mode.servers import Devcontainer, listening_sockets
 
 ROOT = Path(__file__).resolve().parents[2]
 DEVCONTAINER = ROOT / ".devcontainer"
@@ -326,6 +330,147 @@ class DockerOutputTest(unittest.TestCase):
         )
         self.assertFalse(wildcard.overlaps(PortBinding("", 8091, "tcp")))
         self.assertFalse(wildcard.overlaps(PortBinding("", 8090, "udp")))
+
+
+class ComposeTest(unittest.TestCase):
+    def checkout(self, directory):
+        root = Path(directory) / "step"
+        (root / ".devcontainer").mkdir(parents=True)
+        (root / ".devcontainer" / ".env").write_text("")
+        env = {
+            "COMPOSE_PROJECT_NAME": "step-wt_devcontainer",
+            "LOCAL_WORKSPACE_FOLDER": str(root),
+            "KC_HOSTNAME": "localhost",
+        }
+        return Checkout(root, env)
+
+    def test_argv_names_the_project_and_the_host_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            checkout = self.checkout(directory)
+            compose = Compose(checkout, ("docker-compose.yml", "overlay.yml"))
+            folder = str(checkout.root / ".devcontainer")
+            self.assertEqual(
+                compose.argv("up", "--detach"),
+                [
+                    "compose",
+                    "--project-name",
+                    "step-wt_devcontainer",
+                    "--project-directory",
+                    folder,
+                    "--file",
+                    f"{folder}/docker-compose.yml",
+                    "--file",
+                    f"{folder}/overlay.yml",
+                    "up",
+                    "--detach",
+                ],
+            )
+
+    def test_environment_leaves_interpolation_to_the_env_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compose = Compose(self.checkout(directory), ("docker-compose.yml",))
+            outer = {
+                "KC_HOSTNAME": "stale",
+                "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                "COMPOSE_FILE": "other.yml",
+                "DOCKER_HOST": "unix:///tmp/docker.sock",
+            }
+            with unittest.mock.patch.dict(os.environ, outer, clear=True):
+                self.assertEqual(
+                    compose.environment(), {"DOCKER_HOST": "unix:///tmp/docker.sock"}
+                )
+
+
+class ContainerStateTest(unittest.TestCase):
+    def test_reads_health_restart_policy_and_labels(self):
+        document = {
+            "Id": "abc",
+            "Name": "/keycloak",
+            "State": {
+                "Status": "running",
+                "ExitCode": 0,
+                "Health": {"Status": "healthy"},
+            },
+            "HostConfig": {"RestartPolicy": {"Name": "always"}},
+            "Config": {
+                "Labels": {
+                    "com.docker.compose.service": "keycloak",
+                    "devcontainer.local_folder": "/home/me/step",
+                }
+            },
+        }
+        self.assertEqual(
+            container_state(document),
+            ContainerState(
+                "abc",
+                "keycloak",
+                "keycloak",
+                "running",
+                "healthy",
+                0,
+                "always",
+                "/home/me/step",
+            ),
+        )
+
+    def test_missing_sections_mean_no_health_and_no_restart(self):
+        parsed = container_state(
+            {"Id": "abc", "Name": "/job", "State": {"Status": "exited"}}
+        )
+        self.assertEqual(
+            (parsed.health, parsed.restart_policy, parsed.service), (None, "no", "")
+        )
+
+
+class ServerSelectionTest(unittest.TestCase):
+    def setUp(self):
+        self.manifest = load_manifest(ROOT)
+        self.mode = self.manifest.mode("ui-only")
+
+    def names(self, spec):
+        return [
+            server.name for server in _selected_servers(self.manifest, self.mode, spec)
+        ]
+
+    def test_specs(self):
+        self.assertEqual(self.names("default"), ["storybook-ui-essentials"])
+        self.assertEqual(self.names("none"), [])
+        self.assertEqual(
+            self.names("admin-portal, storybook-voting-portal"),
+            ["admin-portal", "storybook-voting-portal"],
+        )
+
+    def test_rejects_servers_of_other_modes(self):
+        backend = self.manifest.mode("backend")
+        with self.assertRaisesRegex(
+            ModeError, "not in mode backend; its servers are none"
+        ):
+            _selected_servers(self.manifest, backend, "admin-portal")
+
+
+class RecordedServerTest(unittest.TestCase):
+    """Process ids step-dev recorded only count in the container that ran them."""
+
+    def devcontainer(self, directory, container_id):
+        root = Path(directory)
+        (root / ".cache" / "dev-mode").mkdir(parents=True)
+        (root / ".cache" / "dev-mode" / "storybook.pid").write_text(
+            f"4242 {container_id}\n"
+        )
+        checkout = Checkout(root, {})
+        return Devcontainer(checkout, state("devcontainer"))
+
+    def test_pid_of_the_current_container(self):
+        server = parse_manifest(valid_document()).servers["storybook"]
+        with tempfile.TemporaryDirectory() as directory:
+            devcontainer = self.devcontainer(directory, state("devcontainer").id)
+            self.assertEqual(devcontainer._recorded_pid(server), 4242)
+
+    def test_pid_of_a_replaced_container_is_ignored(self):
+        server = parse_manifest(valid_document()).servers["storybook"]
+        with tempfile.TemporaryDirectory() as directory:
+            devcontainer = self.devcontainer(directory, "f" * 64)
+            self.assertIsNone(devcontainer._recorded_pid(server))
 
 
 SERVICES = {
