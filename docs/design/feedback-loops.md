@@ -169,9 +169,9 @@ Decisions so far:
   opt-in `keycloak-ui` React workspace. Login and message OTP use React refresh;
   unported or complex login widgets inherit the original templates with automatic
   reload. The explicit server context carries login policies, OTP courier and
-  localized messages, including realm overrides. Eleven real authentication/policy
-  checks, 12 browser stories, 23 original theme tests, and a theme build pass.
-  Warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
+  localized messages, including realm overrides. The earlier implementation
+  passed eleven real authentication/policy checks, 12 browser stories and 23
+  original theme tests. Its warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
   OTP 0.076 s, 0.075–0.087 (n=10). Typed input and the authentication session survive
   without navigation; the OTP exchange completes after the edits. Server message
   edits also reload automatically (n=1). The earlier packaged pilot took 8.4 s
@@ -179,11 +179,22 @@ Decisions so far:
   CAPTCHA and external identity providers need their configured integration
   environments. Commands and fixture limits are in the Keycloak developer guide.
 - **Keycloak visual and accessibility refinement**: the login and custom OTP
-  workspace is being redesigned using the supplied Election Architect reference
-  and its public login styles. Validation will cover the existing authentication
-  behavior, Sequent branding, keyboard operation, full-code paste/autofill,
-  errors, focus, contrast, language and narrow-screen reflow against WCAG 2.2 AA.
-  The earlier walkthrough predates this refinement.
+  pages use a scoped Sequent theme inspired by Election Architect, local fonts,
+  a responsive card and visible keyboard focus. The final 28 stories and 15 real
+  authentication checks pass; the separate hot-update timing case is pending.
+  Both React and original FreeMarker complete password/whole-code OTP login and
+  redeem the OIDC code. The original OTP's missing names and truncated autofill
+  fail before the fix and pass after it. New checks exercise credential errors,
+  native locale/recovery/registration links, realm options, provider fallbacks,
+  keyboard order, 320px reflow and 200% text. Provider 137 and theme 62 tests,
+  TypeScript, lint, formatting and the theme JAR build pass. Source palette
+  contrast is 5.30:1 for the main button and 3.43:1 for field borders; browser
+  accessibility scans and visual review supplement the interaction checks.
+  Concurrent theme preparation uses a per-checkout lock and atomic files, with
+  two failing-before regressions. Automated checks do not establish formal WCAG
+  conformance: native screen readers, browser zoom, password-manager extensions
+  and the inherited flows retain explicit verification limits. The earlier
+  walkthrough predates this refinement.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline. The dev server now
@@ -204,10 +215,12 @@ coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
 metrics increasing. Current `ovcs` b8f2a5c69d is merged through all three phases;
 the updated voting suite, types, lint and formatting pass. Admin stories pass
 (110 tests, one run), as do the six upstream load-replay regressions. Hosted
-reruns remain queued. All four current Copilot findings are settled; the WASM
+reruns remain in progress. All five current Copilot threads are settled; the WASM
 benchmark wrapper preserves its checkout path, and CI verification reports
-planning failures before decoding a selection. CodeRabbit requests were
-rate-limited.
+planning failures before decoding a selection. The repeated failed-plan finding
+is covered by GitHub's default status guard and seven passing CLI regressions.
+Copilot could not review phase 1 because its diff exceeds 20,000 lines; phase 2/3
+received Lite reviews after runner timeouts. CodeRabbit requests remain rate-limited.
 
 - **Public admin build settings**: webpack defines only the four settings read
   by the application; private build environment values no longer enter the
@@ -230,7 +243,9 @@ rate-limited.
   Hosted validation found a composite-action expression rejected before Rust
   setup: the repository cache epoch now enters through workflow inputs in all
   ten callers. Toolchain-only jobs count as an initial check, not a product-code
-  result. The observed queue delay remains separate from execution time.
+  result. Queue and execution metrics require an assigned runner; GitHub's
+  placeholder start timestamps on queued/skipped jobs and negative intervals
+  are excluded. The observed queue delay remains separate from execution time.
 - **Rust compiler caching**: CI restores bounded sccache units separately from
   downloaded dependencies. On wrap-map-err, fresh output directories with an
   edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
@@ -238,7 +253,7 @@ rate-limited.
   Deliberately corrupt cached units triggered a successful ordinary rebuild
   (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
   speedups; hosted measurements remain pending.
-- **Rust service linker candidate**: identical application sources at
+- **Rust service linker** (adopted on aarch64 Linux): identical application sources at
   `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
   All 60 measured saves succeeded, with ten per edit and linker plus excluded
   warmups. Harvest's actual ready probe improves from 36.755 s median,
@@ -252,8 +267,23 @@ rate-limited.
   Repeated crate names represent different profiles/features: B4 uses release,
   and Harvest's Windmill graph enables `bstr/unicode`. A shared union build would
   not replace each service's own compatible build, so that experiment is rejected.
-  Direct alternating linker measurements, debugger/native checks and the final
-  adoption decision remain pending; no profiles, FIPS settings or features change.
+  Direct alternating cc/LLD builds also pass all 60 measured samples, n=10 per
+  arm and edit: Harvest 29.108 s (28.508–29.510) versus 8.628 s (8.627–8.878);
+  Windmill 38.322 s (37.668–39.024) versus 21.776 s (20.996–22.548); shared core
+  to Harvest 53.721 s (53.195–55.551) versus 27.179 s (26.606–28.760).
+  Corresponding linker medians fall from 23.498/19.534/31.194 s to
+  3.091/2.765/4.364 s. Both arms rebuild the same 1/2/4 Cargo units; wall time
+  minus links also includes Cargo coordination and is not isolated codegen.
+  The LLD Harvest binary retains full debug sections: GDB hits its source
+  breakpoint and produces a Rust/Tokio backtrace. Native validation at
+  `a33e1b46f2` passes Harvest 202 tests, Windmill 1,439 (six ignored), and core
+  528 with `keycloak,default_features,sqlite`; scoped Clippy and formatting pass.
+  The full core test suite uses the configured development shell's PostgreSQL
+  binaries for private test clusters; Harvest uses its CI SQL-default settings.
+  Cargo-watch already follows local dependency directories, and the baseline
+  Harvest edit only rebuilds Harvest in all ten samples. Extra watch lists and
+  a pure-logic crate extraction are not justified by this evidence. No profiles,
+  FIPS settings or features change.
 - **Ballot verifier Vite** (adopted as opt-in): the final alternating comparison
   at `fa670fb53b` exceeds the predeclared 20% median improvement threshold.
   Warm first render improves from 8.599 s, 8.400–9.047, to 3.265 s,
@@ -296,8 +326,8 @@ rate-limited.
   0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
   0.595–0.715 for published results (n=10 each, one excluded warmup). These are
   current-state timings under concurrent load, not before/after speedups.
-  All 84 scenario tests and the latest integrated 445 developer-tool tests pass.
-  The subsequent CI-classification and cache-epoch checks pass (16 focused tests).
+  All 84 scenario tests and the final integrated 459 developer-tool tests pass;
+  Ruff lint and formatting pass after the final source merges.
 - **Browser runner preflight**: focused journey/workbench commands launch the
   suite's configured Chromium before executing tests and give an actionable
   error when the pinned runtime cannot start. An actual pinned-browser launch

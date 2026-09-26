@@ -183,6 +183,52 @@ class PushTest(unittest.TestCase):
         self.assertEqual((phases["max_queue"], phases["median_queue"]), (1500.0, 751.0))
         self.assertEqual(phases["first_job_started"], 2.0)
 
+    def test_queued_and_skipped_placeholders_do_not_count_as_execution(self):
+        running = job(
+            "Tests", "running", started="2026-09-26T10:25:00Z", status="in_progress"
+        )
+        queued = job("Tests", "queued", started=PUSH, status="queued")
+        queued.runner = ""
+        skipped = job("Tests", "skipped", "2026-09-26T10:00:00Z", conclusion="skipped")
+        skipped.runner = None
+        metrics = push_metrics(
+            runs("in_progress"), [queued, skipped, running], DEFAULT_EXCLUDED_WORKFLOWS
+        )
+        self.assertEqual(metrics["phases"]["first_job_started"], 1500.0)
+        self.assertEqual(metrics["phases"]["median_queue"], 1500.0)
+        self.assertEqual(metrics["phases"]["max_queue"], 1500.0)
+        for placeholder in metrics["jobs"][:2]:
+            self.assertIsNone(placeholder["queued_seconds"])
+            self.assertIsNone(placeholder["duration_seconds"])
+            self.assertIsNone(placeholder["push_to_start_seconds"])
+        self.assertEqual(metrics["jobs"][2]["queued_seconds"], 1500.0)
+
+    def test_negative_api_durations_are_missing_rather_than_elapsed_time(self):
+        invalid = job(
+            "Tests",
+            "invalid timestamp",
+            "2026-09-26T09:59:58Z",
+            started="2026-09-26T09:59:59Z",
+            steps=[
+                {
+                    "name": "Run tests",
+                    "started_at": "2026-09-26T10:01:00Z",
+                    "completed_at": "2026-09-26T10:00:00Z",
+                }
+            ],
+        )
+        metrics = push_metrics(runs("completed"), [invalid], DEFAULT_EXCLUDED_WORKFLOWS)
+        detail = metrics["jobs"][0]
+        for name in (
+            "queued_seconds",
+            "duration_seconds",
+            "push_to_start_seconds",
+            "push_to_completion_seconds",
+        ):
+            self.assertIsNone(detail[name])
+        self.assertEqual(detail["steps_seconds"]["test"], 0.0)
+        self.assertEqual(metrics["phases"], {})
+
 
 if __name__ == "__main__":
     unittest.main()

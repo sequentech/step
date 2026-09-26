@@ -41,9 +41,7 @@ class MessageBundleTest {
     Properties messages = load("fr");
     Locale locale = Locale.forLanguageTag("fr");
 
-    assertEquals(
-        "Connectez-vous au Portail d'Administration",
-        format(messages, "loginAccountTitle", locale));
+    assertEquals("Connectez-vous pour continuer", format(messages, "loginAccountTitle", locale));
     assertEquals("RETOUR À L'APPLICATION", format(messages, "backToApplication", locale));
     assertEquals(
         "Saisissez le code PIN figurant sur votre lettre d'information électorale.",

@@ -638,6 +638,26 @@ class SettingsTest(unittest.TestCase):
         )
         self.assertFalse(accepts({}, ["http://localhost:3000"]))
 
+    def test_plus_web_origins_inherit_only_http_redirect_origins(self):
+        root = "http://localhost:3000"
+        verifier = "http://localhost:3001"
+        client = {
+            "rootUrl": root,
+            "redirectUris": ["*"],
+            "webOrigins": ["+"],
+        }
+        self.assertFalse(accepts(client, [verifier]))
+        self.assertTrue(accepts({**client, "webOrigins": ["*"]}, [verifier]))
+        self.assertTrue(
+            accepts(
+                {**client, "redirectUris": ["/*", f"{verifier}/*"]},
+                [root, verifier],
+            )
+        )
+        with_callback = {**client, "redirectUris": ["*", f"{verifier}/callback"]}
+        self.assertTrue(accepts(with_callback, [verifier]))
+        self.assertFalse(accepts(with_callback, [root]))
+
     def test_find_step_cli(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -828,7 +848,7 @@ class KeycloakLoginTest(unittest.TestCase):
             state.update(value=query["state"][0], nonce=query["nonce"][0])
             return response(
                 f'<form id="kc-form-login" action="{origin}/realms/tenant/'
-                'login-actions/'
+                "login-actions/"
                 'authenticate?session_code=first&amp;execution=password">'
                 '<input name="username"><input name="password"></form>',
                 url,

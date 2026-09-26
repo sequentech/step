@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 import json
+import os
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -345,6 +347,110 @@ class SmokeTests(unittest.TestCase):
         self.assertIn(
             "container create failed", (self.output / "failure.log").read_text()
         )
+
+
+class DaemonReadinessTests(unittest.TestCase):
+    """Run the actual container payload against a delayed daemon boundary."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        self.bin = self.root / "bin"
+        self.bin.mkdir()
+        self.environment = dict(os.environ, STEP_DAEMON_FIXTURE=str(self.root))
+        # The production payload uses a login shell. Inject only our synthetic
+        # tool boundaries after its normal profile, without changing the host.
+        profile = self.root / "profile.sh"
+        profile.write_text(f"export PATH={shlex.quote(str(self.bin))}:/usr/bin:/bin\n")
+        self.environment["BASH_ENV"] = str(profile)
+        self.environment["PATH"] = f"{self.bin}:/usr/bin:/bin"
+        self.executable(
+            "nix",
+            """#!/usr/bin/python3
+import os, pathlib, sys
+root = pathlib.Path(os.environ['STEP_DAEMON_FIXTURE'])
+attempt = root / 'attempts'
+count = int(attempt.read_text()) + 1 if attempt.exists() else 1
+attempt.write_text(str(count))
+if count < int(os.environ.get('STEP_DAEMON_READY_AFTER', '3')):
+    print('cannot connect to daemon socket: Connection refused', file=sys.stderr)
+    sys.exit(1)
+(root / 'ready').touch()
+""",
+        )
+        self.executable(
+            "devenv",
+            """#!/usr/bin/python3
+import os, pathlib, sys
+root = pathlib.Path(os.environ['STEP_DAEMON_FIXTURE'])
+if not (root / 'ready').exists():
+    print("opening lock file '/nix/var/nix/db/big-lock': Permission denied",
+          file=sys.stderr)
+    sys.exit(1)
+if os.environ.get('NIX_REMOTE') != 'daemon':
+    print('client did not select the daemon store', file=sys.stderr)
+    sys.exit(2)
+(root / 'client-ran').touch()
+sys.exit(int(os.environ.get('STEP_DAEMON_CLIENT_EXIT', '0')))
+""",
+        )
+        # No sleep is needed for the deterministic delayed boundary. The
+        # never-ready case retains a real, shortened process timeout.
+        self.executable("sleep", "#!/bin/sh\nexit 0\n")
+        self.executable("pidof", "#!/bin/sh\nexit 1\n")
+        self.executable(
+            "timeout",
+            "#!/bin/sh\nshift\n"
+            'exec /usr/bin/timeout "${STEP_DAEMON_FIXTURE_TIMEOUT:-3s}" "$@"\n',
+        )
+
+    def executable(self, name, content):
+        path = self.bin / name
+        path.write_text(content)
+        path.chmod(0o755)
+
+    def invoke(self, **environment):
+        image = "synthetic:daemon-readiness"
+        invocation = smoke.command(image, "owned-container", "owned-volume", "owner")
+        payload = invocation[invocation.index(image) + 1 :]
+        # The image installs this repository script at an absolute path.
+        payload = [
+            str(
+                Path(__file__).resolve().parents[2]
+                / ".devcontainer/prebuild/wait-nix.sh"
+            )
+            if argument == "/usr/local/bin/step-wait-nix"
+            else argument
+            for argument in payload
+        ]
+        return subprocess.run(
+            payload,
+            env=dict(self.environment, **environment),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+
+    def test_client_waits_for_daemon_before_opening_root_owned_store(self):
+        result = self.invoke()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.root / "attempts").read_text(), "3")
+        self.assertTrue((self.root / "client-ran").exists())
+
+    def test_never_ready_daemon_reports_connection_error_without_running_client(self):
+        result = self.invoke(
+            STEP_DAEMON_READY_AFTER="100000", STEP_DAEMON_FIXTURE_TIMEOUT="0.3s"
+        )
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Nix daemon did not become ready", result.stderr)
+        self.assertIn("Connection refused", result.stderr)
+        self.assertFalse((self.root / "client-ran").exists())
+
+    def test_ready_daemon_preserves_client_failure_status(self):
+        result = self.invoke(STEP_DAEMON_CLIENT_EXIT="17")
+        self.assertEqual(result.returncode, 17, result.stdout + result.stderr)
+        self.assertTrue((self.root / "client-ran").exists())
 
 
 if __name__ == "__main__":

@@ -60,6 +60,21 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
+Harvest, Windmill and beat each run their own `cargo run` command. Cargo-watch
+finds the current crate's local dependency directories automatically: a Harvest
+leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.
+Keep the per-service feature graphs separate; compiling the packages together can
+enable extra dependency features and invalidate the subsequent service build.
+
+On aarch64 Linux, the devenv shell and these services select the Rust toolchain's
+bundled LLD through `.devcontainer/scripts/rust-lld-cc.sh`. The wrapper preserves
+debug information and compiler arguments, falls back to `cc` when that bundled
+driver is unavailable, and propagates link failures. To compare the default
+linker locally, prefix Cargo with
+`CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=cc`. Changing Cargo's configured
+linker invalidates compilation fingerprints; warm the selected configuration
+before comparing incremental rebuilds.
+
 Dependency caches live in Docker volumes shared by all checkouts, so a new
 worktree or a recreated container does not download them again:
 

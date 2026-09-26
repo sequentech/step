@@ -11,9 +11,11 @@ services:
         read_only: true
         bind:
           create_host_path: false
+          selinux: z
       - type: bind
         source: ${LOCAL_WORKSPACE_FOLDER:-..}/.cache/keycloak-ui/themes/sequent-ui-voting
         target: /opt/keycloak/themes/sequent-ui-voting
         read_only: true
         bind:
           create_host_path: false
+          selinux: z

@@ -266,6 +266,11 @@ units = ["scripts-misc"]
 globs = ["packages/test-support/**"]
 units = ["test-support"]
 
+# The authentication theme bundles the existing portal font assets.
+[[paths]]
+globs = ["packages/admin-portal/public/roboto/**"]
+units = ["admin-portal", "keycloak-ui"]
+
 [[paths]]
 globs = ["packages/ECIESEncryption/**"]
 units = ["ecies"]

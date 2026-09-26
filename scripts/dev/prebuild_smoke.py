@@ -296,6 +296,7 @@ def command(image: str, container: str, volume: str, owner: str) -> list[str]:
         "--entrypoint",
         "/nix-entrypoint.sh",
         image,
+        "/usr/local/bin/step-wait-nix",
         "bash",
         "-lc",
         shlex.join(["devenv", "shell", "python", "--", "-c", READINESS]),
