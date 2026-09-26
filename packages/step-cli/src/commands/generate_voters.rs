@@ -2,55 +2,21 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Result;
-use chrono::Utc;
-use chrono::{Duration, NaiveDate};
+use chrono::{NaiveDate, Utc};
 use clap::Args;
 use colored::Colorize;
 use csv::Writer;
-use fake::faker::name::raw::{FirstName, LastName};
-use fake::locales::EN;
-use fake::Fake;
-use rand::seq::IndexedRandom;
-use rand::seq::SliceRandom;
 use rand::Rng;
-use sequent_core::util::external_config::VoterPasswordPolicy;
+use sequent_core::util::external_config::GenerateVoters as VotersConfig;
 use serde_json::Value;
-use std::collections::HashSet;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Write};
 use std::path::PathBuf;
 
+use crate::domain::generate_voters::{csv_file_name, output_columns, voter_record, ElectionIndex};
 use crate::utils::read_config::load_external_config;
 
-/// An election's alias lives at `presentation.i18n.<lang>.alias`, not as a
-/// top-level "alias" field — prefers "en", falls back to any other language
-/// with an alias set, then to that language's name, then "Unknown".
-fn election_alias(el: &Value) -> String {
-    let Some(i18n) = el
-        .get("presentation")
-        .and_then(|p| p.get("i18n"))
-        .and_then(Value::as_object)
-    else {
-        return "Unknown".to_string();
-    };
-    let field = |lang: &str, key: &str| {
-        i18n.get(lang)
-            .and_then(|v| v.get(key))
-            .and_then(Value::as_str)
-    };
-    field("en", "alias")
-        .or_else(|| field("en", "name"))
-        .or_else(|| {
-            i18n.values()
-                .find_map(|v| v.get("alias").and_then(Value::as_str))
-        })
-        .or_else(|| {
-            i18n.values()
-                .find_map(|v| v.get("name").and_then(Value::as_str))
-        })
-        .unwrap_or("Unknown")
-        .to_string()
-}
+const PROGRESS_INTERVAL: usize = 10_000;
 
 #[derive(Args)]
 #[command(about)]
@@ -72,60 +38,6 @@ impl GenerateVoters {
         }
     }
 
-    /// Age (years above `min_age`) at which the population has halved, under the exponential
-    /// mortality-decay model `generate_fake_dob` samples from - i.e. voters aged `min_age +
-    /// AGE_HALF_LIFE_YEARS` are half as common as voters aged exactly `min_age`, voters aged
-    /// `min_age + 2 * AGE_HALF_LIFE_YEARS` a quarter as common, and so on. Approximates a
-    /// realistic population pyramid (most populous at the youngest eligible age, tapering off
-    /// with age) without hard-coding any specific country's census data.
-    const AGE_HALF_LIFE_YEARS: f64 = 25.0;
-
-    /// Samples a date of birth in `[today - max_age years, today - min_age years]`, weighted so
-    /// younger ages (near `min_age`) are more common than older ones (near `max_age`) - see
-    /// `AGE_HALF_LIFE_YEARS`. Implemented as inverse-CDF sampling from a truncated exponential
-    /// distribution over the age range, rather than a uniform pick across the whole span.
-    fn generate_fake_dob(&self, min_age: i64, max_age: i64) -> NaiveDate {
-        let today = Utc::now().date_naive();
-        let youngest_dob = today - Duration::days(min_age * 365);
-        let oldest_dob = today - Duration::days(max_age * 365);
-        let days_diff = (youngest_dob - oldest_dob).num_days();
-
-        let lambda = std::f64::consts::LN_2 / (Self::AGE_HALF_LIFE_YEARS * 365.0);
-        let u: f64 = rand::thread_rng().gen_range(0.0..1.0);
-        let extra_age_days = if days_diff <= 0 {
-            0
-        } else {
-            let cdf_at_max = 1.0 - (-lambda * days_diff as f64).exp();
-            (-(1.0 - u * cdf_at_max).ln() / lambda) as i64
-        };
-
-        // extra_age_days == 0 is the youngest possible voter (DOB == youngest_dob); larger
-        // values move further back toward oldest_dob, with the exponential weighting making
-        // large values increasingly rare.
-        youngest_dob - Duration::days(extra_age_days.min(days_diff))
-    }
-
-    /// Generates a random numeric string of exactly `digits` digits (leading zeros allowed,
-    /// since a PIN is an opaque digit string, not a number).
-    fn generate_random_numeric_password(&self, digits: u32) -> String {
-        let mut rng = rand::thread_rng();
-        (0..digits)
-            .map(|_| std::char::from_digit(rng.gen_range(0..10), 10).unwrap())
-            .collect()
-    }
-
-    /// Deduplicate items while preserving order.
-    fn deduplicate_preserve_order<T: std::hash::Hash + Eq + Clone>(&self, items: &[T]) -> Vec<T> {
-        let mut seen = HashSet::new();
-        let mut result = Vec::new();
-        for item in items {
-            if seen.insert(item.clone()) {
-                result.push(item.clone());
-            }
-        }
-        result
-    }
-
     fn run_generate_voters(
         &self,
         working_dir: &str,
@@ -139,338 +51,20 @@ impl GenerateVoters {
         let election_file = File::open(election_event_path)?;
         let election_data: Value = serde_json::from_reader(BufReader::new(election_file))?;
 
-        // Get voters configuration with defaults.
         let voters_config = config.generate_voters;
-        let csv_file_name = format!("{}_{}.csv", voters_config.csv_file_name, num_users);
-        let csv_file_path = PathBuf::from(working_dir).join(&csv_file_name);
+        let csv_file_path =
+            PathBuf::from(working_dir).join(csv_file_name(&voters_config, num_users));
+        let index = ElectionIndex::from_event(&election_data);
 
-        let fields: Vec<String> = voters_config.fields;
-        let excluded_columns: Vec<String> = voters_config.excluded_columns;
-
-        let email_prefix = voters_config.email_prefix;
-        let domain = voters_config.domain;
-        let sequence_email_number = voters_config.sequence_email_number;
-        let sequence_start_number = voters_config.sequence_start_number;
-        let voter_password = voters_config.voter_password;
-        let voter_password_policy = voters_config.voter_password_policy;
-        let password_salt = voters_config.password_salt;
-        let hashed_password = voters_config.hashed_password;
-        let min_age = voters_config.min_age;
-        let max_age = voters_config.max_age;
-        let overseas_reference = voters_config.overseas_reference;
-        let authorized_elections_count = voters_config.authorized_elections_count;
-        let email_verified = voters_config.email_verified;
-
-        // Parse election event file parts.
-        let areas: &[serde_json::Value] = election_data
-            .get("areas")
-            .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
-
-        let area_contests: &[serde_json::Value] = election_data
-            .get("area_contests")
-            .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
-
-        let contests: &[serde_json::Value] = election_data
-            .get("contests")
-            .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
-
-        let elections: &[serde_json::Value] = election_data
-            .get("elections")
-            .and_then(Value::as_array)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[]);
-
-        // Build election mapping.
-        let mut election_map = std::collections::HashMap::new();
-        let mut authorization_keys = std::collections::HashMap::new();
-        for el in elections {
-            if let Some(e_id) = el.get("id").and_then(Value::as_str) {
-                let alias = election_alias(el);
-                let key = el
-                    .get("external_id")
-                    .and_then(Value::as_str)
-                    .filter(|key| !key.is_empty())
-                    .unwrap_or(e_id);
-                authorization_keys.insert(e_id.to_string(), key.to_string());
-                let cluster_prec = el
-                    .get("annotations")
-                    .and_then(|ann| ann.get("clustered_precint_id"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("Unknown");
-                election_map.insert(
-                    e_id.to_string(),
-                    (alias.to_string(), cluster_prec.to_string()),
-                );
-            }
-        }
-
-        // Build area -> contest mapping.
-        let mut area_contest_map: std::collections::HashMap<String, Vec<String>> =
-            std::collections::HashMap::new();
-        for ac in area_contests {
-            if let (Some(a_id), Some(c_id)) = (
-                ac.get("area_id").and_then(Value::as_str),
-                ac.get("contest_id").and_then(Value::as_str),
-            ) {
-                area_contest_map
-                    .entry(a_id.to_string())
-                    .or_default()
-                    .push(c_id.to_string());
-            }
-        }
-
-        // Build contest to election mapping.
-        let mut contest_election_map = std::collections::HashMap::new();
-        for c in contests {
-            if let Some(c_id) = c.get("id").and_then(Value::as_str) {
-                let e_id = c
-                    .get("election_id")
-                    .and_then(Value::as_str)
-                    .unwrap_or("Unknown");
-                contest_election_map.insert(c_id.to_string(), e_id.to_string());
-            }
-        }
-
-        // Parse Keycloak config for country/embassy.
-        let mut cou_emb_dict = std::collections::HashMap::new();
-        if let Some(kc_event) = election_data.get("keycloak_event_realm") {
-            if let Some(components) = kc_event.get("components") {
-                if let Some(uprovs) = components.get("org.keycloak.userprofile.UserProfileProvider")
-                {
-                    let uprovs_arr = if uprovs.is_array() {
-                        uprovs.as_array().unwrap().clone()
-                    } else {
-                        vec![uprovs.clone()]
-                    };
-                    if let Some(first_uprov) = uprovs_arr.first() {
-                        if let Some(conf) = first_uprov.get("config") {
-                            if let Some(kc_conf_list) =
-                                conf.get("kc.user.profile.config").and_then(Value::as_array)
-                            {
-                                if let Some(raw_json_str) =
-                                    kc_conf_list.first().and_then(Value::as_str)
-                                {
-                                    if let std::result::Result::Ok(user_profile_config) =
-                                        serde_json::from_str::<Value>(raw_json_str)
-                                    {
-                                        if let Some(attrs) = user_profile_config
-                                            .get("attributes")
-                                            .and_then(Value::as_array)
-                                        {
-                                            for at in attrs {
-                                                if at.get("name").and_then(Value::as_str)
-                                                    == Some("country")
-                                                {
-                                                    if let Some(validations) = at.get("validations")
-                                                    {
-                                                        if let Some(options) = validations
-                                                            .get("options")
-                                                            .and_then(|o| o.get("options"))
-                                                            .and_then(Value::as_array)
-                                                        {
-                                                            for opt in options {
-                                                                if let Some(opt_str) = opt.as_str()
-                                                                {
-                                                                    if opt_str.contains('/') {
-                                                                        let parts: Vec<&str> =
-                                                                            opt_str
-                                                                                .splitn(2, '/')
-                                                                                .collect();
-                                                                        cou_emb_dict.insert(
-                                                                            parts[1].to_lowercase(),
-                                                                            (
-                                                                                parts[0]
-                                                                                    .trim()
-                                                                                    .to_string(),
-                                                                                parts[1]
-                                                                                    .trim()
-                                                                                    .to_string(),
-                                                                            ),
-                                                                        );
-                                                                    } else {
-                                                                        cou_emb_dict.insert(
-                                                                            opt_str.to_lowercase(),
-                                                                            (
-                                                                                opt_str.to_string(),
-                                                                                "Unknown"
-                                                                                    .to_string(),
-                                                                            ),
-                                                                        );
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let final_fields: Vec<String> = fields
-            .into_iter()
-            .filter(|f| !excluded_columns.contains(f))
-            .collect();
         let mut wtr = Writer::from_path(&csv_file_path)?;
-        wtr.write_record(&final_fields)?;
-
-        let mut username_counter = voters_config.username_start_number;
-        let mut area_cycle = areas.iter().cycle();
-
-        for i in 0..num_users {
-            let area = area_cycle.next().unwrap_or(&Value::Null);
-            let area_id = area.get("id").and_then(Value::as_str).unwrap_or("Unknown");
-            let area_name = area
-                .get("name")
-                .and_then(Value::as_str)
-                .unwrap_or("Unknown");
-
-            let assigned_cids = area_contest_map
-                .get(area_id)
-                .map(|v| v.as_slice())
-                .unwrap_or(&[]);
-
-            let mut election_aliases = Vec::new();
-            let mut election_ids = Vec::new();
-            let mut precincts = Vec::new();
-
-            for cid in assigned_cids {
-                let unknown_e_id = "Unknown".to_string();
-                let e_id = contest_election_map
-                    .get(cid)
-                    .unwrap_or(&unknown_e_id)
-                    .to_string();
-                let default_value = (String::from("Unknown"), String::from("Unknown"));
-                let (alias, cluster_prec) = election_map.get(&e_id).unwrap_or(&default_value);
-                election_aliases.push(alias.clone());
-                election_ids.push(authorization_keys.get(&e_id).cloned().unwrap_or(e_id));
-                precincts.push(cluster_prec.clone());
-            }
-            election_aliases = self.deduplicate_preserve_order(&election_aliases);
-            election_ids = self.deduplicate_preserve_order(&election_ids);
-            precincts = self.deduplicate_preserve_order(&precincts);
-
-            let election_country_candidate = if let Some(first_alias) = election_aliases.first() {
-                if first_alias.contains(" - ") {
-                    first_alias
-                        .splitn(2, " - ")
-                        .next()
-                        .unwrap_or("Unknown")
-                        .trim()
-                        .to_string()
-                } else {
-                    first_alias.trim().to_string()
-                }
-            } else {
-                "Unknown".to_string()
-            };
-
-            let lookup_key = election_country_candidate.to_lowercase();
-            let (official_country, official_embassy) = cou_emb_dict
-                .get(&lookup_key)
-                .cloned()
-                .unwrap_or_else(|| (election_country_candidate.clone(), "Unknown".to_string()));
-            // The configured Keycloak mapper resolves each CSV value as external_id,
-            // falling back to id only when external_id is absent or empty. It then
-            // supplies database IDs to Hasura; aliases remain display/lookup values.
-            let joined_election_ids = if !election_ids.is_empty() {
-                if authorized_elections_count > 0 {
-                    let amount =
-                        std::cmp::min(authorized_elections_count as usize, election_ids.len());
-                    election_ids
-                        .choose_multiple(&mut rand::thread_rng(), amount)
-                        .cloned()
-                        .collect::<Vec<String>>()
-                        .join("|")
-                } else {
-                    election_ids.join("|")
-                }
-            } else {
-                "Unknown".to_string()
-            };
-            let joined_precincts = if !precincts.is_empty() {
-                precincts.join("|")
-            } else {
-                "Unknown".to_string()
-            };
-
-            let dob = self.generate_fake_dob(min_age, max_age);
-            let dob_str = dob.format("%Y-%m-%d").to_string();
-
-            let password = match &voter_password_policy {
-                VoterPasswordPolicy::Fixed => voter_password.clone(),
-                VoterPasswordPolicy::RandomNumeric { digits } => {
-                    self.generate_random_numeric_password(*digits)
-                }
-            };
-
-            let email = if sequence_email_number {
-                format!(
-                    "{}+{}@{}",
-                    email_prefix,
-                    i as i64 + sequence_start_number,
-                    domain
-                )
-            } else {
-                let random_num: u32 = rand::random::<u32>() % 900_000_000 + 100_000;
-                format!("{}+{}@{}", email_prefix, random_num, domain)
-            };
-
-            // Instead of storing the user record in a vector, we build the CSV record directly.
-            let mut record = Vec::with_capacity(final_fields.len());
-            // For each expected field, extract its value from our generated data.
-            for field in &final_fields {
-                let value = match field.as_str() {
-                    "username" => username_counter.to_string(),
-                    "first_name" => FirstName(EN).fake(),
-                    "last_name" => LastName(EN).fake(),
-                    "middleName" => String::new(),
-                    "dateOfBirth" => dob_str.clone(),
-                    "sex" => {
-                        if *[true, false].choose(&mut rand::rng()).unwrap() {
-                            "M".to_string()
-                        } else {
-                            "F".to_string()
-                        }
-                    }
-                    "country" => format!("{}/{}", official_country, official_embassy),
-                    "embassy" => official_embassy.clone(),
-                    "clusteredPrecinct" => joined_precincts.clone(),
-                    "overseasReferences" => overseas_reference.to_string(),
-                    "area_name" => area_name.to_string(),
-                    "authorized-election-ids" => joined_election_ids.clone(),
-                    "password" => password.clone(),
-                    "email" => email.clone(),
-                    "password_salt" => password_salt.to_string(),
-                    "hashed_password" => hashed_password.to_string(),
-                    "email_verified" => email_verified.to_string(),
-                    _ => "".to_string(), // default empty if field not recognized
-                };
-                record.push(value);
-            }
-
-            // Write the record to the CSV file.
-            wtr.write_record(&record)?;
-            username_counter += 1;
-
-            // Optionally, log progress every so often rather than every record.
-            if i % 10000 == 0 {
-                println!("Generated {} users...", i);
-            }
-        }
-        wtr.flush()?;
+        write_voters(
+            &mut wtr,
+            &index,
+            &voters_config,
+            num_users,
+            &mut rand::rng(),
+            || Utc::now().date_naive(),
+        )?;
 
         println!(
             "Successfully generated {} users. CSV file created at: {}",
@@ -480,6 +74,35 @@ impl GenerateVoters {
         Ok(())
     }
 }
+
+/// Writes the header and one record per voter, then flushes. `today` is read
+/// again for every voter.
+fn write_voters<W: Write>(
+    wtr: &mut Writer<W>,
+    index: &ElectionIndex,
+    cfg: &VotersConfig,
+    num_users: usize,
+    rng: &mut impl Rng,
+    today: impl Fn() -> NaiveDate,
+) -> Result<(), Box<dyn std::error::Error>> {
+    wtr.write_record(output_columns(cfg))?;
+    for i in 0..num_users {
+        let record = voter_record(i, index.area(i), index, cfg, rng, today());
+        wtr.write_record(&record)?;
+
+        // Optionally, log progress every so often rather than every record.
+        let completed = i + 1;
+        if completed % PROGRESS_INTERVAL == 0 {
+            println!("Generated {} users...", completed);
+        }
+    }
+    wtr.flush()?;
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "../../tests/support/voter_csv_boundaries.rs"]
+mod boundary_tests;
 
 #[cfg(test)]
 mod username_start_regression {

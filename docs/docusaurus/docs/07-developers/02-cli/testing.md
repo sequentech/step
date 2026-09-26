@@ -42,6 +42,37 @@ rejected before upload and after import, errors reach shell callers through a
 nonzero exit, and empty error lists remain valid. Existing and dangling output
 symlinks are rejected without changing either the link or its target. Each rejected input has a successful control.
 
+Voter generation rules live in `src/domain/generate_voters.rs` and take the
+random number generator and the current date as arguments, so
+`support/voter_generation_boundaries.rs` uses seeded or scripted generators and
+a fixed date. `support/voter_csv_boundaries.rs` writes the CSV to memory and to
+a private directory. A failed `generate-voters` run prints the error and still
+exits with status 0; `command_failures.rs` pins that. Progress messages report
+completed records at 10,000-row intervals; `voter_progress_cli.rs` checks stdout
+and CSV counts around that boundary. From `packages/`:
+
+```bash
+cargo test -p step-cli --bin step-cli generate_voters
+cargo test -p step-cli --test command_failures
+cargo test -p step-cli --test voter_progress_cli
+```
+
+Tally-sheet commands reach Hasura through the `GraphqlClient` port and store
+import sources through the `Uploader` and `Downloader` ports (`src/ports`).
+`support/tally_sheet_commands.rs` runs each command against the in-memory
+adapters in `src/adapters/memory`, which queue GraphQL responses and record
+requests, uploads and downloads. It pins the request variables, the UUID checks
+that `import-list`, `import-show`, `import-download-source` and `recount` make
+before sending anything, GraphQL errors winning over returned data, the
+download file name and the import source rules. `tally_sheet_cli.rs` runs the
+shipped commands against a loopback server: failures print the error, including
+the `HTTP Status` and `Error Message` of a rejected request, and only
+`import-preview` and `import-create` exit with status 1. From `packages/`:
+
+```bash
+cargo test -p step-cli --bin step-cli tally_sheet
+cargo test -p step-cli --test tally_sheet_cli
+```
 
 The telephone automation contract tests run without a deployment:
 
