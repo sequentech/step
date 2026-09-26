@@ -12,12 +12,14 @@ import {
     Toolbar,
     SaveButton,
     BooleanInput,
+    ValidationError,
 } from "react-admin"
 import {PageHeaderStyles} from "../../components/styles/PageHeaderStyles"
 import {useTranslation} from "react-i18next"
 import {Tabs} from "@/components/Tabs"
 import {DropFile} from "@sequentech/ui-essentials"
-import {Box, styled} from "@mui/material"
+import {Box, FormHelperText, styled} from "@mui/material"
+import {useFormState} from "react-hook-form"
 import {MaterialLanguageFields} from "./MaterialLanguageFields"
 import {JsonInput} from "react-admin-json-view"
 import {useMutation} from "@apollo/client"
@@ -50,6 +52,16 @@ const Hidden = styled(Box)`
     display: none;
 `
 
+const UploadValidationError = () => {
+    const {errors} = useFormState()
+    const message = errors.document_id?.message
+    return message ? (
+        <FormHelperText error>
+            <ValidationError error={message as string} />
+        </FormHelperText>
+    ) : null
+}
+
 export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (props) => {
     const {record, close} = props
     const refresh = useRefresh()
@@ -71,7 +83,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
     const onError = async (res: any) => {
         refresh()
         close?.()
-        notify("materials.createMaterialError", {type: "error"})
+        notify(t("materials.createMaterialError"), {type: "error"})
     }
 
     const renderTabs = (parsedValue: Sequent_Backend_Support_Material_Extended) => {
@@ -198,6 +210,7 @@ export const CreateSupportMaterial: React.FC<CreateSupportMaterialProps> = (prop
                         label={String(t("materials.fields.isHidden"))}
                     />
                     <DropFile handleFiles={handleFiles} />
+                    <UploadValidationError />
                     {imageType ? (
                         <Box
                             sx={{

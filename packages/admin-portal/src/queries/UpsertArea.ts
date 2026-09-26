@@ -8,7 +8,6 @@ export const UPSERT_AREA = gql`
         $id: String
         $name: String!
         $description: String
-        $presentation: jsonb
         $tenantId: String!
         $electionEventId: String!
         $parentId: String
