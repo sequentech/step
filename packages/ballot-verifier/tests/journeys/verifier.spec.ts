@@ -134,9 +134,5 @@ test("verified selections expose no accessibility violations", async ({page, por
             {id: "listitem", impact: "serious", targets: [[".candidate-item"]]},
         ])
     }
-    test.fail(
-        true,
-        "PlaintextVoteContest renders candidate li elements under a div instead of a list."
-    )
     expect(violations).toEqual([])
 })

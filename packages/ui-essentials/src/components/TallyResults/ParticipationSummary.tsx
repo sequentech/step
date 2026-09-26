@@ -301,7 +301,9 @@ export const ParticipationSummary: React.FC<ParticipationSummaryProps> = ({
                                                     width: {xs: "48%", sm: "44%"},
                                                     overflowWrap: "anywhere",
                                                 }}
-                                            />
+                                            >
+                                                {mergedLabels.participationSummary}
+                                            </TableCell>
                                             <TableCell
                                                 className="seq-tally-results-participation-summary__total-heading"
                                                 sx={{width: {xs: "26%", sm: "28%"}}}
