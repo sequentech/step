@@ -17,7 +17,7 @@ use crate::services::celery_app::get_celery_app;
 use crate::services::documents::get_document_url;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
-use crate::services::tasks_execution::post;
+use crate::services::tasks_execution::{post, update_fail};
 use crate::tasks::publish_results_website::publish_results_website_task;
 use crate::types::results_publication::ResultsRouteScope;
 use crate::types::tasks::ETasksExecution;
@@ -167,6 +167,14 @@ impl ResultsPublicationTasks for CeleryResultsPublicationTasks {
             executed_by_user,
         )
         .await
+    }
+
+    async fn mark_failed(
+        &self,
+        task_execution: &TasksExecution,
+        error_message: &str,
+    ) -> Result<()> {
+        update_fail(task_execution, error_message).await
     }
 
     async fn enqueue_publish(
