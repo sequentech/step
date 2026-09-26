@@ -34,6 +34,12 @@ export const BASE_ROLES = ["admin-user", "election-event-read", "election-read"]
 
 export const names = (name: string, extra: Row = {}) => ({i18n: {en: {name, ...extra}}})
 
+/** New ballot items copy their texts into every admin portal language. */
+export const everyLanguage = (texts: Row) =>
+    Object.fromEntries(
+        ["cat", "en", "es", "eu", "fr", "gl", "nl", "tl"].map((lang) => [lang, texts])
+    )
+
 export function eventRow(overrides: Row = {}): Row {
     return {
         id: IDS.event,
