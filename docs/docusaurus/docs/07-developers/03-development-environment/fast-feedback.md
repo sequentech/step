@@ -151,9 +151,11 @@ Its local storage keys start with `sequent.workbench.v1.`; Reset removes them an
 portal's session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under `Workbench/`.
 
-`WORKBENCH_SEQUENT_CORE=<wasm-pack web output>` loads another sequent-core build
-without reinstalling; the page reloads when its files change and the inspector shows
-the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
+The workbench dev server automatically loads the artifact published by
+`step-dev wasm`, falling back to the installed package when none exists. Production
+builds use the installed package. `WORKBENCH_SEQUENT_CORE=<wasm-pack web output>`
+explicitly selects another build for either mode. No reinstall is needed; the page
+reloads when the artifact changes and the inspector shows the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 `test:smoke`. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.

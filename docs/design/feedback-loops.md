@@ -177,7 +177,13 @@ Decisions so far:
   and agents through the shared `step-dev` entry point and `AGENTS.md`.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
-  typed policy overrides and the real sequent-core pipeline.
+  typed policy overrides and the real sequent-core pipeline. The dev server now
+  picks up `step-dev wasm`'s versioned artifact automatically; the inspector tracks
+  the active binary through publication/reload. Unit tests (33), smoke flows (3),
+  an actual versioned artifact switch with the five-step ballot pipeline (n=1),
+  and the production build pass. Production WASM exactly matches the installed
+  package. Voting Storybook exposes tenant/workflow controls and all eight
+  locales; all 80 story tests pass (n=1 run).
 
 Current validation: the voting Jest suite passes locally (30 suites, 264 tests,
 one run), as do verifier stories (14 tests, including one retained expected
