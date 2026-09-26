@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useEffect, useState, useContext, useMemo, useRef} from "react"
+import {CombinedGraphQLErrors} from "@apollo/client/errors"
+import {isApolloTransportError} from "../services/ApolloErrors"
 import {
     Link as RouterLink,
     useNavigate,
@@ -29,6 +31,7 @@ import {
     IAuditableBallot,
     EVotingPortalAuditButtonCfg,
     IGraphQLActionError,
+    IExtensionError,
     EGraphQLInternalErrorMessage,
     EGraphQLErrorCode,
     IAuditableSingleBallot,
@@ -185,12 +188,14 @@ interface LoadingOrCastButtonProps {
     onClick: () => void
     className?: string
     isCastingBallot: boolean
+    hasInconsistentHash: boolean
     isFullyAcclaimed: boolean
 }
 
 const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
     onClick,
     isCastingBallot,
+    hasInconsistentHash,
     className,
     isFullyAcclaimed,
 }) => {
@@ -200,7 +205,7 @@ const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
         <StyledButton
             className={className}
             sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            disabled={isCastingBallot}
+            disabled={isCastingBallot || hasInconsistentHash}
             onClick={onClick}
         >
             <Box className="cast-ballot-label">
@@ -275,14 +280,17 @@ const useTryInsertCastVote = () => {
         } catch (error) {
             console.log(error)
             let castError = error as IGraphQLActionError
-            let errorExtensions = castError?.graphQLErrors?.[0]?.extensions
+            let errorExtensions = (
+                CombinedGraphQLErrors.is(error)
+                    ? error.errors[0]?.extensions
+                    : castError?.graphQLErrors?.[0]?.extensions
+            ) as IExtensionError | undefined
             if (castError?.message?.includes("internal error")) {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.INTERNAL_ERROR}`)) // can happen if the backend panics
             } else if (errorExtensions?.code) {
                 let errorCode = errorExtensions?.code
                 console.log(castError.name, castError.message)
-                let internalErrMessage =
-                    castError?.graphQLErrors?.[0]?.extensions?.internal?.error?.message
+                let internalErrMessage = errorExtensions?.internal?.error?.message
                 console.log(errorCode, internalErrMessage)
                 if (
                     errorCode === EGraphQLErrorCode.UNEXPECTED &&
@@ -295,17 +303,12 @@ const useTryInsertCastVote = () => {
                     )
                 }
             } else if (
-                error &&
-                typeof error === "object" &&
-                "networkError" in error &&
-                error.networkError
+                isApolloTransportError(error instanceof Error ? error : undefined) ||
+                (error &&
+                    typeof error === "object" &&
+                    "networkError" in error &&
+                    error.networkError)
             ) {
-                console.log(
-                    (error as any).name,
-                    (error as any).message,
-                    (error as any).cause,
-                    (error as any).networkError
-                )
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.NETWORK_ERROR}`))
             } else {
                 setErrorMsg(t(`reviewScreen.error.${CastBallotsErrorType.CAST_VOTE}`)) // Generic error
@@ -339,6 +342,7 @@ interface ActionButtonProps {
     isDeclineToVote: boolean
     isBlankBallot: boolean
     isFullyAcclaimed: boolean
+    hasInconsistentHash: boolean
 }
 
 const ActionButtons: React.FC<ActionButtonProps> = ({
@@ -353,6 +357,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     isDeclineToVote,
     isBlankBallot,
     isFullyAcclaimed,
+    hasInconsistentHash,
 }) => {
     const {t} = useTranslation()
     const navigate = useNavigate()
@@ -417,7 +422,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
     }
 
     const castBallotAction = async () => {
-        if (castingRef.current) {
+        if (castingRef.current || hasInconsistentHash) {
             return
         }
         // A fully acclaimed election produces no ballot, so there is nothing
@@ -527,6 +532,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                 <LoadingOrCastButton
                     className="cast-ballot-button"
                     isCastingBallot={isCasting}
+                    hasInconsistentHash={hasInconsistentHash}
                     isFullyAcclaimed={isFullyAcclaimed}
                     onClick={() =>
                         castVoteConfirmModal && !isFullyAcclaimed
@@ -670,18 +676,19 @@ export const ReviewScreen: React.FC = () => {
             : interpretContestSelection(selectionState, ballotStyle.ballot_eml)
     }, [selectionState, isMultiContest, ballotStyle?.ballot_eml])
 
-    if (ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot?.ballot_hash) {
-        // errorMsg is rendered as HTML below, so its interpolated values are escaped
-        setErrorMsg(
-            t(
-                "errors.encoding.writeInCharsExceeded",
-                escapeTranslationValues({
-                    ballotId,
-                    auditableBallotHash: auditableBallot.ballot_hash,
-                })
-            )
-        )
-    }
+    const hasInconsistentHash = Boolean(
+        ballotId && auditableBallot?.ballot_hash && ballotId !== auditableBallot.ballot_hash
+    )
+    const hashErrorMsg = hasInconsistentHash
+        ? t(
+              `reviewScreen.error.${CastBallotsErrorType.INCONSISTENT_HASH}`,
+              escapeTranslationValues({
+                  ballotId,
+                  auditableBallotHash: auditableBallot?.ballot_hash ?? "",
+              })
+          )
+        : undefined
+    const displayedErrorMsg = hashErrorMsg ?? errorMsg
 
     const handleCloseDialogAuditHelp = (value: boolean) => {
         setAuditBallotHelp(false)
@@ -736,7 +743,7 @@ export const ReviewScreen: React.FC = () => {
 
     // Cast the ballot automatically after reauth with golden user
     const goldenUserCastBallotAction = async () => {
-        if (castingRef.current) {
+        if (castingRef.current || hasInconsistentHash) {
             return
         }
         setCasting(true)
@@ -944,13 +951,13 @@ export const ReviewScreen: React.FC = () => {
                     )}
                 </Dialog>
             </StyledTitle>
-            {errorMsg && (
+            {displayedErrorMsg && (
                 <WarnBox
                     className="cast-ballot-error"
                     variant="error"
                     announcement={EWarnBoxAnnouncement.ASSERTIVE}
                 >
-                    {stringToHtml(errorMsg)}
+                    {stringToHtml(displayedErrorMsg ?? "")}
                 </WarnBox>
             )}
             <Typography
@@ -989,6 +996,7 @@ export const ReviewScreen: React.FC = () => {
                     castVoteConfirmModal={castVoteConfirmModal}
                     ballotId={ballotId ?? ""}
                     setErrorMsg={setErrorMsg}
+                    hasInconsistentHash={hasInconsistentHash}
                     isGoldenPolicy={isGoldenPolicy ?? false}
                     isMultiContest={isMultiContest}
                     isDeclineToVote={isDeclineToVote}

@@ -127,10 +127,11 @@ const SupportMaterialsScreen: React.FC = () => {
         }
     }, [electionEvent])
 
-    // Sourced from the published ballot style snapshot, not the live election
-    // event, so a policy change only takes effect after the next publication.
+    // The chooser loads the published event before any ballot style is needed.
+    // Both sources belong to the immutable publication snapshot.
     const materialsPolicy = getEffectiveSupportMaterialsPolicy(
-        ballotStyle?.ballot_eml.election_event_presentation?.materials
+        (ballotStyle?.ballot_eml.election_event_presentation ?? electionEvent?.presentation)
+            ?.materials
     )
     const isMandatory = materialsPolicy === ESupportMaterialsPolicy.MANDATORY_FOR_VOTING
 
