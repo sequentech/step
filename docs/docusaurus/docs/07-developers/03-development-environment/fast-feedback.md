@@ -187,9 +187,9 @@ It adds no coverage and starts no services unless the selected check needs them.
 S=scripts/dev/step-dev
 $S test voting-portal            # the package's fast tests
 $S test packages/ui-essentials/src/components/Header/Header.tsx   # Jest related tests
-$S test packages/voting-portal/src/App.test.tsx -t 'renders'
+$S test packages/voting-portal/src/components/StartActions/StartActions.test.tsx -t 'keyboard'
 $S test admin-portal --story screens-admin-tally-ceremony--populated
-$S test packages/voting-portal/test/journeys/review.spec.ts 'shows the review'
+$S test packages/voting-portal/test/journeys/review.spec.ts 'cast confirmation'
 $S test packages/sequent-core/tests/sqlite_feature_boundaries.rs
 $S test windmill services::probe
 $S test scripts/dev/affected/model.py

@@ -881,7 +881,7 @@ def parser(prog: str) -> argparse.ArgumentParser:
         epilog="Examples: step-dev test voting-portal; step-dev test "
         "packages/ui-essentials/src/components/Header/Header.tsx; step-dev test "
         "admin-portal --story screens-admin-tally-ceremony--populated; step-dev test "
-        "packages/voting-portal/test/journeys/review.spec.ts 'shows the review'; "
+        "packages/voting-portal/test/journeys/review.spec.ts 'cast confirmation'; "
         "step-dev test windmill services::probe; step-dev test --affected. "
         "Arguments after -- go to the underlying runner.",
     )
