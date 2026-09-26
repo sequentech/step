@@ -17,12 +17,14 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.jbosslog.JBossLog;
+import org.keycloak.common.util.Time;
 import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SingleUseObjectProvider;
 import org.keycloak.models.UserCredentialModel;
+import org.keycloak.models.UserLoginFailureModel;
 import org.keycloak.models.UserModel;
 import org.keycloak.services.managers.BruteForceProtector;
 
@@ -368,10 +370,10 @@ public final class MultiAttributeCredentialResolver {
         candidatesById.values().stream().filter(UserModel::isEnabled).collect(Collectors.toList());
 
     if (enabledCandidates.size() > throttleConfig.maxCandidates()) {
-      // Cap checked here, before lockoutStateOf() below touches BruteForceProtector for each
-      // candidate - bounds not just the worst-case number of password hashes per request (see the
-      // class-level DoS-mitigation note) but also the K brute-force-lockout lookups that would
-      // otherwise run first. Never log the candidate values themselves, only the count.
+      // Cap checked here, before the lockout lookups below run for each candidate - bounds not
+      // just the worst-case number of password hashes per request (see the class-level
+      // DoS-mitigation note) but also the K brute-force-lockout lookups that would otherwise run
+      // first. Never log the candidate values themselves, only the count.
       log.warnv(
           "resolveAuthenticatedUser(): candidate cap exceeded, realm={0}, {1} enabled candidates"
               + " (max {2})",
@@ -380,9 +382,21 @@ public final class MultiAttributeCredentialResolver {
       return dummyFailure(session, realm);
     }
 
+    // Keycloak's default brute-force protector holds every account a request asks it about until
+    // that request ends, so asking it about each candidate would make voters who share these
+    // attributes lock each other out of their own accounts whenever they log in at the same time.
+    // With more than one candidate, screen them against the stored lockout state instead and
+    // consult the protector only for the account that actually authenticates - see resolved().
+    boolean shared = enabledCandidates.size() > 1;
     Map<UserModel, LockoutState> lockoutStates =
         enabledCandidates.stream()
-            .collect(Collectors.toMap(Function.identity(), c -> lockoutStateOf(session, realm, c)));
+            .collect(
+                Collectors.toMap(
+                    Function.identity(),
+                    candidate ->
+                        shared
+                            ? storedLockoutStateOf(session, realm, candidate)
+                            : lockoutStateOf(session, realm, candidate)));
     List<UserModel> lockedOutCandidates =
         enabledCandidates.stream()
             .filter(candidate -> lockoutStates.get(candidate) != LockoutState.NONE)
@@ -406,8 +420,7 @@ public final class MultiAttributeCredentialResolver {
       if (matches.size() == 1) {
         UserModel candidate = matches.get(0);
         if (lockoutStates.get(candidate) == LockoutState.NONE) {
-          clearTupleThrottle(session, tupleKey);
-          return Resolution.success(candidate);
+          return resolved(session, realm, tupleKey, candidate, shared);
         }
         recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
         return Resolution.lockedOut(candidate, lockoutStates.get(candidate));
@@ -437,8 +450,7 @@ public final class MultiAttributeCredentialResolver {
     if (viableCandidates.size() == 1) {
       UserModel candidate = viableCandidates.get(0);
       if (verifier.get().test(candidate, password)) {
-        clearTupleThrottle(session, tupleKey);
-        return Resolution.success(candidate);
+        return resolved(session, realm, tupleKey, candidate, shared);
       }
       recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
       return Resolution.failureAttributedTo(candidate);
@@ -449,8 +461,7 @@ public final class MultiAttributeCredentialResolver {
       // javadoc for why this is only safe when passwords are unique across the candidate set.
       for (UserModel candidate : viableCandidates) {
         if (verifier.get().test(candidate, password)) {
-          clearTupleThrottle(session, tupleKey);
-          return Resolution.success(candidate);
+          return resolved(session, realm, tupleKey, candidate, shared);
         }
       }
       recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
@@ -463,8 +474,7 @@ public final class MultiAttributeCredentialResolver {
             .collect(Collectors.toList());
 
     if (passwordMatches.size() == 1) {
-      clearTupleThrottle(session, tupleKey);
-      return Resolution.success(passwordMatches.get(0));
+      return resolved(session, realm, tupleKey, passwordMatches.get(0), shared);
     }
     if (passwordMatches.size() > 1) {
       log.warnv(
@@ -474,6 +484,24 @@ public final class MultiAttributeCredentialResolver {
     }
     recordTupleFailure(session, tupleKey, throttleConfig.tupleFailureWindowSeconds());
     return Resolution.failure();
+  }
+
+  /**
+   * Completes a successful resolution. When the submitted attributes matched more than one
+   * candidate, their lockout state was read without engaging {@code BruteForceProtector} (see
+   * resolveAuthenticatedUser), so the account being authenticated is checked through the protector
+   * here: that keeps the protection this account is entitled to, including the serialization of
+   * concurrent attempts against it that CVE-2024-4629 introduced, while leaving the other
+   * candidates untouched. A concurrent attempt losing that race stays a generic failure rather than
+   * a lockout, since reporting the lockout would confirm that the submitted password was correct.
+   */
+  private static Resolution resolved(
+      KeycloakSession session, RealmModel realm, String tupleKey, UserModel user, boolean shared) {
+    if (shared && lockoutStateOf(session, realm, user) != LockoutState.NONE) {
+      return Resolution.failure();
+    }
+    clearTupleThrottle(session, tupleKey);
+    return Resolution.success(user);
   }
 
   private static Resolution dummyFailure(KeycloakSession session, RealmModel realm) {
@@ -577,6 +605,32 @@ public final class MultiAttributeCredentialResolver {
     }
     int iterations = passwordPolicy != null ? passwordPolicy.getHashIterations() : -1;
     provider.encodedCredential("SlightlyLongerDummyPassword", iterations);
+  }
+
+  /**
+   * Lockout state as recorded in the store, without the side effects of {@link #lockoutStateOf}:
+   * Keycloak's default {@code DefaultBlockingBruteForceProtector} treats an account as disabled
+   * while another in-flight request is authenticating it, and reserves every account it is asked
+   * about. This mirrors {@code DefaultBruteForceProtector}'s own checks so candidates that are
+   * genuinely locked are still never hashed.
+   */
+  private static LockoutState storedLockoutStateOf(
+      KeycloakSession session, RealmModel realm, UserModel user) {
+    if (!realm.isBruteForceProtected()) {
+      return LockoutState.NONE;
+    }
+    UserLoginFailureModel failure =
+        session.loginFailures().getUserLoginFailure(realm, user.getId());
+    if (failure == null) {
+      return LockoutState.NONE;
+    }
+    if (realm.isPermanentLockout()
+        && failure.getNumTemporaryLockouts() > realm.getMaxTemporaryLockouts()) {
+      return LockoutState.PERMANENT;
+    }
+    return Time.currentTimeMillis() / 1000 < failure.getFailedLoginNotBefore()
+        ? LockoutState.TEMPORARY
+        : LockoutState.NONE;
   }
 
   private static LockoutState lockoutStateOf(

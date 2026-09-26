@@ -34,6 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.authentication.AuthenticationFlowContext;
+import org.keycloak.common.util.Time;
 import org.keycloak.credential.CredentialInput;
 import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
@@ -44,6 +45,8 @@ import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
 import org.keycloak.models.UserCredentialModel;
+import org.keycloak.models.UserLoginFailureModel;
+import org.keycloak.models.UserLoginFailureProvider;
 import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.models.UserSessionModel;
@@ -576,6 +579,144 @@ class MultiAttributePasswordAuthenticatorTest {
     assertEquals(LockoutState.PERMANENT, result.lockoutState());
   }
 
+  @Mock private UserLoginFailureProvider loginFailures;
+
+  private void lockTemporarily(UserModel user) {
+    UserLoginFailureModel failure = mock(UserLoginFailureModel.class);
+    lenient()
+        .when(failure.getFailedLoginNotBefore())
+        .thenReturn((int) (Time.currentTimeMillis() / 1000) + 60);
+    lenient().when(loginFailures.getUserLoginFailure(realm, user.getId())).thenReturn(failure);
+  }
+
+  /**
+   * Mirrors Keycloak's default DefaultBlockingBruteForceProtector: a request holds every account it
+   * asks about until it ends, and other requests asking about a held account see it as temporarily
+   * disabled.
+   */
+  private static final class ClaimingProtector {
+    private final Map<String, String> claims = new HashMap<>();
+    private String request;
+
+    boolean isTemporarilyDisabled(UserModel user) {
+      return !claims.computeIfAbsent(user.getId(), id -> request).equals(request);
+    }
+  }
+
+  private ClaimingProtector claimingProtector() {
+    ClaimingProtector claiming = new ClaimingProtector();
+    when(realm.isBruteForceProtected()).thenReturn(true);
+    lenient().when(session.loginFailures()).thenReturn(loginFailures);
+    lenient().when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
+    lenient()
+        .when(bruteForceProtector.isTemporarilyDisabled(eq(session), eq(realm), any()))
+        .thenAnswer(invocation -> claiming.isTemporarilyDisabled(invocation.getArgument(2)));
+    return claiming;
+  }
+
+  private Resolution resolveDateOfBirth(
+      String password, MultiAttributeCredentialResolver.MatchPolicy matchPolicy) {
+    return authenticator.resolveAuthenticatedUser(
+        session,
+        realm,
+        List.of("dateOfBirth"),
+        valuesOf("dateOfBirth", "19900101"),
+        password,
+        new MultiAttributeCredentialResolver.ThrottleConfig(10, 10, 60),
+        matchPolicy);
+  }
+
+  @Test
+  void sharedTuple_concurrentLoginOfAnotherCandidate_stillSucceeds() {
+    for (MultiAttributeCredentialResolver.MatchPolicy policy :
+        MultiAttributeCredentialResolver.MatchPolicy.values()) {
+      UserModel alice = mockUser("alice", "alice-pw", true);
+      UserModel bob = mockUser("bob", "bob-pw", true);
+      when(userProvider.searchForUserStream(
+              realm,
+              Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+              0,
+              DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+          .thenAnswer(invocation -> Stream.of(alice, bob));
+      ClaimingProtector claiming = claimingProtector();
+
+      // Alice's request is still in flight, holding whatever it asked the protector about.
+      claiming.request = "alice-request";
+      assertEquals(alice, resolveDateOfBirth("alice-pw", policy).authenticatedUser().orElse(null));
+
+      claiming.request = "bob-request";
+      assertEquals(
+          bob,
+          resolveDateOfBirth("bob-pw", policy).authenticatedUser().orElse(null),
+          policy.name());
+    }
+  }
+
+  @Test
+  void sharedTuple_onlyTheAuthenticatedCandidateIsCheckedByTheProtector() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.of(alice, bob));
+    ClaimingProtector claiming = claimingProtector();
+    claiming.request = "bob-request";
+
+    Resolution result =
+        resolveDateOfBirth("bob-pw", MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    assertEquals(bob, result.authenticatedUser().orElse(null));
+    verify(bruteForceProtector, never()).isTemporarilyDisabled(session, realm, alice);
+    verify(bruteForceProtector, never()).isPermanentlyLockedOut(session, realm, alice);
+  }
+
+  @Test
+  void sharedTuple_storedLockout_excludesCandidateWithoutPasswordCheck() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenReturn(Stream.of(alice, bob));
+    claimingProtector().request = "request";
+    lockTemporarily(alice);
+
+    Resolution result =
+        resolveDateOfBirth("alice-pw", MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    assertTrue(result.authenticatedUser().isEmpty());
+    verify(alice.credentialManager(), never()).isValid(any(CredentialInput.class));
+  }
+
+  @Test
+  void sharedTuple_authenticatedCandidateBusyInAnotherRequest_failsGenerically() {
+    UserModel alice = mockUser("alice", "alice-pw", true);
+    UserModel bob = mockUser("bob", "bob-pw", true);
+    when(userProvider.searchForUserStream(
+            realm,
+            Map.of("dateOfBirth", "19900101", UserModel.EXACT, "true"),
+            0,
+            DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
+        .thenAnswer(invocation -> Stream.of(alice, bob));
+    ClaimingProtector claiming = claimingProtector();
+    claiming.request = "first-request";
+    resolveDateOfBirth("bob-pw", MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    claiming.request = "second-request";
+    Resolution result =
+        resolveDateOfBirth("bob-pw", MultiAttributeCredentialResolver.MatchPolicy.FIRST_MATCH);
+
+    // A lockout here would confirm the password was right, so it stays a generic failure.
+    assertTrue(result.authenticatedUser().isEmpty());
+    assertTrue(result.attributableUser().isEmpty());
+    assertEquals(LockoutState.NONE, result.lockoutState());
+  }
+
   @Test
   void multipleCandidatesAllLockedOut_ambiguous_staysGeneric() {
     UserModel alice = mockUser("alice", "alice-pw", true);
@@ -587,11 +728,9 @@ class MultiAttributePasswordAuthenticatorTest {
             DEFAULT_MAX_ATTRIBUTE_LOOKUP_RESULTS))
         .thenReturn(Stream.of(alice, bob));
     when(realm.isBruteForceProtected()).thenReturn(true);
-    when(session.getProvider(BruteForceProtector.class)).thenReturn(bruteForceProtector);
-    when(bruteForceProtector.isTemporarilyDisabled(session, realm, alice)).thenReturn(true);
-    when(bruteForceProtector.isTemporarilyDisabled(session, realm, bob)).thenReturn(true);
-    // isPermanentlyLockedOut() is left unstubbed - Mockito defaults unstubbed boolean methods to
-    // false, which is exactly the "not permanently locked" case this test needs.
+    when(session.loginFailures()).thenReturn(loginFailures);
+    lockTemporarily(alice);
+    lockTemporarily(bob);
 
     Resolution result =
         authenticator.resolveAuthenticatedUser(
