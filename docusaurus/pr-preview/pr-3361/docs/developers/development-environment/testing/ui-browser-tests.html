@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">UI browser tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/development-environment/testing/ui-browser-tests"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="UI browser tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3361/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/development-environment/testing/ui-browser-tests"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/development-environment/testing/ui-browser-tests" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/development-environment/testing/ui-browser-tests" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"UI browser tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/development-environment/testing/ui-browser-tests"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3361/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3361/assets/js/runtime~main.82cd8195.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3361/assets/js/runtime~main.b8a69f42.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3361/assets/js/main.1bf34bf5.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -64,7 +64,19 @@ also support their own <code>WORKBENCH_TEST_CHROME_PATH</code> override.</p>
 fixture for a fresh browser context, clock and service mocks. The shared
 <code>packages/ui-test-kit</code> validates GraphQL against the portal schema, checks OIDC
 PKCE and owns ephemeral static-server ports. Register every service response;
-unexpected requests fail teardown. Audit assertions decode downloaded ballots
+unexpected requests fail teardown. With no <code>STEP_UI_TEST_PORT_BASE</code> (or a value of
+<code>0</code>), the kernel assigns each server an ephemeral port. To use an assigned range,
+set <code>STEP_UI_TEST_PORT_BASE</code> and optionally <code>STEP_UI_TEST_PORT_LIMIT</code> (inclusive;
+default <code>65535</code>). This command stays inside the assigned range:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token assign-left variable" style="color:rgb(191, 199, 213)">STEP_UI_TEST_PORT_BASE</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token number" style="color:rgb(247, 140, 108)">44000</span><span class="token plain"> </span><span class="token assign-left variable" style="color:rgb(191, 199, 213)">STEP_UI_TEST_PORT_LIMIT</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token number" style="color:rgb(247, 140, 108)">44999</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--cwd</span><span class="token plain"> packages/voting-portal test:journeys</span><br></span></code></pre></div></div>
+<p>Playwright fixtures pass their <code>workerInfo</code> to <code>serveDist</code> as
+the third argument: parallel slot 0 uses base, base + workers, and so on; slot 1
+uses base + 1, base + 1 + workers, and so on. Retries reuse their parallel slot.
+Standalone callers and a one-worker run retain consecutive ports starting at the
+base. Exhaustion and occupied ports fail explicitly; the server never probes a
+port and rebinds it or silently leaves the selected range. Assign disjoint ranges
+to concurrent Playwright invocations.</p>
+<p>Audit assertions decode downloaded ballots
 with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
 from <code>test-results/</code>. Known accessibility failures are marked only after the
 journey and the exact known rule/target have been checked.</p>
