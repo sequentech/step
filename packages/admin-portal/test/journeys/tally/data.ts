@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {createHash} from "node:crypto"
+import type {Page} from "@playwright/test"
 import {TENANT_ID} from "../fixtures"
 import type {AdminPortal} from "../fixtures"
 
@@ -24,13 +25,25 @@ export function byId(rows: Row[], where: unknown): Row[] {
     return rows
 }
 
+/** Hasura's `distinct_on`: the first row of each group, in the fixture's order. */
+function distinct(rows: Row[], columns: unknown): Row[] {
+    if (!Array.isArray(columns)) return rows
+    const seen = new Set<string>()
+    return rows.filter((row) => {
+        const key = JSON.stringify(columns.map((column) => row[String(column)]))
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+    })
+}
+
 /**
  * Answers the react-admin list, get-one and get-many reads of a Hasura table.
  * Every read gets the current rows, so tests mutate them to model a backend update.
  */
 export function table(portal: AdminPortal, name: string, records: () => Row[]) {
     portal.graphql.on(name, ({variables}) => {
-        const rows = byId(records(), variables.where)
+        const rows = distinct(byId(records(), variables.where), variables.distinct_on)
         return {
             data: {
                 [name]: rows,
@@ -71,6 +84,7 @@ export function registerEvent(portal: AdminPortal, overrides: Row = {}) {
     table(portal, "sequent_backend_election_event", () => [event])
     portal.graphql.on("election_events_tree", () => ({data: {sequent_backend_election_event: []}}))
     portal.graphql.on("election_tree", () => ({data: {sequent_backend_election: []}}))
+    portal.graphql.on("contest_tree", () => ({data: {sequent_backend_contest: []}}))
     return event
 }
 
@@ -97,4 +111,23 @@ export function registerUsers(portal: AdminPortal, users: Row[] = [adminUser()])
         const items = ids ? users.filter((user) => ids.includes(String(user.id))) : users
         return {data: {get_users: {items, total: {aggregate: {count: items.length}}}}}
     })
+}
+
+/**
+ * Records unhandled promise rejections instead of letting them fail the fixture, so an
+ * expected-failure test can pin a missing error handler and still flip once it is fixed.
+ */
+export async function recordRejections(page: Page) {
+    await page.addInitScript(() => {
+        const log: string[] = []
+        Object.assign(window, {unhandledRejections: log})
+        window.addEventListener("unhandledrejection", (event) => {
+            log.push(String(event.reason?.message ?? event.reason))
+            event.preventDefault()
+        })
+    })
+    return () =>
+        page.evaluate(
+            () => (window as unknown as {unhandledRejections: string[]}).unhandledRejections
+        )
 }
