@@ -47,11 +47,14 @@ random number generator and the current date as arguments, so
 `support/voter_generation_boundaries.rs` uses seeded or scripted generators and
 a fixed date. `support/voter_csv_boundaries.rs` writes the CSV to memory and to
 a private directory. A failed `generate-voters` run prints the error and still
-exits with status 0; `command_failures.rs` pins that. From `packages/`:
+exits with status 0; `command_failures.rs` pins that. Progress messages report
+completed records at 10,000-row intervals; `voter_progress_cli.rs` checks stdout
+and CSV counts around that boundary. From `packages/`:
 
 ```bash
 cargo test -p step-cli --bin step-cli generate_voters
 cargo test -p step-cli --test command_failures
+cargo test -p step-cli --test voter_progress_cli
 ```
 
 Tally-sheet commands reach Hasura through the `GraphqlClient` port and store

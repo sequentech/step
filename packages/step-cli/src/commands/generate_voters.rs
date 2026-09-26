@@ -91,8 +91,9 @@ fn write_voters<W: Write>(
         wtr.write_record(&record)?;
 
         // Optionally, log progress every so often rather than every record.
-        if i % PROGRESS_INTERVAL == 0 {
-            println!("Generated {} users...", i);
+        let completed = i + 1;
+        if completed % PROGRESS_INTERVAL == 0 {
+            println!("Generated {} users...", completed);
         }
     }
     wtr.flush()?;
