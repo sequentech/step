@@ -30,3 +30,19 @@ are excluded, consistently across counters and exports. CI compares lines,
 statements, functions and branches separately with the actual PR base. UI browser
 interactions, Keycloak redirects, GraphQL services and the real cryptographic WASM
 boundary remain separate integration scopes.
+
+Production event and settings journeys live in `test/journeys/events/` and
+`test/journeys/settings/`, with local fixture builders in each directory's
+`data.ts`. After building the shared UI packages and admin portal as described in
+[UI browser tests](./ui-browser-tests.md), run them from the repository root:
+
+```sh
+yarn --cwd packages/admin-portal test:journeys test/journeys/events test/journeys/settings --workers=2
+yarn --cwd packages/admin-portal test:types
+```
+
+These journeys assert rendered outcomes and complete GraphQL variables or upload
+bodies. Keep known-defect markers immediately before the failing assertion, after
+verifying the setup and request. A captured promise rejection must match the
+specific documented defect; unrelated requests and page exceptions still fail
+the fixture. Password-policy boundaries belong in the Node Jest validator tests.
