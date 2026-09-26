@@ -683,3 +683,149 @@ test.describe("Keycloak realm attributes", () => {
         })
     })
 })
+
+test.describe("Google Meet links", () => {
+    test.use({roles: [...EVENT_ROLES, "election-event-data-tab", "google-meet-link"]})
+
+    test("generates a meeting link for the event and copies it", async ({
+        context,
+        page,
+        portal,
+    }) => {
+        await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+            origin: portal.origin,
+        })
+        editableEvent(portal)
+        portal.graphql.on("GenerateGoogleMeet", () => ({
+            data: {generate_google_meet: {meet_link: "https://meet.google.com/abc-defg-hij"}},
+        }))
+        await openEvent(page, portal)
+        await page.getByRole("button", {name: "Google Meet", exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: "Generate Google Meet Link"})
+        await expect(dialog.getByRole("textbox", {name: "Meeting Title"})).toHaveValue(
+            "Council election - Meeting"
+        )
+        // One hour after the fixed clock, in the UTC test time zone.
+        await expect(dialog.getByLabel("Start Date")).toHaveValue("2026-01-15")
+        await expect(dialog.getByLabel("Start Time")).toHaveValue("13:00")
+        await dialog.getByRole("textbox", {name: /^Description/}).fill("Trustee briefing")
+        await dialog.getByRole("spinbutton", {name: /^Duration/}).fill("90")
+        await dialog
+            .getByRole("textbox", {name: "Attendee Emails"})
+            .fill("ana@example.com, ben@example.com ,")
+        await dialog.getByRole("button", {name: "Generate Meet Link", exact: true}).click()
+        await expect(
+            dialog.getByRole("heading", {name: "Google Meet Link Generated Successfully!"})
+        ).toBeVisible()
+        await expect(dialog.getByRole("textbox")).toHaveValue(
+            "https://meet.google.com/abc-defg-hij"
+        )
+        const calls = portal.graphql.callsTo("GenerateGoogleMeet")
+        expect(calls.map(({variables}) => variables)).toEqual([
+            {
+                summary: "Council election - Meeting",
+                description: "Trustee briefing",
+                startDateTime: "2026-01-15T13:00:00.000Z",
+                endDateTime: "2026-01-15T14:30:00.000Z",
+                timeZone: "UTC",
+                attendeeEmails: ["ana@example.com", "ben@example.com"],
+            },
+        ])
+        expect(calls[0].headers["x-hasura-role"]).toBe("google-meet-link")
+        await dialog.getByRole("button", {name: "Copy to clipboard"}).click()
+        await expect(page.getByText("Link copied to clipboard!", {exact: true})).toBeVisible()
+        expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+            "https://meet.google.com/abc-defg-hij"
+        )
+    })
+
+    test("explains a failed or empty meeting link", async ({page, portal}) => {
+        editableEvent(portal)
+        portal.graphql.once("GenerateGoogleMeet", () => ({
+            errors: [{message: "Calendar API disabled"}],
+        }))
+        portal.graphql.once("GenerateGoogleMeet", () => ({
+            data: {generate_google_meet: {meet_link: null}},
+        }))
+        await openEvent(page, portal)
+        await page.getByRole("button", {name: "Google Meet", exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: "Generate Google Meet Link"})
+        const generate = dialog.getByRole("button", {name: "Generate Meet Link", exact: true})
+        await generate.click()
+        await expect(
+            dialog.getByText("Failed to generate Google Meet link: Calendar API disabled")
+        ).toBeVisible()
+        await generate.click()
+        await expect(dialog.getByText("Link is null.", {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("GenerateGoogleMeet")).toHaveLength(2)
+    })
+})
+
+test("imports candidates from an uploaded file and tracks the task", async ({page, portal}) => {
+    editableEvent(portal)
+    const key = "documents/candidates-upload"
+    const url = portal.s3.presign(key, "candidates-import")
+    portal.s3.override(
+        (request) =>
+            request.method === "PUT" &&
+            request.key === key &&
+            request.query["X-Amz-Signature"] === "candidates-import",
+        {status: 200},
+        1
+    )
+    portal.graphql.on("GetUploadUrl", () => ({
+        data: {get_upload_url: {url, document_id: DOCUMENT_ID}},
+    }))
+    portal.graphql.on("ImportCandidates", () => ({
+        data: {
+            import_candidates: {
+                error_msg: null,
+                document_id: DOCUMENT_ID,
+                task_execution: {
+                    id: TASK_ID,
+                    tenant_id: TENANT_ID,
+                    election_event_id: EVENT_ID,
+                    name: "Import Candidates",
+                    type: "IMPORT_CANDIDATES",
+                    execution_status: "IN_PROGRESS",
+                    created_at: FIXED_TIME,
+                    start_at: FIXED_TIME,
+                    end_at: null,
+                    executed_by_user: "synthetic-admin",
+                    annotations: {},
+                    labels: {},
+                    logs: [],
+                },
+            },
+        },
+    }))
+    portal.graphql.on("GetTaskById", () => ({data: {sequent_backend_tasks_execution: []}}))
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Import Candidates", exact: true}).click()
+    const drawer = page.getByRole("dialog")
+    await drawer.getByRole("textbox", {name: "Integrity Check (SHA-256)"}).fill("cd".repeat(32))
+    const content = Buffer.from("Candidate,Contest\nAna Example,Council\n")
+    const upload = page.waitForRequest(
+        (request) => request.url() === url && request.method() === "PUT"
+    )
+    await drawer.locator('input[type="file"]').setInputFiles({
+        name: "candidates.csv",
+        mimeType: "text/csv",
+        buffer: content,
+    })
+    expect((await upload).postDataBuffer()).toEqual(content)
+    await drawer.getByRole("button", {name: "Import", exact: true}).click()
+    await expect.poll(() => portal.graphql.callsTo("ImportCandidates").length).toBe(1)
+    expect(portal.graphql.callsTo("ImportCandidates")[0].variables).toEqual({
+        documentId: DOCUMENT_ID,
+        electionEventId: EVENT_ID,
+        sha256: "cd".repeat(32),
+    })
+    expect(portal.graphql.callsTo("GetUploadUrl")[0].variables).toEqual({
+        name: "candidates.csv",
+        media_type: "text/csv",
+        size: content.length,
+        is_public: false,
+    })
+    await expect(page.getByText("Task: Import Candidates", {exact: true})).toBeVisible()
+})
