@@ -133,7 +133,12 @@ function preview(overrides: Row = {}): Row {
 function importsService(portal: AdminPortal, initial: Row[] = []) {
     registerEvent(portal)
     registerUsers(portal)
-    const state = {imports: initial, items: [importItem()], duplicates: [] as Row[]}
+    const state = {
+        imports: initial,
+        items: [importItem()],
+        duplicates: [] as Row[],
+        uploadUrl: portal.s3.url("private", UPLOAD_KEY, {"X-Amz-Signature": "upload"}),
+    }
     portal.graphql.on("sequent_backend_tally_sheet_import", ({variables}) => {
         const where = JSON.stringify(variables.where ?? {})
         const byHash = where.includes("source_sha256")
@@ -149,7 +154,7 @@ function importsService(portal: AdminPortal, initial: Row[] = []) {
     portal.graphql.on("GetUploadUrl", () => ({
         data: {
             get_upload_url: {
-                url: portal.s3.url("private", UPLOAD_KEY, {"X-Amz-Signature": "upload"}),
+                url: state.uploadUrl,
                 document_id: DOCUMENT_ID,
             },
         },
@@ -179,14 +184,18 @@ test("uploads a canonical CSV, previews it, saves the import and approves it", a
 }) => {
     const state = importsService(portal)
     portal.s3.override(
-        (request) => request.method === "PUT" && request.key === UPLOAD_KEY,
+        (request) => request.method === "PUT" && request.url === state.uploadUrl,
         {status: 200},
         1
     )
-    const uploads: {headers: Record<string, string>; body: string}[] = []
+    const uploads: {url: string; headers: Record<string, string>; body: string}[] = []
     page.on("request", (request) => {
         if (request.method() === "PUT")
-            uploads.push({headers: request.headers(), body: request.postData() ?? ""})
+            uploads.push({
+                url: request.url(),
+                headers: request.headers(),
+                body: request.postData() ?? "",
+            })
     })
     portal.graphql.on("PreviewTallySheetImport", () => ({
         data: {preview_tally_sheet_import: {preview: preview()}},
@@ -221,7 +230,11 @@ test("uploads a canonical CSV, previews it, saves the import and approves it", a
         },
     ])
     expect(uploads).toEqual([
-        {headers: expect.objectContaining({"content-type": "text/csv"}), body: CSV},
+        {
+            url: state.uploadUrl,
+            headers: expect.objectContaining({"content-type": "text/csv"}),
+            body: CSV,
+        },
     ])
     expect(portal.s3.requestsFor(UPLOAD_KEY)).toMatchObject([{method: "PUT", status: 200}])
     const importVariables = {
