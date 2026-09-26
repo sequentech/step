@@ -1,0 +1,913 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# The change and dependency model behind `step-dev affected`, `step-dev test`
+# and CI selection. Yarn and Cargo packages, and the edges between them, come
+# from the workspace manifests. This file adds what no manifest records: the
+# paths outside packages, edges between ecosystems and the checks.
+#
+# A changed path is claimed by the first [[paths]] rule whose glob matches, else
+# by the package whose directory is the longest prefix, else it is unknown and
+# every check is selected. A unit is affected when a path it owns or one of its
+# inputs changes, or when a unit it depends on is affected.
+
+schema = 1
+default_base = "origin/ovcs"
+
+[[workspaces]]
+kind = "yarn"
+manifest = "packages/package.json"
+
+[[workspaces]]
+kind = "cargo"
+manifest = "packages/Cargo.toml"
+target_dir = "packages/rust-local-target"
+
+[[workspaces]]
+kind = "cargo"
+manifest = "packages/wbraid/Cargo.toml"
+prefix = "wbraid/"
+target_dir = "packages/wbraid/rust-local-target"
+
+# Units ------------------------------------------------------------------------
+# Areas are units that are not workspace packages. Tables named after a package
+# add edges and inputs that its manifest does not declare. `inputs` affect the
+# unit and its consumers; `test_inputs` affect only the unit's own checks.
+
+[units.docs]
+summary = "Markdown outside the documentation site: guides, designs, READMEs, agent skills"
+
+[units.docs-site]
+summary = "Docusaurus site under docs/docusaurus"
+
+[units.docs-api]
+summary = "GraphQL API reference generator under docs/api"
+depends = ["graphql-schema"]
+
+[units.graphql-schema]
+summary = "packages/graphql.schema.json, the schema the API reference documents"
+
+[units.licensing]
+summary = "REUSE metadata, license texts and .license sidecars"
+
+[units.repo-config]
+summary = "Editor, review-bot, release and repository settings that no check reads"
+
+[units.devenv]
+summary = "The devenv toolchain: Node, Yarn, Rust, Java and the tools every check runs with"
+
+[units.rust-toolchain]
+summary = "rust-toolchain.toml and packages/.cargo: compiler and Cargo configuration"
+consumers = ["cargo:*"]
+
+[units.devcontainer]
+summary = "Devcontainer, Compose services and mode definitions"
+
+[units.keycloak-realms]
+summary = "Keycloak realm templates the stacks import and admin stories read"
+
+[units.hasura]
+summary = "Hasura metadata, backend migrations and their tests"
+
+[units.docker-images]
+summary = "Dockerfiles and image files built from packages/"
+
+[units.ci]
+summary = "GitHub workflows and composite actions; a workflow selects the checks it runs"
+
+[units.scripts-dev]
+summary = "step-dev developer commands and the selection model"
+
+[units.scripts-coverage]
+summary = "Coverage runners and reporters"
+
+[units.scripts-e2e]
+summary = "Backend and real-stack UI journey runners"
+
+[units.scripts-database]
+summary = "Voting-flow harness, PostgreSQL checks and database regression scripts"
+
+[units.scripts-misc]
+summary = "Air-gap, dependency-report and one-off maintenance scripts"
+
+[units.test-support]
+summary = "Storybook test runner and network guard shared by every package's story tests"
+
+[units.keycloak-extensions]
+summary = "Maven reactor of the Keycloak extensions, including the sequent theme"
+depends = ["keycloak-theme-tests"]
+
+[units.keycloak-ui]
+summary = "Opt-in React login and message OTP development workspace"
+depends = ["keycloak-theme-tests"]
+
+[units.ecies]
+summary = "ECIESEncryption Java utility"
+
+[units.voting-load]
+summary = "Load-test capture, replay and fixtures"
+
+[units.loadtesting]
+summary = "Nightwatch load-test image"
+
+[units.board-messages]
+summary = "Dormant source fragment without a manifest"
+
+[units.beyond]
+summary = "The beyond submodule, validated in its own repository"
+
+[units.harvest]
+test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
+
+[units.windmill]
+test_inputs = ["hasura/migrations/backend-db/**", ".devcontainer/postgresql/init.sh"]
+
+[units.velvet]
+test_inputs = [".devcontainer/minio/public-assets/**"]
+
+[units.ui-test-kit]
+# Reads each portal's graphql.schema.json and serves their production builds.
+test_inputs = ["packages/*/graphql.schema.json"]
+
+# Paths ------------------------------------------------------------------------
+# Ordered: the first matching rule claims the path. `broad` selects every check.
+# Units may be selectors: `cargo:*`, `yarn:*` or `<kind>:<workspace manifest>`.
+
+[[paths]]
+globs = ["devenv.nix", "devenv.yaml", "devenv.lock", ".envrc", "packages/devenv.lock"]
+units = ["devenv"]
+broad = "the devenv toolchain changed"
+
+[[paths]]
+globs = ["scripts/dev/affected.toml", "scripts/dev/affected/**"]
+units = ["scripts-dev"]
+broad = "the selection model changed"
+
+[[paths]]
+globs = ["rust-toolchain.toml", "packages/.cargo/**"]
+units = ["rust-toolchain"]
+
+[[paths]]
+globs = [
+    "LICENSE",
+    "LICENSES/**",
+    "REUSE.toml",
+    "**/*.license",
+    ".dockerignore.license",
+]
+units = ["licensing"]
+
+# Markdown compiled or packaged into an artifact.
+[[paths]]
+globs = ["packages/sequent-core/README.md"]
+units = ["sequent-core"]
+
+[[paths]]
+globs = ["packages/wbraid/crates/vsc/README.md"]
+units = ["wbraid/vsc"]
+
+[[paths]]
+globs = ["docs/docusaurus/**"]
+units = ["docs-site"]
+
+[[paths]]
+globs = ["docs/api/**"]
+units = ["docs-api"]
+
+[[paths]]
+globs = ["packages/graphql.schema.json"]
+units = ["graphql-schema"]
+
+[[paths]]
+globs = ["docs/**", "**/*.md", ".agents/**"]
+units = ["docs"]
+
+[[paths]]
+globs = [
+    ".ackrc",
+    ".coderabbit.yaml",
+    ".gitignore",
+    ".gitmodules",
+    ".release-commit",
+    ".release-it.json",
+    ".vscode/**",
+    ".github/dependabot.yml",
+    ".github/cla/**",
+    "clippy.toml",
+    "yarn.lock",
+    "packages/.ackrc",
+    "packages/.gitignore",
+    "packages/.ignore",
+    "packages/Cargo.lock.copy",
+]
+units = ["repo-config"]
+
+[[paths]]
+globs = [".github/workflows/**", ".github/actions/**"]
+units = ["ci"]
+
+[[paths]]
+globs = [".devcontainer/keycloak/import/**"]
+units = ["devcontainer", "keycloak-realms"]
+
+[[paths]]
+globs = [".devcontainer/**"]
+units = ["devcontainer"]
+
+[[paths]]
+globs = ["hasura/**"]
+units = ["hasura"]
+
+[[paths]]
+globs = [
+    ".dockerignore",
+    "packages/.dockerignore",
+    "packages/Dockerfile*",
+    "packages/default.conf",
+    "packages/init.sh",
+    "packages/nginx-entrypoint.sh",
+]
+units = ["docker-images"]
+
+[[paths]]
+globs = ["scripts/dev/**"]
+units = ["scripts-dev"]
+
+[[paths]]
+globs = ["scripts/coverage/**"]
+units = ["scripts-coverage"]
+
+[[paths]]
+globs = ["scripts/e2e/**", "scripts/e2e-up.sh"]
+units = ["scripts-e2e"]
+
+[[paths]]
+globs = ["scripts/voting_flow/**", "scripts/postgres/**", "scripts/test_*.py"]
+units = ["scripts-database"]
+
+[[paths]]
+globs = [
+    "scripts/airgap-files/**",
+    "scripts/assurance/**",
+    "scripts/tasks/**",
+    "scripts/build-airgapped.sh",
+    "scripts/generate_voters.py",
+    "scripts/loc.sh",
+    "scripts/replacements.sh",
+    "scripts/update_license_headers.py",
+]
+units = ["scripts-misc"]
+
+[[paths]]
+globs = ["packages/test-support/**"]
+units = ["test-support"]
+
+[[paths]]
+globs = ["packages/ECIESEncryption/**"]
+units = ["ecies"]
+
+[[paths]]
+globs = ["packages/voting-load/**"]
+units = ["voting-load"]
+
+[[paths]]
+globs = ["packages/loadtesting/**"]
+units = ["loadtesting"]
+
+[[paths]]
+globs = ["packages/board-messages/**"]
+units = ["board-messages"]
+
+[[paths]]
+globs = ["beyond"]
+units = ["beyond"]
+
+# Workspace configuration and helper scripts beside the wbraid crates.
+[[paths]]
+globs = ["packages/wbraid/.cargo/**", "packages/wbraid/*"]
+units = ["cargo:packages/wbraid/Cargo.toml"]
+
+# The theme is both a Maven module and a Yarn workspace; the reactor depends on it.
+[[paths]]
+globs = ["packages/keycloak-extensions/sequent-theme/**"]
+units = ["keycloak-theme-tests"]
+
+[[paths]]
+globs = ["packages/keycloak-extensions/**"]
+units = ["keycloak-extensions"]
+
+# Checks -----------------------------------------------------------------------
+# A check runs `command` from `cwd` and is selected when a unit in `units` is
+# affected (trigger "affected") or changed (trigger "changed"), when a path in
+# `paths` changes, or when a workflow or action it mirrors changes. The first
+# unit owns the check: `step-dev test <unit>` runs it and the unit's test inputs
+# select it. Families (`for_each`) make one check per unit: {unit} is its id and
+# {path} its directory; `also.<unit>` and `also_workflows.<unit>` add units and
+# workflows to one instance. `focus` is the command `step-dev test` narrows to
+# files, stories, specs or test names.
+
+[[checks]]
+id = "jest:{unit}"
+for_each = ["ui-core", "ui-essentials", "voting-portal", "admin-portal", "ballot-verifier", "results-portal"]
+kind = "test"
+runner = "jest"
+cost = "fast"
+cwd = "{path}"
+command = "yarn test --runInBand"
+focus = ["yarn", "jest", "--runInBand"]
+workflows = ["frontend-coverage.yml"]
+[checks.also_workflows]
+ui-core = ["tests.yml"]
+ui-essentials = ["tests.yml", "lint_prettify.yml"]
+voting-portal = ["tests.yml"]
+admin-portal = ["tests.yml"]
+results-portal = ["lint_prettify.yml"]
+
+[[checks]]
+id = "vitest:workbench"
+units = ["workbench"]
+kind = "test"
+runner = "vitest"
+cost = "fast"
+cwd = "packages/workbench"
+command = "yarn test"
+focus = ["yarn", "vitest"]
+tests = ["packages/workbench/src/**/*.test.ts", "packages/workbench/src/**/*.test.tsx"]
+
+[[checks]]
+id = "node-test:keycloak-theme-tests"
+units = ["keycloak-theme-tests"]
+kind = "test"
+runner = "node"
+cost = "fast"
+cwd = "packages/keycloak-extensions/sequent-theme"
+command = "yarn test"
+focus = ["node", "--test"]
+tests = ["packages/keycloak-extensions/sequent-theme/src/test/js/*.test.cjs"]
+workflows = ["tests.yml"]
+
+[[checks]]
+id = "contracts:ui-test-kit"
+units = ["ui-test-kit"]
+kind = "test"
+runner = "playwright"
+cost = "fast"
+cwd = "packages/ui-test-kit"
+command = "yarn test"
+focus = ["yarn", "test"]
+tests = ["packages/ui-test-kit/tests/**/*.spec.ts"]
+requires = ["chromium"]
+workflows = ["frontend-ui-tests.yml"]
+
+[[checks]]
+id = "stories:{unit}"
+for_each = ["ui-essentials", "voting-portal", "admin-portal", "results-portal", "ballot-verifier", "keycloak-ui"]
+units = ["test-support"]
+kind = "test"
+runner = "storybook"
+cost = "slow"
+cwd = "{path}"
+command = "yarn test:stories"
+focus = ["yarn", "test:story"]
+tests = ["{path}/src/**/*.stories.tsx", "{path}/src/**/*.stories.ts"]
+requires = ["chromium"]
+workflows = ["frontend-ui-tests.yml"]
+[checks.also]
+# The voting portal's Storybook also collects the workbench control stories.
+voting-portal = ["workbench"]
+# Role stories read the default tenant groups from the realm templates.
+admin-portal = ["keycloak-realms"]
+
+[[checks]]
+id = "journeys:{unit}"
+for_each = ["voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+kind = "test"
+runner = "playwright"
+cost = "slow"
+cwd = "{path}"
+command = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:{unit} && yarn test:journeys"
+focus = ["yarn", "test:journeys"]
+# Journeys serve the production build; a focused run makes it only when missing.
+prepare = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:{unit}"
+needs = ["{path}/dist/index.html"]
+tests = ["{path}/test/journeys/**/*.spec.ts", "{path}/tests/journeys/**/*.spec.ts"]
+requires = ["chromium"]
+workflows = ["frontend-ui-tests.yml"]
+[checks.also]
+# Its journeys open the voting portal's production build as well.
+ballot-verifier = ["voting-portal"]
+[checks.commands]
+ballot-verifier = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:ballot-verifier && yarn --cwd .. build:voting-portal && yarn test:journeys"
+[checks.prepares]
+ballot-verifier = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:ballot-verifier && yarn --cwd .. build:voting-portal"
+
+[[checks]]
+id = "smoke:workbench"
+units = ["workbench"]
+kind = "test"
+runner = "playwright"
+cost = "slow"
+cwd = "packages/workbench"
+command = "yarn test:smoke"
+focus = ["yarn", "test:smoke"]
+tests = ["packages/workbench/tests/**/*.spec.ts"]
+requires = ["chromium"]
+
+[[checks]]
+id = "types:voting-portal"
+units = ["voting-portal"]
+kind = "types"
+runner = "shell"
+cost = "fast"
+cwd = "packages/voting-portal"
+command = "yarn test:types && yarn tsc -p tsconfig.journeys.json"
+workflows = ["frontend-ui-tests.yml"]
+
+[[checks]]
+id = "types:{unit}"
+for_each = ["results-portal", "ballot-verifier"]
+kind = "types"
+runner = "shell"
+cost = "fast"
+cwd = "{path}"
+command = "yarn test:types"
+workflows = ["frontend-ui-tests.yml"]
+
+[[checks]]
+id = "types:admin-portal"
+units = ["admin-portal"]
+kind = "types"
+runner = "shell"
+cost = "fast"
+cwd = "packages/admin-portal"
+command = "yarn test:types && yarn typecheck:stories"
+workflows = ["frontend-ui-tests.yml"]
+
+[[checks]]
+id = "types:ui-essentials"
+units = ["ui-essentials"]
+kind = "types"
+runner = "shell"
+cost = "fast"
+cwd = "packages/ui-essentials"
+command = "yarn typecheck:stories"
+workflows = ["frontend-ui-tests.yml"]
+
+[[checks]]
+id = "types:{unit}"
+for_each = ["ui-test-kit", "ui-e2e", "workbench", "keycloak-ui"]
+kind = "types"
+runner = "shell"
+cost = "fast"
+cwd = "{path}"
+command = "yarn typecheck"
+workflows = ["frontend-ui-tests.yml", "frontend-stack-e2e.yml"]
+
+[[checks]]
+id = "lint:{unit}"
+for_each = ["ui-core", "ui-essentials", "voting-portal", "admin-portal", "ballot-verifier", "results-portal", "workbench", "ui-test-kit", "ui-e2e", "keycloak-ui"]
+kind = "lint"
+runner = "shell"
+cost = "fast"
+trigger = "changed"
+cwd = "{path}"
+command = "yarn lint && yarn prettify"
+workflows = ["lint_prettify.yml"]
+
+[[checks]]
+id = "lint:hasura"
+units = ["hasura"]
+kind = "lint"
+runner = "shell"
+cost = "fast"
+trigger = "changed"
+cwd = "hasura"
+command = "yarn install --frozen-lockfile --non-interactive && yarn prettify"
+workflows = ["lint_prettify.yml"]
+
+[[checks]]
+id = "node-test:hasura"
+units = ["hasura"]
+kind = "test"
+runner = "node"
+cost = "fast"
+cwd = "."
+command = "yarn --cwd hasura install --frozen-lockfile --non-interactive && node --test hasura/tests/*.test.cjs"
+focus = ["node", "--test"]
+prepare = "yarn --cwd hasura install --frozen-lockfile --non-interactive"
+needs = ["hasura/node_modules"]
+tests = ["hasura/tests/*.test.cjs"]
+workflows = ["backend-database-contracts.yml"]
+
+[[checks]]
+id = "lint:rust"
+units = ["cargo:packages/Cargo.toml"]
+kind = "lint"
+runner = "shell"
+cost = "fast"
+trigger = "changed"
+cwd = "packages"
+command = "cargo fmt --all -- --check"
+paths = ["packages/*/rustfmt.toml", "packages/rustfmt.toml"]
+workflows = ["lint_prettify.yml"]
+
+[[checks]]
+id = "lint:wbraid"
+units = ["cargo:packages/wbraid/Cargo.toml"]
+kind = "lint"
+runner = "shell"
+cost = "fast"
+trigger = "changed"
+cwd = "packages/wbraid"
+command = "cargo fmt --all -- --check"
+workflows = ["wbraid.yml"]
+
+[[checks]]
+id = "cargo-test:{unit}"
+for_each = ["strand", "electoral-log", "wrap-map-err", "step-cli"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p {unit}"
+focus = ["cargo", "test", "--locked", "-p", "{unit}"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests"]
+
+# Renders PDFs in place with a local Chromium.
+[[checks]]
+id = "cargo-test:velvet"
+units = ["velvet"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p velvet"
+focus = ["cargo", "test", "--locked", "-p", "velvet"]
+requires = ["chromium"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests"]
+
+[[checks]]
+id = "cargo-test:{unit}"
+for_each = ["immu-board", "immudb-rs", "e2e", "mock_server"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p {unit} --tests"
+focus = ["cargo", "test", "--locked", "-p", "{unit}"]
+actions = ["setup-rust-tests"]
+[checks.also_workflows]
+immu-board = ["tests.yml", "additional-unit-tests.yml"]
+immudb-rs = ["tests.yml"]
+e2e = ["additional-unit-tests.yml"]
+mock_server = ["additional-unit-tests.yml"]
+
+[[checks]]
+id = "cargo-test:sequent-core"
+units = ["sequent-core"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p sequent-core --features default_features,keycloak"
+focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "default_features,keycloak"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests"]
+
+[[checks]]
+id = "cargo-test:b4"
+units = ["b4"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p b4 --features native,client --tests"
+focus = ["cargo", "test", "--locked", "-p", "b4", "--features", "native,client"]
+workflows = ["rust-coverage.yml"]
+
+[[checks]]
+id = "cargo-test:windmill"
+units = ["windmill"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p windmill"
+focus = ["cargo", "test", "--locked", "-p", "windmill"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests"]
+
+# Request boundaries and error contracts need no database; the complete suite
+# does (cargo-test-db:harvest).
+[[checks]]
+id = "cargo-test:harvest"
+units = ["harvest"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p harvest --bin harvest -- request_boundaries error_contracts boundary_tests services::access"
+focus = ["cargo", "test", "--locked", "-p", "harvest"]
+workflows = ["tests.yml"]
+actions = ["setup-rust-tests"]
+[checks.env]
+KEYCLOAK_DB__HOST = "127.0.0.1"
+HASURA_DB__HOST = "127.0.0.1"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"
+
+[[checks]]
+id = "cargo-test-db:harvest"
+units = ["harvest"]
+kind = "test"
+runner = "cargo"
+cost = "integration"
+cwd = "packages"
+command = "cargo test --locked -p harvest"
+requires = ["postgres-server"]
+workflows = ["tests.yml"]
+[checks.env]
+HASURA_DB__HOST = "127.0.0.1"
+HASURA_DB__PORT = "5432"
+HASURA_DB__USER = "test"
+HASURA_DB__PASSWORD = "test"
+HASURA_DB__DBNAME = "test"
+KEYCLOAK_DB__HOST = "127.0.0.1"
+KEYCLOAK_DB__PORT = "5432"
+KEYCLOAK_DB__USER = "test"
+KEYCLOAK_DB__PASSWORD = "test"
+KEYCLOAK_DB__DBNAME = "test"
+LOW_SQL_LIMIT = "1000"
+DEFAULT_SQL_LIMIT = "20"
+DEFAULT_SQL_BATCH_SIZE = "1000"
+
+[[checks]]
+id = "cargo-test:braid"
+units = ["braid"]
+kind = "test"
+runner = "cargo"
+cost = "slow"
+cwd = "packages"
+command = "cargo test --release --locked -p braid --tests"
+focus = ["cargo", "test", "--release", "--locked", "-p", "braid"]
+workflows = ["rust-coverage.yml"]
+[checks.env]
+RUST_TEST_THREADS = "2"
+RAYON_NUM_THREADS = "2"
+
+[[checks]]
+id = "cargo-test:orare"
+units = ["orare"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p orare --features openwhisk --test runtime_contracts"
+focus = ["cargo", "test", "--locked", "-p", "orare", "--features", "openwhisk"]
+workflows = ["orare-unit-tests.yml"]
+actions = ["setup-rust-tests"]
+
+[[checks]]
+id = "cargo-test:doc_renderer"
+units = ["doc_renderer"]
+kind = "test"
+runner = "cargo"
+cost = "fast"
+cwd = "packages"
+command = "cargo test --locked -p doc_renderer"
+focus = ["cargo", "test", "--locked", "-p", "doc_renderer"]
+workflows = ["orare-unit-tests.yml"]
+actions = ["setup-rust-tests"]
+
+[[checks]]
+id = "cargo-test:miru"
+units = ["miru"]
+kind = "test"
+runner = "cargo"
+cost = "slow"
+cwd = "packages"
+command = "cargo build --locked --release -p miru --target wasm32-wasip2 && cargo test --locked -p miru --test component_contracts"
+focus = ["cargo", "test", "--locked", "-p", "miru"]
+workflows = ["miru-unit-tests.yml"]
+actions = ["setup-rust-tests"]
+
+[[checks]]
+id = "cargo-test:wbraid"
+units = ["cargo:packages/wbraid/Cargo.toml"]
+kind = "test"
+runner = "cargo"
+cost = "slow"
+cwd = "packages/wbraid"
+command = "cargo test --locked --release --features sqlite,postgres"
+workflows = ["wbraid.yml"]
+actions = ["setup-rust-tests"]
+
+[[checks]]
+id = "wasm-test:sequent-core"
+units = ["sequent-core"]
+kind = "test"
+runner = "cargo"
+cost = "slow"
+cwd = "packages"
+command = "cargo test --locked --target wasm32-unknown-unknown -p sequent-core --features wasmtest,default_features --test mod"
+requires = ["chromium"]
+workflows = ["core-native-features.yml"]
+actions = ["setup-test-browser"]
+
+# The committed sequent-core tgz must match its Rust sources; consumers test
+# that tgz, so they are selected when it is regenerated.
+[[checks]]
+id = "wasm-freshness"
+units = ["sequent-core"]
+kind = "build"
+runner = "shell"
+cost = "fast"
+cwd = "."
+command = "python3 -m scripts.dev.wasm --check-package"
+paths = ["packages/*/rust/sequent-core-*.tgz", "packages/yarn.lock", "scripts/dev/wasm.py"]
+workflows = ["build_wasm.yml"]
+
+[[checks]]
+id = "python:scripts-dev"
+units = ["scripts-dev", "devcontainer"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest discover -s scripts/dev -p 'test_*.py'"
+focus = ["python3", "-m", "unittest"]
+tests = ["scripts/dev/**/test_*.py"]
+
+[[checks]]
+id = "lint:scripts-dev"
+units = ["scripts-dev"]
+kind = "lint"
+runner = "shell"
+cost = "fast"
+trigger = "changed"
+cwd = "."
+command = "ruff check --config scripts/dev/ruff.toml scripts/dev"
+requires = ["ruff"]
+
+[[checks]]
+id = "python:scripts-coverage"
+units = ["scripts-coverage"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest discover -s scripts/coverage -p 'test_*.py' && node scripts/coverage/test_frontend.cjs"
+focus = ["python3", "-m", "unittest"]
+tests = ["scripts/coverage/test_*.py"]
+workflows = ["rust-coverage.yml", "frontend-coverage.yml", "core-native-features.yml", "strand-native-backends.yml"]
+
+[[checks]]
+id = "python:scripts-e2e"
+units = ["scripts-e2e"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest scripts.e2e.test_runner scripts.e2e.test_run_safety && python3 scripts/e2e/ui/test_run_safety.py"
+focus = ["python3", "-m", "unittest"]
+tests = ["scripts/e2e/test_*.py", "scripts/e2e/ui/test_*.py", "scripts/e2e/journeys/test_*.py"]
+workflows = ["backend-e2e.yml", "frontend-stack-e2e.yml"]
+
+[[checks]]
+id = "java:keycloak-extensions"
+units = ["keycloak-extensions"]
+kind = "test"
+runner = "maven"
+cost = "slow"
+cwd = "packages/keycloak-extensions"
+command = "mvn -B -ntp test"
+requires = ["mvn"]
+workflows = ["java-unit-tests.yml", "java_test.yml"]
+
+[[checks]]
+id = "java:ecies"
+units = ["ecies"]
+kind = "test"
+runner = "maven"
+cost = "slow"
+cwd = "packages/ECIESEncryption"
+command = "mvn -B -ntp test"
+requires = ["mvn"]
+workflows = ["java-unit-tests.yml"]
+
+[[checks]]
+id = "docs-build"
+units = ["docs-site"]
+kind = "build"
+runner = "shell"
+cost = "slow"
+cwd = "docs/docusaurus"
+command = "yarn install --frozen-lockfile --non-interactive && yarn build"
+workflows = ["documentation.yml"]
+
+[[checks]]
+id = "docs-graphql"
+units = ["docs-api"]
+kind = "build"
+runner = "shell"
+cost = "slow"
+cwd = "docs/api/graphql"
+command = "yarn install --frozen-lockfile --non-interactive && yarn generate-full-docs"
+workflows = ["documentation.yml"]
+
+[[checks]]
+id = "reuse"
+units = []
+kind = "lint"
+runner = "shell"
+cost = "fast"
+trigger = "changed"
+cwd = "."
+command = "reuse lint"
+paths = ["**"]
+requires = ["reuse"]
+workflows = ["license_reuse.yml"]
+
+# Needs a running Hasura on graphql-engine:8080, as in the full devcontainer.
+[[checks]]
+id = "graphql-codegen"
+units = ["hasura"]
+kind = "build"
+runner = "shell"
+cost = "integration"
+cwd = "packages"
+command = "yarn generate:voting-portal && yarn generate:admin-portal && yarn generate:ballot-verifier && yarn generate:results-portal && git diff --exit-code -- '*/graphql.schema.json' '*/src/gql'"
+paths = ["packages/*/codegen.ts"]
+
+[[checks]]
+id = "python:scripts-database"
+units = ["scripts-database"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest scripts.voting_flow.test_castvote_fixture"
+focus = ["python3", "-m", "unittest"]
+tests = ["scripts/voting_flow/test_*.py"]
+workflows = ["backend-database-contracts.yml"]
+
+# Capture tests start a private PostgreSQL from the devenv's server binaries.
+[[checks]]
+id = "python:voting-load"
+units = ["voting-load"]
+kind = "test"
+runner = "python"
+cost = "fast"
+cwd = "."
+command = "python3 -m unittest discover -s packages/voting-load"
+focus = ["python3", "-m", "unittest"]
+tests = ["packages/voting-load/test_*.py"]
+workflows = ["backend-database-contracts.yml"]
+
+[[checks]]
+id = "voting-flow"
+units = ["scripts-database", "hasura", "voting-load"]
+kind = "test"
+runner = "shell"
+cost = "integration"
+cwd = "."
+command = "docker build --tag voting-flow-harness scripts/voting_flow && for suite in test_cast_vote_scalability test_scheduled_voting_channels test_ballot_publication_lifecycle test_voting_window_preflight; do docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 scripts/$suite.py || exit 1; done && docker run --rm --volume \"$PWD:/step:ro\" --workdir /step voting-flow-harness python3 -m unittest discover -s packages/voting-load"
+requires = ["docker"]
+workflows = ["backend-database-contracts.yml"]
+
+[[checks]]
+id = "db-contracts"
+units = ["scripts-database", "hasura"]
+kind = "test"
+runner = "shell"
+cost = "integration"
+cwd = "."
+command = "docker run --rm --user postgres --volume \"$PWD:/step:ro\" --workdir /step postgres:18-bookworm scripts/postgres/check_migrations.sh && scripts/postgres/check_hasura_metadata.sh"
+paths = ["packages/windmill/src/postgres/**", ".devcontainer/postgresql/init.sh"]
+requires = ["docker"]
+workflows = ["backend-database-contracts.yml"]
+
+[[checks]]
+id = "backend-e2e"
+units = ["scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images"]
+kind = "test"
+runner = "shell"
+cost = "integration"
+cwd = "."
+command = "scripts/e2e/run.sh"
+requires = ["docker"]
+workflows = ["backend-e2e.yml"]
+
+[[checks]]
+id = "frontend-stack-e2e"
+units = ["ui-e2e", "scripts-e2e", "windmill", "harvest", "immu-board", "step-cli", "b4", "braid", "keycloak-extensions", "hasura", "devcontainer", "docker-images", "voting-portal", "admin-portal", "results-portal", "ballot-verifier"]
+kind = "test"
+runner = "shell"
+cost = "integration"
+cwd = "."
+command = "scripts/e2e/ui/run.sh"
+requires = ["docker"]
+workflows = ["frontend-stack-e2e.yml"]

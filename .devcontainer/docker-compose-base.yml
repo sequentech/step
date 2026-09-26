@@ -1024,6 +1024,12 @@ services:
       BEAT_PROBE_LIVE_PATH: ${BEAT_PROBE_LIVE_PATH}
       BEAT_PROBE_READY_PATH: ${BEAT_PROBE_READY_PATH}
       ENV_SLUG: ${ENV_SLUG}
+      # The readiness probe initializes the task registry, including S3 plugins.
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${AWS_S3_ACCESS_SECRET}
+      AWS_S3_PRIVATE_URI: ${AWS_S3_PRIVATE_URI}
+      AWS_S3_PUBLIC_BUCKET: ${AWS_S3_PUBLIC_BUCKET}
 
   postgres-b4:
     profiles: ["full", "base"]
