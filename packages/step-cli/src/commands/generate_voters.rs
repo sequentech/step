@@ -91,8 +91,9 @@ fn write_voters<W: Write>(
         wtr.write_record(&record)?;
 
         // Optionally, log progress every so often rather than every record.
-        if i % PROGRESS_INTERVAL == 0 {
-            println!("Generated {} users...", i);
+        let completed = i + 1;
+        if completed % PROGRESS_INTERVAL == 0 {
+            println!("Generated {} users...", completed);
         }
     }
     wtr.flush()?;
@@ -145,5 +146,38 @@ mod username_start_regression {
                 expected
             );
         }
+    }
+    #[test]
+    fn generated_csv_uses_mapper_external_keys_with_null_and_empty_id_fallbacks() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = json!({
+            "election_event_json_file":"event.json", "realm_name":"synthetic", "tenant_id":"tenant",
+            "election_event_id":"event", "area_id":"area", "election_id":"election",
+            "generate_voters":{"csv_file_name":"voters","fields":["area_name","authorized-election-ids"],
+                "excluded_columns":[],"email_prefix":"voter","domain":"example.test","sequence_email_number":true,
+                "sequence_start_number":0,"voter_password":"test","password_salt":"salt","hashed_password":"hash",
+                "overseas_reference":"B","min_age":18,"max_age":90,"authorized_elections_count":0,"email_verified":true},
+            "duplicate_votes":{"row_id_to_clone":"row"},"generate_applications":{"applicant_data":{},"annotations":{}}
+        });
+        let event = json!({
+            "areas":[{"id":"a","name":"Eligible"},{"id":"b","name":"No elections"}],
+            "elections":[{"id":"db-1","external_id":"external-1"},{"id":"db-2","external_id":null},
+                {"id":"db-3","external_id":""},{"id":"db-4"}],
+            "contests":[{"id":"c1","election_id":"db-1"},{"id":"c2","election_id":"db-2"},
+                {"id":"c3","election_id":"db-3"},{"id":"c4","election_id":"db-4"}],
+            "area_contests":[{"area_id":"a","contest_id":"c1"},{"area_id":"a","contest_id":"c2"},
+                {"area_id":"a","contest_id":"c1"},{"area_id":"a","contest_id":"c3"},{"area_id":"a","contest_id":"c4"}]
+        });
+        std::fs::write(dir.path().join("external_config.json"), config.to_string()).unwrap();
+        std::fs::write(dir.path().join("event.json"), event.to_string()).unwrap();
+        let command = GenerateVoters {
+            working_directory: dir.path().to_str().unwrap().into(),
+            num_users: 2,
+        };
+        command
+            .run_generate_voters(&command.working_directory, 2)
+            .unwrap();
+        assert_eq!(std::fs::read_to_string(dir.path().join("voters_2.csv")).unwrap(),
+            "area_name,authorized-election-ids\nEligible,external-1|db-2|db-3|db-4\nNo elections,Unknown\n");
     }
 }

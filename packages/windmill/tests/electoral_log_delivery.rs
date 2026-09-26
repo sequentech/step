@@ -464,3 +464,103 @@ async fn current_and_invalid_wire_envelopes_keep_stable_identity_and_fail_closed
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn a_full_queue_batch_fits_in_bounded_transactions_and_replays_without_duplicates(
+) -> Result<()> {
+    use windmill::tasks::electoral_log::{
+        persist_electoral_log_board, IdentifiedLogEvent, LogEventBody, LogEventInput,
+        LogMessageType,
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(120), async {
+        let database = immudb::DatabaseServer::start().await?;
+        let mut reader = database.client().await?;
+        reader.upsert_electoral_log_db("smallcontrol").await?;
+        reader.upsert_electoral_log_db("fullqueuebatch").await?;
+        // Communications deliveries contain two audit rows, plus one atomic receipt.
+        let deliveries: Vec<_> = (0..1000)
+            .map(|index| {
+                (
+                    IdentifiedLogEvent {
+                        delivery_id: format!("{index:064x}"),
+                        payload_hash: format!("{:064x}", index + 1000),
+                        input: LogEventInput {
+                            election_event_id: "event".into(),
+                            tenant_id: "tenant".into(),
+                            message_type: LogMessageType::Internal,
+                            user_id: None,
+                            username: None,
+                            body: LogEventBody::Plain("synthetic".into()),
+                        },
+                    },
+                    vec![
+                        audit_message(&format!("send-{index}")),
+                        audit_message(&format!("event-{index}")),
+                    ],
+                )
+            })
+            .collect();
+        persist_electoral_log_board("smallcontrol", &deliveries[..16], || database.client())
+            .await?;
+        assert_eq!(
+            reader
+                .count_electoral_log_messages("smallcontrol", None)
+                .await?,
+            32
+        );
+        persist_electoral_log_board("fullqueuebatch", &deliveries, || database.client()).await?;
+        assert_eq!(
+            reader
+                .count_electoral_log_messages("fullqueuebatch", None)
+                .await?,
+            2000
+        );
+        persist_electoral_log_board("fullqueuebatch", &deliveries, || database.client()).await?;
+        let rows = reader.get_electoral_log_messages("fullqueuebatch").await?;
+        assert_eq!(rows.len(), 2000);
+        let ballots: std::collections::HashSet<_> = rows
+            .iter()
+            .map(|row| row.ballot_id.as_deref().unwrap())
+            .collect();
+        assert_eq!(ballots.len(), 2000);
+        for index in 0..1000 {
+            assert!(ballots.contains(format!("send-{index}").as_str()));
+            assert!(ballots.contains(format!("event-{index}").as_str()));
+        }
+        // A failure after the first confirmed chunk leaves the rest untouched.
+        // Redelivery may revisit that chunk, but its receipts prevent duplicates.
+        reader.upsert_electoral_log_db("partialchunk").await?;
+        let connections = std::cell::Cell::new(0);
+        let error = persist_electoral_log_board("partialchunk", &deliveries, || {
+            let attempt = connections.get() + 1;
+            connections.set(attempt);
+            let database = &database;
+            async move {
+                if attempt == 2 {
+                    bail!("injected later connection failure");
+                }
+                database.client().await
+            }
+        })
+        .await
+        .unwrap_err();
+        assert_eq!(error.to_string(), "injected later connection failure");
+        assert_eq!(connections.get(), 2);
+        assert_eq!(
+            reader
+                .count_electoral_log_messages("partialchunk", None)
+                .await?,
+            32
+        );
+        persist_electoral_log_board("partialchunk", &deliveries, || database.client()).await?;
+        assert_eq!(
+            reader
+                .count_electoral_log_messages("partialchunk", None)
+                .await?,
+            2000
+        );
+        Ok::<(), anyhow::Error>(())
+    })
+    .await??;
+    Ok(())
+}
