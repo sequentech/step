@@ -15,6 +15,13 @@ const directory = resolve(__dirname, "../..")
 export const eventPath = `/tenant/${IDS.tenant}/event/${IDS.event}/start?lang=en`
 export const realm = `tenant-${IDS.tenant}-event-${IDS.event}`
 
+export async function serveVerifier() {
+    const origin = process.env.BALLOT_VERIFIER_JOURNEY_URL
+    return origin
+        ? {origin, close: async () => {}}
+        : serveDist(resolve(directory, process.env.BALLOT_VERIFIER_JOURNEY_DIST ?? "dist"))
+}
+
 export function verifierServices(origin: string): PortalServices {
     const violations = new ViolationLog()
     const s3 = new S3Mock({origin, violations})
@@ -78,7 +85,7 @@ export const test = base.extend<
         // Playwright requires destructuring even without fixture dependencies.
         // eslint-disable-next-line no-empty-pattern
         async ({}, use) => {
-            const dist = await serveDist(resolve(directory, "dist"))
+            const dist = await serveVerifier()
             try {
                 await use(dist)
             } finally {

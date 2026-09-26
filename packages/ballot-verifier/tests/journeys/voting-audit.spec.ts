@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {resolve} from "node:path"
 import {readFile} from "node:fs/promises"
 import {
     test as votingTest,
@@ -12,14 +11,14 @@ import {serveDist} from "@sequentech/ui-test-kit/server/static"
 import {routePortal} from "@sequentech/ui-test-kit/adapters/playwright"
 import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 import type {IDecodedVoteContest} from "sequent-core"
-import {verifierServices, eventPath} from "./fixtures"
+import {verifierServices, eventPath, serveVerifier} from "./fixtures"
 
 const test = votingTest.extend<{}, {verifierDist: Awaited<ReturnType<typeof serveDist>>}>({
     verifierDist: [
         // Playwright requires destructuring even without fixture dependencies.
         // eslint-disable-next-line no-empty-pattern
         async ({}, use) => {
-            const dist = await serveDist(resolve(__dirname, "../../dist"))
+            const dist = await serveVerifier()
             try {
                 await use(dist)
             } finally {
