@@ -70,3 +70,49 @@ the `HTTP Status` and `Error Message` of a rejected request, and only
 cargo test -p step-cli --bin step-cli tally_sheet
 cargo test -p step-cli --test tally_sheet_cli
 ```
+
+The telephone automation contract tests run without a deployment:
+
+```bash
+# Repository root; Python standard library only.
+python3 -m unittest discover -s packages/step-cli/scripts -p 'test_*.py'
+# The janitor CSV generator uses its pinned Faker dependency; PostgreSQL is not
+# contacted by this test (the unrelated database import is isolated).
+python3 -m venv /tmp/step-cli-python
+/tmp/step-cli-python/bin/pip install Faker==13.3.4
+/tmp/step-cli-python/bin/python -m unittest discover -s packages/windmill/external-bin/janitor/scripts -p 'test_voter_keys.py'
+# Shipped CLI process and native contracts:
+cd packages && cargo test --locked -p step-cli
+```
+
+Setup writes `tenants.json` as tenant IDs are returned and a provisional event
+summary as soon as import completes. Cleanup can therefore recover recorded
+resources after later provisioning fails, including tenants whose event summary
+is absent. Its event-only, new-tenant-only and bootstrap protections still apply.
+Each Python CLI subprocess has a 600-second default timeout; callers may pass a
+shorter `timeout` to `run_step`. A timeout raises `StepCliError` for the existing
+retry policy. Remote tasks already submitted may continue after the process ends.
+
+`upload-document` requests a public storage endpoint by default; use `--is-local`
+only when the CLI can reach the deployment's internal storage endpoint. Loopback
+HTTP tests check the complete upload variables, exact signed PUT URL and bytes.
+Refresh-token tests cover omitted, empty and rotated refresh tokens: a fresh
+access token never discards the stored refresh token unless a nonempty replacement
+is returned.
+
+Voter CSV authorization values match the configured Keycloak mapper: use each
+assigned election's nonempty `external_id`, falling back to `id` for missing,
+null or empty external IDs. Display aliases serve country/embassy lookups only.
+An area without assigned elections retains the explicit `Unknown` sentinel;
+blank authorization attributes can invoke broader mapper fallback behavior.
+Rust and janitor tests read actual CSV and cover mixed identifiers, duplicate
+contest assignments and an area without elections. The legacy E2E civil-registry
+CSV is not an authorization fixture: its mock loader ignores that column.
+
+Kubernetes workers require a cluster supporting
+[`backoffLimitPerIndex`](https://kubernetes.io/docs/concepts/workloads/controllers/job/#backoff-limit-per-index).
+Each index has zero retries; failed indexes do not terminate remaining workers.
+The coordinator polls for `Complete` or `Failed`, bounded by `execution.wait_timeout`,
+and collects available results before returning a failure. Its process test uses
+a local `kubectl` peer to exercise the real manifest, timeout, collection and
+cleanup paths; it does not validate a cluster's scheduling or storage driver.
