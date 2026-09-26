@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import {onCLS, onINP, onFCP, onLCP, onTTFB, MetricType} from "web-vitals"
 import reportWebVitals from "../reportWebVitals"

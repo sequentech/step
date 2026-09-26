@@ -92,6 +92,49 @@ const App = () => {
     const currentEventId = routeMatch?.params.eventId
     const ballotStyle = useAppSelector(selectBallotStyleByElectionEventId(currentEventId))
 
+    // Offline verification can still use public presentation metadata. It must
+    // never need an authenticated ballot-style query or block local import.
+    const tenantId = routeMatch?.params.tenantId
+    const publicConfigUrl =
+        globalSettings.DISABLE_AUTH && tenantId && currentEventId
+            ? `${globalSettings.PUBLIC_BUCKET_URL}tenant-${tenantId}/event-${currentEventId}/election_event_config.json`
+            : undefined
+    const [publicConfig, setPublicConfig] = useState<{
+        url: string
+        presentation: IElectionEventPresentation | undefined
+    }>()
+    useEffect(() => {
+        if (!publicConfigUrl) return
+        const controller = new AbortController()
+        let active = true
+        void (async () => {
+            try {
+                const response = await fetch(publicConfigUrl, {signal: controller.signal})
+                if (!response.ok) return
+                const config = await response.json()
+                if (
+                    active &&
+                    config.tenant_id === tenantId &&
+                    config.election_event_id === currentEventId
+                ) {
+                    setPublicConfig({
+                        url: publicConfigUrl,
+                        presentation: config.election_event_presentation,
+                    })
+                }
+            } catch {
+                // Public metadata is optional when verifying a local ballot offline.
+            }
+        })()
+        return () => {
+            active = false
+            controller.abort()
+        }
+    }, [publicConfigUrl, tenantId, currentEventId])
+    const presentation =
+        ballotStyle?.ballot_eml?.election_event_presentation ??
+        (publicConfig?.url === publicConfigUrl ? publicConfig?.presentation : undefined)
+
     useEffect(() => {
         setConfirmationBallot(null)
         setBallotId("")
@@ -99,7 +142,6 @@ const App = () => {
     }, [currentEventId])
 
     useEffect(() => {
-        const presentation = ballotStyle?.ballot_eml?.election_event_presentation
         overwriteTranslations(presentation, {
             scope: ETranslationScope.BALLOT_VERIFIER,
             changeDefaultLanguage: false,
@@ -112,7 +154,7 @@ const App = () => {
                 changeDefaultLanguage: false,
             })
         }
-    }, [ballotStyle?.ballot_eml?.election_event_presentation])
+    }, [presentation])
 
     const customCss = useMemo(
         () =>

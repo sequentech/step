@@ -135,15 +135,19 @@ class StepCliError(RuntimeError):
     pass
 
 
-def run_step(step_cli_bin: str, *args: str) -> str:
+def run_step(step_cli_bin: str, *args: str, timeout: float = 600) -> str:
     """Reject nonzero exits and legacy commands that report failure only in output."""
-    proc = subprocess.run(
-        [step_cli_bin, "step", *args],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        env={**os.environ, "NO_COLOR": "1"},
-    )
+    try:
+        proc = subprocess.run(
+            [step_cli_bin, "step", *args],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env={**os.environ, "NO_COLOR": "1"},
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise StepCliError(f"step-cli step {args[0] if args else ''} timed out after {timeout}s") from error
     out = _ANSI_RE.sub("", proc.stdout)
     print(out, file=sys.stderr)
     if proc.returncode != 0 or re.search(r"^Error!", out, re.MULTILINE):

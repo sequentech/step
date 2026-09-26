@@ -18,7 +18,7 @@ export const LoginScreen: React.FC = () => {
     useEffect(() => {
         if (globalSettings.DISABLE_AUTH || authContext.isAuthenticated) {
             console.log(`navigate to: /start`)
-            navigate(`/tenant/${tenantId}/event/${eventId}/start`)
+            navigate(`/tenant/${tenantId}/event/${eventId}/start`, {replace: true})
         }
     }, [authContext.isAuthenticated, globalSettings.DISABLE_AUTH, tenantId, eventId, navigate])
 

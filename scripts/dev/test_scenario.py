@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 """Tests for scripts.dev.scenario, with fake backends instead of a stack."""
 
+import base64
 import contextlib
 import importlib
 import io
@@ -11,6 +12,7 @@ import re
 import socket
 import tempfile
 import unittest
+import urllib.parse
 from pathlib import Path
 from unittest import mock
 
@@ -87,6 +89,7 @@ def load_backend():
 
 
 backend_module = load_backend()
+journey_client = importlib.import_module("scripts.e2e.journeys.client")
 
 
 def container(service, status="running", health=None, exit_code=0):
@@ -486,6 +489,56 @@ class ResetTest(StoreTestCase):
         self.assertNotEqual(first.event_id, second.event_id)
         self.assertNotEqual(first.owner, second.owner)
 
+    def test_a_failed_delete_keeps_the_state_for_retry(self):
+        state = runner.up(KIOSK, self.backend, self.store, self.say).state
+        with mock.patch.object(
+            self.backend, "delete_event", side_effect=ScenarioError("delete timed out")
+        ):
+            with self.assertRaisesRegex(ScenarioError, "delete timed out"):
+                self.reset()
+        self.assertEqual(self.store.load(KIOSK.name).event_id, state.event_id)
+        self.assertIn(state.event_id, self.backend.events)
+        self.assertIs(self.reset(), ResetOutcome.DELETED)
+        self.assertEqual(set(self.backend.events), {"unrelated"})
+
+    def test_every_recovered_event_is_checked_before_any_is_deleted(self):
+        state = new_state(KIOSK.name, PROJECT, TENANT)
+        self.store.save(state)
+        self.backend.add_event("owned", state.annotations())
+        with mock.patch.object(
+            self.backend, "annotated_events", return_value=["owned", "unrelated"]
+        ):
+            with self.assertRaisesRegex(
+                ScenarioError, "unrelated.*nothing was deleted"
+            ):
+                self.reset()
+        self.assertEqual(set(self.backend.events), {"owned", "unrelated"})
+        self.assertEqual(self.backend.calls, [])
+        self.assertIsNotNone(self.store.load(KIOSK.name))
+
+    def test_another_tenant_is_rejected_before_inspecting_or_deleting_events(self):
+        state = new_state(KIOSK.name, PROJECT, "another-tenant")
+        state.event_id = "unrelated"
+        self.store.save(state)
+        with mock.patch.object(self.backend, "event_annotations") as annotations:
+            with self.assertRaisesRegex(
+                ScenarioError, "another-tenant.*nothing was deleted"
+            ):
+                self.reset()
+        annotations.assert_not_called()
+        self.assertEqual(set(self.backend.events), {"unrelated"})
+        self.assertIsNotNone(self.store.load(KIOSK.name))
+
+    def test_a_concurrent_reset_leaves_the_event_and_state_intact(self):
+        state = runner.up(KIOSK, self.backend, self.store, self.say).state
+        with self.store.lock(KIOSK.name):
+            with self.assertRaisesRegex(
+                StateError, "another step-dev scenario command"
+            ):
+                self.reset()
+        self.assertIn(state.event_id, self.backend.events)
+        self.assertIsNotNone(self.store.load(KIOSK.name))
+
 
 class StatusTest(StoreTestCase):
     def setUp(self):
@@ -692,11 +745,149 @@ class CommandTest(StoreTestCase):
 
     def test_reset_without_state_touches_no_backend(self):
         with mock.patch.object(cli, "_backend") as backend:
-            code, _ = self.run_command(
+            code, output = self.run_command(
                 cli.command_reset, self.context(), KIOSK, None, None
             )
         backend.assert_not_called()
         self.assertEqual(code, cli.EXIT_OK)
+        self.assertEqual(
+            json.loads(output),
+            {"scenario": "kiosk-voter", "outcome": "nothing to reset"},
+        )
+
+    def test_reset_without_state_still_reports_text(self):
+        _, output = self.run_command(
+            cli.command_reset, self.context(cli.OutputFormat.TEXT), KIOSK, None, None
+        )
+        self.assertEqual(output, "kiosk-voter: nothing to reset\n")
+
+    def test_all_scenarios_report_created_then_reused_as_json(self):
+        backend = FakeBackend()
+        backend.close = mock.Mock()
+        with (
+            mock.patch.object(cli, "_backend", return_value=backend),
+            mock.patch.object(cli, "_prepare"),
+        ):
+            for scenario in SCENARIOS:
+                with self.subTest(scenario=scenario.name):
+                    code, output = self.run_command(
+                        cli.command_up, self.context(), scenario, None, None
+                    )
+                    first = json.loads(output)
+                    self.assertEqual(code, cli.EXIT_OK)
+                    self.assertEqual(first["outcome"], "created")
+                    self.assertEqual(first["scenario"], scenario.name)
+                    self.assertEqual(
+                        list(first["links"]), [link.value for link in scenario.links]
+                    )
+                    code, output = self.run_command(
+                        cli.command_up, self.context(), scenario, None, None
+                    )
+                    second = json.loads(output)
+                    self.assertEqual(code, cli.EXIT_OK)
+                    self.assertEqual(second["eventId"], first["eventId"])
+                    self.assertEqual(second["outcome"], "reused")
+                    self.assertEqual(second["stages"], {})
+        self.assertEqual(backend.close.call_count, 6)
+
+    def test_commands_close_the_backend_when_preparation_fails(self):
+        state = new_state(KIOSK.name, PROJECT, TENANT)
+        state.event_id = "event"
+        self.store.save(state)
+        for command in (cli.command_up, cli.command_reset):
+            with self.subTest(command=command.__name__):
+                backend = mock.Mock()
+                with (
+                    mock.patch.object(cli, "_backend", return_value=backend),
+                    mock.patch.object(
+                        cli, "_prepare", side_effect=ScenarioError("login rejected")
+                    ),
+                ):
+                    with self.assertRaisesRegex(ScenarioError, "login rejected"):
+                        command(self.context(), KIOSK, None, None)
+                backend.close.assert_called_once_with()
+                self.assertEqual(self.store.load(KIOSK.name).event_id, "event")
+
+
+class KeycloakLoginTest(unittest.TestCase):
+    def test_realm_forms_use_the_configured_backend_origin_for_login_and_otp(self):
+        for origin in ("http://keycloak:8090", "http://localhost:8090", ""):
+            with self.subTest(form_origin=origin):
+                self.check_login(origin)
+
+    def check_login(self, origin):
+        session = mock.Mock()
+        callback = "http://127.0.0.1:3002/"
+        state = {}
+
+        def response(body, url, status=200, headers=None):
+            return journey_client.Response(status, headers or {}, body.encode(), url)
+
+        def login_page(url):
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+            state.update(value=query["state"][0], nonce=query["nonce"][0])
+            return response(
+                f'<form id="kc-form-login" action="{origin}/realms/tenant/'
+                'login-actions/'
+                'authenticate?session_code=first&amp;execution=password">'
+                '<input name="username"><input name="password"></form>',
+                url,
+            )
+
+        def submit(url, form):
+            if "session_code=first" in url:
+                return response(
+                    f'<form action="{origin}/realms/tenant/login-actions/'
+                    'authenticate?session_code=second&amp;execution=otp">'
+                    '<input name="code"></form>',
+                    url,
+                )
+            if "session_code=second" in url:
+                return response(
+                    "",
+                    url,
+                    302,
+                    {
+                        "Location": (
+                            f"{callback}#state={state['value']}&code=authorization"
+                        )
+                    },
+                )
+            claims = base64.urlsafe_b64encode(
+                json.dumps({"nonce": state["nonce"]}).encode()
+            ).decode()
+            return response(
+                json.dumps(
+                    {
+                        "access_token": "accepted",
+                        "id_token": f"header.{claims}.signature",
+                    }
+                ),
+                url,
+            )
+
+        session.get.side_effect = login_page
+        session.post.side_effect = submit
+        with (
+            mock.patch.object(journey_client, "Http", return_value=session),
+            mock.patch.object(journey_client, "KEYCLOAK_URL", "http://keycloak:8090"),
+        ):
+            token = journey_client.Keycloak().browser_login(
+                "tenant", "admin-portal", callback, "admin", "password", otp="123456"
+            )
+        self.assertEqual(token["access_token"], "accepted")
+        calls = session.post.call_args_list
+        self.assertEqual(
+            [call.args[0] for call in calls],
+            [
+                "http://keycloak:8090/realms/tenant/login-actions/authenticate?session_code=first&execution=password",
+                "http://keycloak:8090/realms/tenant/login-actions/authenticate?session_code=second&execution=otp",
+                "http://keycloak:8090/realms/tenant/protocol/openid-connect/token",
+            ],
+        )
+        self.assertEqual(calls[0].kwargs["form"]["username"], "admin")
+        self.assertEqual(calls[1].kwargs["form"]["code"], "123456")
+        self.assertEqual(calls[2].kwargs["form"]["code"], "authorization")
 
 
 class FakeHasura:
@@ -951,6 +1142,97 @@ class StackTest(StoreTestCase):
             ):
                 self.backend.run(Stage.KEYS, RESULTS, self.state)
         self.backend.cli.step.assert_not_called()
+
+    def test_a_failed_tally_requires_reset_without_starting_another(self):
+        self.hasura(TALLY_SESSIONS=[{"id": "t", "execution_status": "FAILED"}])
+        with mock.patch.object(self.backend, "_step") as step:
+            with self.assertRaisesRegex(
+                ScenarioError, "tally t is FAILED.*scenario reset"
+            ):
+                self.backend.run(Stage.TALLY, RESULTS, self.state)
+        step.assert_not_called()
+
+    def test_a_running_tally_is_resumed_and_waits_for_stored_results(self):
+        self.hasura(TALLY_EXECUTION=[{"id": "x", "results_event_id": "r"}])
+        sessions = iter(
+            [
+                [{"id": "t", "execution_status": "IN_PROGRESS"}],
+                [{"id": "t", "execution_status": "SUCCESS"}],
+            ]
+        )
+        self.backend.admin.answers[backend_module.TALLY_SESSIONS] = lambda _: {
+            "sequent_backend_tally_session": next(sessions)
+        }
+        with mock.patch.object(self.backend, "_step") as step:
+            self.backend.run(Stage.TALLY, RESULTS, self.state)
+        step.assert_not_called()
+
+    def test_a_successful_tally_without_stored_results_is_not_ready(self):
+        self.hasura(TALLY_SESSIONS=[{"id": "t", "execution_status": "SUCCESS"}])
+        with mock.patch.object(self.backend, "_step") as step:
+            with self.assertRaisesRegex(
+                ScenarioError, "electoral results tally: not done.*SUCCESS"
+            ):
+                self.backend.run(Stage.TALLY, RESULTS, self.state)
+        step.assert_not_called()
+
+    def test_a_running_publication_failure_reports_the_backend_error(self):
+        self.state.ids = {"elections": {"main": "e"}, "contests": {"A": "c"}}
+        self.hasura(
+            TALLY_SESSIONS=[{"id": "t", "execution_status": "SUCCESS"}],
+            TALLY_EXECUTION=[{"id": "x", "results_event_id": "r"}],
+        )
+        publications = iter(
+            [
+                [
+                    {
+                        "id": "p",
+                        "publication_status": "Publishing",
+                        "error_message": None,
+                    }
+                ],
+                [
+                    {
+                        "id": "p",
+                        "publication_status": "Failed",
+                        "error_message": "upload refused",
+                    }
+                ],
+            ]
+        )
+        self.backend.admin.answers[backend_module.RESULTS_PUBLICATION] = lambda _: {
+            "sequent_backend_tally_results_publication": next(publications)
+        }
+        with mock.patch.object(self.backend, "_step") as step:
+            with self.assertRaisesRegex(
+                ScenarioError, "publication p failed: upload refused"
+            ):
+                self.backend.run(Stage.RESULTS, RESULTS, self.state)
+        step.assert_not_called()
+
+    def test_deletion_waits_for_both_the_event_row_and_its_realm(self):
+        self.hasura(EVENT=[])
+        self.backend.timeout = None
+        self.backend.keycloak = mock.Mock()
+        responses = [
+            journey_client.Response(status, {}, b"", "") for status in (200, 404)
+        ]
+        with (
+            mock.patch.object(self.backend, "_step") as step,
+            mock.patch.object(backend_module, "Http") as http,
+        ):
+            http.return_value.get.side_effect = responses
+            self.backend.delete_event("event")
+        step.assert_called_once_with(
+            "delete-election-event", "--election-event-id", "event"
+        )
+        self.assertEqual(http.return_value.get.call_count, 2)
+        self.assertTrue(
+            all(
+                call.args[0].endswith(f"/admin/realms/tenant-{TENANT}-event-event")
+                for call in http.return_value.get.call_args_list
+            )
+        )
 
     def test_portals_already_accepted_are_not_changed(self):
         client = {

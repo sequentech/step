@@ -4,19 +4,17 @@
 """Verify profile privacy, truthful reports and actual PostgreSQL JSON collection."""
 
 import json
-import os
-from pathlib import Path
-import socket
 import subprocess
 import tempfile
 import time
 import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import psycopg
-
-from capture import collect_logs, log_positions
-from resources import extract
+from capture import collect_logs, log_positions, preflight
 from capture_report import render
+from resources import extract
 
 
 def entry(
@@ -96,6 +94,57 @@ class ResourceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             Path(directory, "capture.json").write_text(json.dumps({"completed": True}))
             self.assertIn("**not verified**", render(Path(directory)))
+
+
+class PreflightTests(unittest.TestCase):
+    """Refuse unusable SQL evidence before launching a browser journey."""
+
+    def probe(self, pattern: str, statement: str = "all", duration: str = "-1") -> dict:
+        connection = MagicMock()
+        connection.__enter__.return_value.execute.return_value.fetchone.return_value = (
+            "backend",
+            statement,
+            duration,
+            "jsonlog",
+            "on",
+            "0",
+        )
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        target = {
+            "login_url": "https://portal.example.test",
+            "databases": {"backend": {"jsonlog_glob": pattern}},
+        }
+        with (
+            patch("capture.connect", return_value=connection),
+            patch("capture.urllib.request.urlopen", return_value=response),
+        ):
+            return preflight(target)["backend"]
+
+    def test_readable_statement_logs_are_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "postgres.json")
+            path.write_text("existing log\n")
+            self.assertEqual(log_positions(str(path)), {str(path): 13})
+            self.assertTrue(self.probe(str(path))["ready"])
+
+    def test_duration_only_logs_cannot_claim_parsable_sql(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "postgres.json")
+            path.touch()
+            self.assertFalse(
+                self.probe(str(path), statement="none", duration="0")["ready"]
+            )
+
+    def test_stat_access_does_not_imply_log_read_access(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "postgres.json")
+            path.touch()
+            self.assertEqual(path.stat().st_size, 0)
+            with patch.object(Path, "open", side_effect=PermissionError("private log")):
+                result = self.probe(str(path))
+            self.assertFalse(result["ready"])
+            self.assertEqual(result["error_type"], "PermissionError")
 
 
 class PostgresLogTests(unittest.TestCase):

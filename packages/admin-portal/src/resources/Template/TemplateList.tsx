@@ -26,7 +26,7 @@ import {
 import {IPermissions} from "@/types/keycloak"
 import {ListActions} from "@/components/ListActions"
 import UploadIcon from "@mui/icons-material/Upload"
-import {ActionsColumn} from "@/components/ActionButons"
+import {ActionsColumn, type Action} from "@/components/ActionButons"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {Dialog, IconButton} from "@sequentech/ui-essentials"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -111,10 +111,6 @@ export const TemplateList: React.FC = () => {
     const handleCloseDrawer = () => {
         setOpenDrawer(false)
         refresh()
-
-        setTimeout(() => {
-            setRecordId(undefined)
-        }, 400)
     }
 
     const handleImport = () => {
@@ -141,7 +137,7 @@ export const TemplateList: React.FC = () => {
         setDeleteId(undefined)
     }
 
-    const actions: any[] = templateWrite
+    const actions: Action[] = templateWrite
         ? [
               {icon: <EditIcon />, action: handleEditDrawer},
               {icon: <DeleteIcon />, action: deleteAction},
@@ -241,7 +237,7 @@ export const TemplateList: React.FC = () => {
                         open={openDrawer}
                         setOpen={setOpenDrawer}
                         withAction={templateWrite}
-                        doAction={() => setOpenDrawer(true)}
+                        doAction={handleCreateDrawer}
                         actionLabel="common.label.add"
                     />
                 }

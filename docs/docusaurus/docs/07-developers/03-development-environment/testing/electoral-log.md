@@ -91,6 +91,11 @@ have published a batch before crashing without ACKing its originals; those two
 envelopes have different IDs and cannot be deduplicated retrospectively. The
 dispatcher has no fixed preparation deadline, matching the former batch processor,
 so a large valid batch is not repeatedly cancelled before its first commit.
+Prepared deliveries are committed in groups of at most sixteen per board, keeping
+both audit rows of a communications delivery with its receipt and leaving room
+for ImmuDB's SQL indexes. A later chunk failure leaves earlier receipts available
+for safe redelivery. The owned-database regression exercises a full thousand-event
+batch, complete replay and a connection failure after the first committed chunk.
 A permanently invalid input
 stays queued and can block progress until investigated; it is never silently ACKed.
 

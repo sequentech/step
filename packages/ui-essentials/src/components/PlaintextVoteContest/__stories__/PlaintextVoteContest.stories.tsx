@@ -214,6 +214,7 @@ export const BlankVote: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Blank Vote")).toBeVisible()
+        await expect(canvas.getByText("Blank Vote").closest("li")?.parentElement).toHaveRole("list")
         await expect(canvas.queryByText("Alice Johnson")).not.toBeInTheDocument()
     },
     render: () => (
@@ -449,6 +450,9 @@ export const DeclineToVote: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Declined to vote")).toBeVisible()
+        await expect(canvas.getByText("Declined to vote").closest("li")?.parentElement).toHaveRole(
+            "list"
+        )
         await expect(canvas.queryByText("Ballot explicitly marked invalid")).not.toBeInTheDocument()
     },
     render: () => (
@@ -479,6 +483,9 @@ export const BlankBallot: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("Blank ballot")).toBeVisible()
+        await expect(canvas.getByText("Blank ballot").closest("li")?.parentElement).toHaveRole(
+            "list"
+        )
         await expect(canvas.queryByText("Alice Johnson")).not.toBeInTheDocument()
     },
     render: () => (

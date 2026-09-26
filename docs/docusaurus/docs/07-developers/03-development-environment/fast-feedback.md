@@ -19,14 +19,15 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
-| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), portals 3000–3004 | Stories and screens on fixtures |
+| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
 | `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6010 | Login and account themes |
 | `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
-| `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook | End-to-end work in the portals |
+| `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh
 scripts/dev/step-dev mode list
 scripts/dev/step-dev mode status
+scripts/dev/step-dev mode up ui-only --servers storybook-ui-essentials,workbench
 scripts/dev/step-dev mode up ui-keycloak
 scripts/dev/step-dev mode switch backend
 scripts/dev/step-dev mode stop
@@ -130,9 +131,11 @@ Its local storage keys start with `sequent.workbench.v1.`; Reset removes them an
 portal's session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under `Workbench/`.
 
-`WORKBENCH_SEQUENT_CORE=<wasm-pack web output>` loads another sequent-core build
-without reinstalling; the page reloads when its files change and the inspector shows
-the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
+The workbench dev server automatically loads the artifact published by
+`step-dev wasm`, falling back to the installed package when none exists. Production
+builds use the installed package. `WORKBENCH_SEQUENT_CORE=<wasm-pack web output>`
+explicitly selects another build for either mode. No reinstall is needed; the page
+reloads when the artifact changes and the inspector shows the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 `test:smoke`. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
@@ -163,6 +166,11 @@ new stack the first `up` enrolls the tenant administrator's email code, as the j
 do; the admin portal then asks for it, and the Keycloak container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
+
+`up`, `urls`, `status` and `reset` accept `--format json`; progress goes to stderr.
+An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
+tenant and keeps the state file if deletion fails, so it can be retried. A second
+command for the same scenario fails while the first holds its lock.
 
 ## Incremental WASM
 
@@ -286,14 +294,22 @@ samples by default.
 ```sh
 B="scripts/dev/step-dev bench"
 $B ui-update --label before --checkout . --edit shared-header \
-  --target voting --target admin --target verifier --target results \
-  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
+  --target voting --target admin --target verifier --target results
 $B ui-update --label before --checkout . --edit voting-screen --target voting
 $B ui-update --label before --checkout . --edit shared-header --target storybook
 $B test --label before --checkout . --suite cargo-harvest
 $B rust --label before --checkout . --edit windmill-service --build windmill --build harvest
 $B wasm --label before --checkout . --edit sequent-core-wasm
 $B summarize ~/.cache/step-bench/results --phases
+```
+
+Portal dev servers compile shared UI source directly. For a legacy baseline
+that loads shared `dist` output, select that mode and include its rebuild:
+
+```sh
+STEP_SHARED_UI=dist $B ui-update --label legacy-dist --checkout . --edit shared-header \
+  --target voting --target admin --target verifier --target results \
+  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
 ```
 
 Edits insert a unique marker line and restore the file afterwards. `ui-update`
