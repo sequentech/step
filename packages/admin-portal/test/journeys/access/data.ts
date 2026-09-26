@@ -228,3 +228,79 @@ export async function rowAction(page: Page, name: string) {
     await page.getByRole("button", {name: "Actions", exact: true}).click()
     await page.getByRole("menuitem", {name, exact: true}).click()
 }
+
+export const OPERATOR_ROLE_ID = "88888888-8888-4888-8888-888888888801"
+export const AUDITOR_ROLE_ID = "88888888-8888-4888-8888-888888888802"
+
+export function role(id: string, name: string, permissions: string[]) {
+    return {
+        id,
+        name,
+        permissions,
+        access: {view: true, manage: true},
+        attributes: {},
+        client_roles: {},
+    }
+}
+
+export function permission(name: string) {
+    return {
+        id: `permission-${name}`,
+        attributes: {},
+        container_id: "tenant-realm",
+        description: null,
+        name,
+    }
+}
+
+export interface TenantScreenOptions {
+    users?: Record<string, unknown>[]
+    roles?: ReturnType<typeof role>[]
+    permissions?: ReturnType<typeof permission>[]
+    userRoles?: ReturnType<typeof role>[]
+    attributes?: ProfileAttribute[]
+}
+
+/** Answers what `/user-roles` reads; `users` and `roles` are the live lists. */
+export function mockTenantScreen(portal: PortalServices, options: TenantScreenOptions = {}) {
+    const state = {
+        users: options.users ?? [user(ALICE_ID, "alice")],
+        roles: options.roles ?? [
+            role(OPERATOR_ROLE_ID, "operator", ["voter-read"]),
+            role(AUDITOR_ROLE_ID, "auditor", ["logs-read"]),
+        ],
+    }
+    portal.graphql.on("GetUserProfileConfiguration", () => ({
+        data: {
+            get_user_profile_configuration: {
+                attributes: options.attributes ?? BASIC_ATTRIBUTES,
+                groups: [],
+            },
+        },
+    }))
+    portal.graphql.on("getUsers", () => ({
+        data: {
+            get_users: {items: state.users, total: {aggregate: {count: state.users.length}}},
+        },
+    }))
+    portal.graphql.on("getRoles", () => ({
+        data: {get_roles: {items: state.roles, total: {aggregate: {count: state.roles.length}}}},
+    }))
+    portal.graphql.on("getPermissions", () => {
+        const items = options.permissions ?? [
+            permission("voter-read"),
+            permission("voter-write"),
+            permission("logs-read"),
+        ]
+        return {data: {get_permissions: {items, total: {aggregate: {count: items.length}}}}}
+    })
+    portal.graphql.on("ListUserRoles", () => ({
+        data: {list_user_roles: options.userRoles ?? []},
+    }))
+    return state
+}
+
+export async function openUsersAndRoles(page: Page, portal: PortalServices) {
+    await page.goto(`${portal.origin}/user-roles?lang=en`)
+    await expect(page.getByText("Users and Roles", {exact: true})).toBeVisible()
+}
