@@ -307,6 +307,15 @@ export const notification = (page: Page, text: string) =>
     page.getByRole("alert", {includeHidden: true}).filter({hasText: text})
 
 /**
+ * React-admin shows one notification at a time and MUI pauses its auto-hide
+ * while hovered: move the pointer away and let the frozen clock expire it.
+ */
+export async function expireNotification(page: Page) {
+    await page.mouse.move(0, 0)
+    await page.clock.runFor(5000)
+}
+
+/**
  * Answers a known-invalid operation the way Hasura does, so a journey can go on
  * past a pinned product defect. Returns the intercepted calls.
  */
@@ -382,4 +391,31 @@ export async function catchRejections(page: Page, message: string) {
     }, message)
     return () =>
         page.evaluate(() => (window as unknown as {pinnedRejections: string[]}).pinnedRejections)
+}
+
+/**
+ * The checked-in client schema predates some Hasura columns (for example
+ * `report.permission_label`, added by migration 1748425581311), so the strict
+ * mock would reject writes that carry them. Drops only the named input fields
+ * before validation and returns the original variables for assertions.
+ */
+export function allowUnlistedInputFields(
+    portal: PortalServices,
+    operationName: string,
+    variable: string,
+    fields: string[]
+) {
+    const originals: Row[] = []
+    const handle = portal.graphql.handle.bind(portal.graphql)
+    portal.graphql.handle = async (request) => {
+        const body = request.body ? (JSON.parse(request.body) as Row) : {}
+        if (body.operationName !== operationName) return handle(request)
+        const variables = {...(body.variables as Row)}
+        originals.push(structuredClone(variables))
+        const input = {...(variables[variable] as Row)}
+        for (const field of fields) delete input[field]
+        variables[variable] = input
+        return handle({...request, body: JSON.stringify({...body, variables})})
+    }
+    return originals
 }
