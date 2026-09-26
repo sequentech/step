@@ -87,18 +87,19 @@ export const RejectApplicationDialog: React.FC<RejectApplicationDialogProps> = (
 
     const handleReject = async (data?: IRejectData) => {
         if (data) {
-            const {errors} = await rejectVoter({
-                variables: {
-                    tenant_id: tenantId,
-                    id: task?.id,
-                    user_id: "", // user_id is not available!!
-                    area_id: task?.area_id,
-                    election_event_id: electionEventId,
-                    rejection_reason: data?.rejection_reason,
-                    rejection_message: data?.rejection_message,
-                },
-            })
-            if (errors) {
+            try {
+                await rejectVoter({
+                    variables: {
+                        tenant_id: tenantId,
+                        id: task?.id,
+                        user_id: "", // user_id is not available!!
+                        area_id: task?.area_id,
+                        election_event_id: electionEventId,
+                        rejection_reason: data?.rejection_reason,
+                        rejection_message: data?.rejection_message,
+                    },
+                })
+            } catch {
                 notify(t(`approvalsScreen.notifications.rejectError`), {type: "error"})
                 return
             }
