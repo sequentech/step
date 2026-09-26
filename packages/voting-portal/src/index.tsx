@@ -21,6 +21,7 @@ import {action as votingAction} from "./routes/VotingScreen"
 import {action as castBallotAction} from "./routes/ReviewScreen"
 import {Loader} from "@sequentech/ui-essentials"
 import TenantEvent from "./routes/TenantEvent"
+import PublishedBallot from "./routes/PublishedBallot"
 import PreviewPublicationEvent from "./routes/PreviewPublicationEvent"
 import ElectionSelectionScreen from "./routes/ElectionSelectionScreen"
 import LoginScreen from "./routes/LoginScreen"
@@ -122,6 +123,7 @@ const router = createBrowserRouter(
                         },
                         {
                             path: "election/:electionId",
+                            element: <PublishedBallot />,
                             children: [
                                 {
                                     path: "start",

@@ -3,14 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useRef, ChangeEvent, KeyboardEvent} from "react"
 import {Autocomplete, TextField, Chip} from "@mui/material"
-import {create} from "@mui/material/styles/createTransitions"
 
 export type Choice = {
     id: string
     name: string
 }
 
-interface CustomAutocompleteArrayInputProps {
+export interface CustomAutocompleteArrayInputProps {
     label: string
     defaultValue?: string[]
     onChange: (value: string[]) => void

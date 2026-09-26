@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import type {RootState} from "../store"
-import {canVoteSomeElection} from "./castVotesSlice"
+import {canVoteSomeElection, parseCastVoteStatus, CastVoteStatus} from "./castVotesSlice"
 
 const state = (completed: boolean): RootState =>
     ({
@@ -47,5 +47,14 @@ describe("canVoteSomeElection", () => {
         delete (legacyState.extra as Partial<typeof legacyState.extra>).completedAcclaimedElections
 
         expect(canVoteSomeElection()(legacyState)).toBe(true)
+    })
+})
+
+describe("cast status decoding", () => {
+    it.each(Object.values(CastVoteStatus))("accepts the database status %s", (status) => {
+        expect(parseCastVoteStatus(status)).toBe(status)
+    })
+    it("rejects unknown statuses instead of treating them as accepted votes", () => {
+        expect(() => parseCastVoteStatus("unexpected-status")).toThrow("Unknown cast vote status")
     })
 })

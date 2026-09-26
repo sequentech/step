@@ -24,7 +24,8 @@
     "test:coverage": "jest --coverage --runInBand",
     "test:coverage:baseline": "jest --coverage --runInBand --coverageThreshold \"{}\"",
     "test:browser": "node --experimental-strip-types --test tests/browser/integration.test.ts",
-    "test:types": "tsc --project tsconfig.tests.json"
+    "test:types": "tsc --project tsconfig.tests.json",
+    "build:types": "tsc --emitDeclarationOnly"
   },
   "main": "dist/index.js",
   "type": "module",
