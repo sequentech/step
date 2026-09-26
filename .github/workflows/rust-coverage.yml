@@ -14,7 +14,7 @@ on:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand, velvet, wrap-map-err, harvest, windmill, step-cli, electoral-log-native, b3, braid]
+        options: [sequent-core, strand, velvet, wrap-map-err, harvest, windmill, step-cli, electoral-log-native, b3, braid, immudb-rs]
         default: sequent-core
         required: true
       base_ref:
@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native", "b3", "braid"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet", "wrap-map-err", "harvest", "windmill", "step-cli", "electoral-log-native", "b3", "braid", "immudb-rs"]') }}
     # Synthetic local fixture, shared with the ordinary Windmill test job.
     services:
       postgres:
@@ -112,6 +112,13 @@ jobs:
       - name: Install Core database fixture dependencies
         if: env.COVERAGE_PROFILE == 'sequent-core' || env.COVERAGE_PROFILE == 'b3'
         run: sudo apt-get install -y postgresql libpq-dev
+      - name: Install the owned ImmuDB consumer fixture
+        if: env.COVERAGE_PROFILE == 'immudb-rs'
+        run: |
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/immudb" https://github.com/codenotary/immudb/releases/download/v1.9.6/immudb-v1.9.6-linux-amd64
+          echo "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  $RUNNER_TEMP/immudb" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/immudb"
+          echo "ELECTORAL_LOG_TEST_IMMUDB_BINARY=$RUNNER_TEMP/immudb" >> "$GITHUB_ENV"
       - name: Install the local PDF test browser
         if: env.COVERAGE_PROFILE == 'velvet'
         uses: ./head/.github/actions/setup-test-browser
