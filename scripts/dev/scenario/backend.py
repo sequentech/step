@@ -66,6 +66,9 @@ REQUIRED_SERVICES = (
 TRUSTEE_SERVICES = bootstrap.TRUSTEES
 TRUSTEE_PROFILE = "full"
 RUNNING = "running"
+# Container states a service does not leave without a command; created,
+# restarting and removing containers are on their way.
+STOPPED = frozenset({"exited", "dead", "paused"})
 EVENT_NAME = "Scenario {name}"
 THRESHOLD = str(len(bootstrap.TRUSTEES))
 SUCCESS = "SUCCESS"
@@ -231,7 +234,7 @@ class StackBackend:
             pending = []
             for service in REQUIRED_SERVICES:
                 state = states.get(service)
-                if state is None or state.status not in (RUNNING, "restarting"):
+                if state is None or state.status in STOPPED:
                     status = state.status if state else "not created"
                     raise ScenarioError(
                         f"the backend is not running ({service}: {status}); start it "

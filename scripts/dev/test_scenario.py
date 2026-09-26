@@ -778,7 +778,8 @@ class StackTest(StoreTestCase):
 
     def test_services_still_starting_are_awaited(self):
         starting = self.states(harvest=container("harvest", health="starting"))
-        answers = iter([starting, starting, self.states()])
+        recreated = self.states(beat=container("beat", "created"))
+        answers = iter([starting, recreated, self.states()])
         self.backend.timeout = None
         with (
             mock.patch.object(
