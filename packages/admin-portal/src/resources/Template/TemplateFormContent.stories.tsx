@@ -196,8 +196,8 @@ export const DefaultTemplateUnavailable: Story = {
         )
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Save"}))
         await waitFor(() => expect(args.onSubmit).toHaveBeenCalledTimes(1))
-        // The portal's default document, set before the form was ready, is lost.
-        expect(submitted(args.onSubmit).template.document).toBeUndefined()
+        // The portal's own default document is kept.
+        expect(submitted(args.onSubmit).template.document).toContain("Your vote has been cast")
     },
 }
 
