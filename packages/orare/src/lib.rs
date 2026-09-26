@@ -42,16 +42,14 @@ pub fn lambda_runtime(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 async fn func(lambda_event: LambdaEvent<LambdaFunctionUrlRequest>) -> Result<LambdaFunctionUrlResponse, Error> {
-                    let input = serde_json::from_str(
-                        &lambda_event.payload.body.unwrap(),
-                    );
-                    let input = input
-                        .expect("error reading lambda function arguments");
-
-                    let result = #name(input)
-                      .await
-                      .map(|result| serde_json::to_string(&result).unwrap())
-                        .expect("error calling lambda function");
+                    let body = lambda_event.payload.body
+                        .context("missing lambda function body")?;
+                    let input = serde_json::from_str(&body)
+                        .context("error reading lambda function arguments")?;
+                    let output = #name(input).await
+                        .map_err(|error| anyhow::anyhow!("error calling lambda function: {error:?}"))?;
+                    let result = serde_json::to_string(&output)
+                        .context("error serializing lambda function output")?;
 
                     let mut headers = HeaderMap::new();
                     headers.insert("content-type", "text/plain".parse().unwrap());
