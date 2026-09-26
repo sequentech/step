@@ -126,12 +126,8 @@ describe("the ovcs fixes carried into the shared start screen", () => {
     it("outlines the page with h1, h2 and h3", () => {
         render(<StartLayout title="Board of Directors 2027" />)
 
-        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
-            "Board of Directors 2027"
-        )
-        expect(screen.getByRole("heading", {level: 2})).toHaveTextContent(
-            WORDS.instructionsTitle
-        )
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent("Board of Directors 2027")
+        expect(screen.getByRole("heading", {level: 2})).toHaveTextContent(WORDS.instructionsTitle)
         expect(screen.getAllByRole("heading", {level: 3})).toHaveLength(3)
     })
 
@@ -142,9 +138,36 @@ describe("the ovcs fixes carried into the shared start screen", () => {
         })
         render(<StartLayout title="T" />, i18n)
 
-        expect(document.querySelector(".instructions-description b")).toHaveTextContent(
-            "carefully"
+        expect(document.querySelector(".instructions-description b")).toHaveTextContent("carefully")
+    })
+
+    it("renders HTML in each step's description as markup", () => {
+        const i18n = catalogue({
+            ...PORTAL_WORDS,
+            startScreen: {...WORDS, step2Description: "Check <b>twice</b>"},
+        })
+        render(<StartLayout title="T" />, i18n)
+
+        expect(
+            document.querySelector(".instructions-review-step .instructions-step-description b")
+        ).toHaveTextContent("twice")
+    })
+
+    it("keeps the portal's title hooks and a div around the rendered description", () => {
+        render(
+            <StartLayout
+                title="Board of Directors 2027"
+                description={<p data-testid="block">A block paragraph</p>}
+            />
         )
+
+        expect(document.querySelector(".start-screen.screen h1.screen-title")).not.toBeNull()
+        expect(document.querySelector(".screen-title .screen-title-text")).toHaveTextContent(
+            "Board of Directors 2027"
+        )
+        // Rendered HTML may hold block elements, which a <p> cannot contain.
+        expect(screen.getByTestId("block").parentElement?.tagName).toBe("DIV")
+        expect(screen.getByTestId("block").parentElement).toHaveClass("screen-description")
     })
 
     it("gives each step the portal's hooks", () => {

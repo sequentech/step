@@ -138,6 +138,38 @@ describe("the ovcs fixes carried into the shared support materials", () => {
         expect(document.querySelector(".support-material")).not.toHaveAttribute("tabindex")
     })
 
+    it("keeps the portal's card border and background", () => {
+        render(<SupportMaterialCard title="Rules" kind="pdf" />)
+
+        expect(document.querySelector(".support-material")).toHaveStyle({
+            border: `2px solid ${theme.palette.brandSuccess}`,
+            backgroundColor: theme.palette.lightBackground,
+        })
+    })
+
+    it("keeps the class tree a client's stylesheet targets", () => {
+        render(<SupportMaterialsLayout title="Before you vote" />)
+
+        const root = document.querySelector(".support-materials-screen")
+        expect(root).toHaveClass("screen")
+        expect(root?.querySelector(".support-materials-header .screen-title")).toHaveTextContent(
+            "Before you vote"
+        )
+    })
+
+    it("wraps the rendered tab subtitle in a div, since it may hold block markup", () => {
+        render(
+            <SupportMaterialsLayout
+                title="Before you vote"
+                subtitle={<p data-testid="block">A block paragraph</p>}
+            />
+        )
+
+        const container = screen.getByTestId("block").parentElement
+        expect(container?.tagName).toBe("DIV")
+        expect(container).toHaveClass("screen-description")
+    })
+
     it("renders HTML in the subtitle as markup", () => {
         render(<SupportMaterialCard title="Rules" subtitle="The <b>rules</b>" kind="pdf" />)
 
