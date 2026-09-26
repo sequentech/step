@@ -92,7 +92,11 @@ export const CandidateDataForm: React.FC<{
     // const [defaultLangValue, setDefaultLangValue] = useState<string>("")
     const authContext = useContext(AuthContext)
 
-    const canEdit = authContext.isAuthorized(true, authContext.tenantId, IPermissions.CONTEST_WRITE)
+    const canEdit = authContext.isAuthorized(
+        true,
+        authContext.tenantId,
+        IPermissions.CANDIDATE_WRITE
+    )
 
     const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
         "sequent_backend_election_event",
@@ -491,7 +495,8 @@ export const CandidateDataForm: React.FC<{
                                 <Grid container spacing={1}>
                                     <Grid size={2}>
                                         {parsedValue?.image_document_id &&
-                                        parsedValue?.image_document_id !== "" ? (
+                                        imageData?.id === parsedValue.image_document_id &&
+                                        imageData.name ? (
                                             <img
                                                 width={200}
                                                 height={200}

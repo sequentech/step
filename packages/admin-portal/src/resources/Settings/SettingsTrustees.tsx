@@ -5,7 +5,7 @@ import React, {ReactElement, useContext, useEffect} from "react"
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
-import {faPlus} from "@fortawesome/free-solid-svg-icons"
+import AddIcon from "@mui/icons-material/Add"
 
 import {Box, Button, Drawer, Typography} from "@mui/material"
 import {useTranslation} from "react-i18next"
@@ -14,7 +14,6 @@ import {styled} from "@mui/material/styles"
 import {List, TextField, TextInput, useDelete, Identifier, DatagridConfigurable} from "react-admin"
 
 import {Dialog} from "@sequentech/ui-essentials"
-import {IconButton} from "@sequentech/ui-essentials"
 import {ListActions} from "@/components/ListActions"
 import {ActionsColumn} from "@/components/ActionButons"
 import {useTenantStore} from "@/providers/TenantContextProvider"
@@ -135,8 +134,7 @@ export const SettingsTrustees: React.FC<void> = () => {
     ]
 
     const CreateButton = () => (
-        <Button onClick={handleOpenCreateDrawer}>
-            <IconButton icon={faPlus as any} fontSize="24px" />
+        <Button onClick={handleOpenCreateDrawer} startIcon={<AddIcon />}>
             {t("trusteesSettingsScreen.common.createNew")}
         </Button>
     )

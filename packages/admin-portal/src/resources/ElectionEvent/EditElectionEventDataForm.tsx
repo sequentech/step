@@ -8,6 +8,9 @@ import {
     TextInput,
     Toolbar,
     SaveButton,
+    SaveButtonProps,
+    SaveContextProvider,
+    useSaveContext,
     RaRecord,
     Identifier,
     useEditController,
@@ -129,6 +132,29 @@ export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     electionsOrder?: Array<Sequent_Backend_Election>
     resultsWebsitePolicy?: IResultsWebsitePolicy
 } & Sequent_Backend_Election_Event
+
+const EventSaveButton: React.FC<SaveButtonProps> = (props) => {
+    const context = useSaveContext()
+    const notify = useNotify()
+    return (
+        <SaveContextProvider
+            value={{
+                ...context,
+                save: async (...args: Parameters<NonNullable<typeof context.save>>) => {
+                    try {
+                        return await context.save?.(...args)
+                    } catch (error) {
+                        notify(error instanceof Error ? error.message : String(error), {
+                            type: "error",
+                        })
+                    }
+                },
+            }}
+        >
+            <SaveButton {...props} />
+        </SaveContextProvider>
+    )
+}
 
 const ResultsWebsitePolicyFields: React.FC = () => {
     const {t} = useTranslation()
@@ -294,7 +320,6 @@ export const EditElectionEventDataForm: React.FC<{
     const [importCandidates] = useMutation<ImportCandidatesMutation>(IMPORT_CANDIDTATES)
     const defaultSecondsForCountdown = convertToNumber(process.env.SECONDS_TO_SHOW_COUNTDOWN) ?? 60
     const defaultSecondsForAlert = convertToNumber(process.env.SECONDS_TO_SHOW_ALERT) ?? 180
-    const [customUrlsValues, setCustomUrlsValues] = useState({login: "", enrollment: "", saml: ""})
     const [customLoginRes, setCustomLoginRes] = useState<FetchResult<SetCustomUrlsMutation>>()
     const [customEnrollmentRes, setCustomEnrollmentRes] =
         useState<FetchResult<SetCustomUrlsMutation>>()
@@ -968,6 +993,11 @@ export const EditElectionEventDataForm: React.FC<{
         presentation: IElectionEventPresentation,
         recordId: string
     ) => {
+        const customUrlsValues = {
+            login: presentation.custom_urls?.login ?? "",
+            enrollment: presentation.custom_urls?.enrollment ?? "",
+            saml: presentation.custom_urls?.saml ?? "",
+        }
         try {
             const urlEntries = [
                 {
@@ -1028,7 +1058,7 @@ export const EditElectionEventDataForm: React.FC<{
         recordId: string
     ) => {
         try {
-            const data = manageVoterAuthentication({
+            await manageVoterAuthentication({
                 variables: {
                     electionEventId: recordId,
                     enrollment: voterAuthentication.enrollment,
@@ -1106,6 +1136,9 @@ export const EditElectionEventDataForm: React.FC<{
             throw new Error("Election event ID is missing")
         }
         checkCustomDateTimeFormatRef.current()
+        if (canEditRealmAttributes && realmAttributesError) {
+            throw new Error(realmAttributesError)
+        }
 
         if (canEdit) {
             await handleUpdateCustomUrls(
@@ -1145,14 +1178,8 @@ export const EditElectionEventDataForm: React.FC<{
         }
     }
 
-    const saveTransform = async (values: Sequent_Backend_Election_Event_Extended) => {
-        try {
-            return await transform(await onSave(values))
-        } catch (error) {
-            notify(error instanceof Error ? error.message : String(error), {type: "error"})
-            throw error
-        }
-    }
+    const saveTransform = async (values: Sequent_Backend_Election_Event_Extended) =>
+        transform(await onSave(values))
 
     return (
         <>
@@ -1181,7 +1208,7 @@ export const EditElectionEventDataForm: React.FC<{
                 toolbar={
                     <Toolbar>
                         {canSave && (
-                            <SaveButton
+                            <EventSaveButton
                                 type="button"
                                 transform={saveTransform}
                                 alwaysEnable={activateSave}
@@ -1428,12 +1455,6 @@ export const EditElectionEventDataForm: React.FC<{
                                     sx={{width: "300px"}}
                                     source={`presentation.custom_urls.login`}
                                     label={""}
-                                    onChange={(e) =>
-                                        setCustomUrlsValues({
-                                            ...customUrlsValues,
-                                            login: e.target.value,
-                                        })
-                                    }
                                 />
                                 <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
                                 {isCustomUrlLoading ? (
@@ -1463,12 +1484,6 @@ export const EditElectionEventDataForm: React.FC<{
                                     sx={{width: "300px"}}
                                     source={`presentation.custom_urls.enrollment`}
                                     label={""}
-                                    onChange={(e) =>
-                                        setCustomUrlsValues({
-                                            ...customUrlsValues,
-                                            enrollment: e.target.value,
-                                        })
-                                    }
                                 />
                                 <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
                                 {isCustomUrlLoading ? (
@@ -1499,12 +1514,6 @@ export const EditElectionEventDataForm: React.FC<{
                                     sx={{width: "300px"}}
                                     source={`presentation.custom_urls.saml`}
                                     label={""}
-                                    onChange={(e) =>
-                                        setCustomUrlsValues({
-                                            ...customUrlsValues,
-                                            saml: e.target.value,
-                                        })
-                                    }
                                 />
                                 <p>{`.${globalSettings.CUSTOM_URLS_DOMAIN_NAME}`}</p>
                                 {isCustomUrlLoading ? (

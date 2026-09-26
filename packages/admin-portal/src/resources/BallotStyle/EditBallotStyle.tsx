@@ -76,16 +76,6 @@ const BallotStyleForm: React.FC = () => {
                         displayDataTypes: false,
                     }}
                 />
-                <JsonInput
-                    source="status"
-                    jsonString={false}
-                    reactJsonOptions={{
-                        name: null,
-                        collapsed: true,
-                        enableClipboard: true,
-                        displayDataTypes: false,
-                    }}
-                />
             </SimpleForm>
         </Box>
     )

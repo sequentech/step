@@ -136,6 +136,7 @@ export const SettingsElectionsTypes: React.FC<void> = () => {
                 actions={
                     <ListActions
                         custom
+                        withComponent={canWriteTenant}
                         withFilter
                         open={openDrawer}
                         setOpen={setOpenDrawer}
