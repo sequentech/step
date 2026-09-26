@@ -37,6 +37,7 @@ from scripts.dev.mode.plan import (
     closure,
     dependencies,
     find_conflicts,
+    healthcheck_drifted,
     published_ports,
     readiness,
 )
@@ -415,10 +416,11 @@ class ContainerStateTest(unittest.TestCase):
             },
             "HostConfig": {"RestartPolicy": {"Name": "always"}},
             "Config": {
+                "Healthcheck": {"Test": ["CMD-SHELL", "true"]},
                 "Labels": {
                     "com.docker.compose.service": "keycloak",
                     "devcontainer.local_folder": "/home/me/step",
-                }
+                },
             },
         }
         self.assertEqual(
@@ -432,6 +434,7 @@ class ContainerStateTest(unittest.TestCase):
                 0,
                 "always",
                 "/home/me/step",
+                ("CMD-SHELL", "true"),
             ),
         )
 
@@ -632,6 +635,29 @@ class ConflictTest(unittest.TestCase):
         self.assertEqual(
             self.conflicts([], state("devcontainer"), ("devcontainer",)), []
         )
+
+
+class HealthcheckDriftTest(unittest.TestCase):
+    RABBITMQ = ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
+
+    def container(self, test):
+        return ContainerState(
+            "i", "rabbitmq", "rabbitmq", "running", None, 0, "no", None, test
+        )
+
+    def test_container_created_before_the_check(self):
+        service = {"healthcheck": {"test": self.RABBITMQ}}
+        self.assertTrue(healthcheck_drifted(service, self.container(None)))
+        self.assertTrue(healthcheck_drifted(service, self.container(("CMD", "true"))))
+        self.assertFalse(
+            healthcheck_drifted(service, self.container(tuple(self.RABBITMQ)))
+        )
+
+    def test_image_checks_and_disabled_checks_are_kept(self):
+        # Without a Compose health check the container runs its image's one.
+        self.assertFalse(healthcheck_drifted({}, self.container(("CMD", "true"))))
+        disabled = {"healthcheck": {"test": ["NONE"], "disable": True}}
+        self.assertFalse(healthcheck_drifted(disabled, self.container(None)))
 
 
 class ReadinessTest(unittest.TestCase):

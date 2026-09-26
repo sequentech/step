@@ -33,7 +33,15 @@ from .manifest import (
     Server,
     load_manifest,
 )
-from .plan import Conflict, PlanError, Readiness, closure, find_conflicts, readiness
+from .plan import (
+    Conflict,
+    PlanError,
+    Readiness,
+    closure,
+    find_conflicts,
+    healthcheck_drifted,
+    readiness,
+)
 from .servers import Devcontainer, ServerState, Started
 
 POLL_SECONDS = 2.0
@@ -303,13 +311,28 @@ def command_up(
     ensure_volumes(context.checkout.cache_volumes())
     to_start = [service for service in plan.services if service != DEVCONTAINER_SERVICE]
     context.say(f"mode {mode.name}: {', '.join(plan.services)}")
+    drifted = [
+        service
+        for service in to_start
+        if service in plan.states
+        and healthcheck_drifted(plan.config[service], plan.states[service])
+    ]
+    if drifted and context.checkout.binds_resolve_on_host:
+        # Only the containers go; the next command creates them again, in
+        # dependency order, with volumes and bind mounts untouched.
+        context.say(f"replacing {', '.join(drifted)}: their health check changed")
+        code = plan.compose.run("rm", "--stop", "--force", *drifted)
+        if code != EXIT_OK:
+            raise ModeError(f"docker compose rm failed with exit code {code}")
     if to_start:
-        # Only the Dev Containers CLI creates the devcontainer, so --no-deps
-        # keeps Compose away from it; the mode's other services are all listed
-        # and recreated when their configuration changed. Without host paths a
-        # recreated service would lose its bind mounts, so existing ones stay.
-        policy = [] if context.checkout.binds_resolve_on_host else ["--no-recreate"]
-        code = plan.compose.run("up", "--detach", "--no-deps", *policy, *to_start)
+        # Existing containers are started as they are: Compose releases differ
+        # in what makes them recreate one, and the devcontainer's Compose would
+        # replace every service the Dev Containers CLI created on the host.
+        # --no-deps keeps Compose away from the devcontainer itself, whose
+        # configuration only the CLI knows; the mode's services are all listed.
+        code = plan.compose.run(
+            "up", "--detach", "--no-deps", "--no-recreate", *to_start
+        )
         if code != EXIT_OK:
             raise ModeError(f"docker compose up failed with exit code {code}")
     wait = timeout if timeout is not None else mode.ready_timeout

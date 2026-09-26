@@ -71,6 +71,19 @@ def published_ports(service: Mapping[str, Any]) -> list[PortBinding]:
     return bindings
 
 
+def healthcheck_drifted(service: Mapping[str, Any], state: ContainerState) -> bool:
+    """Whether the container predates the service's current health check.
+
+    Compose starts a service's dependents only once a service_healthy
+    dependency passes its check, and refuses when the container has none.
+    Without a health check in Compose the container keeps its image's one.
+    """
+    test = (service.get("healthcheck") or {}).get("test")
+    if not test or (service.get("healthcheck") or {}).get("disable"):
+        return False
+    return tuple(test) != state.healthcheck
+
+
 class ConflictKind(Enum):
     CONTAINER_NAME = "container name"
     HOST_PORT = "host port"
