@@ -10,7 +10,12 @@ import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import {STORY_IDS} from "@/__stories__/fixtures"
 import type {ReadState} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
-import {TreeStory, treeServices, type TreeServices} from "./__stories__/ElectionTreeFixture"
+import {
+    IMAGE_DOCUMENT_ID,
+    TreeStory,
+    treeServices,
+    type TreeServices,
+} from "./__stories__/ElectionTreeFixture"
 import ElectionEvents from "./ElectionEvents"
 import {useStoryGlobals} from "../../../../../ui-essentials/.storybook/globals"
 
@@ -113,8 +118,11 @@ export const OnAContestPage: Story = {
         await expect(await item(canvasElement, "Seats")).toBeVisible()
         await expect(await item(canvasElement, "Members")).toBeVisible()
         await expect(await item(canvasElement, "Alice")).toBeVisible()
-        // The election tree query does not select image_document_id, so no election image shows.
-        expect(within(canvasElement).queryByRole("img", {name: "Mayor"})).toBeNull()
+        const image = await within(canvasElement).findByRole("img", {name: "Mayor"})
+        expect(image).toHaveAttribute(
+            "src",
+            expect.stringContaining(`document-${IMAGE_DOCUMENT_ID}/mayor.png`)
+        )
         expect(services.data.calls).toContainEqual({
             method: "getOne",
             args: ["sequent_backend_contest", expect.objectContaining({id: STORY_IDS.contest})],
