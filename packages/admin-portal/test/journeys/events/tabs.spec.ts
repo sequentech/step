@@ -225,3 +225,77 @@ test.describe("without write permission", () => {
         await expect(page.getByRole("button", {name: "Import", exact: true})).toHaveCount(0)
     })
 })
+
+test.describe("ceremony, tally and publication tabs", () => {
+    test.use({
+        roles: [
+            ...EVENT_ROLES,
+            "election-event-keys-tab",
+            "admin-ceremony",
+            "election-event-tally-tab",
+            "tally-read",
+            "tally-sheet-import-view",
+            "election-event-publish-tab",
+            "publish-read",
+            "election-event-reports-tab",
+            "report-read",
+        ],
+    })
+
+    test("renders each tab's empty state for a new event", async ({page, portal}) => {
+        mockEvent(portal)
+        portal.graphql.on("ListKeysCeremony", () => ({
+            data: {list_keys_ceremony: {items: [], total: {aggregate: {count: 0}}}},
+        }))
+        portal.graphql.on("TrusteeNames", () => ({data: {sequent_backend_trustee: []}}))
+        for (const resource of [
+            "sequent_backend_keys_ceremony",
+            "sequent_backend_tally_session",
+            "sequent_backend_tally_session_execution",
+            "sequent_backend_tally_sheet_import",
+            "sequent_backend_ballot_publication",
+            "sequent_backend_template",
+            "sequent_backend_report",
+        ])
+            portal.graphql.on(resource, listOf(resource, []))
+        await openEvent(page, portal)
+        await expect(tabs(page)).toHaveText([
+            "Keys",
+            "Tally",
+            "Tally sheet imports",
+            "Publish",
+            "Reports",
+        ])
+        const emptyStates = {
+            "Keys": "No Key Ceremony yet.",
+            "Tally": "No Tally yet.",
+            "Tally sheet imports": "No tally sheet imports yet.",
+            "Publish": "No Publication Yet.",
+            "Reports": "No Reports yet.",
+        }
+        for (const [tab, empty] of Object.entries(emptyStates)) {
+            await page.getByRole("tab", {name: tab, exact: true}).click()
+            await expect(page.getByText(empty, {exact: true})).toBeVisible()
+        }
+        expect(await firstCall(portal, "ListKeysCeremony")).toEqual({electionEventId: EVENT_ID})
+    })
+
+    test("opens tally sheet imports from a shared tabId link", async ({page, portal}) => {
+        mockEvent(portal)
+        portal.graphql.on("ListKeysCeremony", () => ({
+            data: {list_keys_ceremony: {items: [], total: {aggregate: {count: 0}}}},
+        }))
+        portal.graphql.on("TrusteeNames", () => ({data: {sequent_backend_trustee: []}}))
+        for (const resource of [
+            "sequent_backend_keys_ceremony",
+            "sequent_backend_tally_sheet_import",
+        ])
+            portal.graphql.on(resource, listOf(resource, []))
+        await page.goto(`${portal.origin}${EVENT_URL}?tabId=tally-sheet-imports&lang=en`)
+        await expect(
+            page.getByRole("tab", {name: "Tally sheet imports", exact: true})
+        ).toHaveAttribute("aria-selected", "true")
+        await expect(page.getByText("No tally sheet imports yet.", {exact: true})).toBeVisible()
+        await expect.poll(() => new URL(page.url()).searchParams.has("tabId")).toBe(false)
+    })
+})
