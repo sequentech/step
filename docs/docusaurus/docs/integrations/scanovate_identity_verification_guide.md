@@ -288,7 +288,14 @@ container starts the `base` profile by default.
    docker compose build keycloak && docker compose up -d keycloak
    ```
 
-4. Enrollment OTPs aren't sent: the dummy email and SMS senders write them to
+4. Start the admin portal from `packages/` in a `devenv shell`. It imports the
+   shared UI libraries from their builds, so build them first:
+
+   ```bash
+   yarn && yarn build:ui-core && yarn build:ui-essentials && yarn start:admin-portal
+   ```
+
+5. Enrollment OTPs aren't sent: the dummy email and SMS senders write them to
    the Keycloak log. Read them with `docker logs keycloak 2>&1 | grep "Your OTP is"`.
 
 ### Sample election event
