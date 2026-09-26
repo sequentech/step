@@ -582,14 +582,8 @@ services:
       # otherwise triggers a rebuild all the time (probably rust analyzer)
       "--ignore",
       "rust-local-target/",
-      # harvest, windmill and beat share packages/target and rebuild together
-      # after a windmill or sequent-core edit. Each watcher first builds all
-      # three binaries in one Cargo invocation, so whichever takes the build
-      # directory lock compiles them in parallel and the others find them
-      # fresh. --keep-going and `;` keep a compile error in one binary from
-      # stopping the others.
-      "-s",
-      "cargo build --keep-going -p harvest -p windmill --bin harvest --bin main --bin beat; cargo run"
+      "-x",
+      "run"
     ]
     environment:
       RUST_BACKTRACE: ${RUST_BACKTRACE}
@@ -599,10 +593,8 @@ services:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${HARVEST_PORT}
       RUSTFLAGS: ${RUSTFLAGS}
-      # Links with the Rust toolchain's LLD on aarch64, where GNU ld takes
-      # minutes per debug binary. harvest, windmill and beat share
-      # packages/target, so they must agree on it and on RUSTFLAGS: both are
-      # part of every unit's fingerprint.
+      # Keep linker settings compatible for units sharing packages/target.
+      # The wrapper preserves debug flags and uses cc when bundled LLD is absent.
       CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/.devcontainer/scripts/rust-lld-cc.sh
       CARGO_TERM_COLOR: ${CARGO_TERM_COLOR}
       IMMUDB_USER: ${IMMUDB_USER}
@@ -895,9 +887,8 @@ services:
       "rust-local-target/",
       "--ignore",
       "windmill/core",
-      # The same build as harvest's, see there.
-      "-s",
-      "cargo build --keep-going -p harvest -p windmill --bin harvest --bin main --bin beat; cargo run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
+      "-x",
+      "run --bin main consume -q beat short_queue tally_queue reports_queue communication_queue import_export_queue electoral_log_batch_queue electoral_log_beat_queue --prefetch-count 1"
     ]
     volumes_from:
       - devcontainer
@@ -1024,9 +1015,8 @@ services:
       # otherwise triggers a rebuild all the time (probably rust analyzer)
       "--ignore",
       "rust-local-target/",
-      # The same build as harvest's, see there.
-      "-s",
-      "cargo build --keep-going -p harvest -p windmill --bin harvest --bin main --bin beat; cargo run --bin beat"
+      "-x",
+      "run --bin beat"
     ]
     environment:
       RUSTFLAGS: ${RUSTFLAGS}

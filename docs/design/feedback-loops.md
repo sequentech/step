@@ -203,6 +203,45 @@ Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and
 usable from agent instructions as well as the developer guides.
 
+## Native Rust candidate
+
+The combined Harvest/Windmill/beat prebuild was removed before adoption. Its
+assumption that each service resolves the same dependency features is false:
+`cargo tree --edges normal,build --format '{p}|{f}'` records `bstr` with
+`alloc,default,std,unicode` for Harvest and `alloc,std` for Windmill. Building all
+binaries together can therefore invalidate a subsequent per-service `cargo run`.
+This rejects the reuse assumption; no before/after speedup was measured for that
+combined-build implementation, and dependency feature policies remain unchanged.
+
+Cargo-watch 8.5.3 already derives local dependency directories from the current
+crate. Debug output confirms Harvest watches Windmill and its transitive local
+dependencies, while Windmill does not watch Harvest. The baseline Harvest-only
+edit restarts and builds only Harvest in all ten measured samples (37.565 s
+median, 37.09–39.13 s until the watcher settles). A Windmill edit legitimately
+restarts Harvest, Windmill and beat. Extra explicit watch lists are unnecessary
+for these observed cases.
+
+The remaining candidate selects Rust's bundled LLD on aarch64 Linux and retains
+full development debug information and per-service Cargo commands. Replaying
+captured service-container linker invocations, with three samples per linker,
+gave these medians and ranges:
+
+| Binary | GNU ld | Bundled LLD |
+| --- | --- | --- |
+| beat | 38.661 s (29.119–66.587) | 6.554 s (2.977–19.541) |
+| Harvest | 30.800 s (30.392–39.123) | 4.101 s (3.612–4.402) |
+| Windmill main | 27.160 s (26.382–27.767) | 3.153 s (3.148–4.292) |
+
+These are link-only observations under varying concurrent load, not complete
+incremental rebuilds or service-ready results. They justify measuring the LLD
+candidate, not declaring it adopted. The wrapper's argument preservation,
+availability fallback and error propagation have isolated regression tests.
+Paired direct codegen/link measurements, service-ready samples and debugger
+validation remain required before adoption. Reduced debug information,
+split-debuginfo, dependency optimization, codegen-unit and incremental-profile
+changes have not been measured for the native services. A crate extraction has
+not been justified by the current evidence.
+
 ## Continuing this work
 
 Another machine or agent resumes from the tracking issue, this record and the pushed
