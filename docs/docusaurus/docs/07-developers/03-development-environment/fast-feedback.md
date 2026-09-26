@@ -458,16 +458,22 @@ Rust test and CLI jobs restore Cargo downloads separately from a bounded local
 sccache store. The compiler key includes OS/architecture, rustc identity,
 workspace manifests and Cargo configuration, the actual workspace lockfile,
 profiles, features, targets and compiler flags. Source edits reuse compatible
-units; a lockfile change can restore the prior compatible snapshot. Cargo still
-builds and runs tests every time, and sccache validates each compilation's inputs.
+units; compiler restore prefixes retain that full identity, including the
+lockfile. Cargo still builds and runs tests every time, and sccache validates each
+compilation's inputs.
 A snapshot hit never skips a test.
 
 The job summary reports the key and restore status; the sccache post-step reports
 compiler hits, misses and unsupported calls. Each compiler snapshot is limited
-to 512 MiB and only successful pushes to `main`, `ovcs` and `release/**` save it.
-PRs and manual runs only restore. Snapshots are immutable per compatibility key;
-set the repository variable `STEP_RUST_CACHE_EPOCH` to a new value to force a new
-snapshot. GitHub may evict older entries within its repository cache quota. A
+to 512 MiB. Successful PR runs save within their merge ref, which
+[GitHub excludes from the base branch and other PRs](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache);
+successful pushes to `main`, `ovcs` and
+`release/**` seed shared snapshots. Other events, including manual runs and
+`pull_request_target`, only restore. Run-and-attempt generation keys save newly
+compiled units after source edits without changing the compatibility identity.
+Cargo download caches retain fixed lockfile keys and skip saving on exact hits.
+Set `STEP_RUST_CACHE_EPOCH` to a new value to reset compiler compatibility.
+GitHub may evict older generations within its repository cache quota. A
 missing download or compiler snapshot builds normally; an unavailable sccache
 installer falls back to rustc. To reproduce an identity locally:
 
