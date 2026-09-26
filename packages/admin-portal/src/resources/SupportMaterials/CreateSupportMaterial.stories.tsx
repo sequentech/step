@@ -35,7 +35,7 @@ let data: ReturnType<typeof resourceBoundary>
 let uploads: ReturnType<typeof storyFetch>
 
 const meta = {
-    title: "Admin/SupportMaterials/CreateSupportMaterial",
+    title: "Admin/Support materials/CreateSupportMaterial",
     component: CreateSupportMaterial,
     args: {uploadFailure: false, failure: false, close: fn()},
     beforeEach: async ({args}) => {

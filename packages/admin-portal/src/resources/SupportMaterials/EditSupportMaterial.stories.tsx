@@ -45,7 +45,7 @@ let data: ReturnType<typeof resourceBoundary>
 let uploads: ReturnType<typeof storyFetch>
 
 const meta = {
-    title: "Admin/SupportMaterials/EditSupportMaterial",
+    title: "Admin/Support materials/EditSupportMaterial",
     component: EditSupportMaterial,
     args: {eventReads: "records", reads: "records", failure: false, close: fn()},
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},

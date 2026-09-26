@@ -58,7 +58,6 @@ export default meta
 type Story = StoryObj<Scenario>
 
 export const Populated: Story = {
-    parameters: {widgets: ["Notifications"]},
     play: async ({canvasElement}) => {
         await waitFor(() => expect(within(canvasElement).getAllByRole("row")).toHaveLength(2))
         expect(data.calls.map(({method, args}) => [method, args[0]])).toEqual([

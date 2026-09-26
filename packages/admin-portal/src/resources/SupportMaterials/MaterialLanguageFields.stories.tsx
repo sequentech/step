@@ -56,7 +56,7 @@ function MaterialForm({title, subtitle, onTitleChange, onSubtitleChange, onSubmi
 }
 
 const meta = {
-    title: "Admin/SupportMaterials/MaterialLanguageFields",
+    title: "Admin/Support materials/MaterialLanguageFields",
     component: MaterialLanguageFields,
     args: {
         title: "Voting guide",
