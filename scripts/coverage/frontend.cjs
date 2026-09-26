@@ -25,15 +25,25 @@ config.coverageDirectory = output;
 config.coverageReporters = ["text", "html", "lcov", "json", "json-summary"];
 config.coverageProvider = "babel";
 config.testEnvironment = resolve(`jest-environment-${config.testEnvironment}`);
+// Test support may be introduced or moved with coverage tooling, e.g. a stub
+// the candidate maps a WASM package to, or setup shared from another package.
+// Keep the base's own file whenever it already exists; an older base that has
+// never had it borrows the candidate's, instead of failing to resolve it.
+function baseOrCandidate(file) {
+  if (typeof file !== "string" || !file.includes("<rootDir>")) return file;
+  const original = file.replace("<rootDir>", packageRoot);
+  // A mapper target with a capture group ($1) names no single file.
+  if (/\$\d/.test(file) || fs.existsSync(original)) return original;
+  const borrowed = file.replace("<rootDir>", candidatePackage);
+  return fs.existsSync(borrowed) ? borrowed : original;
+}
 for (const key of ["setupFiles", "setupFilesAfterEnv"]) {
-  config[key] = (config[key] || []).map((file) => {
-    const original = file.replace("<rootDir>", packageRoot);
-    // Environment bootstrap may be introduced with coverage tooling. Keep
-    // the base's own test helpers whenever they already exist.
-    return fs.existsSync(original)
-      ? original
-      : file.replace("<rootDir>", candidatePackage);
-  });
+  config[key] = (config[key] || []).map(baseOrCandidate);
+}
+for (const [pattern, target] of Object.entries(config.moduleNameMapper || {})) {
+  config.moduleNameMapper[pattern] = Array.isArray(target)
+    ? target.map(baseOrCandidate)
+    : baseOrCandidate(target);
 }
 for (const entry of Object.values(config.transform)) {
   entry[0] = resolve(entry[0]);
