@@ -20,7 +20,9 @@ provider contracts, it renders the import and confirmation screens and the event
 routes (`/tenant/:tenantId/event/:eventId/{login,start,confirmation}`), with App
 mounted in the provider tree of `src/index.tsx`. Assertions use roles, labels and
 visible text. App tests live in `src/App.routing.test.tsx`; `src/App.test.tsx` is
-an obsolete scaffold outside the profile.
+an obsolete scaffold outside the profile. With authentication disabled, root and
+direct login links reach the appropriate event's import step, and verification
+continues to confirmation without Keycloak or private GraphQL requests.
 
 Test doubles live in `src/__mocks__`:
 

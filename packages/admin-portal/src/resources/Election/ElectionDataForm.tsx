@@ -94,6 +94,8 @@ import {useGetDocumentUrl} from "@/hooks/useGetDocumentUrl"
 import {SettingsLanguageSelector} from "@/components/SettingsLanguageSelector"
 import {IVR_ENTITY_I18N_ANNOTATION, parseIvrEntityAnnotations} from "@/utils/ivr"
 
+const formResetOptions = {keepDirtyValues: true}
+
 const LangsWrapper = styled(Box)`
     margin-top: 46px;
 `
@@ -610,6 +612,7 @@ export const ElectionDataForm: React.FC = () => {
                         }}
                         defaultValues={{contestsOrder: sortedContests}}
                         record={parsedValue}
+                        resetOptions={formResetOptions}
                         toolbar={<Toolbar>{canEdit && <SaveButton />}</Toolbar>}
                     >
                         <Accordion
