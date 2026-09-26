@@ -38,16 +38,25 @@ const record = {
     attributes: {"security-answer": ["redacted"]},
     area: {id: AREA_ID, name: "Central"},
 }
+const city = {
+    name: "city",
+    display_name: "City",
+    annotations: {},
+    validations: {length: {min: 2, max: 20}},
+}
+const recordWithCity = {...record, attributes: {...record.attributes, city: ["Springfield"]}}
 interface Scenario {
     permissions: string[]
     voted: boolean
     reveal: "success" | "failure" | "pending"
+    /** Adds a custom City attribute with a length rule. */
+    custom?: boolean
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof dataBoundary>
 let pendingRequests = 0
 let release: (() => Promise<void>) | undefined
-function Fixture({permissions}: Scenario) {
+function Fixture({permissions, custom}: Scenario) {
     const auth = useContext(AuthContext)
     const [allowed, setAllowed] = useState(permissions)
     const [mounted, setMounted] = useState(true)
@@ -75,9 +84,9 @@ function Fixture({permissions}: Scenario) {
                         id={USER_ID}
                         electionEventId={EVENT_ID}
                         rolesList={[]}
-                        userAttributes={attributes}
+                        userAttributes={custom ? [...attributes, city] : attributes}
                         userAttributeGroups={[]}
-                        record={record}
+                        record={custom ? recordWithCity : record}
                     />
                 )}
             </AuthContext.Provider>
@@ -93,6 +102,7 @@ const meta = {
         release = undefined
         boundary = graphqlBoundary({
             ListUserRoles: () => ({data: {list_user_roles: []}}),
+            EditUser: () => ({data: {edit_user: {user: null, task_execution: null}}}),
             RevealVoterSecretAttribute: () => {
                 if (args.reveal === "failure")
                     throw new Error("Synthetic secret service unavailable")
@@ -313,5 +323,80 @@ export const VotedEditPermissionAllowsFields: Story = {
         expect(canvas.getByRole("textbox", {name: "Email"})).toBeEnabled()
         expect(canvas.getByRole("textbox", {name: "Username"})).toBeDisabled()
         expect(canvas.getByRole("checkbox", {name: "Enabled *"})).toBeEnabled()
+    },
+}
+
+const cityField = (canvasElement: HTMLElement) =>
+    within(canvasElement).getByRole("textbox", {name: "City"})
+export const CustomAttributeCommitsOnBlur: Story = {
+    args: {permissions: ["voter-write"], custom: true},
+    parameters: {widgets: ["AttributeTextInput"]},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        expect(cityField(canvasElement)).toHaveValue("Springfield")
+        expect(canvas.getByText("Between 2 and 20 characters")).toBeVisible()
+        await userEvent.clear(cityField(canvasElement))
+        await userEvent.type(cityField(canvasElement), "Shelbyville")
+        await userEvent.tab()
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        const review = await canvas.findByRole("heading", {name: "Review changes"})
+        const row = within(review.parentElement?.parentElement ?? canvasElement)
+            .getByText("Shelbyville")
+            .closest("tr")
+        expect(row).toHaveTextContent("Springfield")
+        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles"])
+        await userEvent.click(canvas.getByRole("button", {name: "Confirm changes"}))
+        await waitFor(() =>
+            expect(
+                boundary.calls.find((call) => call.name === "EditUser")?.variables
+            ).toMatchObject({
+                body: {attributes: {city: ["Shelbyville"]}},
+            })
+        )
+    },
+}
+export const CustomAttributeCommitsOnEnter: Story = {
+    args: {permissions: ["voter-write"], custom: true},
+    parameters: {widgets: ["AttributeTextInput"]},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await userEvent.clear(cityField(canvasElement))
+        await userEvent.type(cityField(canvasElement), "Ogdenville{Enter}")
+        // Committing remounts the field with the new value instead of submitting the form.
+        await waitFor(() => expect(cityField(canvasElement)).toHaveValue("Ogdenville"))
+        expect(canvas.queryByRole("heading", {name: "Review changes"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await expect(await canvas.findByRole("heading", {name: "Review changes"})).toBeVisible()
+        expect(canvas.getByText("Ogdenville")).toBeVisible()
+    },
+}
+export const CustomAttributeTooShort: Story = {
+    args: {permissions: ["voter-write"], custom: true},
+    parameters: {widgets: ["AttributeTextInput"]},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        await userEvent.clear(cityField(canvasElement))
+        await userEvent.type(cityField(canvasElement), "S")
+        await userEvent.tab()
+        await expect(
+            await canvas.findByText('"City" must be between 2 and 20 characters')
+        ).toBeVisible()
+        expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
+        expect(boundary.calls.map((call) => call.name)).toEqual(["ListUserRoles"])
+    },
+}
+export const CustomAttributeReadOnly: Story = {
+    args: {permissions: [], custom: true},
+    parameters: {
+        widgets: ["AttributeTextInput"],
+        expectedFailure: {
+            reason: "The length hint of a disabled field is grey on white, below the contrast minimum.",
+            a11y: ["color-contrast"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        await loaded(canvasElement)
+        expect(cityField(canvasElement)).toBeDisabled()
+        expect(cityField(canvasElement)).toHaveValue("Springfield")
     },
 }
