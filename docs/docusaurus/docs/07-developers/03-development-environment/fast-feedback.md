@@ -138,6 +138,70 @@ shown when the portal loader rejects a snapshot.
 
 ## Focused tests
 
+`step-dev test` runs the narrowest existing command for a package, check, file,
+directory, story or spec and prints that scope, and what it leaves out, first.
+It adds no coverage and starts no services unless the selected check needs them.
+
+```sh
+S=scripts/dev/step-dev
+$S test voting-portal            # the package's fast tests
+$S test packages/ui-essentials/src/components/Header/Header.tsx   # Jest related tests
+$S test packages/voting-portal/src/App.test.tsx -t 'renders'
+$S test admin-portal --story screens-admin-tally-ceremony--populated
+$S test packages/voting-portal/test/journeys/review.spec.ts 'shows the review'
+$S test packages/sequent-core/tests/sqlite_feature_boundaries.rs
+$S test windmill services::probe
+$S test scripts/dev/affected/model.py
+$S test voting-portal --watch
+$S test --list                   # every check, its cost and command
+$S test --affected               # fast checks of the current changes
+$S validate                      # also slow checks; --depth full adds integration
+$S affected --worktree           # what the changes affect, and why
+```
+
+A second argument, `-t`, `-g` or `-k` filters by test name (Jest and Vitest `-t`,
+Playwright `-g`, the Cargo filter, unittest `-k`); arguments after `--` go to the
+runner. A narrowed run that executes no test fails. A Rust source file runs its
+crate's whole check, since any test may exercise it; a file under `tests/` runs
+that target with the features its `#![cfg]` and `required-features` need. Cargo
+builds into the checkout's `packages/rust-local-target` unless `CARGO_TARGET_DIR`
+is absolute. Journeys build the production portal first only when its `dist/` is
+missing, so rebuild it after source changes. `--watch` uses Jest's and Vitest's
+watch modes, `cargo watch` over the crate and its path dependencies, or reruns
+when files of the package or its dependencies change.
+
+Checks cost `fast` (installed dependencies and compilers, a browser for small
+suites), `slow` (story catalogues, production, release or cross-target builds,
+Maven, the documentation site) or `integration` (Docker stacks or a database).
+`--depth fast|broad|full` runs up to that cost; `validate` is
+`test --affected --depth broad`.
+
+`scripts/dev/affected.toml` and the workspace manifests form the one model that
+local runs and CI select from. Yarn and Cargo packages and their edges come from
+the manifests, including `file:` archives, path dependencies of every kind and
+files compiled in with `include_str!`. The model file adds the areas outside
+packages, ordered path rules, edges between ecosystems (the committed
+sequent-core archives, workbench stories in the voting portal's Storybook, Hasura
+migrations read by Harvest and Windmill tests) and the checks. A changed path
+belongs to the first matching rule, else to the package whose directory holds
+it; a package is affected when its files or inputs change or a dependency is
+affected. A unit test fails for tracked files that no rule claims.
+
+Changes count from the merge base with `--base` (default: the branch's upstream
+unless it is the same branch, else `origin/ovcs`); `affected` counts commits and
+`--worktree` adds staged, unstaged and untracked files, which `test --affected`
+includes unless `--committed`. A missing base or merge base (deepen a shallow
+clone), an unclaimed path, a devenv change or a change to the model selects every
+check. `packages/yarn.lock` affects every Yarn package; `Cargo.lock` affects the
+crates whose locked dependencies changed. sequent-core sources select
+`wasm-freshness`; the frontends' checks follow the committed tgz.
+
+`affected` prints each changed file's owner, the affected packages with their
+file → package → consumer chain, and every check selected or skipped with the
+reason. `--graph` prints the units and edges; `--json` prints a versioned
+document with `base`, `fallback`, `files`, `units` and `checks` (`selected`,
+`reasons`, `cost`, `cwd`, `command`, `env`, `requires`, `workflows`) for CI.
+
 ## Benchmarks
 
 `scripts/dev/step-dev bench` times these loops for any checkout given with
