@@ -5,7 +5,7 @@
 //! starting Harvest's service workers. Synthetic JWT payloads represent claims
 //! forwarded by the identity gateway; these tests do not verify JWT signatures.
 
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+use crate::test_claims::Claims;
 use rocket::http::{ContentType, Header, Status};
 use rocket::local::asynchronous::Client;
 use rocket::serde::json::Json;
@@ -21,8 +21,12 @@ use windmill::services::external::datafix_types::{
 #[allow(dead_code)]
 mod http;
 
+#[path = "route_permissions.rs"]
+mod route_permissions;
+
 const TENANT_ID: &str = "tenant-a";
 const OTHER_TENANT_ID: &str = "tenant-b";
+const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
 const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 117;
@@ -31,7 +35,7 @@ const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
 // A leftover environment flag must not bypass the clean child environment.
 // Only the parent's private, short-lived nonce can select the child branch.
-fn is_isolated_child() -> bool {
+pub(crate) fn is_isolated_child() -> bool {
     std::env::var(CHILD)
         .ok()
         .and_then(|value| {
@@ -46,7 +50,7 @@ fn is_isolated_child() -> bool {
 // Keycloak's token cache and environment are process-global. A fresh child
 // isolates them from all other tests and from developer settings; its only
 // identity provider is the local peer and it has no database settings.
-fn run_isolated(test: &str, keycloak_url: &str) {
+pub(crate) fn run_isolated(test: &str, keycloak_url: &str) -> String {
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
     let marker = tempfile::NamedTempFile::new().unwrap();
@@ -62,7 +66,7 @@ fn run_isolated(test: &str, keycloak_url: &str) {
         .env("KEYCLOAK_URL", keycloak_url)
         .env("KEYCLOAK_ADMIN_CLIENT_ID", "synthetic-admin")
         .env("KEYCLOAK_ADMIN_CLIENT_SECRET", "synthetic-secret")
-        .env("SUPER_ADMIN_TENANT_ID", "fixture-super-admin")
+        .env("SUPER_ADMIN_TENANT_ID", SUPER_ADMIN_TENANT_ID)
         .stdin(Stdio::null())
         .stdout(output.try_clone().unwrap())
         .stderr(output);
@@ -88,11 +92,9 @@ fn run_isolated(test: &str, keycloak_url: &str) {
         }
         std::thread::sleep(Duration::from_millis(25));
     };
-    assert!(
-        status.success(),
-        "{}",
-        std::fs::read_to_string(log.path()).unwrap()
-    );
+    let output = std::fs::read_to_string(log.path()).unwrap();
+    assert!(status.success(), "{output}");
+    output
 }
 
 #[rocket::async_test]
@@ -168,89 +170,6 @@ async fn role_creation_requires_create_permission_and_preserves_the_role() {
     }
 }
 
-#[rocket::async_test]
-async fn complete_permission_sets_pass_each_authorization_check() {
-    if !is_isolated_child() {
-        // Nothing is scripted, so every Keycloak call gets HTTP 500.
-        let peer = http::HttpServer::start(vec![]);
-        run_isolated(
-            "request_boundaries::complete_permission_sets_pass_each_authorization_check",
-            &peer.url,
-        );
-        peer.finish();
-        return;
-    }
-    // The denial tests below remove one of these permissions or change the
-    // tenant. Here the complete set must get past authorization and stop at
-    // the unavailable backend, so a route that required a different
-    // permission would answer 401 or 403 instead.
-    let client = client().await;
-    let user_role =
-        json!({"tenant_id":TENANT_ID,"user_id":USER_ID,"role_id":"test-role"});
-    let document = json!({"document_id":"test-document"});
-    let ceremony = json!({"election_event_id":"test-event","keys_ceremony_id":"test-ceremony"});
-    let mut key_check = ceremony.clone();
-    key_check["private_key_base64"] = json!("not-a-key");
-    for (path, body, permissions) in [
-        (
-            "/get-document-password",
-            &document,
-            vec![
-                Permissions::DOCUMENT_DOWNLOAD,
-                Permissions::DOCUMENT_PASSWORD_READ,
-            ],
-        ),
-        (
-            "/set-user-role",
-            &user_role,
-            vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
-        ),
-        (
-            "/delete-user-role",
-            &user_role,
-            vec![Permissions::USER_WRITE, Permissions::ROLE_WRITE],
-        ),
-        (
-            "/delete-role",
-            &json!({"tenant_id":TENANT_ID,"role_id":"test-role"}),
-            vec![Permissions::ROLE_WRITE],
-        ),
-        (
-            "/fetch-document",
-            &document,
-            vec![Permissions::DOCUMENT_DOWNLOAD],
-        ),
-        (
-            "/get-private-key",
-            &ceremony,
-            vec![Permissions::TRUSTEE_CEREMONY],
-        ),
-        (
-            "/check-private-key",
-            &key_check,
-            vec![Permissions::TRUSTEE_CEREMONY],
-        ),
-        (
-            "/create-election",
-            &json!({"election_event_id":"test-event","external_id":"test-election","presentation":{}}),
-            vec![Permissions::ELECTION_EVENT_WRITE],
-        ),
-    ] {
-        let response = client
-            .post(path)
-            .header(ContentType::JSON)
-            .header(authorization(&permissions))
-            .body(body.to_string())
-            .dispatch()
-            .await;
-        assert_eq!(
-            response.status(),
-            Status::InternalServerError,
-            "{path}: {permissions:?}"
-        );
-    }
-}
-
 fn authorization(permissions: &[Permissions]) -> Header<'static> {
     authorization_for(TENANT_ID, permissions)
 }
@@ -259,23 +178,11 @@ fn authorization_for(
     tenant: &str,
     permissions: &[Permissions],
 ) -> Header<'static> {
-    let payload = json!({
-        "exp": 2_000_000_000, "iat": 1_900_000_000,
-        "jti": "synthetic", "iss": "https://identity.invalid", "sub": USER_ID,
-        "typ": "Bearer", "azp": "admin-portal", "acr": "1", "allowed-origins": [],
-        "scope": "openid", "email_verified": false,
-        "https://hasura.io/jwt/claims": {
-            "x-hasura-default-role": "user", "x-hasura-tenant-id": tenant,
-            "x-hasura-user-id": USER_ID, "x-hasura-allowed-roles": permissions.iter().map(ToString::to_string).collect::<Vec<_>>()
-        }
-    });
-    Header::new(
-        "Authorization",
-        format!(
-            "Bearer fixture.{}.fixture",
-            URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload).unwrap())
-        ),
-    )
+    bearer(&Claims::new(tenant, USER_ID).roles(permissions))
+}
+
+fn bearer(claims: &Claims) -> Header<'static> {
+    Header::new("Authorization", claims.bearer())
 }
 
 // A successful control verifies that the fixture really passes the shared

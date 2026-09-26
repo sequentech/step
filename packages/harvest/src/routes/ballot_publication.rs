@@ -2,11 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::serialization::deserialize_with_path::deserialize_value;
 use sequent_core::types::hasura::core::TasksExecution;
 use sequent_core::types::permissions::Permissions;
@@ -19,21 +21,34 @@ use serde_json::Value;
 use tracing::instrument;
 use windmill::{
     postgres::election_event::get_election_event_by_id,
-    services::{
-        ballot_styles::ballot_publication::{
-            add_ballot_publication, get_ballot_publication_diff,
-            update_publish_ballot, BallotPublicationValidationError,
-            PublicationDiff,
-        },
-        database::get_hasura_pool,
-        tasks_execution::{
-            post as post_task_execution,
-            update_complete as update_task_execution_complete,
-            update_fail as update_task_execution_fail,
-        },
+    services::ballot_styles::ballot_publication::{
+        get_ballot_publication_diff, prepare_ballot_publication,
+        update_publish_ballot, BallotPublicationValidationError,
+        PublicationDiff,
     },
+    tasks::update_election_event_ballot_styles::update_election_event_ballot_styles,
     types::tasks::ETasksExecution,
 };
+
+fn ballot_publication_error(
+    is_validation_error: bool,
+    failure_message: &str,
+    response_message: &str,
+) -> JsonError {
+    if is_validation_error {
+        ErrorResponse::new(
+            Status::BadRequest,
+            failure_message,
+            ErrorCode::BallotPublicationValidation,
+        )
+    } else {
+        ErrorResponse::new(
+            Status::InternalServerError,
+            response_message,
+            ErrorCode::InternalServerError,
+        )
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GenerateBallotPublicationInput {
@@ -47,13 +62,14 @@ pub struct GenerateBallotPublicationOutput {
     task_execution: TasksExecution,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/generate-ballot-publication", format = "json", data = "<body>")]
 pub async fn generate_ballot_publication(
     body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<GenerateBallotPublicationOutput>, JsonError> {
-    generate_ballot_publication_response(body, claims)
+    generate_ballot_publication_response(body, claims, services)
         .await
         .map_err(|(status, message)| {
             let code = if status == Status::Forbidden
@@ -75,6 +91,7 @@ pub async fn generate_ballot_publication(
 async fn generate_ballot_publication_response(
     body: Json<GenerateBallotPublicationInput>,
     claims: JwtClaims,
+    services: &HarvestServices,
 ) -> Result<Json<GenerateBallotPublicationOutput>, (Status, String)> {
     if !has_gold_permission(&claims) {
         return Err((Status::Forbidden, "Insufficient privileges".into()));
@@ -90,7 +107,9 @@ async fn generate_ballot_publication_response(
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id.clone();
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -138,23 +157,60 @@ async fn generate_ballot_publication_response(
         .clone()
         .unwrap_or_else(|| claims.hasura_claims.user_id.clone());
 
-    let (ballot_publication_id, task_execution) = add_ballot_publication(
+    let broker = services.tasks.connect().await;
+    let ballot_publication = prepare_ballot_publication(
         &hasura_transaction,
         tenant_id.clone(),
         input.election_event_id.clone(),
         input.election_id.clone(),
         user_id.clone(),
-        &executer_name,
     )
     .await
     .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+
+    let task_execution = services
+        .ledger
+        .post(
+            &tenant_id,
+            Some(&input.election_event_id),
+            ETasksExecution::GENERATE_BALLOT_PUBLICATION,
+            &executer_name,
+        )
+        .await
+        .context("Failed to insert task execution record")
+        .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    let task = match broker
+        .send_task(update_election_event_ballot_styles::new(
+            tenant_id.clone(),
+            input.election_event_id.clone(),
+            ballot_publication.id.clone(),
+            task_execution.clone(),
+        ))
+        .await
+    {
+        Ok(task) => task,
+        Err(err) => {
+            let message =
+                format!("Failed to enqueue ballot style generation: {err}");
+            services
+                .ledger
+                .update_fail(&task_execution, &message)
+                .await
+                .ok();
+            return Err((Status::InternalServerError, message));
+        }
+    };
+    info!(
+        "Sent CREATE_ELECTION_EVENT_BALLOT_STYLES task {}",
+        task.task_id
+    );
 
     let _commit = hasura_transaction.commit().await.map_err(|err| {
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
     Ok(Json(GenerateBallotPublicationOutput {
-        ballot_publication_id,
+        ballot_publication_id: ballot_publication.id,
         task_execution,
     }))
 }
@@ -170,11 +226,12 @@ pub struct PublishBallotOutput {
     ballot_publication_id: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/publish-ballot", format = "json", data = "<body>")]
 pub async fn publish_ballot(
     body: Json<PublishBallotInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<PublishBallotOutput>, JsonError> {
     authorize(
         &claims,
@@ -201,7 +258,7 @@ pub async fn publish_ballot(
     let executer_name = claims.name.clone().unwrap_or_else(|| user_id.clone());
 
     let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|e| {
+        services.databases.hasura().await.get().await.map_err(|e| {
             ErrorResponse::new(
                 Status::InternalServerError,
                 &format!("{e:?}"),
@@ -216,20 +273,22 @@ pub async fn publish_ballot(
                 ErrorCode::InternalServerError,
             )
         })?;
-    let task_execution = post_task_execution(
-        &tenant_id,
-        Some(&input.election_event_id),
-        ETasksExecution::PUBLISH_BALLOT,
-        &executer_name,
-    )
-    .await
-    .map_err(|e| {
-        ErrorResponse::new(
-            Status::InternalServerError,
-            &format!("{e:?}"),
-            ErrorCode::InternalServerError,
+    let task_execution = services
+        .ledger
+        .post(
+            &tenant_id,
+            Some(&input.election_event_id),
+            ETasksExecution::PUBLISH_BALLOT,
+            &executer_name,
         )
-    })?;
+        .await
+        .map_err(|e| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &format!("{e:?}"),
+                ErrorCode::InternalServerError,
+            )
+        })?;
 
     let publish_result = update_publish_ballot(
         &hasura_transaction,
@@ -254,7 +313,9 @@ pub async fn publish_ballot(
         if let Err(rollback_error) = hasura_transaction.rollback().await {
             let message =
                 format!("{failure_message}\nRollback failed: {rollback_error}");
-            update_task_execution_fail(&task_execution, &message)
+            services
+                .ledger
+                .update_fail(&task_execution, &message)
                 .await
                 .ok();
             return Err(ErrorResponse::new(
@@ -264,7 +325,7 @@ pub async fn publish_ballot(
             ));
         }
 
-        update_task_execution_fail(&task_execution, &failure_message)
+        services.ledger.update_fail(&task_execution, &failure_message)
             .await
             .map_err(|task_error| {
                 ErrorResponse::new(
@@ -275,24 +336,18 @@ pub async fn publish_ballot(
                     ErrorCode::InternalServerError,
                 )
             })?;
-        return Err(if is_validation_error {
-            ErrorResponse::new(
-                Status::BadRequest,
-                &failure_message,
-                ErrorCode::BallotPublicationValidation,
-            )
-        } else {
-            ErrorResponse::new(
-                Status::InternalServerError,
-                &response_message,
-                ErrorCode::InternalServerError,
-            )
-        });
+        return Err(ballot_publication_error(
+            is_validation_error,
+            &failure_message,
+            &response_message,
+        ));
     }
 
     if let Err(commit_error) = hasura_transaction.commit().await {
         let failure_message = format!("Commit failed: {commit_error}");
-        update_task_execution_fail(&task_execution, &failure_message)
+        services
+            .ledger
+            .update_fail(&task_execution, &failure_message)
             .await
             .ok();
         return Err(ErrorResponse::new(
@@ -303,13 +358,15 @@ pub async fn publish_ballot(
     }
 
     if let Err(task_error) =
-        update_task_execution_complete(&task_execution, None).await
+        services.ledger.update_complete(&task_execution, None).await
     {
         let failure_message = format!(
             "Ballot was published, but task {} could not be marked complete: {task_error}",
             task_execution.id
         );
-        update_task_execution_fail(&task_execution, &failure_message)
+        services
+            .ledger
+            .update_fail(&task_execution, &failure_message)
             .await
             .ok();
         return Err(ErrorResponse::new(
@@ -343,11 +400,12 @@ pub struct GetBallotPublicationChangesOutput {
     previous: Option<BallotPublicationStyles>,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/get-ballot-publication-changes", format = "json", data = "<body>")]
 pub async fn get_ballot_publication_changes(
     body: Json<GetBallotPublicationChangesInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<PublicationDiff>, (Status, String)> {
     authorize(
         &claims,
@@ -358,7 +416,9 @@ pub async fn get_ballot_publication_changes(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
-    let mut hasura_db_client: DbClient = get_hasura_pool()
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
         .await
         .get()
         .await
@@ -381,3 +441,11 @@ pub async fn get_ballot_publication_changes(
 
     Ok(Json(diff))
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/ballot_publication_errors.rs"]
+mod ballot_publication_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/ballot_publication_routes.rs"]
+mod route_tests;

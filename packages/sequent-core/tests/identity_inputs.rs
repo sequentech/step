@@ -10,7 +10,8 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{TimeZone as _, Utc};
 use sequent_core::services::date::ISO8601;
 use sequent_core::services::jwt::{
-    decode_jwt, decode_permission_labels, has_gold_permission, JwtClaims,
+    decode_jwt, decode_permission_labels, has_gold_permission,
+    has_gold_permission_at, JwtClaims,
 };
 use sequent_core::services::replace_uuids::replace_uuids;
 use sequent_core::types::date_time::{DateFormat, TimeZone};
@@ -117,6 +118,43 @@ fn gold_access_requires_the_role_and_recent_authentication() {
     assert!(has_gold_permission(&claims));
     claims.iat -= 3600;
     assert!(!has_gold_permission(&claims));
+}
+
+#[test]
+fn gold_access_expires_sixty_seconds_after_authentication() {
+    const NOW: i64 = 1_900_000_000;
+    let now = ISO8601::timestamp_secs_utc_to_date_opt(NOW).unwrap();
+    let mut claims = claims();
+    claims.acr = Permissions::GOLD.to_string();
+    // A negative age is an authentication time ahead of the clock.
+    for (age, fresh) in [
+        (-3600, true),
+        (0, true),
+        (59, true),
+        (60, false),
+        (61, false),
+    ] {
+        claims.auth_time = Some(NOW - age);
+        assert_eq!(has_gold_permission_at(&claims, now), fresh, "{age} s");
+    }
+
+    // auth_time decides whenever it is present, whatever iat says.
+    claims.iat = NOW;
+    claims.auth_time = Some(NOW - 61);
+    assert!(!has_gold_permission_at(&claims, now));
+    claims.iat = NOW - 61;
+    claims.auth_time = Some(NOW - 59);
+    assert!(has_gold_permission_at(&claims, now));
+
+    claims.auth_time = None;
+    for (age, fresh) in [(59, true), (61, false)] {
+        claims.iat = NOW - age;
+        assert_eq!(has_gold_permission_at(&claims, now), fresh, "iat {age} s");
+    }
+
+    claims.iat = NOW;
+    claims.acr = Permissions::SILVER.to_string();
+    assert!(!has_gold_permission_at(&claims, now));
 }
 
 #[test]

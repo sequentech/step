@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::authorization::authorize;
+use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
+use rocket::State;
 use sequent_core::services::jwt::decode_permission_labels;
 use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyResolution;
@@ -19,11 +21,9 @@ use sequent_core::{
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use windmill::postgres::tally_session::get_tally_session_by_id;
-use windmill::services::celery_app::get_celery_app;
 use windmill::services::ceremonies::tally_ceremony::{self};
 use windmill::services::ceremonies::tally_resolution;
 use windmill::services::ceremonies::tally_validation::TallyValidationError;
-use windmill::services::database::get_hasura_pool;
 use windmill::services::providers::transactions_provider::provide_hasura_transaction;
 use windmill::tasks::execute_tally_session::execute_tally_session;
 
@@ -69,13 +69,14 @@ pub struct CreateTallyCeremonyOutput {
 }
 
 // The main function to start a key ceremony
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/create-tally-ceremony", format = "json", data = "<body>")]
 pub async fn create_tally_ceremony(
     body: Json<CreateTallyCeremonyInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<CreateTallyCeremonyOutput>, JsonError> {
-    create_tally_ceremony_response(body, claims)
+    create_tally_ceremony_response(body, claims, services)
         .await
         .map_err(tally_response_error)
 }
@@ -83,6 +84,7 @@ pub async fn create_tally_ceremony(
 async fn create_tally_ceremony_response(
     body: Json<CreateTallyCeremonyInput>,
     claims: JwtClaims,
+    services: &HarvestServices,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -99,8 +101,13 @@ async fn create_tally_ceremony_response(
         .unwrap_or(claims.name.clone().unwrap_or_else(|| user_id.clone()));
     let permission_labels = decode_permission_labels(&claims);
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
@@ -150,13 +157,14 @@ pub struct UpdateTallyCeremonyInput {
     status: TallyExecutionStatus,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/update-tally-ceremony", format = "json", data = "<body>")]
 pub async fn update_tally_ceremony(
     body: Json<UpdateTallyCeremonyInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<CreateTallyCeremonyOutput>, JsonError> {
-    update_tally_ceremony_response(body, claims)
+    update_tally_ceremony_response(body, claims, services)
         .await
         .map_err(tally_response_error)
 }
@@ -164,6 +172,7 @@ pub async fn update_tally_ceremony(
 async fn update_tally_ceremony_response(
     body: Json<UpdateTallyCeremonyInput>,
     claims: JwtClaims,
+    services: &HarvestServices,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -180,8 +189,13 @@ async fn update_tally_ceremony_response(
         .preferred_username
         .unwrap_or(claims.name.clone().unwrap_or_else(|| user_id.clone()));
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
@@ -239,11 +253,12 @@ pub struct RecountTallySessionInput {
     tally_session_id: String,
 }
 
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/recount-tally-session", format = "json", data = "<body>")]
 pub async fn recount_tally_session(
     body: Json<RecountTallySessionInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<CreateTallyCeremonyOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -255,8 +270,13 @@ pub async fn recount_tally_session(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
@@ -324,7 +344,7 @@ pub async fn recount_tally_session(
         (Status::InternalServerError, format!("Commit failed: {err}"))
     })?;
 
-    let celery_app = get_celery_app().await;
+    let celery_app = services.tasks.connect().await;
     let task = celery_app
         .send_task(execute_tally_session::new(
             tenant_id.clone(),
@@ -374,11 +394,12 @@ pub struct SetPrivateKeyOutput {
 }
 
 // The main function to restore the private key
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/restore-private-key", format = "json", data = "<body>")]
 pub async fn restore_private_key(
     body: Json<SetPrivateKeyInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<SetPrivateKeyOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -389,8 +410,13 @@ pub async fn restore_private_key(
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
@@ -445,11 +471,12 @@ pub struct SubmitTallyResolutionOutput {
 }
 
 /// Submit multiple tally resolutions for a paused tally (batch operation)
-#[instrument(skip(claims))]
+#[instrument(skip(claims, services))]
 #[post("/submit-tally-resolution", format = "json", data = "<body>")]
 pub async fn submit_tally_resolution(
     body: Json<SubmitTallyResolutionInput>,
     claims: JwtClaims,
+    services: &State<HarvestServices>,
 ) -> Result<Json<SubmitTallyResolutionOutput>, (Status, String)> {
     authorize(
         &claims,
@@ -469,8 +496,13 @@ pub async fn submit_tally_resolution(
         ));
     }
 
-    let mut hasura_db_client: DbClient =
-        get_hasura_pool().await.get().await.map_err(|err| {
+    let mut hasura_db_client: DbClient = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(|err| {
             (
                 Status::InternalServerError,
                 format!("Error getting hasura db pool: {err}"),
@@ -562,3 +594,11 @@ mod tally_error_tests {
         assert_eq!(response.1.extensions.code, "InternalServerError");
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_service_errors.rs"]
+mod tally_service_errors;
+
+#[cfg(test)]
+#[path = "../../tests/support/tally_ceremony_routes.rs"]
+mod route_tests;
