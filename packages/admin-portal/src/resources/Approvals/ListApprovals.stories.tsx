@@ -100,16 +100,18 @@ export const Populated: Story = {
         const alice = await row(canvasElement, "applicant-0001")
         await expect(within(alice).getByText("Alice")).toBeVisible()
         await expect(within(alice).getByText("alice@example.test")).toBeVisible()
-        // The list first asks for pending applications, then the table replaces the
-        // status with the one stored on this browser, which a first visit lacks.
-        await expect(await row(canvasElement, "applicant-0002")).toBeVisible()
+        // A first visit shows only pending applications.
+        await waitFor(() =>
+            expect(within(canvasElement).queryByRole("row", {name: /applicant-0002/})).toBeNull()
+        )
         // ra-data-hasura compares the status column with `_ilike`.
         expect(applicationsRead()[0].args[1]).toMatchObject({
             filter: {"election_event_id": EVENT_ID, "status@_ilike": "pending"},
             sort: {field: "created_at", order: "DESC"},
         })
         expect(listFilters("sequent_backend_applications").at(-1)).toEqual({
-            election_event_id: EVENT_ID,
+            "election_event_id": EVENT_ID,
+            "status@_ilike": "pending",
         })
         expect(canvas.queryByRole("progressbar")).toBeNull()
     },
