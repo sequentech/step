@@ -8,8 +8,12 @@ import argparse
 import tempfile
 import unittest
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier, Event
+from unittest.mock import patch
 
+from scripts.dev import keycloak
 from scripts.dev.keycloak import (
     PACKAGE,
     SOURCE,
@@ -54,6 +58,73 @@ class KeycloakThemeTests(unittest.TestCase):
             for page in ("login.ftl", "message-otp.login.ftl", "register.ftl"):
                 jar.writestr("theme/sequent-ui-admin/login/" + page, HTML)
             jar.writestr("theme/sequent-ui-admin/login/resources/dist/app.js", "built")
+
+    def test_concurrent_atomic_writes_publish_complete_readable_assets(self):
+        destination = self.root / "resources" / "shared.css"
+        payloads = [b"first" * 1000, b"second" * 1000]
+        ready = Barrier(2)
+        replace = Path.replace
+
+        def simultaneous_replace(source, target):
+            ready.wait(timeout=5)
+            return replace(source, target)
+
+        with (
+            patch.object(Path, "replace", simultaneous_replace),
+            ThreadPoolExecutor(2) as pool,
+        ):
+            futures = [
+                pool.submit(keycloak.write, destination, value) for value in payloads
+            ]
+            for future in futures:
+                future.result(timeout=10)
+        self.assertIn(destination.read_bytes(), payloads)
+        self.assertTrue(destination.stat().st_mode & 0o004)
+        self.assertEqual(list(destination.parent.iterdir()), [destination])
+
+    def test_concurrent_prepares_reread_sources_after_the_previous_writer_finishes(
+        self,
+    ):
+        source = self.root / SOURCE / "sequent.admin-portal/login/login.ftl"
+        first_waiting, release_first, second_started, second_writing = (
+            Event() for _ in range(4)
+        )
+        write = keycloak.write
+
+        def hold_first_template(path, content):
+            if path.name == "sequent-login.ftl":
+                if content == "Original profile and credential widgets":
+                    first_waiting.set()
+                    self.assertTrue(release_first.wait(timeout=5))
+                else:
+                    second_writing.set()
+            write(path, content)
+
+        def second_prepare():
+            second_started.set()
+            prepare(self.root, Runtime.HOT, skip_build=True)
+
+        with (
+            patch.object(keycloak, "write", hold_first_template),
+            ThreadPoolExecutor(2) as pool,
+        ):
+            first = pool.submit(prepare, self.root, Runtime.HOT, True)
+            self.assertTrue(first_waiting.wait(timeout=5))
+            source.write_text("Updated realm template")
+            second = pool.submit(second_prepare)
+            try:
+                self.assertTrue(second_started.wait(timeout=5))
+                self.assertFalse(second_writing.wait(timeout=0.2))
+            finally:
+                release_first.set()
+                first.result(timeout=5)
+                second.result(timeout=5)
+        self.assertEqual(
+            (
+                self.root / THEMES / "sequent-ui-admin/login/sequent-login.ftl"
+            ).read_text(),
+            "Updated realm template",
+        )
 
     def test_hot_pages_load_vite_and_inherit_registration(self):
         prepare(self.root, Runtime.HOT, skip_build=True)
