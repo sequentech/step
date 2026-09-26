@@ -117,7 +117,7 @@ module.exports = function (env, argv) {
                 directory: path.resolve(__dirname, "dist"),
             },
             compress: true, // Enable gzip compression
-            port: 3001, // Run on port 3001
+            port: 3001,
             open: true, // Automatically open the browser
             historyApiFallback: true,
             headers: {

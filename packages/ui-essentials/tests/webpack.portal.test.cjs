@@ -10,7 +10,7 @@ const PACKAGES = path.resolve(__dirname, "../..")
 const PORTAL = path.join(PACKAGES, "voting-portal")
 const UI_CORE_SOURCE = path.join(PACKAGES, "ui-core", "src")
 const UI_ESSENTIALS_SOURCE = path.join(PACKAGES, "ui-essentials", "src")
-const ENVIRONMENT = ["STEP_SHARED_UI"]
+const ENVIRONMENT = ["PORT", "BROWSER", "STEP_SHARED_UI"]
 
 const portalConfig = (mode) => ({
     mode,
@@ -78,6 +78,27 @@ describe("production", () => {
         expect(withPortalDevelopment(PORTAL, portalConfig("production")).module.rules).toHaveLength(
             2
         )
+    })
+})
+
+describe("dev server", () => {
+    it("takes the port from PORT and stops opening a browser with BROWSER=none", () => {
+        process.env.PORT = "42000"
+        process.env.BROWSER = "none"
+        const {devServer} = withPortalDevelopment(PORTAL, portalConfig("development"))
+        expect(devServer).toMatchObject({port: 42000, open: false, historyApiFallback: true})
+    })
+
+    it("keeps the portal port when PORT is empty or not a number", () => {
+        process.env.PORT = ""
+        expect(withPortalDevelopment(PORTAL, portalConfig("development")).devServer.port).toBe(3000)
+        process.env.PORT = "port"
+        expect(withPortalDevelopment(PORTAL, portalConfig("development")).devServer.port).toBe(3000)
+    })
+
+    it("opens a browser when BROWSER names one", () => {
+        process.env.BROWSER = "/usr/bin/chromium"
+        expect(withPortalDevelopment(PORTAL, portalConfig("development")).devServer.open).toBe(true)
     })
 })
 

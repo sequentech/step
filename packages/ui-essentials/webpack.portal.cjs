@@ -137,16 +137,23 @@ function developmentLoader(entry) {
 }
 
 /**
- * Completes a portal config. In development mode the shared UI packages resolve
- * to source, compiled by the portal rule that uses ts-loader, and React Refresh
- * keeps component state across edits of component-only modules.
+ * Completes a portal config. `PORT` overrides the dev server port and
+ * `BROWSER=none` stops it opening a browser. In development mode the shared UI
+ * packages resolve to source, compiled by the portal rule that uses ts-loader, and
+ * React Refresh keeps component state across edits of component-only modules.
  */
 function withPortalDevelopment(portal, config) {
+    const devServer = {
+        ...config.devServer,
+        port: Number(process.env.PORT) || config.devServer.port,
+        open: process.env.BROWSER !== "none" && config.devServer.open,
+    }
     if (config.mode !== "development") {
-        return config
+        return {...config, devServer}
     }
     const development = {
         ...config,
+        devServer,
         // Per-module maps: a rebuild does not regenerate the whole bundle's map.
         devtool: "eval-cheap-module-source-map",
         module: {

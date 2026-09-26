@@ -125,7 +125,7 @@ module.exports = function (env, argv) {
                 directory: path.resolve(__dirname, "dist"),
             },
             compress: true,
-            port: Number(process.env.PORT || 3004),
+            port: 3004,
             open: true,
             historyApiFallback: true,
         },

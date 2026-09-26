@@ -145,7 +145,7 @@ module.exports = function (env, argv) {
                 },
             ],
             compress: true, // Enable gzip compression
-            port: 3002, // Run on port 3002
+            port: 3002,
             open: true, // Automatically open the browser
             historyApiFallback: true,
             headers: {
