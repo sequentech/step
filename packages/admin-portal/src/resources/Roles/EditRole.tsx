@@ -73,18 +73,19 @@ export const EditRole: React.FC<EditRoleProps> = ({id, close, permissions}) => {
         console.log(permission.name)
 
         // remove/add permission to role
-        const {errors} = await (props.value ? deleteRolePermission : setRolePermission)({
-            variables: {
-                tenantId: tenantId,
-                roleId: role.id,
-                permissionName: permission.name,
-            },
-        })
-        if (errors) {
+        try {
+            await (props.value ? deleteRolePermission : setRolePermission)({
+                variables: {
+                    tenantId: tenantId,
+                    roleId: role.id,
+                    permissionName: permission.name,
+                },
+            })
+        } catch (error) {
             notify(t("usersAndRolesScreen.roles.notifications.permissionEditError"), {
                 type: "error",
             })
-            console.log(`Error editing permission: ${errors}`)
+            console.log(`Error editing permission: ${error}`)
             return
         }
         notify(t("usersAndRolesScreen.roles.notifications.permissionEditSuccess"), {
