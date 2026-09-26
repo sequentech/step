@@ -165,3 +165,23 @@ describe("the voter's breadcrumb", () => {
         expect(steps()).toEqual(["Votaciones", "Papeleta", "Revisión", "Confirmar"])
     })
 })
+
+describe("the breadcrumb's accessible name", () => {
+    it("names the list from the catalogue by default", () => {
+        show(<BallotSteps selected={1} />)
+
+        expect(document.querySelector(".step-container")).toHaveAttribute(
+            "aria-label",
+            "a11y.votingProgress"
+        )
+    })
+
+    it("takes the host's name when given one", () => {
+        show(<BallotSteps selected={1} ariaLabel="Voting progress" />)
+
+        expect(document.querySelector(".step-container")).toHaveAttribute(
+            "aria-label",
+            "Voting progress"
+        )
+    })
+})

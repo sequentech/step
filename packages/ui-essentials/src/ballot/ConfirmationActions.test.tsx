@@ -77,3 +77,25 @@ describe("the buttons under a cast ballot", () => {
         expect(screen.queryByText(WORDS.printButton)).toBeNull()
     })
 })
+
+describe("the ovcs fixes carried into the shared confirmation row", () => {
+    it("leaves Print out when there is nothing to print", () => {
+        render(<ConfirmationActions withPrint={false} onFinish={() => undefined} />)
+
+        expect(document.querySelector(".print-receipt-button")).toBeNull()
+        expect(document.querySelector(".finish-button")).not.toBeNull()
+    })
+
+    it("announces the wait for a receipt rather than only spinning", () => {
+        const {rerender} = render(<ConfirmationActions printing onPrint={() => undefined} />)
+
+        expect(screen.getByRole("status")).toHaveTextContent("a11y.loading")
+        expect(document.querySelector(".print-receipt-progress")).toHaveAttribute(
+            "aria-hidden",
+            "true"
+        )
+
+        rerender(<ConfirmationActions onPrint={() => undefined} />)
+        expect(screen.getByRole("status")).toHaveTextContent("")
+    })
+})

@@ -15,7 +15,7 @@ import {theme} from "../services/theme"
  * the ballot *list* screen's title in `ElectionListLayout`, which is 24px and
  * left-aligned; this one is 36px and centred.
  */
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -72,15 +72,16 @@ export const BallotScreenLayout = ({
             </Box>
         )}
 
-        <StyledTitle variant="h4" className="title-container">
+        <StyledTitle variant="h4" component="h1" className="title-container screen-title">
             <Box className="selected-election-title">{title}</Box>
             {titleAdornment}
         </StyledTitle>
 
         {description === undefined ? null : (
             <Typography
-                className="description"
+                className="description screen-description"
                 variant="body2"
+                component="div"
                 sx={{color: theme.palette.customGrey.main}}
             >
                 {description}

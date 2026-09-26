@@ -7,6 +7,7 @@ import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
 import React from "react"
 
+import {stringToHtml} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
 import PageLimit from "../components/PageLimit/PageLimit"
@@ -43,9 +44,11 @@ export interface IStartLayoutProps {
     /** Anything else above the title, framed by the caller. */
     above?: React.ReactNode
     below?: React.ReactNode
+    /** The host's dialogs, which belong with the state that opens them. */
+    children?: React.ReactNode
 }
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     justify-content: center;
@@ -74,6 +77,7 @@ export const StartLayout = ({
     steps,
     above,
     below,
+    children,
 }: IStartLayoutProps): React.JSX.Element => {
     const {t} = useTranslation()
 
@@ -85,26 +89,41 @@ export const StartLayout = ({
      * election showed English instructions. They live in
      * `voting-portal/src/translations/<lng>.ts`, on the same paths as ever.
      */
-    const instructions = [1, 2, 3].map((at) => ({
-        title: t(`startScreen.step${at}Title`),
-        description: t(`startScreen.step${at}Description`),
+    const instructions = (["select", "review", "cast"] as const).map((kind, index) => ({
+        kind,
+        title: t(`startScreen.step${index + 1}Title`),
+        description: t(`startScreen.step${index + 1}Description`),
     }))
 
     return (
         <PageLimit maxWidth="lg" className="start-screen screen">
-            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+            {steps === undefined ? null : (
+                <Box className="stepper-box" marginTop="48px">
+                    {steps}
+                </Box>
+            )}
             {above}
-            <StyledTitle variant="h3" fontWeight="bold">
-                <span>{title}</span>
+            <StyledTitle className="screen-title" variant="h3" component="h1" fontWeight="bold">
+                <span className="screen-title-text">{title}</span>
             </StyledTitle>
             {description === undefined ? null : (
-                <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+                <Typography
+                    className="screen-description"
+                    variant="body2"
+                    component="div"
+                    sx={{color: theme.palette.customGrey.main}}
+                >
                     {description}
                 </Typography>
             )}
-            <Typography variant="h5">{t("startScreen.instructionsTitle")}</Typography>
-            <Typography variant="body2">{t("startScreen.instructionsDescription")}</Typography>
+            <Typography className="instructions-title" variant="h5" component="h2">
+                {t("startScreen.instructionsTitle")}
+            </Typography>
+            <Typography className="instructions-description" variant="body2" component="div">
+                {stringToHtml(t("startScreen.instructionsDescription"))}
+            </Typography>
             <Box
+                className="instructions-steps"
                 sx={{
                     display: "flex",
                     flexDirection: {xs: "column", md: "row"},
@@ -112,15 +131,31 @@ export const StartLayout = ({
                 }}
             >
                 {instructions.map((step) => (
-                    <Box key={step.title} sx={{width: {xs: "100%", md: "33.33333333%"}}}>
-                        <Typography variant="h5" sx={{color: theme.palette.brandColor}}>
+                    <Box
+                        key={step.kind}
+                        className={`instructions-step instructions-${step.kind}-step`}
+                        sx={{width: {xs: "100%", md: "33.33333333%"}}}
+                    >
+                        <Typography
+                            className="instructions-step-title"
+                            variant="h5"
+                            component="h3"
+                            sx={{color: theme.palette.brandColor}}
+                        >
                             {step.title}
                         </Typography>
-                        <Typography variant="body2">{step.description}</Typography>
+                        <Typography
+                            className="instructions-step-description"
+                            variant="body2"
+                            component="div"
+                        >
+                            {stringToHtml(step.description)}
+                        </Typography>
                     </Box>
                 ))}
             </Box>
             {below}
+            {children}
         </PageLimit>
     )
 }

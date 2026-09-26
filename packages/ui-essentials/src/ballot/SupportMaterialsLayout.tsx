@@ -14,6 +14,7 @@ import Typography from "@mui/material/Typography"
 import {styled} from "@mui/material/styles"
 import React from "react"
 
+import {stringToHtml} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
 import PageLimit from "../components/PageLimit/PageLimit"
@@ -22,6 +23,8 @@ import {theme} from "../services/theme"
 const BorderBox = styled(Box)`
     display: flex;
     flex-direction: row;
+    border: 2px solid ${theme.palette.brandSuccess};
+    background-color: ${theme.palette.lightBackground};
     padding: 19px 38px;
     align-items: center;
     gap: 21px;
@@ -61,7 +64,7 @@ const CardTitle = styled(Typography)`
     }
 `
 
-const CardSubTitle = styled(Typography)`
+const CardSubTitle = styled(Typography)<{component?: React.ElementType}>`
     font-size: 18px;
     line-height: 20px;
     margin-top: 0;
@@ -78,7 +81,7 @@ const MaterialsList = styled(Box)`
     margin-bottom: 30px;
 `
 
-const Heading = styled(Typography)`
+const Heading = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -105,33 +108,20 @@ export interface ISupportMaterialCardProps {
 const iconFor = (kind: string): React.JSX.Element => {
     const style = {fontSize: "42px", marginRight: "16px"}
     if (kind.includes("image")) {
-        return <ImageIcon sx={style} />
+        return <ImageIcon className="support-material-image-icon" sx={style} />
     }
     if (kind.includes("pdf")) {
-        return <PictureAsPdfIcon sx={style} />
+        return <PictureAsPdfIcon className="support-material-pdf-icon" sx={style} />
     }
     if (kind.includes("video")) {
-        return <VideoFileIcon sx={style} />
+        return <VideoFileIcon className="support-material-video-icon" sx={style} />
     }
     if (kind.includes("audio")) {
-        return <AudioFileIcon sx={style} />
+        return <AudioFileIcon className="support-material-audio-icon" sx={style} />
     }
-    return <DescriptionIcon sx={style} />
+    return <DescriptionIcon className="support-material-document-icon" sx={style} />
 }
 
-/**
- * One document in the support materials list, with nothing about fetching it.
- *
- * Split out of the voting portal's `SupportMaterial`, which is 244 lines and
- * reads a thumbnail out of the store by `document_id` — a thing the Election
- * Architect's preview has no way to do, because the documents in a plan have not
- * been uploaded anywhere yet. What both need is the same row: an icon chosen by
- * kind, a title, a subtitle, and a way in.
- *
- * The button is omitted rather than disabled when there is nothing to open. A
- * disabled control is a promise that it would work under some condition the
- * reader is invited to guess at; in a preview there is no such condition.
- */
 export const SupportMaterialCard: React.FC<ISupportMaterialCardProps> = ({
     title,
     subtitle,
@@ -139,21 +129,26 @@ export const SupportMaterialCard: React.FC<ISupportMaterialCardProps> = ({
     onOpen,
     openLabel,
 }) => (
-    <BorderBox role="button" tabIndex={0}>
-        <Box>{iconFor(kind)}</Box>
-        <TextContainer>
-            <CardTitle>{title}</CardTitle>
-            <CardSubTitle>{subtitle}</CardSubTitle>
+    // Not a button itself: the open button inside is the one control, so the card
+    // is a single keyboard stop.
+    <BorderBox className="support-material">
+        <Box className="support-material-summary">{iconFor(kind)}</Box>
+        <TextContainer className="support-material-text">
+            <CardTitle className="support-material-title">{title}</CardTitle>
+            <CardSubTitle className="support-material-subtitle" component="div">
+                {stringToHtml(subtitle || "")}
+            </CardSubTitle>
         </TextContainer>
         {onOpen === undefined ? null : (
-            <Box sx={{display: "flex", alignItems: "center"}}>
+            <Box className="support-material-actions" sx={{display: "flex", alignItems: "center"}}>
                 <OpenButton
+                    className="support-material-preview-button"
                     sx={{marginRight: "16px"}}
                     variant="secondary"
                     aria-label={openLabel}
                     onClick={onOpen}
                 >
-                    <VisibilityIcon />
+                    <VisibilityIcon className="support-material-preview-icon" />
                 </OpenButton>
             </Box>
         )}
@@ -196,9 +191,14 @@ export const SupportMaterialsLayout: React.FC<ISupportMaterialsLayoutProps> = ({
     const {t} = useTranslation()
 
     return (
-        <PageLimit maxWidth="lg">
-            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+        <PageLimit className="support-materials-screen screen" maxWidth="lg">
+            {steps === undefined ? null : (
+                <Box className="stepper-box" marginTop="48px">
+                    {steps}
+                </Box>
+            )}
             <Box
+                className="support-materials-header"
                 sx={{
                     display: "flex",
                     flexDirection: "row",
@@ -207,13 +207,17 @@ export const SupportMaterialsLayout: React.FC<ISupportMaterialsLayoutProps> = ({
                     minHeight: "100px",
                 }}
             >
-                <Box>
-                    <Heading variant="h1">
-                        <Box>{title ?? t("materials.common.label")}</Box>
+                <Box className="support-materials-heading">
+                    <Heading className="screen-title" variant="h1">
+                        <Box className="screen-title-text">
+                            {title ?? t("materials.common.label")}
+                        </Box>
                     </Heading>
                     {subtitle === undefined ? null : (
                         <Typography
+                            className="screen-description"
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {subtitle}
@@ -222,7 +226,7 @@ export const SupportMaterialsLayout: React.FC<ISupportMaterialsLayoutProps> = ({
                 </Box>
                 {back}
             </Box>
-            <MaterialsList>{children}</MaterialsList>
+            <MaterialsList className="support-materials-list">{children}</MaterialsList>
         </PageLimit>
     )
 }

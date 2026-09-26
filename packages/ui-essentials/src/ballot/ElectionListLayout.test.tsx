@@ -138,3 +138,20 @@ describe("the screen that asks which ballot to vote", () => {
         expect(screen.queryByText(WORDS.title)).toBeNull()
     })
 })
+
+describe("the ovcs fixes carried into the shared ballot list", () => {
+    it("puts the host's banner between the heading and the list", () => {
+        asThePortalCallsIt({banner: <div data-testid="the-banner" />})
+
+        const banner = screen.getByTestId("the-banner")
+        const list = document.querySelector(".elections-list")
+        expect(banner.compareDocumentPosition(list as Node)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING
+        )
+    })
+
+    it("is a list only when the host says so", () => {
+        asThePortalCallsIt({listRole: "list"})
+        expect(screen.getByRole("list")).toHaveClass("elections-list")
+    })
+})

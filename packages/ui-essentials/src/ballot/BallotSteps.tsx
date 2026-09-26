@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import React from "react"
+import {useTranslation} from "react-i18next"
 import BreadCrumbSteps from "../components/BreadCrumbSteps/BreadCrumbSteps"
 
 /**
@@ -42,6 +43,8 @@ export interface IBallotStepsProps {
     withElectionList?: boolean
     /** Draw the current step as a warning. The audit screen does. */
     warning?: boolean
+    /** The list's accessible name. Defaults to `a11y.votingProgress`. */
+    ariaLabel?: string
 }
 
 /**
@@ -57,7 +60,9 @@ export const BallotSteps = ({
     selected,
     withElectionList = true,
     warning,
+    ariaLabel,
 }: IBallotStepsProps): React.JSX.Element => {
+    const {t} = useTranslation()
     const labels = withElectionList
         ? [LIST, BALLOT, REVIEW, CONFIRMATION]
         : [BALLOT, REVIEW, CONFIRMATION]
@@ -67,6 +72,7 @@ export const BallotSteps = ({
             labels={labels}
             selected={withElectionList ? selected : Math.max(0, selected - 1)}
             warning={warning}
+            ariaLabel={ariaLabel ?? t("a11y.votingProgress")}
         />
     )
 }

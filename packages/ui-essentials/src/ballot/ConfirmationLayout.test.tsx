@@ -148,3 +148,67 @@ describe("where this screen's words come from", () => {
         expect(screen.getByText("confirmationScreen.blankBallot.description")).toBeInTheDocument()
     })
 })
+
+describe("the ovcs fixes carried into the shared confirmation screen", () => {
+    it("titles the screen as its one level-one heading, with level-two sections", () => {
+        render(<ConfirmationLayout {...props} qrValue="https://tracker" />)
+
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
+            "confirmationScreen.title"
+        )
+        expect(screen.getAllByRole("heading", {level: 2}).map((h) => h.textContent)).toEqual([
+            "confirmationScreen.ballotId",
+            "confirmationScreen.verifyCastTitle",
+        ])
+    })
+
+    it("draws the check mark as decoration, not as a nameless button", () => {
+        render(<ConfirmationLayout {...props} />)
+
+        const mark = document.querySelector(".ballot-id-status-icon")
+        expect(mark).not.toBeNull()
+        expect(mark?.closest("button")).toBeNull()
+        expect(screen.queryAllByRole("button")).toHaveLength(0)
+    })
+
+    it("marks both renderings of the identifier for tests", () => {
+        render(<ConfirmationLayout {...props} />)
+
+        expect(screen.getAllByTestId("ballot-id")).toHaveLength(2)
+    })
+
+    it("offers to copy the identifier when given the words for it", () => {
+        const labels = {copy: "Copy", copied: "Copied", error: "Failed"}
+        render(<ConfirmationLayout {...props} ballotIdCopyLabels={labels} />)
+
+        expect(screen.getByRole("button", {name: "Copy"})).toBeInTheDocument()
+    })
+
+    it("names its help buttons", () => {
+        render(
+            <ConfirmationLayout
+                {...props}
+                onTitleHelp={() => undefined}
+                onBallotIdHelp={() => undefined}
+            />
+        )
+
+        expect(document.querySelector(".screen-help-button")).toHaveAttribute("aria-label")
+        expect(document.querySelector(".ballot-id-help-button")).toHaveAttribute("aria-label")
+    })
+
+    it("shows no identifier, link or QR when nothing was cast, but keeps the host's dialogs", () => {
+        render(
+            <ConfirmationLayout {...props} isFullyAcclaimed qrValue="https://tracker">
+                <div data-testid="a-dialog" />
+            </ConfirmationLayout>
+        )
+
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
+            "confirmationScreen.acclamation.title"
+        )
+        expect(screen.queryAllByTestId("ballot-id")).toHaveLength(0)
+        expect(screen.queryByTestId("stub-qr")).toBeNull()
+        expect(screen.getByTestId("a-dialog")).toBeInTheDocument()
+    })
+})

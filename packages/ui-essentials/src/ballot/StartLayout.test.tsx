@@ -121,3 +121,37 @@ describe("the start screen's arrangement", () => {
         ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     })
 })
+
+describe("the ovcs fixes carried into the shared start screen", () => {
+    it("outlines the page with h1, h2 and h3", () => {
+        render(<StartLayout title="Board of Directors 2027" />)
+
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
+            "Board of Directors 2027"
+        )
+        expect(screen.getByRole("heading", {level: 2})).toHaveTextContent(
+            WORDS.instructionsTitle
+        )
+        expect(screen.getAllByRole("heading", {level: 3})).toHaveLength(3)
+    })
+
+    it("renders HTML in overridden instructions as markup, not escaped text", () => {
+        const i18n = catalogue({
+            ...PORTAL_WORDS,
+            startScreen: {...WORDS, instructionsDescription: "Read <b>carefully</b>"},
+        })
+        render(<StartLayout title="T" />, i18n)
+
+        expect(document.querySelector(".instructions-description b")).toHaveTextContent(
+            "carefully"
+        )
+    })
+
+    it("gives each step the portal's hooks", () => {
+        render(<StartLayout title="T" />)
+
+        for (const kind of ["select", "review", "cast"]) {
+            expect(document.querySelector(`.instructions-${kind}-step`)).not.toBeNull()
+        }
+    })
+})

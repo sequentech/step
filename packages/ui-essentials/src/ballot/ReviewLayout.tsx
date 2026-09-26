@@ -20,11 +20,11 @@ import {stringToHtml} from "@sequentech/ui-core"
 import {useTranslation} from "react-i18next"
 
 import PageLimit from "../components/PageLimit/PageLimit"
-import WarnBox from "../components/WarnBox/WarnBox"
+import WarnBox, {EWarnBoxAnnouncement} from "../components/WarnBox/WarnBox"
 import {theme} from "../services/theme"
 import {Question} from "./Question"
 
-const StyledTitle = styled(Typography)`
+const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
     margin-top: 25.5px;
     display: flex;
     flex-direction: row;
@@ -65,6 +65,11 @@ export interface IReviewLayoutProps {
      * plan, and that is a policy neither this layout nor a translator should decide.
      */
     withAudit?: boolean
+    /**
+     * Every contest is acclaimed: there is no ballot to review, so the screen says
+     * `reviewScreen.acclamation.*` instead of asking the voter to check their choices.
+     */
+    isFullyAcclaimed?: boolean
 
     ballotStyle: IBallotStyle
     contests: IContest[]
@@ -118,6 +123,7 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
     onTitleHelp,
     error,
     withAudit = false,
+    isFullyAcclaimed = false,
     ballotStyle,
     contests,
     errorSelectionState,
@@ -138,9 +144,11 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
      * picture that is supposed to be the portal. Every string on this screen is
      * `voting-portal/src/translations/<lng>.ts`, on the paths clients override.
      */
-    const description = withAudit
-        ? t("reviewScreen.description")
-        : t("reviewScreen.descriptionNoAudit")
+    const description = isFullyAcclaimed
+        ? t("reviewScreen.acclamation.description")
+        : withAudit
+          ? t("reviewScreen.description")
+          : t("reviewScreen.descriptionNoAudit")
 
     return (
         <PageLimit maxWidth="lg" className="review-screen screen">
@@ -157,11 +165,25 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                 />
             )}
             {children}
-            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
-            <StyledTitle variant="h4" fontSize="24px" fontWeight="bold" sx={{margin: 0}}>
-                <Box>{t("reviewScreen.title")}</Box>
+            {steps === undefined ? null : (
+                <Box className="stepper-box" marginTop="48px">
+                    {steps}
+                </Box>
+            )}
+            <StyledTitle
+                className="screen-title"
+                variant="h4"
+                component="h1"
+                fontSize="24px"
+                fontWeight="bold"
+                sx={{margin: 0}}
+            >
+                <Box className="screen-title-text">
+                    {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
+                </Box>
                 {onTitleHelp === undefined ? null : (
                     <IconButton
+                        buttonClassName="screen-help-button"
                         icon={faCircleQuestion}
                         sx={{
                             fontSize: "unset",
@@ -170,15 +192,33 @@ export const ReviewLayout: React.FC<IReviewLayoutProps> = ({
                         }}
                         fontSize="16px"
                         onClick={onTitleHelp}
+                        ariaLabel={t("a11y.helpAbout", {
+                            topic: t("reviewScreen.reviewScreenHelpDialog.title"),
+                        })}
                     />
                 )}
             </StyledTitle>
-            {error ? <WarnBox variant="error">{error}</WarnBox> : null}
-            <Typography variant="body2" sx={{color: theme.palette.customGrey.main}}>
+            {error ? (
+                // It blocks the voter from casting, so it interrupts rather than
+                // waiting for a pause.
+                <WarnBox
+                    className="cast-ballot-error"
+                    variant="error"
+                    announcement={EWarnBoxAnnouncement.ASSERTIVE}
+                >
+                    {error}
+                </WarnBox>
+            ) : null}
+            <Typography
+                className="screen-description"
+                variant="body2"
+                component="div"
+                sx={{color: theme.palette.customGrey.main}}
+            >
                 {stringToHtml(description)}
             </Typography>
             {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-${index}`}>
+                <Box key={question.id} className={`contest-container contest-${index}`}>
                     <Question
                         ballotStyle={ballotStyle}
                         question={question}

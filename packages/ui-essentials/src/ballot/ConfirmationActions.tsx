@@ -9,6 +9,7 @@ import React from "react"
 import {useTranslation} from "react-i18next"
 
 import Icon from "../components/Icon/Icon"
+import VisuallyHidden from "../components/VisuallyHidden/VisuallyHidden"
 import {ActionsContainer, StyledButton} from "../components/ActionsRow/ActionsRow"
 
 /** The printer, at the size the portal draws it. */
@@ -25,6 +26,11 @@ const StyledCircularProgress = styled(CircularProgress)`
 export interface IConfirmationActionsProps {
     /** The receipt is being made: the printer waits with a spinner. */
     printing?: boolean
+    /**
+     * Whether there is a receipt to print at all. A fully acclaimed election casts
+     * nothing, so the portal leaves Print out rather than disabling it.
+     */
+    withPrint?: boolean
     onPrint?: () => void
     onFinish?: () => void
 }
@@ -42,33 +48,50 @@ export interface IConfirmationActionsProps {
  */
 export const ConfirmationActions = ({
     printing = false,
+    withPrint = true,
     onPrint,
     onFinish,
 }: IConfirmationActionsProps): React.JSX.Element => {
     const {t} = useTranslation()
 
     return (
-        <ActionsContainer>
-            <StyledButton
-                onClick={onPrint}
-                disabled={printing || onPrint === undefined}
-                variant="secondary"
-                sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            >
-                {printing ? (
-                    <StyledCircularProgress color="inherit" />
-                ) : (
-                    <StyledIcon icon={faPrint} size="sm" />
-                )}
-                <Box>{t("confirmationScreen.printButton")}</Box>
-            </StyledButton>
+        <ActionsContainer className="actions-container">
+            {withPrint ? (
+                <>
+                    <StyledButton
+                        className="print-receipt-button"
+                        onClick={onPrint}
+                        disabled={printing || onPrint === undefined}
+                        variant="secondary"
+                        sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
+                    >
+                        {printing ? (
+                            <StyledCircularProgress
+                                className="print-receipt-progress"
+                                color="inherit"
+                                aria-hidden="true"
+                            />
+                        ) : (
+                            <StyledIcon className="print-receipt-icon" icon={faPrint} size="sm" />
+                        )}
+                        <Box className="print-receipt-label">
+                            {t("confirmationScreen.printButton")}
+                        </Box>
+                    </StyledButton>
+                    {/* Generating the receipt is an asynchronous poll, so the wait
+                        and its end are announced rather than shown only as a spinner. */}
+                    <VisuallyHidden className="print-receipt-status" role="status">
+                        {printing ? t("a11y.loading") : ""}
+                    </VisuallyHidden>
+                </>
+            ) : null}
             <StyledButton
                 className="finish-button"
                 onClick={onFinish}
                 disabled={onFinish === undefined}
                 sx={{width: {xs: "100%", sm: "200px"}}}
             >
-                <Box>{t("confirmationScreen.finishButton")}</Box>
+                <Box className="finish-button-label">{t("confirmationScreen.finishButton")}</Box>
             </StyledButton>
         </ActionsContainer>
     )

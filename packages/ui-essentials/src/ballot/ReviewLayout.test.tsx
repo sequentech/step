@@ -190,3 +190,43 @@ describe("where this screen's words come from", () => {
         expect(document.body.textContent).toContain("reviewScreen.")
     })
 })
+
+describe("the ovcs fixes carried into the shared review screen", () => {
+    it("titles the screen as its one level-one heading", () => {
+        render(<ReviewLayout {...props} />)
+
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent("reviewScreen.title")
+    })
+
+    it("speaks of acclamation when every contest was acclaimed", () => {
+        render(<ReviewLayout {...props} withAudit isFullyAcclaimed />)
+
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
+            "reviewScreen.acclamation.title"
+        )
+        expect(document.querySelector(".screen-description")?.textContent).toBe(
+            "reviewScreen.acclamation.description"
+        )
+    })
+
+    it("interrupts with a casting error, which blocks the voter", () => {
+        render(<ReviewLayout {...props} error="refused" />)
+
+        expect(screen.getByRole("alert")).toHaveTextContent("refused")
+    })
+
+    it("names the title's help button", () => {
+        render(<ReviewLayout {...props} onTitleHelp={() => undefined} />)
+
+        expect(document.querySelector(".screen-help-button")).toHaveAttribute(
+            "aria-label",
+            "a11y.helpAbout reviewScreen.reviewScreenHelpDialog.title"
+        )
+    })
+
+    it("wraps each contest in the portal's hook", () => {
+        render(<ReviewLayout {...props} />)
+
+        expect(document.querySelectorAll(".contest-container")).toHaveLength(2)
+    })
+})

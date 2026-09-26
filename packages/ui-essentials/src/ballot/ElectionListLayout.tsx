@@ -98,6 +98,16 @@ export interface IElectionListLayoutProps {
     /** The buttons on the right: results, support materials. */
     actions?: React.ReactNode
     /** The elections themselves — one card each — or a line saying there are none. */
+    /**
+     * Between the heading and the list: the portal's notice that support materials
+     * must be read before voting.
+     */
+    banner?: React.ReactNode
+    /**
+     * The list's role. The portal passes `"list"` when it has elections to show and
+     * nothing when it shows the empty-state sentence, which is not a list item.
+     */
+    listRole?: string
     children: React.ReactNode
 }
 
@@ -122,26 +132,36 @@ export const ElectionListLayout = ({
     titleAdornment,
     alert,
     actions,
+    banner,
+    listRole,
     children,
 }: IElectionListLayoutProps): React.JSX.Element => {
     const {t} = useTranslation()
 
     return (
         <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            {steps === undefined ? null : <Box marginTop="48px">{steps}</Box>}
+            {steps === undefined ? null : (
+                <Box className="stepper-box" marginTop="48px">
+                    {steps}
+                </Box>
+            )}
 
             <TitleSection className="title-section">
                 <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
-                    <StyledTitle variant="h1">
+                    <StyledTitle className="screen-title" variant="h1">
                         {/* `electionSelectionScreen.title`, translated here rather than
                         copied: this file carried an English pair for a while and the
                         wizard's preview read it instead of the catalogue. */}
-                        <Box>{t("electionSelectionScreen.title")}</Box>
+                        <Box className="screen-title-text">
+                            {t("electionSelectionScreen.title")}
+                        </Box>
                         {titleAdornment}
                     </StyledTitle>
                     {alert ?? (
                         <Typography
+                            className="screen-description"
                             variant="body1"
+                            component="div"
                             sx={{color: theme.palette.customGrey.contrastText}}
                         >
                             {stringToHtml(t("electionSelectionScreen.description"))}
@@ -151,7 +171,11 @@ export const ElectionListLayout = ({
                 <PageActions className="election-event-actions">{actions}</PageActions>
             </TitleSection>
 
-            <ElectionContainer className="elections-list">{children}</ElectionContainer>
+            {banner}
+
+            <ElectionContainer className="elections-list" role={listRole}>
+                {children}
+            </ElectionContainer>
         </PageLimit>
     )
 }

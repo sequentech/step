@@ -119,3 +119,28 @@ describe("the support materials tab", () => {
         expect(screen.getByText("Before you vote")).toBeInTheDocument()
     })
 })
+
+describe("the ovcs fixes carried into the shared support materials", () => {
+    it("is one keyboard stop: the card is not a button, the open button is", () => {
+        render(
+            <SupportMaterialCard
+                title="Rules"
+                kind="application/pdf"
+                onOpen={() => undefined}
+                openLabel="Preview Rules"
+            />
+        )
+
+        expect(screen.getAllByRole("button")).toHaveLength(1)
+        expect(screen.getByRole("button", {name: "Preview Rules"})).toHaveClass(
+            "support-material-preview-button"
+        )
+        expect(document.querySelector(".support-material")).not.toHaveAttribute("tabindex")
+    })
+
+    it("renders HTML in the subtitle as markup", () => {
+        render(<SupportMaterialCard title="Rules" subtitle="The <b>rules</b>" kind="pdf" />)
+
+        expect(document.querySelector(".support-material-subtitle b")).toHaveTextContent("rules")
+    })
+})
