@@ -35,10 +35,7 @@ const meta = {
         graphql = graphqlBoundary({})
         data = resourceBoundary(
             {
-                sequent_backend_election: [
-                    {...COUNCIL_ELECTION, name: "Council election"},
-                    {...DEPUTY_ELECTION, name: "Deputy election"},
-                ],
+                sequent_backend_election: [COUNCIL_ELECTION, DEPUTY_ELECTION],
                 sequent_backend_trustee: trusteeRecords,
                 sequent_backend_tally_session: [
                     tallySession(EStoryWorkflow.TALLY, {
@@ -58,20 +55,31 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
-const election = (canvasElement: HTMLElement, name: string) =>
-    within(canvasElement).findByRole("checkbox", {name})
+/**
+ * The checkbox of an election. The widget labels each one with the election's
+ * `name`, a column elections do not have, so every label reads "undefined".
+ */
+const election = (canvasElement: HTMLElement, id: string) =>
+    waitFor(() => {
+        const checkbox = canvasElement.querySelector<HTMLInputElement>(
+            `input[type="checkbox"][value="${id}"]`
+        )
+        if (!checkbox) throw new Error(`No checkbox for election ${id}`)
+        return checkbox
+    })
 
 /** The tally's elections are checked once its record has loaded into the form. */
-async function loadedElection(canvasElement: HTMLElement, name: string) {
-    const checkbox = await election(canvasElement, name)
+async function loadedElection(canvasElement: HTMLElement, id: string) {
+    const checkbox = await election(canvasElement, id)
     await waitFor(() => expect(checkbox).toBeChecked())
     return checkbox
 }
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
-        await loadedElection(canvasElement, "Council election")
-        await loadedElection(canvasElement, "Deputy election")
+        await loadedElection(canvasElement, STORY_IDS.election)
+        const deputy = await loadedElection(canvasElement, STORY_IDS.secondElection)
+        expect(deputy).toHaveAccessibleName("undefined")
         await expect(within(canvasElement).getByText(i18n.t("tally.common.title"))).toBeVisible()
         expect(data.calls.map(({method, args}) => `${method} ${String(args[0])}`)).toEqual(
             expect.arrayContaining([
@@ -87,7 +95,7 @@ export const Populated: Story = {
 export const SaveChangedElections: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await loadedElection(canvasElement, "Deputy election"))
+        await userEvent.click(await loadedElection(canvasElement, STORY_IDS.secondElection))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await waitFor(() =>
             expect(data.writes).toEqual([
@@ -110,7 +118,7 @@ export const SaveFailure: Story = {
     args: {writeError: "Synthetic update rejected"},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await userEvent.click(await loadedElection(canvasElement, "Deputy election"))
+        await userEvent.click(await loadedElection(canvasElement, STORY_IDS.secondElection))
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await expect(await within(document.body).findByText("Could not update Area")).toBeVisible()
         expect(data.writes).toHaveLength(1)
