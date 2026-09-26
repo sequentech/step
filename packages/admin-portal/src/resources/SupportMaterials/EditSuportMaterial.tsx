@@ -151,7 +151,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
             return []
         }
 
-        if (!valueMaterials) setValueMaterials({...parsedValue.data})
+        if (!valueMaterials && parsedValue.data) setValueMaterials({...parsedValue.data})
 
         let presentation: IElectionEventPresentation = record.presentation
 
