@@ -61,7 +61,8 @@ test("lists this tenant's scheduled notifications", async ({page, portal}) => {
     await expect(page.getByText("No Scheduled Events yet.", {exact: true})).toBeVisible()
     rows = [notification]
     await page.reload()
-    await expect(page.getByRole("columnheader", {name: "Schedule"})).toBeVisible()
+    await expect(page.getByRole("columnheader", {name: "Created at"})).toBeVisible()
+    await expect(page.getByText("Invalid Date")).toHaveCount(0)
     // Without an event in context the filter keeps an empty, match-all event condition.
     expect(portal.graphql.callsTo("sequent_backend_notification")[0].variables.where).toEqual({
         _and: [{election_event_id: {}}, {tenant_id: {_eq: TENANT_ID}}],

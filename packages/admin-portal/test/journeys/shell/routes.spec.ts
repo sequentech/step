@@ -263,11 +263,11 @@ export const SMOKE: Record<string, Smoke> = {
     },
     "/sequent_backend_notification": {
         url: "/sequent_backend_notification",
-        shows: (page) => expect(page.getByRole("columnheader", {name: "Schedule"})).toBeVisible(),
+        shows: (page) => expect(page.getByRole("columnheader", {name: "Created at"})).toBeVisible(),
     },
     "/sequent_backend_notification/:id": {
         url: `/sequent_backend_notification/${SHELL_IDS.notification}`,
-        shows: (page) => expect(page.getByRole("columnheader", {name: "Schedule"})).toBeVisible(),
+        shows: (page) => expect(page.getByRole("columnheader", {name: "Created at"})).toBeVisible(),
     },
     "/sequent_backend_template": {
         url: "/sequent_backend_template",
