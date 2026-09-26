@@ -201,17 +201,17 @@ export const OutsideThePermissionLabel: Story = {
     parameters: {widgets: []},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        // The label check runs after the first render with the election, which
-        // briefly mounts the dashboard and starts its query.
-        await waitFor(
-            () => expect(graphql.calls.map((call) => call.name)).toContain("GetElectionStats"),
-            {timeout: LAZY_LOAD_MS}
+        // The tabs read the election's event once the election has loaded.
+        await waitFor(() =>
+            expect(readsOf(data)).toContain("getOne sequent_backend_election_event")
         )
         await waitFor(() => {
             expect(canvas.queryAllByRole("tab")).toEqual([])
             expect(canvas.getByText(noPermission())).toBeVisible()
         })
         expect(canvas.queryByText("Council")).toBeNull()
+        // No tab mounts, so nothing about the election is queried.
+        expect(graphql.calls.map((call) => call.name)).not.toContain("GetElectionStats")
     },
 }
 
