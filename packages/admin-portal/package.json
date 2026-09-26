@@ -93,7 +93,8 @@
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
     "postinstall": "node ./postinstall.cjs",
     "test:journeys": "playwright test --config playwright.journeys.config.ts",
-    "test:types": "tsc --project tsconfig.journeys.json"
+    "test:types": "tsc --project tsconfig.journeys.json",
+    "coverage:safety-net": "node --experimental-strip-types ../ui-test-kit/coverage/summary.mts safety-net ."
   },
   "proxy": "https://i.imgur.com",
   "browserslist": {

@@ -101,10 +101,10 @@ test("switches from an authenticated tenant through logout and a fresh realm log
     await page.getByRole("button", {name: "Sign in", exact: true}).click()
     await expect(page.getByText("No Election Event yet", {exact: true})).toBeVisible()
     expect(portal.oidc.authorizations.at(-1)?.realm).toBe(`tenant-${SECOND_TENANT_ID}`)
-    expect(
-        portal.graphql.callsTo("sequent_backend_election_event").at(-1)?.variables
-    ).toMatchObject({
-        where: {_and: [{tenant_id: {_eq: SECOND_TENANT_ID}}, {is_archived: {_eq: false}}]},
-    })
+    await expect
+        .poll(() => portal.graphql.callsTo("sequent_backend_election_event").at(-1)?.variables)
+        .toMatchObject({
+            where: {_and: [{tenant_id: {_eq: SECOND_TENANT_ID}}, {is_archived: {_eq: false}}]},
+        })
     expect(portal.oidc.logouts[0].params.post_logout_redirect_uri).toBe(`${portal.origin}/tenant`)
 })

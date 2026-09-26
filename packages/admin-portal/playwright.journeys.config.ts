@@ -5,8 +5,9 @@ import {defineConfig, devices} from "@playwright/test"
 
 export default defineConfig({
     testDir: "./test/journeys",
-    fullyParallel: false,
-    workers: 1,
+    // Keep local and CI memory bounded; CI also splits this suite into shards.
+    fullyParallel: true,
+    workers: 2,
     timeout: 45000,
     expect: {timeout: 10000},
     retries: 0,

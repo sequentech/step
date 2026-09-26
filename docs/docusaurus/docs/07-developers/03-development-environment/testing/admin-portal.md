@@ -30,3 +30,51 @@ are excluded, consistently across counters and exports. CI compares lines,
 statements, functions and branches separately with the actual PR base. UI browser
 interactions, Keycloak redirects, GraphQL services and the real cryptographic WASM
 boundary remain separate integration scopes.
+
+The trustee startup journey uses the real vendored Braid WASM and browser worker
+pool. The admin build copies that package to `dist/braid-wasm/` without bundling
+its ES modules: the rayon helper must resolve its own browser URL. Serve those
+assets with the application and keep the cross-origin isolation headers required
+for shared WebAssembly memory. Its journey fixture permits only the same-origin
+rayon helper GET; unexpected service requests remain failures.
+
+## Event and settings workflows
+
+Production event and settings journeys live in `test/journeys/events/` and
+`test/journeys/settings/`, with local fixture builders in each directory's
+`data.ts`. After building the shared UI packages and admin portal as described in
+[UI browser tests](./ui-browser-tests.md), run them from the repository root:
+
+```sh
+yarn --cwd packages/admin-portal test:journeys test/journeys/events test/journeys/settings --workers=2
+yarn --cwd packages/admin-portal test:types
+```
+
+These journeys assert rendered outcomes and complete GraphQL variables or upload
+bodies. Invalid password and results policies must show an error without leaking
+a rejected promise or saving the event. Custom URL prefixes must survive
+unrelated form edits.
+Export failures before a task ID is returned must update the visible task status.
+Unexpected requests and page exceptions fail the fixture. Password-policy
+boundaries belong in the Node Jest validator tests.
+
+## Access workflows
+
+The production journeys in `test/journeys/access/` cover voter and tenant-user
+management, roles, approvals, reconciliation uploads, notifications and tenant
+selection. Their local data builders serve the same strict GraphQL, OIDC and
+object-storage boundaries as the other admin journeys. Prepare the production
+bundle and browser as described in [UI browser tests](./ui-browser-tests.md),
+then run from `packages/`:
+
+```sh
+yarn workspace admin-portal test:journeys 'test/journeys/access/[^/]+\.spec\.ts$' --workers=2 --repeat-each=3
+```
+
+Assert the full variables for each write, the permission role, and the visible
+result. Upload checks include the exact presigned URL and bytes. After a write,
+wait for its refreshed list data before opening another row action. Tenant-user
+and voter permissions are tested independently, including voters who already
+cast a ballot. Selection-checkbox stories keep accessibility checks enabled;
+labels must name the input, not its decorative wrapper. Route smokes reject all
+console errors, page errors and unexpected service requests.

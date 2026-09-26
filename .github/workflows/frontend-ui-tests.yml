@@ -74,11 +74,26 @@ jobs:
           if-no-files-found: warn
 
   portal-journeys:
-    name: ${{ matrix.package }} production browser journeys
+    name: ${{ matrix.package }} production browser journeys${{ matrix.shards && format(' ({0}/{1})', matrix.shard, matrix.shards) || '' }}
     strategy:
       fail-fast: false
       matrix:
-        package: [voting-portal, results-portal, ballot-verifier, admin-portal]
+        package: [voting-portal, results-portal, ballot-verifier]
+        # The admin suite grows with every area; each shard builds the portal
+        # and runs its share of the journeys with two workers.
+        include:
+          - package: admin-portal
+            shard: 1
+            shards: 4
+          - package: admin-portal
+            shard: 2
+            shards: 4
+          - package: admin-portal
+            shard: 3
+            shards: 4
+          - package: admin-portal
+            shard: 4
+            shards: 4
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -116,15 +131,70 @@ jobs:
       - name: Run mocked service journeys in Chromium
         env:
           STEP_UI_JOURNEY_COVERAGE: "1"
-        run: yarn --cwd packages/${{ matrix.package }} test:journeys
+        run: yarn --cwd packages/${{ matrix.package }} test:journeys ${{ matrix.shards && format('--shard={0}/{1}', matrix.shard, matrix.shards) || '' }}
       - name: Summarize journeys and V8 coverage
         if: ${{ !cancelled() }}
         run: node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/${{ matrix.package }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: ${{ matrix.package }}-production-journeys
+          name: ${{ matrix.package }}-production-journeys${{ matrix.shards && format('-{0}-of-{1}', matrix.shard, matrix.shards) || '' }}
           path: |
             packages/${{ matrix.package }}/test-results
             packages/ui-test-kit/test-results
           if-no-files-found: error
+
+  admin-safety-net:
+    name: admin-portal safety-net coverage
+    # Reporting only: the layers' own jobs and the Jest coverage workflow gate.
+    needs: [stories, portal-journeys]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      LAYERS: ${{ github.workspace }}/safety-net
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22.22.0"
+      - name: Install locked workspace dependencies
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd packages install --frozen-lockfile --non-interactive
+      - name: Record Jest line coverage
+        continue-on-error: true
+        working-directory: packages/admin-portal
+        run: yarn test --coverage --coverageReporters=json --coverageDirectory="$LAYERS/jest"
+      - name: Download story line coverage
+        continue-on-error: true
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: stories-admin-portal
+          path: ${{ env.LAYERS }}/stories
+      - name: Download journey line coverage from every shard
+        continue-on-error: true
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          pattern: admin-portal-production-journeys*
+          path: ${{ env.LAYERS }}/journeys
+      - name: Summarize the per-file union of Jest, story and journey lines
+        run: >-
+          node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts
+          safety-net packages/admin-portal
+          --layer "jest=$LAYERS/jest" --layer "stories=$LAYERS/stories"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-1-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-2-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-3-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-4-of-4"
+          --output "$LAYERS/union"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: admin-portal-safety-net
+          path: ${{ env.LAYERS }}/union
+          if-no-files-found: warn

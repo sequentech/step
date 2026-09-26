@@ -107,6 +107,42 @@ Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` a
 
 Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
 
+## Admin coverage before a refactor
+
+The route smoke matrix follows the views declared in `admin-portal/src/App.tsx`.
+Add a realistic fixture and a visible-content assertion when adding a route.
+Area journeys provide the deeper workflows and assert exact mutation variables
+or REST method, path and body. Keep pure data transformations in Jest and reserve
+stories for interactions that are awkward to reach through a complete journey.
+
+After building the shared packages and admin portal, collect all three layers
+from the same source revision, then inspect their union:
+
+```sh
+yarn --cwd packages/admin-portal test --coverage --coverageReporters=json
+yarn --cwd packages/admin-portal test:stories --coverage
+STEP_UI_JOURNEY_COVERAGE=1 yarn --cwd packages/admin-portal test:journeys
+node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/admin-portal
+yarn --cwd packages/admin-portal coverage:safety-net
+yarn --cwd packages/admin-portal coverage:safety-net --prefix src/resources/ElectionEvent
+```
+
+The report counts a source line once when any layer executes it, using raw
+Istanbul statement locations or LCOV line records. Its denominator contains
+every line reported by any layer; it is not the sum or maximum of the layers'
+summary percentages. Compare each file's uncovered lines and wire contracts
+before changing its implementation. A missing layer is explicitly marked and
+does not establish that the combined coverage is complete.
+
+CI runs admin journeys in four shards with two workers each and publishes the
+area and per-file tables in the safety-net job summary. The
+`admin-portal-safety-net` artifact contains `coverage-union.json` and
+`coverage-union.md`, including uncovered line ranges. Locally these files are
+under `packages/admin-portal/test-results/safety-net/`. To combine downloaded
+artifacts, pass repeated `--layer jest=<path>`, `--layer stories=<path>` and
+`--layer journeys=<path>` options; directories are searched for raw line reports
+and journey shards are united before the layer comparison.
+
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
 failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the
 Istanbul statements, functions and branches of the bundled TypeScript `src/**`, each counted from the
@@ -115,3 +151,15 @@ innermost V8 block around its bundle code (unloaded chunks count 0), in `test-re
 STEP_UI_JOURNEY_COVERAGE=1 yarn --cwd packages/voting-portal test:journeys
 node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/voting-portal
 ```
+
+## Real-stack browser journeys
+
+Run `yarn --cwd packages install --frozen-lockfile`, then `scripts/e2e/ui/run.sh`. The runner builds the production voting, admin, results and verifier portals and starts the isolated backend services described in [Backend journeys](./backend-e2e.md). It drives Chromium against actual Keycloak, Hasura, Harvest, Windmill, trustees, PostgreSQL and MinIO; application responses come from those services. The admin fixture serves its optional react-admin telemetry image locally and checks the exact request, without contacting the vendor.
+
+The journeys cover audit decoding, authenticated casting and stored receipts, private signed files, active-publication access rules, ballot lookup, verifier import, revote and closed-election rejection, administrator two-factor login using the isolated realm’s fixed test OTP, tally results publication and revocation. The tally oracle expects each voter's last accepted browser ballot. Unexpected HTTP and WebSocket destinations fail the run, including any telemetry request with a different method, path or query. One browser worker runs with no retries.
+
+Use `--keep` to retain the synthetic stack after a failure. To remove it, set `STEP_E2E_PROJECT` to the name printed at startup and run `scripts/e2e/ui/run.sh --down`; teardown requires an explicit project name. Remove a retained stack before reusing its explicit name. `--skip-images`, `--skip-build` and `--skip-ui-build` reuse local artifacts while developing; rebuild after changing their source. `DOCKER='sudo docker'` supports hosts requiring elevated Docker access. Project names must remain isolated from development services; the default is a unique `step-e2e-ui-...` name for each invocation. Existing projects are rejected without teardown, even if a prior run left logs or ownership markers in the selected output directory.
+
+Reports, failure screenshots and traces, and service logs are written under `.cache/backend-e2e/<project>`. A custom `STEP_E2E_OUTPUT_DIR` must refer to the same retained directory when running `--down`; relative paths resolve from the caller's working directory, so use an absolute path when changing directories. The workflow runs nightly, by manual dispatch, and for pull requests labeled `e2e-stack`; its cold backend build can take over an hour. All credentials and election data come from the disposable development fixture.
+
+Python 3 holds a per-project process lock from startup through browser execution and cleanup. A concurrent launcher or `--down` using that project on this host and user fails before touching Docker.
