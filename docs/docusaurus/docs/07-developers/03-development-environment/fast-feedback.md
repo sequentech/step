@@ -151,6 +151,11 @@ Its local storage keys start with `sequent.workbench.v1.`; Reset removes them an
 portal's session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under `Workbench/`.
 
+Admin widgets also open in isolation: `yarn --cwd packages/admin-portal stories:inventory <source file>`
+prints the section, story IDs, links and focused test command of each widget in the
+file; the [admin widget catalog](./testing/ui-browser-tests.md#admin-widget-catalog)
+describes its fixtures and boundaries.
+
 The workbench dev server automatically loads the artifact published by
 `step-dev wasm`, falling back to the installed package when none exists. Production
 builds use the installed package. `WORKBENCH_SEQUENT_CORE=<wasm-pack web output>`
