@@ -9,10 +9,11 @@ use crate::services::database::get_keycloak_pool;
 use crate::services::database::PgConfig;
 use crate::services::election_event_board::get_election_event_board;
 use crate::services::electoral_log::ElectoralLog;
+use crate::services::electoral_log_queue::drain_electoral_log_queue;
 use crate::services::protocol_manager::get_board_client;
 use crate::services::users::get_user_area_id;
 use crate::types::error::{Error, Result};
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, ensure, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
 use electoral_log::client::board_client::{retry_electoral_log_transaction, ElectoralLogMessage};
@@ -20,13 +21,11 @@ use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use tracing::{event, info, instrument, warn};
+use tracing::{instrument, warn};
 
-use lapin::{
-    options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
-    types::FieldTable,
-};
+use lapin::message::BasicGetMessage;
 
 /// Classifies the type of an incoming log event.
 ///
@@ -121,23 +120,104 @@ pub struct LogEventInput {
 }
 
 /// Enqueue the electoral log event.
-/// This task is routed to the durable electoral_log_batch_queue.
+/// This envelope is drained from the durable electoral_log_event_queue.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task(max_retries = 0)]
 pub async fn enqueue_electoral_log_event(input: LogEventInput) -> Result<()> {
-    // By calling this task, the event is enqueued into the electoral_log_batch_queue.
+    // The dispatcher owns delivery and acknowledgement; this task is not consumed directly.
     Ok(())
 }
 
-/// Process a batch of electoral log events.
-/// Uses a single Hasura transaction to fetch event details and group messages by board,
-/// then for each board group, opens an immudb session/transaction to insert all messages.
+/// Legacy wire signature retained for batches already in RabbitMQ. Worker queue
+/// selection redirects this queue to the durable dispatcher; it must not be
+/// consumed with Celery's acknowledge-on-final-error behavior.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(max_retries = 0)]
-pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> Result<()> {
-    let mut messages_by_board: HashMap<String, Vec<ElectoralLogMessage>> = HashMap::new();
+#[celery::task(bind = true, max_retries = 0)]
+pub async fn process_electoral_log_events_batch(
+    task: &Self,
+    events: Vec<LogEventInput>,
+) -> Result<()> {
+    let deliveries = identify_events(&task.request.correlation_id, true, events)?;
+    persist_electoral_log_deliveries(deliveries).await?;
+    Ok(())
+}
+
+#[derive(Debug)]
+pub struct IdentifiedLogEvent {
+    pub delivery_id: String,
+    pub payload_hash: String,
+    pub input: LogEventInput,
+}
+
+fn identify_events(
+    id: &str,
+    legacy_batch: bool,
+    events: Vec<LogEventInput>,
+) -> anyhow::Result<Vec<IdentifiedLogEvent>> {
+    ensure!(
+        !id.is_empty(),
+        "electoral log delivery has no stable correlation ID"
+    );
+    events
+        .into_iter()
+        .enumerate()
+        .map(|(index, input)| {
+            // Namespace original events separately from old batch task IDs, and
+            // distinguish each event within a legacy batch without using delivery tags.
+            let identity = if legacy_batch {
+                format!("batch:{id}:{index}")
+            } else {
+                format!("event:{id}")
+            };
+            Ok(IdentifiedLogEvent {
+                delivery_id: hex::encode(Sha256::digest(identity.as_bytes())),
+                payload_hash: hex::encode(Sha256::digest(serde_json::to_vec(&input)?)),
+                input,
+            })
+        })
+        .collect()
+}
+
+pub fn decode_electoral_log_delivery(
+    delivery: &BasicGetMessage,
+    legacy_batch: bool,
+) -> anyhow::Result<Vec<IdentifiedLogEvent>> {
+    let id = delivery
+        .properties
+        .correlation_id()
+        .as_ref()
+        .ok_or_else(|| anyhow!("electoral log delivery has no stable correlation ID"))?;
+    let value: serde_json::Value =
+        serde_json::from_slice(&delivery.data).context("Error parsing Celery message as JSON")?;
+    let payload = value
+        .as_array()
+        .and_then(|array| array.get(1))
+        .ok_or_else(|| anyhow!("Invalid Celery message: expected arguments array"))?;
+    let events = if legacy_batch {
+        serde_json::from_value(
+            payload
+                .get("events")
+                .cloned()
+                .ok_or_else(|| anyhow!("Missing events in legacy electoral log batch"))?,
+        )?
+    } else {
+        vec![serde_json::from_value(
+            payload
+                .get("input")
+                .cloned()
+                .ok_or_else(|| anyhow!("Missing input in electoral log event"))?,
+        )?]
+    };
+    identify_events(id.as_str(), legacy_batch, events)
+}
+
+async fn persist_electoral_log_deliveries(events: Vec<IdentifiedLogEvent>) -> anyhow::Result<()> {
+    let mut messages_by_board: HashMap<
+        String,
+        Vec<(IdentifiedLogEvent, Vec<ElectoralLogMessage>)>,
+    > = HashMap::new();
 
     let mut hasura_db_client: DbClient = get_hasura_pool()
         .await
@@ -159,7 +239,9 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .await
         .with_context(|| "Error starting keycloak transaction")?;
 
-    for input in events.iter() {
+    for delivery in events {
+        let input = &delivery.input;
+        let mut messages = Vec::new();
         let election_event =
             get_election_event_by_id(&hasura_tx, &input.tenant_id, &input.election_event_id)
                 .await
@@ -204,10 +286,7 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
                             user_area_id.clone(),
                         )
                         .with_context(|| "Error building send template message")?;
-                    messages_by_board
-                        .entry(board_name.clone())
-                        .or_insert_with(Vec::new)
-                        .push(send_template_msg);
+                    messages.push(send_template_msg);
                 }
 
                 electoral_log
@@ -223,10 +302,11 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             }
         };
 
+        messages.push(event_message);
         messages_by_board
-            .entry(board_name.clone())
-            .or_insert_with(Vec::new)
-            .push(event_message);
+            .entry(board_name)
+            .or_default()
+            .push((delivery, messages));
     }
 
     hasura_tx
@@ -239,16 +319,23 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
             let mut board_client = get_board_client().await?;
             board_client.open_session(&board).await?;
             let result = async {
-                let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
                 board_client
-                    .insert_electoral_log_messages_batch(&immudb_tx, &messages)
-                    .await
-                    .with_context(|| {
-                        format!(
-                            "Error inserting batch electoral log messages for board {}",
-                            board
+                    .ensure_electoral_log_delivery_receipts()
+                    .await?;
+                let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
+                for (delivery, rows) in &messages {
+                    board_client
+                        .insert_electoral_log_delivery(
+                            &immudb_tx,
+                            &delivery.delivery_id,
+                            &delivery.payload_hash,
+                            rows,
                         )
-                    })?;
+                        .await
+                        .with_context(|| {
+                            format!("Error persisting electoral log delivery for board {board}")
+                        })?;
+                }
                 board_client.commit(&immudb_tx).await.with_context(|| {
                     format!("Error committing immudb transaction for board {}", board)
                 })?;
@@ -268,105 +355,37 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
     Ok(())
 }
 
-/// Dispatcher: repeatedly reads batches of messages from the electoral_log_batch_queue and dispatches them
-/// to the processing task. Each batch is processed sequentially so that only a single batch is held in memory.
+/// Retain the original durable messages until every board has confirmed its
+/// transaction. Receipts make replays after a partial/ambiguous commit harmless.
 #[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
-#[celery::task(time_limit = 30, max_retries = 0, expires = 1)]
+// Persistence inherits the former batch processor's lack of a task deadline:
+// a fixed 30s cutoff could requeue a large valid batch before its first commit.
+#[celery::task(max_retries = 0, expires = 1)]
 pub async fn electoral_log_batch_dispatcher() -> Result<()> {
-    info!("starting electoral_log_batch_dispatcher");
-
-    // Reuse the global AMQP connection.
-    let connection_arc = get_celery_connection().await?;
-    let channel = connection_arc
-        .create_channel()
-        .await
-        .with_context(|| "Error creating RabbitMQ channel")?;
-
-    let slug = std::env::var("ENV_SLUG").with_context(|| "missing env var ENV_SLUG")?;
-    let queue_name = Queue::ElectoralLogEvent.queue_name(&slug);
-    let _queue = channel
-        .queue_declare(
-            &queue_name,
-            QueueDeclareOptions {
-                durable: true,
-                ..Default::default()
-            },
-            FieldTable::default(),
-        )
-        .await
-        .with_context(|| "Error declaring electoral_log_batch_queue")?;
-
-    // Get the batch size from PgConfig.
+    let connection = get_celery_connection().await?;
+    let slug = std::env::var("ENV_SLUG").context("missing env var ENV_SLUG")?;
     let batch_size: usize = PgConfig::from_env()?.default_sql_batch_size.try_into()?;
-
-    loop {
-        info!("starting a new batch for queue {queue_name}, max batch_size={batch_size}");
-        let mut batch_deliveries = Vec::with_capacity(batch_size);
-        for _ in 0..batch_size {
-            if let Some(delivery) = channel
-                .basic_get(&queue_name, BasicGetOptions { no_ack: false })
-                .await?
-            {
-                info!("adding delivery element to batch_deliveries");
-                batch_deliveries.push(delivery);
-            } else {
-                info!("not adding to batch_deliveries, break");
-                break;
-            }
-        }
-
-        if batch_deliveries.is_empty() {
-            info!("no more elements to process in queue");
-            break;
-        }
-        info!(
-            "deserializing {len} elements for this batch",
-            len = batch_deliveries.len()
-        );
-
-        // Deserialize messages sequentially.
-        let mut events = Vec::with_capacity(batch_deliveries.len());
-        for delivery in &batch_deliveries {
-            // Parse the raw message into a JSON value.
-            let v: serde_json::Value = serde_json::from_slice(&delivery.data)
-                .with_context(|| "Error parsing Celery message as JSON")?;
-            // Expect the message to be an array.
-            if let serde_json::Value::Array(arr) = v {
-                if arr.len() < 2 {
-                    return Err(
-                        "Invalid message format: expected array with at least 2 elements".into(),
-                    );
+    // Drain old batches as well as newly published single events. No publish/ACK
+    // handoff is involved, and cancellation drops the owned channel (requeueing).
+    for (queue, legacy_batch) in [
+        (Queue::ElectoralLogBatch, true),
+        (Queue::ElectoralLogEvent, false),
+    ] {
+        let channel = connection.create_channel().await?;
+        drain_electoral_log_queue(
+            channel,
+            &queue.queue_name(&slug),
+            batch_size,
+            |deliveries| async move {
+                let mut events = Vec::new();
+                for delivery in deliveries {
+                    events.extend(decode_electoral_log_delivery(&delivery, legacy_batch)?);
                 }
-                let payload = &arr[1];
-                let input_value = payload
-                    .get("input")
-                    .ok_or_else(|| anyhow!("Missing 'input' field in message payload"))?;
-                let event: LogEventInput = serde_json::from_value(input_value.clone())
-                    .with_context(|| "Error deserializing LogEventInput from input field")?;
-                events.push(event);
-            } else {
-                return Err("Invalid message format: expected JSON array".into());
-            }
-        }
-
-        // Dispatch the processing task via the Celery app.
-        let celery_app = crate::services::celery_app::get_celery_app().await;
-        let celery_task = process_electoral_log_events_batch::new(events);
-        info!("sending processing task for current batch");
-        celery_app
-            .send_task(celery_task)
-            .await
-            .with_context(|| "Error sending process_electoral_log_events_batch task")?;
-
-        // Acknowledge all messages in the current batch.
-        for delivery in batch_deliveries {
-            channel
-                .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
-                .await
-                .with_context(|| "Error acknowledging message")?;
-        }
+                persist_electoral_log_deliveries(events).await
+            },
+        )
+        .await?;
     }
-    info!("finishing electoral_log_batch_dispatcher");
     Ok(())
 }
