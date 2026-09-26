@@ -37,6 +37,9 @@ use crate::election_config::census_csv;
 use crate::election_config::fixtures;
 use crate::election_config::problem::{Code, Problem, Report};
 use crate::election_config::schema::ImportElectionEventSchema;
+// Gated like the module itself: the four front ends build `wasmtest,
+// default_features`, where only `checkBundle` and the census reader exist.
+#[cfg(feature = "election_config_templates")]
 use crate::election_config::sources::{self, Sources};
 use crate::election_config::validate;
 use serde::Serialize;
