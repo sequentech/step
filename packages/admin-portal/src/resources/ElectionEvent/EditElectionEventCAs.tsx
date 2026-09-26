@@ -422,7 +422,7 @@ export const EditElectionEventCAs: React.FC = () => {
                 <ListActions
                     withImport={canWrite}
                     doImport={() => setImportDrawerOpen(true)}
-                    withExport={true}
+                    withExport={canRead}
                     doExport={handleExportAll}
                     withFilter={false}
                 />
