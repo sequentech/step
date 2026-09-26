@@ -20,7 +20,8 @@ use super::build_election_event::write_artifact;
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
-use sequent_core::election_config::architect::{compile_plan, read_plan, Blueprint, Compile};
+use sequent_core::election_config::architect::{compile_plan, Compile};
+use sequent_core::election_config::open::open_named;
 use sequent_core::election_config::preview::{preview_publication, PreviewOptions};
 use sequent_core::election_config::profile::{ClientProfile, Profile};
 use sequent_core::election_config::{
@@ -98,15 +99,22 @@ impl CompilePlan {
     }
 
     fn compile(&self) -> Result<()> {
-        let source = fs::read_to_string(&self.plan)
+        let bytes = fs::read(&self.plan)
             .with_context(|| format!("could not read {}", self.plan.display()))?;
-        // Through the core's own reader, so an older plan is migrated exactly as
-        // the wizard migrates it. `serde_json::from_str` here read a version 2
-        // plan as though it were current.
-        let read = read_plan(&source)
-            .map_err(problem_error)
-            .with_context(|| format!("{} is not an election plan", self.plan.display()))?;
-        let plan = read.plan;
+        // Through the core's own door, the one the wizard opens files with. A bare
+        // plan goes through `read_plan`, so an older one is migrated exactly as the
+        // wizard migrates it — `serde_json::from_str` here read a version 2 plan as
+        // though it were current. And what travelled beside the plan comes back
+        // with it: a version 3 plan's members, which the migration lifts out of the
+        // document, and the census and files of a save-file zip or a delivery.
+        // Keeping only the plan compiled all of those with nobody in the census.
+        let opened = open_named(&bytes, self.plan.file_name().and_then(|name| name.to_str()))
+            .map_err(|report| {
+                report_problems(&report);
+                anyhow!("{} is not an election plan", self.plan.display())
+            })?;
+        report_problems(&opened.report);
+        let plan = opened.plan;
 
         let profile = self.profile()?;
         let templates = TemplateSet::builtin().map_err(problem_error)?;
@@ -135,7 +143,7 @@ impl CompilePlan {
             templates: &templates,
             options: &options,
             profile: profile.as_ref(),
-            sources: None,
+            sources: Some(&opened.sources),
         }) {
             Ok(compiled) => compiled,
             Err(report) => {
@@ -149,7 +157,7 @@ impl CompilePlan {
         };
 
         report_problems(&compiled.report);
-        let warnings = compiled.report.warnings().count();
+        let warnings = opened.report.warnings().count() + compiled.report.warnings().count();
         if self.strict && warnings > 0 {
             return Err(anyhow!("{warnings} warning(s), and --strict was given"));
         }
@@ -348,6 +356,29 @@ mod tests {
             }
         }
         names
+    }
+
+    /// A version 3 plan's members reach the census it compiles.
+    ///
+    /// The migration lifts them out of the document into the sources `read_plan`
+    /// returns, and this command kept only the plan, so the event compiled with
+    /// nobody in it and said nothing.
+    #[test]
+    fn a_version_three_plan_compiles_with_its_members() {
+        let mut document = plan(3);
+        document["voters"] = serde_json::json!([
+            {"username": "ada", "email": "ada@example.org",
+             "area_external_id": "north"}
+        ]);
+
+        let (_root, directory) = compile(&document);
+
+        let census = written(&directory)
+            .into_iter()
+            .find(|name| name.contains("export_voters") && name.ends_with(".csv"))
+            .expect("a census member");
+        let text = fs::read_to_string(directory.join(census)).unwrap();
+        assert!(text.contains("ada@example.org"), "{text}");
     }
 
     /// A support material is written under `export_S3_files/`, whose directory
