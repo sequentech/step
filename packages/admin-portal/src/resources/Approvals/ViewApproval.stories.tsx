@@ -109,12 +109,8 @@ export const AsDialog: Story = {
         const dialog = within(dialogElement)
         const table = within(await dialog.findByRole("table", {name: "approvals details table"}))
         await expect(table.getByRole("row", {name: /alice@example.test/})).toBeVisible()
-        // The dialog's title and button show translation keys that only exist
-        // under the tasks screen.
-        await expect(
-            dialog.getByRole("heading", {name: "approvalsScreen.taskInformation"})
-        ).toBeVisible()
-        await userEvent.click(dialog.getByRole("button", {name: "approvalsScreen.ok"}))
+        await expect(dialog.getByRole("heading", {name: "Task Information"})).toBeVisible()
+        await userEvent.click(dialog.getByRole("button", {name: "Ok"}))
         expect(args.goBack).toHaveBeenCalled()
     },
 }
