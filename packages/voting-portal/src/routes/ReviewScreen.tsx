@@ -454,14 +454,13 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
             {/* The row itself is `ReviewActions` in `ui-essentials`, so the Election
                 Architect's preview draws these three buttons rather than three of its
                 own. What stays here is everything that acts: the mutation, the audit
-                policy and the dialogs. Edit ballot navigates from its click handler
-                rather than through a link around the button, so it is a single
-                keyboard stop. */}
+                policy and the dialogs. */}
             <ReviewActions
                 withAudit={auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW && !isFullyAcclaimed}
                 casting={isCasting}
                 isFullyAcclaimed={isFullyAcclaimed}
-                onBack={() => navigate(backNavigateTo)}
+                backComponent={RouterLink}
+                backTo={backNavigateTo}
                 onAudit={() => setAuditBallotHelp(true)}
                 // A detected hash mismatch refuses the cast; leaving the handler
                 // out is what disables the button.
