@@ -43,8 +43,11 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const alice = await row(canvasElement, "Alice Example")
         await expect(within(alice).getByText("Alice Example stands for the council")).toBeVisible()
-        // The event and contest columns show a `name` those tables do not have.
-        await waitFor(() => expect(reads("getMany", "sequent_backend_contest")).toHaveLength(1))
+        // Names live in the presentation since migration 1772358027729 dropped the name column.
+        await expect(within(alice).getByText("Alice Example")).toBeVisible()
+        await expect(await within(alice).findByText("Council event")).toBeVisible()
+        await expect(await within(alice).findByText("Council members")).toBeVisible()
+        expect(reads("getMany", "sequent_backend_contest")).toHaveLength(1)
         expect(reads("getMany", "sequent_backend_election_event")).toHaveLength(1)
         await expect(await row(canvasElement, "Bob Example")).toBeVisible()
         expect(reads("getList", "sequent_backend_candidate")[0].args[1]).toMatchObject({
@@ -83,6 +86,24 @@ export const LoadError: Story = {
         const message = await within(document.body).findByText("Synthetic service unavailable")
         await waitFor(() => expect(message).toBeVisible())
         expect(within(canvasElement).queryByRole("row", {name: /Example/})).toBeNull()
+    },
+}
+
+export const SearchByName: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await row(canvasElement, "Alice Example")
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Name"})
+        )
+        await userEvent.type(await canvas.findByRole("textbox", {name: "Name"}), "Bob")
+        await waitFor(() => expect(canvas.queryByRole("row", {name: /Alice Example/})).toBeNull())
+        await expect(await row(canvasElement, "Bob Example")).toBeVisible()
+        expect(reads("getList", "sequent_backend_candidate").at(-1)?.args[1]).toMatchObject({
+            filter: {tenant_id: TENANT_ID, _or: {format: "hasura-raw-query"}},
+        })
+        await expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("Bob")
     },
 }
 
