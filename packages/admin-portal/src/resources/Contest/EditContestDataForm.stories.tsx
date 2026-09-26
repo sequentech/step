@@ -56,6 +56,44 @@ export const PoliciesSaveWireValues: Story = {
         expect(policyOperations()).toEqual([])
     },
 }
+export const ListNamesAndOrderSave: Story = {
+    args: {lists: true},
+    parameters: {widgets: ["ListsPresentationEditor"]},
+    play: async ({canvasElement}) => {
+        const canvas = await openPolicies(canvasElement, "contest")
+        await expect(canvas.getByText("Edit Lists")).toBeVisible()
+        const partyA = canvas.getByText("List: Party A").parentElement
+        if (!partyA) throw new Error("No Party A list")
+        const list = within(partyA)
+        expect(canvas.getByText("List: Party B")).toBeVisible()
+        await expect(list.getByText("Subtype Council")).toBeVisible()
+        const [listOrder, subtypeOrder] = list.getAllByRole("spinbutton", {name: "Sort order"})
+        await userEvent.type(listOrder, "2")
+        await userEvent.type(subtypeOrder, "1")
+        const [listName, subtypeName] = list.getAllByRole("textbox", {name: "List Name"})
+        await userEvent.type(listName, "Alliance")
+        await userEvent.type(subtypeName, "Council seats")
+        // Each list and subtype has its own tabs; the Spanish name goes to the Spanish tab.
+        await userEvent.click(list.getAllByRole("tab", {name: "Spanish"})[0])
+        await userEvent.type(list.getAllByRole("textbox", {name: "List Name"})[0], "Alianza")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1))
+        expect(save.mock.calls[0][0]).toMatchObject({
+            id: CONTEST_ID,
+            presentation: {
+                types_presentation: {
+                    "Party A": {
+                        sort_order: 2,
+                        name_i18n: {en: "Alliance", es: "Alianza"},
+                        subtypes_presentation: {
+                            Council: {sort_order: 1, name_i18n: {en: "Council seats"}},
+                        },
+                    },
+                },
+            },
+        })
+    },
+}
 export const LanguageTabs: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

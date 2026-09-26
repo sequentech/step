@@ -17,6 +17,7 @@ import {
     graphqlBoundary,
 } from "@/__stories__/AdminStoryProvider"
 import {dataBoundary} from "@/__stories__/dataBoundary"
+import {candidateRecords} from "@/__stories__/fixtures"
 import {AuthContext} from "@/providers/AuthContextProvider"
 import {ContestDataForm} from "../EditContestDataForm"
 import {ElectionDataForm} from "../../Election/ElectionDataForm"
@@ -60,6 +61,8 @@ export interface PolicyScenario {
     kind: "contest" | "election"
     canEdit: boolean
     preferential: boolean
+    /** Whether the contest's candidates stand in party lists with subtypes. */
+    lists?: boolean
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof dataBoundary>
@@ -100,8 +103,15 @@ export function PolicyFormFixture({kind, canEdit, preferential}: PolicyScenario)
     )
 }
 
+/** Candidates of two party lists; the first list has two subtypes. */
+const listCandidates = candidateRecords(CONTEST_ID).map((candidate, index) => ({
+    ...candidate,
+    type: index === 0 ? "Party A" : "Party B",
+    presentation: {...candidate.presentation, subtype: index === 0 ? "Council" : undefined},
+}))
+
 /** Starts each story with fresh boundaries; returns the check of unexpected requests. */
-export async function setUpPolicyForm() {
+export async function setUpPolicyForm({args}: {args: Partial<PolicyScenario>}) {
     await initCore()
     save.mockClear()
     boundary = graphqlBoundary({})
@@ -128,7 +138,9 @@ export async function setUpPolicyForm() {
                 data.unexpected.push(resource)
                 throw new Error("Unexpected list")
             }
-            return {data: [] as RecordType[], total: 0}
+            const rows =
+                args.lists && resource === "sequent_backend_candidate" ? listCandidates : []
+            return {data: rows as RaRecord[] as RecordType[], total: rows.length}
         },
     })
     const services = boundary
