@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Voting Portal tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/voting-portal/testing"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Voting Portal tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3359/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/voting-portal/testing"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/voting-portal/testing" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/voting-portal/testing" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Voting Portal tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/voting-portal/testing"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3359/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3359/assets/js/runtime~main.bf26acac.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3359/assets/js/runtime~main.66bcf0da.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3359/assets/js/main.3c7972fb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -39,6 +39,10 @@ imports. Only declaration files, tests and Jest support are excluded. Babel
 instruments executable source before transformation, so erased TypeScript
 declarations are not counted as unexecuted application statements. HTML, JSON
 and LCOV reports are written to <code>coverage/</code>.</p>
+<p>Jest maps the shared UI packages to source entries. Mock those package names
+without <code>{virtual: true}</code>: virtual mocks can leave incompatible module identities
+in the resolver cache between suites. Run the full unit suite after changing
+shared-package mocks; a focused test can pass while the combined run fails.</p>
 <p>If the browser fixture cannot render, the runner includes its browser errors
 alongside the locator failure. First check that the local WASM archive is
 installed and that the Chromium executable is available. Keep the fixture local;
