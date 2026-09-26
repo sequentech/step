@@ -1137,13 +1137,30 @@
             "problemMatcher": []
         },
         {
+            "label": "build.sequent-core.dev",
+            "type": "process",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "scripts/dev/step-dev wasm"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
             "label": "build.sequent-core",
             "type": "shell",
             "command": "bash",
             "args": [
               "-l",
               "-c",
-              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
+              "cd ${workspaceFolder}/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/build-sequent-core.sh"
             ],
             "options": {
               "cwd": "${workspaceFolder}"
@@ -1169,7 +1186,7 @@
             "args": [
               "-l",
               "-c",
-              "cd /workspaces/step/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec /workspaces/step bash -c \"cd /workspaces/step/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
+              "cd ${workspaceFolder}/packages/sequent-core && nix develop --command ../../.devcontainer/scripts/rebuild-sequent-core-full.sh && direnv exec ${workspaceFolder} bash -c \"cd ${workspaceFolder}/packages && yarn && yarn build:ui-core && yarn build:ui-essentials\""
             ],
             "options": {
               "cwd": "${workspaceFolder}"
