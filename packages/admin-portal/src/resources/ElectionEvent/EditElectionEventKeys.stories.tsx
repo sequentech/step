@@ -192,7 +192,7 @@ export const Empty: Story = {
 }
 
 export const Populated: Story = {
-    parameters: ceremonyListDefects,
+    parameters: {...ceremonyListDefects, widgets: ["StatusChip"]},
     play: async ({canvasElement, globals}) => {
         const {workflow, permissions} = readStoryGlobals(globals)
         const canvas = within(canvasElement)
@@ -225,7 +225,7 @@ export const LoadError: Story = {
 
 export const TrusteeInvitation: Story = {
     globals: {permissions: EStoryPermissions.TRUSTEE, workflow: EStoryWorkflow.CREATED},
-    parameters: ceremonyListDefects,
+    parameters: {...ceremonyListDefects, widgets: ["StatusChip"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
