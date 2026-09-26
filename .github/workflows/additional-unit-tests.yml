@@ -3,13 +3,17 @@
 name: Additional package unit tests
 on:
   pull_request:
-    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**']
+    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
   push:
-    branches: [main]
-    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**']
+    branches: [main, ovcs]
+    paths: ['packages/**', '.github/workflows/additional-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   rust:
     runs-on: ubuntu-24.04
@@ -24,6 +28,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           cargo-build-name: additional-${{ matrix.package }}
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock

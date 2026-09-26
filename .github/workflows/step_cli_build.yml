@@ -7,20 +7,33 @@ name: Build Step CLI Binary
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [ 'main', 'ovcs', 'release/[0-9]+.[0-9]+' ]
   release:
     types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-cli:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      CARGO_TARGET_DIR: rust-local-target
+      OPENSSL_DIR: /usr
+      OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
+      OPENSSL_STATIC: '1'
+      PKG_CONFIG_ALLOW_CROSS: '1'
+      OPENSSL_NO_VENDOR: '0'
       RUSTFLAGS: "-C target-feature=-crt-static -lgcc_eh -lm"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       - name: Install protoc and OpenSSL dependencies on Linux
         if: runner.os == 'Linux'
@@ -29,29 +42,21 @@ jobs:
           sudo apt-get install -y build-essential protobuf-compiler musl-tools libssl-dev pkg-config musl-dev libunwind-dev
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: 1.96.0
           components: rustfmt
           targets: x86_64-unknown-linux-musl
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - name: Restore compatible compiler units
+        uses: ./.github/actions/setup-rust-cache
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
-
-      - name: Cache Cargo build
-        uses: actions/cache@v4
-        with:
-          path: packages/step-cli/rust-local-target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('packages/step-cli/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
+          epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          name: step-cli
+          target-dir: packages/step-cli/rust-local-target
+          lockfile: packages/Cargo.lock
+          profile: release
+          targets: x86_64-unknown-linux-musl
 
       - name: Link openssl
         working-directory: packages/step-cli
@@ -60,20 +65,15 @@ jobs:
       - name: Build step-cli
         working-directory: packages/step-cli
         env:
-          OPENSSL_DIR: /usr
-          OPENSSL_LIB_DIR: /usr/lib/x86_64-linux-gnu
-          OPENSSL_STATIC: 1
-          PKG_CONFIG_ALLOW_CROSS: 1
-          OPENSSL_NO_VENDOR: 0
           CARGO_BUILD_JOBS: 4
-        run: cargo build --release --target x86_64-unknown-linux-musl
+        run: cargo build --locked --release --target x86_64-unknown-linux-musl
 
       - name: List build output target-rust-local (for debugging)
         working-directory: packages/step-cli
         run: ls -lR rust-local-target/x86_64-unknown-linux-musl/release
 
       - name: Upload CLI binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-              name: step-cli-binary
+              name: step-cli-binary-${{ github.run_id }}
               path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/seq

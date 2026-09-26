@@ -1,0 +1,178 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+name: Prebuild development tools
+on:
+  pull_request:
+    paths:
+      - 'devenv.*'
+      - '.devcontainer/devcontainer.json'
+      - '.devcontainer/devcontainer-lock.json'
+      - '.devcontainer/prebuild/**'
+      - 'scripts/dev/prebuild.py'
+      - 'scripts/dev/test_prebuild.py'
+      - 'scripts/dev/prebuild_smoke.py'
+      - 'scripts/dev/test_prebuild_smoke.py'
+      - '.github/workflows/devcontainer-prebuild.yml'
+  push:
+    branches: [main, ovcs]
+    paths:
+      - 'devenv.*'
+      - '.devcontainer/devcontainer.json'
+      - '.devcontainer/devcontainer-lock.json'
+      - '.devcontainer/prebuild/**'
+      - 'scripts/dev/prebuild.py'
+      - 'scripts/dev/prebuild_smoke.py'
+      - '.github/workflows/devcontainer-prebuild.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  build-only:
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.22.0'
+      - name: Build toolchains and locked devcontainer features
+        timeout-minutes: 75
+        env:
+          PREBUILD_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 -m scripts.dev.prebuild context --destination "$RUNNER_TEMP/step-env-context"
+          npx --yes --package @devcontainers/cli@0.89.0 devcontainer build \
+            --workspace-folder "$RUNNER_TEMP/step-env-context" \
+            --config "$RUNNER_TEMP/step-env-context/.devcontainer/devcontainer.json" \
+            --image-name "step-devenv-validation:$PREBUILD_ARCH"
+      - name: Measure offline toolchain readiness
+        timeout-minutes: 15
+        env:
+          PREBUILD_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 -m scripts.dev.prebuild_smoke \
+            --image "step-devenv-validation:$PREBUILD_ARCH" \
+            --output-dir "$RUNNER_TEMP/prebuild-smoke"
+      - name: Report toolchain validation
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/prebuild-smoke/summary.md"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test -f "$RUNNER_TEMP/prebuild-smoke/failure.log"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/failure.log" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo 'PRs never publish images. This smoke covers toolchains, not application/service readiness.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: prebuild-smoke-${{ matrix.arch }}
+          path: ${{ runner.temp }}/prebuild-smoke/
+          if-no-files-found: ignore
+          retention-days: 14
+  publish:
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs')
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.22.0'
+      - name: Prepare source-free build context
+        id: environment
+        run: |
+          python3 -m scripts.dev.prebuild context --destination "$RUNNER_TEMP/step-env-context" \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Build toolchains and locked devcontainer features
+        timeout-minutes: 75
+        env:
+          PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}-${{ matrix.arch }}
+        run: |
+          npx --yes --package @devcontainers/cli@0.89.0 devcontainer build \
+            --workspace-folder "$RUNNER_TEMP/step-env-context" \
+            --config "$RUNNER_TEMP/step-env-context/.devcontainer/devcontainer.json" \
+            --image-name "$PREBUILD_IMAGE"
+      - name: Measure offline toolchain readiness
+        timeout-minutes: 15
+        env:
+          PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}-${{ matrix.arch }}
+        run: |
+          python3 -m scripts.dev.prebuild_smoke \
+            --image "$PREBUILD_IMAGE" --output-dir "$RUNNER_TEMP/prebuild-smoke"
+      - name: Report toolchain validation
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/prebuild-smoke/summary.md"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test -f "$RUNNER_TEMP/prebuild-smoke/failure.log"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/failure.log" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: prebuild-smoke-${{ matrix.arch }}
+          path: ${{ runner.temp }}/prebuild-smoke/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Publish trusted architecture image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+          PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}-${{ matrix.arch }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+          docker push "$PREBUILD_IMAGE"
+          docker logout ghcr.io
+  manifest:
+    needs: publish
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Identify matching environment
+        id: environment
+        run: python3 -m scripts.dev.prebuild fingerprint --github-output "$GITHUB_OUTPUT"
+      - name: Publish multi-architecture tag
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+          PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+          docker buildx imagetools create --tag "$PREBUILD_IMAGE" "$PREBUILD_IMAGE-amd64" "$PREBUILD_IMAGE-arm64"
+          docker logout ghcr.io
+          echo "Published compatible toolchains: \`$PREBUILD_IMAGE\`. Fetch with \`scripts/dev/step-dev prebuild pull\`." >> "$GITHUB_STEP_SUMMARY"
