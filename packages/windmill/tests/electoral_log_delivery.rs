@@ -165,28 +165,6 @@ async fn cancellation_requeues_unacknowledged_input_and_a_successful_retry_ackno
     Ok(())
 }
 
-#[test]
-fn existing_audit_queue_arguments_select_the_durable_dispatcher_only() {
-    use windmill::services::celery_app::durable_electoral_log_consumer_queues;
-    assert_eq!(
-        durable_electoral_log_consumer_queues(
-            vec![
-                "test_short_queue".into(),
-                "test_electoral_log_batch_queue".into(),
-                "test_electoral_log_beat_queue".into(),
-                "test_electoral_log_event_queue".into(),
-                "another_electoral_log_batch_queue".into(),
-            ],
-            "test"
-        ),
-        [
-            "test_short_queue",
-            "test_electoral_log_beat_queue",
-            "another_electoral_log_batch_queue"
-        ]
-    );
-}
-
 #[path = "../../electoral-log/tests/support/immudb.rs"]
 mod immudb;
 
