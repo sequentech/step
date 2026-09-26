@@ -14,6 +14,72 @@ use std::{collections::HashMap, time::Duration};
 
 const DATABASE_TEST_TIMEOUT: Duration = Duration::from_secs(120);
 
+#[tokio::test]
+async fn a_conflicting_commit_retries_the_whole_batch_without_duplicate_audit_entries() -> Result<()>
+{
+    tokio::time::timeout(DATABASE_TEST_TIMEOUT, async {
+        let server = DatabaseServer::start().await?;
+        let mut reader = server.client().await?;
+        reader.upsert_electoral_log_db(DATABASE).await?;
+        let attempts = std::cell::Cell::new(0);
+        let messages: Vec<_> = (0..3).map(message).collect();
+        electoral_log::retry_electoral_log_transaction(|| {
+            let attempt = attempts.get() + 1;
+            attempts.set(attempt);
+            let server = &server;
+            let messages = &messages;
+            async move {
+                let mut writer = server.client().await?;
+                writer.open_session(DATABASE).await?;
+                let tx = writer.new_tx(TxMode::ReadWrite).await?;
+                writer
+                    .insert_electoral_log_messages_batch(&tx, messages)
+                    .await?;
+                if attempt == 1 {
+                    // Commit a real competing insert after the batch has taken
+                    // its snapshot. No timing or scheduler luck is involved.
+                    let mut competitor = server.client().await?;
+                    competitor
+                        .insert_electoral_log_messages(DATABASE, &vec![message(99)])
+                        .await?;
+                }
+                let result = writer.commit(&tx).await;
+                writer.close_session().await?;
+                result.context("committing test audit batch")
+            }
+        })
+        .await?;
+        assert_eq!(
+            attempts.get(),
+            2,
+            "the fixture must force exactly one read conflict"
+        );
+        let rows = reader.get_electoral_log_messages(DATABASE).await?;
+        assert_eq!(rows.len(), 4);
+        let mut ballots: Vec<_> = rows
+            .iter()
+            .map(|row| row.ballot_id.as_deref().unwrap())
+            .collect();
+        ballots.sort_unstable();
+        assert_eq!(ballots, ["ballot0", "ballot1", "ballot2", "ballot99"]);
+        for input in &messages {
+            let row = rows
+                .iter()
+                .find(|row| row.ballot_id == input.ballot_id)
+                .unwrap();
+            let mut expected = input.clone();
+            expected.id = row.id;
+            assert_eq!(
+                row, &expected,
+                "the retry must preserve the prepared audit message"
+            );
+        }
+        Ok(())
+    })
+    .await
+    .context("conflicting audit transaction timed out")?
+}
+
 fn message(index: i64) -> ElectoralLogMessage {
     ElectoralLogMessage {
         id: 0,
