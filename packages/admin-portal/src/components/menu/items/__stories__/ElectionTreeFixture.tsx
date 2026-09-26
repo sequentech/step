@@ -308,6 +308,8 @@ export function TreeStory({
             role={role}
             roles={roles}
             store={memoryStore({"sidebar.open": sidebarOpen})}
+            // Election images load from the Storybook server instead of the public bucket.
+            settings={{PUBLIC_BUCKET_URL: `${globalThis.location.origin}/story-bucket/`}}
         >
             <AtomProvider store={atoms}>
                 <ElectionEventTallyContextProvider>
