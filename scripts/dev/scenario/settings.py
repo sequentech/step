@@ -8,6 +8,7 @@ import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .catalog import Link
 
@@ -121,9 +122,15 @@ def accepts(client: Mapping[str, object], origins: list[str]) -> bool:
         for uri in client.get("redirectUris") or []
     }
     web_origins = {str(origin).rstrip("/") for origin in client.get("webOrigins") or []}
+    if "+" in web_origins:
+        # Keycloak derives "+" from HTTP(S) redirects; a bare "*" has no origin.
+        for redirect in redirects:
+            uri = urlsplit(redirect)
+            if uri.scheme in {"http", "https"} and uri.netloc:
+                web_origins.add(f"{uri.scheme}://{uri.netloc}")
     return all(
         (f"{origin}/*" in redirects or "*" in redirects)
-        and (origin in web_origins or "*" in web_origins or "+" in web_origins)
+        and (origin in web_origins or "*" in web_origins)
         for origin in origins
     )
 
