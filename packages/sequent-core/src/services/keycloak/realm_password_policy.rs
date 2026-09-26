@@ -12,27 +12,44 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::sync::{LazyLock, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
-use tracing::instrument;
+use tracing::{debug, instrument};
 
 pub const MIN_PASSWORD_LENGTH: i32 = 1;
 pub const MAX_PASSWORD_LENGTH: i32 = 256;
 pub const DEFAULT_MINIMUM_PASSWORD_LENGTH: i32 = 12;
 pub const DEFAULT_MAXIMUM_PASSWORD_LENGTH: i32 = 72;
 
-const POLICY_CACHE_TTL: Duration = Duration::from_secs(30);
+const DEFAULT_POLICY_CACHE_TTL_SECS: u64 = 30;
 static POLICY_CACHE: LazyLock<Mutex<PasswordPolicyCache>> =
-    LazyLock::new(|| Mutex::new(PasswordPolicyCache::default()));
+    LazyLock::new(|| {
+        let ttl = std::env::var("KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_POLICY_CACHE_TTL_SECS);
+        Mutex::new(PasswordPolicyCache::new(Duration::from_secs(ttl)))
+    });
 
-#[derive(Default)]
 struct PasswordPolicyCache {
     entries: HashMap<String, (Instant, ParsedRealmPasswordPolicy)>,
     generation: u64,
+    ttl: Duration,
 }
 
 impl PasswordPolicyCache {
+    fn new(ttl: Duration) -> Self {
+        Self {
+            entries: HashMap::new(),
+            generation: 0,
+            ttl,
+        }
+    }
+
     fn get(&self, realm: &str) -> Option<ParsedRealmPasswordPolicy> {
         self.entries.get(realm).and_then(|(cached_at, policy)| {
-            (cached_at.elapsed() < POLICY_CACHE_TTL).then(|| policy.clone())
+            (cached_at.elapsed() < self.ttl).then(|| {
+                debug!(realm, "Using cached realm password policy");
+                policy.clone()
+            })
         })
     }
 
@@ -44,9 +61,8 @@ impl PasswordPolicyCache {
     ) {
         // A policy update must not be undone by an older in-flight read.
         if self.generation == generation {
-            self.entries.retain(|_, (cached_at, _)| {
-                cached_at.elapsed() < POLICY_CACHE_TTL
-            });
+            self.entries
+                .retain(|_, (cached_at, _)| cached_at.elapsed() < self.ttl);
             self.entries
                 .insert(realm.to_owned(), (Instant::now(), policy));
         }
@@ -55,6 +71,7 @@ impl PasswordPolicyCache {
     fn invalidate(&mut self, realm: &str) {
         self.entries.remove(realm);
         self.generation += 1;
+        debug!(realm, "Invalidated realm password policy cache");
     }
 }
 
@@ -675,6 +692,7 @@ impl KeycloakAdminClient {
             }
             cache.generation
         };
+        debug!(realm, "Fetching realm password policy from Keycloak");
         let current_realm = self
             .client
             .realm_get(realm)
@@ -723,18 +741,21 @@ mod tests {
         PasswordPolicyRule, RealmPasswordPolicy,
         DEFAULT_MAXIMUM_PASSWORD_LENGTH, DEFAULT_MINIMUM_PASSWORD_LENGTH,
     };
-    use super::{PasswordPolicyCache, POLICY_CACHE_TTL};
+    use super::{PasswordPolicyCache, DEFAULT_POLICY_CACHE_TTL_SECS};
+    use std::time::Duration;
 
     #[test]
     fn policy_cache_is_scoped_to_realm_and_expires() {
-        let mut cache = PasswordPolicyCache::default();
+        let mut cache = PasswordPolicyCache::new(Duration::from_secs(
+            DEFAULT_POLICY_CACHE_TTL_SECS,
+        ));
         let policy =
             ParsedRealmPasswordPolicy::from_keycloak_policy(Some("length(12)"));
         cache.insert("realm-a", policy.clone(), cache.generation);
         assert_eq!(cache.get("realm-a"), Some(policy));
         assert_eq!(cache.get("realm-b"), None);
 
-        cache.entries.get_mut("realm-a").unwrap().0 -= POLICY_CACHE_TTL;
+        cache.entries.get_mut("realm-a").unwrap().0 -= cache.ttl;
         assert_eq!(cache.get("realm-a"), None);
         cache.insert(
             "realm-b",
@@ -742,11 +763,17 @@ mod tests {
             cache.generation,
         );
         assert!(!cache.entries.contains_key("realm-a"));
+
+        let mut disabled = PasswordPolicyCache::new(Duration::ZERO);
+        disabled.insert("realm-a", ParsedRealmPasswordPolicy::default(), 0);
+        assert_eq!(disabled.get("realm-a"), None);
     }
 
     #[test]
     fn policy_cache_invalidation_rejects_in_flight_reads() {
-        let mut cache = PasswordPolicyCache::default();
+        let mut cache = PasswordPolicyCache::new(Duration::from_secs(
+            DEFAULT_POLICY_CACHE_TTL_SECS,
+        ));
         let policy =
             ParsedRealmPasswordPolicy::from_keycloak_policy(Some("length(12)"));
         let generation = cache.generation;
