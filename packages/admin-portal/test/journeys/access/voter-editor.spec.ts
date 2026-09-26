@@ -178,6 +178,45 @@ test.describe("voter editor with secret field access", () => {
 test.describe("voter editor without the voted-voter permission", () => {
     test.use({roles: [...VOTER_TAB_ROLES, "voter-write"]})
 
+    test("enables voter fields when a delayed cast history proves the voter has not voted", async ({
+        page,
+        portal,
+    }) => {
+        mockVoters(portal, {attributes: ATTRIBUTES, users: [alice]})
+        let releaseHistory!: () => void
+        const heldHistory = new Promise<void>((resolve) => {
+            releaseHistory = resolve
+        })
+        let waiting = false
+        await page.route("**/v1/graphql", async (route) => {
+            if (route.request().postDataJSON().operationName === "sequent_backend_cast_vote") {
+                waiting = true
+                await heldHistory
+            }
+            await route.fallback()
+        })
+        try {
+            await openVoters(page, portal)
+            await rowAction(page, "Edit")
+            const drawer = page.getByRole("dialog")
+            const nickname = drawer.getByRole("textbox", {name: "Nickname"})
+            await expect(nickname).toHaveValue("ally")
+            await expect.poll(() => waiting).toBe(true)
+            await expect(nickname).toBeDisabled()
+            await expect(drawer.getByRole("textbox", {name: "Email", exact: true})).toBeDisabled()
+            await expect(drawer.getByRole("combobox", {name: "Country"})).toBeDisabled()
+            releaseHistory()
+            await expect(nickname).toBeEnabled()
+            await expect(drawer.getByRole("textbox", {name: "Email", exact: true})).toBeEnabled()
+            await expect(drawer.getByRole("combobox", {name: "Country"})).toBeEnabled()
+            await expect(drawer.getByRole("checkbox", {name: "By SMS"})).toBeEnabled()
+            await nickname.fill("allie")
+            await expect(drawer.getByRole("button", {name: "Save", exact: true})).toBeEnabled()
+        } finally {
+            releaseHistory()
+        }
+    })
+
     test("keeps a voter who has already voted read-only", async ({page, portal}) => {
         mockVoters(portal, {attributes: ATTRIBUTES, users: [alice], castVotes: [castVote]})
         await openVoters(page, portal)

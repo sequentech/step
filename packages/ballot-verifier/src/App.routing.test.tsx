@@ -6,7 +6,7 @@ import {render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {configureStore} from "@reduxjs/toolkit"
 import {Provider} from "react-redux"
-import {MemoryRouter, useLocation} from "react-router-dom"
+import {MemoryRouter, useLocation, useNavigate} from "react-router-dom"
 import {ThemeProvider} from "@mui/material"
 import {theme} from "@sequentech/ui-essentials"
 import {ELanguageDetectionPolicy} from "@sequentech/ui-core"
@@ -120,16 +120,24 @@ const publishedBallotStyles = () => ({
     ],
 })
 
-const CurrentLocation = () => <p aria-label="Current location">{useLocation().pathname}</p>
+const CurrentLocation = () => {
+    const navigate = useNavigate()
+    return (
+        <>
+            <p aria-label="Current location">{useLocation().pathname}</p>
+            <button onClick={() => navigate(-1)}>Browser back</button>
+        </>
+    )
+}
 
 /** The provider tree of index.tsx, with a memory router starting at the given address. */
-function launch(path: string) {
+function launch(path: string, previous: string[] = []) {
     render(
         <WasmWrapper>
             <SettingsWrapper>
                 <KeycloakProviderContainer>
                     <Provider store={configureStore({reducer: {ballotStyles}})}>
-                        <MemoryRouter initialEntries={[path]}>
+                        <MemoryRouter initialEntries={[...previous, path]}>
                             <ThemeProvider theme={theme}>
                                 <App />
                                 <CurrentLocation />
@@ -303,6 +311,55 @@ describe("the header", () => {
 })
 
 describe("with authentication disabled", () => {
+    it.each([false, true])(
+        "replaces direct login history with auth disabled=%s",
+        async (disabled) => {
+            services = serve({DISABLE_AUTH: disabled})
+            launch(`${voterEvent}/login`, ["/elsewhere"])
+            await expectLocation(`${voterEvent}/start`)
+            await importStep()
+            userEvent.click(screen.getByRole("button", {name: "Browser back"}))
+            await expectLocation("/elsewhere")
+        }
+    )
+
+    it("applies public event language and scoped translations without private services", async () => {
+        window.history.replaceState(null, "", "/")
+        services = serve(
+            {DISABLE_AUTH: true},
+            {
+                eventPresentation: {
+                    language_conf: {
+                        language_detection_policy: ELanguageDetectionPolicy.FORCE_DEFAULT,
+                        default_language_code: "es",
+                        enabled_language_codes: ["en", "es"],
+                    },
+                    i18n: {
+                        es: {"ballotVerifier:homeScreen.step1": "Importación pública del evento"},
+                    },
+                },
+            }
+        )
+        launch(`${voterEvent}/start`)
+        expect(
+            await screen.findByRole("heading", {name: "Importación pública del evento"})
+        ).toBeVisible()
+        expect(i18n.language).toBe("es")
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            `https://s3.test/public/tenant-${IDS.tenant}/event-${IDS.event}/election_event_config.json`,
+            expect.objectContaining({signal: expect.any(AbortSignal)})
+        )
+    })
+
+    it("keeps offline import usable when public configuration is unavailable", async () => {
+        services = serve({DISABLE_AUTH: true}, {eventConfig: false})
+        launch(`${voterEvent}/start`)
+        expect(await importStep()).toBeVisible()
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+    })
     it("opens a direct login link for its requested event without private services", async () => {
         services = serve({DISABLE_AUTH: true})
         launch(`${voterEvent}/login`)
