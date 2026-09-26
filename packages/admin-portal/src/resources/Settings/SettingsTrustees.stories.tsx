@@ -200,6 +200,11 @@ export const CreateATrustee: Story = {
         await trusteeRow(canvasElement, "trustee2")
         await userEvent.click(button(canvasElement, "common.label.add") as HTMLElement)
         const form = await drawer()
+        await expect(form.getByText(i18n.t("trusteesSettingsScreen.create.title"))).toBeVisible()
+        // Only one create form opens.
+        expect(
+            within(document.body).getAllByText(i18n.t("trusteesSettingsScreen.create.title"))
+        ).toHaveLength(1)
         await userEvent.type(form.getByRole("textbox", {name: "Name"}), "trustee3")
         await userEvent.type(form.getByRole("textbox", {name: "Public key"}), "a2V5IHRocmVl")
         await userEvent.click(form.getByRole("button", {name: "Save"}))

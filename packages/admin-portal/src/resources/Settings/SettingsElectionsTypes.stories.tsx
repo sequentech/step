@@ -133,6 +133,10 @@ export const CreateAType: Story = {
         )
         const form = await drawer()
         await expect(form.getByText(i18n.t("electionTypeScreen.create.title"))).toBeVisible()
+        // Only one create form opens.
+        expect(
+            within(document.body).getAllByText(i18n.t("electionTypeScreen.create.title"))
+        ).toHaveLength(1)
         await userEvent.type(form.getByRole("textbox", {name: "Name"}), "By-election")
         await userEvent.click(form.getByRole("button", {name: "Save"}))
         await waitFor(() =>
