@@ -128,6 +128,50 @@ fn census_uses_one_valid_hash_and_quoted_csv_with_unique_names() {
     assert_eq!(metadata["password_hash_computations"], 1);
 }
 #[test]
+fn census_authorization_uses_external_ids_without_changing_operational_ids() {
+    const ELECTION: &str = "00000000-0000-0000-0000-000000000003";
+    for (external, expected) in [
+        (None, ELECTION),
+        (Some(Value::Null), ELECTION),
+        (Some(json!("")), ELECTION),
+        (
+            Some(json!("external-election-2026")),
+            "external-election-2026",
+        ),
+        (Some(json!(" ")), " "),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let mut wire = input().wire().unwrap();
+        if let Some(external) = external.clone() {
+            wire["election_external_id"] = external;
+        }
+        // Existing-event setup reloads this same serialized event/input boundary.
+        let mut loaded: input::Input = serde_json::from_value(wire).unwrap();
+        loaded.settings.workload.count = 1;
+        loaded.settings.workload.hash_iterations = 1;
+        let key = format!("LOAD_CENSUS_TEST_{}", uuid::Uuid::new_v4().simple());
+        loaded.settings.workload.password_env = key.clone();
+        std::env::set_var(&key, "Synthetic census password");
+        let output = directory.path().join("census");
+        let generated = census::generate(&loaded, &output);
+        std::env::remove_var(&key);
+        generated.unwrap();
+        let mut csv = csv::Reader::from_path(output.join("000000.csv")).unwrap();
+        assert_eq!(&csv.headers().unwrap()[4], "authorized-election-ids");
+        let records = csv.records().collect::<Result<Vec<_>, _>>().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(&records[0][4], expected, "external_id={external:?}");
+        assert_eq!(loaded.event.election_id, ELECTION);
+        loaded.save(&directory.path().join("config.json")).unwrap();
+        let saved: Value = files::read(&directory.path().join("config.json")).unwrap();
+        assert_eq!(saved["election_id"], ELECTION);
+        if let Some(Value::String(value)) = external.filter(|value| value != "") {
+            assert_eq!(saved["election_external_id"], value);
+        }
+    }
+}
+
+#[test]
 fn protocol_uses_portal_queries_without_a_browser_capture() {
     let input = input();
     let wire = input.wire().unwrap();
