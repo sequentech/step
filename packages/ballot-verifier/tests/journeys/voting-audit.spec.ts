@@ -8,10 +8,9 @@ import {
     IDS,
 } from "../../../voting-portal/test/journeys/fixtures"
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
-import {routePortal} from "@sequentech/ui-test-kit/adapters/playwright"
 import {loadCore} from "@sequentech/ui-test-kit/wasm/node"
 import type {IDecodedVoteContest} from "sequent-core"
-import {verifierServices, eventPath, serveVerifier} from "./fixtures"
+import {verifierServices, eventPath, serveVerifier, routeVerifier} from "./fixtures"
 
 const test = votingTest.extend<{}, {verifierDist: Awaited<ReturnType<typeof serveDist>>}>({
     verifierDist: [
@@ -61,7 +60,7 @@ test("voting portal audit download verifies unchanged in the production verifier
 
     // A second application origin in this context starts a separate OIDC session.
     const verifier = verifierServices(verifierDist.origin)
-    const unroute = await routePortal(context, verifier)
+    const unroute = await routeVerifier(context, verifier)
     try {
         await page.goto(`${verifier.origin}${eventPath}`)
         await page.getByTestId("drop-input-file").setInputFiles({

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {expect} from "@playwright/test"
+import {expect, type BrowserContext} from "@playwright/test"
 import {test as base} from "@sequentech/ui-test-kit/coverage/fixture"
 import {resolve} from "node:path"
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
@@ -20,6 +20,26 @@ export async function serveVerifier() {
     return origin
         ? {origin, close: async () => {}}
         : serveDist(resolve(directory, process.env.BALLOT_VERIFIER_JOURNEY_DIST ?? "dist"))
+}
+
+export async function routeVerifier(context: BrowserContext, portal: PortalServices) {
+    const unroute = await routePortal(context, portal)
+    if (process.env.BALLOT_VERIFIER_JOURNEY_URL) {
+        const origin = new URL(portal.origin)
+        // Only the explicitly selected Vite server's HMR transport may leave the
+        // mocked service boundary; production keeps the default strict guard.
+        await context.routeWebSocket(
+            (url) =>
+                url.protocol === (origin.protocol === "https:" ? "wss:" : "ws:") &&
+                url.host === origin.host &&
+                url.pathname === "/" &&
+                url.searchParams.has("token"),
+            (socket) => {
+                socket.connectToServer()
+            }
+        )
+    }
+    return unroute
 }
 
 export function verifierServices(origin: string): PortalServices {
@@ -99,7 +119,7 @@ export const test = base.extend<
         const errors: string[] = []
         page.on("pageerror", (error) => errors.push(error.message))
         await page.clock.install({time: Date.parse(FIXED_TIME)})
-        const unroute = await routePortal(context, portal)
+        const unroute = await routeVerifier(context, portal)
         try {
             await use(portal)
         } finally {

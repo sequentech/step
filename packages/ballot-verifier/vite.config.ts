@@ -97,19 +97,17 @@ export default defineConfig(({command}) => {
             alias: [
                 {find: /^@root\//, replacement: `${resolve(directory, "src")}/`},
                 {find: /^@\//, replacement: `${resolve(directory, "src")}/`},
-                ...(development
-                    ? [
-                          {
-                              find: /^@sequentech\/ui-core$/,
-                              replacement: resolve(packages, "ui-core/src/index.tsx"),
-                          },
-                          {
-                              find: /^@sequentech\/ui-essentials$/,
-                              replacement: resolve(packages, "ui-essentials/src/index.tsx"),
-                          },
-                          ...sequentCoreViteAlias(),
-                      ]
-                    : []),
+                // Rollup consumes source directly; rebundling the webpack libraries
+                // changes the default-import semantics of their Emotion externals.
+                {
+                    find: /^@sequentech\/ui-core$/,
+                    replacement: resolve(packages, "ui-core/src/index.tsx"),
+                },
+                {
+                    find: /^@sequentech\/ui-essentials$/,
+                    replacement: resolve(packages, "ui-essentials/src/index.tsx"),
+                },
+                ...(development ? sequentCoreViteAlias() : []),
             ],
         },
         optimizeDeps: {
