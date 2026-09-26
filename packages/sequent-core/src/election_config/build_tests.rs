@@ -2776,3 +2776,16 @@ fn a_workbook_problem_names_the_cell_it_came_from() {
     // to change.
     assert!(located.path.contains("sheet 'Voters'"));
 }
+
+/// A workbook that says nothing about re-votes gets one vote per voter.
+///
+/// The count is of casts, and zero is unlimited — the Voting Portal's rule and
+/// the cast-vote trigger's. The template said "one vote per voter by default" and
+/// wrote `0`, so every event built from a workbook without the column let voters
+/// cast as often as they liked.
+#[test]
+fn a_workbook_that_says_nothing_about_revotes_allows_one_vote() {
+    let bundle = built(&sound());
+
+    assert_eq!(bundle.export["elections"][0]["num_allowed_revotes"], 1);
+}

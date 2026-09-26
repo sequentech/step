@@ -82,8 +82,11 @@ Base election.  See election_event.hbs for why only ids are interpolated.
     },
     "eml": null,
     "external_id": null,
-    {{!-- One vote per voter by default; a revote allowance is a deliberate choice. --}}
-    "num_allowed_revotes": 0,
+    {{!-- One vote per voter by default; a revote allowance is a deliberate choice.
+         The number counts casts and 0 means unlimited (the Voting Portal's and
+         the cast-vote trigger's rule), so one vote is 1. The janitor's template
+         this replaced said 1, and the platform reads a missing value as 1. --}}
+    "num_allowed_revotes": 1,
     "is_consolidated_ballot_encoding": null,
     "spoil_ballot_option": null,
     "is_kiosk": false,
