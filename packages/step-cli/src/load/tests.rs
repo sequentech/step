@@ -17,6 +17,7 @@ fn input() -> input::Input {
         input::Event {
             election_event_id: "00000000-0000-0000-0000-000000000002".into(),
             election_id: "00000000-0000-0000-0000-000000000003".into(),
+            election_external_id: None,
             realm: "test-realm".into(),
             area_name: "District, North".into(),
             login_url: "http://localhost:3000/login".into(),
