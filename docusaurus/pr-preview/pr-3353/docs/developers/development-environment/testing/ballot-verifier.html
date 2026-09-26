@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Ballot Verifier tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3353/docs/developers/development-environment/testing/ballot-verifier"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Ballot Verifier tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3353/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3353/docs/developers/development-environment/testing/ballot-verifier"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3353/docs/developers/development-environment/testing/ballot-verifier" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3353/docs/developers/development-environment/testing/ballot-verifier" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Ballot Verifier tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3353/docs/developers/development-environment/testing/ballot-verifier"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3353/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3353/assets/js/runtime~main.37e82a00.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3353/assets/js/runtime~main.77c99d29.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3353/assets/js/main.7796eb6d.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -19,7 +19,9 @@ provider contracts, it renders the import and confirmation screens and the event
 routes (<code>/tenant/:tenantId/event/:eventId/{login,start,confirmation}</code>), with App
 mounted in the provider tree of <code>src/index.tsx</code>. Assertions use roles, labels and
 visible text. App tests live in <code>src/App.routing.test.tsx</code>; <code>src/App.test.tsx</code> is
-an obsolete scaffold outside the profile.</p>
+an obsolete scaffold outside the profile. With authentication disabled, root and
+direct login links reach the appropriate event&#x27;s import step, and verification
+continues to confirmation without Keycloak or private GraphQL requests.</p>
 <p>Test doubles live in <code>src/__mocks__</code>:</p>
 <ul>
 <li class=""><code>sequentCore.ts</code> replaces the sequent-core WASM bindings in every test. Ballot
