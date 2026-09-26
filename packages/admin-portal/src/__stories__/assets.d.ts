@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-// Vite serves a file imported with `?url` and returns its address.
-declare module "*?url" {
-    const url: string
-    export default url
+// The portal's GraphQL introspection, which .storybook/main.ts bundles for
+// schema-checked story boundaries.
+declare module "virtual:admin-graphql-schema" {
+    const introspection: string
+    export default introspection
 }

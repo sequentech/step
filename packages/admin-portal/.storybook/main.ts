@@ -2,21 +2,37 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
+import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import config from "../../ui-essentials/.storybook/main.ts"
 import postcssPresetEnv from "postcss-preset-env"
-import {mergeConfig, searchForWorkspaceRoot} from "vite"
+import {mergeConfig, searchForWorkspaceRoot, type Plugin} from "vite"
 
 // Role stories read the default tenant groups from the Keycloak realm template.
 const realmTemplates = fileURLToPath(
     new URL("../../../.devcontainer/keycloak/import", import.meta.url)
 )
 
+// Story GraphQL boundaries check operations against the portal's schema. A
+// module of the story bundle provides it, so no story requests it at runtime.
+const SCHEMA_MODULE = "virtual:admin-graphql-schema"
+const adminGraphqlSchema = (): Plugin => ({
+    name: "admin-graphql-schema",
+    resolveId: (id) => (id === SCHEMA_MODULE ? `\0${SCHEMA_MODULE}` : undefined),
+    load: (id) =>
+        id === `\0${SCHEMA_MODULE}`
+            ? `export default ${JSON.stringify(
+                  readFileSync(new URL("../graphql.schema.json", import.meta.url), "utf8")
+              )}`
+            : undefined,
+})
+
 const adminConfig = {
     ...config,
     staticDirs: ["../public"],
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
+            plugins: [adminGraphqlSchema()],
             define: {"process.env.MAX_DIFF_LINES": "500"},
             server: {fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]}},
             css: {postcss: {plugins: [postcssPresetEnv()]}},

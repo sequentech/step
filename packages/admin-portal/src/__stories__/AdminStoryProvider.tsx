@@ -36,7 +36,6 @@ import {
     type EStoryPermissions,
     type EStoryTenant,
 } from "../../../ui-essentials/.storybook/globals"
-import schemaUrl from "../../graphql.schema.json?url"
 import {storyAuth} from "./storyAuth"
 import {registerBoundary} from "./storyNetwork"
 
@@ -52,14 +51,10 @@ export interface RecordedOperation {
 let adminSchema: Promise<GraphQLSchema> | undefined
 /** The portal's GraphQL schema, from the introspection file the code generator uses. */
 const loadAdminSchema = () =>
-    (adminSchema ??= fetch(schemaUrl)
-        .then(
-            (response) =>
-                response.json() as Promise<IntrospectionQuery | {data: IntrospectionQuery}>
-        )
-        .then((introspection) =>
-            buildClientSchema("data" in introspection ? introspection.data : introspection)
-        ))
+    (adminSchema ??= import("virtual:admin-graphql-schema").then(({default: text}) => {
+        const introspection = JSON.parse(text) as IntrospectionQuery | {data: IntrospectionQuery}
+        return buildClientSchema("data" in introspection ? introspection.data : introspection)
+    }))
 
 // Mock data may use the response key (an alias) or the field name.
 const aliasOrField: GraphQLFieldResolver<unknown, unknown> = (source, args, context, info) => {
@@ -154,7 +149,10 @@ export function graphqlBoundary(
                 })
         ),
     })
-    return registerBoundary({client, calls, unexpected})
+    // Loading the schema takes a moment; a story awaits `ready` in its beforeEach
+    // so that the first reply is not slower than its assertions' timeout.
+    const ready = schema ? loadAdminSchema().then(() => undefined) : Promise.resolve()
+    return registerBoundary({client, calls, unexpected, ready})
 }
 
 /**
