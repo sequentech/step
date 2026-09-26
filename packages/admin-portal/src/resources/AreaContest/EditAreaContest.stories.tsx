@@ -50,6 +50,10 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         // The form of the route's area contest sits beside the list of all of them.
         await expect(await canvas.findByText(STORY_IDS.areaContest)).toBeVisible()
+        // Event and contest names live in the presentation since migration 1772358027729.
+        const form = within(canvas.getByText(STORY_IDS.areaContest).closest("form")!)
+        await expect(await form.findByText("Council event")).toBeVisible()
+        await expect(await form.findByText("Council members")).toBeVisible()
         await expect(await canvas.findByRole("row", {name: /South district/})).toBeVisible()
         expect(reads("getOne", "sequent_backend_area_contest")[0].args[1]).toMatchObject({
             id: STORY_IDS.areaContest,

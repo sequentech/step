@@ -38,8 +38,8 @@ export default meta
 type Story = StoryObj<AreaContestServices>
 
 /**
- * Chooses the option with this value: the tenant, event and contest options
- * show fields those records no longer have, so they have no visible name.
+ * Chooses the option with this value: the tenant options show a `username`
+ * tenants do not have, so they have no visible name.
  */
 async function choose(canvasElement: HTMLElement, label: string, value: string) {
     await userEvent.click(await within(canvasElement).findByRole("combobox", {name: label}))
@@ -63,14 +63,23 @@ export const Populated: Story = {
 export const CreateForAnAreaAndContest: Story = {
     play: async ({canvasElement}) => {
         await choose(canvasElement, "Tenant", TENANT_ID)
-        await choose(canvasElement, "Election event", EVENT_ID)
+        // Event and contest names live in the presentation since migration 1772358027729.
+        await userEvent.click(
+            await within(canvasElement).findByRole("combobox", {name: "Election event"})
+        )
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Council event"})
+        )
         // The event's contests and areas are offered once the event is chosen.
         await waitFor(() =>
             expect(reads("getList", "sequent_backend_area").at(-1)?.args[1]).toMatchObject({
                 filter: {tenant_id: TENANT_ID, election_event_id: EVENT_ID},
             })
         )
-        await choose(canvasElement, "Contest", STORY_IDS.contest)
+        await userEvent.click(await within(canvasElement).findByRole("combobox", {name: "Contest"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Council members"})
+        )
         await userEvent.click(await within(canvasElement).findByRole("combobox", {name: "Area"}))
         await userEvent.click(
             await within(document.body).findByRole("option", {name: "South district"})

@@ -42,8 +42,11 @@ const row = (canvasElement: HTMLElement, name: string) =>
 
 export const Populated: Story = {
     play: async ({canvasElement}) => {
-        await expect(await row(canvasElement, "North district")).toBeVisible()
+        const north = await row(canvasElement, "North district")
         await expect(await row(canvasElement, "South district")).toBeVisible()
+        // Event and contest names live in the presentation since migration 1772358027729.
+        await expect(await within(north).findByText("Council event")).toBeVisible()
+        await expect(await within(north).findByText("Council members")).toBeVisible()
         expect(reads("getList", "sequent_backend_area_contest")[0].args[1]).toMatchObject({
             filter: {tenant_id: TENANT_ID},
         })
