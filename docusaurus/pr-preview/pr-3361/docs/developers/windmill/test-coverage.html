@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Windmill boundary tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/windmill/test-coverage"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Windmill boundary tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3361/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/windmill/test-coverage"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/windmill/test-coverage" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/windmill/test-coverage" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Windmill boundary tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3361/docs/developers/windmill/test-coverage"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3361/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3361/assets/js/runtime~main.7d5d77c2.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3361/assets/js/runtime~main.53bb6bd2.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3361/assets/js/main.1bf34bf5.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -16,6 +16,14 @@
 canonical import arithmetic and errors, material changes in reviewed tally
 sheets, CSV display fidelity, and SQL escaping through PostgreSQL&#x27;s real parser.
 No test sends mail, SMS or election data to an external service.</p>
+<p>Tally execution CSV exports retain <code>documents</code> and <code>run_reason</code> as historical
+metadata. Import deliberately clears both: generated SQLite/XLSX document IDs
+belong to the source event and need scoped artifact restoration before reuse,
+while a retained <code>RECOUNT</code> would request another tally on the next board tick.
+<code>postgres_results_adapters.rs</code> verifies this export/import contract, and
+<code>postgres_ceremony_adapters.rs</code> verifies that bulk insertion clears both fields.
+The export header still names every serialized column so readers can inspect
+the complete source record.</p>
 <p>Use PostgreSQL 16 on loopback port 3322 with the synthetic <code>test</code> user/password
 and database, matching <code>.github/workflows/tests.yml</code>. Each query test uses its
 own transaction; the unsafe-string-mode test uses a separate connection option.
