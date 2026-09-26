@@ -32,13 +32,87 @@ function likeMatches(record: RaRecord, key: string, expected: unknown) {
     return value != null && String(value).toLowerCase().includes(pattern)
 }
 
+type Where = Record<string, unknown>
+
+const isObject = (value: unknown): value is Where =>
+    value !== null && typeof value === "object" && !Array.isArray(value)
+
+/** Whether a jsonb value contains `expected`, as Postgres `@>` does. */
+function contains(value: unknown, expected: unknown): boolean {
+    if (Array.isArray(expected)) {
+        return (
+            Array.isArray(value) &&
+            expected.every((item) => value.some((entry) => contains(entry, item)))
+        )
+    }
+    if (isObject(expected)) {
+        return (
+            isObject(value) &&
+            Object.entries(expected).every(([key, item]) => contains(value[key], item))
+        )
+    }
+    return Array.isArray(value) ? value.includes(expected) : value === expected
+}
+
+const likePattern = (pattern: unknown) => String(pattern).replaceAll("%", "").toLowerCase()
+
+/** A Hasura comparison expression on one column; unmodelled operators match. */
+function compares(value: unknown, comparison: Where): boolean {
+    return Object.entries(comparison).every(([operator, operand]) => {
+        switch (operator) {
+            case "_eq":
+                return value === operand
+            case "_neq":
+                return value !== operand
+            case "_in":
+                return Array.isArray(operand) && operand.includes(value)
+            case "_nin":
+                return Array.isArray(operand) && !operand.includes(value)
+            case "_is_null":
+                return (value == null) === operand
+            case "_ilike":
+            case "_like":
+                return value != null && String(value).toLowerCase().includes(likePattern(operand))
+            case "_contains":
+                return contains(value, operand)
+            case "_cast":
+                return (
+                    !isObject(operand) ||
+                    !isObject(operand.String) ||
+                    compares(value == null ? null : JSON.stringify(value), operand.String)
+                )
+            default:
+                return true
+        }
+    })
+}
+
+/** A Hasura boolean expression, as ra-data-hasura sends a `hasura-raw-query` value. */
+function satisfies(record: RaRecord, where: Where): boolean {
+    return Object.entries(where).every(([key, expression]) => {
+        if (key === "_and" || key === "_or") {
+            const parts = (Array.isArray(expression) ? expression : [expression]).filter(isObject)
+            return key === "_and"
+                ? parts.every((part) => satisfies(record, part))
+                : parts.some((part) => satisfies(record, part))
+        }
+        if (key === "_not") return !isObject(expression) || !satisfies(record, expression)
+        return !isObject(expression) || compares(record[key], expression)
+    })
+}
+
+const isRawQuery = (value: unknown): value is {format: "hasura-raw-query"; value?: unknown} =>
+    isObject(value) && value.format === "hasura-raw-query"
+
 /**
  * Hasura-style list filters: plain values compare equal, arrays contain, `@_ilike`
- * matches, and ra-data-hasura's comma-joined `@_ilike` keys match any column.
+ * matches, ra-data-hasura's comma-joined `@_ilike` keys match any column and its
+ * `hasura-raw-query` values are evaluated as boolean expressions.
  */
 function matches(record: RaRecord, filter: Record<string, unknown> = {}) {
     return Object.entries(filter).every(([key, expected]) => {
         if (expected === undefined || key === "q") return true
+        if (isRawQuery(expected)) return satisfies(record, {[key]: expected.value ?? {}})
         if (ILIKE.test(key)) {
             return key.split(",").some((column) => likeMatches(record, column, expected))
         }
