@@ -38,8 +38,7 @@ export default meta
 type Story = StoryObj<BallotStyleServices>
 
 /**
- * Chooses the option with this value: the tenant options show a `username`
- * tenants do not have, so they have no visible name.
+ * Chooses the option with this value.
  */
 async function choose(canvasElement: HTMLElement, label: string, value: string) {
     await userEvent.click(await within(canvasElement).findByRole("combobox", {name: label}))
@@ -56,6 +55,9 @@ export const Populated: Story = {
         await expect(canvas.getByText("Ballot Style creation")).toBeVisible()
         await waitFor(() => expect(reads("getList", "sequent_backend_tenant")).toHaveLength(1))
         await expect(canvas.getByRole("textbox", {name: "Ballot eml"})).toHaveValue("")
+        await userEvent.click(canvas.getByRole("combobox", {name: "Tenant"}))
+        const tenant = await within(document.body).findByRole("option", {name: "example-council"})
+        await waitFor(() => expect(tenant).toBeVisible())
         expect(dataWrites()).toEqual([])
     },
 }

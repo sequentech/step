@@ -51,6 +51,9 @@ export const Populated: Story = {
         await expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("")
         // A pristine form cannot be saved.
         await expect(canvas.getByRole("button", {name: "Save"})).toBeDisabled()
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Tenant"}))
+        const tenant = await within(document.body).findByRole("option", {name: "example-council"})
+        await waitFor(() => expect(tenant).toBeVisible())
         expect(dataWrites()).toEqual([])
     },
 }
