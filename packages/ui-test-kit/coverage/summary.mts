@@ -6,13 +6,31 @@
 //   node --experimental-strip-types summary.mts stories <package-dir>
 //   node --experimental-strip-types summary.mts journeys <package-dir>
 //   node --experimental-strip-types summary.mts results <junit.xml> <title>
+//   node --experimental-strip-types summary.mts safety-net <package-dir> [options]
+// The safety net is the per-file union of Jest, story and journey line
+// coverage. Options: `--layer <name>=<file or directory>` (repeatable; by
+// default each layer's usual output in the package), `--prefix src/<path>`
+// (repeatable; lists those files with their uncovered lines) and
+// `--output <dir>` (default `test-results/safety-net`).
 
-import {existsSync, readFileSync} from "node:fs"
-import {appendFile, readFile, readdir, realpath, writeFile} from "node:fs/promises"
-import {basename, join} from "node:path"
+import {existsSync, readFileSync, statSync} from "node:fs"
+import {appendFile, mkdir, readFile, readdir, realpath, writeFile} from "node:fs/promises"
+import {basename, join, resolve} from "node:path"
 import type {ProcessCov} from "@bcoe/v8-coverage"
 import type {CoverageSummaryData} from "istanbul-lib-coverage"
 import {journeyCoverage} from "./istanbul.mts"
+import {
+    byArea,
+    istanbulLines,
+    lcovLines,
+    lineRanges,
+    mergeLayers,
+    packageSources,
+    totals,
+    unionFiles,
+    type LayerLines,
+    type UnionTotals,
+} from "./union.mts"
 
 type Status = "passed" | "expected failure" | "failed" | "skipped"
 interface TestCase {
@@ -145,6 +163,8 @@ async function journeys(target: string) {
         coverage.files().map((path) => [path, coverage.fileCoverageFor(path).toSummary().toJSON()])
     )
     await writeFile(join(raw, "coverage-summary.json"), JSON.stringify({total, ...files}, null, 2))
+    // Line data for the safety-net union, which merges it with the other layers.
+    await writeFile(join(raw, "coverage-final.json"), JSON.stringify(coverage.toJSON()))
     const notes = [
         `V8 coverage from ${measured} tests of the production bundle. Statements, functions`,
         "and branches are Istanbul's, from the portal's TypeScript; each counts the",
@@ -162,16 +182,155 @@ async function journeys(target: string) {
     await publish(sections.join("\n\n"))
 }
 
+const LAYERS = {
+    jest: ["coverage/coverage-final.json"],
+    stories: ["test-results/coverage/lcov.info"],
+    journeys: ["test-results/journey-coverage/coverage-final.json"],
+}
+const LINE_DATA = ["coverage-final.json", "lcov.info"]
+
+// A directory stands for every line-data file beneath it, such as downloaded shards.
+async function lineDataFiles(path: string): Promise<string[]> {
+    if (!existsSync(path)) return []
+    if (!statSync(path).isDirectory()) return [path]
+    const entries = await readdir(path, {recursive: true})
+    return entries
+        .filter((entry) => LINE_DATA.includes(basename(entry)))
+        .sort()
+        .map((entry) => join(path, entry))
+}
+
+async function readLayer(files: string[], relative: ReturnType<typeof packageSources>) {
+    const reports: LayerLines[] = []
+    for (const file of files) {
+        const text = await readFile(file, "utf8")
+        reports.push(
+            file.endsWith(".info")
+                ? lcovLines(text, relative)
+                : istanbulLines(JSON.parse(text), relative)
+        )
+    }
+    return mergeLayers(reports)
+}
+
+function parseOptions(options: string[]) {
+    const layers: Record<string, string[]> = {}
+    const prefixes: string[] = []
+    let output: string | undefined
+    for (let index = 0; index < options.length; index += 2) {
+        const [option, value] = [options[index], options[index + 1]]
+        if (value === undefined) throw new Error(`${option} needs a value`)
+        if (option === "--prefix") prefixes.push(value.replace(/\/$/, ""))
+        else if (option === "--output") output = value
+        else if (option === "--layer" && value.includes("=")) {
+            const [name, path] = [
+                value.slice(0, value.indexOf("=")),
+                value.slice(value.indexOf("=") + 1),
+            ]
+            layers[name] = [...(layers[name] ?? []), path]
+        } else throw new Error(`Unknown option ${option} ${value}`)
+    }
+    return {layers, prefixes, output}
+}
+
+async function safetyNet(target: string, options: string[]) {
+    const packageDir = await realpath(target)
+    const name = basename(packageDir)
+    const {layers: given, prefixes, output} = parseOptions(options)
+    const inputs = Object.keys(given).length
+        ? given
+        : Object.fromEntries(
+              Object.entries(LAYERS).map(([layer, paths]) => [
+                  layer,
+                  paths.map((path) => join(packageDir, path)),
+              ])
+          )
+    const relative = packageSources(name)
+    const layers: Record<string, LayerLines> = {}
+    const notes: string[] = []
+    for (const [layer, paths] of Object.entries(inputs)) {
+        const reports = await Promise.all(paths.map(lineDataFiles))
+        const files = reports.flat()
+        if (files.length) {
+            layers[layer] = await readLayer(files, relative)
+            const missing = paths.filter((_, index) => !reports[index].length)
+            if (missing.length)
+                notes.push(
+                    `Partial ${layer} line data: no report at \`${missing.join("`, `")}\`; its column includes only available reports.`
+                )
+        } else
+            notes.push(`No ${layer} line data at \`${paths.join("`, `")}\`; its column is empty.`)
+    }
+    const names = Object.keys(inputs)
+    const inScope = (file: string) =>
+        !prefixes.length ||
+        prefixes.some((prefix) => file === prefix || file.startsWith(`${prefix}/`))
+    const files = unionFiles(layers).filter((file) => inScope(file.file))
+    const percent = (covered: number, lines: number) =>
+        lines ? `${((100 * covered) / lines).toFixed(1)}%` : "n/a"
+    const cells = (row: UnionTotals | (typeof files)[number]) => [
+        row.lines,
+        ...names.map((layer) =>
+            layer in layers
+                ? `${row.layers[layer] ?? 0} (${percent(row.layers[layer] ?? 0, row.lines)})`
+                : "n/a"
+        ),
+        `${row.covered} (${percent(row.covered, row.lines)})`,
+    ]
+    const header = [
+        "Lines",
+        ...names.map((layer) => layer[0].toUpperCase() + layer.slice(1)),
+        "Union",
+    ]
+    const total = totals(prefixes.length ? prefixes.join(", ") : `${name}/src`, files)
+    const areaRows = byArea(files).map((row) => [`\`${row.name}\``, ...cells(row)])
+    areaRows.push([`**${total.name}** (${total.files} files)`, ...cells(total)])
+    const fileRows = files.map((file) => [
+        `\`${file.file}\``,
+        ...cells(file),
+        lineRanges(file.uncovered),
+    ])
+    const fileTable = table(["File", ...header, "Uncovered lines"], fileRows)
+    const sections = [
+        `### ${name} safety-net coverage`,
+        [
+            "Per-file union of line coverage: a line counts as covered when any layer ran it, and a",
+            "file's lines are all the lines any layer reports for it. Layer columns count the union's",
+            "lines each layer ran.",
+            ...notes,
+        ].join(" "),
+        table(["Area", ...header], areaRows),
+    ]
+    sections.push(
+        `<details>\n<summary>Per-file coverage and uncovered lines</summary>\n\n${fileTable}\n\n</details>`
+    )
+    await publish(sections.join("\n\n"))
+    const directory = resolve(output ?? join(packageDir, "test-results", "safety-net"))
+    await mkdir(directory, {recursive: true})
+    await writeFile(
+        join(directory, "coverage-union.json"),
+        JSON.stringify({layers: names, notes, total, files}, null, 2)
+    )
+    await writeFile(
+        join(directory, "coverage-union.md"),
+        [...sections.slice(0, 3), fileTable].join("\n\n") + "\n"
+    )
+}
+
 const [mode, target, title] = process.argv.slice(2)
 const reports: Record<string, [heading: string, write: () => Promise<void>]> = {
-    stories: [`${basename(target ?? "")} stories`, () => stories(target)],
-    journeys: [`${basename(target ?? "")} production journeys`, () => journeys(target)],
-    results: [title ?? basename(target ?? ""), () => results(target, title ?? basename(target))],
+    "stories": [`${basename(target ?? "")} stories`, () => stories(target)],
+    "journeys": [`${basename(target ?? "")} production journeys`, () => journeys(target)],
+    "results": [title ?? basename(target ?? ""), () => results(target, title ?? basename(target))],
+    "safety-net": [
+        `${basename(target ?? "")} safety-net coverage`,
+        () => safetyNet(target, process.argv.slice(4)),
+    ],
 }
 const report = target ? reports[mode] : undefined
 if (!report) {
     process.stderr.write(
-        "Usage: summary.mts stories|journeys <package-dir> | results <junit.xml> [title]\n"
+        "Usage: summary.mts stories|journeys|safety-net <package-dir> | results <junit.xml> [title]\n"
     )
     process.exitCode = 2
 } else {

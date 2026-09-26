@@ -107,6 +107,42 @@ Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` a
 
 Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
 
+## Admin coverage before a refactor
+
+The route smoke matrix follows the views declared in `admin-portal/src/App.tsx`.
+Add a realistic fixture and a visible-content assertion when adding a route.
+Area journeys provide the deeper workflows and assert exact mutation variables
+or REST method, path and body. Keep pure data transformations in Jest and reserve
+stories for interactions that are awkward to reach through a complete journey.
+
+After building the shared packages and admin portal, collect all three layers
+from the same source revision, then inspect their union:
+
+```sh
+yarn --cwd packages/admin-portal test --coverage --coverageReporters=json
+yarn --cwd packages/admin-portal test:stories --coverage
+STEP_UI_JOURNEY_COVERAGE=1 yarn --cwd packages/admin-portal test:journeys
+node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/admin-portal
+yarn --cwd packages/admin-portal coverage:safety-net
+yarn --cwd packages/admin-portal coverage:safety-net --prefix src/resources/ElectionEvent
+```
+
+The report counts a source line once when any layer executes it, using raw
+Istanbul statement locations or LCOV line records. Its denominator contains
+every line reported by any layer; it is not the sum or maximum of the layers'
+summary percentages. Compare each file's uncovered lines and wire contracts
+before changing its implementation. A missing layer is explicitly marked and
+does not establish that the combined coverage is complete.
+
+CI runs admin journeys in two shards with two workers each and publishes the
+area and per-file tables in the safety-net job summary. The
+`admin-portal-safety-net` artifact contains `coverage-union.json` and
+`coverage-union.md`, including uncovered line ranges. Locally these files are
+under `packages/admin-portal/test-results/safety-net/`. To combine downloaded
+artifacts, pass repeated `--layer jest=<path>`, `--layer stories=<path>` and
+`--layer journeys=<path>` options; directories are searched for raw line reports
+and journey shards are united before the layer comparison.
+
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
 failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the
 Istanbul statements, functions and branches of the bundled TypeScript `src/**`, each counted from the
