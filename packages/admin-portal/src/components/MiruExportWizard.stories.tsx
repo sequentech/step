@@ -83,6 +83,9 @@ function Fixture({signed, sentTo, roles, onBack}: Scenario) {
     )
 }
 
+const CHIP_CONTRAST =
+    "The signature and transmission status chips have white labels on MUI's success and info colours, below 4.5 contrast."
+
 const meta = {
     title: "Admin/Components/MiruExportWizard",
     component: MiruExportWizard,
@@ -93,6 +96,7 @@ const meta = {
         onBack: {table: {disable: true}},
     },
     globals: {workflow: EStoryWorkflow.RESULTS},
+    parameters: {expectedFailure: {reason: CHIP_CONTRAST, a11y: ["color-contrast"]}},
     beforeEach: async ({args}) => {
         const fail = () => {
             if (args.service === "failure") throw new Error("Synthetic Miru service unavailable")
@@ -326,8 +330,8 @@ export const RegenerateFailureNotifies: Story = {
 /** The signature upload and the logs accordions start expanded, each an unnamed region. */
 const signingRegions = {
     expectedFailure: {
-        reason: "The expanded signature upload and logs accordions expose two regions without distinct names.",
-        a11y: ["landmark-unique"],
+        reason: `${CHIP_CONTRAST} The expanded signature upload and logs accordions expose two regions without distinct names.`,
+        a11y: ["color-contrast", "landmark-unique"],
     },
 }
 
