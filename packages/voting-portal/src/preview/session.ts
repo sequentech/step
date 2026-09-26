@@ -20,7 +20,7 @@ import {
 import {setIsVoted} from "../store/extra/extraSlice"
 import {clearVoterSession, type AppDispatch, type RootState} from "../store/store"
 import {isMultiContestStyle} from "./ballotPipeline"
-import {PreviewScreen, type PreviewTarget} from "./screens"
+import {PreviewScreen, previewTarget} from "./screens"
 
 export interface PreviewSession {
     snapshot: ScenarioSnapshot
@@ -33,15 +33,6 @@ export type EncryptForReview = (
     selection: BallotSelection,
     isMultiContest: boolean
 ) => boolean
-
-export function previewTarget(snapshot: ScenarioSnapshot): PreviewTarget {
-    const style = snapshot.preview.ballot_styles.find(({area_id}) => area_id === snapshot.areaId)
-    return {
-        tenantId: snapshot.tenantId,
-        eventId: snapshot.preview.election_event.id,
-        electionId: style?.election_id,
-    }
-}
 
 /** Replaces the voter session with the snapshot through the production preview loader. */
 export function loadPreviewSnapshot(snapshot: ScenarioSnapshot, dispatch: AppDispatch) {

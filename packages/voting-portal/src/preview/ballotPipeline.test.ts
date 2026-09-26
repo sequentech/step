@@ -13,7 +13,13 @@ import {
 import {electionFixture, IDS} from "@sequentech/ui-test-kit/fixtures"
 import type {IBallotService} from "../services/BallotService"
 import type {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {PipelineStatus, PipelineStep, runBallotPipeline, type VotingChecks} from "./ballotPipeline"
+import {
+    PipelineStatus,
+    PipelineStep,
+    runBallotPipeline,
+    validateSelection,
+    type VotingChecks,
+} from "./ballotPipeline"
 
 const ballotStyle = (multiContest = false): IBallotStyle => {
     const ballot = electionFixture().ballot as unknown as BallotDefinition
@@ -187,4 +193,27 @@ test("errors of every shape are described", () => {
             Array(4).fill(PipelineStatus.SKIPPED)
         )
     }
+})
+
+test("validation alone interprets and checks the selection without encrypting it", () => {
+    const {service} = fakeService()
+    expect(
+        validateSelection(
+            ballotStyle(),
+            selection(),
+            service as unknown as IBallotService,
+            checks(true, true)
+        )
+    ).toEqual({
+        contests: [
+            {
+                contestId: IDS.contest,
+                errors: ["errors.implicit.overVote"],
+                alerts: ["errors.implicit.underVote", "errors.implicit.blankVote"],
+            },
+        ],
+        nextBlocked: true,
+        confirmBeforeReview: true,
+    })
+    expect(service.encryptBallotSelection).not.toHaveBeenCalled()
 })

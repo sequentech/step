@@ -14,11 +14,10 @@ import {setElection} from "../store/elections/electionsSlice"
 import {addCastVotes, CastVoteStatus} from "../store/castVotes/castVotesSlice"
 import {BallotStyleConfigurationError} from "../services/BallotStyles"
 import type {IBallotStyle} from "../store/ballotStyles/ballotStylesSlice"
-import {PreviewScreen} from "./screens"
+import {PreviewScreen, previewTarget} from "./screens"
 import {
     loadPreviewSnapshot,
     preparePreviewScreen,
-    previewTarget,
     sampleSelection,
     type EncryptForReview,
 } from "./session"

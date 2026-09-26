@@ -93,6 +93,50 @@ const describeError = (error: unknown) =>
           ? error
           : JSON.stringify(error)
 
+function interpretSelection(
+    ballotStyle: IBallotStyle,
+    selection: BallotSelection,
+    service: IBallotService
+): BallotSelection {
+    return isMultiContestStyle(ballotStyle)
+        ? service.interpretMultiContestSelection(selection, ballotStyle.ballot_eml)
+        : service.interpretContestSelection(selection, ballotStyle.ballot_eml)
+}
+
+const contestValidation = (interpreted: BallotSelection): ContestValidation[] =>
+    interpreted.map(({contest_id, invalid_errors, invalid_alerts}) => ({
+        contestId: contest_id,
+        errors: invalid_errors.map(({message}) => message ?? ""),
+        alerts: invalid_alerts.map(({message}) => message ?? ""),
+    }))
+
+function screenChecks(
+    ballotStyle: IBallotStyle,
+    interpreted: BallotSelection,
+    checks: VotingChecks
+) {
+    const decoded = Object.fromEntries(interpreted.map((contest) => [contest.contest_id, contest]))
+    const {contests} = ballotStyle.ballot_eml
+    return {
+        nextBlocked: checks.nextBlocked(contests, decoded),
+        confirmBeforeReview: checks.confirmBeforeReview(contests, decoded),
+    }
+}
+
+/** The voting screen's validation of a selection, without encrypting it. */
+export function validateSelection(
+    ballotStyle: IBallotStyle,
+    selection: BallotSelection,
+    service: IBallotService = provideBallotService(),
+    checks: VotingChecks = votingChecks()
+): SelectionValidation {
+    const interpreted = interpretSelection(ballotStyle, selection, service)
+    return {
+        contests: contestValidation(interpreted),
+        ...screenChecks(ballotStyle, interpreted, checks),
+    }
+}
+
 /**
  * Runs the voting screen's ballot operations on a selection: the re-encoding check with its
  * errors, the Next and warning checks, then encryption, the ballot hash and decoding, which
@@ -114,16 +158,8 @@ export function runBallotPipeline(
         [
             PipelineStep.INTERPRET,
             () => {
-                interpreted = multi
-                    ? service.interpretMultiContestSelection(selection, election)
-                    : service.interpretContestSelection(selection, election)
-                const contests = interpreted.map(
-                    ({contest_id, invalid_errors, invalid_alerts}) => ({
-                        contestId: contest_id,
-                        errors: invalid_errors.map(({message}) => message ?? ""),
-                        alerts: invalid_alerts.map(({message}) => message ?? ""),
-                    })
-                )
+                interpreted = interpretSelection(ballotStyle, selection, service)
+                const contests = contestValidation(interpreted)
                 report.validation = {contests, nextBlocked: false, confirmBeforeReview: false}
                 const errors = contests.reduce((sum, {errors}) => sum + errors.length, 0)
                 const alerts = contests.reduce((sum, {alerts}) => sum + alerts.length, 0)
@@ -133,11 +169,11 @@ export function runBallotPipeline(
         [
             PipelineStep.CHECK,
             () => {
-                const decoded = Object.fromEntries(
-                    interpreted.map((contest) => [contest.contest_id, contest])
+                const {nextBlocked, confirmBeforeReview} = screenChecks(
+                    ballotStyle,
+                    interpreted,
+                    checks
                 )
-                const nextBlocked = checks.nextBlocked(election.contests, decoded)
-                const confirmBeforeReview = checks.confirmBeforeReview(election.contests, decoded)
                 if (report.validation)
                     Object.assign(report.validation, {nextBlocked, confirmBeforeReview})
                 return `Next ${nextBlocked ? "blocked" : "allowed"}, ${

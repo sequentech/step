@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {matchPath} from "react-router-dom"
-import type {ScenarioId} from "@sequentech/ui-test-kit/fixtures/scenarios"
+import type {ScenarioId, ScenarioSnapshot} from "@sequentech/ui-test-kit/fixtures/scenarios"
 
 /** Voter screens a preview opens directly; each value is also a Storybook story name. */
 export enum PreviewScreen {
@@ -31,6 +31,16 @@ export interface PreviewTarget {
     eventId: string
     /** The area's first election; an area without ballots only has the chooser. */
     electionId?: string
+}
+
+/** Where a snapshot's screens live: its event and the first election of its area. */
+export function previewTarget(snapshot: ScenarioSnapshot): PreviewTarget {
+    const style = snapshot.preview.ballot_styles.find(({area_id}) => area_id === snapshot.areaId)
+    return {
+        tenantId: snapshot.tenantId,
+        eventId: snapshot.preview.election_event.id,
+        electionId: style?.election_id,
+    }
 }
 
 export const isPreviewScreen = (value: unknown): value is PreviewScreen =>
