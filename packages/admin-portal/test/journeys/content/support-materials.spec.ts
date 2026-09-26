@@ -123,6 +123,11 @@ test.describe("support material editor", () => {
         await drawer.getByRole("textbox", {name: "Subtitle", exact: true}).fill("All lists")
         await drawer.getByRole("switch", {name: "Is Hidden"}).check()
         const pdf = Buffer.from("%PDF-1.7 booklet")
+        const uploaded = page.waitForRequest(
+            (request) =>
+                request.url() === portal.s3.presign(key, "material-upload") &&
+                request.method() === "PUT"
+        )
         await drawer.locator('input[type="file"]').setInputFiles({
             name: "booklet.pdf",
             mimeType: "application/pdf",
@@ -136,6 +141,9 @@ test.describe("support material editor", () => {
             is_public: true,
             election_event_id: IDS.event,
         })
+        const request = await uploaded
+        expect(request.postDataBuffer()).toEqual(pdf)
+        expect(request.headers()["content-type"]).toBe("application/pdf")
         expect(portal.s3.requestsFor(key)).toMatchObject([{method: "PUT", status: 200}])
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
         await expect(notification(page, "Support material created")).toBeVisible()
@@ -154,6 +162,97 @@ test.describe("support material editor", () => {
         })
         expectRole(portal, "insert_sequent_backend_support_material", "support-material-write")
         expect(rows.map((row) => row.id)).toEqual([CONTENT_IDS.supportMaterial, NEW_MATERIAL_ID])
+    })
+
+    test("replaces an existing support document before saving its new title", async ({
+        page,
+        portal,
+    }) => {
+        materials(portal)
+        const key = upload(portal)
+        await openMaterials(page, portal)
+        await rowButtons(page, "Voting guide").nth(0).click()
+        const drawer = page.getByRole("dialog").filter({hasText: "Enter support material data."})
+        await drawer.getByRole("textbox", {name: "Title", exact: true}).fill("Replacement guide")
+        const pdf = Buffer.from("%PDF-1.7 replacement")
+        const uploaded = page.waitForRequest(
+            (request) =>
+                request.url() === portal.s3.presign(key, "material-upload") &&
+                request.method() === "PUT"
+        )
+        await drawer
+            .locator('input[type="file"]')
+            .setInputFiles({name: "booklet.pdf", mimeType: "application/pdf", buffer: pdf})
+        const request = await uploaded
+        expect(request.postDataBuffer()).toEqual(pdf)
+        expect(request.headers()["content-type"]).toBe("application/pdf")
+        await expect(notification(page, "File loaded")).toBeVisible()
+        expect(portal.graphql.callsTo("GetUploadUrl").map(({variables}) => variables)).toEqual([
+            {
+                name: "booklet.pdf",
+                media_type: "application/pdf",
+                size: pdf.length,
+                is_public: true,
+                election_event_id: IDS.event,
+            },
+        ])
+        await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        await expect(notification(page, "Support material updated")).toBeVisible()
+        expect(
+            portal.graphql
+                .callsTo("update_sequent_backend_support_material")
+                .map(({variables}) => variables)
+        ).toEqual([
+            {
+                where: {id: {_eq: CONTENT_IDS.supportMaterial}},
+                _set: {
+                    data: {
+                        title_i18n: {en: "Replacement guide"},
+                        subtitle_i18n: {en: "How to vote"},
+                    },
+                    document_id: UPLOADED_DOCUMENT_ID,
+                },
+            },
+        ])
+        await expect(page.getByRole("cell", {name: "Replacement guide", exact: true})).toBeVisible()
+    })
+
+    test("reports a rejected support material update without changing the saved title", async ({
+        page,
+        portal,
+    }) => {
+        materials(portal)
+        portal.graphql.on("update_sequent_backend_support_material", () => ({
+            errors: [{message: "support update rejected"}],
+        }))
+        await openMaterials(page, portal)
+        await rowButtons(page, "Voting guide").nth(0).click()
+        const drawer = page.getByRole("dialog").filter({hasText: "Enter support material data."})
+        await drawer.getByRole("textbox", {name: "Title", exact: true}).fill("Rejected title")
+        await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        await expect
+            .poll(() => portal.graphql.callsTo("update_sequent_backend_support_material").length)
+            .toBe(1)
+        expect(
+            portal.graphql
+                .callsTo("update_sequent_backend_support_material")
+                .map(({variables}) => variables)
+        ).toEqual([
+            {
+                where: {id: {_eq: CONTENT_IDS.supportMaterial}},
+                _set: {
+                    data: {title_i18n: {en: "Rejected title"}, subtitle_i18n: {en: "How to vote"}},
+                },
+            },
+        ])
+        await expect(page.getByRole("cell", {name: "Voting guide", exact: true})).toBeVisible()
+        test.fail(
+            true,
+            "EditSupportMaterial passes an untranslated error key to react-admin notify"
+        )
+        await expect(notification(page, "Error updating support material")).toBeVisible({
+            timeout: 2000,
+        })
     })
 
     test("refuses to create a material without a title and a document", async ({page, portal}) => {
