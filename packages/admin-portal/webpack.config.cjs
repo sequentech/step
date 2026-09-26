@@ -14,6 +14,7 @@ const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
+const {withPortalDevelopment} = require("../ui-essentials/webpack.portal.cjs")
 
 class InterpolateHtmlPlugin {
     // Replaces %VARIABLE% with the corresponding variable from the replacements object
@@ -40,7 +41,7 @@ class InterpolateHtmlPlugin {
 }
 
 module.exports = function (env, argv) {
-    return {
+    return withPortalDevelopment(__dirname, {
         mode: argv.mode,
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
@@ -155,5 +156,5 @@ module.exports = function (env, argv) {
                 "Cross-Origin-Resource-Policy": "cross-origin",
             },
         },
-    }
+    })
 }
