@@ -112,7 +112,7 @@ runs:
       run: |
         case "$CACHE_RESTORE" in
           true) cache_snapshot='exact generation restored' ;;
-          false) cache_snapshot='compatible generation restored' ;;
+          false) cache_snapshot='no exact generation match; see cache restore log' ;;
           *) cache_snapshot='no compatible snapshot restored' ;;
         esac
         {
