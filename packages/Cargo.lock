@@ -1469,6 +1469,7 @@ dependencies = [
  "serial_test",
  "strand",
  "strum 0.27.2",
+ "tempfile",
  "thiserror 2.0.17",
  "tikv-jemalloc-ctl",
  "tikv-jemallocator",

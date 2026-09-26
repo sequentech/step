@@ -634,7 +634,20 @@ impl<C: Ctx> LocalBoard<C> {
             )?
         };
 
-        connection.execute("BEGIN TRANSACTION", [])?;
+        // Keep the writer lock until new blobs and their metadata commit together.
+        // On an ordinary error, delete only files written by this batch.
+        struct PendingBlobs(Vec<PathBuf>);
+        impl Drop for PendingBlobs {
+            fn drop(&mut self) {
+                for path in &self.0 {
+                    if let Err(error) = fs::remove_file(path) {
+                        tracing::error!("could not remove rolled-back blob {:?}: {}", path, error);
+                    }
+                }
+            }
+        }
+        connection.execute("BEGIN IMMEDIATE TRANSACTION", [])?;
+        let mut pending_blobs = PendingBlobs(Vec::new());
         for m in messages {
             if m.version != b3::get_schema_version() {
                 return Err(anyhow::anyhow!(
@@ -656,8 +669,13 @@ impl<C: Ctx> LocalBoard<C> {
                 }
                 let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
-                if !path.exists() {
+                // An ignored row writes no blob. The statement columns are unique, so a
+                // new row owns its path, and any file already there is a leftover.
+                let inserted =
+                    statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
+                if inserted > 0 {
                     let mut file = File::create(&path)?;
+                    pending_blobs.0.push(path.clone());
                     file.write_all(&m.message)?;
                     tracing::info!(
                         "update_store: wrote {} bytes to {:?}",
@@ -665,12 +683,12 @@ impl<C: Ctx> LocalBoard<C> {
                         path
                     );
                 }
-                statement.execute(params![m.id, vec![], sender_pk, kind, batch, mix_number])?;
             } else {
                 statement.execute(params![m.id, m.message, sender_pk, kind, batch, mix_number])?;
             }
         }
         connection.execute("END TRANSACTION", [])?;
+        pending_blobs.0.clear();
 
         drop(statement);
 
@@ -732,7 +750,6 @@ impl<C: Ctx> LocalBoard<C> {
                         row.kind, row.sender_pk, row.batch, row.mix_number
                     );
                     let path = blob_store.join(name.replace("/", ":"));
-                    assert!(path.exists());
                     let mut file = File::open(&path)?;
                     let mut buffer = vec![];
 
@@ -788,7 +805,6 @@ impl<C: Ctx> LocalBoard<C> {
                 let mix_number: i32 = row.get(5)?;
                 let name = format!("{}-{}-{}-{}", kind, sender_pk, batch, mix_number);
                 let path = blob_store.join(name.replace("/", ":"));
-                assert!(path.exists());
                 let mut file = File::open(&path)?;
                 let mut buffer = vec![];
 
@@ -1004,3 +1020,7 @@ struct SqliteStoreMessageRow {
     batch: i32,
     mix_number: i32,
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/storage_contracts.rs"]
+mod coverage_contracts;
