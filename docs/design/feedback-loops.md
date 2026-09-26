@@ -307,6 +307,13 @@ Decisions so far:
   take 0.07533 s median (0.07449–0.07674) for login and 0.07535 s
   (0.07472–0.07716) for OTP, n=10 each plus excluded warmups, with input/session
   preserved and exact source restoration.
+  The header correction at `aee7b16d63` places the native language selector and
+  inherited application version/hash above the card, retaining server-translated
+  labels. All 30 stories and 15 real-authentication checks pass again, including
+  locale-link navigation, server build values and backward keyboard access from
+  login/OTP fields. Eight desktop/320px and 100%/200% text combinations have no
+  overflow or browser errors; types, lint, formatting and the theme JAR build pass.
+  The earlier hot-reload measurements retain their original source attribution.
   Both React and original FreeMarker complete password/whole-code OTP login and
   redeem the OIDC code. The original OTP's missing names and truncated whole-code input
   fail before the fix and pass after it. New checks exercise credential errors,
@@ -391,13 +398,16 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   placeholder start timestamps on queued/skipped jobs and negative intervals
   are excluded. A completion before its recorded start cannot become the first
   result or the all-done timestamp; two regressions cover invalid and absent starts. The observed queue delay remains separate from execution time.
-  The latest first actionable product result, six ECIES Java tests at `1d25f2b73e`,
-  completes 46 s after the push proxy: 2 s dispatch, 7 s queue and 37 s execution
-  (18 s test step). An earlier candidate at `514ac24d55` took 57 s with 20 s
-  queued and 35 s executing. Historical median is 565.5 s, range 42–3242, across 34
+  At `acebe8e3d2`, the first actionable product result is seven dependency-free
+  package contracts: 273 s after the push proxy, comprising 2 s dispatch,
+  153 s queue and 118 s execution (57 s contract step). At `1d25f2b73e`, six
+  ECIES tests finished first in 46 s (2 s dispatch, 7 s queue, 37 s execution;
+  18 s contract step). The same six ECIES tests at `acebe8e3d2` take 667 s,
+  including 630 s queued and 35 s executing (17 s contract step).
+  Historical median is 565.5 s, range 42–3242, across 34
   actionable pushes out of 35 observed. The proxy is the earliest eligible
   workflow creation time, including the CLA pull-request-target event. This
-  single uncontrolled result does not establish a speedup. A historical ECIES
+  pair of uncontrolled n=1 observations does not establish a speedup. A historical ECIES
   exemplar also executes in 35 s but waits 535 s for its runner.
   Fresh hosted runs exposed missing Python coverage, Node fixture dependencies,
   Compose defaults and container Git trust; the selected setup now supplies these
@@ -421,7 +431,10 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   success-only saves, incompatible identities and branch/PR isolation; seven
   failures before the correction become zero afterward. This validates the
   transport policy, not an actual hosted cache hit or a speedup; current hosted
-  save/restore evidence is tracked in the issue.
+  save/restore evidence is tracked in the issue. At `acebe8e3d2`, wrap-map-err
+  passes all 18 tests with six Rust misses, then successfully saves its compiler
+  generation in the PR scope. A saved archive alone is not compiler reuse; the
+  subsequent exact-generation restore and Rust-hit evidence is tracked separately.
 - **Rust service linker** (adopted on aarch64 Linux): identical application sources at
   `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
   All 60 measured saves succeeded, with ten per edit and linker plus excluded
@@ -474,13 +487,14 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   toolchain context. PRs build without publishing; trusted branch workflows
   publish matching images. Local selection checks identity and architecture,
   falling back to the standard image when missing or incompatible. Both native
-  builds and offline toolchain readiness pass at PR head `1d25f2b73e`, GitHub
-  merge checkout `dd2754340f`. Fresh-volume readiness, including copying the
-  store, is 257.596 s on arm64 and 208.564 s on amd64 (n=1 each, bounded budget).
-  Warm medians are 11.657 s (11.483–11.751) and 13.525 s (13.324–13.779),
+  builds and offline toolchain readiness pass at PR head `acebe8e3d2`, GitHub
+  merge checkout `8a48ec9844`. Fresh-volume readiness, including copying the
+  store, is 261.067 s on arm64 and 229.459 s on amd64 (n=1 each, bounded budget).
+  Warm medians are 11.7195 s (11.619–11.869) and 7.634 s (7.459–7.860),
   n=10 each plus excluded warmups. Every sample verifies the baked tools and
   WASM standard library with networking disabled; cleanup leaves no owned
-  resources. Earlier fresh-start timeouts and Nix database permission failures
+  resources. The preceding native passes at `1d25f2b73e` remain recorded separately.
+  Earlier fresh-start timeouts and Nix database permission failures
   remain in the raw records. Bounded creation/cleanup and an explicit daemon
   handshake address these failures; three regressions fail before the daemon
   correction. The logs establish the permission failure, not a proven daemon
@@ -516,9 +530,10 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   also retains ten failures plus its failed warmup. Historical full cold
   before/after and UI+Keycloak cold remain n=1; UI-only cold has n=3. No matched
   final full-stack warm speedup or footprint reduction is established.
-- **Walkthrough and retained preview**: the [106-second narrated recording](https://github.com/user-attachments/assets/8b2e5af0-49d0-43a8-a340-bf2225703820)
-  at `154d17e442` shows the workbench, actual five-step WASM pipeline, verifier,
-  redesigned desktop/mobile Keycloak pages and keyboard controls, plus actual
+- **Walkthrough and retained preview**: the [106-second narrated recording](https://github.com/user-attachments/assets/ed5491e2-51f1-4e85-8118-065ac9e314b5)
+  at `381c437eec` shows the workbench, actual five-step WASM pipeline, verifier,
+  redesigned desktop/mobile Keycloak pages with header language/version/hash,
+  keyboard controls, plus actual
   command selection. All ten captured scenes pass with empty page/console-error
   ledgers and all five actual WASM steps passing. The synthetic clipboard event is explicitly labeled; this
   recording does not submit authentication or establish formal WCAG conformance.
