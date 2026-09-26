@@ -1,11 +1,34 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import type {Preview} from "@storybook/react-vite"
+import {ScenarioChannel} from "@sequentech/ui-test-kit/fixtures/scenarios"
 import preview from "../../ui-essentials/.storybook/preview"
-import {initializeLanguages} from "@sequentech/ui-core"
-import englishTranslation from "../src/translations/en"
-import spanishTranslation from "../src/translations/es"
+import {storyGlobalTypes} from "../../ui-essentials/.storybook/globals"
+import {initializePreviewLanguages} from "../src/preview/context"
+import {SCENARIO_CHANNEL, withVoterPreview} from "./withVoterPreview"
 
-initializeLanguages({en: englishTranslation, es: spanishTranslation}, "en")
+initializePreviewLanguages("en")
 
-export default {...preview}
+export default {
+    ...preview,
+    // First, so the voter preview sits inside the shared router, theme and language.
+    decorators: [withVoterPreview, ...[preview.decorators ?? []].flat()],
+    globalTypes: {
+        ...preview.globalTypes,
+        tenant: storyGlobalTypes.tenant,
+        workflow: storyGlobalTypes.workflow,
+        voterChannel: {
+            description: "Channel of the scenario voter",
+            toolbar: {
+                icon: "user",
+                items: [
+                    {value: SCENARIO_CHANNEL, title: "Scenario channel"},
+                    {value: ScenarioChannel.ONLINE, title: "Online voter"},
+                    {value: ScenarioChannel.KIOSK, title: "Kiosk voter"},
+                ],
+            },
+        },
+    },
+    initialGlobals: {...preview.initialGlobals, voterChannel: SCENARIO_CHANNEL},
+} satisfies Preview

@@ -27,29 +27,25 @@ jest.mock("react-i18next", () => ({
     Trans: () => <span>Read required materials</span>,
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        SelectElection: ({
-            isActive,
-            isOpen,
-            onClickToVote,
-        }: {
-            isActive: boolean
-            isOpen: boolean
-            onClickToVote?: () => void
-        }) => (
-            <button disabled={!isActive || !isOpen} onClick={onClickToVote}>
-                Vote now
-            </button>
-        ),
-        IconButton: () => null,
-        Dialog: () => null,
-        PageLimit: ({children}: {children: React.ReactNode}) => <main>{children}</main>,
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    SelectElection: ({
+        isActive,
+        isOpen,
+        onClickToVote,
+    }: {
+        isActive: boolean
+        isOpen: boolean
+        onClickToVote?: () => void
+    }) => (
+        <button disabled={!isActive || !isOpen} onClick={onClickToVote}>
+            Vote now
+        </button>
+    ),
+    IconButton: () => null,
+    Dialog: () => null,
+    PageLimit: ({children}: {children: React.ReactNode}) => <main>{children}</main>,
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+}))
 jest.mock("../store/hooks", () => ({
     useAppSelector: (selector: (state: RootState) => unknown) => selector(mockState),
     useAppDispatch: () => jest.fn(),

@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# UI + Keycloak devcontainer mode (.devcontainer/ui-keycloak): Keycloak and its
+# database without the backend. The containers are the same as in the full
+# stack; only the start order changes, so switching modes recreates nothing.
+services:
+  # Builds the image it shares with `postgres` itself instead of waiting for
+  # that service, and still gets its log volume prepared.
+  postgres-keycloak:
+    build:
+      context: ./postgresql
+      dockerfile: Dockerfile
+    depends_on: !override
+      postgres-volume-init:
+        condition: service_completed_successfully
+
+  # Harvest only serves the per-event certificate authorities that Keycloak
+  # fetches when a user logs in to an election event realm.
+  keycloak:
+    depends_on: !override
+      postgres-keycloak:
+        condition: service_healthy

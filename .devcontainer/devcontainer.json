@@ -30,7 +30,8 @@
   // Fixes usage of LOCAL_WORKSPACE_FOLDER. See:
   // https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
   "initializeCommand": [
-    ".devcontainer/scripts/initialize-command.sh"
+    ".devcontainer/scripts/initialize-command.sh",
+    "full"
   ],
   // Use this environment variable if you need to bind mount your local source
   // code into a new container
@@ -45,7 +46,7 @@
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "userEnvProbe": "loginShell",
   "updateRemoteUserUID": true,
-  "onCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
+  "onCreateCommand": "./.devcontainer/scripts/fix-cache-ownership.sh && direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
   "updateContentCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/fix-vscode-settings-nix.sh'",
   "postCreateCommand": "direnv allow && devenv shell bash -- -c './.devcontainer/scripts/init-cli.sh'",
   // Adding host requirements so that there is no need to manually select the

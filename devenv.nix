@@ -151,7 +151,7 @@ in
     set -a
     source .devcontainer/.env
     export LD_LIBRARY_PATH=${pkgs.openssl.out}/lib:$LD_LIBRARY_PATH
-    export PATH=/workspaces/step/packages/step-cli/rust-local-target/release:$PATH
+    export PATH=$DEVENV_ROOT/packages/step-cli/rust-local-target/release:$PATH
     set +a
 
     export RUST_SRC_PATH=${rustStable}/lib/rustlib/src/rust/library

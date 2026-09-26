@@ -77,7 +77,7 @@
     "@emotion/styled": "11.14.1"
   },
   "scripts": {
-    "start": "PORT=3002 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
+    "start": "NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack serve --config webpack.config.cjs  --mode development",
     "start:container": "PORT=3000 NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096'  webpack serve --config webpack.config.cjs",
     "build": "DISABLE_ESLINT_PLUGIN=false NODE_OPTIONS='--openssl-legacy-provider --max-old-space-size=4096' webpack --config webpack.config.cjs --mode production",
     "prettify": "prettier --check . --ignore-path .prettierignore",
@@ -88,6 +88,7 @@
     "storybook": "storybook dev -p 6008 --no-open",
     "build-storybook": "storybook build",
     "test:stories": "vitest run --project=storybook",
+    "test:story": "node ../test-support/storybook/test-story.mjs",
     "typecheck:stories": "tsc --project tsconfig.stories.json",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",

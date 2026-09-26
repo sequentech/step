@@ -14,6 +14,8 @@ const ESLintPlugin = require("eslint-webpack-plugin")
 const {ProgressPlugin} = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
+const {withPortalDevelopment} = require("../ui-essentials/webpack.portal.cjs")
+const {sequentCoreWebpackAlias} = require("../ui-core/sequent-core-dev.cjs")
 
 class InterpolateHtmlPlugin {
     // Replaces %VARIABLE% with the corresponding variable from the replacements object
@@ -40,7 +42,7 @@ class InterpolateHtmlPlugin {
 }
 
 module.exports = function (env, argv) {
-    return {
+    return withPortalDevelopment(__dirname, {
         mode: argv.mode,
         entry: path.resolve(__dirname, "src/index.tsx"),
         output: {
@@ -83,6 +85,7 @@ module.exports = function (env, argv) {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
                 "@": path.resolve(__dirname, "src"),
+                ...sequentCoreWebpackAlias(argv.mode),
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
@@ -151,7 +154,7 @@ module.exports = function (env, argv) {
                 },
             ],
             compress: true, // Enable gzip compression
-            port: 3002, // Run on port 3002
+            port: 3002,
             open: true, // Automatically open the browser
             historyApiFallback: true,
             headers: {
@@ -162,5 +165,5 @@ module.exports = function (env, argv) {
                 "Cross-Origin-Resource-Policy": "cross-origin",
             },
         },
-    }
+    })
 }

@@ -23,6 +23,8 @@ on:
       - main
       - release/*
       - feat/use-arc-runner-java-test
+      # Integration branch that combines programme stacks before main.
+      - ovcs
       # Stacked meta-ticket PRs target the previous PR's branch.
       - 'feat/meta-*/**'
 

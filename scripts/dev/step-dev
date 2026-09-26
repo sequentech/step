@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Entry point for the developer feedback-loop commands: step-dev <command> [args].
+set -euo pipefail
+
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo "usage: step-dev <command> [args]" >&2
+    echo "commands:" >&2
+    for module in "${root}"/scripts/dev/*.py "${root}"/scripts/dev/*/__main__.py; do
+        [ -e "${module}" ] || continue
+        name="$(basename "${module}" .py)"
+        [ "${name}" = "__main__" ] && name="$(basename "$(dirname "${module}")")"
+        case "${name}" in __init__|test_*|_*) continue ;; esac
+        echo "  ${name}" >&2
+    done
+    exit 2
+fi
+
+command="$1"
+shift
+if ! [[ "${command}" =~ ^[a-z][a-z0-9_]*$ ]]; then
+    echo "step-dev: invalid command '${command}'" >&2
+    exit 2
+fi
+# Commands resolve relative arguments against the caller's directory.
+export STEP_DEV_CWD="${PWD}"
+cd "${root}"
+exec python3 -m "scripts.dev.${command}" "$@"

@@ -97,3 +97,5 @@ airgapped-artifacts
 /packages/*/test-results/
 # Backend E2E binaries built by scripts/e2e/build.sh.
 /.cache/backend-e2e/
+# Logs and process ids of dev servers started by scripts/dev/step-dev mode.
+/.cache/dev-mode/
