@@ -45,6 +45,10 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const council = await row(canvasElement, "Select up to two members")
         await expect(await row(canvasElement, "Choose the chair")).toBeVisible()
+        // Names live in the presentation since migration 1772358027729 dropped the name column.
+        await expect(within(council).getByText("Council members")).toBeVisible()
+        await expect(await within(council).findByText("Council event")).toBeVisible()
+        await expect(await within(council).findByText("Council election")).toBeVisible()
         // Each contest's candidates are chips linking to the candidate.
         await waitFor(() => expect(within(council).getAllByRole("link")).toHaveLength(2))
         const targets = within(council)
@@ -91,6 +95,26 @@ export const LoadError: Story = {
         const message = await within(document.body).findByText("Synthetic service unavailable")
         await waitFor(() => expect(message).toBeVisible())
         expect(within(canvasElement).queryByRole("row", {name: /members/})).toBeNull()
+    },
+}
+
+export const SearchByName: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await row(canvasElement, "Select up to two members")
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Name"})
+        )
+        await userEvent.type(await canvas.findByRole("textbox", {name: "Name"}), "chair")
+        await waitFor(() =>
+            expect(canvas.queryByRole("row", {name: /Select up to two members/})).toBeNull()
+        )
+        await expect(await row(canvasElement, "Choose the chair")).toBeVisible()
+        expect(reads("getList", "sequent_backend_contest").at(-1)?.args[1]).toMatchObject({
+            filter: {tenant_id: TENANT_ID, _or: {format: "hasura-raw-query"}},
+        })
+        await expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("chair")
     },
 }
 
