@@ -34,15 +34,16 @@ scripts/dev/step-dev mode stop
 
 They work inside the devcontainer and on the host. `up` starts the mode's
 services, waits for their health checks and probes, starts the mode's default
-dev servers (`--servers none`, or a comma-separated list) and prints the URLs. A
-server already listening on its port is reused rather than started again; the
-ones `step-dev` starts log to `.cache/dev-mode/`. `switch` first stops the
-services and `step-dev` servers the target mode does not use; `stop` stops all
-of them except the devcontainer. Nothing removes containers, volumes or caches,
-and `up` reuses existing containers as they are: rebuild the devcontainer to
-apply Compose changes. `up`, `switch` and the devcontainer's initialize command
-fail before touching a container when another Compose project publishes a port
-or holds a container name the mode needs.
+dev servers (`--servers none`, or a comma-separated list) and prints the URLs.
+Dev servers need `yarn --cwd packages install --frozen-lockfile` first. A server
+already listening on its port is reused rather than started again; the ones
+`step-dev` starts log to `.cache/dev-mode/`. `switch` first stops the services
+and `step-dev` servers the target mode does not use; `stop` stops all of them
+except the devcontainer. Nothing removes volumes or caches. `up` starts existing
+containers as they are, replacing only one whose health check changed; rebuild
+the devcontainer to apply other Compose changes. `up`, `switch` and the
+devcontainer's initialize command fail before touching a container when another
+Compose project publishes a port or holds a container name the mode needs.
 
 Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,
@@ -66,11 +67,13 @@ worktree or a recreated container does not download them again:
 | `step-devcontainer-cache` | `~/.cache` | Yarn, Nix fetcher and Playwright caches | never stale: entries are versioned |
 | `step-devcontainer-cargo` | `~/.cargo` | Cargo registry and git checkouts | never stale: entries are versioned |
 
-`docker compose down --volumes` leaves them alone. To reset one, stop the
-devcontainers using it (`docker ps --filter volume=<name>`) and
-`docker volume rm <name>`; the next start recreates it. Garbage-collecting the
-Nix store only keeps what the checkouts visible in that container use, so run
-`nix-collect-garbage` while no other devcontainer builds.
+`docker compose down --volumes` leaves them alone. To reset one, remove the
+containers that mount it, `docker ps --all --filter volume=<name>` (the Rust
+services and Hasura share the devcontainer's mounts), then
+`docker volume rm <name>`; the next start recreates them. Every devcontainer
+runs its own Nix daemon on the shared store. A garbage collection sees only the
+roots and builds of its own container, so run `nix-collect-garbage` while no
+other devcontainer is up; `.devcontainer/scripts/free-space.sh` skips it then.
 
 ## Shared UI hot reload
 
@@ -134,9 +137,141 @@ the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
 
+### Real-backend scenarios
+
+When a story cannot answer the question, `step-dev scenario` brings a synthetic election
+event of its own to a named state on the checkout's running stack (`mode up backend` or
+`full`). Run it in the devcontainer:
+
+```sh
+scripts/dev/step-dev scenario list
+scripts/dev/step-dev scenario up kiosk-voter         # kiosk voting open
+scripts/dev/step-dev scenario up completed-ceremony  # keys ceremony, ballots, online voting open
+scripts/dev/step-dev scenario up published-results   # votes cast, tallied, results published
+scripts/dev/step-dev scenario urls kiosk-voter
+scripts/dev/step-dev scenario status
+scripts/dev/step-dev scenario reset kiosk-voter
+```
+
+`up` imports the backend journeys' fixture and census through step-cli, waits on the
+task, ceremony and publication status, and prints the portal links and the synthetic
+voter credentials. The event is recorded in `.cache/scenarios/<Compose project>/` and
+carries owner annotations; the next `up` checks both and continues from the furthest
+stage that still holds. `reset` deletes only that event. Ceremonies start `trustee1`
+and `trustee2`, which no mode starts; their first start builds the braid image. On a
+new stack the first `up` enrolls the tenant administrator's email code, as the journeys
+do; the admin portal then asks for it, and the Keycloak container log shows it.
+`VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
+portals, and `--step-cli` another step-cli build.
+
 ## Incremental WASM
 
+After editing `sequent-core` or a crate it depends on, run from the devenv shell:
+
+```sh
+scripts/dev/step-dev wasm            # rebuild and publish when inputs changed
+scripts/dev/step-dev wasm --status   # does the published build match the sources?
+scripts/dev/step-dev wasm --clean    # drop the development package and its cache
+```
+
+The command fingerprints the path crates Cargo resolves for the wasm32 build
+(their library sources, manifests and files named by `include_str!`,
+`include_bytes!` or `#[path]`), the resolved dependency versions, sources and
+features, the workspace profiles, Cargo configuration, `rust-toolchain.toml`,
+the build recipe, the rustc, Cargo and wasm-bindgen versions, C compiler settings
+and the command itself. Tests, benches, examples, other workspace members,
+unrelated `Cargo.lock` entries, hidden files and editor backups are not inputs.
+Without changes it only prints `up to date`. Otherwise it compiles incrementally
+in `packages/rust-local-target/sequent-core-wasm/` and publishes one development
+package there; node_modules, Yarn caches and dist trees are untouched.
+
+Portal dev servers (`start:*`) and Storybook load that package instead of the
+installed tgz while it exists, and reload the open page when a new build is
+published; restart them after the first publish or after `--clean`. Production
+builds always use the installed tgz. A failed build exits non-zero, keeps the
+previous build and logs `development WASM build failed` in the browser console
+until a build succeeds or the sources match the published build again.
+
+The committed `packages/*/rust/sequent-core-0.1.0.tgz` files are the release
+package. It records its source fingerprint; regenerate it with wasm-opt from the
+sequent-core flake, then reinstall and commit the four tgz files and `yarn.lock`:
+
+```sh
+nix develop ./packages/sequent-core --command scripts/dev/step-dev wasm --release-package
+yarn --cwd packages install --frozen-lockfile
+scripts/dev/step-dev wasm --check-package
+```
+
+`--check-package` fails, naming the changed inputs, when the committed package was
+not built from the checked-out sources; CI runs it in `build_wasm.yml`.
+For recovery, `.devcontainer/scripts/rebuild-sequent-core-full.sh` also removes
+the installed copies so that the next install extracts them again.
+
 ## Focused tests
+
+`step-dev test` runs the narrowest existing command for a package, check, file,
+directory, story or spec and prints that scope, and what it leaves out, first.
+It adds no coverage and starts no services unless the selected check needs them.
+
+```sh
+S=scripts/dev/step-dev
+$S test voting-portal            # the package's fast tests
+$S test packages/ui-essentials/src/components/Header/Header.tsx   # Jest related tests
+$S test packages/voting-portal/src/components/StartActions/StartActions.test.tsx -t 'keyboard'
+$S test admin-portal --story screens-admin-tally-ceremony--populated
+$S test packages/voting-portal/test/journeys/review.spec.ts 'cast confirmation'
+$S test packages/sequent-core/tests/sqlite_feature_boundaries.rs
+$S test windmill services::probe
+$S test scripts/dev/affected/model.py
+$S test voting-portal --watch
+$S test --list                   # every check, its cost and command
+$S test --affected               # fast checks of the current changes
+$S validate                      # also slow checks; --depth full adds integration
+$S affected --worktree           # what the changes affect, and why
+```
+
+A second argument, `-t`, `-g` or `-k` filters by test name (Jest and Vitest `-t`,
+Playwright `-g`, the Cargo filter, unittest `-k`); arguments after `--` go to the
+runner. A narrowed run that executes no test fails. A Rust source file runs its
+crate's whole check, since any test may exercise it; a file under `tests/` runs
+that target with the features its `#![cfg]` and `required-features` need. Cargo
+builds into the checkout's `packages/rust-local-target` unless `CARGO_TARGET_DIR`
+is absolute. Journeys build the production portal first only when its `dist/` is
+missing, so rebuild it after source changes. `--watch` uses Jest's and Vitest's
+watch modes, `cargo watch` over the crate and its path dependencies, or reruns
+when files of the package or its dependencies change.
+
+Checks cost `fast` (installed dependencies and compilers, a browser for small
+suites), `slow` (story catalogues, production, release or cross-target builds,
+Maven, the documentation site) or `integration` (Docker stacks or a database).
+`--depth fast|broad|full` runs up to that cost; `validate` is
+`test --affected --depth broad`.
+
+`scripts/dev/affected.toml` and the workspace manifests form the one model that
+local runs and CI select from. Yarn and Cargo packages and their edges come from
+the manifests, including `file:` archives, path dependencies of every kind and
+files compiled in with `include_str!`. The model file adds the areas outside
+packages, ordered path rules, edges between ecosystems (the committed
+sequent-core archives, workbench stories in the voting portal's Storybook, Hasura
+migrations read by Harvest and Windmill tests) and the checks. A changed path
+belongs to the first matching rule, else to the package whose directory holds
+it; a package is affected when its files or inputs change or a dependency is
+affected. A unit test fails for tracked files that no rule claims.
+
+Changes count from the merge base with `--base` (default: the branch's upstream
+unless it is the same branch, else `origin/ovcs`); `affected` counts commits and
+`--worktree` adds staged, unstaged and untracked files, which `test --affected`
+includes unless `--committed`. A missing base or merge base (deepen a shallow
+clone), an unclaimed path, a devenv change or a change to the model selects every
+check. `packages/yarn.lock` affects every Yarn package; `Cargo.lock` affects the
+crates whose locked dependencies changed. sequent-core sources select
+`wasm-freshness`; the frontends' checks follow the committed tgz.
+
+`affected` prints each changed file's owner, the affected packages with their
+file → package → consumer chain, and every check selected or skipped with the
+reason. `--graph` prints the units and edges; `--json` prints a versioned
+document with `base`, `fallback`, `files`, `units` and `checks` (`selected`,
+`reasons`, `cost`, `cwd`, `command`, `env`, `requires`, `workflows`) for CI.
 
 ## Benchmarks
 

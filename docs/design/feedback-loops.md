@@ -132,24 +132,84 @@ Implementation references:
 - [Vite performance guidance](https://vite.dev/guide/performance)
 - [Devcontainer prebuilds](https://containers.dev/guide/prebuild)
 
+## Decisions and measurements
+
+Measured on one aarch64 host (16 cores, 62 GiB) while other work ran, so each row
+records its sample count; load averages are in the raw `step-dev bench` results.
+Before = `ovcs` 679c3ea181. Cold stacks ran in fresh, task-owned Docker daemons.
+
+| Loop | Before | After |
+| --- | --- | --- |
+| Full stack from zero to ready | 1532 s (n=1) | 1481 s (n=1) |
+| Full stack, warm restart | 59 s median, 48–67 (n=10) | — |
+| UI-only devcontainer from zero | — (full stack only) | 420 s median, 320–623 (n=3) |
+| UI + Keycloak from zero | — | 670 s (n=1) |
+| Devcontainer recreate (rebuild, mode switch) | whole Nix store downloaded again | 32 s median with the shared store volume (n=10); 365 s with an empty one (n=2) |
+| Shared UI component edit → visible in a portal | 16–20 s median per portal via `build:ui-essentials` (n=10 each) | 1.8–3.6 s for voting, verifier and results, 12 s for admin including react-admin reload (n=5); 0.48 s with Fast Refresh when the module exports only components |
+| Shared UI edit → visible in Storybook | 1.3 s (n=10) | 0.16 s in place (n=10, workbench story) |
+| sequent-core edit → WASM rebuilt | 75 s for an unchanged tree: full script, reinstall, restart (n=10) | 0.15 s no-op (n=10); 6.3 s build and 15 s until the new ballot ID shows after rerunning the voting flow (n=10) |
+| Keycloak template, message or CSS edit → visible | 191 s image rebuild and recreate (n=3) | 0.12–0.19 s live mount (n=10 each); 27 s for a provider jar (n=3) |
+
+Decisions so far:
+
+- **Shared UI source in development** (adopted): exact-match aliases to `src`, a
+  resolver plugin that keeps one copy of React and the context libraries, React
+  Refresh, `eval-cheap-module-source-map` (webpack rebuild 389 ms against 689 ms,
+  n=10). Production output is byte-identical except admin's embedded environment.
+- **Devcontainer modes** (adopted): four configurations from one manifest,
+  per-checkout Compose projects and prefixed names outside a folder named `step`, the
+  checkout's parent mounted at its host path so worktrees resolve, and shared cache
+  volumes (Nix store per devcontainer image tag, `~/.cache`, `~/.cargo`).
+- **Incremental WASM** (adopted): content-addressed builds published by one atomic
+  rename, fingerprinted sources, an incremental development profile (cargo 15 s →
+  5 s on a leaf edit, +0.4% wasm size); the committed package was stale and is now
+  regenerated reproducibly with a freshness check in CI.
+- **Keycloak** (adopted: live theme folders; Keycloakify development continues). The pilot
+  passed a real password + email OTP login with the existing authenticator (8/8) and
+  its pages were lighter with no axe violations, but its real-Keycloak loop took
+  8.4 s (n=10), realm localization overrides and per-event login policies did not
+  reach the pages, the OTP courier enum was lost and dotted template ids needed
+  workarounds; porting would cover 29 templates, 251 message keys in up to eight
+  locales and a Node build stage. These results defer production adoption; they
+  do not end the React development path. Keep an opt-in Keycloakify workspace
+  with automatic reload and continue closing the localization, policy and custom
+  OTP context gaps. Document commands and browser validation for both developers
+  and agents through the shared `step-dev` entry point and `AGENTS.md`.
+- **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
+  preview provider for Storybook and the workbench, production routes and loaders,
+  typed policy overrides and the real sequent-core pipeline.
+
+Current validation: the voting Jest suite passes locally (30 suites, 259 tests,
+one run), as do verifier stories (14 tests, including one retained expected
+accessibility failure) and results stories (19 tests), one browser run each.
+The hosted regressions were a missing story CSS hook, virtual mocks for a now-real
+shared module and obsolete expected-failure markers after upstream accessibility
+fixes. Frontend lint and formatting pass across all seven packages. Hosted
+reruns and paired voting coverage remain to be checked before claiming CI green.
+
+Keep the stack synchronized with new `ovcs` commits using normal merges into
+phase 1 and then each descendant. All feedback commands must be discoverable and
+usable from agent instructions as well as the developer guides.
+
 ## Continuing this work
 
-Another machine can resume from the tracking issue, this record and the pushed
-branches. The implementation brief used for this programme:
+Another machine or agent resumes from the tracking issue, this record and the pushed
+programme branches (one per phase, each stacked on its predecessor). Follow
+`AGENTS.md` and the developer guides; agent-specific instruction files are not
+required. The brief below is tool-neutral:
 
 ```text
-Implement https://github.com/sequentech/meta/issues/13610 on any machine with access to the GitHub issue and sequentech/step repository. The issue (status) and docs/design/feedback-loops.md on the programme branch (requirements, decisions, measurements) are the self-contained sources; no files from the originating machine are required.
-
-Read the complete issue and design record. Locate an existing sequentech/step clone or clone it into an appropriate writable workspace. Fetch origin/ovcs, then read CLAUDE.md, AGENTS.md and applicable package guides from that branch; use .agents/skills/implement-unit-tests/SKILL.md for test/coverage changes. Optimize edit-to-visible-result and focused-test latency, not coverage expansion. Execute the ten workstreams and phase order in the issue, including baseline measurements and evidence-based adopt/reject decisions for experiments. Incremental builds AND affected test execution are mandatory locally and in GitHub Actions: implement dependency-aware selection, compatible compiler/output reuse, sound invalidation, conservative fallback and measured CI feedback improvements. Reuse the workbench approach from meta#12244/step#2719 through the Storybook-compatible browser-only vertical slice specified here; inspect its current code, but do not merge it or depend on it landing.
-
-Inspect repository/worktree status before making changes. Create your own clean worktree and issue-numbered feature branch from the latest origin/ovcs, for example feat/meta-13610-feedback/ovcs, using an unoccupied local directory. Do not modify, reset or push ovcs directly, or disturb another task's worktree. Reuse the repository's existing UI fixture/test infrastructure. Prior research files from the originating machine are optional and are not prerequisites; the work plan is in this issue. Do not wait for unrelated meta#13571 work.
-
-Measure first; ship items 1–4, then 5–7, then 8–10. Implement useful improvements autonomously. A documented negative pilot is complete; an unrun pilot is not. Keep PR count small, normally no more than three coherent phases. First draft PR base ovcs; dependent drafts base their immediate predecessor. Never merge PRs, rebase, force-push or push wip/* branches. Normal merges only for updates, one branch per push, serialized. Preserve unrelated services, files, caches and worktrees.
-
-Use repository-pinned toolchains and the documented devcontainer setup. Discover the destination machine's container runtime, available resources, ports and permissions rather than assuming sudo, a particular username, host tool installation or directory layout. Put temporary/build data in a writable location with sufficient disk space; avoid filling a RAM-backed temporary filesystem. Run Cargo from packages/ when required by repository configuration, inspect existing auto-build watchers to avoid duplicate builds, coordinate resource-heavy builds, and use a separate CARGO_TARGET_DIR per worktree. Host-specific wrappers are optional, not prerequisites. Never stop or clean up unowned containers or volumes. Record environment details with measurements; compare before/after on the same machine under comparable conditions.
-
-Commit as Eduardo Robles <edulix@gmail.com>. End every commit message, after a blank line, with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-Begin PR bodies with Parent issue: https://github.com/sequentech/meta/issues/13610
-End with: 🤖 Generated with [Claude Code](https://claude.com/claude-code)
-Request Copilot and CodeRabbit review on each draft, investigate and reply to findings in their threads, resolve only settled findings, and get applicable CI green. Do not rerun verified suites without new changes, failures or another concrete reason. Keep PR bodies and the issue current using AGENTS.md formatting. Document reusable commands in the canonical Docusaurus developer guides; publish measurements, pilot decisions and remaining work in the issue or linked repository artifacts so another machine can continue without local-only files. Finish with pushed branches, draft PR links, before/after evidence, pilot decisions and an accurate handoff for any externally blocked work. Do not ask routine questions or merge/deploy production changes.
+Continue https://github.com/sequentech/meta/issues/13610 in sequentech/step. Read
+the issue (status, OVCS PRs, remaining work), docs/design/feedback-loops.md
+(requirements) and AGENTS.md. Work on the phase branches listed in the issue's
+OVCS PRs section: never rebase, force-push, merge PRs or push wip branches; update
+branches with normal merges, one branch per push; keep each stacked PR based on its
+predecessor. Commit with the repository's author identity and a Co-Authored-By
+trailer naming the agent doing the work. Use isolated, task-owned Docker daemons or
+Compose projects for stacks and never stop, recreate or clean up containers,
+volumes, caches or worktrees you did not create. Measure before and after on the
+same machine under comparable load (the step-dev bench command records it); a
+documented negative experiment is complete, an unrun one is not. Request Copilot and
+CodeRabbit reviews on each draft, reply to findings in their threads and resolve
+only settled ones. Keep PR bodies, the issue and the developer guides current.
 ```

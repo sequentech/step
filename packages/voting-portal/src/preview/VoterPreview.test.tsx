@@ -19,14 +19,10 @@ import {PreviewScreen} from "./screens"
 import type {PreviewSession} from "./session"
 import {VoterPreview} from "./VoterPreview"
 
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        Loader: () => <div role="progressbar" />,
-        theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    Loader: () => <div role="progressbar" />,
+    theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
+}))
 // Keycloak is never created in a preview; only its context is provided.
 jest.mock("../providers/AuthContextProvider", () => ({
     AuthContext: jest.requireActual<typeof React>("react").createContext({}),

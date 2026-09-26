@@ -10,7 +10,7 @@ import type {PolicyOverrides} from "../policies"
 import type {SequentCoreInfo} from "../sequentCore"
 import type {WorkbenchEvent} from "../state"
 
-export const ALL_SLICES = "all"
+const ALL_SLICES = "all"
 
 export interface StateInspectorProps {
     /** The snapshot the portal shows, overrides included. */
