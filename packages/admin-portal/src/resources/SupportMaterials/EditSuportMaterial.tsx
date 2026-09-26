@@ -136,7 +136,7 @@ export const EditSupportMaterial: React.FC<EditSupportMaterialProps> = (props) =
         if (res?.message?.includes("hasOwnProperty")) {
             notify(t("materials.updateMaterialSuccess"), {type: "success"})
         } else {
-            notify("materials.updateMaterialError", {type: "error"})
+            notify(t("materials.updateMaterialError"), {type: "error"})
         }
 
         if (close) {

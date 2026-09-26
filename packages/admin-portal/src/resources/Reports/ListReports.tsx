@@ -474,15 +474,9 @@ const ListReports: React.FC<ListReportsProps> = ({electionEventId}) => {
                         withFilter={true}
                         open={openCreateReport}
                         setOpen={setOpenCreateReport}
-                        Component={
-                            <EditReportForm
-                                close={handleClose}
-                                electionEventId={electionEventId}
-                                tenantId={tenantId}
-                                isEditReport={false}
-                            />
-                        }
-                        withComponent={canCreateReports}
+                        withAction={canCreateReports}
+                        doAction={() => setOpenCreateReport(true)}
+                        actionLabel="common.label.add"
                     />
                 }
                 disableSyncWithLocation

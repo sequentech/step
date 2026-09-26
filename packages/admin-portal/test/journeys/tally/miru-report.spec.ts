@@ -196,10 +196,6 @@ for (const outcome of ["missing document", "GraphQL rejection"] as const) {
         await expect(
             page.getByRole("heading", {name: /^Task: Generate Report (IN_PROGRESS|FAILED)$/})
         ).toBeVisible()
-        test.fail(
-            true,
-            "Widget keeps its initial IN_PROGRESS state when report generation marks the task FAILED without a task ID"
-        )
         await expect(page.getByText("FAILED", {exact: true})).toBeVisible({timeout: 2000})
     })
 }

@@ -134,9 +134,17 @@ test("verified selections expose no accessibility violations", async ({page, por
             {id: "listitem", impact: "serious", targets: [[".candidate-item"]]},
         ])
     }
-    test.fail(
-        true,
-        "PlaintextVoteContest renders candidate li elements under a div instead of a list."
-    )
     expect(violations).toEqual([])
+})
+
+test("authentication-disabled verifier checks a signed ballot without private services", async ({
+    page,
+    portal,
+}) => {
+    portal.settings.DISABLE_AUTH = true
+    const {ballot, hash} = await signedBallot()
+    await verify(page, portal.origin, ballot, hash)
+    expect(portal.oidc.authorizations).toEqual([])
+    expect(portal.oidc.tokenRequests).toEqual([])
+    expect(portal.graphql.calls).toEqual([])
 })

@@ -43,25 +43,24 @@ export const SettingsCountries: React.FC<void> = () => {
     }, [record])
 
     const handleSumbit = async () => {
-        if (save) {
-            const {data, errors} = await limitAccessByCountries({
+        if (!save) return
+        try {
+            const {errors} = await limitAccessByCountries({
                 variables: {
                     votingCountries: selectedVotingCountries,
                     enrollCountries: selectedEnrollmentCountries,
                 },
             })
-            if (!errors) {
-                save({
-                    settings: {
-                        ...(record?.settings ? record.settings : {}),
-                        voting_countries: selectedVotingCountries,
-                        enroll_countries: selectedEnrollmentCountries,
-                    },
-                })
-            } else {
-                notify(t(`settings.countries.error.errorSaving`), {type: "error"})
-                console.log(`Error saving country list: ${errors}`)
-            }
+            if (errors?.length) throw new Error(errors[0].message)
+            await save({
+                settings: {
+                    ...(record?.settings ?? {}),
+                    voting_countries: selectedVotingCountries,
+                    enroll_countries: selectedEnrollmentCountries,
+                },
+            })
+        } catch {
+            notify(t("settings.countries.error.errorSaving"), {type: "error"})
         }
     }
 

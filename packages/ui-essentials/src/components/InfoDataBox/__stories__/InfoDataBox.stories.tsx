@@ -17,10 +17,6 @@ const meta: Meta<typeof InfoDataBoxExample> = {
     title: "components/InfoDataBox",
     component: InfoDataBoxExample,
     parameters: {
-        expectedFailure: {
-            reason: "Scrollable ballot data has no keyboard focus target.",
-            a11y: ["scrollable-region-focusable"],
-        },
         backgrounds: {
             default: "white",
         },

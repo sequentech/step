@@ -73,7 +73,7 @@ test("reports a rejected document download after a successful download", async (
     await page.getByRole("button", {name: "Download Document", exact: true}).click()
     await download
     const detail = page.getByRole("button", {name: "Download Document", exact: true}).locator("..")
-    // The browser download starts before PerformDownload clears its in-flight state.
+    // Wait until the first download has cleared its in-flight state.
     await expect(detail.getByRole("progressbar")).not.toBeVisible()
     await page.getByRole("cell", {name: "expired.txt", exact: true}).click()
     await expect(page).toHaveURL(new RegExp(`/sequent_backend_document/${SECOND_DOCUMENT_ID}/show`))
@@ -84,11 +84,10 @@ test("reports a rejected document download after a successful download", async (
         {electionEventId: IDS.event, documentId: CONTENT_IDS.document},
         {electionEventId: IDS.event, documentId: SECOND_DOCUMENT_ID},
     ])
-    test.fail(
-        true,
-        "ShowDocument keeps the download spinner after FetchDocument rejects without showing the error"
-    )
+
     await expect(page.getByRole("alert")).toContainText("document expired", {timeout: 2000})
+    await expect(detail.getByRole("progressbar")).toHaveCount(0)
+    await expect(page.getByRole("button", {name: "Download Document", exact: true})).toBeEnabled()
 })
 
 test("opens a document directly without a cached record", async ({page, portal}) => {
@@ -105,18 +104,8 @@ test("opens a document directly without a cached record", async ({page, portal})
     await page.reload()
     const errorAlert = page.getByRole("alert").filter({hasText: "Something went wrong"})
     await expect(downloadButton.or(errorAlert)).toBeVisible()
-    expect(
-        errors.filter(
-            (message) =>
-                !message.startsWith(
-                    "TypeError: Cannot read properties of undefined (reading 'labels')"
-                )
-        )
-    ).toEqual([])
-    test.fail(
-        true,
-        "ShowDocument renders JsonField before its record exists, so a direct link crashes while reading labels"
-    )
+    expect(errors).toEqual([])
+
     await expect(page.getByRole("button", {name: "Download Document", exact: true})).toBeVisible({
         timeout: 2000,
     })

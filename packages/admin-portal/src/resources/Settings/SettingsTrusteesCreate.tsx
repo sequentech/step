@@ -33,6 +33,7 @@ interface CreateProps {
 export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
     const {close} = props
     const refresh = useRefresh()
+    const notify = useNotify()
     const [tenantId] = useTenantStore()
     const {t} = useTranslation()
 
@@ -43,7 +44,8 @@ export const SettingsTrusteesCreate: React.FC<CreateProps> = (props) => {
         }
     }
 
-    const onError = async (res: any) => {
+    const onError = (error: Error) => {
+        notify(error.message, {type: "error"})
         refresh()
         if (close) {
             close()

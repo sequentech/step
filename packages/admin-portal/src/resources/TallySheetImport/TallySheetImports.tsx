@@ -575,12 +575,13 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                 return
             }
             try {
-                const {data} = await fetchDocument({
+                const {data, error} = await fetchDocument({
                     variables: {
                         electionEventId: electionEvent.id,
                         documentId: item.source_document_id,
                     },
                 })
+                if (error) throw error
                 const url = data?.fetchDocument?.url
                 if (!url) {
                     throw new Error(t("tallySheetImport.notifications.sourceUrlError"))
@@ -688,8 +689,11 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                     <ElectionHeader title={String(t("tallySheetImport.createTitle"))} subtitle="" />
                     <Stack direction="row" gap={2}>
                         <FormControl size="small" fullWidth>
-                            <InputLabel>{t("tallySheetImport.fields.format")}</InputLabel>
+                            <InputLabel id="tally-sheet-import-format-label">
+                                {t("tallySheetImport.fields.format")}
+                            </InputLabel>
                             <Select
+                                labelId="tally-sheet-import-format-label"
                                 label={String(t("tallySheetImport.fields.format"))}
                                 value={sourceFormat}
                                 onChange={(event: SelectChangeEvent) => {
@@ -710,8 +714,11 @@ export const TallySheetImports: React.FC<TallySheetImportsProps> = ({
                             </Select>
                         </FormControl>
                         <FormControl size="small" fullWidth>
-                            <InputLabel>{t("tallySheetImport.fields.channel")}</InputLabel>
+                            <InputLabel id="tally-sheet-import-channel-label">
+                                {t("tallySheetImport.fields.channel")}
+                            </InputLabel>
                             <Select
+                                labelId="tally-sheet-import-channel-label"
                                 label={String(t("tallySheetImport.fields.channel"))}
                                 value={selectedChannel}
                                 onChange={(event: SelectChangeEvent) => {

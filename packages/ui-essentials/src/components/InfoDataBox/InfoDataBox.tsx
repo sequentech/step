@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {styled} from "@mui/material/styles"
-import {Box} from "@mui/material"
+import {Box, BoxProps} from "@mui/material"
 
-const InfoDataBox = styled(Box)`
+const FocusableBox = (props: BoxProps) => <Box tabIndex={0} {...props} />
+
+const InfoDataBox = styled(FocusableBox)`
     word-break: break-word;
     hyphens: auto;
     padding: 15px;

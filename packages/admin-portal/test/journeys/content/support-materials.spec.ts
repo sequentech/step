@@ -246,10 +246,7 @@ test.describe("support material editor", () => {
             },
         ])
         await expect(page.getByRole("cell", {name: "Voting guide", exact: true})).toBeVisible()
-        test.fail(
-            true,
-            "EditSupportMaterial passes an untranslated error key to react-admin notify"
-        )
+
         await expect(notification(page, "Error updating support material")).toBeVisible({
             timeout: 2000,
         })
@@ -271,11 +268,10 @@ test.describe("support material editor", () => {
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Enter support material data."})
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
-        test.fail(
-            true,
-            "formValidator keys its errors to data and document_id, which no input renders (SupportMaterials/CreateSupportMaterial.tsx:164)"
-        )
-        await expect(drawer.getByText("Title is required")).toBeVisible({timeout: 3000})
+
+        await expect(drawer.getByText("Title is required")).toBeVisible()
+        await expect(drawer.getByText("Document is required")).toBeVisible()
+        expect(portal.graphql.callsTo("insert_sequent_backend_support_material")).toEqual([])
     })
 
     test("edits a material's title and shows its public URL, then deletes it", async ({
@@ -337,10 +333,7 @@ test.describe("support material create drawer", () => {
         await expect(
             page.getByRole("dialog").filter({hasText: "Enter support material data."})
         ).toBeVisible()
-        test.fail(
-            true,
-            "ListActions and ListSupportMaterials each render a create drawer bound to openCreate (SupportMaterials/ListSuportMaterial.tsx:163,226)"
-        )
+
         await expect(page.getByRole("dialog", {includeHidden: true})).toHaveCount(1, {
             timeout: 1000,
         })

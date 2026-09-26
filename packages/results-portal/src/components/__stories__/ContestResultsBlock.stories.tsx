@@ -21,12 +21,7 @@ const meta = {
             </main>
         ),
     ],
-    parameters: {
-        expectedFailure: {
-            reason: "The shared participation summary renders an empty column header.",
-            a11y: ["empty-table-header"],
-        },
-    },
+    parameters: {},
 } satisfies Meta<typeof ContestResultsBlock>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -124,12 +119,7 @@ export const Acclaimed: Story = {
             ),
         },
     },
-    parameters: {
-        expectedFailure: {
-            reason: "The acclaimed chip uses blue text with contrast 3.85 on white, below the required 4.5.",
-            a11y: ["color-contrast"],
-        },
-    },
+    parameters: {},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(

@@ -317,19 +317,19 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
             })
 
             if (errors) {
-                setTransmissionLoading(false)
                 notify(t("miruExport.send.error"), {type: "error"})
                 return
             }
 
             if (nextStatus) {
-                setTransmissionLoading(false)
                 notify(t("miruExport.send.success"), {type: "success"})
                 // onSuccess?.()
             }
         } catch (error) {
             console.log(`Caught error: ${error}`)
             notify(t("miruExport.send.error"), {type: "error"})
+        } finally {
+            setTransmissionLoading(false)
         }
     }, [
         setTransmissionLoading,
@@ -563,6 +563,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
     const canDownloadMiru = authContext.hasRole(IPermissions.MIRU_DOWNLOAD)
     const canSendMiru = authContext.hasRole(IPermissions.MIRU_SEND)
     const canCreateMiru = authContext.hasRole(IPermissions.MIRU_CREATE)
+    const canSignMiru = authContext.hasRole(IPermissions.MIRU_SIGN)
 
     const goBack = () => {
         setSelectedTallySessionData(null)
@@ -652,7 +653,7 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     ) : null}
                 </TallyStyles.MiruToolbar>
             </TallyStyles.MiruHeader>
-            {isTrustee && (
+            {isTrustee && canSignMiru && (
                 <Accordion
                     sx={{width: "100%"}}
                     expanded={expandedExports["tally-miru-upload"]}
