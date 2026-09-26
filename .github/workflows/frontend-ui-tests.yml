@@ -314,7 +314,6 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          overwrite: true
           name: stories-admin-portal-${{ github.run_id }}
           path: ${{ env.LAYERS }}/stories
       - name: Download journey line coverage from every shard
