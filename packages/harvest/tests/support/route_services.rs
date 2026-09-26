@@ -102,6 +102,14 @@ impl Services {
     }
 
     pub async fn client(&self) -> Client {
+        self.client_with_log_level(rocket::config::LogLevel::Off)
+            .await
+    }
+
+    pub async fn client_with_log_level(
+        &self,
+        log_level: rocket::config::LogLevel,
+    ) -> Client {
         let services = HarvestServices {
             cast_votes: self.cast_votes.clone(),
             databases: Arc::new(FixedDatabasePools {
@@ -117,7 +125,8 @@ impl Services {
         };
         Client::tracked(crate::build_application_with(services).configure(
             rocket::Config {
-                log_level: rocket::config::LogLevel::Off,
+                log_level,
+                cli_colors: false,
                 ..Default::default()
             },
         ))
