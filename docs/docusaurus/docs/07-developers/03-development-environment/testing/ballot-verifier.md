@@ -12,22 +12,43 @@ and Yarn versions, then run:
 ```sh
 yarn workspace ballot-verifier test --runInBand
 yarn workspace ballot-verifier test --runInBand --coverage
+yarn workspace ballot-verifier test:types
 ```
 
-The unit profile exercises service, store and provider contracts: ballot-style
-ordering and JSON decoding, election-scoped replacement, selector fallbacks,
-confirmation contests, language selection and WASM readiness gating. Rejection
-cases include valid controls; expected field mappings and ordering are literal.
-The readiness test replaces the external WASM loading boundary and renders the
-real gate using React's server renderer.
+The Jest profile runs in jsdom with `?lang=en`. Besides service, store and
+provider contracts, it renders the import and confirmation screens and the event
+routes (`/tenant/:tenantId/event/:eventId/{login,start,confirmation}`), with App
+mounted in the provider tree of `src/index.tsx`. Assertions use roles, labels and
+visible text. App tests live in `src/App.routing.test.tsx`; `src/App.test.tsx` is
+an obsolete scaffold outside the profile.
+
+Test doubles live in `src/__mocks__`:
+
+- `sequentCore.ts` replaces the sequent-core WASM bindings in every test. Ballot
+  operations throw until a test records an answer, so unexpected calls fail.
+- `auditableBallots.ts` builds the Playwright journeys' single- and
+  multiple-contest ballots and records sequent-core's answers for them, following
+  its Rust contract: each format rejects the other, and a changed or incomplete
+  signature fails verification.
+- `keycloak.ts` is a fake keycloak-js client. Install it with
+  `jest.mock("keycloak-js", () => jest.requireActual("<path>/__mocks__/keycloak"))`
+  and adjust `keycloakSession` before rendering.
+
+`fetch` rejects every request unless a test stubs it. The App test answers the
+settings, S3 and Hasura requests the journeys' mocks serve, and fails on any other.
+
+To add a test, record the sequent-core answers it needs with `recordSequentCore`
+or `sequentCore.<binding>.mockImplementation`, and take expected values from the
+fixtures or the documentation rather than from the code under test. Start
+rejection cases from a valid import. Known defects are pinned with `it.failing`
+and a one-line reason; fixing one makes its test fail until the marker is removed.
+
+Mocked bindings check how the verifier uses sequent-core, not the cryptography.
+Real encryption, hashing and signature checks run in the Storybook stories and
+Playwright journeys; see [UI browser tests](./ui-browser-tests.md).
 
 All executable TypeScript/TSX source remains in the coverage inventory, including
-unimported screens and generated runtime helpers. Tests, declarations, Storybook
-fixtures and test setup are excluded consistently from counters and exports.
-CI compares lines, statements, functions and branches separately against the
-actual PR base using the same unit profile and each revision's own tests.
-
-This profile selects service, store and provider tests. The root `App.test.tsx`
-is an obsolete Create React App scaffold; browser routing, layout and loading the
-real cryptographic WASM module need a separate browser harness. These boundaries
-are not validated by a passing Node unit suite.
+generated runtime helpers. Tests, declarations, test doubles, Storybook fixtures
+and test setup are excluded consistently from counters and exports. CI compares
+lines, statements, functions and branches separately against the actual PR base
+using the same unit profile and each revision's own tests.

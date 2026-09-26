@@ -6,7 +6,7 @@ title: UI browser tests
 <!-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io> -->
 <!-- SPDX-License-Identifier: AGPL-3.0-only -->
 
-Storybook runs the UI Essentials stories in Chromium through Vitest.
+Storybook runs the UI Essentials and portal stories in Chromium through Vitest.
 Use Node 22.22 and Yarn 1.22.22, then from the repository root:
 
 ```sh
@@ -17,10 +17,12 @@ yarn --cwd packages/ui-essentials test:stories --coverage
 yarn --cwd packages/ui-essentials build-storybook
 ```
 
-`yarn --cwd packages/ui-essentials storybook` opens the interactive catalog.
-CI runs interactions, accessibility checks and a catalog build using the pinned
-Playwright image. Its JUnit, screenshots and separate Istanbul coverage reports
-are uploaded from `test-results/`.
+For the story commands, replace `ui-essentials` with `voting-portal`,
+`results-portal` or `ballot-verifier`. Semantic checks use `typecheck:stories` for
+UI Essentials and `test:types` for the three portals. `yarn --cwd packages/<package> storybook` opens the interactive
+catalog. CI runs interactions, accessibility checks and a catalog build for each
+package using the pinned Playwright image. Its JUnit, screenshots and separate
+Istanbul coverage reports are uploaded from `test-results/`.
 
 Place typed `*.stories.tsx` beside components, or under their `__stories__`
 directory. Use `storybook/test` assertions and spies, query accessible names, and
@@ -31,7 +33,9 @@ provide the real route `action` and its `parentPath` so relative redirects resol
 as they do in the application. The router also accepts a `loader` and
 `errorElement` for actual route error boundaries. Browser contexts
 use an English locale and UTC. Mock external services; initialize real WASM in a
-story loader when the component needs it. Tests block unexpected network requests;
+story loader when the component needs it. Voting ballot stories also reset the
+Redux voter session before loading each fixture; see `Question/__stories__` and
+`routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
 Stories are excluded from production type builds and the existing Jest coverage
@@ -43,10 +47,62 @@ unrelated failures still fail, and a repaired defect causes an unexpected-pass
 failure until its marker is removed. Use `expectedFailure: null` to clear a marker inherited
 from the component meta.
 
-Service mocks and fixtures shared by the browser tests live in `packages/ui-test-kit`.
-It validates GraphQL against a schema, checks OIDC PKCE and owns ephemeral
-static-server ports. Check its contracts with `yarn --cwd packages/ui-test-kit typecheck`
-and `yarn --cwd packages/ui-test-kit test`.
+The voting journeys exercise the production bundle with local OIDC, GraphQL and
+S3 boundaries. Build first, then run:
+
+```sh
+yarn --cwd packages build:ui-core
+yarn --cwd packages build:ui-essentials
+yarn --cwd packages build:voting-portal
+yarn --cwd packages/ui-test-kit test
+yarn --cwd packages/voting-portal test:journeys
+```
+
+Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
+fixture for a fresh browser context, clock and service mocks. The shared
+`packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
+PKCE and owns ephemeral static-server ports. Register every service response;
+unexpected requests fail teardown. Audit assertions decode downloaded ballots
+with the vendored WASM in Node. CI uploads traces, screenshots and JUnit results
+from `test-results/`. Known accessibility failures are marked only after the
+journey and the exact known rule/target have been checked.
+
+Voting matrices also exercise chooser eligibility, practice-election gating,
+mandatory materials, review and cast errors, gold-session restoration, receipts,
+and ballot lookup. Integrity stories encrypt real ballots before changing only
+the recorded hash. Receipt tests independently decode the rendered QR and compare
+the downloaded document bytes. Chromium can fetch downloads outside page routing,
+so the receipt fixture also serves those same bytes from its owned loopback
+server and removes them in teardown.
+
+Infrastructure-recovery and receipt-polling tests first assert the exact existing
+failure state, then mark only the missing recovery UI assertion as expected to
+fail. A fixed defect becomes an unexpected pass. Those markers do not waive
+unexpected requests or unhandled page exceptions.
+
+Results portal journeys use the same boundaries and export a real SQLite fixture
+with `sql.js`; the production browser reads it through its own WASM loader.
+After building the shared UI packages, run:
+
+```sh
+yarn --cwd packages build:results-portal
+yarn --cwd packages/results-portal test:types
+yarn --cwd packages/results-portal test:journeys
+```
+
+Fixtures live in `packages/results-portal/tests/fixtures/`, browser cases in
+`tests/journeys/`, and component interactions in `src/components/__stories__/`.
+Use literal expected counts and scoped publications. A rejected publication or
+artifact should settle without repeating authentication; include a valid control
+and assert that a route change uses the new event's token.
+
+The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan pin the existing candidate-list accessibility violation as expected failures, so fixing it requires removing the marker.
 
 CI step summaries list passes, expected failures (JUnit `fail`/`expected-failure` properties),
-failures, skips and Istanbul story coverage as covered/total (percent).
+failures, skips and coverage as covered/total (percent): Istanbul for stories; for journeys, the
+Istanbul statements, functions and branches of the bundled TypeScript `src/**`, each counted from the
+innermost V8 block around its bundle code (unloaded chunks count 0), in `test-results/journey-coverage/`:
+```sh
+STEP_UI_JOURNEY_COVERAGE=1 yarn --cwd packages/voting-portal test:journeys
+node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/voting-portal
+```
