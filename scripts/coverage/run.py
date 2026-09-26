@@ -153,6 +153,11 @@ def markdown_summary(profile: str, result: dict[str, Any]) -> str:
     lines.extend(f"- {failure}" for failure in result["failures"])
     lines.extend(["", "## Measurement limits", ""])
     lines.extend(f"- {limitation}" for limitation in result["limitations"])
+    if result.get("features_absent_from_base"):
+        lines.append(
+            "- Features this comparison base predates and was built without: "
+            + ", ".join(f"`{name}`" for name in result["features_absent_from_base"])
+        )
     if result.get("excluded_files"):
         lines.extend(["", "## Excluded from coverage", ""])
         lines.extend(
@@ -172,6 +177,33 @@ def entries_in_checkout(
         name: reason for name, reason in entries.items() if (package / name).is_file()
     }
     return present, sorted(set(entries) - set(present))
+
+
+def features_in_checkout(
+    package: Path, features: list[str]
+) -> tuple[list[str], list[str]]:
+    """Split the head's features into those this checkout declares and the rest.
+
+    A comparison base predates any feature the head adds, and Cargo rejects a
+    feature its manifest does not declare. Code behind such a feature cannot
+    exist in that base, so building the base without it measures the same base
+    source; every feature the base does declare is still enabled.
+    """
+    manifest = tomllib.loads((package / "Cargo.toml").read_text())
+    declared = set(manifest.get("features", {}))
+    # An optional dependency is an implicit feature unless a `dep:` entry
+    # hides it; accepting its name here only avoids a false absence.
+    tables = [manifest.get("dependencies", {})]
+    tables.extend(
+        platform.get("dependencies", {})
+        for platform in manifest.get("target", {}).values()
+    )
+    for table in tables:
+        for name, spec in table.items():
+            if isinstance(spec, dict) and spec.get("optional"):
+                declared.add(name)
+    present = [name for name in features if "/" in name or name in declared]
+    return present, [name for name in features if name not in present]
 
 
 def measure(
@@ -214,7 +246,14 @@ def measure(
     try:
         excluded_files = profile.get("excluded_files", {})
         scope_exceptions = profile["scope_exceptions"]
+        cargo_features = profile["features"]
         if comparison_base:
+            # Features the head adds cannot be requested from an older
+            # manifest; the recorded profile features stay the head's.
+            cargo_features, absent_features = features_in_checkout(
+                package, cargo_features
+            )
+            result["features_absent_from_base"] = absent_features
             # The head's reviewed policy also names files that the head adds.
             # A base predates them; entries for its own files stay strict.
             excluded_files, absent_exclusions = entries_in_checkout(
@@ -282,8 +321,8 @@ def measure(
             output / "metadata.log",
             environment,
         )
-        if profile["features"]:
-            arguments.extend(["--features", ",".join(profile["features"])])
+        if cargo_features:
+            arguments.extend(["--features", ",".join(cargo_features)])
         if offline:
             arguments.append("--offline")
         # Clear workspace binaries as well as counters: LLVM can otherwise
