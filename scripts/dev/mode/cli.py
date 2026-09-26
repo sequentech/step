@@ -427,12 +427,20 @@ def command_status(context: Context) -> int:
     devcontainer = Devcontainer(checkout, states.get(DEVCONTAINER_SERVICE))
     servers = devcontainer.states(context.manifest.servers.values())
     in_modes = set().union(*mode_services.values())
+    listening = {state.server.name for state in servers if state.listening}
+    # The smallest mode that accounts for what runs; modes sharing services,
+    # such as backend and full, differ in their dev servers.
     covering = [
-        mode.name
+        mode
         for mode in context.manifest.modes
         if active & in_modes <= set(mode_services[mode.name])
     ]
-    current = covering[0] if active & in_modes else None
+    serving = [mode for mode in covering if listening <= set(mode.servers)]
+    candidates = serving or covering
+    current = candidates[0].name if active & in_modes and candidates else None
+    up = {
+        service for service, state in states.items() if readiness(state, None)[0].done
+    }
     containers = list_containers()
     conflicts: dict[str, list[str]] = {}
     for mode in context.manifest.modes:
@@ -471,7 +479,7 @@ def command_status(context: Context) -> int:
         },
         "modes": {
             mode.name: {
-                "running": len(active & set(mode_services[mode.name])),
+                "up": len(up & set(mode_services[mode.name])),
                 "services": len(mode_services[mode.name]),
                 "conflicts": conflicts[mode.name],
             }
@@ -516,7 +524,7 @@ def _print_status(document: dict[str, Any], servers: list[ServerState]) -> None:
         _say(f"{state.server.name:<28}{state.server.port:<7}{description}")
     _say()
     for name, info in document["modes"].items():
-        _say(f"{name:<14}{info['running']}/{info['services']} services running")
+        _say(f"{name:<14}{info['up']}/{info['services']} services up or done")
         for conflict in info["conflicts"]:
             _say(f"  blocked: {conflict}")
 
