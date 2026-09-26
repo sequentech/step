@@ -97,7 +97,12 @@ fn main() {
             StepCommands::DuplicateVotes(render) => render.run(),
             StepCommands::CreateApplications(render) => render.run(),
             StepCommands::CreateElectoralLogs(render) => render.run(),
-            StepCommands::HashPassword(render) => render.run(),
+            StepCommands::HashPassword(command) => {
+                if let Err(error) = command.run() {
+                    eprintln!("Error! Failed to generate hashed passwords: {error:#}");
+                    std::process::exit(1);
+                }
+            }
             StepCommands::UpdateEventVotingStatus(update_event_voting_status) => {
                 update_event_voting_status.run()
             }
