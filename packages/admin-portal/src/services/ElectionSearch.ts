@@ -14,8 +14,9 @@ export interface ElectionSearchQuery extends HasuraRawQuery {
 }
 
 /**
- * Elections keep their translated names in `presentation` and their former
- * alias in `external_id` (migration 1772358027729), so the search matches either.
+ * Election events, elections, contests and candidates keep their translated
+ * names in `presentation` and their former alias in `external_id` (migration
+ * 1772358027729), so the search matches either.
  */
 export function electionSearchQuery(searchText: string): ElectionSearchQuery | undefined {
     const text = searchText.trim()
