@@ -303,6 +303,19 @@ describe("the header", () => {
 })
 
 describe("with authentication disabled", () => {
+    it("opens a direct login link for its requested event without private services", async () => {
+        services = serve({DISABLE_AUTH: true})
+        launch(`${voterEvent}/login`)
+
+        await expectLocation(`${voterEvent}/start`)
+        expect(await importStep()).toBeVisible()
+        await importAndContinue()
+        await expectLocation(`${voterEvent}/confirmation`)
+        expect(await screen.findByText("Alice Example", {exact: true})).toBeVisible()
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+    })
+
     it("sends the voter to the default event without contacting Keycloak", async () => {
         services = serve({DISABLE_AUTH: true})
         launch("/")
