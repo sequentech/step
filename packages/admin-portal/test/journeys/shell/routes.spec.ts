@@ -18,7 +18,7 @@ interface Smoke {
     settlesAt?: string
     shows: (page: Page) => Promise<void>
     /** A defect that stops the route from rendering, pinned as an expected failure. */
-    defect?: {reason: string; violation?: RegExp; operation?: string}
+    defect?: {reason: string; violation?: RegExp; operation?: string; consoleErrors?: RegExp[]}
     /**
      * Console errors of a pinned defect; any other console error still fails.
      * `settled` waits until the work that logs them has finished.
@@ -273,6 +273,7 @@ export const SMOKE: Record<string, Smoke> = {
         },
         defect: {
             reason: "ShowDocument's JsonField reads labels from a missing record prop and crashes",
+            consoleErrors: [/^TypeError: Cannot read properties of undefined \(reading 'labels'\)\n/],
         },
     },
     "/sequent_backend_notification": {
@@ -402,6 +403,16 @@ test.describe("route smoke", () => {
                     portal.violations.clear()
                     others.forEach((entry) => portal.violations.add(entry))
                 }
+                const expected = [
+                    ...(smoke.consoleDefect?.errors ?? []),
+                    ...(smoke.defect?.consoleErrors ?? []),
+                ]
+                const unrelated = consoleErrors.filter(
+                    (message) => !expected.some((error) => error.test(message))
+                )
+                // A rendering defect must not absorb another failure from the route.
+                if (unrelated.length) test.info().expectedStatus = "passed"
+                expect(unrelated, "unrelated console errors").toEqual([])
             }
         })
 
