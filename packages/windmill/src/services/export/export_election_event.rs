@@ -35,7 +35,7 @@ use sequent_core::services::s3;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::temp_path::generate_temp_file;
 use sequent_core::types::hasura::core::{
-    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony,
+    Candidate, Contest, DocumentAnnotations, Election, KeysCeremony, SupportMaterial,
 };
 use sequent_core::util::version::{DEV_APP_VERSION, ENV_VAR_APP_VERSION};
 use std::collections::HashMap;
@@ -150,17 +150,8 @@ pub async fn read_export_data(
     // these an export was one-way: import it back and the tab is empty because
     // nothing points at the uploads. That asymmetry is how the format came to look
     // as though it did not support materials at all.
-    let export_support_materials = crate::postgres::document::get_support_material_documents(
-        &transaction,
-        &tenant_id,
-        &election_event_id,
-    )
-    .await
-    .context("Error retrieving support materials for export")?
-    .unwrap_or_default()
-    .into_iter()
-    .map(|(material, _document)| material)
-    .collect::<Vec<_>>();
+    let export_support_materials =
+        export_support_materials(&transaction, &tenant_id, &election_event_id).await?;
 
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
@@ -188,6 +179,22 @@ pub async fn read_export_data(
         process_event_images(&transaction, tenant_id, elections, contests, candidates).await?;
 
     Ok((import_election_event_schema, images_files_path))
+}
+
+/// The support material rows of the event, for the archive's JSON.
+///
+/// Hidden materials are included: the archive carries every document file of
+/// the event, and import finds each file's new identifier through these rows,
+/// so a file without its row fails the import.
+#[instrument(err, skip(transaction))]
+pub async fn export_support_materials(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<Vec<SupportMaterial>> {
+    crate::postgres::document::get_support_materials(transaction, tenant_id, election_event_id)
+        .await
+        .context("Error retrieving support materials for export")
 }
 
 #[instrument(err, skip(password))]

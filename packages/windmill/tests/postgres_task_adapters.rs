@@ -27,6 +27,7 @@ use windmill::postgres::reports::{Report, ReportCronConfig, ReportType};
 use windmill::postgres::{
     document, lock, render_report, reports, scheduled_event, tasks_execution,
 };
+use windmill::services::export::export_election_event;
 use windmill::services::reports::template_renderer::EReportEncryption;
 use windmill::tasks::render_report::{FormatType, RenderTemplateBody};
 
@@ -2431,6 +2432,45 @@ async fn insert_support_materials_rejects_a_document_id_that_is_not_a_uuid() {
         .unwrap_err();
 
     assert!(format!("{error:#}").contains("document_id"), "{error:#}");
+    tx.rollback().await.unwrap();
+}
+
+// The archive carries every document file of the event, hidden materials'
+// included, and import finds each file's new id through the JSON rows. So the
+// export must write hidden materials' rows too, or re-import fails with "Error
+// finding document UUID in replacement map".
+#[tokio::test]
+async fn export_support_materials_includes_hidden_materials() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let (tenant, event) = (w.tenant.as_str(), w.event.as_str());
+    for n in [10, 11, 12, 13] {
+        document_row(&tx, tenant, Some(event), &w.id(n), None).await;
+    }
+    support_material_row(&tx, [tenant, event, &w.id(20), &w.id(10)], Some(false)).await;
+    support_material_row(&tx, [tenant, event, &w.id(21), &w.id(11)], Some(true)).await;
+    support_material_row(&tx, [tenant, event, &w.id(22), &w.id(12)], None).await;
+    // Another event's material stays out.
+    support_material_row(
+        &tx,
+        [tenant, &w.other_event, &w.id(23), &w.id(13)],
+        Some(false),
+    )
+    .await;
+
+    let materials = export_election_event::export_support_materials(&tx, tenant, event)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        materials,
+        vec![
+            support_material(&w, 20, Some(10), Some(false)),
+            support_material(&w, 21, Some(11), Some(true)),
+            support_material(&w, 22, Some(12), None),
+        ]
+    );
     tx.rollback().await.unwrap();
 }
 
