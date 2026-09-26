@@ -40,7 +40,7 @@ export const CreateCandidateData: React.FC<{record: Sequent_Backend_Candidate}> 
     }
 
     return (
-        <CreateBase redirect={"show"} transform={transform}>
+        <CreateBase redirect={"show"} transform={transform} record={record}>
             <CandidateDataForm record={record} />
         </CreateBase>
     )

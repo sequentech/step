@@ -24,6 +24,7 @@ export const FETCH_ELECTIONS_TREE = gql`
             id
             presentation
             election_event_id
+            image_document_id
         }
     }
 `

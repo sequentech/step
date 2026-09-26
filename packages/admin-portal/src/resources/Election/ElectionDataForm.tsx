@@ -164,11 +164,11 @@ export const ElectionDataForm: React.FC = () => {
     const {data: imageData, refetch: refetchImage} = useGetOne<Sequent_Backend_Document>(
         "sequent_backend_document",
         {
-            id: record?.image_document_id || record?.tenant_id,
+            id: record?.image_document_id,
             meta: {tenant_id: record?.tenant_id},
         },
         {
-            enabled: !!record?.image_document_id || !!record?.tenant_id,
+            enabled: !!record?.image_document_id,
             onError: (error: any) => {
                 console.log(`error fetching image doc: ${error.message}`)
             },

@@ -54,27 +54,34 @@ export const TemplateEdit: React.FC<TTemplateEdit> = (props) => {
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         const aliasValue = data.template.alias
 
-        const {data: updated, errors} = await UpdateTemplate({
-            variables: {
-                id: id,
-                tenantId: tenantId,
-                set: {
-                    alias: aliasValue,
-                    annotations: data.annotations,
-                    communication_method: data.communication_method,
-                    created_at: data.created_at,
-                    created_by: data.created_by,
-                    labels: data.labels,
-                    template: {
-                        ...data.template,
+        let result
+        try {
+            result = await UpdateTemplate({
+                variables: {
+                    id: id,
+                    tenantId: tenantId,
+                    set: {
                         alias: aliasValue,
+                        annotations: data.annotations,
+                        communication_method: data.communication_method,
+                        created_at: data.created_at,
+                        created_by: data.created_by,
+                        labels: data.labels,
+                        template: {
+                            ...data.template,
+                            alias: aliasValue,
+                        },
+                        tenant_id: data.tenant_id,
+                        type: data.type,
+                        updated_at: data.updated_at,
                     },
-                    tenant_id: data.tenant_id,
-                    type: data.type,
-                    updated_at: data.updated_at,
                 },
-            },
-        })
+            })
+        } catch (error) {
+            notify(t("template.update.error"), {type: "error"})
+            return
+        }
+        const {data: updated, errors} = result
 
         if (updated) {
             notify(t("template.update.success"), {type: "success"})

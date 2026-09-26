@@ -206,11 +206,10 @@ export const SettingsTrustees: React.FC<void> = () => {
                     <ListActions
                         custom
                         withFilter
-                        open={openDrawer}
-                        setOpen={setOpenDrawer}
+                        withAction={canCreateTrustee}
+                        doAction={handleOpenCreateDrawer}
+                        actionLabel="common.label.add"
                         isExportDisabled={openPasswordDialog || loadingExport}
-                        Component={<SettingsTrusteesCreate close={handleCloseCreateDrawer} />}
-                        withComponent={canCreateTrustee}
                         withExport={canExportTrustees}
                         doExport={doExport}
                     />

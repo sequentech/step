@@ -12,6 +12,8 @@
     "include": [
         "src/**/*.stories.tsx",
         "src/**/__stories__/**/*.tsx",
+        "src/**/__stories__/**/*.ts",
+        ".storybook/preview.tsx",
         "src/**/*.d.ts",
         "../ui-essentials/src/**/*.d.ts"
     ],

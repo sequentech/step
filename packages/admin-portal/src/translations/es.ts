@@ -2801,6 +2801,8 @@ const spanishTranslation: TranslationType = {
                 verified_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
+            taskInformation: "Información de la tarea",
+            ok: "Aceptar",
             title: "Votantes",
             subtitle: "Buscar votantes coincidentes",
             approve: {
