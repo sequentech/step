@@ -41,6 +41,7 @@ const row = (canvasElement: HTMLElement, description: string) =>
     within(canvasElement).findByRole("row", {name: new RegExp(description)})
 
 export const Populated: Story = {
+    parameters: {widgets: ["PresentationName"]},
     play: async ({canvasElement}) => {
         const council = await row(canvasElement, "Choose the council members")
         await expect(council).toBeVisible()
