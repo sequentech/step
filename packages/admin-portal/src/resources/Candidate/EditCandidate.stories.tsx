@@ -55,9 +55,15 @@ export const Populated: Story = {
                 "Alice Example stands for the council"
             )
         )
-        // The candidate table has no name column, so the Name input starts empty.
-        expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("")
-        await expect(await canvas.findByRole("combobox", {name: "Contest"})).toBeVisible()
+        // Names live in the presentation since migration 1772358027729.
+        const form = within(canvas.getByRole("textbox", {name: "Name"}).closest("form")!)
+        expect(form.getByRole("textbox", {name: "Name"})).toHaveValue("Alice Example")
+        await expect(await form.findByText("Council event")).toBeVisible()
+        await waitFor(() =>
+            expect(form.getByRole("combobox", {name: "Contest"})).toHaveTextContent(
+                "Council members"
+            )
+        )
         expect(reads("getOne", "sequent_backend_candidate")[0].args[1]).toMatchObject({
             id: STORY_IDS.candidate,
         })
@@ -82,6 +88,28 @@ export const LoadError: Story = {
         await expect(
             within(canvasElement).getByRole("status", {name: "Current location"})
         ).toHaveTextContent(/^\/sequent_backend_candidate$/)
+    },
+}
+
+export const RenameTheCandidate: Story = {
+    parameters: {widgets: ["CandidateForm"], expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const name = await canvas.findByRole("textbox", {name: "Name"})
+        await waitFor(() => expect(name).toHaveValue("Alice Example"))
+        await userEvent.clear(name)
+        await userEvent.type(name, "Alice Sample")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        const notification = await within(document.body).findByText("Element updated")
+        await userEvent.click(canvasElement)
+        await waitFor(() => expect(notification).not.toBeInTheDocument())
+        await waitFor(() => expect(dataWrites()).toHaveLength(1))
+        // The name is written to the presentation of the default language.
+        expect(dataWrites()[0].params.data).not.toHaveProperty("name")
+        expect(dataWrites()[0].params).toMatchObject({
+            id: STORY_IDS.candidate,
+            data: {presentation: {i18n: {en: {name: "Alice Sample", alias: "Alice"}}}},
+        })
     },
 }
 
