@@ -14,11 +14,16 @@ declare global {
 }
 window.uiCore = core
 
+const WasmState = () => <output aria-label="WASM status">{core.useWasm().status}</output>
+
 const container = document.getElementById("root")
 if (!container) throw new Error("missing browser fixture root")
 createRoot(container).render(
     <main>
         <h1>UI Core browser integration</h1>
+        <core.WasmContextProvider>
+            <WasmState />
+        </core.WasmContextProvider>
         <section aria-label="Election instructions">
             {core.stringToHtml(
                 '<p lang="fr" dir="ltr" onclick="window.injected=true">Conseil</p>' +

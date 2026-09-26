@@ -14,6 +14,8 @@ export default [
         ignores: [
             "node_modules/**",
             "dist/**",
+            "storybook-static/**",
+            "test-results/**",
             "coverage/**",
             "target/**",
             "pkg/**",
@@ -68,7 +70,7 @@ export default [
         },
     },
     {
-        files: ["**/*.stories.*"],
+        files: ["**/*.stories.{js,jsx,ts,tsx}"],
         rules: {
             "import/no-anonymous-default-export": "off",
         },

@@ -5,7 +5,7 @@
 import React from "react"
 import {renderToStaticMarkup} from "react-dom/server"
 import {ThemeProvider} from "@mui/material/styles"
-import type {IContest, IDecodedVoteChoice} from "@sequentech/ui-core"
+import type {IContest, IDecodedVoteChoice, IDecodedVoteContest} from "@sequentech/ui-core"
 import theme from "../../services/theme"
 import {PlaintextVoteContest} from "./PlaintextVoteContest"
 
@@ -21,7 +21,7 @@ jest.mock(
     () => ({
         EInvalidVotePolicy: {NOT_ALLOWED: "NOT_ALLOWED"},
         translate: (value: Record<string, unknown>, key: string) => value[key],
-        isPreferential: () => false,
+        isPreferential: (algorithm?: string) => algorithm === "instant-runoff",
         getLayoutProperties: () => ({ordered: false}),
         checkIsBlank: () => false,
         checkIsInvalidVote: () => false,
@@ -62,12 +62,12 @@ const questionPlaintext = {
     choices: [],
 }
 
-const renderContest = (question: IContest) =>
+const renderContest = (question: IContest, plaintext: IDecodedVoteContest = questionPlaintext) =>
     renderToStaticMarkup(
         <ThemeProvider theme={theme}>
             <PlaintextVoteContest
                 question={question}
-                questionPlaintext={questionPlaintext}
+                questionPlaintext={plaintext}
                 publicBucketUrl=""
                 contestNotFoundLabel="Contest not found"
                 markedInvalidLabel="Marked invalid"
@@ -151,4 +151,28 @@ describe("PlaintextVoteContest", () => {
         expect(markup).not.toContain("Candidate A")
         expect(markup).not.toContain("Default acclamation description")
     })
+})
+
+it("shows the first preference for a zero-based decoded rank", () => {
+    const question = {
+        id: "contest",
+        name: "Council",
+        counting_algorithm: "instant-runoff",
+        candidates: [
+            {id: "first", name: "First choice"},
+            {id: "second", name: "Second choice"},
+            {id: "absent", name: "Unselected"},
+        ],
+    } as unknown as IContest
+    const markup = renderContest(question, {
+        ...questionPlaintext,
+        choices: [
+            {id: "first", selected: 0},
+            {id: "second", selected: 1},
+            {id: "absent", selected: -1},
+        ],
+    })
+    expect(markup).toContain("1candidate.preferential.ordinals.first")
+    expect(markup).toContain("2candidate.preferential.ordinals.second")
+    expect(markup).not.toContain("Unselected")
 })

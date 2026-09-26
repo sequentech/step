@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {StoryFn, Meta} from "@storybook/react"
+import {StoryFn, Meta} from "@storybook/react-vite"
 import LanguageMenu from "../LanguageMenu"
 import Box from "@mui/material/Box"
-import {within, userEvent} from "@storybook/testing-library"
+import {within, userEvent} from "storybook/test"
 
 export default {
     title: "components/LanguageMenu",

@@ -297,6 +297,7 @@ const Candidate: React.FC<CandidateProps> = ({
                             disabled={shouldDisable}
                             value={selectedPosition ?? 0}
                             onChange={handlePositionChange}
+                            onClick={(event) => event.stopPropagation()}
                             // Must be labelId, not aria-labelledby: MUI puts
                             // labelId on the element that carries
                             // role="combobox", whereas aria-labelledby would
@@ -389,6 +390,7 @@ const Candidate: React.FC<CandidateProps> = ({
                         }
                         disabled={shouldDisable}
                         checked={checked}
+                        onClick={(event) => event.stopPropagation()}
                         onChange={handleChange}
                     />
                 ) : (
@@ -402,6 +404,7 @@ const Candidate: React.FC<CandidateProps> = ({
                         }}
                         disabled={shouldDisable}
                         checked={checked}
+                        onClick={(event) => event.stopPropagation()}
                         onChange={handleChange}
                     />
                 )
