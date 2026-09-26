@@ -33,6 +33,17 @@ project_name="${checkout_name}_devcontainer"
 name_prefix=""
 [ "${project_name}" = "${COMPOSE_PROJECT_NAME}" ] || name_prefix="${checkout_name}-"
 
+# docker-compose-base.yml also mounts the checkout's parent at its host path,
+# unless that path would hide a directory the container itself needs.
+host_parent="$(dirname "${workspace_folder}")"
+host_parent_mount=/mnt/checkout-parent
+case "${host_parent}" in
+    /workspaces* | /home/vscode | /nix/* | /usr/* | /etc/* | /bin/* | /sbin/* | \
+        /lib/* | /lib32/* | /lib64/* | /libx32/* | /proc/* | /sys/* | /dev/* | \
+        /boot/* | /run/*) ;;
+    /*/*) host_parent_mount="${host_parent}" ;;
+esac
+
 sed "s|^COMPOSE_PROJECT_NAME=.*|COMPOSE_PROJECT_NAME=${project_name}|" \
     .devcontainer/.env.development > .devcontainer/.env
 cat >> .devcontainer/.env <<EOF
@@ -41,6 +52,7 @@ cat >> .devcontainer/.env <<EOF
 LOCAL_WORKSPACE_FOLDER='${workspace_folder}'
 DEVCONTAINER_WORKSPACE_FOLDER='/workspaces/${folder_name}'
 DEVCONTAINER_NAME_PREFIX=${name_prefix}
+DEVCONTAINER_HOST_PARENT='${host_parent_mount}'
 EOF
 
 echo "${ROOT}/.devcontainer/.env initialized for Compose project ${project_name}"

@@ -14,6 +14,16 @@ services:
       bind:
         create_host_path: true
         selinux: z
+    # The same directory again at its host path, so that host paths resolve
+    # inside the container too: the gitdir links of git worktrees, and the
+    # bind mount sources of Compose commands run from here. initialize-command.sh
+    # picks another target when the host path would hide a container directory.
+    - type: bind
+      source: ../..
+      target: ${DEVCONTAINER_HOST_PARENT:-/mnt/checkout-parent}
+      bind:
+        create_host_path: true
+        selinux: z
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
      - SYS_PTRACE
