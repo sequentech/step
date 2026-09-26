@@ -5,16 +5,16 @@ name: Package coverage
 
 on:
   pull_request:
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   push:
     branches: [release/10.0]
-    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml']
+    paths: ['packages/**', 'rust-toolchain.toml', 'scripts/coverage/**', '.github/workflows/rust-coverage.yml', '.github/actions/setup-test-browser/**']
   workflow_dispatch:
     inputs:
       profile:
         description: Native profile supported by this hosted worker
         type: choice
-        options: [sequent-core, strand]
+        options: [sequent-core, strand, velvet]
         default: sequent-core
         required: true
       base_ref:
@@ -76,7 +76,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand"]') }}
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || '["sequent-core", "strand", "velvet"]') }}
     env:
       COVERAGE_PROFILE: ${{ matrix.profile }}
     steps:
@@ -97,6 +97,9 @@ jobs:
       - name: Install Core database fixture dependencies
         if: env.COVERAGE_PROFILE == 'sequent-core'
         run: sudo apt-get install -y postgresql libpq-dev
+      - name: Install the local PDF test browser
+        if: env.COVERAGE_PROFILE == 'velvet'
+        uses: ./head/.github/actions/setup-test-browser
       - name: Install both repository Rust toolchains
         run: |
           for checkout in base head; do
