@@ -33,6 +33,7 @@ check is not a passing test. `validate` includes slower checks; inspect its
 | --- | --- |
 | Portal or shared UI | Fixture-backed screen story or `packages/workbench`; consuming dev servers compile shared source directly |
 | One story | `step-dev test <package> --story <story-id>`; `--watch` keeps the browser runner active |
+| Admin widget | `yarn --cwd packages/admin-portal stories:inventory <source file>` prints its section, story IDs and focused test command |
 | One unit or browser test | `step-dev test <test-file>`; the runner and scope are printed before execution |
 | Rust-backed frontend logic | `step-dev wasm`, then reload/rerun the affected real WASM flow |
 | Rust service | Inspect the checkout's existing watcher logs before starting another compiler; use `step-dev test <crate> <test-name>` |

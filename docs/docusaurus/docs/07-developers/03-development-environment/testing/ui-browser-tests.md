@@ -39,10 +39,9 @@ Redux voter session before loading each fixture; see `Question/__stories__` and
 `routes/__stories__` for ballot rules, pagination, declaration and decline flows. Tests block unexpected network requests;
 only local module, image, font and WASM assets may reach the server.
 
-Admin stories cover event uploads, keys ceremony thresholds and publication controls.
-Their provider supplies the production admin theme, tenant and recorded Apollo responses;
-assert mutation variables, permission headers, callbacks and visible errors. Run
-`yarn --cwd packages/admin-portal typecheck:stories` to check these fixtures and stories.
+Every admin widget has its own section; see [Admin widget catalog](#admin-widget-catalog).
+Assert mutation variables, permission headers, callbacks and visible errors. Run
+`yarn --cwd packages/admin-portal typecheck:stories` to check admin fixtures and stories.
 
 Stories are excluded from production type builds and the existing Jest coverage
 profile. Storybook coverage is reported separately from that gate. Shared test
@@ -162,6 +161,61 @@ It prints the selected files, story IDs and Vitest command. Coverage stays off
 unless `--coverage` is passed; other `--option=value` arguments go to Vitest. Story
 tests launch devenv's Chromium when `CHROMIUM_EXECUTABLE_PATH` is set, as in the
 devcontainer; elsewhere install Playwright's Chromium as shown above.
+
+## Admin widget catalog
+
+Each authored admin component has a Storybook section titled
+`Admin/<Feature>/<Component>`, where the feature is its directory under `src/resources`
+or `src/components` (`Components` for the shared components directly in
+`src/components`, `Screens` for `src/screens`); the complete screens above keep their
+`Screens/Admin/...` sections. A component defined inside a module without being exported
+is shown by a story of that module's exported widget, which names it in
+`parameters: {widgets: ["ExportDialog"]}`. Styled primitives, context providers and
+components that render nothing are listed, with the reason, in
+`packages/admin-portal/.storybook/widgets.mjs`.
+
+```sh
+yarn --cwd packages/admin-portal stories:inventory                      # widgets per feature and those without a story
+yarn --cwd packages/admin-portal stories:inventory src/resources/Area/ListArea.tsx
+yarn --cwd packages/admin-portal stories:inventory --markdown           # source-to-story table
+yarn --cwd packages/admin-portal stories:inventory --check              # fails on a missing or misnamed section
+yarn --cwd packages/admin-portal test:story admin-area-listarea--delete-area-after-confirmation
+```
+
+With a source file, component name or feature, the inventory prints each widget's
+section, story IDs, direct links and focused test command. Story IDs follow the title
+and the export name: `http://localhost:6008/?path=/story/admin-area-listarea--populated`
+opens a story and `?path=/docs/admin-area-listarea--docs` the section's documentation.
+Section files sit beside their component as `<Module>.stories.tsx`; set `component` to the
+imported production widget, never to a fixture wrapper.
+
+Stories compose the helpers in `packages/admin-portal/src/__stories__/`:
+
+- `AdminStoryProvider` renders react-admin with an empty in-memory preference store, the
+  admin theme and translations, and signs in the story's role group (`role`), an explicit
+  role list (`roles`) or other session values (`auth`). Its settings disable polling and
+  point every service at the reserved `.invalid` domain.
+- `graphqlBoundary(handlers, {schema: true})` answers Apollo operations by name and
+  executes each reply against `graphql.schema.json`, so fixtures are type checked and
+  trimmed; `await boundary.ready` in `beforeEach`. A handler that throws is a network
+  error and one returning `pending()` keeps its query loading.
+- `resourceBoundary(records, {reads})` answers react-admin reads from synthetic rows with
+  Hasura-style filters, sorting and pagination, and records writes in `writes`; `reads`
+  selects answered, loading or failing reads for all or some resources.
+- `storyFetch(routes)` answers other `fetch` requests, such as presigned uploads, and
+  records them; `openedWindows()` lists addresses passed to `window.open`.
+- `fixtures.ts` holds typed synthetic records (tenant, event, election, contest,
+  candidates, areas, trustees, keys ceremony and tally session) that follow the
+  `workflow` global.
+
+Around every story, in the Storybook UI as in the test runner, the admin preview
+refuses `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and beacon requests that
+leave the Storybook server unless a story answers them, fails a story whose boundaries
+saw an unexpected operation, and fails a story that never rendered its section's
+component or a widget named in `parameters.widgets`. Give each widget the states it
+supports: populated, empty, loading, failing, read-only or disabled, permission
+variants and interactions whose play function asserts both the visible result and the
+boundary call.
 
 ## Admin coverage before a refactor
 
