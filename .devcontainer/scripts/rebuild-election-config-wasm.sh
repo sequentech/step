@@ -31,19 +31,18 @@ wasm-pack --version
 echo "==> Building ${PACKAGE_NAME} WASM..."
 # `--locked`, and it is load-bearing rather than tidiness.
 #
-# Without it cargo is free to re-resolve, and the set it chooses is not the one
-# `Cargo.lock` records: `curve25519-dalek 5.0.0` instead of the pinned
-# `5.0.0-pre.1`, which drags in `getrandom 0.4.3` beside the `0.3.4` this
-# repository pins with `wasm_js` on. 0.4 has no such feature enabled here, and it
-# refuses to compile for `wasm32-unknown-unknown` at all:
+# Without it cargo is free to re-resolve, and the set it chooses need not be the
+# one `Cargo.lock` records. The WASM build depends on that set: curve25519-dalek
+# 5.0 pulls `getrandom 0.4` beside the `0.3.4` this repository pins, and each line
+# compiles for `wasm32-unknown-unknown` only because `strand/Cargo.toml` names it
+# directly with `wasm_js` on. A resolution that brings in another getrandom line
+# fails with
 #
 #     error: The wasm32/64-unknown-unknown are not supported by default; you may
 #     need to enable the "wasm_js" crate feature
 #
-# So the pins in `strand/Cargo.toml` — each one carrying a comment about exactly
-# this — only hold while the lockfile is honoured. This broke step's own WASM job
-# and the three `beyond` jobs that build the core from source, all at once, and
-# nothing in the error names the lockfile.
+# and nothing in that error names the lockfile. This once broke step's own WASM
+# job and the three `beyond` jobs that build the core from source, all at once.
 wasm-pack build \
     --mode no-install \
     --out-name index \
