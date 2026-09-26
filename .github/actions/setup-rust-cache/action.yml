@@ -54,25 +54,25 @@ runs:
         echo 'SCCACHE_GHA_ENABLED=false' >> "$GITHUB_ENV"
         echo 'CARGO_INCREMENTAL=0' >> "$GITHUB_ENV"
     - name: Restore compiler units (read only)
-      if: github.event_name != 'push' || !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/'))
+      if: github.event_name != 'pull_request' && (github.event_name != 'push' || !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
       id: compiler-read
       continue-on-error: true
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
         path: ${{ runner.temp }}/step-sccache
-        key: ${{ steps.identity.outputs.key }}
-        restore-keys: ${{ steps.identity.outputs.restore-prefix }}
-    - name: Restore and save compiler units (trusted push)
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/'))
+        key: ${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ${{ steps.identity.outputs.key }}-
+    - name: Restore and save compiler units (PR or trusted push)
+      if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
       id: compiler-write
       continue-on-error: true
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
         path: ${{ runner.temp }}/step-sccache
-        key: ${{ steps.identity.outputs.key }}
-        restore-keys: ${{ steps.identity.outputs.restore-prefix }}
+        key: ${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ${{ steps.identity.outputs.key }}-
     - name: Restore Cargo downloads (read only)
-      if: github.event_name != 'push' || !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/'))
+      if: github.event_name != 'pull_request' && (github.event_name != 'push' || !(github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
       continue-on-error: true
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
@@ -82,8 +82,8 @@ runs:
           ~/.cargo/git/db
         key: ${{ steps.identity.outputs.registry-key }}
         restore-keys: ${{ steps.identity.outputs.registry-prefix }}
-    - name: Restore and save Cargo downloads (trusted push)
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/'))
+    - name: Restore and save Cargo downloads (PR or trusted push)
+      if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs' || startsWith(github.ref, 'refs/heads/release/')))
       continue-on-error: true
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
       with:
@@ -106,14 +106,20 @@ runs:
     - name: Explain compiler reuse
       shell: bash
       env:
-        CACHE_KEY: ${{ steps.identity.outputs.key }}
-        CACHE_HIT: ${{ steps.compiler-read.outputs.cache-hit || steps.compiler-write.outputs.cache-hit || 'false' }}
+        CACHE_KEY: ${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+        CACHE_RESTORE: ${{ steps.compiler-read.outputs.cache-hit || steps.compiler-write.outputs.cache-hit }}
         CACHE_SETUP: ${{ steps.sccache.outcome }}
       run: |
+        case "$CACHE_RESTORE" in
+          true) cache_snapshot='exact generation restored' ;;
+          false) cache_snapshot='compatible generation restored' ;;
+          *) cache_snapshot='no compatible snapshot restored' ;;
+        esac
         {
           echo '### Rust compiler cache'
           echo "Key: \`$CACHE_KEY\`"
-          echo "Exact snapshot: $CACHE_HIT; sccache setup: $CACHE_SETUP; limit: 512 MiB per compilation group."
+          echo "Snapshot: $cache_snapshot; sccache setup: $CACHE_SETUP; limit: 512 MiB per compilation group."
           echo 'Cargo still builds and tests the current source. Compiler hits/misses appear in the sccache post-step.'
-          echo 'Only trusted branch pushes save snapshots; PRs and manual runs only restore. A missing cache compiles normally.'
+          echo 'Successful PR runs save only in their merge-ref cache scope; trusted branch pushes seed shared snapshots. Other events only restore.'
+          echo 'Compiler generations include run and attempt so later source edits refresh reusable units. A missing cache compiles normally.'
         } >> "$GITHUB_STEP_SUMMARY"
