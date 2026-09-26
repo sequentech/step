@@ -12,8 +12,10 @@ import {
     FormDataConsumer,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 export const CreateAreaContest: React.FC = () => {
+    const presentationName = usePresentationName()
     return (
         <Create>
             <SimpleForm>
@@ -30,7 +32,7 @@ export const CreateAreaContest: React.FC = () => {
                                 reference="sequent_backend_election_event"
                                 filter={{tenant_id: formData.tenant_id}}
                             >
-                                <SelectInput optionText="name" />
+                                <SelectInput optionText={presentationName} />
                             </ReferenceInput>
                             <ReferenceInput
                                 source="contest_id"
@@ -40,7 +42,7 @@ export const CreateAreaContest: React.FC = () => {
                                     election_event_id: formData.election_event_id,
                                 }}
                             >
-                                <SelectInput optionText="name" />
+                                <SelectInput optionText={presentationName} />
                             </ReferenceInput>
                             <ReferenceInput
                                 source="area_id"
