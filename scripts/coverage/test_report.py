@@ -4,11 +4,18 @@
 """Protect the coverage gate against reports that look healthier than they are."""
 
 import copy
+import re
 import tempfile
 import unittest
 from pathlib import Path
 
-from report import CoverageError, summarize
+from report import (
+    CoverageError,
+    exclusion_arguments,
+    filter_excluded_functions,
+    summarize,
+    validate_exclusions,
+)
 
 
 def llvm_file(path: Path, covered: int = 95, count: int = 100) -> dict:
@@ -28,6 +35,76 @@ def export(*files: dict) -> dict:
         "version": "3.1.0",
         "data": [{"files": list(files)}],
     }
+
+
+class FunctionExportTests(unittest.TestCase):
+    def setUp(self):
+        self.package = Path("/synthetic/sequent-core")
+        self.source = str(self.package / "src/codec.rs")
+        self.fixture = str(self.package / "src/fixtures.rs")
+        self.excluded = {"src/fixtures.rs": "Synthetic fixture builder."}
+        self.payload = export(llvm_file(Path(self.source)))
+
+    def filter(self):
+        filter_excluded_functions(self.payload, self.package, self.excluded)
+
+    def test_filter_retains_exact_production_records_and_all_counters(self):
+        included = {"name": "decode", "filenames": [self.source], "count": 7}
+        excluded = {"name": "fixture", "filenames": [self.fixture], "count": 99}
+        # Similar names and inline tests in an included file remain measured.
+        similar = {"name": "test", "filenames": [self.fixture + ".bak"], "count": 0}
+        data = self.payload["data"][0]
+        data["files"].append(llvm_file(Path(self.fixture + ".bak")))
+        data.update(functions=[included, excluded, similar], totals={"sentinel": 123})
+        before = copy.deepcopy(data)
+        self.filter()
+        self.assertEqual(data["functions"], [included, similar])
+        self.assertEqual(data["files"], before["files"])
+        self.assertEqual(data["totals"], before["totals"])
+
+    def test_automatic_test_and_dependency_exclusions_follow_file_inventory(self):
+        self.excluded = {}
+        data = self.payload["data"][0]
+        included = {"name": "inline_test", "filenames": [self.source], "count": 1}
+        data["functions"] = [
+            included,
+            {
+                "name": "integration_test",
+                "filenames": [str(self.package / "tests/test.rs")],
+            },
+            {
+                "name": "dependency_macro",
+                "filenames": ["/cargo/registry/dependency.rs"],
+            },
+        ]
+        self.filter()
+        self.assertEqual(data["functions"], [included])
+
+    def test_file_counter_leak_and_mixed_expansion_fail_instead_of_hiding_code(self):
+        data = self.payload["data"][0]
+        data["files"].append(llvm_file(Path(self.fixture)))
+        with self.assertRaisesRegex(CoverageError, "Excluded source remains"):
+            self.filter()
+        data["files"].pop()
+        data["functions"] = [{"filenames": [self.fixture, self.source]}]
+        with self.assertRaisesRegex(CoverageError, "mixes excluded and included"):
+            self.filter()
+
+    def test_malformed_function_records_fail_closed(self):
+        for functions in (
+            None,
+            {},
+            [None],
+            [{}],
+            [{"filenames": []}],
+            [{"filenames": "file.rs"}],
+            [{"filenames": [None]}],
+            [{"filenames": ["relative.rs"]}],
+        ):
+            with self.subTest(functions=functions):
+                self.payload["data"][0]["functions"] = functions
+                with self.assertRaisesRegex(CoverageError, "Invalid LLVM function"):
+                    self.filter()
 
 
 class CoverageReportTests(unittest.TestCase):
@@ -220,6 +297,98 @@ class CoverageReportTests(unittest.TestCase):
         self.assertIsNone(
             self.summarize(export(record))["metrics"]["functions"]["percent"]
         )
+
+
+class CoverageExclusionTests(unittest.TestCase):
+    """Reviewed scaffolding can be omitted without masking runtime scope gaps."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.package = Path(self.directory.name) / "core.with-regex+[characters]"
+        self.source = self.package / "src/codec.rs"
+        self.source.parent.mkdir(parents=True)
+        self.source.write_text("pub fn encode() {}\n")
+        self.fixture = self.package / "src/fixtures.rs"
+        self.fixture.write_text("pub fn fixture() {}\n")
+        self.excluded = {"src/fixtures.rs": "Synthetic test data builder."}
+
+    def test_excluded_code_contributes_to_neither_covered_nor_total_counters(self):
+        # Removing a fully covered fixture should LOWER this example's score.
+        # This guards against keeping its covered lines in the numerator.
+        result = summarize(
+            export(llvm_file(self.source, 50), llvm_file(self.fixture, 100)),
+            self.package,
+            95,
+            {},
+            self.excluded,
+        )
+        self.assertEqual(result["metrics"]["lines"]["percent"], 50)
+        self.assertEqual(result["excluded_files"], self.excluded)
+        for metric in ("lines", "functions", "regions"):
+            self.assertEqual(result["metrics"][metric]["covered"], 50)
+            self.assertEqual(result["metrics"][metric]["count"], 100)
+        self.assertNotIn("excluded_measurements", result)
+        self.assertNotIn("src/fixtures.rs", result["files"])
+        self.assertNotIn("src/fixtures.rs", result["source_files"])
+        self.assertEqual(result["unaccounted_files"], [])
+
+    def test_absent_excluded_measurement_does_not_hide_another_unmeasured_file(self):
+        # LLVM may omit a test-only module. Its exclusion must not cover a
+        # similarly named runtime file added beside it later.
+        runtime = self.package / "src/fixtures_runtime.rs"
+        runtime.write_text("pub fn validate() {}\n")
+        result = summarize(
+            export(llvm_file(self.source)), self.package, 95, {}, self.excluded
+        )
+        self.assertEqual(result["unaccounted_files"], ["src/fixtures_runtime.rs"])
+        self.assertFalse(result["passes"])
+
+    def test_exclusions_need_exact_existing_files_and_nonempty_reasons(self):
+        for invalid in (
+            [],
+            {"src/*.rs": "Wildcard"},
+            {"src/deleted.rs": "Stale"},
+            {"../outside.rs": "Outside"},
+            {"src/fixtures.rs": " "},
+            {"src/fixtures.rs": None},
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(CoverageError):
+                validate_exclusions(self.package, invalid, {})
+        with self.assertRaisesRegex(CoverageError, "both excluded"):
+            validate_exclusions(self.package, self.excluded, self.excluded)
+
+    def test_excluded_entries_still_require_valid_unique_counters(self):
+        for records in (
+            [llvm_file(self.fixture, 101)],
+            [llvm_file(self.fixture), llvm_file(self.fixture)],
+        ):
+            with self.subTest(records=records), self.assertRaises(CoverageError):
+                summarize(
+                    export(llvm_file(self.source), *records),
+                    self.package,
+                    95,
+                    {},
+                    self.excluded,
+                )
+
+    def test_excluding_every_measured_line_is_not_a_passing_empty_report(self):
+        with self.assertRaisesRegex(CoverageError, "No measured"):
+            summarize(
+                export(llvm_file(self.fixture)), self.package, 95, {}, self.excluded
+            )
+
+    def test_filter_uses_literal_full_paths_including_regex_metacharacters(self):
+        self.assertEqual(exclusion_arguments(self.package, {}), [])
+        flag, pattern = exclusion_arguments(self.package, self.excluded)
+        self.assertEqual(flag, "--ignore-filename-regex")
+        self.assertIsNotNone(re.search(pattern, str(self.fixture)))
+        for other in (
+            str(self.fixture) + ".bak",
+            str(self.fixture).replace("fixtures", "fixture"),
+            str(self.package.parent / "another-package/src/fixtures.rs"),
+        ):
+            self.assertIsNone(re.search(pattern, other))
 
 
 if __name__ == "__main__":
