@@ -88,6 +88,7 @@
     "build-storybook": "storybook build",
     "test:stories": "vitest run --project=storybook",
     "test:story": "node ../test-support/storybook/test-story.mjs",
+    "stories:inventory": "node ../test-support/storybook/widget-inventory.mjs",
     "typecheck:stories": "tsc --project tsconfig.stories.json",
     "dev": "NODE_OPTIONS=--openssl-legacy-provider tsc --watch",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",

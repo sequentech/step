@@ -92,6 +92,7 @@ const adminConfig = {
                     "@mui/icons-material/DragIndicator",
 
                     "ra-language-english",
+                    "graphql",
                     "keycloak-js",
                     "@mui/icons-material/Download",
                     "@mui/icons-material/Upload",

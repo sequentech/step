@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {StoryObj} from "@storybook/react"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, spyOn, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, type RaRecord} from "react-admin"
 import {
@@ -65,8 +66,8 @@ function Fixture({permissions, eventScope}: Scenario) {
     )
 }
 const meta = {
-    title: "Admin/Voter list permissions",
-    component: Fixture,
+    title: "Admin/User/ListUsers",
+    component: ListUsers,
     args: {
         permissions: [
             "voter-create",
@@ -163,9 +164,9 @@ const meta = {
         }
     },
     render: (args) => <Fixture {...args} />,
-} satisfies Meta<Scenario>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 async function loaded(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await canvas.findByText("alice")
