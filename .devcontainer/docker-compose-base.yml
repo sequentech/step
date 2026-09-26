@@ -729,6 +729,12 @@ services:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
     container_name: rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -866,7 +872,7 @@ services:
       devcontainer:
         condition: service_started
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
       configure-minio:
         condition: service_completed_successfully
       #- postgres
