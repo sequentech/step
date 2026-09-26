@@ -2356,6 +2356,84 @@ async fn get_support_material_documents_is_an_empty_list_without_materials() {
     tx.rollback().await.unwrap();
 }
 
+fn support_material(
+    w: &World,
+    n: u32,
+    document: Option<u32>,
+    is_hidden: Option<bool>,
+) -> SupportMaterial {
+    SupportMaterial {
+        id: w.id(n),
+        created_at: at(H10),
+        last_updated_at: at(NEXT_DAY),
+        kind: "PDF".into(),
+        data: json!({"title": "Guide"}),
+        tenant_id: w.tenant.clone(),
+        election_event_id: w.event.clone(),
+        labels: json!({"label": 1}),
+        annotations: json!({"note": 1}),
+        document_id: document.map(|d| w.id(d)),
+        is_hidden,
+    }
+}
+
+// `support_material.document_id` is a `text` column: binding it as a UUID made
+// PostgreSQL reject every imported archive that carried support materials.
+#[tokio::test]
+async fn insert_support_materials_stores_the_document_id_as_text() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+
+    document::insert_support_materials(
+        &tx,
+        &[
+            support_material(&w, 20, Some(10), Some(true)),
+            support_material(&w, 21, None, None),
+        ],
+    )
+    .await
+    .unwrap();
+
+    let rows = tx
+        .query(
+            "SELECT id::text, document_id, is_hidden FROM sequent_backend.support_material
+             WHERE tenant_id = $1::text::uuid ORDER BY id",
+            &[&w.tenant],
+        )
+        .await
+        .unwrap();
+    let rows: Vec<(String, Option<String>, Option<bool>)> = rows
+        .iter()
+        .map(|row| (row.get(0), row.get(1), row.get(2)))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            (w.id(20), Some(w.id(10)), Some(true)),
+            // A material without a visibility is written visible.
+            (w.id(21), None, Some(false)),
+        ]
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn insert_support_materials_rejects_a_document_id_that_is_not_a_uuid() {
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let w = World::new(&tx, ids!()).await;
+    let mut material = support_material(&w, 20, None, None);
+    material.document_id = Some("not-a-uuid".into());
+
+    let error = document::insert_support_materials(&tx, &[material])
+        .await
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("document_id"), "{error:#}");
+    tx.rollback().await.unwrap();
+}
+
 // lock
 
 /// Expiry times far enough from today that they stay past or future.

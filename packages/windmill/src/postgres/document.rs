@@ -432,10 +432,11 @@ pub async fn insert_support_materials(
             .with_context(|| "Error parsing support material tenant_id")?;
         let election_event_id = parse_uuid_v4(&material.election_event_id)
             .with_context(|| "Error parsing support material election_event_id")?;
+        // The column is `text`, so the validated identifier is bound as a string.
         let document_id = material
             .document_id
             .as_deref()
-            .map(parse_uuid_v4)
+            .map(|id| parse_uuid_v4(id).map(|uuid| uuid.to_string()))
             .transpose()
             .with_context(|| "Error parsing support material document_id")?;
 
