@@ -17,6 +17,7 @@ import time
 
 from database import (
     CONFIGURATION_QUERY,
+    ONLINE_WINDOW_MIGRATION,
     ROOT,
     RESULTS,
     SCHEDULE_INDEX,
@@ -141,6 +142,7 @@ def main():
         # from the previous distribution can hide a selective index lookup.
         database.connection.prepare_threshold = None
         database.apply(WINDOW_MIGRATION)
+        database.apply(ONLINE_WINDOW_MIGRATION)
         index_sql = database.scalar(
             "SELECT pg_get_indexdef(%s::regclass)", (SCHEDULE_INDEX,)
         )
