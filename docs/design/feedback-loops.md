@@ -184,8 +184,20 @@ one run), as do verifier stories (14 tests, including one retained expected
 accessibility failure) and results stories (19 tests), one browser run each.
 The hosted regressions were a missing story CSS hook, virtual mocks for a now-real
 shared module and obsolete expected-failure markers after upstream accessibility
-fixes. Frontend lint and formatting pass across all seven packages. Hosted
-reruns and paired voting coverage remain to be checked before claiming CI green.
+fixes. Frontend lint and formatting pass across all seven packages. Paired voting
+coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
+metrics increasing. Hosted reruns remain in progress.
+
+- **Public admin build settings**: webpack defines only the four settings read
+  by the application; private build environment values no longer enter the
+  browser bundle. Five compiler regression tests cover private values, public
+  settings, defaults, mode and reproducibility. Admin tests pass (47 suites,
+  362 tests, one run); two production builds with different synthetic private
+  values have identical bytes in all 309 output files.
+- **Agent discovery**: `AGENTS.md` and the Claude entry point share the
+  `fast-feedback` skill, the developer guide and `step-dev` commands. Explicit
+  CLI help exits successfully, and shared UI edits no longer instruct agents to
+  rebuild production libraries.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and
