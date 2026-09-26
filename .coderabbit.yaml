@@ -9,3 +9,18 @@ reviews:
     base_branches:
       - 'release/10\.0'
       - 'feat/meta-12767/.*'
+  # TEMPORARY (meta#12769 ovcs merge, step#3366): keep the review under the
+  # 150-file limit by skipping tests, fixtures, stories and generated files.
+  # Reverted once CodeRabbit has reviewed; must not land on ovcs.
+  path_filters:
+    - '!**/*_tests.rs'
+    - '!**/*.test.ts'
+    - '!**/*.test.tsx'
+    - '!**/tests/**'
+    - '!**/fixtures/**'
+    - '!**/__stories__/**'
+    - '!**/*.stories.tsx'
+    - '!**/*.tgz'
+    - '!**/*.lock'
+    - '!**/*.license'
+    - '!**/*.json'
