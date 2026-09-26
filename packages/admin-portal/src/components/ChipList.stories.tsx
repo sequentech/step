@@ -21,13 +21,18 @@ interface Scenario {
 
 let graphql: ReturnType<typeof graphqlBoundary>
 
-/** Alice and Bob, then further candidates up to `count`. */
+/** Alice and Bob, then further candidates up to `count`, named in their presentation. */
 const candidates = (count: number) =>
     Array.from({length: count}, (_, index) => {
         const [alice, bob] = candidateRecords()
-        if (index === 0) return {...alice, name: "Alice Example"}
-        if (index === 1) return {...bob, name: "Bob Example"}
-        return {...alice, id: storyId(6, index + 1), name: `Candidate ${index + 1}`}
+        if (index === 0) return alice
+        if (index === 1) return bob
+        const name = `Candidate ${index + 1}`
+        return {
+            ...alice,
+            id: storyId(6, index + 1),
+            presentation: {i18n: {en: {name, alias: name}}, sort_order: index},
+        }
     })
 
 function CandidateChips({candidates: count, max, onRowClick}: Scenario) {
