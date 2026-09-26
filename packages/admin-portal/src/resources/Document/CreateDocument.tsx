@@ -14,8 +14,10 @@ import {
     NumberInput,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 export const CreateDocument: React.FC = () => {
+    const presentationName = usePresentationName()
     return (
         <Create>
             <SimpleForm>
@@ -36,7 +38,7 @@ export const CreateDocument: React.FC = () => {
                                 reference="sequent_backend_election_event"
                                 filter={{tenant_id: formData.tenant_id}}
                             >
-                                <SelectInput optionText="name" />
+                                <SelectInput optionText={presentationName} />
                             </ReferenceInput>
                         </>
                     )}
