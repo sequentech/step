@@ -25,11 +25,15 @@ export default {
     // Complete screen stories that are also the section of their component.
     screenTitles: ["Screens/Admin/"],
     storybookUrl: "http://localhost:6008",
-    // The feature is the directory under src/resources or src/components;
-    // shared components directly in src/components form "Components".
+    // The feature is the directory path under src/resources or src/components,
+    // e.g. "Dashboard/Election event"; shared components directly in
+    // src/components form "Components" and src/screens "Screens".
     feature: (file) => {
-        const [, area, name, ...rest] = file.split("/")
-        if ((area === "resources" || area === "components") && rest.length) return humanize(name)
+        const [, area, ...rest] = file.split("/")
+        const directories = rest.slice(0, -1)
+        if ((area === "resources" || area === "components") && directories.length) {
+            return directories.map(humanize).join("/")
+        }
         return humanize(area.replace(/\.tsx?$/, ""))
     },
     excluded: {
