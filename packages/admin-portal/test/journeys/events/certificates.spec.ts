@@ -361,7 +361,7 @@ test("a rejected export marks the task as failed", async ({page, portal}) => {
     await expect(page.getByText("IN_PROGRESS", {exact: true})).toBeVisible()
     rejectExport()
     await expect(page.getByRole("dialog")).toHaveCount(0)
-    test.fail(true, "The task widget does not reflect its updated failure status")
+
     await expect(page.getByText("FAILED", {exact: true})).toBeVisible()
 })
 
@@ -414,7 +414,7 @@ test.describe("without ca-read", () => {
         mockCertificates(portal)
         await openEvent(page, portal, "Certificates")
         await expect(row(page, "Sequent Root CA")).toBeVisible()
-        test.fail(true, "The export-all button ignores the ca-read permission")
+
         await expect(page.getByRole("button", {name: "Export"})).toHaveCount(0)
     })
 })

@@ -15,8 +15,7 @@ import {
     user,
 } from "./data"
 
-// The tenant users list is gated on the voter permissions today (pinned below), so a
-// realistic administrator token carries both families.
+// Tenant-user writes require user permissions, independent of voter permissions.
 const TENANT_ADMIN_ROLES = [
     "admin-user",
     "users-menu",
@@ -26,9 +25,6 @@ const TENANT_ADMIN_ROLES = [
     "user-import",
     "role-read",
     "role-assign",
-    "voter-create",
-    "voter-write",
-    "voter-delete",
     "voter-export",
 ]
 
@@ -56,6 +52,58 @@ test.describe("tenant administrator", () => {
             tenant_id: TENANT_ID,
         })
         expectRole(portal, "getUsers", "admin-user")
+    })
+
+    test("opens the requested administrator from a direct edit link", async ({page, portal}) => {
+        const alice = user(ALICE_ID, "alice")
+        const bob = user(BOB_ID, "bob")
+        mockTenantScreen(portal, {users: [alice]})
+        portal.graphql.on("getUsers", ({variables}) => ({
+            data: {
+                get_users: {
+                    items: variables.userIds ? [bob] : [alice],
+                    total: {aggregate: {count: 1}},
+                },
+            },
+        }))
+        await page.goto(`${portal.origin}/user/${BOB_ID}?lang=en`)
+        const drawer = page.getByRole("dialog")
+        await expect(drawer.getByRole("textbox", {name: "Email", exact: true})).toHaveValue(
+            "bob@example.test"
+        )
+        expect(
+            portal.graphql
+                .callsTo("getUsers")
+                .filter((call) => call.variables.userIds)
+                .map((call) => call.variables)
+        ).toEqual([
+            {
+                tenant_id: TENANT_ID,
+                election_event_id: null,
+                election_id: null,
+                userIds: [BOB_ID],
+                showVotesInfo: false,
+                limit: 1,
+                offset: 0,
+                email: null,
+                username: null,
+                first_name: null,
+                last_name: null,
+                attributes: null,
+                enabled: null,
+                email_verified: null,
+                has_voted: null,
+                sort: {"'field'": "id", "'order'": "ASC"},
+            },
+        ])
+        expect(portal.graphql.callsTo("ListUserRoles").map((call) => call.variables)).toEqual([
+            {tenantId: TENANT_ID, userId: BOB_ID},
+        ])
+        await page.keyboard.press("Escape")
+        await expect(drawer).toHaveCount(0)
+        await expect(page).toHaveURL(`${portal.origin}/user`)
+        await expect(page.getByRole("cell", {name: "alice", exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("EditUser")).toHaveLength(0)
     })
 
     test("creates an administrator with a role and a temporary password", async ({
@@ -115,7 +163,7 @@ test.describe("tenant administrator", () => {
         mockTenantScreen(portal, {users: []})
         await openUsersAndRoles(page, portal)
         await expect(page.getByRole("button", {name: /Create user$/})).toBeVisible()
-        test.fail(true, "usersAndRolesScreen.users.emptyHeader and askCreate have no translation")
+
         expect(await page.getByText(/^usersAndRolesScreen\./).count()).toBe(0)
     })
 
@@ -256,12 +304,39 @@ test.describe("tenant user manager without voter permissions", () => {
         mockTenantScreen(portal)
         await openUsersAndRoles(page, portal)
         await expect(page.getByRole("cell", {name: "alice", exact: true})).toBeVisible()
-        test.fail(
-            true,
-            "useUsersPermissions gates tenant-user create/edit/delete on voter-* permissions; Harvest checks user-*"
-        )
+
         expect(await page.getByRole("button", {name: "Add", exact: true}).count()).toBe(1)
         expect(await page.getByRole("button", {name: "Actions", exact: true}).count()).toBe(1)
+    })
+})
+
+test.describe("voter manager in the tenant users screen", () => {
+    test.use({
+        roles: [
+            "admin-user",
+            "users-menu",
+            "user-read",
+            "voter-create",
+            "voter-write",
+            "voter-delete",
+            "voter-email-tlf-edit",
+        ],
+    })
+
+    test("voter permissions do not grant tenant-user management", async ({page, portal}) => {
+        mockTenantScreen(portal)
+        await openUsersAndRoles(page, portal)
+        await expect(page.getByRole("cell", {name: "alice", exact: true})).toBeVisible()
+        await expect(page.getByRole("button", {name: "Add", exact: true})).toHaveCount(0)
+        await expect(page.getByRole("button", {name: "Actions", exact: true})).toHaveCount(0)
+        await page.goto(`${portal.origin}/user/${ALICE_ID}?lang=en`)
+        await expect(page.getByRole("cell", {name: "alice", exact: true})).toBeVisible()
+        await expect(page.getByRole("dialog")).toHaveCount(0)
+        expect(portal.graphql.callsTo("getUsers").filter((call) => call.variables.userIds)).toEqual(
+            []
+        )
+        for (const operation of ["CreateUser", "EditUser", "DeleteUser"])
+            expect(portal.graphql.callsTo(operation)).toHaveLength(0)
     })
 })
 
@@ -277,7 +352,7 @@ test.describe("role reader without the user reader permission", () => {
         await expect(
             page.getByRole("cell", {name: /^(operator|alice)$/, exact: true}).first()
         ).toBeVisible()
-        test.fail(true, "UserAndRoles pins ListUsers to panel 0, which is the Roles tab here")
+
         await expect(page.getByRole("cell", {name: "operator", exact: true})).toBeVisible({
             timeout: 1000,
         })

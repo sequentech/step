@@ -71,11 +71,10 @@ test("keeps restore disabled until every configuration option is checked", async
     page,
     portal,
 }) => {
-    // Defect: SaveButton's alwaysEnable overrides its disabled prop (the source has a TODO about it).
     await openSettings(page, portal, "Backup / Restore")
     const restore = page.getByRole("button", {name: "Restore", exact: true})
     await page.getByRole("checkbox", {name: OPTIONS[0], exact: true}).check()
-    test.fail(true, "Restore stays enabled while required configuration options are unchecked")
+
     await expect(restore).toBeDisabled({timeout: 2_000})
 })
 
