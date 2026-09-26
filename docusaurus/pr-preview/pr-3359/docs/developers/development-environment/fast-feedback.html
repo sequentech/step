@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3359/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3359/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3359/assets/js/runtime~main.7e6f115a.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3359/assets/js/runtime~main.2c095401.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3359/assets/js/main.3c7972fb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -92,9 +92,11 @@ Exports carry the overrides in the document and list them in <code>provenance.ch
 Its local storage keys start with <code>sequent.workbench.v1.</code>; Reset removes them and the
 portal&#x27;s session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under <code>Workbench/</code>.</p>
-<p><code>WORKBENCH_SEQUENT_CORE=&lt;wasm-pack web output&gt;</code> loads another sequent-core build
-without reinstalling; the page reloads when its files change and the inspector shows
-the binary&#x27;s hash. <code>WORKBENCH_TEST_CHROME_PATH</code> selects a local Chromium for
+<p>The workbench dev server automatically loads the artifact published by
+<code>step-dev wasm</code>, falling back to the installed package when none exists. Production
+builds use the installed package. <code>WORKBENCH_SEQUENT_CORE=&lt;wasm-pack web output&gt;</code>
+explicitly selects another build for either mode. No reinstall is needed; the page
+reloads when the artifact changes and the inspector shows the binary&#x27;s hash. <code>WORKBENCH_TEST_CHROME_PATH</code> selects a local Chromium for
 <code>test:smoke</code>. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.</p>
