@@ -26,11 +26,26 @@ function Participation() {
 }
 
 function tree(accessToken?: string) {
+    const authContext: React.ContextType<typeof AuthContext> = {
+        isAuthContextInitialized: true,
+        isAuthenticated: Boolean(accessToken),
+        userId: "voter",
+        username: "voter",
+        email: "",
+        firstName: "",
+        logout: jest.fn(),
+        hasRole: () => false,
+        isKiosk: () => false,
+        getExpiry: () => undefined,
+        keycloakAccessToken: accessToken,
+        setTenantEvent: jest.fn(),
+        openProfileLink: jest.fn().mockResolvedValue(undefined),
+        isGoldUser: () => false,
+        reauthWithGold: jest.fn().mockResolvedValue(undefined),
+    }
     return (
         <Provider store={store}>
-            <AuthContext.Provider
-                value={{keycloakAccessToken: accessToken, isAuthContextInitialized: true} as any}
-            >
+            <AuthContext.Provider value={authContext}>
                 <ApolloWrapper>
                     <Participation />
                 </ApolloWrapper>
