@@ -27,14 +27,18 @@ async fn main() -> Result<(), rocket::Error> {
     ));
 
     let _rocket = rocket::custom(figment)
+        .manage(routes::scanovate::MockSessions::default())
         .mount(
             "/",
             routes![
                 index,
                 routes::user::users_list,
-                routes::inetum::transaction_new,
-                routes::inetum::transaction_status_simple,
-                routes::inetum::transaction_results,
+                routes::scanovate::auth_token,
+                routes::scanovate::flow_link,
+                routes::scanovate::flow_page,
+                routes::scanovate::flow_complete,
+                routes::scanovate::session_token,
+                routes::scanovate::results_with_image_names,
                 routes::user::upload_csv,
             ],
         )

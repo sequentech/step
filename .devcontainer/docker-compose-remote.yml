@@ -359,6 +359,7 @@ services:
       ROCKET_ADDRESS: ${ROCKET_ADDRESS}
       ROCKET_PORT: ${MOCK_SERVER_PORT}
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
+      MOCK_SERVER_PUBLIC_URL: ${MOCK_SERVER_PUBLIC_URL}
 
   janitor:
     profiles: ["full"]
