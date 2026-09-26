@@ -1123,6 +1123,23 @@
             "problemMatcher": []
         },
         {
+            "label": "build.sequent-core.dev",
+            "type": "process",
+            "command": "devenv",
+            "args": [
+                "shell",
+                "bash",
+                "--",
+                "-c",
+                "scripts/dev/step-dev wasm"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
             "label": "build.sequent-core",
             "type": "shell",
             "command": "bash",

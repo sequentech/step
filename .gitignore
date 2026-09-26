@@ -99,3 +99,5 @@ airgapped-artifacts
 /.cache/backend-e2e/
 # Logs and process ids of dev servers started by scripts/dev/step-dev mode.
 /.cache/dev-mode/
+# Events and step-cli logs of scripts/dev/step-dev scenario, per Compose project.
+/.cache/scenarios/

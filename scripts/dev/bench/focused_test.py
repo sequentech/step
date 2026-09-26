@@ -121,6 +121,8 @@ def run_test(options: TestOptions) -> Path:
     if cargo:
         environment["CARGO_TARGET_DIR"] = str(options.target_dir)
         conditions.append(f"RUSTFLAGS={os.environ.get('RUSTFLAGS', '')}")
+        jobs = os.environ.get("CARGO_BUILD_JOBS", "default")
+        conditions.append(f"CARGO_BUILD_JOBS={jobs}")
     run = start_run(
         scenario=SCENARIO,
         target=options.suite_name,

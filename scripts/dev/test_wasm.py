@@ -432,10 +432,13 @@ class DevelopmentBuildTests(WasmTestCase):
         builds = {path.name for path in self.checkout.layout.builds.iterdir()}
         self.assertEqual(builds, {second, third})
 
-    def test_identical_output_leaves_the_entry_module_alone(self):
+    def test_identical_output_leaves_the_package_files_alone(self):
         self.build()
-        entry = self.checkout.layout.dist / "index.js"
-        before = (entry.read_text(), entry.stat().st_mtime_ns)
+        files = [
+            self.checkout.layout.dist / name
+            for name in ("index.js", "index.d.ts", "package.json", "status.js")
+        ]
+        before = [(path.read_bytes(), path.stat().st_mtime_ns) for path in files]
         self.checkout.write(
             "packages/sequent-core/src/util.rs",
             "// comment\npub fn hash() -> u8 { 1 }\n",
@@ -443,7 +446,9 @@ class DevelopmentBuildTests(WasmTestCase):
         code, out, _ = self.build()
         self.assertEqual(code, 0)
         self.assertIn("rebuilt identical output", out)
-        self.assertEqual((entry.read_text(), entry.stat().st_mtime_ns), before)
+        # Watchers rebuild on any rewrite, so nothing they load may be touched.
+        after = [(path.read_bytes(), path.stat().st_mtime_ns) for path in files]
+        self.assertEqual(after, before)
         self.assertIn("up to date", self.build()[1])
 
     def test_a_failed_build_keeps_the_published_package_and_says_so(self):

@@ -9,7 +9,8 @@ import {IDS} from "@sequentech/ui-test-kit/fixtures"
 import {PipelineStatus, PipelineStep} from "voting-portal/src/preview/ballotPipeline"
 import {loadPreviewSnapshot, sampleSelection} from "voting-portal/src/preview/session"
 import {store} from "voting-portal/src/store/store"
-import {ComputationKind, PipelinePanel, WASM_RUNNER, type PipelineInput} from "../PipelinePanel"
+import {ComputationKind, WASM_RUNNER} from "../../pipelineRunner"
+import {PipelinePanel, type PipelineInput} from "../PipelinePanel"
 
 const meta = {
     title: "Workbench/Pipeline panel",

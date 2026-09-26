@@ -16,6 +16,7 @@ from .isolation import (
 from .probes import (
     ProbeError,
     ProbeKind,
+    ProbeRunner,
     all_healthy,
     expand,
     parse_probe,
@@ -54,6 +55,11 @@ class ProbeParsingTest(unittest.TestCase):
                 ProbeKind.LOG,
                 "windmill",
                 "Running `[^`]*main",
+            ),
+            "f=fail:windmill:Exit status: [1-9]": (
+                ProbeKind.FAIL,
+                "windmill",
+                "Exit status: [1-9]",
             ),
         }
         for text, (kind, name, argument) in cases.items():
@@ -119,6 +125,33 @@ class ProbeParsingTest(unittest.TestCase):
         self.assertEqual(
             strip_ansi("\x1b[1m\x1b[32m    Running\x1b[0m `main`"), "    Running `main`"
         )
+
+
+class ReadinessTest(unittest.TestCase):
+    def runner(self):
+        probes = resolve_probes("full-stack", [])
+        return ProbeRunner(None, probes, {"SUPER_ADMIN_TENANT_ID": "t1"}, None, 1.0)
+
+    def test_optional_and_failure_probes_do_not_block_readiness(self):
+        runner = self.runner()
+        required = [
+            "compose-healthy",
+            "hasura",
+            "keycloak-realm",
+            "harvest",
+            "windmill-running",
+            "windmill",
+        ]
+        self.assertEqual(runner.pending(), required)
+        runner.passed.update(dict.fromkeys(required, 1.0))
+        self.assertTrue(runner.ready())
+        self.assertEqual(runner.pending(), [])
+
+    def test_service_exit_patterns_match_cargo_watch(self):
+        probes = {probe.name: probe for probe in resolve_probes("full-stack", [])}
+        pattern = probes["windmill-exited"].argument
+        self.assertRegex("[Finished running. Exit status: 101]", pattern)
+        self.assertNotRegex("[Finished running. Exit status: 0]", pattern)
 
 
 class HealthTest(unittest.TestCase):

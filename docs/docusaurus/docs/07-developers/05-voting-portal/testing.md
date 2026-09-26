@@ -46,6 +46,11 @@ instruments executable source before transformation, so erased TypeScript
 declarations are not counted as unexecuted application statements. HTML, JSON
 and LCOV reports are written to `coverage/`.
 
+Jest maps the shared UI packages to source entries. Mock those package names
+without `{virtual: true}`: virtual mocks can leave incompatible module identities
+in the resolver cache between suites. Run the full unit suite after changing
+shared-package mocks; a focused test can pass while the combined run fails.
+
 If the browser fixture cannot render, the runner includes its browser errors
 alongside the locator failure. First check that the local WASM archive is
 installed and that the Chromium executable is available. Keep the fixture local;

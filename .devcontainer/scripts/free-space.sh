@@ -25,7 +25,16 @@ docker system prune --all --force &> /dev/null
 disk-usage "Docker pruned"
 
 echo "Collecting Nix garbage..."
-nix-collect-garbage -d &> /dev/null
+# The devcontainers of other checkouts share the Nix store; a collection here
+# sees neither their roots nor their running builds.
+sharing=$(docker ps --filter "volume=${DEVCONTAINER_NIX_VOLUME}" \
+    --filter label=devcontainer.local_folder --format '{{.Names}}' |
+    grep -vx "${DEVCONTAINER_NAME_PREFIX}devcontainer" || true)
+if [ -n "${sharing}" ]; then
+    echo "Skipped: the Nix store is in use by ${sharing}"
+else
+    nix-collect-garbage -d &> /dev/null
+fi
 disk-usage "Nix garbage collected"
 
 echo "Cleaning ImmuDB database..."

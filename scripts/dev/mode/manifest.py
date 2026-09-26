@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -27,14 +28,23 @@ class Server:
     ready_path: str
 
 
+class ReadyWhen(Enum):
+    """What a service must reach to count as up."""
+
+    RUNNING = "running"
+    # A job such as a volume or bucket initializer: done once it exits with 0.
+    EXITED = "exited"
+
+
 @dataclass(frozen=True)
 class ServiceSettings:
-    """Where a Compose service is reached from the host, and how to probe it."""
+    """Where a Compose service is reached from the host, and when it is ready."""
 
     name: str
     url: str | None = None
     # Run inside the service's container; exit status 0 means ready.
     probe: tuple[str, ...] | None = None
+    ready_when: ReadyWhen = ReadyWhen.RUNNING
 
 
 @dataclass(frozen=True)
@@ -119,7 +129,17 @@ def _service(entry: dict[str, Any]) -> ServiceSettings:
     probe = _strings(entry, "probe", where) if "probe" in entry else None
     if probe == ():
         raise ManifestError(f"{where}: empty probe")
-    return ServiceSettings(name, url, probe)
+    ready_when = (
+        _field(entry, "readyWhen", str, where) if "readyWhen" in entry else None
+    )
+    try:
+        when = ReadyWhen(ready_when) if ready_when else ReadyWhen.RUNNING
+    except ValueError:
+        choices = ", ".join(value.value for value in ReadyWhen)
+        raise ManifestError(f"{where}: readyWhen must be one of {choices}") from None
+    if probe is not None and when is ReadyWhen.EXITED:
+        raise ManifestError(f"{where}: a job that exits cannot be probed")
+    return ServiceSettings(name, url, probe, when)
 
 
 def _mode(entry: dict[str, Any], servers: dict[str, Server]) -> Mode:

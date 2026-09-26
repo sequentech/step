@@ -11,6 +11,7 @@ Kinds:
   healthy:CONTAINER|*       Docker health status (``*``: every container with one)
   running:CONTAINER         the container is running
   log:CONTAINER:REGEX       a log line since the sample started matches
+  fail:CONTAINER:REGEX      as log, but a match fails the sample at once
 
 ``{env:NAME}`` expands from the checkout's ``.devcontainer/.env`` and
 ``{daemon_ip}`` to the isolated daemon's address on the host network.
@@ -42,6 +43,7 @@ class ProbeKind(Enum):
     HEALTHY = "healthy"
     RUNNING = "running"
     LOG = "log"
+    FAIL = "fail"
 
 
 class ProbeError(ValueError):
@@ -79,6 +81,9 @@ PRESETS: dict[str, tuple[str, ...]] = {
         "windmill-running=log:windmill:Running `[^`]*/debug/main",
         "windmill=exec:windmill:http://127.0.0.1:3030/ready",
         "beat?=exec:beat:http://127.0.0.1:3030/ready",
+        # cargo-watch does not restart a service that exits; it stays down.
+        "windmill-exited=fail:windmill:Finished running\\. Exit status: [1-9]",
+        "harvest-exited=fail:harvest:Finished running\\. Exit status: [1-9]",
     ),
 }
 
@@ -108,7 +113,7 @@ def parse_probe(text: str) -> Probe:
     container, _, argument = rest.partition(":")
     if not container or not argument:
         raise ProbeError(f"probe {name} needs CONTAINER:{kind.value.upper()} arguments")
-    if kind is ProbeKind.LOG:
+    if kind in (ProbeKind.LOG, ProbeKind.FAIL):
         try:
             re.compile(argument)
         except re.error as error:
@@ -181,6 +186,7 @@ class ProbeRunner:
             for probe in self.probes
         }
         self.passed: dict[str, float] = {}
+        self.failed: dict[str, float] = {}
         # Compose creates containers progressively; "every container" is only
         # meaningful once the devcontainer CLI has brought the whole stack up.
         self.stack_created = threading.Event()
@@ -199,7 +205,14 @@ class ProbeRunner:
 
     def ready(self) -> bool:
         """Every required probe has passed."""
-        return all(probe.name in self.passed for probe in self.probes if probe.required)
+        return all(probe.name in self.passed for probe in self.readiness())
+
+    def readiness(self) -> list[Probe]:
+        return [
+            probe
+            for probe in self.probes
+            if probe.required and probe.kind is not ProbeKind.FAIL
+        ]
 
     def stop(self) -> None:
         self._stop.set()
@@ -208,9 +221,7 @@ class ProbeRunner:
 
     def pending(self) -> list[str]:
         return [
-            probe.name
-            for probe in self.probes
-            if probe.required and probe.name not in self.passed
+            probe.name for probe in self.readiness() if probe.name not in self.passed
         ]
 
     def _poll(self, probe: Probe) -> None:
@@ -221,9 +232,11 @@ class ProbeRunner:
                 passed = False
             if passed:
                 seconds = time.monotonic() - self._start
-                self.passed[probe.name] = seconds
+                outcome = self.failed if probe.kind is ProbeKind.FAIL else self.passed
+                outcome[probe.name] = seconds
+                verb = "failed" if probe.kind is ProbeKind.FAIL else "passed"
                 print(
-                    f"bench: probe {probe.name} passed at {seconds:.1f}s",
+                    f"bench: probe {probe.name} {verb} at {seconds:.1f}s",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -251,7 +264,7 @@ class ProbeRunner:
                 timeout=CURL_TIMEOUT_SECONDS * 3,
             )
             return completed.returncode == 0
-        if probe.kind is ProbeKind.LOG:
+        if probe.kind in (ProbeKind.LOG, ProbeKind.FAIL):
             completed = self.docker.run(
                 "logs", "--since", self._since, str(probe.container), check=False
             )

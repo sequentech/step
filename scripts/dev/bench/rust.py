@@ -220,6 +220,7 @@ def run_rust(options: RustOptions) -> list[Path]:
                 "conditions": [
                     f"edit: {options.edit_name}",
                     f"RUSTFLAGS={os.environ.get('RUSTFLAGS', '')}",
+                    f"CARGO_BUILD_JOBS={os.environ.get('CARGO_BUILD_JOBS', 'default')}",
                     "one fresh save before every build",
                 ],
             },

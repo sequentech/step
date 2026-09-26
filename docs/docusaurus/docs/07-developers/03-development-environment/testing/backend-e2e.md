@@ -64,6 +64,8 @@ private ballot publication, cast/revote/closing rules and results matching the
 last accepted ballot. Fixtures live in `fixtures.py`; clients use Python's
 standard library. Add assertions against observable responses and persisted
 results, with valid controls for rejection cases.
+The same fixture and clients build the development stack's
+[real-backend scenarios](../fast-feedback.md#real-backend-scenarios).
 
 Every journey must pass. Errors, skipped journeys and expected failures all fail
 the run; a green result means the complete selected sequence passed.

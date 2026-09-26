@@ -33,7 +33,15 @@ from .manifest import (
     Server,
     load_manifest,
 )
-from .plan import Conflict, PlanError, Readiness, closure, find_conflicts, readiness
+from .plan import (
+    Conflict,
+    PlanError,
+    Readiness,
+    closure,
+    find_conflicts,
+    healthcheck_drifted,
+    readiness,
+)
 from .servers import Devcontainer, ServerState, Started
 
 POLL_SECONDS = 2.0
@@ -154,7 +162,8 @@ def _wait_services(
         for service in list(pending):
             state = states.get(service)
             probe_ok = _probe_ok(context, service, state) if state else None
-            status, detail = readiness(state, probe_ok)
+            ready_when = context.manifest.settings(service).ready_when
+            status, detail = readiness(state, probe_ok, ready_when)
             details[service] = detail
             if status.done:
                 seconds = time.monotonic() - started
@@ -176,7 +185,9 @@ def _wait_services(
             waiting = ", ".join(
                 f"{service} ({details[service]})" for service in pending
             )
-            raise ModeError(f"not ready after {timeout:.0f}s: {waiting}")
+            logs = " ".join(states[s].name for s in pending if s in states)
+            hint = f"; see docker logs {logs}" if logs else ""
+            raise ModeError(f"not ready after {timeout:.0f}s: {waiting}{hint}")
         if now >= next_progress:
             waiting = ", ".join(
                 f"{service} ({details[service]})" for service in pending
@@ -300,10 +311,28 @@ def command_up(
     ensure_volumes(context.checkout.cache_volumes())
     to_start = [service for service in plan.services if service != DEVCONTAINER_SERVICE]
     context.say(f"mode {mode.name}: {', '.join(plan.services)}")
+    drifted = [
+        service
+        for service in to_start
+        if service in plan.states
+        and healthcheck_drifted(plan.config[service], plan.states[service])
+    ]
+    if drifted and context.checkout.binds_resolve_on_host:
+        # Only the containers go; the next command creates them again, in
+        # dependency order, with volumes and bind mounts untouched.
+        context.say(f"health check changed, replacing {', '.join(drifted)}")
+        code = plan.compose.run("rm", "--stop", "--force", *drifted)
+        if code != EXIT_OK:
+            raise ModeError(f"docker compose rm failed with exit code {code}")
     if to_start:
-        # --no-recreate: containers of this checkout, the devcontainer included,
-        # are reused as they are rather than replaced.
-        code = plan.compose.run("up", "--detach", "--no-recreate", *to_start)
+        # Existing containers are started as they are: Compose releases differ
+        # in what makes them recreate one, and the devcontainer's Compose would
+        # replace every service the Dev Containers CLI created on the host.
+        # --no-deps keeps Compose away from the devcontainer itself, whose
+        # configuration only the CLI knows; the mode's services are all listed.
+        code = plan.compose.run(
+            "up", "--detach", "--no-deps", "--no-recreate", *to_start
+        )
         if code != EXIT_OK:
             raise ModeError(f"docker compose up failed with exit code {code}")
     wait = timeout if timeout is not None else mode.ready_timeout
@@ -379,11 +408,16 @@ def command_stop(context: Context) -> int:
     if not stopped and not stopped_servers:
         context.say("nothing to stop")
     context.say("volumes and caches are kept; the devcontainer keeps running")
+    if context.output is OutputFormat.JSON:
+        print(json.dumps({"services": stopped, "servers": stopped_servers}, indent=2))
     return EXIT_OK
 
 
 def command_preflight(context: Context, mode: Mode) -> int:
     plan = _plan(context, mode)
+    if context.output is OutputFormat.JSON:
+        conflicts = [str(conflict) for conflict in plan.conflicts]
+        print(json.dumps({"mode": mode.name, "conflicts": conflicts}, indent=2))
     if plan.conflicts:
         _report_conflicts(context, plan)
         return EXIT_FAILED
@@ -421,12 +455,23 @@ def command_status(context: Context) -> int:
     known += sorted(service for service in states if service not in known)
     devcontainer = Devcontainer(checkout, states.get(DEVCONTAINER_SERVICE))
     servers = devcontainer.states(context.manifest.servers.values())
+    in_modes = set().union(*mode_services.values())
+    listening = {state.server.name for state in servers if state.listening}
+    # The smallest mode that accounts for what runs; modes sharing services,
+    # such as backend and full, differ in their dev servers.
     covering = [
-        mode.name
+        mode
         for mode in context.manifest.modes
-        if active <= set(mode_services[mode.name])
+        if active & in_modes <= set(mode_services[mode.name])
     ]
-    current = covering[0] if active and covering else None
+    serving = [mode for mode in covering if listening <= set(mode.servers)]
+    candidates = serving or covering
+    current = candidates[0].name if active & in_modes and candidates else None
+    up = {
+        service
+        for service, state in states.items()
+        if readiness(state, None, context.manifest.settings(service).ready_when)[0].done
+    }
     containers = list_containers()
     conflicts: dict[str, list[str]] = {}
     for mode in context.manifest.modes:
@@ -444,6 +489,8 @@ def command_status(context: Context) -> int:
         "project": checkout.project,
         "containerPrefix": checkout.name_prefix,
         "mode": current,
+        # Running services no mode starts, such as the opt-in wbraid profile.
+        "outsideModes": sorted(active - in_modes),
         "services": {
             service: {
                 "container": states[service].name if service in states else None,
@@ -463,7 +510,7 @@ def command_status(context: Context) -> int:
         },
         "modes": {
             mode.name: {
-                "running": len(active & set(mode_services[mode.name])),
+                "up": len(up & set(mode_services[mode.name])),
                 "services": len(mode_services[mode.name]),
                 "conflicts": conflicts[mode.name],
             }
@@ -483,6 +530,8 @@ def _print_status(document: dict[str, Any], servers: list[ServerState]) -> None:
     names = f"container names {prefix}*" if prefix else "unprefixed container names"
     _say(f"project   {document['project']} ({names})")
     _say(f"mode      {document['mode'] or 'none running'}")
+    if document["outsideModes"]:
+        _say(f"also      {', '.join(document['outsideModes'])} (in no mode)")
     _say()
     _say(f"{'service':<24}{'status':<14}{'health':<11}container")
     for service, info in document["services"].items():
@@ -506,7 +555,7 @@ def _print_status(document: dict[str, Any], servers: list[ServerState]) -> None:
         _say(f"{state.server.name:<28}{state.server.port:<7}{description}")
     _say()
     for name, info in document["modes"].items():
-        _say(f"{name:<14}{info['running']}/{info['services']} services running")
+        _say(f"{name:<14}{info['up']}/{info['services']} services up or done")
         for conflict in info["conflicts"]:
             _say(f"  blocked: {conflict}")
 

@@ -16,26 +16,9 @@ import {
     Typography,
 } from "@mui/material"
 import type {BallotSelection} from "@sequentech/ui-core"
-import {
-    PipelineStatus,
-    runBallotPipeline,
-    type PipelineReport,
-    type PipelineRun,
-} from "voting-portal/src/preview/ballotPipeline"
+import {PipelineStatus, type PipelineReport} from "voting-portal/src/preview/ballotPipeline"
 import type {IBallotStyle} from "voting-portal/src/store/ballotStyles/ballotStylesSlice"
-
-/** Where a pipeline's results come from; only the WASM runner exercises sequent-core. */
-export enum ComputationKind {
-    WASM = "wasm",
-    MOCK = "mock",
-}
-
-export interface PipelineRunner {
-    kind: ComputationKind
-    run: PipelineRun
-}
-
-export const WASM_RUNNER: PipelineRunner = {kind: ComputationKind.WASM, run: runBallotPipeline}
+import {ComputationKind, type PipelineRunner} from "../pipelineRunner"
 
 export interface PipelineInput {
     ballotStyle: IBallotStyle

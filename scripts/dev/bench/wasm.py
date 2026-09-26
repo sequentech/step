@@ -220,7 +220,7 @@ def run_wasm(options: WasmOptions) -> Path:
             origin=origin,
             timeout=options.timeout,
         )
-        probe.collect("opened", [options.target], options.timeout)
+        probe.collect("opened", "open", [options.target], options.timeout)
         for index, role in enumerate(roles(options.samples, options.warmup), start=1):
             server = measure(
                 options,
@@ -272,7 +272,7 @@ def measure(
     if not restarts and text is not None:
         # The running page watches for the new module before the save.
         probe.send(cmd="watch", id=options.target, text=text, timeout=options.timeout)
-        probe.collect("waiting", [options.target], 60, text)
+        probe.collect("waiting", "watch", [options.target], 60, text)
     saved = edit.apply(marker) if edit is not None else time.time()
     phases: dict[str, float] = {}
     detail: dict[str, Any] = {"marker": text}
@@ -317,13 +317,13 @@ def measure(
                 probe.send(
                     cmd="visit", id=options.target, text=text, timeout=options.timeout
                 )
-                event = "visited"
+                event, command = "visited", "visit"
             else:
-                event = "watched"
+                event, command = "watched", "watch"
             if restarts or text is not None:
-                observed = probe.collect(event, [options.target], options.timeout)[
-                    options.target
-                ]
+                observed = probe.collect(
+                    event, command, [options.target], options.timeout
+                )[options.target]
                 phases["visible"] = observed["t"] - saved
                 detail.update(
                     page_loads=observed.get("reloads"),

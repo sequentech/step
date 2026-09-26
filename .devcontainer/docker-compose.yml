@@ -7,6 +7,17 @@
 include:
   - docker-compose-base.yml
 
+# A theme type directory from the checkout. Keycloak prefers folder themes over
+# the same theme in sequent-theme.jar, and start-dev turns theme and template
+# caching off, so an edited template, message or resource shows on the next
+# page load.
+x-keycloak-theme: &keycloak-theme
+  type: bind
+  read_only: true
+  bind:
+    create_host_path: false
+    selinux: z
+
 services:
   keycloak:
     profiles: ["full", "base"]
@@ -57,6 +68,19 @@ services:
     volumes:
       # https://www.keycloak.org/server/containers#_importing_a_realm_on_startup
       - ./keycloak/import:/opt/keycloak/data/import:ro,z
+      # The themes and types registered in sequent-theme's keycloak-themes.json.
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/login
+        target: /opt/keycloak/themes/sequent.admin-portal/login
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.admin-portal/account
+        target: /opt/keycloak/themes/sequent.admin-portal/account
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/login
+        target: /opt/keycloak/themes/sequent.voting-portal/login
+      - <<: *keycloak-theme
+        source: ${LOCAL_WORKSPACE_FOLDER:-..}/packages/keycloak-extensions/sequent-theme/src/main/resources/theme/sequent.voting-portal/account
+        target: /opt/keycloak/themes/sequent.voting-portal/account
     # Below we're using the dummy email email sender provider but that's just for
     # development, in production we should still use the default SMTP email provider
     #
