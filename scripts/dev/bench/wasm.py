@@ -10,17 +10,18 @@ WASM module containing the marker and rendered its first screen. With
 itself. Without an edit (``--no-change``) the same sequence measures a no-op
 invocation; with a running server it then ends when the commands finish.
 
-The default build command is the checkout's own
-``.devcontainer/scripts/build-sequent-core.sh`` with its hard-coded
-``/workspaces/step`` directory replaced by the measured checkout; nothing else in
-the script changes. The tracked files it rewrites (lock file and packed
-archives) are restored afterwards and dependencies reinstalled.
+The default build command runs the checkout's own
+``.devcontainer/scripts/build-sequent-core.sh`` in place. For legacy scripts,
+the hard-coded ``/workspaces/step`` directory is replaced by the measured
+checkout; nothing else in the script changes. The tracked files it rewrites
+(lock file and packed archives) are restored afterwards and dependencies reinstalled.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import shlex
 import subprocess
 import time
 from dataclasses import dataclass
@@ -86,14 +87,20 @@ class WasmOptions:
 
 
 def patched_script(checkout: Path, destination: Path) -> Path:
-    """The checkout's build script aimed at the checkout instead of /workspaces/step."""
-    text = (checkout / BUILD_SCRIPT).read_text(encoding="utf-8")
+    """Keep portable scripts in place; retarget legacy /workspaces/step scripts."""
+    source = checkout / BUILD_SCRIPT
+    text = source.read_text(encoding="utf-8")
+    if SCRIPT_TARGET not in text and "/workspaces/" not in text:
+        # The current wrapper locates step-dev relative to BASH_SOURCE[0].
+        # Copying it into the log directory would change its checkout root.
+        return source
     if text.count(SCRIPT_TARGET) != 1:
         raise ValueError(
             f"{BUILD_SCRIPT} no longer sets {SCRIPT_TARGET}; pass --build-cmd"
         )
     patched = text.replace(
-        SCRIPT_TARGET, f"TARGET_DIR={checkout}/packages/sequent-core"
+        SCRIPT_TARGET,
+        f"TARGET_DIR={shlex.quote(str(checkout / 'packages/sequent-core'))}",
     )
     if "/workspaces/" in patched:
         raise ValueError(
@@ -101,6 +108,10 @@ def patched_script(checkout: Path, destination: Path) -> Path:
         )
     destination.write_text(patched, encoding="utf-8")
     return destination
+
+
+def default_build_command(checkout: Path, destination: Path) -> str:
+    return f"bash -x {shlex.quote(str(patched_script(checkout, destination)))}"
 
 
 def script_phases(trace: str, started: float) -> dict[str, float]:
@@ -156,9 +167,8 @@ def run_wasm(options: WasmOptions) -> Path:
     log_dir = options.output_dir / SCENARIO / "logs" / f"{options.edit_name}-{run_id}"
     log_dir.mkdir(parents=True, exist_ok=True)
     # The trace timestamps each script command, which splits the build into phases.
-    build = (
-        options.build
-        or f"bash -x {patched_script(options.checkout, log_dir / 'build.sh')}"
+    build = options.build or default_build_command(
+        options.checkout, log_dir / "build.sh"
     )
     removals = []
     if options.build is None:
@@ -198,7 +208,7 @@ def run_wasm(options: WasmOptions) -> Path:
             "marker_run_id": run_id,
             "conditions": [
                 "no edit" if options.edit is None else f"edit: {options.edit.path}",
-                f"build: {build if options.build else 'patched ' + BUILD_SCRIPT}",
+                f"build: {build}",
                 f"install: {options.install or 'none'}",
                 f"dev server restart: {options.restart.value}",
             ],
