@@ -84,10 +84,16 @@ jobs:
         include:
           - package: admin-portal
             shard: 1
-            shards: 2
+            shards: 4
           - package: admin-portal
             shard: 2
-            shards: 2
+            shards: 4
+          - package: admin-portal
+            shard: 3
+            shards: 4
+          - package: admin-portal
+            shard: 4
+            shards: 4
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -181,8 +187,10 @@ jobs:
           node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts
           safety-net packages/admin-portal
           --layer "jest=$LAYERS/jest" --layer "stories=$LAYERS/stories"
-          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-1-of-2"
-          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-2-of-2"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-1-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-2-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-3-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-4-of-4"
           --output "$LAYERS/union"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()

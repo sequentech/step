@@ -134,7 +134,7 @@ summary percentages. Compare each file's uncovered lines and wire contracts
 before changing its implementation. A missing layer is explicitly marked and
 does not establish that the combined coverage is complete.
 
-CI runs admin journeys in two shards with two workers each and publishes the
+CI runs admin journeys in four shards with two workers each and publishes the
 area and per-file tables in the safety-net job summary. The
 `admin-portal-safety-net` artifact contains `coverage-union.json` and
 `coverage-union.md`, including uncovered line ranges. Locally these files are
