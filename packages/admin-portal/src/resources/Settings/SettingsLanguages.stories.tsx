@@ -63,7 +63,7 @@ type Story = StoryObj<Scenario>
 const languageName = (code: string) => i18n.t("language", {lng: code})
 
 const languageSwitch = async (canvasElement: HTMLElement, code: string) => {
-    const label = await within(canvasElement).findByText(languageName(code))
+    const label = await within(canvasElement).findByText(languageName(code), {selector: "span"})
     return within(label.parentElement as HTMLElement).getByRole("switch")
 }
 
