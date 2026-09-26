@@ -16,6 +16,7 @@
 //!
 //! Everything here is filesystem and terminal. The decisions are all in the core.
 
+use super::build_election_event::write_artifact;
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use colored::Colorize;
@@ -192,9 +193,10 @@ impl CompilePlan {
             .iter()
             .chain(compiled.layout.auxiliary.iter())
         {
-            let path = directory.join(&artifact.name);
-            fs::write(&path, &artifact.bytes)
-                .with_context(|| format!("could not write {}", path.display()))?;
+            // Through the shared writer, which creates `images/`,
+            // `export_S3_files/` and `templates/` and refuses a name that would
+            // leave the directory.
+            write_artifact(&directory, &artifact.name, &artifact.bytes)?;
         }
 
         let archive_bytes = archive::zip(&compiled.layout.importable).map_err(problem_error)?;
@@ -269,4 +271,106 @@ fn report_problems(report: &ValidationReport) {
 
 fn problem_error(problem: Problem) -> anyhow::Error {
     anyhow!("{} — {}", problem.path, problem.message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A plan somebody could have saved: one election, one contest, two areas.
+    fn plan(version: u32) -> serde_json::Value {
+        serde_json::json!({
+            "version": version,
+            "external_id": "union-2027",
+            "name": {"en": "Union Election 2027"},
+            "languages": ["en"],
+            "trustees": [
+                {"name": "A", "email": "a@example.org"},
+                {"name": "B", "email": "b@example.org"},
+                {"name": "C", "email": "c@example.org"}
+            ],
+            "trustee_threshold": 2,
+            "areas": [{"external_id": "north", "name": "North Local 1"}],
+            "elections": [{
+                "external_id": "officers",
+                "name": {"en": "Officers"},
+                "contests": [{
+                    "external_id": "president",
+                    "name": {"en": "President"},
+                    "max_votes": 1,
+                    "winners": 1,
+                    "candidates": [
+                        {"external_id": "alice", "name": {"en": "Alice"}},
+                        {"external_id": "bob", "name": {"en": "Bob"}}
+                    ]
+                }]
+            }]
+        })
+    }
+
+    fn compile(document: &serde_json::Value) -> (tempfile::TempDir, PathBuf) {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("blueprint.json");
+        fs::write(&path, serde_json::to_vec(document).unwrap()).unwrap();
+        let command = CompilePlan {
+            plan: path,
+            out: root.path().join("out"),
+            profile: None,
+            tenant_id: None,
+            base_export: None,
+            slug: Some("event".to_string()),
+            created_at: None,
+            strict: false,
+            check_only: false,
+            preview: false,
+        };
+        command.compile().expect("the plan compiles");
+        let directory = root.path().join("out").join("event");
+        (root, directory)
+    }
+
+    fn written(directory: &std::path::Path) -> Vec<String> {
+        let mut names = Vec::new();
+        let mut stack = vec![directory.to_path_buf()];
+        while let Some(next) = stack.pop() {
+            for entry in fs::read_dir(next).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else {
+                    names.push(
+                        path.strip_prefix(directory)
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned(),
+                    );
+                }
+            }
+        }
+        names
+    }
+
+    /// A support material is written under `export_S3_files/`, whose directory
+    /// nothing else creates.
+    #[test]
+    fn a_plan_with_a_support_material_writes_its_file() {
+        let mut document = plan(sequent_core::election_config::architect::BLUEPRINT_VERSION);
+        document["materials"] = serde_json::json!([{
+            "external_id": "guide",
+            "title": {"en": "Voter guide"},
+            "kind": "application/pdf",
+            "file_name": "guide.pdf",
+            "bytes": "JVBERi0xLjQK"
+        }]);
+
+        let (_root, directory) = compile(&document);
+
+        assert!(
+            written(&directory)
+                .iter()
+                .any(|name| name.starts_with("export_S3_files/") && name.ends_with("guide.pdf")),
+            "{:?}",
+            written(&directory)
+        );
+    }
 }
