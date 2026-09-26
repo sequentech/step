@@ -102,3 +102,48 @@ fn write_voters<W: Write>(
 #[cfg(test)]
 #[path = "../../tests/support/voter_csv_boundaries.rs"]
 mod boundary_tests;
+
+#[cfg(test)]
+mod username_start_regression {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn generated_csv_honors_the_start_number_and_keeps_the_legacy_default() {
+        for (start, expected) in [
+            (Some(100), "username\n100\n101\n"),
+            (None, "username\n0\n1\n"),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut config = json!({
+                "election_event_json_file": "event.json", "realm_name": "synthetic",
+                "tenant_id": "tenant", "election_event_id": "event", "area_id": "area", "election_id": "election",
+                "generate_voters": {
+                    "csv_file_name": "voters", "fields": ["username"], "excluded_columns": [],
+                    "email_prefix": "voter", "domain": "example.test", "sequence_email_number": true,
+                    "sequence_start_number": 0, "voter_password": "test", "password_salt": "salt",
+                    "hashed_password": "hash", "overseas_reference": "B", "min_age": 18,
+                    "max_age": 90, "authorized_elections_count": 0, "email_verified": true
+                },
+                "duplicate_votes": {"row_id_to_clone": "row"},
+                "generate_applications": {"applicant_data": {}, "annotations": {}}
+            });
+            if let Some(start) = start {
+                config["generate_voters"]["username_start_number"] = json!(start);
+            }
+            std::fs::write(dir.path().join("external_config.json"), config.to_string()).unwrap();
+            std::fs::write(dir.path().join("event.json"), "{}").unwrap();
+            let command = GenerateVoters {
+                working_directory: dir.path().to_str().unwrap().into(),
+                num_users: 2,
+            };
+            command
+                .run_generate_voters(&command.working_directory, 2)
+                .unwrap();
+            assert_eq!(
+                std::fs::read_to_string(dir.path().join("voters_2.csv")).unwrap(),
+                expected
+            );
+        }
+    }
+}
