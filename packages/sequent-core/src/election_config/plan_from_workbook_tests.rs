@@ -859,3 +859,19 @@ fn a_plan_nobody_wrote_a_prompt_on_carries_no_prompt_column() {
         );
     }
 }
+
+/// An area that allows early voting still allows it after the round trip.
+///
+/// `to_workbook` spells the answer in the platform's own words,
+/// `allow_early_voting` or `no_early_voting`, and the reader understood only a
+/// yes or a no — so every area came back closed to early voting.
+#[test]
+fn an_area_that_allows_early_voting_still_does_after_the_workbook() {
+    let mut plan = sound();
+    plan.areas[0].allow_early_voting = true;
+
+    let back = read(&plan);
+
+    assert!(back.areas[0].allow_early_voting);
+    assert!(!back.areas[1].allow_early_voting);
+}

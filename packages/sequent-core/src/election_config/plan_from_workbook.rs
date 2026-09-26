@@ -199,6 +199,22 @@ fn flag(row: &Row, column: &str) -> Option<bool> {
     }
 }
 
+/// An area's `presentation.allow_early_voting`, as either writer spells it.
+///
+/// `to_workbook` writes the platform's own words, `allow_early_voting` or
+/// `no_early_voting`, because that is what the bundle carries. Reading only a
+/// yes/no here turned every area that allowed early voting into one that did not
+/// on the way back, so a round trip through the workbook quietly closed the
+/// early-voting channel for everybody.
+fn early_voting(row: &Row) -> bool {
+    const COLUMN: &str = "presentation.allow_early_voting";
+    match text(row, COLUMN).as_str() {
+        crate::election_config::validate::ALLOW_EARLY_VOTING => true,
+        crate::election_config::validate::NO_EARLY_VOTING => false,
+        _ => flag(row, COLUMN).unwrap_or(false),
+    }
+}
+
 fn whole(row: &Row, column: &str) -> Option<i64> {
     match row.get(column) {
         Some(Value::Number(value)) => value.as_i64(),
@@ -428,11 +444,7 @@ fn read_areas(workbook: &Workbook, report: &mut Report) -> Vec<PlannedArea> {
                     let parent = text(row, "parent.external_id");
                     (!parent.is_empty()).then_some(parent)
                 },
-                allow_early_voting: flag(
-                    row,
-                    "presentation.allow_early_voting",
-                )
-                .unwrap_or(false),
+                allow_early_voting: early_voting(row),
             })
         })
         .collect()
