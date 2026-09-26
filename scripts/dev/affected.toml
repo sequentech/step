@@ -373,10 +373,11 @@ for_each = ["voting-portal", "admin-portal", "results-portal", "ballot-verifier"
 kind = "test"
 runner = "playwright"
 cost = "slow"
-cwd = "."
-command = "yarn --cwd packages build:ui-core && yarn --cwd packages build:ui-essentials && yarn --cwd packages build:{unit} && yarn --cwd {path} test:journeys"
-focus = ["yarn", "--cwd", "{path}", "test:journeys"]
-prepare = "yarn --cwd packages build:ui-core && yarn --cwd packages build:ui-essentials && yarn --cwd packages build:{unit}"
+cwd = "{path}"
+command = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:{unit} && yarn test:journeys"
+focus = ["yarn", "test:journeys"]
+# Journeys serve the production build; a focused run makes it only when missing.
+prepare = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:{unit}"
 needs = ["{path}/dist/index.html"]
 tests = ["{path}/test/journeys/**/*.spec.ts", "{path}/tests/journeys/**/*.spec.ts"]
 requires = ["chromium"]
@@ -385,9 +386,9 @@ workflows = ["frontend-ui-tests.yml"]
 # Its journeys open the voting portal's production build as well.
 ballot-verifier = ["voting-portal"]
 [checks.commands]
-ballot-verifier = "yarn --cwd packages build:ui-core && yarn --cwd packages build:ui-essentials && yarn --cwd packages build:ballot-verifier && yarn --cwd packages build:voting-portal && yarn --cwd packages/ballot-verifier test:journeys"
+ballot-verifier = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:ballot-verifier && yarn --cwd .. build:voting-portal && yarn test:journeys"
 [checks.prepares]
-ballot-verifier = "yarn --cwd packages build:ui-core && yarn --cwd packages build:ui-essentials && yarn --cwd packages build:ballot-verifier && yarn --cwd packages build:voting-portal"
+ballot-verifier = "yarn --cwd .. build:ui-core && yarn --cwd .. build:ui-essentials && yarn --cwd .. build:ballot-verifier && yarn --cwd .. build:voting-portal"
 
 [[checks]]
 id = "smoke:workbench"
@@ -482,6 +483,8 @@ cost = "fast"
 cwd = "."
 command = "yarn --cwd hasura install --frozen-lockfile --non-interactive && node --test hasura/tests/*.test.cjs"
 focus = ["node", "--test"]
+prepare = "yarn --cwd hasura install --frozen-lockfile --non-interactive"
+needs = ["hasura/node_modules"]
 tests = ["hasura/tests/*.test.cjs"]
 workflows = ["backend-database-contracts.yml"]
 
