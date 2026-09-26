@@ -22,7 +22,7 @@ export const CreateAreaContest: React.FC = () => {
                 <Typography variant="h4">Area Contest</Typography>
                 <Typography variant="body2">Area Contest creation</Typography>
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="username" />
+                    <SelectInput optionText="slug" />
                 </ReferenceInput>
                 <FormDataConsumer>
                     {({formData}) => (
