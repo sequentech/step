@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext} from "react"
-import type {Meta, StoryObj} from "@storybook/react-vite"
+import type {StoryObj} from "@storybook/react-vite"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, waitFor, within} from "storybook/test"
 import {RecordContextProvider, type RaRecord} from "react-admin"
 import {FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
@@ -121,7 +122,7 @@ function KeysScreen() {
 
 const meta = {
     title: "Screens/Admin/Keys ceremony",
-    component: KeysScreen,
+    component: EditElectionEventKeys,
     args: {data: EStoryDataState.POPULATED},
     beforeEach: ({args, globals}) => {
         const ceremonies = {
@@ -165,9 +166,9 @@ const meta = {
         }
     },
     render: (_args, {globals}) => <KeysScreen key={JSON.stringify(globals)} />,
-} satisfies Meta<Scenario>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 
 export const Loading: Story = {
     args: {data: EStoryDataState.LOADING},

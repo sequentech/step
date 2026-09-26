@@ -5,7 +5,7 @@ import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, within} from "storybook/test"
 import {NoItem} from "./NoItem"
 
-const meta = {title: "components/NoItem", component: NoItem} satisfies Meta<typeof NoItem>
+const meta = {title: "Admin/Components/NoItem", component: NoItem} satisfies Meta<typeof NoItem>
 export default meta
 type Story = StoryObj<typeof meta>
 

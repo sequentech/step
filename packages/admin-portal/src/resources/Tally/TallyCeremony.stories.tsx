@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useState} from "react"
-import type {Meta, StoryObj} from "@storybook/react-vite"
+import type {StoryObj} from "@storybook/react-vite"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, type RaRecord} from "react-admin"
 import {EVotingStatus, i18n} from "@sequentech/ui-core"
@@ -109,7 +110,7 @@ function Fixture(args: Scenario) {
 }
 const meta = {
     title: "Screens/Admin/Tally ceremony",
-    component: Fixture,
+    component: TallyCeremony,
     args: {data: EStoryDataState.POPULATED, automated: false, failure: false},
     beforeEach: ({args, globals}) => {
         const {workflow} = readStoryGlobals(globals)
@@ -225,9 +226,9 @@ const meta = {
         }
     },
     render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
-} satisfies Meta<Scenario>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 const mutations = () => boundary.calls.filter((call) => call.name !== "ListKeysCeremony")
 async function ready(canvasElement: HTMLElement, label = "Start Tally Ceremony") {
     const canvas = within(canvasElement)

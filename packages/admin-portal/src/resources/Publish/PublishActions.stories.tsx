@@ -79,7 +79,7 @@ function PublicationFixture(props: Props) {
     )
 }
 const meta = {
-    title: "Admin/Publication actions",
+    title: "Admin/Publish/PublishActions",
     component: PublishActions,
     args: {
         roles,

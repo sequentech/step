@@ -49,7 +49,7 @@ let dataProvider: ReturnType<typeof testDataProvider>
 type Props = React.ComponentProps<typeof ConfigureStep> & {outcome: "success" | "permission-error"}
 
 const meta = {
-    title: "Admin/Keys ceremony configuration",
+    title: "Admin/Keys ceremony/ConfigureStep",
     component: ConfigureStep,
     args: {
         currentCeremony: null,

@@ -2,23 +2,54 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
+import {readFileSync} from "node:fs"
+import {createRequire} from "node:module"
+import {dirname} from "node:path"
 import {fileURLToPath} from "node:url"
 import config from "../../ui-essentials/.storybook/main.ts"
 import postcssPresetEnv from "postcss-preset-env"
-import {mergeConfig, searchForWorkspaceRoot} from "vite"
+import {mergeConfig, searchForWorkspaceRoot, type Plugin} from "vite"
 
 // Role stories read the default tenant groups from the Keycloak realm template.
 const realmTemplates = fileURLToPath(
     new URL("../../../.devcontainer/keycloak/import", import.meta.url)
 )
 
+// Story GraphQL boundaries check operations against the portal's schema. A
+// module of the story bundle provides it, so no story requests it at runtime.
+const SCHEMA_MODULE = "virtual:admin-graphql-schema"
+const adminGraphqlSchema = (): Plugin => ({
+    name: "admin-graphql-schema",
+    resolveId: (id) => (id === SCHEMA_MODULE ? `\0${SCHEMA_MODULE}` : undefined),
+    load: (id) =>
+        id === `\0${SCHEMA_MODULE}`
+            ? `export default ${JSON.stringify(
+                  readFileSync(new URL("../graphql.schema.json", import.meta.url), "utf8")
+              )}`
+            : undefined,
+})
+
+// As webpack.config.cjs does: braid's threaded WASM loads its unbundled modules
+// from /braid-wasm and needs a cross-origin isolated page for shared memory.
+const braidWasm = dirname(createRequire(import.meta.url).resolve("braid-wasm/package.json"))
+const CROSS_ORIGIN_ISOLATION = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+}
+
 const adminConfig = {
     ...config,
-    staticDirs: ["../public"],
+    staticDirs: ["../public", {from: braidWasm, to: "/braid-wasm"}],
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
-            define: {"process.env.MAX_DIFF_LINES": "500"},
-            server: {fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]}},
+            plugins: [adminGraphqlSchema()],
+            // As in webpack.config.cjs: public assets such as /tinymce are served from the root.
+            define: {"process.env.MAX_DIFF_LINES": "500", "process.env.PUBLIC_URL": '""'},
+            server: {
+                fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]},
+                headers: CROSS_ORIGIN_ISOLATION,
+            },
             css: {postcss: {plugins: [postcssPresetEnv()]}},
             optimizeDeps: {
                 include: [
@@ -92,6 +123,7 @@ const adminConfig = {
                     "@mui/icons-material/DragIndicator",
 
                     "ra-language-english",
+                    "graphql",
                     "keycloak-js",
                     "@mui/icons-material/Download",
                     "@mui/icons-material/Upload",

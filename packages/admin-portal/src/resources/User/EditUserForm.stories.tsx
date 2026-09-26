@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useState} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {StoryObj} from "@storybook/react"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {ApolloLink, Observable} from "@apollo/client"
 import type {RaRecord} from "react-admin"
@@ -84,8 +85,8 @@ function Fixture({permissions}: Scenario) {
     )
 }
 const meta = {
-    title: "Admin/Voter editor guards",
-    component: Fixture,
+    title: "Admin/User/EditUserForm",
+    component: EditUserForm,
     args: {permissions: ["voter-secret-attribute-read"], voted: false, reveal: "success"},
     beforeEach: ({args}) => {
         pendingRequests = 0
@@ -168,9 +169,9 @@ const meta = {
         }
     },
     render: (args) => <Fixture {...args} />,
-} satisfies Meta<Scenario>
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 async function loaded(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await canvas.findByDisplayValue("alice")
