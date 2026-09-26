@@ -4,6 +4,7 @@
 import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, fn, userEvent, waitFor, within} from "storybook/test"
+import {GraphQLError} from "graphql"
 import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {STORY_IDS} from "@/__stories__/fixtures"
@@ -14,6 +15,8 @@ import {RejectApplicationDialog} from "./RejectApplication"
 import {APPLICATION_ID, applicationRecord} from "./__stories__/ApprovalsFixture"
 
 interface Scenario {
+    /** Whether the status service rejects the change. */
+    failure: boolean
     status: IApplicationsStatus
     rejectDialogOpen: boolean
     goBack: () => void
@@ -26,24 +29,33 @@ const meta = {
     title: "Admin/Approvals/RejectApplicationDialog",
     component: RejectApplicationDialog,
     args: {
+        failure: false,
         status: IApplicationsStatus.PENDING,
         rejectDialogOpen: true,
         goBack: fn(),
         setRejectDialogOpen: fn(),
     },
     argTypes: {status: {control: "select", options: Object.values(IApplicationsStatus)}},
-    beforeEach: async () => {
+    beforeEach: async ({args}) => {
         boundary = graphqlBoundary(
             {
-                ChangeApplicationStatus: () => ({
-                    data: {ApplicationChangeStatus: {message: "Application rejected", error: null}},
-                }),
+                ChangeApplicationStatus: () =>
+                    args.failure
+                        ? {errors: [new GraphQLError("Synthetic status service failure")]}
+                        : {
+                              data: {
+                                  ApplicationChangeStatus: {
+                                      message: "Application rejected",
+                                      error: null,
+                                  },
+                              },
+                          },
             },
             {schema: true}
         )
         await boundary.ready
     },
-    render: ({status, ...args}) => (
+    render: ({status, failure: _failure, ...args}) => (
         <AdminStoryProvider boundary={boundary}>
             <RejectApplicationDialog
                 {...args}
@@ -154,5 +166,21 @@ export const ProcessedApplicationCannotBeRejected: Story = {
     args: {status: IApplicationsStatus.ACCEPTED},
     play: async () => {
         expect(within(document.body).queryByRole("dialog")).not.toBeInTheDocument()
+    },
+}
+
+export const RejectionFailureKeepsTheDialogOpen: Story = {
+    args: {failure: true},
+    play: async ({args}) => {
+        const dialog = await openDialog()
+        await chooseReason(dialog, "insufficient-information")
+        await submit(dialog)
+        const message = await within(document.body).findByText(
+            i18n.t("approvalsScreen.notifications.rejectError")
+        )
+        await waitFor(() => expect(message).toBeVisible())
+        expect(boundary.calls.map(({name}) => name)).toEqual(["ChangeApplicationStatus"])
+        expect(args.goBack).not.toHaveBeenCalled()
+        expect(args.setRejectDialogOpen).not.toHaveBeenCalled()
     },
 }
