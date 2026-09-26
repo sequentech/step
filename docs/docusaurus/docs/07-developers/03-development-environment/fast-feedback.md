@@ -105,10 +105,12 @@ new-container starts sharing the final volume after an excluded warmup. Only one
 copied store exists at a time. Raw timings, tool versions, load, image identity,
 logs and the sample counts are in the platform's `prebuild-smoke` artifact.
 Fresh-volume seeding is included; image build/pull and application/service
-readiness are separate. The smoke has a ten-minute budget; if copying the store
-limits the fresh series after its first sample, the report states that limit.
-Warm samples must complete. Insufficient disk headroom fails before any store
-copy. To check an already built local image without downloading or publishing:
+readiness are separate. Each sample records container creation and toolchain
+startup separately, with a combined ten-minute timeout and a twelve-minute
+measurement budget. If the observed first fresh start leaves insufficient time
+for the remaining fresh starts and warm series, the report states the smaller
+sample count. Warm samples must complete. Insufficient disk headroom fails before
+any store copy. To check an already built local image without downloading or publishing:
 
 ```sh
 python3 -m scripts.dev.prebuild_smoke --image <local-image> --output-dir /tmp/prebuild-smoke
@@ -117,6 +119,10 @@ python3 -m scripts.dev.prebuild_smoke --image <local-image> --output-dir /tmp/pr
 Pass `--docker-host unix:///path/to/owned/docker.sock` for an isolated daemon;
 otherwise the helper uses `DOCKER_HOST` when set, or the default local daemon.
 It removes only the containers and volumes bearing this run's UUID owner label.
+A timed-out creation stays tracked while cleanup waits up to ninety seconds for
+the container to become inspectable. Failure artifacts retain creation/start
+logs, available container/daemon diagnostics and any resources still awaiting
+cleanup. The workflow allows fifteen minutes for measurement and cleanup.
 
 ## Shared UI hot reload
 

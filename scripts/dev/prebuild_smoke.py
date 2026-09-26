@@ -24,13 +24,14 @@ from pathlib import Path
 from .bench.common import Run, SampleTimer, start_run
 from .bench.isolation import Docker, IsolationError
 from .bench.process import run_command
-from .bench.results import CacheState, SampleRole, summarize_samples
+from .bench.results import CacheState, SampleRole, summarize_samples, utc_now
 from .prebuild import IMAGE_LABEL, fingerprint
 
 OWNER_LABEL = "io.sequent.prebuild-smoke-owner"
 READY_PREFIX = "STEP_PREBUILD_READY="
-SAMPLE_TIMEOUT = 180
+SAMPLE_TIMEOUT = 600
 WARM_RESERVE = 180
+CLEANUP_TIMEOUT = 90
 TOOLS = ("node", "yarn", "rustc", "cargo", "wasm-pack", "wasm-bindgen")
 READINESS = """\
 import json, pathlib, subprocess, sys
@@ -54,6 +55,18 @@ print('STEP_PREBUILD_READY=' + json.dumps({
 
 class SmokeError(RuntimeError):
     pass
+
+
+class OwnershipError(SmokeError):
+    pass
+
+
+def record_failure(output: Path, error: BaseException) -> None:
+    path = output / "failure.log"
+    message = str(error) + "\n"
+    if not path.exists() or message not in path.read_text():
+        with path.open("a") as handle:
+            handle.write(message)
 
 
 def local_image(docker: Docker, image: str, key: str) -> dict:
@@ -99,6 +112,8 @@ class OwnedResources:
         self.owner = uuid.uuid4().hex
         self.containers: set[str] = set()
         self.volumes: set[str] = set()
+        self.pending: set[str] = set()
+        self.failed: set[str] = set()
         self.record()
 
     def record(self) -> None:
@@ -108,6 +123,7 @@ class OwnedResources:
                     "owner": self.owner,
                     "containers": sorted(self.containers),
                     "volumes": sorted(self.volumes),
+                    "pending_creates": sorted(self.pending),
                 },
                 indent=2,
             )
@@ -129,59 +145,138 @@ class OwnedResources:
     def container(self) -> str:
         name = f"step-prebuild-{self.owner}-{uuid.uuid4().hex[:8]}"
         self.containers.add(name)
+        self.pending.add(name)
         self.record()
         return name
 
-    def remove(self, kind: str, name: str) -> None:
+    def created(self, name: str) -> None:
+        self.pending.remove(name)
+        self.record()
+
+    def inspect(self, kind: str, name: str) -> dict | None:
+        response = self.docker.run(kind, "inspect", name, check=False, timeout=5)
+        entry = json.loads(response.stdout)[0] if response.returncode == 0 else None
+        diagnostic = {
+            "at": utc_now(),
+            "kind": kind,
+            "name": name,
+            "returncode": response.returncode,
+            "stderr": response.stderr,
+        }
+        if entry:
+            diagnostic["resource"] = {
+                key: entry.get(key)
+                for key in ("Id", "Name", "State", "Mounts", "Labels")
+            }
+            diagnostic["owner"] = (entry.get("Config", {}).get("Labels") or {}).get(
+                OWNER_LABEL
+            )
+        with (self.log.parent / "inspections.jsonl").open("a") as handle:
+            handle.write(json.dumps(diagnostic) + "\n")
+        if response.returncode and "no such" not in response.stderr.lower():
+            raise SmokeError(
+                f"cannot inspect owned {kind} {name}: {response.stderr.strip()}"
+            )
+        return entry
+
+    def diagnostics(self, name: str) -> None:
+        """Keep container and daemon output before removing a failed container."""
+        directory = self.log.parent / "diagnostics"
+        directory.mkdir(exist_ok=True)
+        for command, suffix in (
+            (["logs", "--timestamps", name], "container.log"),
+            (
+                [
+                    "cp",
+                    f"{name}:/tmp/nix-daemon.log",
+                    str(directory / f"{name}-nix-daemon.log"),
+                ],
+                "copy.log",
+            ),
+        ):
+            try:
+                result = self.docker.run(*command, check=False, timeout=5)
+                (directory / f"{name}-{suffix}").write_text(
+                    result.stdout + result.stderr
+                )
+            except (OSError, subprocess.SubprocessError) as error:
+                (directory / f"{name}-{suffix}").write_text(str(error) + "\n")
+
+    def remove(self, kind: str, name: str) -> bool:
         tracked = self.containers if kind == "container" else self.volumes
         if name not in tracked:
-            raise SmokeError(f"refusing untracked {kind}: {name}")
-        response = self.docker.run(kind, "inspect", name, check=False, timeout=30)
-        if response.returncode == 0:
-            entry = json.loads(response.stdout)[0]
+            raise OwnershipError(f"refusing untracked {kind}: {name}")
+        entry = self.inspect(kind, name)
+        if entry:
             labels = (
                 entry.get("Config", {}).get("Labels")
                 if kind == "container"
                 else entry.get("Labels")
             )
             if (labels or {}).get(OWNER_LABEL) != self.owner:
-                raise SmokeError(f"refusing {kind} with another owner: {name}")
+                raise OwnershipError(f"refusing {kind} with another owner: {name}")
+            if kind == "container" and name in self.failed:
+                self.diagnostics(name)
+                self.failed.remove(name)
             arguments = (
                 [kind, "rm", "--force", name]
                 if kind == "container"
                 else [kind, "rm", name]
             )
-            self.docker.run(*arguments, timeout=60)
-        elif "no such" not in response.stderr.lower():
-            raise SmokeError(
-                f"cannot inspect owned {kind} {name}: {response.stderr.strip()}"
-            )
+            self.docker.run(*arguments, timeout=10)
+        elif kind == "container" and name in self.pending:
+            # Killing the CLI does not cancel the daemon's create/copy request.
+            # Keep the exact name until it appears and can be removed by owner.
+            return False
         tracked.remove(name)
+        self.pending.discard(name)
         self.record()
+        return True
 
     def cleanup(self) -> None:
-        errors = []
-        for kind, names in (("container", self.containers), ("volume", self.volumes)):
-            for name in sorted(names):
-                try:
-                    self.remove(kind, name)
-                except (
-                    OSError,
-                    ValueError,
-                    subprocess.SubprocessError,
-                    IsolationError,
-                    SmokeError,
-                ) as error:
-                    errors.append(str(error))
-        if errors:
-            self.log.write_text("\n".join(errors) + "\n")
+        deadline = time.monotonic() + CLEANUP_TIMEOUT
+        errors: dict[str, str] = {}
+        refused = False
+        while self.containers or self.volumes:
+            # Do not remove a volume while its pending create could still attach it.
+            kinds = (
+                [("container", self.containers)]
+                if self.containers
+                else [("volume", self.volumes)]
+            )
+            for kind, names in kinds:
+                for name in sorted(names):
+                    try:
+                        if self.remove(kind, name):
+                            errors.pop(name, None)
+                        else:
+                            errors[name] = (
+                                f"pending create is not yet inspectable: {name}"
+                            )
+                    except OwnershipError as error:
+                        errors[name] = str(error)
+                        refused = True
+                    except (
+                        OSError,
+                        ValueError,
+                        subprocess.SubprocessError,
+                        IsolationError,
+                        SmokeError,
+                    ) as error:
+                        errors[name] = str(error)
+            if refused or time.monotonic() >= deadline:
+                break
+            if self.containers or self.volumes:
+                time.sleep(0.5)
+        if self.containers or self.volumes:
+            self.log.write_text("\n".join(errors.values()) + "\n")
             raise SmokeError("owned-resource cleanup failed; see cleanup.log")
 
 
 def command(image: str, container: str, volume: str, owner: str) -> list[str]:
     return [
         "docker",
-        "run",
+        "create",
         "--pull",
         "never",
         "--name",
@@ -219,32 +314,62 @@ def sample(
 ) -> None:
     container = resources.container()
     invocation = command(image, container, volume, resources.owner)
-    log = run.logs / f"{role.value}-{index}.log"
+    logs = run.logs / f"{role.value}-{index}"
     timer = SampleTimer(index, role)
+    phases = {}
     detail = {
         "container": container,
         "nix_volume": volume,
-        "command": shlex.join(invocation),
+        "create_command": shlex.join(invocation),
+        "phase": "create",
     }
     try:
-        result = run_command(
+        created = run_command(
             invocation,
             cwd=root,
-            log=log,
+            log=logs.with_suffix(".create.log"),
             env=resources.docker.environment,
             timeout=timeout,
         )
-        if not result.ok:
+        phases["create"] = created.seconds
+        if not created.ok:
             raise SmokeError(
-                f"container readiness failed ({result.returncode}); see {log.name}"
+                f"container create failed ({created.returncode}) after "
+                f"{created.seconds:.3f} s; see {logs.name}.create.log"
             )
-        detail.update(readiness(log))
-        run.add(timer.finish(ok=True, seconds=result.seconds, detail=detail))
+        resources.created(container)
+        detail["phase"] = "toolchain"
+        remaining = timeout - timer.elapsed()
+        if remaining <= 0:
+            raise SmokeError("sample time budget exhausted after container creation")
+        started = run_command(
+            ["docker", "start", "--attach", container],
+            cwd=root,
+            log=logs.with_suffix(".start.log"),
+            env=resources.docker.environment,
+            timeout=remaining,
+        )
+        phases["toolchain"] = started.seconds
+        if not started.ok:
+            raise SmokeError(
+                f"toolchain readiness failed ({started.returncode}); "
+                f"see {logs.name}.start.log"
+            )
+        detail.update(readiness(logs.with_suffix(".start.log")))
+        run.add(
+            timer.finish(ok=True, seconds=timer.elapsed(), phases=phases, detail=detail)
+        )
     except (OSError, ValueError, subprocess.SubprocessError, SmokeError) as error:
-        run.add(timer.finish(ok=False, seconds=None, detail=detail, error=str(error)))
+        resources.failed.add(container)
+        # A pending create may have no logs yet; cleanup captures its output as
+        # soon as the exact owned container becomes inspectable.
+        run.add(
+            timer.finish(
+                ok=False, seconds=None, phases=phases, detail=detail, error=str(error)
+            )
+        )
         raise
-    finally:
-        resources.remove("container", container)
+    resources.remove("container", container)
 
 
 def write_summary(runs: list[Run], path: Path) -> None:
@@ -280,7 +405,7 @@ def measure(
     image: dict,
     fresh: int = 3,
     warm: int = 10,
-    budget: float = 600,
+    budget: float = 720,
 ) -> list[Run]:
     if fresh < 1 or warm < 1 or budget <= 0:
         raise ValueError("need positive fresh/warm counts and a positive time budget")
@@ -301,8 +426,8 @@ def measure(
             output_dir=output,
             services=[],
             commands=[
-                "docker run --pull never --network none "
-                "<local image> <toolchain readiness>"
+                "docker create --pull never --network none <local image>; "
+                "docker start --attach <owned container>"
             ],
             parameters={
                 "image": image,
@@ -317,11 +442,17 @@ def measure(
     resources = OwnedResources(docker, output / "cleanup.log")
     cold, hot = runs
     volume = None
+    primary = None
     try:
         # Only one copied store exists at a time, including during warm samples.
         for index in range(1, fresh + 1):
             remaining = deadline - time.monotonic()
-            if index > 1 and remaining < cold.result.samples[-1].seconds + WARM_RESERVE:
+            expected = (
+                (fresh - index + 1) * cold.result.samples[-1].seconds
+                if index > 1
+                else 0
+            )
+            if index > 1 and remaining < expected + WARM_RESERVE:
                 cold.result.notes.append(
                     f"Fresh series limited to {index - 1}/{fresh}: "
                     "observed copy time leaves insufficient budget for more "
@@ -365,11 +496,19 @@ def measure(
         IsolationError,
         SmokeError,
     ) as error:
+        primary = error
+        record_failure(output, error)
         cold.result.notes.append(f"Incomplete smoke: {error}")
         raise
     finally:
         try:
-            resources.cleanup()
+            try:
+                resources.cleanup()
+            except SmokeError as error:
+                record_failure(output, error)
+                cold.result.notes.append(str(error))
+                if primary is None:
+                    raise
         finally:
             for run in runs:
                 run.finish()
@@ -414,7 +553,7 @@ def main() -> None:
         IsolationError,
         SmokeError,
     ) as error:
-        (args.output_dir / "failure.log").write_text(str(error) + "\n")
+        record_failure(args.output_dir, error)
         print(f"Prebuild smoke failed: {error}")
         raise SystemExit(1) from error
 
