@@ -11,6 +11,7 @@ import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IPermissions} from "@/types/keycloak"
 import {ETemplateType} from "@/types/templates"
+import {TINYMCE_DEFECTS} from "@/components/__stories__/EditorFixture"
 import {TemplateFormContent} from "./TemplateFormContent"
 import {
     CREDENTIALS_TEMPLATE_ID,
@@ -201,7 +202,12 @@ export const DefaultTemplateUnavailable: Story = {
 }
 
 export const ChooseTheMethods: Story = {
-    parameters: {expectedFailure: OPEN_ACCORDIONS},
+    parameters: {
+        expectedFailure: {
+            reason: `${OPEN_ACCORDIONS.reason} ${TINYMCE_DEFECTS.reason}`,
+            a11y: [...TINYMCE_DEFECTS.a11y, ...OPEN_ACCORDIONS.a11y],
+        },
+    },
     play: async ({canvasElement}) => {
         await userEvent.click(methodSwitch(canvasElement, "email"))
         await userEvent.click(methodSwitch(canvasElement, "sms"))
@@ -211,6 +217,12 @@ export const ChooseTheMethods: Story = {
         await expect(
             await within(canvasElement).findByRole("textbox", {name: i18n.t("emailEditor.subject")})
         ).toBeVisible()
+        // The email body's rich text editor has loaded.
+        await waitFor(
+            () =>
+                expect(canvasElement.querySelector(".tox-statusbar__resize-handle")).not.toBeNull(),
+            {timeout: 10_000}
+        )
         const sms = accordion(canvasElement, i18n.t("template.form.smsMessage")) as HTMLElement
         await userEvent.click(sms)
         await userEvent.type(textbox(canvasElement, "smsMessage"), "Vote now")
