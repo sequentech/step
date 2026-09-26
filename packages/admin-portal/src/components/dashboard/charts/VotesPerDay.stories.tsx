@@ -69,6 +69,16 @@ export const Loading: Story = {
     },
 }
 
+export const Unavailable: Story = {
+    args: {data: null, unavailable: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText("-")).toBeVisible()
+        expect(canvas.queryByRole("progressbar")).toBeNull()
+        expect(canvasElement.querySelector(".apexcharts-canvas")).toBeNull()
+    },
+}
+
 export const NoVotes: Story = {
     args: {data: []},
     play: async ({canvasElement}) => {

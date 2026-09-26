@@ -146,7 +146,7 @@ export const Loading: Story = {
 export const StatsUnavailable: Story = {
     args: {stats: "error"},
     globals: {permissions: EStoryPermissions.ADMIN_LIGHT},
-    parameters: progressDefect,
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const eligible = await canvas.findByText("Eligible Voters")
