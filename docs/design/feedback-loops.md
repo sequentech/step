@@ -327,6 +327,34 @@ Decisions so far:
   conformance: native screen readers, browser zoom, OS clipboard integration,
   native autofill, password-manager extensions and inherited flows retain
   explicit verification limits. The replacement walkthrough shows the final design and keyboard behavior.
+- **Authentication secret disclosure and related errors**: the follow-up at
+  `3ca7601b69` removes OTPs, signed login links, delivery credentials and CAPTCHA
+  secrets from authenticator, email/SMS-provider and bridge logs/events. Message
+  delivery still receives the original payload. Communication-event masking uses
+  literal values and the signed key separately, including URLs normalized by
+  Keycloak's actual sanitizer. Missing-code and smart-link null-user errors,
+  empty test-code acceptance, optional-OTL fallthrough and incorrect success
+  feedback are corrected. CAPTCHA validation now requires the provider's success
+  flag, preserves the configured score threshold, closes interrupted responses
+  and fails closed; no attacker exploitability claim is made for the old flag
+  handling. The same 33 focused cases produced 21 assertion failures and five
+  null-pointer errors on original sources, with seven controls passing; all pass
+  after correction. Six CAPTCHA cases independently fail before/pass after, and
+  the sanitizer regression reproduces the review finding before its correction.
+  The full Java reactor passes 367 tests with zero failures/errors/skips; scoped
+  formatting and independent candidate review pass. Hosted Java checks exposed
+  Maven-dependent discovery: the older runner omitted 43 existing Jupiter tests,
+  while the pinned-Maven job ran all 367. Surefire 3.5.5 is now pinned for the
+  parent and standalone bridge. Local clean verification and both hosted Java
+  jobs at `88cb1ae4a7` now pass all 367 tests with zero failures/errors/skips. Four verified provider JARs
+  are installed in the owned Keycloak environment. All 15 live browser checks
+  pass in both themes with OIDC redemption, localization, errors and reflow.
+  Those browser checks now use a random per-run test code only in their disposable
+  realm, with no provider-log access; Java tests cover actual stored-code
+  verification, expiry, rejection, delivery and feedback. External services are
+  mocked in the Java checks. Scenario output and tutorials no longer direct users
+  to OTP logs; all 85 scenario tests and scoped Ruff checks pass. The optional HMR
+  timing check was not rerun; earlier timing samples retain their source revision.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline. The dev server now
@@ -433,10 +461,16 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   success-only saves, incompatible identities and branch/PR isolation; seven
   failures before the correction become zero afterward. This validates the
   transport policy, not an actual hosted cache hit or a speedup; current hosted
-  save/restore evidence is tracked in the issue. At `acebe8e3d2`, wrap-map-err
-  passes all 18 tests with six Rust misses, then successfully saves its compiler
-  generation in the PR scope. A saved archive alone is not compiler reuse; the
-  subsequent exact-generation restore and Rust-hit evidence is tracked separately.
+  save/restore evidence is tracked in the issue. The compiler generations saved
+  by the original `acebe8e3d2` and `d62c84055b` runs were later absent from the
+  cache inventory; their successful saves did not establish reuse. A controlled
+  seed/replay pair at `d62c84055b` (Tests run `36272273501`, attempts 2 and 3)
+  then restores the exact saved PR-scoped generation, records six Rust hits and
+  zero misses, passes all 18 tests without ignored or filtered cases, and saves
+  the next compatible generation. Both dependent aggregate gates pass. This is
+  n=1 seed plus n=1 replay at the same SHA, not a natural-push, source-edit or
+  timing-speedup result. The missing archives and earlier zero-hit runs remain
+  preserved; their disappearance cause is not established.
 - **Rust service linker** (adopted on aarch64 Linux): identical application sources at
   `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
   All 60 measured saves succeeded, with ten per edit and linker plus excluded
@@ -489,13 +523,14 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   toolchain context. PRs build without publishing; trusted branch workflows
   publish matching images. Local selection checks identity and architecture,
   falling back to the standard image when missing or incompatible. Both native
-  builds and offline toolchain readiness pass at PR head `acebe8e3d2`, GitHub
-  merge checkout `8a48ec9844`. Fresh-volume readiness, including copying the
-  store, is 261.067 s on arm64 and 229.459 s on amd64 (n=1 each, bounded budget).
-  Warm medians are 11.7195 s (11.619–11.869) and 7.634 s (7.459–7.860),
+  builds and offline toolchain readiness pass at PR head `d62c84055b`, GitHub
+  merge checkout `42670c443c`. Fresh-volume readiness, including copying the
+  store, is 218.630 s on arm64 and 288.421 s on amd64 (n=1 each, bounded budget).
+  Warm medians are 11.214 s (11.064–11.364) and 10.7195 s (10.468–11.070),
   n=10 each plus excluded warmups. Every sample verifies the baked tools and
   WASM standard library with networking disabled; cleanup leaves no owned
-  resources. The preceding native passes at `1d25f2b73e` remain recorded separately.
+  resources. The preceding native passes at `acebe8e3d2` and `1d25f2b73e` remain
+  recorded separately.
   Earlier fresh-start timeouts and Nix database permission failures
   remain in the raw records. Bounded creation/cleanup and an explicit daemon
   handshake address these failures; three regressions fail before the daemon
@@ -536,7 +571,11 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   at `381c437eec` shows the workbench, actual five-step WASM pipeline, verifier,
   redesigned desktop/mobile Keycloak pages with header language/version/hash,
   keyboard controls, plus actual
-  command selection. All ten captured scenes pass with empty page/console-error
+  command selection. The demonstrated runtime paths still match the current
+  integration across 82 Git tree/blob comparisons; both displayed command
+  outputs remain byte-identical. Later provider and admin-catalog changes are
+  outside those synthetic scenes, so whole-package-tree equality is not claimed.
+  All ten captured scenes pass with empty page/console-error
   ledgers and all five actual WASM steps passing. The synthetic clipboard event is explicitly labeled; this
   recording does not submit authentication or establish formal WCAG conformance.
   The first capture exposed an incomplete verifier GraphQL response and a missing
