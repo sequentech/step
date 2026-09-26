@@ -3,6 +3,7 @@
 import {createServer} from "node:http"
 import {readFile} from "node:fs/promises"
 import type {Page} from "@playwright/test"
+import type {GraphQLReply} from "@sequentech/ui-test-kit/mocks/graphql"
 import {test as base, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {
     AREA_ID,
@@ -271,6 +272,29 @@ const transmissionVariables = {electionId: ELECTION_ID, tallySessionId: TALLY_ID
 const notification = (page: Page, text: string) =>
     page.getByRole("alert", {includeHidden: true}).filter({hasText: text})
 
+async function confirmTransmission(page: Page, portal: AdminPortal, response: GraphQLReply) {
+    let respond!: () => void
+    const responseReady = new Promise<void>((resolve) => (respond = resolve))
+    portal.graphql.on("SendTransmissionPackage", async () => {
+        await responseReady
+        return response
+    })
+    const dialog = page.getByRole("dialog")
+    try {
+        await dialog.getByRole("button", {name: "Send Transmission Package", exact: true}).click()
+        // The modal hides the sending button from role queries during its exit.
+        // Observe a visible pending indicator before allowing the response.
+        await expect(dialog).toBeHidden()
+        await expect(
+            page
+                .getByRole("button", {name: "send transmission package", exact: true})
+                .getByRole("progressbar")
+        ).toBeVisible()
+    } finally {
+        respond()
+    }
+}
+
 test("confirms transmission send and regeneration, then downloads its generated report", async ({
     page,
     portal,
@@ -296,11 +320,15 @@ test("confirms transmission send and regeneration, then downloads its generated 
     await expect(dialog).toHaveCount(0)
     expect(portal.graphql.callsTo("SendTransmissionPackage")).toEqual([])
     await page.getByRole("button", {name: "send transmission package", exact: true}).click()
-    await page
-        .getByRole("dialog")
-        .getByRole("button", {name: "Send Transmission Package", exact: true})
-        .click()
+    await confirmTransmission(page, portal, {
+        data: {send_transmission_package: {id: TALLY_ID}},
+    })
     await expect(notification(page, "Sending Transmission Package...")).toBeVisible()
+    await expect(
+        page
+            .getByRole("button", {name: "send transmission package", exact: true})
+            .getByRole("progressbar")
+    ).toHaveCount(0)
     expect(
         portal.graphql.callsTo("SendTransmissionPackage").map(({variables}) => variables)
     ).toEqual([transmissionVariables])
@@ -431,22 +459,29 @@ test("creates a transmission package for an area that has none", async ({page, p
 for (const failure of ["action error", "gateway error"] as const) {
     test(`ends the sending indicator after a transmission ${failure}`, async ({page, portal}) => {
         await transmissionWorld(portal)
-        portal.graphql.on("SendTransmissionPackage", () =>
+        // Keep background tally refreshes out of the mutation's error cleanup.
+        portal.settings.QUERY_FAST_POLL_INTERVAL_MS = 3_600_000
+        await openTransmission(page, portal)
+        const send = page.getByRole("button", {name: "send transmission package", exact: true})
+        await send.click()
+        await confirmTransmission(
+            page,
+            portal,
             failure === "action error"
                 ? {errors: [{message: "transmission rejected"}]}
                 : {status: 503, body: "Gateway unavailable", contentType: "text/plain"}
         )
-        await openTransmission(page, portal)
-        const send = page.getByRole("button", {name: "send transmission package", exact: true})
-        await send.click()
-        await page
-            .getByRole("dialog")
-            .getByRole("button", {name: "Send Transmission Package", exact: true})
-            .click()
         await expect(notification(page, "Error sending Transmission Package")).toBeVisible()
         expect(
             portal.graphql.callsTo("SendTransmissionPackage").map(({variables}) => variables)
         ).toEqual([transmissionVariables])
+        expect(portal.graphql.callsTo("SendTransmissionPackage")[0].headers["x-hasura-role"]).toBe(
+            "miru-send"
+        )
+        test.fail(
+            true,
+            "MiruExportWizard's rejected-mutation catch notifies without clearing transmissionLoading"
+        )
         await expect(send.getByRole("progressbar")).toHaveCount(0, {timeout: 2000})
     })
 }
