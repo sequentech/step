@@ -18,6 +18,14 @@ mod routes;
 mod services;
 mod types;
 
+#[cfg(test)]
+#[path = "../tests/support/request_boundaries.rs"]
+mod request_boundaries;
+
+#[cfg(test)]
+#[path = "../tests/support/error_contracts.rs"]
+mod error_contracts;
+
 #[launch]
 async fn rocket() -> _ {
     dotenv().ok();
@@ -27,6 +35,12 @@ async fn rocket() -> _ {
     set_is_app_active(true);
     init_plugin_manager().await.unwrap();
 
+    build_application()
+}
+
+/// Register the same routes and managed state for production and local HTTP
+/// tests. Starting probes, plugins and worker processes remains a startup step.
+fn build_application() -> rocket::Rocket<rocket::Build> {
     rocket::build()
         .register(
             "/",
