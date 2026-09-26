@@ -161,8 +161,16 @@ async function selectArchive(page: Page, portal: PortalServices, url: string, en
     expect(request.headers()["content-type"]).toBe(
         encrypted ? "application/ezip" : "application/json"
     )
+    expect(portal.graphql.callsTo("GetUploadUrl").map(({variables}) => variables)).toEqual([
+        {
+            name: encrypted ? "event.ezip" : "event.json",
+            media_type: encrypted ? "application/ezip" : "application/json",
+            size: 16,
+            is_public: false,
+        },
+    ])
     await expect.poll(() => portal.graphql.callsTo("ImportElectionEvent").length).toBe(1)
-    expect(portal.graphql.callsTo("ImportElectionEvent")[0].variables).toMatchObject({
+    expect(portal.graphql.callsTo("ImportElectionEvent")[0].variables).toEqual({
         tenantId: TENANT_ID,
         documentId: DOCUMENT_ID,
         checkOnly: true,
@@ -185,15 +193,29 @@ test("creates an event then refreshes the scoped tree after task completion", as
         .fill("Annual council election")
     await drawer.getByRole("button", {name: "Save", exact: true}).click()
     await expect.poll(() => portal.graphql.callsTo("CreateElectionEvent").length).toBe(1)
-    const input = portal.graphql.callsTo("CreateElectionEvent")[0].variables.electionEvent
-    expect(input).toMatchObject({
-        tenant_id: TENANT_ID,
-        name: "Created council",
-        description: "Annual council election",
-        encryption_protocol: "RSA256",
-        presentation: {
-            language_conf: {enabled_language_codes: ["en"], default_language_code: "en"},
-            i18n: {en: {name: "Created council"}},
+    expect(portal.graphql.callsTo("CreateElectionEvent")[0].variables).toEqual({
+        electionEvent: {
+            id: expect.stringMatching(
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+            ),
+            tenant_id: TENANT_ID,
+            name: "Created council",
+            description: "Annual council election",
+            encryption_protocol: "RSA256",
+            is_archived: false,
+            presentation: {
+                language_conf: {enabled_language_codes: ["en"], default_language_code: "en"},
+                i18n: {
+                    en: {name: "Created council", description: "Annual council election"},
+                    es: {name: "Created council", description: "Annual council election"},
+                    cat: {name: "Created council", description: "Annual council election"},
+                    fr: {name: "Created council", description: "Annual council election"},
+                    tl: {name: "Created council", description: "Annual council election"},
+                    gl: {name: "Created council", description: "Annual council election"},
+                    nl: {name: "Created council", description: "Annual council election"},
+                    eu: {name: "Created council", description: "Annual council election"},
+                },
+            },
         },
     })
     await expect.poll(() => portal.graphql.callsTo("GetTaskById").length).toBeGreaterThan(0)
