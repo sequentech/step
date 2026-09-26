@@ -106,12 +106,18 @@ public class MessageOTPAuthenticator
           return;
         } else if (execution.isConditional() || execution.isAlternative()) {
           context.attempted();
+          return;
         }
       }
 
       String enteredCode = context.getHttpRequest().getDecodedFormParameters().getFirst(Utils.CODE);
-      boolean isValid = Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
-      boolean isValidTestMode = isTestMode && testModeCode.equals(enteredCode);
+      boolean isValid =
+          enteredCode != null && Utils.constantTimeIsEqual(enteredCode.getBytes(), code.getBytes());
+      boolean isValidTestMode =
+          isTestMode
+              && testModeCode != null
+              && !testModeCode.isEmpty()
+              && testModeCode.equals(enteredCode);
       Utils.MessageCourier messageCourier =
           Utils.MessageCourier.fromString(configMap.get(Utils.MESSAGE_COURIER_ATTRIBUTE));
       if (isValidTestMode || isValid) {
@@ -173,16 +179,14 @@ public class MessageOTPAuthenticator
               user,
               authSession,
               messageCourier,
-              /* success */ false,
+              /* success */ true,
               deferredUser,
               isOtl);
         }
       } else {
         // invalid
 
-        context
-            .getEvent()
-            .error(INVALID_CODE + " code input: " + enteredCode + " code should be: " + code);
+        context.getEvent().error(INVALID_CODE);
 
         AuthenticationExecutionModel execution = context.getExecution();
         String codeLength = configMap.get(Utils.CODE_LENGTH);
@@ -227,7 +231,7 @@ public class MessageOTPAuthenticator
       }
 
     } catch (IOException error) {
-      log.error("Error verifying OTP", error);
+      log.error("Error verifying OTP");
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
           context
@@ -291,9 +295,7 @@ public class MessageOTPAuthenticator
       String codeLength = configMap.get(Utils.CODE_LENGTH);
       long currentTime = System.currentTimeMillis();
       log.info(
-          "code="
-              + code
-              + ", ttl="
+          "ttl="
               + ttl
               + ", configTtl="
               + configTtl
@@ -348,7 +350,7 @@ public class MessageOTPAuthenticator
               .setAttribute("codeLength", codeLength)
               .createForm(TPL_CODE));
     } catch (Exception error) {
-      log.error("Error resending OTP", error);
+      log.error("Error resending OTP");
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
           context
