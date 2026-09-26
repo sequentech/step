@@ -2,9 +2,15 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
+import {fileURLToPath} from "node:url"
 import config from "../../ui-essentials/.storybook/main.ts"
 import postcssPresetEnv from "postcss-preset-env"
-import {mergeConfig} from "vite"
+import {mergeConfig, searchForWorkspaceRoot} from "vite"
+
+// Role stories read the default tenant groups from the Keycloak realm template.
+const realmTemplates = fileURLToPath(
+    new URL("../../../.devcontainer/keycloak/import", import.meta.url)
+)
 
 const adminConfig = {
     ...config,
@@ -12,6 +18,7 @@ const adminConfig = {
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
             define: {"process.env.MAX_DIFF_LINES": "500"},
+            server: {fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]}},
             css: {postcss: {plugins: [postcssPresetEnv()]}},
             optimizeDeps: {
                 include: [

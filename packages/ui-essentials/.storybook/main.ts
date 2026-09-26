@@ -9,8 +9,42 @@ import {mergeConfig} from "vite"
 const sourceEntry = (workspace: string) =>
     fileURLToPath(new URL(`../../${workspace}/src/index.tsx`, import.meta.url))
 
+const entryConfigDir = fileURLToPath(new URL(".", import.meta.url))
+
+/** Portal Storybooks composed into this one; an empty URL variable leaves a portal out. */
+const PORTAL_REFS = [
+    {id: "voting-portal", title: "Voting portal", env: "STORYBOOK_VOTING_PORTAL_URL", port: 6007},
+    {id: "admin-portal", title: "Admin portal", env: "STORYBOOK_ADMIN_PORTAL_URL", port: 6008},
+    {
+        id: "results-portal",
+        title: "Results portal",
+        env: "STORYBOOK_RESULTS_PORTAL_URL",
+        port: 6009,
+    },
+    {
+        id: "ballot-verifier",
+        title: "Ballot verifier",
+        env: "STORYBOOK_BALLOT_VERIFIER_URL",
+        port: 6010,
+    },
+] as const
+
+const portalRefs = () =>
+    Object.fromEntries(
+        PORTAL_REFS.flatMap(({id, title, env, port}) => {
+            const url = process.env[env] ?? `http://localhost:${port}`
+            return url ? [[id, {title, url}]] : []
+        })
+    )
+
 const config: StorybookConfig = {
     stories: ["../src/**/*.mdx", "../src/**/*.stories.tsx"],
+    // Portal Storybooks spread this configuration: only the development server of
+    // this entry Storybook composes them, and a static build stays self-contained.
+    refs: (refs, {configDir, configType}) =>
+        configType === "DEVELOPMENT" && resolve(configDir) === resolve(entryConfigDir)
+            ? {...refs, ...portalRefs()}
+            : refs,
     staticDirs: ["../public"],
     addons: [
         "@storybook/addon-docs",

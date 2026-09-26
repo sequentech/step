@@ -38,6 +38,7 @@
     "storybook": "storybook dev -p 6010 --no-open",
     "build-storybook": "storybook build",
     "test:stories": "vitest run --project=storybook",
+    "test:story": "node ../test-support/storybook/test-story.mjs",
     "dev": "tsc --watch",
     "serve": "NODE_OPTIONS=--openssl-legacy-provider webpack serve",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",

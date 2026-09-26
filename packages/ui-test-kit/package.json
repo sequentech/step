@@ -6,10 +6,12 @@
   "description": "Fixtures, service mocks and adapters shared by the frontend browser tests",
   "exports": {
     "./adapters/axe": "./adapters/axe.ts",
+    "./adapters/fetch": "./adapters/fetch.ts",
     "./adapters/playwright": "./adapters/playwright.ts",
     "./coverage/fixture": "./coverage/fixture.ts",
     "./fixtures": "./fixtures/index.ts",
     "./mocks/graphql": "./mocks/graphql.ts",
+    "./mocks/http": "./mocks/http.ts",
     "./mocks/oidc": "./mocks/oidc.ts",
     "./mocks/s3": "./mocks/s3.ts",
     "./mocks/violations": "./mocks/violations.ts",
