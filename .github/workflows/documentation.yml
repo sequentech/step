@@ -54,14 +54,14 @@ jobs:
         id: build_docusaurus
         working-directory: ./docs/docusaurus
         run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
+          if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
             URL_PATH="/docusaurus/pr-preview/pr-$(jq --raw-output .pull_request.number "$GITHUB_EVENT_PATH")"
-          elif [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref_name }}" == "main" ]; then
+          elif [ "$GITHUB_EVENT_NAME" == "push" ] && [ "$GITHUB_REF_NAME" == "main" ]; then
             URL_PATH="/docusaurus/main"
-          elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref_name }}" == release/* ]]; then
-            URL_PATH="/docusaurus/release-preview/${{ github.ref_name }}"
+          elif [ "$GITHUB_EVENT_NAME" == "push" ] && [[ "$GITHUB_REF_NAME" == release/* ]]; then
+            URL_PATH="/docusaurus/release-preview/$GITHUB_REF_NAME"
           fi
-          echo "BASE_URL=$URL_PATH" >> $GITHUB_ENV
+          echo "BASE_URL=$URL_PATH" >> "$GITHUB_ENV"
           export BASE_URL=$URL_PATH
           yarn install --frozen-lockfile
           yarn build
