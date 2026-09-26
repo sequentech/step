@@ -147,6 +147,8 @@ function withPortalDevelopment(portal, config) {
     }
     const development = {
         ...config,
+        // Per-module maps: a rebuild does not regenerate the whole bundle's map.
+        devtool: "eval-cheap-module-source-map",
         module: {
             ...config.module,
             rules: config.module.rules.map((rule) =>

@@ -112,6 +112,7 @@ describe("development", () => {
             },
             {loader: "ts-loader", options: {configFile: "tsconfig.json", transpileOnly: true}},
         ])
+        expect(config.devtool).toBe("eval-cheap-module-source-map")
     })
 
     it("keeps the portal entry out of React Refresh", () => {
