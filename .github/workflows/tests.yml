@@ -138,6 +138,18 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
+      - name: Install the pinned audit database fixture
+        run: |
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/immudb" https://github.com/codenotary/immudb/releases/download/v1.9.6/immudb-v1.9.6-linux-amd64
+          echo "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  $RUNNER_TEMP/immudb" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/immudb"
+
+      - name: Audit delivery survives broker redelivery and uncertain commits
+        run: cargo test --locked -p windmill --features rabbitmq-tests --test electoral_log_delivery
+        working-directory: packages
+        env:
+          ELECTORAL_LOG_TEST_IMMUDB_BINARY: ${{ runner.temp }}/immudb
+
       - name: Run PostgreSQL-backed voter-channel regression
         run: >-
           cargo test
