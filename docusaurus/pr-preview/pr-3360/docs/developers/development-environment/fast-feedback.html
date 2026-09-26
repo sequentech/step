@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3360/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3360/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3360/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3360/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3360/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3360/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3360/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3360/assets/js/runtime~main.a995a1ab.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3360/assets/js/runtime~main.92d93629.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3360/assets/js/main.534ac451.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -44,6 +44,19 @@ only one checkout runs them at a time. The devcontainer mounts the checkout&#x27
 parent at <code>/workspaces</code> and again at its host path, where git worktree links
 resolve. Service containers build into the checkout&#x27;s own <code>packages/target</code>;
 local Cargo builds use <code>rust-local-target</code>.</p>
+<p>Harvest, Windmill and beat each run their own <code>cargo run</code> command. Cargo-watch
+finds the current crate&#x27;s local dependency directories automatically: a Harvest
+leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.
+Keep the per-service feature graphs separate; compiling the packages together can
+enable extra dependency features and invalidate the subsequent service build.</p>
+<p>On aarch64 Linux, the devenv shell and these services select the Rust toolchain&#x27;s
+bundled LLD through <code>.devcontainer/scripts/rust-lld-cc.sh</code>. The wrapper preserves
+debug information and compiler arguments, falls back to <code>cc</code> when that bundled
+driver is unavailable, and propagates link failures. To compare the default
+linker locally, prefix Cargo with
+<code>CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=cc</code>. Changing Cargo&#x27;s configured
+linker invalidates compilation fingerprints; warm the selected configuration
+before comparing incremental rebuilds.</p>
 <p>Dependency caches live in Docker volumes shared by all checkouts, so a new
 worktree or a recreated container does not download them again:</p>
 <table><thead><tr><th>Volume</th><th>Mounted at</th><th>Holds</th><th>Refreshed</th></tr></thead><tbody><tr><td><code>step-devcontainer-nix-&lt;image tag&gt;</code></td><td><code>/nix</code></td><td>Nix store with the devenv toolchains</td><td>a devcontainer image upgrade starts a new volume</td></tr><tr><td><code>step-devcontainer-cache</code></td><td><code>~/.cache</code></td><td>Yarn, Nix fetcher and Playwright caches</td><td>never stale: entries are versioned</td></tr><tr><td><code>step-devcontainer-cargo</code></td><td><code>~/.cargo</code></td><td>Cargo registry and git checkouts</td><td>never stale: entries are versioned</td></tr></tbody></table>
