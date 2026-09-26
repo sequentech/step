@@ -155,8 +155,17 @@ test.describe("template administrator", () => {
         const drawer = page.getByRole("dialog").filter({hasText: "Edit a Template"})
         await expect(drawer.getByRole("textbox", {name: "Template Alias"})).toHaveValue("welcome")
         await drawer.getByRole("textbox", {name: "Template Name"}).fill("Welcome letter v2")
+        const refreshed = page.waitForResponse(
+            (response) =>
+                response.request().method() === "POST" &&
+                response.url().endsWith("/v1/graphql") &&
+                response.request().postDataJSON()?.operationName === "sequent_backend_template"
+        )
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        await refreshed
         await expect(notification(page, "Template updated")).toBeVisible()
+        await expect(drawer).not.toBeVisible()
+        await expect(page.getByRole("cell", {name: "Welcome letter v2", exact: true})).toBeVisible()
         expect(portal.graphql.callsTo("UpdateTemplate")[0].variables).toEqual({
             id: CONTENT_IDS.template,
             tenantId: TENANT_ID,
@@ -183,6 +192,7 @@ test.describe("template administrator", () => {
         })
         expect(portal.graphql.callsTo("GetUserTemplate")).toHaveLength(0)
 
+        // The refreshed list must have mounted before opening its row-local dialog.
         await rowButtons(page, "Ballot receipt").nth(1).click()
         await page
             .getByRole("dialog")
