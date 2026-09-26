@@ -5,8 +5,10 @@
 A sample saves a statement with a new marker string in an exported WASM
 function, stops the portal's dev server, runs the build command, reinstalls
 dependencies, starts the server again and times until the browser has loaded a
-WASM module containing the marker and rendered its first screen. Without an
-edit (``--no-change``) the same sequence measures a no-op invocation.
+WASM module containing the marker and rendered its first screen. With
+``--server-restart never`` the server keeps running and must reload the page
+itself. Without an edit (``--no-change``) the same sequence measures a no-op
+invocation; with a running server it then ends when the commands finish.
 
 The default build command is the checkout's own
 ``.devcontainer/scripts/build-sequent-core.sh`` with its hard-coded
@@ -22,6 +24,7 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +49,14 @@ SCRIPT_PHASES = (
     ("node_modules_removed", re.compile(r"^\+ rm -rf node_modules")),
 )
 
+
+class ServerRestart(Enum):
+    """Whether the workflow restarts the portal's dev server after a build."""
+
+    ALWAYS = "always"
+    NEVER = "never"
+
+
 WASM_EDITS: dict[str, EditSpec] = {
     # sort_elections_list_js is exported, so the marker stays in the module.
     "sequent-core-wasm": EditSpec(
@@ -65,6 +76,7 @@ class WasmOptions:
     edit: EditSpec | None
     build: str | None
     install: str
+    restart: ServerRestart
     target: str
     port: int
     samples: int
@@ -154,6 +166,7 @@ def run_wasm(options: WasmOptions) -> Path:
         removals = [line.strip() for line in script.splitlines() if "rm -" in line]
     server_command = target.server.format(port=options.port)
     package_dir = options.checkout / "packages" / target.package
+    restarts = options.restart is ServerRestart.ALWAYS
     origin = f"http://127.0.0.1:{options.port}"
     run = start_run(
         scenario=SCENARIO,
@@ -167,21 +180,27 @@ def run_wasm(options: WasmOptions) -> Path:
         services=[f"{options.target}: {server_command}"],
         commands=[
             *([f"edit {options.edit.path}"] if options.edit else []),
-            "stop the dev server",
+            *(["stop the dev server"] if restarts else []),
             build,
-            f"cd packages && {options.install}",
-            f"cd packages/{target.package} && {server_command}",
+            *([f"cd packages && {options.install}"] if options.install else []),
+            *(
+                [f"cd packages/{target.package} && {server_command}"]
+                if restarts
+                else []
+            ),
         ],
         parameters={
             "edit": options.edit.to_dict() if options.edit else None,
             "build": build,
             "build_script_removals": removals,
             "install": options.install,
+            "server_restart": options.restart.value,
             "marker_run_id": run_id,
             "conditions": [
                 "no edit" if options.edit is None else f"edit: {options.edit.path}",
                 f"build: {build if options.build else 'patched ' + BUILD_SCRIPT}",
-                f"then {options.install} and a dev server restart",
+                f"install: {options.install or 'none'}",
+                f"dev server restart: {options.restart.value}",
             ],
         },
         extra_tools={"wasm-bindgen": ("wasm-bindgen", "--version")},
@@ -224,12 +243,13 @@ def run_wasm(options: WasmOptions) -> Path:
         changed = tracked_changes(options.checkout) - before
         restore_tracked(options.checkout, changed)
         if changed:
-            run.result.notes.append(f"restored {sorted(changed)} and reinstalled")
-            run_command(
-                options.install,
-                cwd=options.checkout / "packages",
-                log=log_dir / "restore-install.log",
-            )
+            run.result.notes.append(f"restored {sorted(changed)}")
+            if options.install:
+                run_command(
+                    options.install,
+                    cwd=options.checkout / "packages",
+                    log=log_dir / "restore-install.log",
+                )
     return run.finish()
 
 
@@ -247,11 +267,18 @@ def measure(
     """One save-to-browser cycle; returns the restarted dev server."""
     target = TARGETS[options.target]
     origin = f"http://127.0.0.1:{options.port}"
+    restarts = options.restart is ServerRestart.ALWAYS
+    text = marker if edit is not None else None
+    if not restarts and text is not None:
+        # The running page watches for the new module before the save.
+        probe.send(cmd="watch", id=options.target, text=text, timeout=options.timeout)
+        probe.collect("waiting", [options.target], 60, text)
     saved = edit.apply(marker) if edit is not None else time.time()
     phases: dict[str, float] = {}
-    detail: dict[str, Any] = {"marker": marker if edit else None}
-    probe.send(cmd="park", id=options.target)
-    server.stop()
+    detail: dict[str, Any] = {"marker": text}
+    if restarts:
+        probe.send(cmd="park", id=options.target)
+        server.stop()
     trace = log_dir / f"build-{timer.index}.log"
     started = time.time()
     result = run_command(
@@ -267,7 +294,7 @@ def measure(
     ).items():
         phases[name] = started - saved + seconds
     error = None if result.ok else f"build exited {result.returncode}"
-    if error is None:
+    if error is None and options.install:
         install = run_command(
             options.install,
             cwd=options.checkout / "packages",
@@ -276,28 +303,35 @@ def measure(
         )
         phases["install"] = time.time() - saved
         error = None if install.ok else f"install exited {install.returncode}"
-    server = BackgroundProcess(
-        target.server.format(port=options.port),
-        cwd=options.checkout / "packages" / target.package,
-        log=log_dir / "server.log",
-    )
+    if restarts:
+        server = BackgroundProcess(
+            target.server.format(port=options.port),
+            cwd=options.checkout / "packages" / target.package,
+            log=log_dir / "server.log",
+        )
     if error is None:
         try:
-            wait_for_http(f"{origin}/", timeout=options.timeout, alive=server)
-            phases["server_ready"] = time.time() - saved
-            probe.send(
-                cmd="visit",
-                id=options.target,
-                text=marker if edit else None,
-                timeout=options.timeout,
-            )
-            visited = probe.collect("visited", [options.target], options.timeout)
-            observed = visited[options.target]
-            phases["visible"] = observed["t"] - saved
-            detail.update(
-                page_loads=observed.get("reloads"),
-                wasm_modules=observed.get("wasm_modules"),
-            )
+            if restarts:
+                wait_for_http(f"{origin}/", timeout=options.timeout, alive=server)
+                phases["server_ready"] = time.time() - saved
+                probe.send(
+                    cmd="visit", id=options.target, text=text, timeout=options.timeout
+                )
+                event = "visited"
+            else:
+                event = "watched"
+            if restarts or text is not None:
+                observed = probe.collect(event, [options.target], options.timeout)[
+                    options.target
+                ]
+                phases["visible"] = observed["t"] - saved
+                detail.update(
+                    page_loads=observed.get("reloads"),
+                    wasm_modules=observed.get("wasm_modules"),
+                )
+            else:
+                # Nothing changed and nothing restarts: done when the commands are.
+                phases["visible"] = time.time() - saved
         # Probe failures and a server that exits are RuntimeErrors.
         except (RuntimeError, TimeoutError) as failure:
             error = str(failure)

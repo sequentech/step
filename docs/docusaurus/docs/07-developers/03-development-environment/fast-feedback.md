@@ -46,8 +46,9 @@ $B summarize ~/.cache/step-bench/results --phases
 Edits insert a unique marker line and restore the file afterwards. `ui-update`
 starts its own dev servers from `--port-base` and times until headless Chromium,
 authenticated through the `ui-test-kit` mocks, shows the marker. `test` suites
-cover Jest, a Storybook story and Cargo; `wasm --no-change` repeats the WASM
-workflow without an edit.
+cover Jest, a Storybook story and Cargo. `wasm` restarts the dev server after
+`--build-cmd` and `--install-cmd` unless `--server-restart never`; `--no-change`
+repeats the workflow without an edit.
 
 `workspace` and `ci` run on the host, with the Dev Containers CLI and `gh`.
 `workspace` never uses the default Docker daemon: a cold sample creates a fresh

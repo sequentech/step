@@ -10,9 +10,11 @@
 //   {"cmd": "gone", "id": "voting", "text": "bench...", "timeout": 600}
 //   {"cmd": "park", "id": "voting"}   (leave the page while its server restarts)
 //   {"cmd": "visit", "id": "voting", "text": "bench...", "timeout": 600}
+//   {"cmd": "watch", "id": "voting", "text": "bench...", "timeout": 600}
 //   {"cmd": "close"}
 // "visit" loads the page again and reports once it rendered and loaded a WASM
-// module whose bytes contain the text.
+// module whose bytes contain the text; "watch" waits for the same without
+// navigating, for a dev server that reloads the page itself.
 // Portal pages authenticate against the ui-test-kit OIDC, GraphQL and S3 mocks
 // of the measured checkout. Unlike the journeys' strict adapter, the dev
 // server's live-reload socket and assets reach the server unrouted; only the
@@ -390,23 +392,22 @@ async function park({id}) {
     emit({event: "parked", id})
 }
 
-async function visit({id, text, timeout = 600}) {
-    const state = pages.get(id)
-    const loads = state.loads
+// Resolves once the page shows its first screen and has loaded a WASM module
+// whose bytes contain the text (any module without a text).
+async function moduleLoaded(state, text, deadline, navigate) {
     const expected = text ? Buffer.from(text) : null
     const modules = []
     const collect = (response) => {
         if (new URL(response.url()).pathname.endsWith(".wasm"))
             modules.push(response.body().catch(() => Buffer.alloc(0)))
     }
-    const deadline = Date.now() + timeout * 1000
     state.page.on("response", collect)
     try {
-        await state.page.goto(state.url, {timeout: timeout * 1000})
-        await state.ready.waitFor({state: "visible", timeout: timeout * 1000})
+        await navigate()
         for (;;) {
             const bodies = await Promise.all(modules)
-            if (bodies.some((body) => (expected ? body.includes(expected) : body.length > 0))) break
+            const found = bodies.some((body) => (expected ? body.includes(expected) : body.length))
+            if (found && (await state.ready.isVisible().catch(() => false))) return modules.length
             if (Date.now() > deadline)
                 throw new Error(`no WASM module with ${text} among ${bodies.length} loaded`)
             await new Promise((resolve) => setTimeout(resolve, 50))
@@ -414,10 +415,30 @@ async function visit({id, text, timeout = 600}) {
     } finally {
         state.page.off("response", collect)
     }
-    emit({event: "visited", id, text, wasm_modules: modules.length, reloads: state.loads - loads})
 }
 
-const handlers = {open, wait, gone: wait, park, visit}
+async function visit({id, text, timeout = 600}) {
+    const state = pages.get(id)
+    const loads = state.loads
+    const deadline = Date.now() + timeout * 1000
+    const modules = await moduleLoaded(state, text, deadline, () =>
+        state.page.goto(state.url, {timeout: timeout * 1000})
+    )
+    emit({event: "visited", id, text, wasm_modules: modules, reloads: state.loads - loads})
+}
+
+// Like visit, but the running dev server must reload the page by itself.
+async function watch({id, text, timeout = 600}) {
+    const state = pages.get(id)
+    const loads = state.loads
+    const deadline = Date.now() + timeout * 1000
+    const modules = await moduleLoaded(state, text, deadline, async () =>
+        emit({event: "waiting", id, text})
+    )
+    emit({event: "watched", id, text, wasm_modules: modules, reloads: state.loads - loads})
+}
+
+const handlers = {open, wait, gone: wait, park, visit, watch}
 const lines = createInterface({input: process.stdin})
 for await (const line of lines) {
     if (!line.trim()) continue

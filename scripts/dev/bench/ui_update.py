@@ -42,6 +42,7 @@ EVENT_COMMANDS = {
     "visible": "wait",
     "gone": "gone",
     "visited": "visit",
+    "watched": "watch",
 }
 
 

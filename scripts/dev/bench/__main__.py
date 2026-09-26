@@ -489,6 +489,13 @@ def add_wasm(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         "build-sequent-core.sh)",
     )
     parser.add_argument(
+        "--server-restart",
+        choices=[policy.value for policy in wasm.ServerRestart],
+        default=wasm.ServerRestart.ALWAYS.value,
+        help="restart the dev server after the build (always), or keep it running "
+        "and wait for it to reload the page (never)",
+    )
+    parser.add_argument(
         "--install-cmd",
         default="yarn install",
         help="dependency install run from packages/ after the build",
@@ -515,6 +522,7 @@ def run_wasm(arguments: argparse.Namespace) -> Path:
         edit=edit,
         build=arguments.build_cmd,
         install=arguments.install_cmd,
+        restart=wasm.ServerRestart(arguments.server_restart),
         target=arguments.target,
         port=arguments.port,
         samples=arguments.samples,
