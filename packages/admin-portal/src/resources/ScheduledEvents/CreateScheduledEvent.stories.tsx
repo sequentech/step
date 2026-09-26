@@ -253,7 +253,11 @@ export const SchedulerRejects: Story = {
         await save(canvasElement)
         await expectNotification(i18n.t("eventsScreen.messages.createError"))
         expect(scheduled()).toHaveLength(1)
-        expect(args.setIsOpenDrawer).toHaveBeenCalledWith(false)
+        // The drawer stays open with the chosen date.
+        expect(args.setIsOpenDrawer).not.toHaveBeenCalled()
+        expect(
+            canvasElement.querySelector<HTMLInputElement>('input[type="datetime-local"]')
+        ).toHaveValue(LOCAL_DATE)
     },
 }
 

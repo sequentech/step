@@ -214,8 +214,11 @@ export const UpdateFailure: Story = {
         await renameTheGuide(canvasElement)
         await expectNotification(i18n.t("materials.updateMaterialError"))
         expect(data.writes.map(({method}) => method)).toEqual(["update"])
-        // The form closes and the edit is lost.
-        expect(args.close).toHaveBeenCalledTimes(1)
+        // The form stays open with the edit.
+        expect(args.close).not.toHaveBeenCalled()
+        expect(within(canvasElement).getByRole("textbox", {name: titleLabel()})).toHaveValue(
+            "Voter handbook"
+        )
     },
 }
 

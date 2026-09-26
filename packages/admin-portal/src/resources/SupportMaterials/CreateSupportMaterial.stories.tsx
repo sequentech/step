@@ -198,7 +198,8 @@ export const CreateFailure: Story = {
         await save(canvasElement)
         await expectNotification(i18n.t("materials.createMaterialError"))
         expect(data.writes.map(({method}) => method)).toEqual(["create"])
-        // The form closes and the typed material is lost.
-        expect(args.close).toHaveBeenCalledTimes(1)
+        // The form stays open with the typed material.
+        expect(args.close).not.toHaveBeenCalled()
+        await expect(await titleField(canvasElement)).toHaveValue("Voting guide")
     },
 }
