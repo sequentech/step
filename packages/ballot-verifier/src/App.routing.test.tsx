@@ -323,6 +323,43 @@ describe("with authentication disabled", () => {
         }
     )
 
+    it("applies public event language and scoped translations without private services", async () => {
+        window.history.replaceState(null, "", "/")
+        services = serve(
+            {DISABLE_AUTH: true},
+            {
+                eventPresentation: {
+                    language_conf: {
+                        language_detection_policy: ELanguageDetectionPolicy.FORCE_DEFAULT,
+                        default_language_code: "es",
+                        enabled_language_codes: ["en", "es"],
+                    },
+                    i18n: {
+                        es: {"ballotVerifier:homeScreen.step1": "Importación pública del evento"},
+                    },
+                },
+            }
+        )
+        launch(`${voterEvent}/start`)
+        expect(
+            await screen.findByRole("heading", {name: "Importación pública del evento"})
+        ).toBeVisible()
+        expect(i18n.language).toBe("es")
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+            `https://s3.test/public/tenant-${IDS.tenant}/event-${IDS.event}/election_event_config.json`,
+            expect.objectContaining({signal: expect.any(AbortSignal)})
+        )
+    })
+
+    it("keeps offline import usable when public configuration is unavailable", async () => {
+        services = serve({DISABLE_AUTH: true}, {eventConfig: false})
+        launch(`${voterEvent}/start`)
+        expect(await importStep()).toBeVisible()
+        expect(FakeKeycloak.instances).toHaveLength(0)
+        expect(services.graphql).toHaveLength(0)
+    })
     it("opens a direct login link for its requested event without private services", async () => {
         services = serve({DISABLE_AUTH: true})
         launch(`${voterEvent}/login`)
