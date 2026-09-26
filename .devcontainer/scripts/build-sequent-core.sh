@@ -8,7 +8,7 @@ set -euo pipefail
 # Note: NIX_HARDENING_ENABLE and CFLAGS are now configured in flake.nix shellHook
 # wasm-bindgen-cli is pinned to a version in flake.nix to match Cargo.toml
 
-TARGET_DIR=/workspaces/step/packages/sequent-core
+TARGET_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../packages/sequent-core" && pwd)"
 cd "$TARGET_DIR"
 which rustc
 rustc --version

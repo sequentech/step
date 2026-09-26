@@ -1,10 +1,12 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
 {
-  "name": "step",
-  "dockerComposeFile": "docker-compose.yml",
+  // Backend mode (.devcontainer/modes.json): the services of the full-stack
+  // .devcontainer/devcontainer.json, without frontend dev servers.
+  "name": "step: backend",
+  "dockerComposeFile": "../docker-compose.yml",
   "service": "devcontainer",
   "forwardPorts": [
     "minio-proxy:9002",
@@ -31,7 +33,7 @@
   // https://github.com/microsoft/vscode-remote-release/issues/6844#issuecomment-1252288457
   "initializeCommand": [
     ".devcontainer/scripts/initialize-command.sh",
-    "full"
+    "backend"
   ],
   // Use this environment variable if you need to bind mount your local source
   // code into a new container
