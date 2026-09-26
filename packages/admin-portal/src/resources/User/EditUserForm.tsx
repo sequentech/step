@@ -1458,6 +1458,10 @@ export const EditUserForm: React.FC<EditUserFormProps> = ({
             canReadVoterSecretAttributes,
             canWriteVoterSecretAttributes,
             canEditVoters,
+            canEditVotersEmailTlf,
+            enabledByVoteNum,
+            hasVoted,
+            electionEventId,
             createMode,
         ]
     )
