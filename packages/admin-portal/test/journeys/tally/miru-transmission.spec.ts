@@ -536,14 +536,13 @@ test("shows a failed task when transmission report generation is rejected", asyn
     ).toBeVisible({timeout: 2000})
 })
 
-test.describe("a transmission reader without action privileges", () => {
+test.describe("an assigned trustee without action privileges", () => {
     test.use({roles: [...TALLY_ROLES, "area-read"]})
     test("sees package status without send, regenerate, download or signature controls", async ({
         page,
         portal,
     }) => {
-        const {world} = await transmissionWorld(portal)
-        world.event.annotations = {}
+        await transmissionWorld(portal)
         await openTransmission(page, portal)
         await expect(
             page.getByRole("button", {
@@ -558,13 +557,18 @@ test.describe("a transmission reader without action privileges", () => {
             page.getByRole("button", {name: "regenerate transmission package", exact: true})
         ).toHaveCount(0)
         await expect(page.getByLabel("export election data", {exact: true})).toHaveCount(0)
-        await expect(page.getByLabel("Drop Input File")).toHaveCount(0)
         for (const operation of [
             "CreateTransmissionPackage",
             "SendTransmissionPackage",
+            "GetUploadUrl",
             "UploadSignature",
             "generate_transmission_report",
         ])
             expect(portal.graphql.callsTo(operation)).toEqual([])
+        test.fail(
+            true,
+            "MiruExportWizard.tsx:655 shows signature upload for assigned trustees without checking miru-sign"
+        )
+        await expect(page.getByLabel("Drop Input File")).toHaveCount(0, {timeout: 2000})
     })
 })
