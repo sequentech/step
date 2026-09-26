@@ -7,11 +7,15 @@ import type {PageProps} from "keycloakify/login/pages/PageProps"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import Checkbox from "@mui/material/Checkbox"
+import Alert from "@mui/material/Alert"
 import FormControlLabel from "@mui/material/FormControlLabel"
+import IconButton from "@mui/material/IconButton"
+import InputAdornment from "@mui/material/InputAdornment"
 import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
 import type {I18n} from "../i18n"
 import {LoginHintUsernamePolicy, LoginValidationPolicy, type KcContext} from "../KcContext"
+import {ArrowIcon, EyeIcon} from "../icons"
 
 export default function Login(props: PageProps<Extract<KcContext, {pageId: "login.ftl"}>, I18n>) {
     const {kcContext, i18n, Template, doUseDefaultCss, classes} = props
@@ -19,6 +23,7 @@ export default function Login(props: PageProps<Extract<KcContext, {pageId: "logi
         kcContext
     const {msg, msgStr} = i18n
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [passwordVisible, setPasswordVisible] = useState(false)
     const credentialError = messagesPerField.existsError("username", "password")
     const usernameReadOnly =
         kcContext.themeName === "sequent-ui-voting" &&
@@ -66,47 +71,101 @@ export default function Login(props: PageProps<Extract<KcContext, {pageId: "logi
                         setIsSubmitting(true)
                         return true
                     }}
-                    sx={{display: "flex", flexDirection: "column", gap: 2}}
+                    className="auth-form"
                 >
+                    {credentialError && (
+                        <Alert id="input-error" severity="error" role="alert">
+                            {errorText}
+                        </Alert>
+                    )}
                     {!usernameHidden && (
+                        <Box>
+                            <Typography
+                                component="label"
+                                htmlFor="username"
+                                className="auth-field-label"
+                            >
+                                {usernameLabel}
+                            </Typography>
+                            <TextField
+                                id="username"
+                                name="username"
+                                defaultValue={login.username ?? ""}
+                                autoFocus
+                                autoComplete="username"
+                                slotProps={{
+                                    htmlInput: {
+                                        readOnly: usernameReadOnly,
+                                        "aria-describedby": credentialError
+                                            ? "input-error"
+                                            : undefined,
+                                    },
+                                }}
+                                error={credentialError}
+                                fullWidth
+                            />
+                        </Box>
+                    )}
+                    <Box>
+                        <Typography
+                            component="label"
+                            htmlFor="password"
+                            className="auth-field-label"
+                        >
+                            {msgStr("password")}
+                        </Typography>
                         <TextField
-                            id="username"
-                            name="username"
-                            label={usernameLabel}
-                            defaultValue={login.username ?? ""}
-                            autoFocus
-                            autoComplete="username"
-                            slotProps={{htmlInput: {readOnly: usernameReadOnly}}}
+                            id="password"
+                            name="password"
+                            type={passwordVisible ? "text" : "password"}
+                            autoFocus={usernameHidden}
+                            autoComplete="current-password"
                             error={credentialError}
-                            helperText={errorText}
+                            slotProps={{
+                                htmlInput: {
+                                    "aria-describedby": credentialError ? "input-error" : undefined,
+                                },
+                                input: {
+                                    endAdornment: (
+                                        <InputAdornment position="end">
+                                            <IconButton
+                                                type="button"
+                                                aria-label={msgStr(
+                                                    passwordVisible
+                                                        ? "hidePassword"
+                                                        : "showPassword"
+                                                )}
+                                                aria-controls="password"
+                                                onClick={() => setPasswordVisible(!passwordVisible)}
+                                                edge="end"
+                                                sx={{minWidth: 44, minHeight: 44}}
+                                            >
+                                                <EyeIcon hidden={passwordVisible} />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                },
+                            }}
                             fullWidth
                         />
-                    )}
-                    <TextField
-                        id="password"
-                        name="password"
-                        type="password"
-                        label={msgStr("password")}
-                        autoComplete="current-password"
-                        error={credentialError}
-                        helperText={usernameHidden ? errorText : undefined}
-                        fullWidth
-                    />
-                    {realm.rememberMe && !usernameHidden && (
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    id="rememberMe"
-                                    name="rememberMe"
-                                    defaultChecked={login.rememberMe === "on"}
-                                />
-                            }
-                            label={msgStr("rememberMe")}
-                        />
-                    )}
-                    {realm.resetPasswordAllowed && (
-                        <a href={url.loginResetCredentialsUrl}>{msg("doForgotPassword")}</a>
-                    )}
+                    </Box>
+                    <Box className="auth-options">
+                        {realm.rememberMe && !usernameHidden && (
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        id="rememberMe"
+                                        name="rememberMe"
+                                        defaultChecked={login.rememberMe === "on"}
+                                    />
+                                }
+                                label={msgStr("rememberMe")}
+                            />
+                        )}
+                        {realm.resetPasswordAllowed && (
+                            <a href={url.loginResetCredentialsUrl}>{msg("doForgotPassword")}</a>
+                        )}
+                    </Box>
                     <input type="hidden" name="credentialId" value={auth.selectedCredential} />
                     <Button
                         id="kc-login"
@@ -114,6 +173,8 @@ export default function Login(props: PageProps<Extract<KcContext, {pageId: "logi
                         type="submit"
                         variant="contained"
                         disabled={isSubmitting}
+                        className="auth-submit"
+                        endIcon={<ArrowIcon />}
                         fullWidth
                     >
                         {msgStr("doLogIn")}

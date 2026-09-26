@@ -21,17 +21,19 @@ SPDX-License-Identifier: AGPL-3.0-only
 		>
             <#if !isOtl>
                 <div class="${properties.kcFormGroupClass!}">
-                      <div class="otp-container" id="otp-inputs">
+                      <div class="otp-container" id="otp-inputs" role="group"
+                           aria-label="${msg('otpCodeLabel')}" aria-describedby="otp-instructions">
                     <#assign otpLength = (codeLength!"6")?number> 
                     <#list 1..otpLength as i>
                         <input
-                            autocomplete="off"
+                            autocomplete="<#if i == 1>one-time-code<#else>off</#if>"
                             type="text"
                             inputmode="numeric"
                             pattern="\d"
                             id="otp-${i}"
                             name="otp${i}"
-                            maxlength="1"
+                            maxlength="${otpLength?c}"
+                            aria-label="${msg('otpDigit', i?c, otpLength?c)}"
                             class="otp-input"
                             <#if i == 1> autofocus="autofocus" </#if> />
                     </#list>
@@ -97,57 +99,63 @@ SPDX-License-Identifier: AGPL-3.0-only
 
                     const otpInputs = document.querySelectorAll('.otp-input');
 
+                    function focusOtp(index) {
+                        if (index >= otpInputs.length) {
+                            document.getElementById('kc-form-submit').focus();
+                        } else {
+                            otpInputs[index].focus();
+                            otpInputs[index].select();
+                        }
+                    }
+
+                    function syncOtpCode() {
+                        const code = document.getElementById('code');
+                        if (code) code.value = Array.from(otpInputs, input => input.value).join('');
+                    }
+
+                    function fillOtp(value) {
+                        const digits = value.replace(/\D/g, '').slice(0, otpInputs.length);
+                        if (!digits) return;
+                        otpInputs.forEach((input, index) => input.value = digits[index] || '');
+                        syncOtpCode();
+                        focusOtp(digits.length);
+                    }
+
                     otpInputs.forEach((input, index) => {
                         input.addEventListener('input', (e) => {
-                            if (input.value.length === 1 && index < otpInputs.length - 1) {
-                                otpInputs[index + 1].focus();
-                                otpInputs[index + 1].select();
+                            // SMS autofill/password managers deliver the complete code at once.
+                            if (input.value.length > 1) {
+                                fillOtp(input.value);
+                                return;
                             }
-                            else if (index === otpInputs.length - 1) {
-                                document.getElementById('kc-form-submit').focus();
+                            input.value = input.value.replace(/\D/g, '');
+                            syncOtpCode();
+                            if (input.value) {
+                                focusOtp(index + 1);
                             }
                         });
 
                         input.addEventListener('keydown', (e) => {
-                            if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
-                                otpInputs[index - 1].focus();
-                                otpInputs[index - 1].select();
-                            } else if (e.key === 'Backspace' && input.value.length === 1 && index > 0) {
-                                otpInputs[index].value = '';
-                                otpInputs[index - 1].focus();
-                                otpInputs[index - 1].select();
-                            } else if (e.key === 'Backspace' && input.value.length === 1 && index === 0) {
-                                otpInputs[index].value = '';
+                            if (e.key === 'Backspace') {
+                                e.preventDefault();
+                                input.value = '';
+                                syncOtpCode();
+                                focusOtp(Math.max(0, index - 1));
                             }
                             else if (e.key === 'ArrowLeft' && index > 0) {
-                                otpInputs[index - 1].focus();
+                                e.preventDefault();
+                                focusOtp(index - 1);
                             }
-                            else if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
-                                otpInputs[index + 1].focus();
-                            }
-                            else if (e.key === 'ArrowRight' && index === otpInputs.length - 1) {
-                                document.getElementById('kc-form-submit').focus();
+                            else if (e.key === 'ArrowRight') {
+                                e.preventDefault();
+                                focusOtp(index + 1);
                             }
                         });
 
                         input.addEventListener('paste', (e) => {
-                            const pasteDataTrim = e.clipboardData
-                                .getData('text')
-                                .trim();
-                            const pasteData = pasteDataTrim
-                                .substring(0, otpInputs.length);
-                            pasteData.split('').forEach((char, i) => {
-                                if (i < otpInputs.length) {
-                                    otpInputs[i].value = char;
-                                }
-                            });
-                            if (pasteDataTrim.length >= otpInputs.length) {
-                                document.getElementById('kc-form-submit').focus();
-                            } else {
-                                otpInputs[pasteDataTrim.length + 1].focus();
-                                otpInputs[pasteDataTrim.length + 1].select();
-                            }
-                    });
+                            e.preventDefault();
+                            fillOtp(e.clipboardData.getData('text'));
+                        });
                     });
 
                   
@@ -232,7 +240,7 @@ SPDX-License-Identifier: AGPL-3.0-only
 </style>
 		</form>
 	<#elseif section = "info">
-        <p class="kc-message-otl-instructions">
+        <p id="otp-instructions" class="kc-message-otl-instructions">
             <#if isOtl>
                     <#if courier??>
                         <#if courier = "SMS">
