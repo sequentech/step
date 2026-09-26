@@ -22,10 +22,14 @@ const types: Record<string, string> = {
 }
 
 const roots = new Map<string, string>()
+let nextPort = Number(process.env.STEP_UI_TEST_PORT_BASE ?? 0)
+if (!Number.isInteger(nextPort) || nextPort < 0 || nextPort > 65535) {
+    throw new Error("STEP_UI_TEST_PORT_BASE must be an integer from 0 to 65535")
+}
 /** The directory behind each open origin, so coverage can map script URLs back to files. */
 export const servedRoots: ReadonlyMap<string, string> = roots
 
-/** Owns its ephemeral listening socket until close; never probes then rebinds a free port. */
+/** Owns its listening socket until close; never probes then rebinds a free port. */
 export async function serveDist(
     directory: string,
     overrides: ReadonlyMap<string, string> = new Map()
@@ -73,7 +77,9 @@ export async function serveDist(
     })
     await new Promise<void>((resolve, reject) => {
         server.once("error", reject)
-        server.listen(0, "127.0.0.1", resolve)
+        // A configured base keeps concurrent task fixtures on their assigned ports.
+        const port = nextPort === 0 ? 0 : nextPort++
+        server.listen(port, "127.0.0.1", resolve)
     })
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     roots.set(origin, root)

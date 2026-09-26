@@ -142,3 +142,27 @@ test.describe("sidebar deletion permissions", () => {
         ).toBeVisible()
     })
 })
+
+test.describe("sidebar sibling creation", () => {
+    test.use({roles: [...roles, "election-create", "contest-create", "candidate-create"]})
+    for (const item of items.filter((item) => item.kind !== "election")) {
+        test(`opens a sibling ${item.kind} form in the same event and parent`, async ({
+            page,
+            portal,
+        }) => {
+            ballot(portal)
+            await page.goto(`${portal.origin}/sequent_backend_${item.kind}/${item.id}?lang=en`)
+            await page.getByRole("link", {name: item.name, exact: true}).hover()
+            await page.locator(`.menu-actions-sequent_backend_${item.kind} #MoreHorizIcon`).click()
+            await page.locator(`.menu-action-add-sequent_backend_${item.kind}`).click()
+            await expect(page).toHaveURL(
+                (url) =>
+                    url.pathname === `/sequent_backend_${item.kind}/create` &&
+                    url.searchParams.get("electionEventId") === CONTENT_IDS.event &&
+                    url.searchParams.get(item.kind === "contest" ? "electionId" : "contestId") ===
+                        item.parentId
+            )
+            await expect(page.getByRole("textbox", {name: "Name", exact: true})).toHaveValue("")
+        })
+    }
+})

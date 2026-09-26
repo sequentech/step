@@ -329,10 +329,12 @@ class Keycloak:
                 )
                 login = otp_form
             action = html.unescape(login["action"])
-            response = session.post(
-                urllib.parse.urljoin(response.url, action), form=values
-            )
-            response.url = urllib.parse.urljoin(response.url, action)
+            target = urllib.parse.urlsplit(urllib.parse.urljoin(response.url, action))
+            endpoint = urllib.parse.urlsplit(KEYCLOAK_URL)
+            # The advertised browser hostname may be localhost outside Compose.
+            # Keep form posts and their session cookies on the reachable endpoint.
+            target = target._replace(scheme=endpoint.scheme, netloc=endpoint.netloc)
+            response = session.post(urllib.parse.urlunsplit(target), form=values)
         location = response.headers.get("Location", "")
         if not location.startswith(redirect_uri.split("?")[0]):
             raise LoginError(

@@ -311,33 +311,44 @@ impl Default for Reporting {
 }
 
 /// Accept positive Go-style durations used by both k6 and kubectl.
-fn valid_duration(mut value: &str) -> bool {
-    let mut positive = false;
+pub(super) fn duration(mut value: &str) -> Option<std::time::Duration> {
+    let mut seconds = 0.0;
     while !value.is_empty() {
         let length = value
             .bytes()
             .take_while(|byte| byte.is_ascii_digit() || *byte == b'.')
             .count();
         if length == 0 {
-            return false;
+            return None;
         }
         let Ok(number) = value[..length].parse::<f64>() else {
-            return false;
+            return None;
         };
         if !number.is_finite() {
-            return false;
+            return None;
         }
-        positive |= number > 0.0;
         value = &value[length..];
         let Some(unit) = ["ms", "s", "m", "h"]
             .into_iter()
             .find(|unit| value.starts_with(unit))
         else {
-            return false;
+            return None;
         };
+        seconds += number
+            * match unit {
+                "ms" => 0.001,
+                "s" => 1.0,
+                "m" => 60.0,
+                _ => 3600.0,
+            };
         value = &value[unit.len()..];
     }
-    positive
+    let duration = std::time::Duration::try_from_secs_f64(seconds).ok()?;
+    (!duration.is_zero()).then_some(duration)
+}
+
+fn valid_duration(value: &str) -> bool {
+    duration(value).is_some()
 }
 
 impl Settings {
@@ -487,6 +498,15 @@ mod tests {
     }
     #[test]
     fn duration_errors_fail_before_provisioning() {
+        assert_eq!(
+            duration("1m30.5s"),
+            Some(std::time::Duration::from_millis(90_500))
+        );
+        assert_eq!(
+            duration("500ms"),
+            Some(std::time::Duration::from_millis(500))
+        );
+        assert_eq!(duration("1h"), Some(std::time::Duration::from_secs(3600)));
         for duration in ["30m", "1m30s", "500ms", ".5s"] {
             assert!(valid_duration(duration));
         }

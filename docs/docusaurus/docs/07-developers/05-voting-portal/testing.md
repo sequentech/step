@@ -32,6 +32,10 @@ to catch inherited-object lookups and accidental mutation during rendering.
 Configured category/subtype controls also verify that rendering and toggling
 preserve names and an absent subtype sort order in the original configuration.
 Candidate inputs and vote interpretation are stubbed in those unit tests.
+Unit mocks for `@sequentech/ui-essentials` use Jest's `virtual: true` option because
+its `dist` entry does not exist after a clean workspace install. The startup gate
+suite mocks only its loader boundary and executes the real loading, failure and
+ready-state gates without requiring a UI Essentials build.
 
 The two Chromium tests load the real components, Redux store and pinned local
 WASM engine. They check repeated category expansion, keyboard activation,
@@ -45,6 +49,11 @@ imports. Only declaration files, tests and Jest support are excluded. Babel
 instruments executable source before transformation, so erased TypeScript
 declarations are not counted as unexecuted application statements. HTML, JSON
 and LCOV reports are written to `coverage/`.
+
+Jest maps the shared UI packages to source entries. Mock those package names
+without `{virtual: true}`: virtual mocks can leave incompatible module identities
+in the resolver cache between suites. Run the full unit suite after changing
+shared-package mocks; a focused test can pass while the combined run fails.
 
 If the browser fixture cannot render, the runner includes its browser errors
 alongside the locator failure. First check that the local WASM archive is
@@ -63,3 +72,9 @@ decrease in lines, statements, functions or branches. Browser execution has
 separate accounting. Authentication, GraphQL failure handling and ballot
 submission need explicit service fixtures; do not substitute deployed elections.
 Run `test:types` as well as unit tests and inspect any dependency diagnostics.
+
+The election chooser and materials acknowledgement screen resolve the same
+published materials policy. A loaded ballot-style presentation takes precedence;
+before any style is loaded, the published event presentation supplies the policy.
+Component regressions exercise both conflicting-policy directions, the no-style
+fallback and the acknowledged/unacknowledged voting gate.

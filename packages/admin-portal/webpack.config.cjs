@@ -139,7 +139,14 @@ module.exports = function (env, argv) {
                 extensions: [".js", ".jsx", ".ts", ".tsx"],
             }),
             new webpack.DefinePlugin({
-                "process.env": JSON.stringify(process.env),
+                "process.env.PUBLIC_URL": JSON.stringify(process.env.PUBLIC_URL ?? ""),
+                "process.env.MAX_DIFF_LINES": JSON.stringify(process.env.MAX_DIFF_LINES),
+                "process.env.SECONDS_TO_SHOW_COUNTDOWN": JSON.stringify(
+                    process.env.SECONDS_TO_SHOW_COUNTDOWN
+                ),
+                "process.env.SECONDS_TO_SHOW_ALERT": JSON.stringify(
+                    process.env.SECONDS_TO_SHOW_ALERT
+                ),
             }),
         ],
         devServer: {

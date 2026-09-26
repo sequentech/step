@@ -482,17 +482,19 @@ function TreeMenuItem({
     const {canCreateElectionEvent, canReadContest, canReadCandidate, canReadElection} =
         useActionPermissions()
 
-    const immediateParent: DataTreeMenuType =
+    const immediateParent: DataTreeMenuType & {election_event_id?: string} =
         treeResourceNames[0] === "sequent_backend_candidate"
             ? {
                   __typename: "sequent_backend_contest",
                   id: (resource as CandidateType).contest_id,
+                  election_event_id: (resource as CandidateType).election_event_id,
                   name: "",
               }
             : treeResourceNames[0] === "sequent_backend_contest"
               ? {
                     __typename: "sequent_backend_election",
                     id: (resource as ContestType).election_id,
+                    election_event_id: (resource as ContestType).election_event_id,
                     name: "",
                 }
               : superParentData

@@ -109,6 +109,10 @@ LOCK = """\
   version "0.1.0"
   resolved "file:./voting-portal/rust/sequent-core-0.1.0.tgz#{hash}"
 
+"sequent-core@file:voting-portal/rust/sequent-core-0.1.0.tgz":
+  version "0.1.0"
+  resolved "file:voting-portal/rust/sequent-core-0.1.0.tgz#{hash}"
+
 serde@^1:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/serde/-/serde-1.0.0.tgz#{other}"

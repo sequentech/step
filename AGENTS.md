@@ -10,6 +10,10 @@ the package's testing guide and configured tool versions. Invoke it with
 
 ## Development loop
 
+Use [fast-feedback](.agents/skills/fast-feedback/SKILL.md) to choose a preview,
+focused test or benchmark for the current edit. These commands and instructions
+are shared by developers, ChatGPT/Codex and Claude; no IDE interaction is needed.
+
 Use `scripts/dev/step-dev` from the repository root for the devcontainer modes,
 focused tests and change selection (`affected`), incremental WASM builds, named
 backend scenarios and benchmarks; the

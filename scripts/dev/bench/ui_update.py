@@ -102,6 +102,14 @@ class BrowserError(RuntimeError):
     pass
 
 
+def browser_error(message: Mapping[str, Any]) -> str | None:
+    errors = message.get("page_errors", 0)
+    violations = message.get("violations", 0)
+    if errors or violations:
+        return f"browser reported {errors} page errors and {violations} mock violations"
+    return None
+
+
 def ends_wait(
     message: Mapping[str, Any], command: str, ids: Sequence[str], text: str | None
 ) -> bool:
@@ -183,9 +191,14 @@ class BrowserProbe:
         if self.process.poll() is None:
             try:
                 self.send(cmd="close")
+                assert self.process.stdin is not None
+                # EOF releases Node's input stream after the close command. Leaving
+                # the pipe open keeps the probe alive until the shutdown timeout.
+                self.process.stdin.close()
                 self.process.wait(timeout=30)
             except (OSError, subprocess.TimeoutExpired):
                 self.process.kill()
+                self.process.wait()
         self._log.close()
 
 
@@ -362,16 +375,19 @@ def measure(
                 page_errors=observed.get("page_errors"),
                 mock_violations=observed.get("violations"),
             )
+        failure = (
+            browser_error(observed) if observed is not None else error or "not observed"
+        )
         run.add(
             timers[name].finish(
-                ok=seconds is not None,
+                ok=seconds is not None and failure is None,
                 seconds=seconds,
                 phases={
                     **phases,
                     **({"visible": seconds} if seconds is not None else {}),
                 },
                 detail=detail,
-                error=None if seconds is not None else error or "not observed",
+                error=failure,
             )
         )
     time.sleep(options.settle)

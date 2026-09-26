@@ -13,13 +13,15 @@
     "devcontainer"
   ],
   "forwardPorts": [
-    // Storybook: ui-essentials, voting-portal, admin-portal, results-portal and
-    // ballot-verifier
+    // Browser-only election workbench
+    5173,
+    // Storybook: shared UI, portals and the Keycloak React catalog
     6006,
     6007,
     6008,
     6009,
     6010,
+    6011,
     // Portal dev servers: voting-portal, ballot-verifier, admin-portal and
     // results-portal
     3000,

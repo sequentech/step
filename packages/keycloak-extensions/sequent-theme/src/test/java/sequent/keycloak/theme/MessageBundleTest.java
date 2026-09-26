@@ -42,7 +42,7 @@ class MessageBundleTest {
     Locale locale = Locale.forLanguageTag("fr");
 
     assertEquals(
-        "Connectez-vous au Portail d'Administration",
+        "Connectez-vous pour continuer",
         format(messages, "loginAccountTitle", locale));
     assertEquals("RETOUR À L'APPLICATION", format(messages, "backToApplication", locale));
     assertEquals(

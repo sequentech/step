@@ -1,0 +1,307 @@
+/* SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+ * SPDX-License-Identifier: AGPL-3.0-only */
+@font-face {
+    font-family: "Sequent Sans";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("../../../admin-portal/public/roboto/Roboto_latin_400.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Sequent Sans";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("../../../admin-portal/public/roboto/Roboto_latin_700.woff2") format("woff2");
+}
+@font-face {
+    font-family: "Sequent Sans";
+    font-style: normal;
+    font-weight: 900;
+    font-display: swap;
+    src: url("../../../admin-portal/public/roboto/Roboto_latin_900.woff2") format("woff2");
+}
+
+.sequent-auth {
+    min-height: 100vh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    color: #173449;
+    background: radial-gradient(ellipse at 50% 0, #1d4c54 0, transparent 65%), #102d44;
+    -webkit-font-smoothing: antialiased;
+}
+.sequent-auth .auth-layout {
+    width: 100%;
+    max-width: 608px;
+    margin: auto;
+    padding: 48px 24px 32px;
+}
+.sequent-auth .auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 32px;
+}
+.sequent-auth .auth-brand img {
+    display: block;
+    width: 170px;
+    height: auto;
+}
+.sequent-auth .auth-brand-context {
+    border-inline-start: 1px solid #7fa2ac66;
+    padding-inline-start: 24px;
+    color: #c6dce2;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    letter-spacing: 0.025em;
+}
+.sequent-auth .auth-card {
+    padding: 40px;
+    border: 1px solid #dce7e7;
+    border-radius: 22px;
+    box-shadow: 0 24px 70px #061b2a40;
+    overflow-wrap: anywhere;
+}
+.sequent-auth .auth-symbol {
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 17px;
+    background: #e5f3ed;
+    color: #237c62;
+    margin-bottom: 28px;
+}
+.sequent-auth .auth-symbol svg {
+    width: 29px;
+    height: 29px;
+}
+.sequent-auth .auth-eyebrow {
+    margin: 0 0 12px;
+    color: #596d7b;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    line-height: 1.6;
+    text-transform: uppercase;
+}
+.sequent-auth .auth-title {
+    margin: 0 0 28px;
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: -0.035em;
+    text-wrap: balance;
+}
+.sequent-auth .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+.sequent-auth .auth-field-label {
+    display: block;
+    margin-bottom: 9px;
+    font-size: 0.9375rem;
+    font-weight: 700;
+}
+.sequent-auth .auth-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-top: -8px;
+}
+.sequent-auth .auth-options .MuiFormControlLabel-root {
+    margin-inline: -10px 0;
+}
+.sequent-auth .auth-options .MuiFormControlLabel-label {
+    font-size: 0.875rem;
+}
+.sequent-auth a {
+    color: #086b5e;
+    font-weight: 700;
+    text-underline-offset: 4px;
+}
+.sequent-auth .auth-options a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 0.875rem;
+}
+.sequent-auth .auth-submit .MuiButton-endIcon {
+    margin-inline: 12px 0;
+}
+.sequent-auth[dir="rtl"] .auth-submit svg {
+    transform: rotate(180deg);
+}
+.sequent-auth .auth-feedback {
+    margin-bottom: 24px;
+}
+.sequent-auth .auth-info {
+    border-top: 1px solid #e3eaee;
+    margin-top: 28px;
+    padding-top: 22px;
+    text-align: center;
+    color: #5b6e7b;
+}
+.sequent-auth .auth-info p {
+    margin: 0;
+    line-height: 1.7;
+}
+.sequent-auth .auth-address {
+    margin: -12px 0 22px;
+    color: #5b6e7b;
+    font-size: 1rem;
+    line-height: 1.7;
+}
+.sequent-auth .auth-instructions {
+    margin: 0 0 18px;
+    color: #5b6e7b;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+}
+.sequent-auth .auth-code-group {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+.sequent-auth .auth-code-inputs {
+    display: grid;
+    gap: 10px;
+    direction: ltr;
+}
+.sequent-auth .auth-code-inputs .MuiTextField-root {
+    flex: 1 1 0;
+    min-width: 0;
+}
+.sequent-auth .auth-code-inputs input {
+    padding: 14px 0;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.sequent-auth .auth-code-inputs .MuiInputBase-root {
+    min-height: 60px;
+}
+.sequent-auth .auth-resend.Mui-disabled {
+    color: #5b6e7b;
+    background: #f4f7f8;
+    border-color: #d4dfe3;
+}
+.sequent-auth .auth-resend:not(.Mui-disabled) {
+    border-color: #0d796a;
+}
+.sequent-auth .auth-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-top: 26px;
+    color: #bfd4dc;
+    font-size: 0.8125rem;
+    text-align: center;
+}
+.sequent-auth .auth-language {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #d5e9ed;
+}
+.sequent-auth .auth-language svg {
+    width: 19px;
+    height: 19px;
+}
+.sequent-auth .auth-language select {
+    min-height: 44px;
+    max-width: 230px;
+    padding: 8px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+.sequent-auth .auth-language option {
+    background: white;
+    color: #173449;
+}
+.sequent-auth :is(a, button, select):focus-visible,
+.sequent-auth .Mui-focusVisible,
+.sequent-auth .MuiOutlinedInput-root:has(input:focus-visible) {
+    outline: 3px solid #0d796a;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px white;
+}
+.sequent-auth .auth-language select:focus-visible {
+    outline-color: #43e3a1;
+    box-shadow: 0 0 0 2px #102d44;
+}
+.sequent-auth .MuiOutlinedInput-root:has(input:read-only) {
+    background-color: #f4f7f8;
+}
+@media (max-width: 520px) {
+    .sequent-auth .auth-layout {
+        padding: 28px 16px 22px;
+    }
+    .sequent-auth .auth-brand {
+        gap: 16px;
+        margin-bottom: 26px;
+    }
+    .sequent-auth .auth-brand img {
+        width: 140px;
+    }
+    .sequent-auth .auth-brand-context {
+        padding-inline-start: 16px;
+        font-size: 0.75rem;
+    }
+    .sequent-auth .auth-card {
+        padding: 28px 24px;
+        border-radius: 18px;
+    }
+    .sequent-auth .auth-symbol {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 22px;
+    }
+    .sequent-auth .auth-title {
+        font-size: 1.75rem;
+    }
+    .sequent-auth .auth-code-inputs {
+        gap: 6px;
+    }
+    .sequent-auth .auth-code-inputs input {
+        font-size: 1.25rem;
+    }
+    .sequent-auth .auth-code-inputs .MuiInputBase-root {
+        min-height: 54px;
+    }
+}
+@media (max-width: 360px) {
+    .sequent-auth .auth-card {
+        padding-inline: 20px;
+    }
+    .sequent-auth .auth-brand img {
+        width: 126px;
+    }
+    .sequent-auth .auth-brand {
+        gap: 12px;
+    }
+    .sequent-auth .auth-brand-context {
+        padding-inline-start: 12px;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sequent-auth *,
+    .sequent-auth *::before,
+    .sequent-auth *::after {
+        transition: none !important;
+    }
+}

@@ -100,8 +100,18 @@ test.describe("template administrator", () => {
     test("creates a template from the default of its type", async ({page, portal}) => {
         const rows = templates(portal)
         await openTemplates(page, portal)
+        await rowButtons(page, "Welcome letter").nth(0).click()
+        const edit = page.getByRole("dialog").filter({hasText: "Edit a Template"})
+        await expect(edit.getByRole("textbox", {name: "Template Alias"})).toHaveValue("welcome")
+        await page.clock.pauseAt(new Date(Date.parse(FIXED_TIME) + 60_000))
+        await page.keyboard.press("Escape")
+        // Finish the drawer transition while its 400 ms record reset is still pending.
+        await page.clock.runFor(250)
         await page.getByRole("button", {name: "Add", exact: true}).click()
         const drawer = page.getByRole("dialog").filter({hasText: "Create a Template"})
+        await expect(drawer).toBeVisible()
+        await page.clock.resume()
+        expect(portal.graphql.callsTo("UpdateTemplate")).toEqual([])
         await drawer.getByRole("textbox", {name: "Template Alias"}).fill("receipt")
         await drawer.getByRole("textbox", {name: "Template Name"}).fill("Ballot receipt")
         await drawer.getByRole("combobox", {name: "Type"}).click()
@@ -205,6 +215,78 @@ test.describe("template administrator", () => {
         })
         expectRole(portal, "delete_sequent_backend_template", "communication-template-write")
         expect(rows.map((row) => row.id)).toEqual([CONTENT_IDS.template])
+    })
+
+    test("keeps the second template selected after the previous drawer finishes closing", async ({
+        page,
+        portal,
+    }) => {
+        const rows = templates(portal, [
+            templateRow(),
+            templateRow({
+                id: RECEIPT_TEMPLATE_ID,
+                alias: "receipt",
+                template: {
+                    alias: "receipt",
+                    name: "Ballot receipt",
+                    selected_methods: {SMS: true},
+                    sms: {message: "Receipt ready"},
+                },
+            }),
+        ])
+        await openTemplates(page, portal)
+        await rowButtons(page, "Welcome letter").nth(0).click()
+        const drawer = page.getByRole("dialog").filter({hasText: "Edit a Template"})
+        await expect(drawer.getByRole("textbox", {name: "Template Alias"})).toHaveValue("welcome")
+        await page.clock.pauseAt(new Date(Date.parse(FIXED_TIME) + 60_000))
+        const refreshed = page.waitForResponse(
+            (response) =>
+                response.request().method() === "POST" &&
+                response.url().endsWith("/v1/graphql") &&
+                response.request().postDataJSON()?.operationName === "sequent_backend_template"
+        )
+        await page.keyboard.press("Escape")
+        await refreshed
+        // Complete the closing transition and reopen before the former 400 ms reset.
+        await page.clock.runFor(250)
+        await rowButtons(page, "Ballot receipt").nth(0).click()
+        await expect(drawer.getByRole("textbox", {name: "Template Alias"})).toHaveValue("receipt")
+        await page.clock.runFor(500)
+        await expect(drawer.getByRole("textbox", {name: "Template Alias"})).toHaveValue("receipt")
+        await drawer.getByRole("textbox", {name: "Template Name"}).fill("Receipt revised")
+        await page.clock.resume()
+        await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        await expect(notification(page, "Template updated")).toBeVisible()
+        expect(portal.graphql.callsTo("UpdateTemplate").map(({variables}) => variables)).toEqual([
+            {
+                id: RECEIPT_TEMPLATE_ID,
+                tenantId: TENANT_ID,
+                set: {
+                    alias: "receipt",
+                    annotations: {},
+                    communication_method: "EMAIL",
+                    created_at: FIXED_TIME,
+                    created_by: "synthetic-admin",
+                    labels: {},
+                    template: {
+                        alias: "receipt",
+                        name: "Receipt revised",
+                        selected_methods: {DOCUMENT: false, EMAIL: false, SMS: true},
+                        sms: {message: "Receipt ready"},
+                        email: "",
+                        pdf_options: "",
+                        report_options: {},
+                    },
+                    tenant_id: TENANT_ID,
+                    type: "CREDENTIALS",
+                    updated_at: FIXED_TIME,
+                },
+            },
+        ])
+        expect(portal.graphql.callsTo("InsertTemplate")).toEqual([])
+        expect(rows).toHaveLength(2)
+        expect(rows[0].template).toEqual(templateRow().template)
+        expect(rows[1].template).toMatchObject({alias: "receipt", name: "Receipt revised"})
     })
 
     test("exports the tenant's templates as a CSV download", async ({page, portal}) => {

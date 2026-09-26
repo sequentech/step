@@ -22,7 +22,7 @@ import {
     type EncryptForReview,
 } from "./session"
 
-jest.mock("@sequentech/ui-essentials", () => ({Loader: () => null}), {virtual: true})
+jest.mock("@sequentech/ui-essentials", () => ({Loader: () => null}))
 // sequent-core decides this; the tests only need to tell the two contest kinds apart.
 jest.mock("../services/BallotService", () => ({
     provideBallotService: () => ({

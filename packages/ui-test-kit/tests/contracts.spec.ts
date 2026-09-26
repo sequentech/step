@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import {test, expect} from "@playwright/test"
+import {test, expect, type BrowserContext, type Route} from "@playwright/test"
 import {buildSchema} from "graphql"
 import {mkdtemp, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
@@ -447,4 +447,41 @@ test("unexpected WebSockets are reported without reaching a server", async ({con
             server.closeAllConnections()
         })
     }
+})
+
+test("header lookup failures are recorded and the intercepted request is aborted", async () => {
+    let handler: ((route: Route) => Promise<void>) | undefined
+    const context = {
+        routeWebSocket: async () => {},
+        route: async (_pattern: string, callback: typeof handler) => {
+            handler = callback
+        },
+    } as unknown as BrowserContext
+    const violations = new ViolationLog()
+    await routePortal(context, {
+        origin,
+        settings: {},
+        graphql: new GraphQLMock({schema: buildSchema("type Query { ok: Boolean }"), violations}),
+        oidc: new OidcMock({origin, violations, realms: []}),
+        s3: new S3Mock({origin, violations}),
+        violations,
+    })
+    const aborted: string[] = []
+    const route = {
+        request: () => ({
+            url: () => `${origin}/global-settings.json`,
+            method: () => "GET",
+            allHeaders: async () => {
+                throw new Error("header transport closed")
+            },
+        }),
+        abort: async (reason: string) => {
+            aborted.push(reason)
+        },
+    } as unknown as Route
+    await expect(handler!(route)).resolves.toBeUndefined()
+    expect(aborted).toEqual(["failed"])
+    expect(violations.list()).toEqual([
+        `Mock failed for ${origin}/global-settings.json: Error: header transport closed`,
+    ])
 })

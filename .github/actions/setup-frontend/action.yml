@@ -15,6 +15,7 @@ runs:
     - name: Restore workspace dependencies
       id: dependencies
       uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      continue-on-error: true
       with:
         path: |
           packages/node_modules
@@ -39,6 +40,7 @@ runs:
     - name: Cache dependencies within the event ref
       if: steps.dependencies.outputs.cache-hit != 'true'
       uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      continue-on-error: true
       with:
         path: |
           packages/node_modules

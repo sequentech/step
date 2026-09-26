@@ -64,6 +64,26 @@ yarn --cwd packages/ui-test-kit test
 yarn --cwd packages/voting-portal test:journeys
 ```
 
+Portal journeys and `ui-test-kit` contracts use the Chromium version pinned by
+Playwright, including its OS libraries. They do not use
+`CHROMIUM_EXECUTABLE_PATH`; that override is for Storybook. On a supported OS,
+`yarn --cwd packages/voting-portal playwright install --with-deps chromium`
+installs both. In a Nix/devenv environment, run the built journeys in the same
+pinned image as CI instead, from the repository root:
+
+```sh
+docker run --rm --init --ipc=host --user "$(id -u):$(id -g)" \
+  -v "$PWD:/workspace" -w /workspace/packages/voting-portal \
+  mcr.microsoft.com/playwright:v1.62.1-noble \
+  node ../node_modules/@playwright/test/cli.js test --config playwright.journeys.config.ts
+```
+
+Replace the package for another portal after building its production output.
+For `ui-test-kit`, use its `playwright.config.ts`. `step-dev test` checks the
+suite's actual browser with a bounded launch/close before preparing or running
+tests; it does not install browsers or OS dependencies. Workbench smoke tests
+also support their own `WORKBENCH_TEST_CHROME_PATH` override.
+
 Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
 fixture for a fresh browser context, clock and service mocks. The shared
 `packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
@@ -103,6 +123,32 @@ artifact should settle without repeating authentication; include a valid control
 and assert that a route change uses the new event's token.
 
 The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan require semantic candidate lists, including blank selections and grouped contest choices. Authentication-disabled journeys complete verification without private service requests.
+
+The verifier's opt-in Vite build runs the same journeys. After preparing the
+shared packages and voting portal above, use:
+
+```sh
+yarn --cwd packages/ballot-verifier build:vite
+BALLOT_VERIFIER_JOURNEY_DIST=dist-vite yarn --cwd packages/ballot-verifier test:journeys
+```
+
+To check development behavior, start `yarn --cwd packages/ballot-verifier start:vite`
+in another terminal, then run:
+
+```sh
+BALLOT_VERIFIER_JOURNEY_URL=http://127.0.0.1:3001 yarn --cwd packages/ballot-verifier test:journeys
+```
+
+This adds a regression journey that edits and restores a leaf component, shared
+Header and core translation, checking React state and the browser error ledger.
+Run it against an idle checkout so it owns those temporary edits. With the pinned
+Playwright image, pass the selected variable with Docker `-e`; development tests
+also need the server's network namespace (`--network container:<devcontainer>`,
+or `--network host` for a server on the Linux host) and a writable checkout mount.
+Production journeys remain strict; only the explicitly selected development
+origin's Vite HMR websocket is allowed. Webpack remains the default/release/CI
+path; this configuration has not been validated for other portals' assets or
+bootstrap lifecycles.
 
 Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.
 

@@ -16,7 +16,8 @@ if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
         case "${name}" in __init__|test_*|_*) continue ;; esac
         echo "  ${name}" >&2
     done
-    exit 2
+    [ $# -eq 0 ] && exit 2
+    exit 0
 fi
 
 command="$1"

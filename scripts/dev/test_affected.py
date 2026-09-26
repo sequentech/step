@@ -964,6 +964,16 @@ class RepositoryModelTest(unittest.TestCase):
         self.assertFalse(any(check.startswith("cargo-test:") for check in chosen))
         self.assertNotIn("lint:voting-portal", chosen)
 
+    def test_shared_auth_font_selects_both_consumers_without_all_admin_changes(self):
+        _, chosen = self.select(
+            "packages/admin-portal/public/roboto/Roboto_latin_700.woff2"
+        )
+        self.assertTrue({"stories:admin-portal", "stories:keycloak-ui"} <= chosen)
+        self.assertIn("types:keycloak-ui", chosen)
+        _, chosen = self.select("packages/admin-portal/src/App.tsx")
+        self.assertIn("stories:admin-portal", chosen)
+        self.assertNotIn("stories:keycloak-ui", chosen)
+
     def test_sequent_core_change_checks_the_committed_package(self):
         _, chosen = self.select("packages/sequent-core/src/lib.rs")
         self.assertTrue(

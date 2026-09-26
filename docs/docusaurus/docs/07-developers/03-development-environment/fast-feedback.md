@@ -19,14 +19,16 @@ configurations; the `devcontainer` CLI selects one with `--config`.
 
 | Mode | Configuration | Compose services | Dev servers | Use |
 | --- | --- | --- | --- | --- |
-| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6010 (default `ui-essentials`), portals 3000–3004 | Stories and screens on fixtures |
-| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6010 | Login and account themes |
+| `ui-only` | `.devcontainer/ui-only/devcontainer.json` | `devcontainer` | Storybook 6006–6011 (default `ui-essentials`), workbench 5173, portals 3000–3004 | Stories and screens on fixtures |
+| `ui-keycloak` | `.devcontainer/ui-keycloak/devcontainer.json` | adds `postgres-keycloak` and `keycloak` (8090), which starts without Harvest | Storybook 6006–6011 | Login and account themes |
 | `backend` | `.devcontainer/backend/devcontainer.json` | the `base` profile: databases, MinIO, RabbitMQ, ImmuDB, Keycloak, Hasura, Harvest, Windmill, beat and B4 | none | Rust services, Hasura, step-cli |
-| `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook | End-to-end work in the portals |
+| `full` | `.devcontainer/devcontainer.json` | as `backend` | portals 3000–3004 (default voting 3000 and admin 3002), Storybook, workbench 5173 | End-to-end work in the portals |
 
 ```sh
 scripts/dev/step-dev mode list
 scripts/dev/step-dev mode status
+scripts/dev/step-dev mode up ui-only --servers storybook-ui-essentials,workbench
+scripts/dev/step-dev mode up ui-only --servers storybook-keycloak-ui
 scripts/dev/step-dev mode up ui-keycloak
 scripts/dev/step-dev mode switch backend
 scripts/dev/step-dev mode stop
@@ -58,6 +60,21 @@ parent at `/workspaces` and again at its host path, where git worktree links
 resolve. Service containers build into the checkout's own `packages/target`;
 local Cargo builds use `rust-local-target`.
 
+Harvest, Windmill and beat each run their own `cargo run` command. Cargo-watch
+finds the current crate's local dependency directories automatically: a Harvest
+leaf edit affects Harvest, while a Windmill edit also affects Harvest and beat.
+Keep the per-service feature graphs separate; compiling the packages together can
+enable extra dependency features and invalidate the subsequent service build.
+
+On aarch64 Linux, the devenv shell and these services select the Rust toolchain's
+bundled LLD through `.devcontainer/scripts/rust-lld-cc.sh`. The wrapper preserves
+debug information and compiler arguments, falls back to `cc` when that bundled
+driver is unavailable, and propagates link failures. To compare the default
+linker locally, prefix Cargo with
+`CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=cc`. Changing Cargo's configured
+linker invalidates compilation fingerprints; warm the selected configuration
+before comparing incremental rebuilds.
+
 Dependency caches live in Docker volumes shared by all checkouts, so a new
 worktree or a recreated container does not download them again:
 
@@ -74,6 +91,53 @@ services and Hasura share the devcontainer's mounts), then
 runs its own Nix daemon on the shared store. A garbage collection sees only the
 roots and builds of its own container, so run `nix-collect-garbage` while no
 other devcontainer is up; `.devcontainer/scripts/free-space.sh` skips it then.
+
+### Prebuilt toolchains
+
+On the host, `scripts/dev/step-dev prebuild pull` fetches the environment image
+matching this checkout; `prebuild status` shows whether it is available. Rebuild
+the devcontainer after pulling. Initialization uses only a local image whose
+content label and architecture match, otherwise it uses the existing devenv
+image and evaluates the shell locally. An unavailable registry never blocks
+that fallback. Each prebuild gets its own shared Nix volume so an older volume
+cannot hide the image's populated store.
+
+The **Prebuild development tools** workflow builds native amd64 and arm64 images
+from `devenv.nix`, `devenv.lock`, `devenv.yaml` and the locked devcontainer
+features. The build context contains no application source or local `.env`.
+PRs build without publishing; pushes to `main`/`ovcs` and manual runs on those
+branches publish `ghcr.io/sequentech/step-devenv:env-<input hash>`. GHCR package
+write permission is needed for trusted publishing and the package must be public
+for anonymous pulls. Change a toolchain/feature input to get a new tag, or
+manually run the workflow to refresh an existing recipe, then pull again.
+`prebuild fingerprint` prints the key; `prebuild context --destination <empty-dir>`
+creates the same small build context for local inspection.
+
+After building, the workflow starts the local native image with networking
+disabled and checks Node, Yarn, Rust, Cargo, wasm-pack, wasm-bindgen and the Rust
+WASM standard library. It measures three fresh Nix-volume starts, then ten
+new-container starts sharing the final volume after an excluded warmup. Only one
+copied store exists at a time. Raw timings, tool versions, load, image identity,
+logs and the sample counts are in the platform's `prebuild-smoke` artifact.
+Fresh-volume seeding is included; image build/pull and application/service
+readiness are separate. Each sample records container creation and toolchain
+startup separately, with a combined ten-minute timeout and a twelve-minute
+measurement budget. If the observed first fresh start leaves insufficient time
+for the remaining fresh starts and warm series, the report states the smaller
+sample count. Warm samples must complete. Insufficient disk headroom fails before
+any store copy. To check an already built local image without downloading or publishing:
+
+```sh
+python3 -m scripts.dev.prebuild_smoke --image <local-image> --output-dir /tmp/prebuild-smoke
+```
+
+Pass `--docker-host unix:///path/to/owned/docker.sock` for an isolated daemon;
+otherwise the helper uses `DOCKER_HOST` when set, or the default local daemon.
+It removes only the containers and volumes bearing this run's UUID owner label.
+A timed-out creation stays tracked while cleanup waits up to ninety seconds for
+the container to become inspectable. Failure artifacts retain creation/start
+logs, available container/daemon diagnostics and any resources still awaiting
+cleanup. The workflow allows fifteen minutes for measurement and cleanup.
 
 ## Shared UI hot reload
 
@@ -92,11 +156,19 @@ Apollo and `sequent-core` always resolve to the portal's own copy. Dev servers d
 not type-check: run `test:types` in the voting portal, results portal or ballot
 verifier (it resolves the shared sources), or build the admin portal.
 
-Production builds and journeys still use the packages' `dist` entry points: run
+Default webpack production builds and journeys use the packages' `dist` entry points: run
 `yarn --cwd packages build:ui-core` and `build:ui-essentials` before
 `build:<portal>`. `STEP_SHARED_UI=dist` makes a dev server use those builds too,
 for example to reproduce a production-only difference. The shared settings are in
 `packages/ui-essentials/webpack.portal.cjs`.
+
+The ballot verifier also has an opt-in Vite server:
+`yarn --cwd packages/ballot-verifier start:vite`. Its `build:vite` compiles shared
+source into `dist-vite`, and `preview:vite` serves that output. Webpack remains
+the default server, release build and CI build. See the
+[UI browser test guide](testing/ui-browser-tests.md) for Vite production and
+development journeys. Other portals require their own asset, bootstrap and
+journey validation before adopting this configuration.
 
 ## Screens, workbench and scenarios
 
@@ -130,9 +202,11 @@ Its local storage keys start with `sequent.workbench.v1.`; Reset removes them an
 portal's session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under `Workbench/`.
 
-`WORKBENCH_SEQUENT_CORE=<wasm-pack web output>` loads another sequent-core build
-without reinstalling; the page reloads when its files change and the inspector shows
-the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
+The workbench dev server automatically loads the artifact published by
+`step-dev wasm`, falling back to the installed package when none exists. Production
+builds use the installed package. `WORKBENCH_SEQUENT_CORE=<wasm-pack web output>`
+explicitly selects another build for either mode. No reinstall is needed; the page
+reloads when the artifact changes and the inspector shows the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 `test:smoke`. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
@@ -163,6 +237,11 @@ new stack the first `up` enrolls the tenant administrator's email code, as the j
 do; the admin portal then asks for it, and the Keycloak container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
+
+`up`, `urls`, `status` and `reset` accept `--format json`; progress goes to stderr.
+An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
+tenant and keeps the state file if deletion fails, so it can be retried. A second
+command for the same scenario fails while the first holds its lock.
 
 ## Incremental WASM
 
@@ -286,14 +365,22 @@ samples by default.
 ```sh
 B="scripts/dev/step-dev bench"
 $B ui-update --label before --checkout . --edit shared-header \
-  --target voting --target admin --target verifier --target results \
-  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
+  --target voting --target admin --target verifier --target results
 $B ui-update --label before --checkout . --edit voting-screen --target voting
 $B ui-update --label before --checkout . --edit shared-header --target storybook
 $B test --label before --checkout . --suite cargo-harvest
 $B rust --label before --checkout . --edit windmill-service --build windmill --build harvest
 $B wasm --label before --checkout . --edit sequent-core-wasm
 $B summarize ~/.cache/step-bench/results --phases
+```
+
+Portal dev servers compile shared UI source directly. For a legacy baseline
+that loads shared `dist` output, select that mode and include its rebuild:
+
+```sh
+STEP_SHARED_UI=dist $B ui-update --label legacy-dist --checkout . --edit shared-header \
+  --target voting --target admin --target verifier --target results \
+  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
 ```
 
 Edits insert a unique marker line and restore the file afterwards. `ui-update`
@@ -360,3 +447,27 @@ Artifacts use the immutable run identity and output manifests; a partial job
 retry can consume a successful earlier producer from that run. Tests rerun in
 both cases. Before the first base cache has been populated, a new PR has a cold
 cache; rerunning the PR demonstrates its own warm cache path.
+
+### Rust compiler caches
+
+Rust test and CLI jobs restore Cargo downloads separately from a bounded local
+sccache store. The compiler key includes OS/architecture, rustc identity,
+workspace manifests and Cargo configuration, the actual workspace lockfile,
+profiles, features, targets and compiler flags. Source edits reuse compatible
+units; a lockfile change can restore the prior compatible snapshot. Cargo still
+builds and runs tests every time, and sccache validates each compilation's inputs.
+A snapshot hit never skips a test.
+
+The job summary reports the key and restore status; the sccache post-step reports
+compiler hits, misses and unsupported calls. Each compiler snapshot is limited
+to 512 MiB and only successful pushes to `main`, `ovcs` and `release/**` save it.
+PRs and manual runs only restore. Snapshots are immutable per compatibility key;
+set the repository variable `STEP_RUST_CACHE_EPOCH` to a new value to force a new
+snapshot. GitHub may evict older entries within its repository cache quota. A
+missing download or compiler snapshot builds normally; an unavailable sccache
+installer falls back to rustc. To reproduce an identity locally:
+
+```sh
+scripts/dev/step-dev rust_cache --name sequent-core --lockfile packages/Cargo.lock \
+  --target-dir packages/rust-local-target --profile dev --features default_features,keycloak
+```

@@ -174,6 +174,13 @@ def provision_tenant(
     election_event_id = common.extract_id(out)
     common.log(f"    election_event_id={election_event_id}")
     common.log(f"    election_event_alias={election_event_alias}")
+    # Preserve the remote ID before any later provisioning operation can fail.
+    common.write_json(tenant_out_dir / "summary.json", {
+        "tenant_id": tenant_id,
+        "election_event_id": election_event_id,
+        "election_event_alias": election_event_alias,
+        "status": "provisioning",
+    })
 
     common.log(f"[2/7] Generating {num_voters} voters with numeric, {voter_pin_digits}-digit DTMF-safe credentials")
     # dateOfBirth is required: this realm's IVR auth flow (checked live via
@@ -396,6 +403,19 @@ def main() -> None:
     # bootstrap tenant's already-known secret; new tenants get theirs added
     # as they're created.
     client_secrets = {tenant_id: keycloak_client_secret}
+    target_tenant_ids = []
+    new_tenant_ids = set()
+    tenants_index_path = out_dir / "tenants.json"
+
+    def save_index() -> None:
+        common.write_json(tenants_index_path, {
+            "tenant_ids": target_tenant_ids,
+            "tenants": [
+                {"tenant_id": target, "dir": f"tenant-{target}",
+                 "source": "new" if target in new_tenant_ids else "existing"}
+                for target in target_tenant_ids
+            ],
+        })
 
     def configure_as(user: str, password: str, target_tenant_id: str) -> None:
         common.run_step(
@@ -443,11 +463,13 @@ def main() -> None:
         # authorization for the next create-tenant call. Each new tenant is
         # configure_as'd only briefly, to seed its trustees, then switched
         # straight back to tenant_id before the loop continues.
-        target_tenant_ids = []
         for i in range(new_tenants):
             slug = "loadtest-" + "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
             out = common.run_step(step_cli_bin, "create-tenant", "--slug", slug)
             new_tenant_id = common.extract_id(out)
+            target_tenant_ids.append(new_tenant_id)
+            new_tenant_ids.add(new_tenant_id)
+            save_index()
             common.log(f"    created tenant {i + 1}/{new_tenants}: tenant_id={new_tenant_id} (slug={slug})")
 
             client_secrets[new_tenant_id] = common.lookup_client_secret(
@@ -488,16 +510,15 @@ def main() -> None:
                 common.retry_step(step_cli_bin, 10, 3, "create-trustee", "--name", name, "--public-key", public_key)
             configure_as(admin_portal_user, admin_portal_password, tenant_id)
 
-            target_tenant_ids.append(new_tenant_id)
     else:
         target_tenant_ids = [tenant_id]
+        save_index()
 
     # Tracked separately from target_tenant_ids so tenants.json can record
     # which tenants this run actually created (source: "new") versus reused
     # as-is (source: "existing") — cleanup_telephone_load_test.py's
     # --new-tenants-only relies on that distinction to leave reused tenants
     # alone.
-    new_tenant_ids = set(target_tenant_ids) if new_tenants > 0 else set()
 
     if use_existing_tenants:
         common.log(f"Adding {len(use_existing_tenants)} pre-existing tenant(s) to this run: {', '.join(use_existing_tenants)}")
@@ -510,6 +531,7 @@ def main() -> None:
                     keycloak_url, keycloak_admin_user, keycloak_admin_password, existing_tenant_id, keycloak_client_id
                 )
             target_tenant_ids.append(existing_tenant_id)
+            save_index()
 
     out_dir.mkdir(parents=True, exist_ok=True)
     # Shared across every tenant provisioned below, so the same election
@@ -546,18 +568,7 @@ def main() -> None:
         )
         summaries.append(summary)
 
-    tenants_index_path = out_dir / "tenants.json"
-    common.write_json(tenants_index_path, {
-        "tenant_ids": target_tenant_ids,
-        "tenants": [
-            {
-                "tenant_id": s["tenant_id"],
-                "dir": f"tenant-{s['tenant_id']}",
-                "source": "new" if s["tenant_id"] in new_tenant_ids else "existing",
-            }
-            for s in summaries
-        ],
-    })
+    save_index()
 
     common.log(f"Done. Provisioned {len(target_tenant_ids)} tenant(s): {', '.join(target_tenant_ids)}")
     common.log(f"Tenant index: {tenants_index_path}")
