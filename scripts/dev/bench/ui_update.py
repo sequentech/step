@@ -102,6 +102,14 @@ class BrowserError(RuntimeError):
     pass
 
 
+def browser_error(message: Mapping[str, Any]) -> str | None:
+    errors = message.get("page_errors", 0)
+    violations = message.get("violations", 0)
+    if errors or violations:
+        return f"browser reported {errors} page errors and {violations} mock violations"
+    return None
+
+
 def ends_wait(
     message: Mapping[str, Any], command: str, ids: Sequence[str], text: str | None
 ) -> bool:
@@ -367,16 +375,19 @@ def measure(
                 page_errors=observed.get("page_errors"),
                 mock_violations=observed.get("violations"),
             )
+        failure = (
+            browser_error(observed) if observed is not None else error or "not observed"
+        )
         run.add(
             timers[name].finish(
-                ok=seconds is not None,
+                ok=seconds is not None and failure is None,
                 seconds=seconds,
                 phases={
                     **phases,
                     **({"visible": seconds} if seconds is not None else {}),
                 },
                 detail=detail,
-                error=None if seconds is not None else error or "not observed",
+                error=failure,
             )
         )
     time.sleep(options.settle)
