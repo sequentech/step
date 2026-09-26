@@ -84,7 +84,9 @@ export const upserts = () => graphql.calls.filter(({name}) => name === "UpsertAr
 /** Reads of the area's contests, including the refetch after saving. */
 export const contestReads = () =>
     graphql.calls.filter(({name}) => name === "sequent_backend_area_extended")
+/** React-admin reads and writes of the story. */
 export const dataCalls = () => data.calls
+export const dataWrites = () => data.writes
 
 /** Chooses an option of one of the form's autocomplete or select inputs. */
 export async function choose(input: HTMLElement, option: string) {
