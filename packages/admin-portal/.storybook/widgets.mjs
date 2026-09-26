@@ -45,6 +45,9 @@ export default {
             "the tenant global applies the same CSS in every story.",
         "src/components/election-event/create/CreateScreen.tsx#PullChecker": POLLER,
         "src/resources/ElectionEvent/CreateElectionEvent.tsx#PullChecker": POLLER,
+        "src/resources/Approvals/ListApprovals.tsx#CustomFilters":
+            "Not a component: ListApprovals calls it as a function to build its filter " +
+            "inputs, which the ListApprovals stories render.",
         "src/resources/Tally/ResultsDataLoader.tsx#ResultsDataLoader":
             "Renders nothing: loads the results of a tally into the tally context; the tally " +
             "result stories provide that context.",
