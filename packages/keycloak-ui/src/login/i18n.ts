@@ -15,7 +15,7 @@ const englishMessages = {
     "messageOtp.auth.address": "We sent a code to {0}.",
     "messageOtp.auth.title": "Enter your verification code",
     "messageOtp.auth.instructionBoth":
-        "Enter the code we sent to to your mobile device via sms or email.",
+        "Enter the code we sent to your mobile device via sms or email.",
     "messageOtp.auth.instructionSms": "Enter the code we sent to your mobile device via sms.",
     "messageOtp.auth.instructionEmail": "Enter the code we sent to your email.",
     "messageOtp.auth.ttlTime": "Code valid for {0} minutes.",

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, fireEvent, userEvent, waitFor, within} from "storybook/test"
-import {createKcPageStory} from "../KcPageStory"
+import {createKcPageStory, getKcContextMock} from "../KcPageStory"
 import {MessageCourier} from "../KcContext"
+import KcPage from "../KcPage"
 
 const {KcPageStory} = createKcPageStory({pageId: "message-otp.login.ftl"})
 
@@ -36,6 +37,43 @@ export const Sms: Story = {
         await expect(
             within(canvasElement).getByText("Enter the code we sent to your mobile device via sms.")
         ).toBeVisible()
+    },
+}
+
+export const MissingCourier: Story = {
+    render: () => {
+        const kcContext = getKcContextMock({pageId: "message-otp.login.ftl"})
+        delete kcContext.courier
+        return <KcPage kcContext={kcContext} />
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText("Enter the code we sent to your mobile device via sms or email.")
+        ).toBeVisible()
+        await expect(canvas.getByLabelText("Digit 1 of 6")).toBeVisible()
+    },
+}
+
+export const OneTimeLinkWithoutCourier: Story = {
+    render: () => {
+        const kcContext = getKcContextMock({
+            pageId: "message-otp.login.ftl",
+            overrides: {isOtl: true},
+        })
+        delete kcContext.courier
+        return <KcPage kcContext={kcContext} />
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(
+            canvas.getByText(
+                "We have sent you a verification link to your mobile device via email and/or SMS. Please open this link to continue."
+            )
+        ).toBeVisible()
+        await expect(canvas.queryByLabelText("Digit 1 of 6")).not.toBeInTheDocument()
     },
 }
 

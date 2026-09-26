@@ -105,7 +105,7 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
         event.preventDefault()
         enterCode(event.clipboardData.getData("text"))
     }
-    const instruction = INSTRUCTIONS[courier]
+    const instruction = INSTRUCTIONS[courier ?? MessageCourier.Both]
 
     return (
         <Template

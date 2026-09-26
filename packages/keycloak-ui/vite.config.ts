@@ -67,15 +67,17 @@ export default defineConfig({
                     const directory = `theme/${theme}/login`
                     const login = readFileSync(`${directory}/login.ftl`, "utf8")
                     for (const pageId of DOTTED_PAGE_IDS) {
-                        writeFileSync(
-                            `${directory}/${pageId}`,
-                            login
-                                .replace('"pageId": "login.ftl"', `"pageId": "${pageId}"`)
-                                .replace(
-                                    '"ftlTemplateFileName": "login.ftl"',
-                                    `"ftlTemplateFileName": "${pageId}"`
+                        let page = login
+                        for (const key of ["pageId", "ftlTemplateFileName"]) {
+                            const original = `"${key}": "login.ftl"`
+                            if (!page.includes(original)) {
+                                throw new Error(
+                                    `Generated ${directory}/login.ftl has no ${original}`
                                 )
-                        )
+                            }
+                            page = page.replace(original, `"${key}": "${pageId}"`)
+                        }
+                        writeFileSync(`${directory}/${pageId}`, page)
                     }
                 }
             },
