@@ -23,6 +23,7 @@ import {
 } from "@/__stories__/fixtures"
 import {taskRecord} from "@/resources/Tasks/__stories__/TasksFixture"
 import {ETasksExecution} from "@/types/tasksExecution"
+import type {Sequent_Backend_Tenant} from "@/gql/graphql"
 import {ElectionEventTallyContextProvider} from "@/providers/ElectionEventTallyProvider"
 import {WidgetsContextProvider} from "@/providers/WidgetsContextProvider"
 import {
@@ -304,12 +305,15 @@ export function TreeStory({
     role,
     roles,
     sidebarOpen = true,
+    tenant,
     children,
 }: PropsWithChildren<{
     services: TreeServices
     role: EStoryPermissions
     roles?: string[]
     sidebarOpen?: boolean
+    /** The selected tenant's record, once the application has loaded it. */
+    tenant?: Sequent_Backend_Tenant
 }>) {
     // The archived tab selection is an atom; each story starts on the active tab.
     const [atoms] = useState(() => createStore())
@@ -319,6 +323,7 @@ export function TreeStory({
             dataProvider={services.provider}
             role={role}
             roles={roles}
+            tenantRecord={tenant}
             store={memoryStore({"sidebar.open": sidebarOpen})}
             // Election images load from the Storybook server instead of the public bucket.
             settings={{PUBLIC_BUCKET_URL: `${globalThis.location.origin}/story-bucket/`}}
