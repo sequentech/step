@@ -146,3 +146,55 @@ impl RngCore for StrandStdRng {
         self.0.fill_bytes(dest)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::StrandRng;
+    use rand_core_010::TryRng;
+
+    /// Only a `TryCryptoRng` with an infallible error is accepted where the
+    /// released dalek and RustCrypto crates ask for key material.
+    fn assert_crypto_rng<R: rand_core_010::CryptoRng>(_: &R) {}
+
+    #[test]
+    fn rand_core_010_draws_fresh_values_from_the_single_source() {
+        let mut rng = StrandRng;
+        assert_crypto_rng(&rng);
+
+        // A repeated 64-bit draw from the OS source is a 2^-64 event; four in a
+        // row would mean the shim returns a constant.
+        let words: Vec<u64> =
+            (0..4).map(|_| rng.try_next_u64().unwrap()).collect();
+        assert!(words.windows(2).any(|pair| pair[0] != pair[1]), "{words:?}");
+
+        let halves: Vec<u32> =
+            (0..8).map(|_| rng.try_next_u32().unwrap()).collect();
+        assert!(
+            halves.windows(2).any(|pair| pair[0] != pair[1]),
+            "{halves:?}"
+        );
+    }
+
+    #[test]
+    fn rand_core_010_fills_every_requested_byte() {
+        let mut rng = StrandRng;
+        // Empty destinations are valid and must not fail.
+        rng.try_fill_bytes(&mut []).unwrap();
+
+        let mut first = [0u8; 64];
+        let mut second = [0u8; 64];
+        rng.try_fill_bytes(&mut first).unwrap();
+        rng.try_fill_bytes(&mut second).unwrap();
+        assert_ne!(first, [0u8; 64]);
+        assert_ne!(first, second);
+        // The tail is written too, not only a prefix.
+        assert_ne!(first[32..], [0u8; 32]);
+    }
+
+    #[test]
+    fn info_names_the_module_and_fips_state() {
+        let info = super::info();
+        assert!(info.contains("random::rand"), "{info}");
+        assert!(info.ends_with("FIPS_ENABLED: FALSE"), "{info}");
+    }
+}
