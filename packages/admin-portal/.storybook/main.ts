@@ -2,9 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
-import {readdirSync, readFileSync} from "node:fs"
+import {readFileSync} from "node:fs"
 import {createRequire} from "node:module"
-import {dirname, join} from "node:path"
+import {dirname} from "node:path"
 import {fileURLToPath} from "node:url"
 import config from "../../ui-essentials/.storybook/main.ts"
 import postcssPresetEnv from "postcss-preset-env"
@@ -38,31 +38,6 @@ const CROSS_ORIGIN_ISOLATION = {
     "Cross-Origin-Resource-Policy": "cross-origin",
 }
 
-// When Vite finds a dependency while stories run, it bundles it and reloads
-// the page, failing the stories in flight. Pre-bundle every package that the
-// admin, UI essentials and UI core sources import, besides those listed below.
-const RUNTIME_IMPORTS =
-    /(?:^|[\s;])(?:import|export)\s+(?!type\s)(?:[^'"]*?\sfrom\s+)?["']([^"'.][^"']*)["']|import\(\s*["']([^"'.][^"']*)["']\s*\)/gm
-const NOT_PREBUNDLED =
-    /^(?:@\/|@root\/|@sequentech\/|virtual:|node:|sequent-core|braid-wasm|storybook|@storybook\/)/
-function importedPackages(): string[] {
-    const packages = new Set<string>()
-    for (const workspace of ["admin-portal", "ui-essentials", "ui-core"]) {
-        const sources = fileURLToPath(new URL(`../../${workspace}/src`, import.meta.url))
-        for (const file of readdirSync(sources, {recursive: true, encoding: "utf8"})) {
-            if (!/\.[jt]sx?$/.test(file) || file.endsWith(".d.ts")) continue
-            for (const [, from, dynamic] of readFileSync(join(sources, file), "utf8").matchAll(
-                RUNTIME_IMPORTS
-            )) {
-                const name = from ?? dynamic
-                if (!NOT_PREBUNDLED.test(name) && !/\.(css|json|svg|png)$/.test(name))
-                    packages.add(name)
-            }
-        }
-    }
-    return [...packages].sort()
-}
-
 const adminConfig = {
     ...config,
     staticDirs: ["../public", {from: braidWasm, to: "/braid-wasm"}],
@@ -77,6 +52,10 @@ const adminConfig = {
             },
             css: {postcss: {plugins: [postcssPresetEnv()]}},
             optimizeDeps: {
+                // When Vite finds a dependency while stories run, it bundles it
+                // and reloads the page, failing the stories in flight. Scanning
+                // every story file first finds the packages they reach.
+                entries: ["src/**/*.stories.tsx"],
                 include: [
                     "ra-i18n-polyglot",
                     "@mui/icons-material/ChevronRight",
@@ -156,7 +135,6 @@ const adminConfig = {
                     "@mui/icons-material/Close",
                     "@mui/icons-material/ContentCopy",
                     "@mui/icons-material/Visibility",
-                    ...importedPackages(),
                 ],
             },
         }),
