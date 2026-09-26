@@ -317,3 +317,46 @@ $B ci --label before --pr "$PR"
 ```
 
 ## Incremental CI
+
+The `Tests` workflow selects checks with the same dependency model as local
+commands. Pull requests compare their head with the actual base's merge base;
+checkout fetches the full history. Missing history, unknown paths or changes to
+the selection runner select all checks. Pushes to `main`, `ovcs` and `release/**`
+run full validation. A newer PR commit cancels its older feedback run.
+
+```sh
+scripts/dev/step-dev affected --base origin/ovcs --json
+python3 -m scripts.dev.ci plan --base origin/ovcs --output /tmp/ci-plan.json
+```
+
+Read the plan job's summary for affected packages, selected and skipped checks,
+and reasons. The plan artifact includes the same model JSON used locally. Jest,
+Rust and tooling jobs run only selected package suites; selected stories still
+run interactions, accessibility, types and the catalog build. Production journeys
+reuse shared-library and portal builds from the same immutable run; every
+selected test reruns. The four admin journey shards use one production build.
+
+`Required feedback checks` rejects failed, cancelled, missing or unexpectedly
+skipped managed jobs. It covers `Tests` and its reusable frontend UI workflow;
+existing coverage, backend integration and other workflows keep their separate
+gates. Repository maintainers can add the stable feedback check to branch rules.
+
+Frontend dependency caches require an exact OS, architecture, Node, Yarn,
+workspace-manifest, lockfile and packaged-WASM match. Restored dependencies pass
+Yarn's integrity and file checks before installation is skipped; a missing or
+invalid cache runs a normal frozen install. Cache availability never substitutes
+for a current build or test. GitHub scopes PR-written caches to that PR; base
+pushes populate caches that later PRs can restore. The setup step reports hits
+and misses. To force a dependency cache miss, increment `frontend-v1` in the setup
+action, or delete the relevant Actions cache.
+
+Shared UI outputs also use an exact content identity: transitive workspace
+sources, workspace manifests, lockfile, packaged WASM, build configuration and
+recipe, OS/architecture/libc, Node/Yarn and build environment. A checksum manifest
+must match the current identity and every output before compilation is skipped.
+Missing, stale or damaged outputs rebuild. A portal leaf edit therefore reuses
+unchanged shared libraries. Each portal production build still runs once per run.
+Artifacts use the immutable run identity and output manifests; a partial job
+retry can consume a successful earlier producer from that run. Tests rerun in
+both cases. Before the first base cache has been populated, a new PR has a cold
+cache; rerunning the PR demonstrates its own warm cache path.

@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Set up frontend dependencies
+description: Restore exact workspace dependencies; install normally on a cache miss
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      with:
+        node-version: '22.22.0'
+    - name: Enable the pinned Yarn command
+      shell: bash
+      run: npm install --global yarn@1.22.22
+    - name: Restore workspace dependencies
+      id: dependencies
+      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      with:
+        path: |
+          packages/node_modules
+          packages/*/node_modules
+          packages/keycloak-extensions/sequent-theme/node_modules
+        key: frontend-v1-${{ runner.os }}-${{ runner.arch }}-node22.22.0-yarn1.22.22-${{ hashFiles('packages/yarn.lock', 'packages/**/package.json', 'packages/*/rust/*.tgz', '.github/actions/setup-frontend/action.yml') }}
+    - name: Check restored dependency integrity
+      id: integrity
+      shell: bash
+      env:
+        CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+      run: |
+        if [ "$CACHE_HIT" = true ] && yarn --cwd packages check --integrity --check-files; then
+          echo 'valid=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'valid=false' >> "$GITHUB_OUTPUT"
+        fi
+    - name: Install locked workspace dependencies on a miss or invalid cache
+      if: steps.integrity.outputs.valid != 'true'
+      shell: bash
+      run: yarn --cwd packages install --frozen-lockfile --non-interactive --check-files
+    - name: Cache dependencies within the event ref
+      if: steps.dependencies.outputs.cache-hit != 'true'
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      with:
+        path: |
+          packages/node_modules
+          packages/*/node_modules
+          packages/keycloak-extensions/sequent-theme/node_modules
+        key: ${{ steps.dependencies.outputs.cache-primary-key }}
+    - name: Summarize dependency reuse
+      shell: bash
+      env:
+        CACHE_HIT: ${{ steps.integrity.outputs.valid }}
+      run: |
+        if [ "$CACHE_HIT" = true ]; then
+          echo 'Dependencies: exact OS/architecture/Node/Yarn/manifests/lock/WASM cache hit; install skipped. Tests rerun.' >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo 'Dependencies: exact cache missing or invalid; normal frozen install. PR writes are scoped by GitHub to that PR; base pushes seed shared caches.' >> "$GITHUB_STEP_SUMMARY"
+        fi

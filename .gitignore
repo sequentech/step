@@ -101,3 +101,6 @@ airgapped-artifacts
 /.cache/dev-mode/
 # Events and step-cli logs of scripts/dev/step-dev scenario, per Compose project.
 /.cache/scenarios/
+
+# Verified frontend output manifests from local and hosted build reuse.
+/.cache/feedback-builds/

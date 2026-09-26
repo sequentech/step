@@ -135,7 +135,11 @@ units = ["devenv"]
 broad = "the devenv toolchain changed"
 
 [[paths]]
-globs = ["scripts/dev/affected.toml", "scripts/dev/affected/**"]
+globs = [
+    "scripts/dev/affected.toml", "scripts/dev/affected/**", "scripts/dev/ci.py", "scripts/dev/frontend_cache.py",
+    ".github/workflows/tests.yml", ".github/workflows/frontend-ui-tests.yml",
+    ".github/actions/setup-frontend/**", ".github/actions/restore-frontend-build/**",
+]
 units = ["scripts-dev"]
 broad = "the selection model changed"
 
