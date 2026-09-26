@@ -245,3 +245,441 @@ test("exports an encrypted archive, tracks its task and reveals the generated pa
     await page.clock.runFor(250)
     await expect(page.getByText("SUCCESS", {exact: true})).toBeVisible()
 })
+
+async function choose(page: Page, combobox: RegExp, option: string) {
+    await page.getByRole("combobox", {name: combobox}).click()
+    await page.getByRole("option", {name: option, exact: true}).click()
+}
+
+test("saves ballot design, channel, language and advanced policy choices in one update", async ({
+    page,
+    portal,
+}) => {
+    editableEvent(portal)
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Ballot Design", exact: true}).click()
+    await page.getByRole("switch", {name: "Skip Election List Screen"}).check()
+    await page.getByRole("switch", {name: "Show User Profile"}).check()
+    await choose(page, /^Presentation elections order/, "Random")
+    await choose(page, /^Show Cast Vote Logs Tab/, "Show Cast Vote Logs Tab")
+    await page.getByRole("textbox", {name: "Logo URL"}).fill("https://cdn.example/logo.svg")
+    await page
+        .getByRole("textbox", {name: "Redirect Finish URL", exact: true})
+        .fill("https://council.example/thanks")
+    await page.getByRole("textbox", {name: "Custom CSS"}).fill("header { color: navy; }")
+    await page.getByRole("button", {name: "Voting Channels Allowed", exact: true}).click()
+    await page.getByRole("switch", {name: "Kiosk"}).check()
+    await page.getByRole("radio", {name: "Enabled"}).check()
+    await page.getByRole("button", {name: "Language", exact: true}).click()
+    await choose(page, /^Language Detection Policy/, "Force Default")
+    await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+    await choose(page, /^Contest encryption policy/, "Multiple Contests")
+    await choose(page, /^Include decoded ballots/, "Include")
+    await choose(page, /^Keys\/Tally Ceremonies Policy/, "Allow Automatic Ceremonies")
+    await choose(page, /^Weighted Voting Policy/, "Weighted Voting for Areas")
+    await choose(page, /^Delegated Voting Policy/, "Enabled")
+    await choose(page, /^Voting Portal date & time format/, "ISO Local (yyyy-MM-dd HH:mm)")
+    await choose(page, /^Voting Portal Countdown policy/, "Countdown with alert")
+    const countdown = page.getByRole("spinbutton", {
+        name: "time in seconds before expiration to show countdown",
+    })
+    await expect(countdown).toBeEnabled()
+    await countdown.fill("30")
+    await page
+        .getByRole("spinbutton", {name: "time in seconds before expiration to show Logout alert"})
+        .fill("120")
+    await choose(page, /^Voter Signing Policy/, "With signature")
+    await choose(page, /^Voter Digital Certificate Policy/, "Enabled")
+    await choose(page, /^Enrollment/, "Enabled")
+    await choose(page, /^OTP/, "Disabled")
+
+    const update = await save(page, portal)
+    expect(update).toEqual({
+        _set: {
+            presentation: {
+                ...SAVED_PRESENTATION_DEFAULTS,
+                i18n: {
+                    en: {
+                        name: "Council election",
+                        alias: "Council",
+                        description: "Annual council election",
+                    },
+                },
+                language_conf: {
+                    enabled_language_codes: ["en"],
+                    default_language_code: "en",
+                    language_detection_policy: "force-default",
+                },
+                skip_election_list: true,
+                show_user_profile: true,
+                elections_order: "random",
+                show_cast_vote_logs: "show-logs-tab",
+                logo_url: "https://cdn.example/logo.svg",
+                redirect_finish_url: "https://council.example/thanks",
+                css: "header { color: navy; }",
+                automatic_recount_policy: "enabled",
+                contest_encryption_policy: "multiple-contests",
+                decoded_ballot_inclusion_policy: "included",
+                ceremonies_policy: "automated-ceremonies",
+                weighted_voting_policy: "areas-weighted-voting",
+                delegated_voting_policy: "enabled",
+                voting_portal_datetime_format: "iso-local",
+                voting_portal_countdown_policy: {
+                    policy: "COUNTDOWN_WITH_ALERT",
+                    countdown_anticipation_secs: 30,
+                    countdown_alert_anticipation_secs: 120,
+                },
+                voter_signing_policy: "with-signature",
+                voter_certificate_policy: "enabled",
+                enrollment: "enabled",
+                otp: "disabled",
+            },
+            voting_channels: {online: true, kiosk: true, early_voting: false, telephone: false},
+        },
+        where: {id: {_eq: EVENT_ID}},
+    })
+    expect(
+        portal.graphql.callsTo("SetVoterAuthentication").map(({variables}) => variables)
+    ).toEqual([{electionEventId: EVENT_ID, enrollment: "enabled", otp: "disabled"}])
+})
+
+/**
+ * Records unhandled promise rejections instead of letting them surface as page errors, for the
+ * tests that pin a rejected save: they assert the list explicitly, so nothing is hidden.
+ */
+async function captureRejections(page: Page) {
+    await page.addInitScript(() => {
+        const log: string[] = []
+        Object.assign(window, {unhandledRejections: log})
+        window.addEventListener("unhandledrejection", (event) => {
+            log.push(String(event.reason instanceof Error ? event.reason.message : event.reason))
+            event.preventDefault()
+        })
+    })
+    return () =>
+        page.evaluate(
+            () => (window as unknown as {unhandledRejections: string[]}).unhandledRejections
+        )
+}
+
+test("applies typed custom URL prefixes and reports each record's outcome", async ({
+    page,
+    portal,
+}) => {
+    editableEvent(portal)
+    portal.graphql.on("SetCustomUrls", ({variables}) => ({
+        data: {
+            set_custom_urls:
+                variables.key === "saml"
+                    ? {success: false, message: "SAML prefix already taken"}
+                    : {success: true, message: "Custom URL updated"},
+        },
+    }))
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Custom URLs Prefix", exact: true}).click()
+    const urls = page.getByRole("region").filter({hasText: "Login:"})
+    await expect(urls.getByText(".vote.example", {exact: true})).toHaveCount(3)
+    await urls.getByRole("textbox").nth(0).fill("council")
+    await urls.getByRole("textbox").nth(1).fill("council-enrol")
+    await urls.getByRole("textbox").nth(2).fill("council-saml")
+    const update = await save(page, portal)
+    expect(portal.graphql.callsTo("SetCustomUrls").map(({variables}) => variables)).toEqual(
+        customUrlCalls(portal, {
+            login: "council",
+            enrollment: "council-enrol",
+            saml: "council-saml",
+        })
+    )
+    expect((update._set as {presentation: Row}).presentation.custom_urls).toEqual({
+        login: "council",
+        enrollment: "council-enrol",
+        saml: "council-saml",
+    })
+    await expect(urls.getByText("SAML prefix already taken", {exact: true})).toBeVisible()
+    await expect(urls.getByText("SUCCESS", {exact: true})).toHaveCount(2)
+    await expect(urls.getByText("ERROR", {exact: true})).toHaveCount(1)
+})
+
+// The prefixes sent on save come from local state seeded with empty strings, not from the
+// record, so the backend rewrites the event's existing DNS records to an empty prefix.
+test.fail(
+    "keeps the saved custom URL prefixes when saving an unrelated change",
+    async ({page, portal}) => {
+        editableEvent(portal, {
+            custom_urls: {login: "council", enrollment: "council-enrol", saml: "council-saml"},
+        })
+        await openEvent(page, portal)
+        await page.getByRole("button", {name: "Custom URLs Prefix", exact: true}).click()
+        await expect(
+            page.getByRole("region").filter({hasText: "Login:"}).getByRole("textbox").first()
+        ).toHaveValue("council")
+        await page.getByRole("button", {name: "General", exact: true}).click()
+        await page.getByRole("textbox", {name: "Description", exact: true}).fill("Renewed council")
+        await save(page, portal)
+        expect(portal.graphql.callsTo("SetCustomUrls").map(({variables}) => variables)).toEqual(
+            customUrlCalls(portal, {
+                login: "council",
+                enrollment: "council-enrol",
+                saml: "council-saml",
+            })
+        )
+    }
+)
+
+// A failed SetVoterAuthentication is not awaited, so its error escapes as an unhandled rejection.
+test.fail(
+    "handles a failed voter authentication update without an unhandled rejection",
+    async ({page, portal}) => {
+        const rejections = await captureRejections(page)
+        editableEvent(portal)
+        portal.graphql.on("SetVoterAuthentication", () => ({
+            errors: [{message: "Keycloak unavailable"}],
+        }))
+        await openEvent(page, portal)
+        await page.getByRole("textbox", {name: "Description", exact: true}).fill("Renewed council")
+        await save(page, portal)
+        expect(portal.graphql.callsTo("SetVoterAuthentication")).toHaveLength(1)
+        await expect(page.getByRole("button", {name: "Save", exact: true})).toBeDisabled()
+        expect(await rejections()).toEqual([])
+    }
+)
+
+const CONFIGURED_POLICY = {
+    configured: true,
+    minimum_length: 10,
+    maximum_length: 64,
+    include_uppercase: true,
+    include_lowercase: true,
+    include_digits: false,
+    include_special_characters: false,
+}
+
+function passwordPolicy(portal: AdminPortal, policy: Row, updated = true) {
+    portal.graphql.on("GetRealmPasswordPolicy", () => ({
+        data: {get_realm_password_policy: policy},
+    }))
+    portal.graphql.on("UpdateRealmPasswordPolicy", () => ({
+        data: {update_realm_password_policy: {updated}},
+    }))
+}
+
+test("updates a configured password policy", async ({page, portal}) => {
+    editableEvent(portal)
+    passwordPolicy(portal, CONFIGURED_POLICY)
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Password Policy", exact: true}).click()
+    const minimum = page.getByRole("spinbutton", {name: "Minimum length"})
+    await expect(minimum).toHaveValue("10")
+    await expect(page.getByRole("spinbutton", {name: "Maximum length"})).toHaveValue("64")
+    await expect(page.getByRole("checkbox", {name: "Include digits"})).not.toBeChecked()
+    await expect(page.getByText(/No password policy is configured/)).toHaveCount(0)
+    expect(portal.graphql.callsTo("GetRealmPasswordPolicy")[0]).toMatchObject({
+        variables: {election_event_id: EVENT_ID},
+        headers: {"x-hasura-role": "election-event-read"},
+    })
+    await minimum.fill("14")
+    await page.getByRole("spinbutton", {name: "Maximum length"}).fill("100")
+    await page.getByRole("checkbox", {name: "Include digits"}).check()
+    await page.getByRole("checkbox", {name: "Include uppercase letters"}).uncheck()
+    await save(page, portal)
+    const updates = portal.graphql.callsTo("UpdateRealmPasswordPolicy")
+    expect(updates.map(({variables}) => variables)).toEqual([
+        {
+            election_event_id: EVENT_ID,
+            minimum_length: 14,
+            maximum_length: 100,
+            include_uppercase: false,
+            include_lowercase: true,
+            include_digits: true,
+            include_special_characters: false,
+        },
+    ])
+    expect(updates[0].headers["x-hasura-role"]).toBe("election-event-write")
+    await expect.poll(() => portal.graphql.callsTo("GetRealmPasswordPolicy").length).toBe(2)
+})
+
+test("applies the defaults when saving an unconfigured password policy", async ({page, portal}) => {
+    editableEvent(portal)
+    passwordPolicy(portal, {...CONFIGURED_POLICY, configured: false})
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Password Policy", exact: true}).click()
+    await expect(
+        page.getByText("No password policy is configured. Saving will apply the defaults below.", {
+            exact: true,
+        })
+    ).toBeVisible()
+    await page.getByRole("checkbox", {name: "Include special characters"}).check()
+    await save(page, portal)
+    expect(
+        portal.graphql.callsTo("UpdateRealmPasswordPolicy").map(({variables}) => variables)
+    ).toEqual([
+        {
+            election_event_id: EVENT_ID,
+            minimum_length: 10,
+            maximum_length: 64,
+            include_uppercase: true,
+            include_lowercase: true,
+            include_digits: false,
+            include_special_characters: true,
+        },
+    ])
+})
+
+// An aborted save rethrows from the form's transform, which surfaces as an unhandled rejection.
+test.fail(
+    "blocks an invalid password length range without an unhandled rejection",
+    async ({page, portal}) => {
+        const rejections = await captureRejections(page)
+        editableEvent(portal)
+        passwordPolicy(portal, CONFIGURED_POLICY)
+        await openEvent(page, portal)
+        await page.getByRole("button", {name: "Password Policy", exact: true}).click()
+        await page.getByRole("spinbutton", {name: "Minimum length"}).fill("80")
+        await expect(
+            page.getByText("Minimum length cannot exceed maximum length.", {exact: true}).first()
+        ).toBeVisible()
+        await page.getByRole("button", {name: "Save", exact: true}).click()
+        await expect(
+            page
+                .getByRole("alert")
+                .filter({hasText: "Minimum length cannot exceed maximum length."})
+        ).toBeVisible()
+        expect(portal.graphql.callsTo("UpdateRealmPasswordPolicy")).toHaveLength(0)
+        expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
+        expect(await rejections()).toEqual([])
+    }
+)
+
+// Same aborted-save rejection as above, reached through a policy Keycloak did not apply.
+test.fail(
+    "reports a password policy Keycloak did not apply without an unhandled rejection",
+    async ({page, portal}) => {
+        const rejections = await captureRejections(page)
+        editableEvent(portal)
+        passwordPolicy(portal, CONFIGURED_POLICY, false)
+        await openEvent(page, portal)
+        await page.getByRole("button", {name: "Password Policy", exact: true}).click()
+        await page.getByRole("checkbox", {name: "Include digits"}).check()
+        await page.getByRole("button", {name: "Save", exact: true}).click()
+        await expect(
+            page.getByRole("alert").filter({hasText: "Error updating Keycloak password policy"})
+        ).toBeVisible()
+        expect(portal.graphql.callsTo("UpdateRealmPasswordPolicy")).toHaveLength(1)
+        expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
+        expect(await rejections()).toEqual([])
+    }
+)
+
+test("shows a password policy load error", async ({page, portal}) => {
+    editableEvent(portal)
+    portal.graphql.on("GetRealmPasswordPolicy", () => ({
+        errors: [{message: "Keycloak unavailable"}],
+    }))
+    await openEvent(page, portal)
+    await page.getByRole("button", {name: "Password Policy", exact: true}).click()
+    await expect(
+        page.getByText("Error loading Keycloak password policy", {exact: true})
+    ).toBeVisible()
+})
+
+test.describe("results website policy", () => {
+    test.use({roles: [...EVENT_ROLES, "election-event-data-tab", "publish-results-write"]})
+
+    test("configures an authenticated area-based results website", async ({page, portal}) => {
+        editableEvent(portal)
+        portal.graphql.on("ConfigureResultsWebsitePolicy", ({variables}) => ({
+            data: {configureResultsWebsitePolicy: variables},
+        }))
+        await openEvent(page, portal)
+        await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+        await choose(page, /^Results Website Disabled/, "Enabled")
+        await choose(page, /^Results Website Access/, "Authenticated access")
+        await choose(page, /^Results Website Visibility/, "Area based")
+        const update = await save(page, portal)
+        const policy = portal.graphql.callsTo("ConfigureResultsWebsitePolicy")
+        expect(policy.map(({variables}) => variables)).toEqual([
+            {
+                election_event_id: EVENT_ID,
+                status: "enabled",
+                access: "authenticated",
+                visibility_scope: "area_based",
+            },
+        ])
+        expect(policy[0].headers["x-hasura-role"]).toBe("publish-results-write")
+        const presentation = (update._set as {presentation: Row}).presentation
+        expect(JSON.parse(String(presentation.results_website))).toEqual({
+            status: "enabled",
+            access: "authenticated",
+            visibility_scope: "area_based",
+        })
+    })
+
+    // Same aborted-save rejection as the invalid password policy.
+    test.fail(
+        "rejects public results limited to areas without an unhandled rejection",
+        async ({page, portal}) => {
+            const rejections = await captureRejections(page)
+            editableEvent(portal)
+            await openEvent(page, portal)
+            await page.getByRole("button", {name: "Advanced Configurations", exact: true}).click()
+            await choose(page, /^Results Website Visibility/, "Area based")
+            await page.getByRole("button", {name: "Save", exact: true}).click()
+            await expect(
+                page
+                    .getByRole("alert")
+                    .filter({hasText: "Public results must use full event visibility"})
+            ).toBeVisible()
+            expect(portal.graphql.callsTo("ConfigureResultsWebsitePolicy")).toHaveLength(0)
+            expect(portal.graphql.callsTo("update_sequent_backend_election_event")).toHaveLength(0)
+            expect(await rejections()).toEqual([])
+        }
+    )
+})
+
+test.describe("Keycloak realm attributes", () => {
+    const attributes = {frontendUrl: "https://login.example", displayName: "Council"}
+
+    test.describe("read only", () => {
+        test.use({
+            roles: [
+                "admin-user",
+                "election-event-read",
+                "election-read",
+                "election-event-data-tab",
+                "keycloak-realm-attributes-read",
+            ],
+        })
+
+        test("shows the realm attributes without an editor or save button", async ({
+            page,
+            portal,
+        }) => {
+            editableEvent(portal)
+            portal.graphql.on("GetRealmAttributes", () => ({
+                data: {get_realm_attributes: {attributes}},
+            }))
+            await openEvent(page, portal)
+            await page.getByRole("button", {name: "Keycloak realm attributes", exact: true}).click()
+            await expect(
+                page.getByRole("region").filter({hasText: '"frontendUrl": "https://login.example"'})
+            ).toBeVisible()
+            await expect(page.getByRole("button", {name: "Save", exact: true})).toHaveCount(0)
+            expect(portal.graphql.callsTo("GetRealmAttributes")[0]).toMatchObject({
+                variables: {election_event_id: EVENT_ID},
+                headers: {"x-hasura-role": "keycloak-realm-attributes-read"},
+            })
+        })
+
+        test("reports realm attributes that fail to load", async ({page, portal}) => {
+            editableEvent(portal)
+            portal.graphql.on("GetRealmAttributes", () => ({
+                errors: [{message: "Keycloak unavailable"}],
+            }))
+            await openEvent(page, portal)
+            await page.getByRole("button", {name: "Keycloak realm attributes", exact: true}).click()
+            await expect(
+                page.getByText("Error loading Keycloak realm attributes", {exact: true})
+            ).toBeVisible()
+        })
+    })
+})
