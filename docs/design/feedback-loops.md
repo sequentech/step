@@ -240,7 +240,7 @@ rate-limited.
   Deliberately corrupt cached units triggered a successful ordinary rebuild
   (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
   speedups; hosted measurements remain pending.
-- **Rust service linker candidate**: identical application sources at
+- **Rust service linker** (adopted on aarch64 Linux): identical application sources at
   `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
   All 60 measured saves succeeded, with ten per edit and linker plus excluded
   warmups. Harvest's actual ready probe improves from 36.755 s median,
@@ -262,8 +262,15 @@ rate-limited.
   3.091/2.765/4.364 s. Both arms rebuild the same 1/2/4 Cargo units; wall time
   minus links also includes Cargo coordination and is not isolated codegen.
   The LLD Harvest binary retains full debug sections: GDB hits its source
-  breakpoint and produces a Rust/Tokio backtrace. Native checks and the final
-  adoption decision remain pending; no profiles, FIPS settings or features change.
+  breakpoint and produces a Rust/Tokio backtrace. Native validation at
+  `a33e1b46f2` passes Harvest 202 tests, Windmill 1,439 (six ignored), and core
+  528 with `keycloak,default_features,sqlite`; scoped Clippy and formatting pass.
+  The full core test suite uses the configured development shell's PostgreSQL
+  binaries for private test clusters; Harvest uses its CI SQL-default settings.
+  Cargo-watch already follows local dependency directories, and the baseline
+  Harvest edit only rebuilds Harvest in all ten samples. Extra watch lists and
+  a pure-logic crate extraction are not justified by this evidence. No profiles,
+  FIPS settings or features change.
 - **Ballot verifier Vite** (adopted as opt-in): the final alternating comparison
   at `fa670fb53b` exceeds the predeclared 20% median improvement threshold.
   Warm first render improves from 8.599 s, 8.400–9.047, to 3.265 s,
