@@ -171,7 +171,14 @@ test.describe("area administrator", () => {
         const description = drawer.getByRole("textbox", {name: "Description", exact: true})
         await expect(description).toHaveValue("Northern district")
         await description.fill("Northern district and islands")
+        const refreshed = page.waitForResponse(
+            (response) =>
+                response.request().method() === "POST" &&
+                response.url().endsWith("/v1/graphql") &&
+                response.request().postDataJSON()?.operationName === "sequent_backend_area"
+        )
         await drawer.getByRole("button", {name: "Save", exact: true}).click()
+        await refreshed
         await expect(notification(page, "Area updated")).toBeVisible()
         expect(portal.graphql.callsTo("UpsertArea")[0].variables).toMatchObject({
             id: IDS.area,
@@ -185,11 +192,13 @@ test.describe("area administrator", () => {
         await expect(
             page.getByRole("cell", {name: "Northern district and islands", exact: true})
         ).toBeVisible()
+        await expect(drawer).not.toBeVisible()
 
         const south = page.getByRole("row").filter({hasText: "South"})
         await iconButton(south, "delete-area-icon").click()
         const confirm = page.getByRole("dialog").filter({hasText: "Warning"})
         await confirm.getByRole("button", {name: "Cancel", exact: true}).click()
+        await expect(confirm).not.toBeVisible()
         expect(portal.graphql.callsTo("delete_sequent_backend_area")).toHaveLength(0)
         await iconButton(south, "delete-area-icon").click()
         await confirm.getByRole("button", {name: "Delete", exact: true}).click()
