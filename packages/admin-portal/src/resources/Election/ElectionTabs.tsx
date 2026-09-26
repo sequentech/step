@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
+import React, {Suspense, useContext, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {
     useGetOne,
@@ -150,7 +150,6 @@ export const ElectionTabs: React.FC = () => {
     const {t} = useTranslation()
     const authContext = useContext(AuthContext)
     const usersPermissionLabels = authContext.permissionLabels
-    const [hasPermissionToViewElection, setHasPermissionToViewElection] = useState<boolean>(true)
     const [open] = useSidebarState()
     const aliasRenderer = useAliasRenderer()
 
@@ -198,18 +197,12 @@ export const ElectionTabs: React.FC = () => {
         IPermissions.TALLY_SHEET_VIEW
     )
 
-    // Permission label check
-    useEffect(() => {
-        if (
-            usersPermissionLabels &&
-            electionRecord?.permission_label &&
-            !usersPermissionLabels.includes(electionRecord.permission_label)
-        ) {
-            setHasPermissionToViewElection(false)
-        } else {
-            setHasPermissionToViewElection(true)
-        }
-    }, [electionRecord, usersPermissionLabels])
+    // Checked while rendering, so no tab mounts for an election the user may not see.
+    const hasPermissionToViewElection = !(
+        usersPermissionLabels &&
+        electionRecord?.permission_label &&
+        !usersPermissionLabels.includes(electionRecord.permission_label)
+    )
 
     // Build tabs with stable references
     const tabs = useMemo(() => {
