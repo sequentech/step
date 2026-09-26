@@ -24,7 +24,7 @@ export const CreateBallotStyle: React.FC = () => {
                 <TextInput source="ballot_eml" />
                 <TextInput source="status" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="username" />
+                    <SelectInput optionText="slug" />
                 </ReferenceInput>
                 <FormDataConsumer>
                     {({formData}) => (

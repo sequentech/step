@@ -28,7 +28,7 @@ export const CreateDocument: React.FC = () => {
                 <NumberInput source="size" />
                 <BooleanInput source="is_public" />
                 <ReferenceInput source="tenant_id" reference="sequent_backend_tenant">
-                    <SelectInput optionText="username" />
+                    <SelectInput optionText="slug" />
                 </ReferenceInput>
                 <FormDataConsumer>
                     {({formData}) => (
