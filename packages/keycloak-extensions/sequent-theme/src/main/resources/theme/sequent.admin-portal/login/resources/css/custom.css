@@ -368,13 +368,13 @@ button#resend-otp-btn:hover {
     margin-right: 8px;
 }
 
-.inetum-error-form {
+.identity-verification-error-form {
     font-size: 16px;
 }
 
-.inetum-error-form a.retry-link {
+.identity-verification-error-form .retry-link {
     display: block;
-    padding: 20px 0;
+    margin: 20px 0;
 }
 
 .button-version-parent {
