@@ -4,6 +4,7 @@
 //! The ballot publication, publication file, ballot style and cast vote
 //! adapters against the migrated schema. Every test writes its own rows in a
 //! transaction, checks them with independent SQL and rolls the transaction back.
+//! The publication handoff test removes its committed cross-connection fixtures.
 
 #[path = "support/schema.rs"]
 mod schema;
@@ -20,6 +21,7 @@ use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
 use windmill::domain::publication_files::{PublishedBallotStyle, FILES_ANNOTATION};
 use windmill::postgres::{ballot_publication, ballot_style, cast_vote, publication_files};
+use windmill::services::ballot_styles::ballot_publication::prepare_ballot_publication;
 use windmill::services::cast_votes::{CastVote, CastVoteStatus};
 
 const BAD_UUID: &str = "not-a-uuid";
@@ -347,6 +349,173 @@ fn style_ids(styles: &[BallotStyle]) -> Vec<String> {
 // ---------------------------------------------------------------------------
 // ballot_publication
 // ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn a_generation_worker_waits_for_publication_commit_without_blocking_the_task_ledger() {
+    let mut producer = connect().await;
+    let setup = producer.transaction().await.unwrap();
+    let f = Fixture::new(&setup, line!());
+    let scope = f.scope().await;
+    let first = f.election(scope).await;
+    let second = f.election(scope).await;
+    let other = f.event_in(scope.tenant).await;
+    f.election(other).await;
+    setup.commit().await.unwrap();
+    let mut worker = connect().await;
+    let mut ledger = connect().await;
+
+    for selected in [None, Some(first.to_string())] {
+        // A publication already committed before dispatch is a valid control.
+        let tx = producer.transaction().await.unwrap();
+        let committed = prepare_ballot_publication(
+            &tx,
+            scope.tenant_id(),
+            scope.event_id(),
+            selected.clone(),
+            "publisher".into(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(committed.election_id, selected);
+        assert_eq!(
+            sorted(committed.election_ids.clone().unwrap()),
+            sorted(match &selected {
+                Some(id) => vec![id.clone()],
+                None => vec![first.to_string(), second.to_string()],
+            })
+        );
+        tx.commit().await.unwrap();
+        let tx = worker.transaction().await.unwrap();
+        ballot_publication::lock_publication_event(&tx, &scope.tenant_id(), &scope.event_id())
+            .await
+            .unwrap();
+        assert!(ballot_publication::get_ballot_publication_by_id(
+            &tx,
+            &scope.tenant_id(),
+            &scope.event_id(),
+            &committed.id,
+        )
+        .await
+        .unwrap()
+        .is_some());
+        tx.rollback().await.unwrap();
+
+        for commit in [true, false] {
+            let pending = producer.transaction().await.unwrap();
+            let publication = prepare_ballot_publication(
+                &pending,
+                scope.tenant_id(),
+                scope.event_id(),
+                selected.clone(),
+                "publisher".into(),
+            )
+            .await
+            .unwrap();
+
+            // The task ledger writes on its own connection before enqueueing.
+            // Its event foreign key must remain compatible with the barrier.
+            let task_tx = ledger.transaction().await.unwrap();
+            task_tx
+                .batch_execute("SET LOCAL lock_timeout = '100ms'")
+                .await
+                .unwrap();
+            assert_eq!(task_tx.execute(
+                "INSERT INTO sequent_backend.tasks_execution
+                 (tenant_id, election_event_id, name, type, execution_status, executed_by_user)
+                 VALUES ($1, $2, 'Generate ballots', 'GENERATE_BALLOT_PUBLICATION', 'IN_PROGRESS', 'publisher')",
+                &[&scope.tenant, &scope.event],
+            ).await.unwrap(), 1);
+            task_tx.commit().await.unwrap();
+
+            let reading = worker.transaction().await.unwrap();
+            reading
+                .batch_execute("SET LOCAL lock_timeout = '100ms'")
+                .await
+                .unwrap();
+            let blocked = ballot_publication::lock_publication_event(
+                &reading,
+                &scope.tenant_id(),
+                &scope.event_id(),
+            )
+            .await;
+            match blocked {
+                Ok(()) => {
+                    let visible = ballot_publication::get_ballot_publication_by_id(
+                        &reading,
+                        &scope.tenant_id(),
+                        &scope.event_id(),
+                        &publication.id,
+                    )
+                    .await
+                    .unwrap()
+                    .is_some();
+                    panic!("worker passed the producer commit barrier; queued publication visible: {visible}");
+                }
+                Err(error) => {
+                    let code = error
+                        .chain()
+                        .find_map(|cause| cause.downcast_ref::<tokio_postgres::Error>())
+                        .and_then(tokio_postgres::Error::as_db_error)
+                        .map(|error| error.code());
+                    assert_eq!(code, Some(&SqlState::LOCK_NOT_AVAILABLE), "{error:#}");
+                }
+            }
+            reading.rollback().await.unwrap();
+            if commit {
+                pending.commit().await.unwrap();
+            } else {
+                pending.rollback().await.unwrap();
+            }
+
+            let reading = worker.transaction().await.unwrap();
+            reading
+                .batch_execute("SET LOCAL lock_timeout = '100ms'")
+                .await
+                .unwrap();
+            ballot_publication::lock_publication_event(
+                &reading,
+                &scope.tenant_id(),
+                &scope.event_id(),
+            )
+            .await
+            .unwrap();
+            let visible = ballot_publication::get_ballot_publication_by_id(
+                &reading,
+                &scope.tenant_id(),
+                &scope.event_id(),
+                &publication.id,
+            )
+            .await
+            .unwrap();
+            assert_eq!(visible.is_some(), commit);
+            reading.rollback().await.unwrap();
+        }
+    }
+
+    let cleanup = producer.transaction().await.unwrap();
+    for table in [
+        "tasks_execution",
+        "ballot_publication",
+        "election",
+        "election_event",
+    ] {
+        cleanup
+            .execute(
+                &format!("DELETE FROM sequent_backend.{table} WHERE tenant_id = $1"),
+                &[&scope.tenant],
+            )
+            .await
+            .unwrap();
+    }
+    cleanup
+        .execute(
+            "DELETE FROM sequent_backend.tenant WHERE id = $1",
+            &[&scope.tenant],
+        )
+        .await
+        .unwrap();
+    cleanup.commit().await.unwrap();
+}
 
 #[tokio::test]
 async fn lock_publication_event_row_locks_only_the_requested_event() {

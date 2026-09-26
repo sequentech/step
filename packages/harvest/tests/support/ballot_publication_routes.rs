@@ -5,6 +5,7 @@
 //! lockdown checks, and the task row a publish attempt completes or fails.
 
 use crate::adapters::memory::task_ledger::MemoryTaskLedger;
+use crate::adapters::memory::task_queue::MemoryTaskQueue;
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
@@ -41,6 +42,163 @@ async fn generate<'c>(client: &'c Client, event: &Event) -> LocalResponse<'c> {
         &json!({"election_event_id": event.election_event_id}),
     )
     .await
+}
+
+async fn publication_rows(
+    services: &Services,
+    event: &Event,
+) -> Vec<tokio_postgres::Row> {
+    rows::query(
+        &services.hasura,
+        "SELECT id, election_ids, election_id, created_by_user_id
+         FROM sequent_backend.ballot_publication
+         WHERE tenant_id = $1 AND election_event_id = $2",
+        &[
+            &uuid::Uuid::parse_str(&event.tenant_id).unwrap(),
+            &uuid::Uuid::parse_str(&event.election_event_id).unwrap(),
+        ],
+    )
+    .await
+}
+
+#[rocket::async_test]
+async fn generation_commits_the_selected_elections_and_queues_its_tracked_task()
+{
+    for single_election in [false, true] {
+        let services = Services::on_test_database().await;
+        let client = services.client().await;
+        let event = rows::event(&services.hasura).await;
+        let first = event.election(&services.hasura).await;
+        let second = event.election(&services.hasura).await;
+        let other = rows::event(&services.hasura).await;
+        other.election(&services.hasura).await;
+        let selected = single_election.then_some(first.clone());
+        let (status, body) = json(post(
+            &client,
+            "/generate-ballot-publication",
+            &gold_publisher(&event),
+            &json!({"election_event_id": event.election_event_id, "election_id": selected}),
+        ).await).await;
+        assert_eq!(status, Status::Ok, "{body}");
+        let publication_id = uuid::Uuid::parse_str(
+            body["ballot_publication_id"].as_str().unwrap(),
+        )
+        .unwrap();
+        let persisted = publication_rows(&services, &event).await;
+        assert_eq!(persisted.len(), 1);
+        assert_eq!(persisted[0].get::<_, uuid::Uuid>("id"), publication_id);
+        assert_eq!(
+            persisted[0].get::<_, String>("created_by_user_id"),
+            USER_ID
+        );
+        assert_eq!(
+            persisted[0].get::<_, Option<uuid::Uuid>>("election_id"),
+            selected
+                .as_deref()
+                .map(|id| uuid::Uuid::parse_str(id).unwrap())
+        );
+        let mut expected = if single_election {
+            vec![first]
+        } else {
+            vec![first, second]
+        };
+        expected.sort();
+        let mut actual: Vec<String> = persisted[0]
+            .get::<_, Vec<uuid::Uuid>>("election_ids")
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        actual.sort();
+        assert_eq!(actual, expected);
+        let tasks = services.ledger.tasks();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].task_type, "GENERATE_BALLOT_PUBLICATION");
+        assert_eq!(tasks[0].execution_status, "IN_PROGRESS");
+        assert_eq!(tasks[0].executed_by_user, USER_ID);
+        assert_eq!(tasks[0].tenant_id, event.tenant_id);
+        assert_eq!(
+            tasks[0].election_event_id.as_deref(),
+            Some(event.election_event_id.as_str())
+        );
+        assert_eq!(
+            body,
+            json!({"ballot_publication_id": publication_id, "task_execution": tasks[0]})
+        );
+        let sent = services.tasks.sent();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].name, "update_election_event_ballot_styles");
+        assert_eq!(
+            sent[0].kwargs,
+            json!({
+                "tenant_id": event.tenant_id,
+                "election_event_id": event.election_event_id,
+                "ballot_publication_id": publication_id,
+                "task_execution": tasks[0],
+            })
+        );
+    }
+}
+
+#[rocket::async_test]
+async fn generation_without_a_task_row_rolls_back_and_queues_nothing() {
+    let services = Services::on_test_database()
+        .await
+        .with_ledger(MemoryTaskLedger::refusing());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    assert_eq!(
+        json(generate(&client, &event).await).await,
+        failure("Could not generate the ballot publication.")
+    );
+    assert!(services.ledger.tasks().is_empty());
+    assert!(services.tasks.sent().is_empty());
+    assert!(publication_rows(&services, &event).await.is_empty());
+}
+
+#[rocket::async_test]
+async fn generation_rejected_by_the_broker_fails_its_task_and_rolls_back() {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::refusing());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    assert_eq!(
+        json(generate(&client, &event).await).await,
+        failure("Could not generate the ballot publication.")
+    );
+    let tasks = services.ledger.tasks();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].execution_status, "FAILED");
+    assert_eq!(
+        tasks[0].logs,
+        Some(json!([
+            "Error: Failed to enqueue ballot style generation: forced shutdown"
+        ]))
+    );
+    assert!(services.tasks.sent().is_empty());
+    assert!(publication_rows(&services, &event).await.is_empty());
+}
+
+#[rocket::async_test]
+async fn generation_failure_still_rolls_back_when_the_task_cannot_be_failed() {
+    let services = Services::on_test_database()
+        .await
+        .with_tasks(MemoryTaskQueue::refusing())
+        .with_ledger(MemoryTaskLedger::refusing_updates());
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    event.election(&services.hasura).await;
+    assert_eq!(
+        json(generate(&client, &event).await).await,
+        failure("Could not generate the ballot publication.")
+    );
+    let tasks = services.ledger.tasks();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].execution_status, "IN_PROGRESS");
+    assert!(services.tasks.sent().is_empty());
+    assert!(publication_rows(&services, &event).await.is_empty());
 }
 
 #[rocket::async_test]
