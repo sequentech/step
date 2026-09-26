@@ -23,7 +23,12 @@ const HomeFixture = () => {
             mocks={[
                 {
                     request: {query: GET_BALLOT_STYLES},
-                    result: {data: {sequent_backend_ballot_style: []}},
+                    result: {
+                        data: {
+                            sequent_backend_ballot_publication: [],
+                            sequent_backend_ballot_style: [],
+                        },
+                    },
                 },
             ]}
         >

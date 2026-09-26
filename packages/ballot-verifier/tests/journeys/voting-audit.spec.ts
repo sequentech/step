@@ -16,8 +16,8 @@ const test = votingTest.extend<{}, {verifierDist: Awaited<ReturnType<typeof serv
     verifierDist: [
         // Playwright requires destructuring even without fixture dependencies.
         // eslint-disable-next-line no-empty-pattern
-        async ({}, use) => {
-            const dist = await serveVerifier()
+        async ({}, use, workerInfo) => {
+            const dist = await serveVerifier(workerInfo)
             try {
                 await use(dist)
             } finally {

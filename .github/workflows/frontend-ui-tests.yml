@@ -161,7 +161,9 @@ jobs:
             packages/ui-core/dist
             packages/ui-essentials/dist
             .cache/feedback-builds/shared-ui.json
-          key: shared-ui-v1-${{ steps.identity.outputs.key }}
+          # A rejected immutable snapshot is repaired by a newer generation.
+          key: shared-ui-v2-${{ steps.identity.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: shared-ui-v2-${{ steps.identity.outputs.key }}-
       - name: Verify cached output identity and checksums
         id: verified
         env:
@@ -183,7 +185,7 @@ jobs:
           yarn --cwd packages build:ui-essentials
           python3 -m scripts.dev.frontend_cache stamp --key "$INPUT_KEY"
       - name: Save compatible shared UI outputs
-        if: steps.shared-cache.outputs.cache-hit != 'true'
+        if: steps.verified.outputs.reuse != 'true'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         continue-on-error: true
         with:

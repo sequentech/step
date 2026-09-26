@@ -20,7 +20,7 @@ def job(
     name,
     completed=None,
     conclusion="success",
-    started="2026-09-26T10:01:00Z",
+    started=PUSH,
     status="completed",
     steps=(),
 ):
@@ -202,6 +202,41 @@ class PushTest(unittest.TestCase):
             self.assertIsNone(placeholder["duration_seconds"])
             self.assertIsNone(placeholder["push_to_start_seconds"])
         self.assertEqual(metrics["jobs"][2]["queued_seconds"], 1500.0)
+
+    def test_completion_before_start_cannot_be_an_earliest_result(self):
+        invalid = job(
+            "Tests",
+            "invalid result",
+            "2026-09-26T10:01:00Z",
+            started="2026-09-26T10:02:00Z",
+        )
+        valid = job(
+            "Tests",
+            "valid result",
+            "2026-09-26T10:03:00Z",
+            started="2026-09-26T10:02:00Z",
+        )
+        metrics = push_metrics(
+            runs("completed"), [invalid, valid], DEFAULT_EXCLUDED_WORKFLOWS
+        )
+        self.assertEqual(metrics["phases"]["first_check"], 180.0)
+        self.assertEqual(metrics["phases"]["first_actionable"], 180.0)
+        self.assertEqual(metrics["first_actionable_job"], "Tests / valid result")
+        invalid_only = push_metrics(
+            runs("completed"), [invalid], DEFAULT_EXCLUDED_WORKFLOWS
+        )
+        for phase in ("first_check", "first_actionable", "all_done"):
+            self.assertNotIn(phase, invalid_only["phases"])
+
+    def test_completion_without_start_can_still_be_a_result(self):
+        unknown_start = job(
+            "Tests", "unknown start", "2026-09-26T10:01:00Z", started=None
+        )
+        metrics = push_metrics(
+            runs("completed"), [unknown_start], DEFAULT_EXCLUDED_WORKFLOWS
+        )
+        self.assertEqual(metrics["phases"]["first_check"], 60.0)
+        self.assertEqual(metrics["phases"]["first_actionable"], 60.0)
 
     def test_negative_api_durations_are_missing_rather_than_elapsed_time(self):
         invalid = job(

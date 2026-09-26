@@ -35,8 +35,8 @@ export const test = base.extend<
     dist: [
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
-        async ({}, use) => {
-            const dist = await serveDist(resolve(directory, "dist"))
+        async ({}, use, workerInfo) => {
+            const dist = await serveDist(resolve(directory, "dist"), undefined, workerInfo)
             try {
                 await use(dist)
             } finally {
