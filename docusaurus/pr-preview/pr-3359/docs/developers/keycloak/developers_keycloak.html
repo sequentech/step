@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Keycloak development | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/keycloak/developers_keycloak"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Keycloak development | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3359/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/keycloak/developers_keycloak"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/keycloak/developers_keycloak" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/keycloak/developers_keycloak" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Keycloak development","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3359/docs/developers/keycloak/developers_keycloak"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3359/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3359/assets/js/runtime~main.fb39ba5e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3359/assets/js/runtime~main.d5711055.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3359/assets/js/main.3c7972fb.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -60,8 +60,9 @@ keep the change, rebuild the image and recreate the container (the
 by the <code>up</code> command above), and run the module&#x27;s tests with
 <code>mvn -f packages/keycloak-extensions/pom.xml -pl &lt;module&gt; -am verify</code>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="react-login-and-otp-development">React login and OTP development<a href="#react-login-and-otp-development" class="hash-link" aria-label="Direct link to React login and OTP development" title="Direct link to React login and OTP development" translate="no">​</a></h2>
-<p><code>packages/keycloak-ui</code> is an opt-in Keycloakify workspace using the UI Essentials
-React theme. Its Vite server provides synthetic previews, Storybook and hot
+<p><code>packages/keycloak-ui</code> is an opt-in Keycloakify workspace with a scoped Sequent
+authentication theme, local font assets and Material UI controls. Its Vite server
+provides synthetic previews, Storybook and hot
 updates on real Keycloak login and message OTP pages. Production images and
 existing realm themes continue to use the Sequent FreeMarker themes.</p>
 <p>Install the workspace dependencies from <code>packages</code> with <code>yarn install --frozen-lockfile</code>. Run these commands in the development shell from the repository
@@ -76,6 +77,17 @@ validation, email/SMS OTP and one-time-link presentation. Synthetic submissions
 are intercepted. They do not authenticate a user. Storybook interaction tests use
 <code>ui-test-kit</code>, including its network guard and accessibility checks:</p>
 <div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token builtin class-name" style="color:rgb(255, 203, 107)">cd</span><span class="token plain"> packages/keycloak-ui</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> test:stories</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> test:story </span><span class="token string" style="color:rgb(195, 232, 141)">&#x27;Login.stories.tsx&#x27;</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--watch</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> typecheck </span><span class="token operator" style="color:rgb(137, 221, 255)">&amp;&amp;</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> lint </span><span class="token operator" style="color:rgb(137, 221, 255)">&amp;&amp;</span><span class="token plain"> </span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> prettify</span><br></span></code></pre></div></div>
+<p>Login retains native form submission and credential autocomplete. The password
+visibility control works by keyboard. Message OTP accepts a complete pasted or
+autofilled code, labels each digit and supports arrows and Backspace; completing
+the code focuses Submit without submitting automatically. Locale changes follow
+the server-provided URL, and realm policies determine the available login options.</p>
+<p>For authentication UI changes, review focus visibility and order, error
+announcements, text/control contrast, a 320 CSS-pixel viewport and enlarged text.
+Story and real-authentication tests cover these behaviors alongside automated
+accessibility checks. Also test native browser zoom, password-manager assistance
+and screen readers on supported platforms; automated checks alone do not establish
+WCAG conformance for these pages or the inherited FreeMarker flows.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="hot-updates-on-a-real-authentication-session">Hot updates on a real authentication session<a href="#hot-updates-on-a-real-authentication-session" class="hash-link" aria-label="Direct link to Hot updates on a real authentication session" title="Direct link to Hot updates on a real authentication session" translate="no">​</a></h3>
 <p>Use a disposable development Keycloak running the Sequent extensions and dummy
 message senders. Initialize this checkout&#x27;s <code>.devcontainer/.env</code> and start its
