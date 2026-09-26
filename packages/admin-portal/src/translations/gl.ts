@@ -2799,6 +2799,8 @@ const galegoTranslation: TranslationType = {
                 verified_by: "Aprobado Por",
             },
             approvalRequest: "Solicitud de Aprobación",
+            taskInformation: "Información da Tarefa",
+            ok: "Aceptar",
             title: "Votantes",
             subtitle: "Atopar votantes coincidentes",
             approve: {

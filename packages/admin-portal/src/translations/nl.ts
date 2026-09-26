@@ -2797,6 +2797,8 @@ const dutchTranslation: TranslationType = {
                 verified_by: "Geverifieerd door",
             },
             approvalRequest: "Goedkeuringsverzoek",
+            taskInformation: "Taakinformatie",
+            ok: "Ok",
             title: "Kiezers",
             subtitle: "Overeenkomende kiezers zoeken",
             approve: {

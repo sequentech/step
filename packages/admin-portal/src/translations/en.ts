@@ -2772,6 +2772,8 @@ const englishTranslation = {
                 verified_by: "Verified By",
             },
             approvalRequest: "Approval Request",
+            taskInformation: "Task Information",
+            ok: "Ok",
             title: "Voters",
             subtitle: "Find matching voters",
             approve: {
