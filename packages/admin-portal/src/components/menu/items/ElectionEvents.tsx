@@ -402,18 +402,19 @@ export default function ElectionEvents() {
     useEffect(() => {
         const callerPath = location.pathname.split("/")[1]
 
+        // A list or create page has no id to read; refetch ignores `enabled`.
         if (callerPath === "sequent_backend_election") {
             electionTreeRefetch()
-            refetchElectionData()
+            if (election_id) refetchElectionData()
         } else if (callerPath === "sequent_backend_contest") {
             contestTreeRefetch()
-            refetchContestData()
+            if (contest_id || contestId) refetchContestData()
         } else if (callerPath === "sequent_backend_candidate") {
-            candidateData()
+            if (candidate_id) candidateData()
             candidateTreeRefetch()
         } else if (callerPath === "sequent_backend_election_event") {
             electionEventTreeRefetch()
-            electionEventDataRefetch()
+            if (election_event_id) electionEventDataRefetch()
         } else {
             // do nothing
         }
