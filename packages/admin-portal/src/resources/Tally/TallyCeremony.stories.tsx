@@ -2,9 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useContext, useState} from "react"
-import type {Meta, StoryObj} from "@storybook/react"
+import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {RecordContextProvider, type RaRecord} from "react-admin"
+import {EVotingStatus, i18n} from "@sequentech/ui-core"
 import {
     AdminStoryProvider,
     EVENT_ID,
@@ -14,9 +15,15 @@ import {
 import {dataBoundary} from "@/__stories__/dataBoundary"
 import {ElectionEventTallyContext} from "@/providers/ElectionEventTallyProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
-import {AuthContext} from "@/providers/AuthContextProvider"
-import {ETallyType} from "@/types/ceremonies"
+import {ETallyType, ITallyExecutionStatus} from "@/types/ceremonies"
 import {TallyCeremony} from "./TallyCeremony"
+import {
+    EStoryPermissions,
+    EStoryWorkflow,
+    readStoryGlobals,
+    useStoryGlobals,
+} from "../../../../ui-essentials/.storybook/globals"
+import {EStoryDataState, pending} from "../../../../ui-essentials/.storybook/screens"
 
 const ELECTION_ID = "33333333-3333-4333-8333-333333333333"
 const SECOND_ELECTION_ID = "33333333-3333-4333-8333-333333333334"
@@ -28,64 +35,86 @@ const event = {
     tenant_id: TENANT_ID,
     presentation: {i18n: {en: {name: "Council event"}}},
 }
-const closed = {
-    is_published: true,
-    allow_tally: "requires-voting-period-end",
-    voting_status: "CLOSED",
+/** Election status at each step: tallying needs published elections whose voting ended. */
+function electionStatus(workflow: EStoryWorkflow) {
+    const unpublished = [EStoryWorkflow.CREATED, EStoryWorkflow.KEYS].includes(workflow)
+    const voting = {
+        [EStoryWorkflow.PUBLISHED]: EVotingStatus.NOT_STARTED,
+        [EStoryWorkflow.STARTED]: EVotingStatus.OPEN,
+    }
+    return {
+        is_published: !unpublished,
+        allow_tally: "requires-voting-period-end",
+        voting_status: unpublished
+            ? EVotingStatus.NOT_STARTED
+            : (voting[workflow as keyof typeof voting] ?? EVotingStatus.CLOSED),
+    }
 }
+/** The event's tally session: trustees connected during the ceremony, then completed. */
+const sessionStatus = (workflow: EStoryWorkflow) =>
+    ({
+        [EStoryWorkflow.TALLY]: ITallyExecutionStatus.CONNECTED,
+        [EStoryWorkflow.RESULTS]: ITallyExecutionStatus.SUCCESS,
+    })[workflow as EStoryWorkflow.TALLY | EStoryWorkflow.RESULTS] ?? null
+const ended = electionStatus(EStoryWorkflow.ENDED)
+
 interface Scenario {
-    status: Record<string, unknown>
+    data: EStoryDataState
+    /** Election status; by default the workflow step decides it. */
+    status?: Record<string, unknown>
     automated: boolean
-    initialSession: "STARTED" | "CONNECTED" | null
+    /** Tally session status; by default the workflow step decides it. */
+    initialSession?: ITallyExecutionStatus | null
     failure: boolean
-    trustee: boolean
 }
 let boundary: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof dataBoundary>
 
 function Fixture(args: Scenario) {
-    const auth = useContext(AuthContext)
+    const {permissions, tenant, workflow} = useStoryGlobals()
     const settings = useContext(SettingsContext)
     const tally = useContext(ElectionEventTallyContext)
-    const [tallyId, setTallyId] = useState<string | null>(args.initialSession ? TALLY_ID : null)
+    const session =
+        args.initialSession === undefined ? sessionStatus(workflow) : args.initialSession
+    const [tallyId, setTallyId] = useState<string | null>(session ? TALLY_ID : null)
     const [isCreatingType, setCreatingFlag] = useState<ETallyType | null>(
         ETallyType.ELECTORAL_RESULTS
     )
     return (
-        <AdminStoryProvider boundary={boundary} dataProvider={data.provider}>
-            <AuthContext.Provider
+        <AdminStoryProvider
+            boundary={boundary}
+            dataProvider={data.provider}
+            role={permissions}
+            tenant={tenant}
+        >
+            <SettingsContext.Provider
                 value={{
-                    ...auth,
-                    isAuthorized: (_super, _tenant, permission) =>
-                        permission === "trustee-ceremony" ? args.trustee : false,
+                    ...settings,
+                    globalSettings: {
+                        ...settings.globalSettings,
+                        QUERY_FAST_POLL_INTERVAL_MS: 3_600_000,
+                    },
                 }}
             >
-                <SettingsContext.Provider
-                    value={{
-                        ...settings,
-                        globalSettings: {
-                            ...settings.globalSettings,
-                            QUERY_FAST_POLL_INTERVAL_MS: 3_600_000,
-                        },
-                    }}
+                <ElectionEventTallyContext.Provider
+                    value={{...tally, tallyId, setTallyId, isCreatingType, setCreatingFlag}}
                 >
-                    <ElectionEventTallyContext.Provider
-                        value={{...tally, tallyId, setTallyId, isCreatingType, setCreatingFlag}}
-                    >
-                        <RecordContextProvider value={event}>
-                            <TallyCeremony />
-                        </RecordContextProvider>
-                    </ElectionEventTallyContext.Provider>
-                </SettingsContext.Provider>
-            </AuthContext.Provider>
+                    <RecordContextProvider value={event}>
+                        <TallyCeremony />
+                    </RecordContextProvider>
+                </ElectionEventTallyContext.Provider>
+            </SettingsContext.Provider>
         </AdminStoryProvider>
     )
 }
 const meta = {
-    title: "Admin/Tally ceremony",
+    title: "Screens/Admin/Tally ceremony",
     component: Fixture,
-    args: {status: closed, automated: false, initialSession: null, failure: false, trustee: false},
-    beforeEach: ({args}) => {
+    args: {data: EStoryDataState.POPULATED, automated: false, failure: false},
+    beforeEach: ({args, globals}) => {
+        const {workflow} = readStoryGlobals(globals)
+        const initialSession =
+            args.initialSession === undefined ? sessionStatus(workflow) : args.initialSession
         const keys = {
             id: KEYS_ID,
             created_at: FIXED_TIME,
@@ -108,7 +137,7 @@ const meta = {
             tenant_id: TENANT_ID,
             election_event_id: EVENT_ID,
             keys_ceremony_id: KEYS_ID,
-            status: args.status,
+            status: args.status ?? electionStatus(workflow),
             presentation: {i18n: {en: {name: index ? "Deputy election" : "Council election"}}},
         }))
         let session = {
@@ -117,17 +146,20 @@ const meta = {
             election_event_id: EVENT_ID,
             keys_ceremony_id: KEYS_ID,
             election_ids: [ELECTION_ID, SECOND_ELECTION_ID],
-            execution_status: args.initialSession ?? "STARTED",
+            execution_status: initialSession ?? ITallyExecutionStatus.STARTED,
             threshold: 2,
             tally_type: "ELECTORAL_RESULTS",
             annotations: {},
             configuration: {},
-            is_execution_completed: false,
+            is_execution_completed: initialSession === ITallyExecutionStatus.SUCCESS,
+            created_at: FIXED_TIME,
+            last_updated_at: FIXED_TIME,
         }
         boundary = graphqlBoundary({
-            ListKeysCeremony: () => ({
-                data: {list_keys_ceremony: {items: [keys], total: {aggregate: {count: 1}}}},
-            }),
+            ListKeysCeremony: () =>
+                args.data === EStoryDataState.LOADING
+                    ? pending()
+                    : {data: {list_keys_ceremony: {items: [keys], total: {aggregate: {count: 1}}}}},
             CreateTallyCeremony: ({variables}) => {
                 if (args.failure) throw new Error("Synthetic tally service unavailable")
                 session = {...session, election_ids: variables.election_ids}
@@ -140,8 +172,9 @@ const meta = {
         })
         data = dataBoundary({
             getList: async <RecordType extends RaRecord>(resource: string) => {
+                if (args.data === EStoryDataState.LOADING) return pending()
                 const records: Record<string, RaRecord[]> = {
-                    sequent_backend_election: elections,
+                    sequent_backend_election: args.data === EStoryDataState.EMPTY ? [] : elections,
                     sequent_backend_contest: [],
                     sequent_backend_tally_session: [],
                     sequent_backend_tally_session_execution: [
@@ -158,6 +191,9 @@ const meta = {
                         },
                     ],
                     sequent_backend_results_event: [],
+                    sequent_backend_tally_results_publication: [],
+                    sequent_backend_tally_session_resolution: [],
+                    sequent_backend_tally_session_contest: [],
                     sequent_backend_keys_ceremony: [keys],
                     sequent_backend_trustee: [
                         {id: "alice", name: "Alice"},
@@ -188,7 +224,7 @@ const meta = {
             expect(records.unexpected).toEqual([])
         }
     },
-    render: (args) => <Fixture {...args} />,
+    render: (args, {globals}) => <Fixture key={JSON.stringify(globals)} {...args} />,
 } satisfies Meta<Scenario>
 export default meta
 type Story = StoryObj<typeof meta>
@@ -207,7 +243,66 @@ async function confirm(next: HTMLElement, label = "Ok") {
     expect(mutations()).toEqual([])
     await userEvent.click(within(dialog).getByRole("button", {name: label}))
 }
+const votingEnded = {workflow: EStoryWorkflow.ENDED}
+
+export const Loading: Story = {
+    args: {data: EStoryDataState.LOADING},
+    globals: votingEnded,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(data.calls.map(({args}) => args[0])).toContain("sequent_backend_election")
+        )
+        expect(canvas.queryByRole("row", {name: /Council election/})).not.toBeInTheDocument()
+        expect(canvas.getByRole("button", {name: "Start Tally Ceremony"})).toBeDisabled()
+    },
+}
+export const Empty: Story = {
+    args: {data: EStoryDataState.EMPTY},
+    globals: votingEnded,
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Select at least one election.")).toBeVisible()
+        expect(canvas.queryByRole("row", {name: /Council election/})).not.toBeInTheDocument()
+        expect(canvas.getByRole("button", {name: "Start Tally Ceremony"})).toBeDisabled()
+    },
+}
+/** What the screen shows at each workflow step, as translation keys of the toolbar locale. */
+const workflowScreen: Record<EStoryWorkflow, [string, Record<string, string>?]> = {
+    [EStoryWorkflow.CREATED]: ["tally.eligibility.publishElection"],
+    [EStoryWorkflow.KEYS]: ["tally.eligibility.publishElection"],
+    [EStoryWorkflow.PUBLISHED]: ["tally.eligibility.endVoting"],
+    [EStoryWorkflow.STARTED]: ["tally.eligibility.endVoting"],
+    [EStoryWorkflow.ENDED]: ["tally.ceremonySubTitle"],
+    [EStoryWorkflow.TALLY]: ["tally.trusteeTallySubTitle"],
+    [EStoryWorkflow.RESULTS]: [
+        "keysGeneration.ceremonyStep.executionStatus",
+        {status: ITallyExecutionStatus.SUCCESS},
+    ],
+}
+export const Populated: Story = {
+    play: async ({canvasElement, globals}) => {
+        const [key, values] = workflowScreen[readStoryGlobals(globals).workflow]
+        await expect(await within(canvasElement).findByText(i18n.t(key, values))).toBeVisible()
+    },
+}
+export const TallyCompleted: Story = {
+    globals: {workflow: EStoryWorkflow.RESULTS},
+    parameters: {
+        expectedFailure: {
+            reason: "The results page accordions expose several regions without distinct names.",
+            a11y: ["landmark-unique"],
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Status: SUCCESS")).toBeVisible()
+        await expect(canvas.getByText("Results & Participation")).toBeVisible()
+        expect(mutations()).toEqual([])
+    },
+}
 export const SelectAndCreateManualCeremony: Story = {
+    globals: votingEnded,
     play: async ({canvasElement}) => {
         const {canvas, next} = await ready(canvasElement)
         await userEvent.click(
@@ -257,6 +352,7 @@ export const SelectAndCreateManualCeremony: Story = {
 }
 export const AutomatedConfirmation: Story = {
     args: {automated: true},
+    globals: votingEnded,
     play: async ({canvasElement}) => {
         const {next} = await ready(canvasElement, "Start Tally")
         await userEvent.click(next)
@@ -276,6 +372,7 @@ export const AutomatedConfirmation: Story = {
     },
 }
 export const EmptySelection: Story = {
+    globals: votingEnded,
     play: async ({canvasElement}) => {
         const {canvas, next} = await ready(canvasElement)
         for (const checkbox of canvas.getAllByRole("checkbox")) await userEvent.click(checkbox)
@@ -291,12 +388,12 @@ async function blocked(canvasElement: HTMLElement, reason: string) {
     expect(mutations()).toEqual([])
 }
 export const UnpublishedElection: Story = {
-    args: {status: {...closed, is_published: false}},
+    globals: {workflow: EStoryWorkflow.KEYS},
     play: ({canvasElement}) =>
         blocked(canvasElement, "Publish each selected election before creating its tally."),
 }
 export const ActiveOnlineChannel: Story = {
-    args: {status: {...closed, voting_status: "OPEN"}},
+    globals: {workflow: EStoryWorkflow.STARTED},
     play: ({canvasElement}) =>
         blocked(
             canvasElement,
@@ -304,16 +401,19 @@ export const ActiveOnlineChannel: Story = {
         ),
 }
 export const ActiveKioskChannel: Story = {
-    args: {status: {...closed, kiosk_voting_status: "PAUSED"}},
+    args: {status: {...ended, kiosk_voting_status: EVotingStatus.PAUSED}},
+    globals: votingEnded,
     play: ActiveOnlineChannel.play,
 }
 export const TallyForbidden: Story = {
-    args: {status: {...closed, allow_tally: "disallowed"}},
+    args: {status: {...ended, allow_tally: "disallowed"}},
+    globals: votingEnded,
     play: ({canvasElement}) =>
         blocked(canvasElement, "Tallying is disabled for a selected election."),
 }
 export const ServiceFailureAllowsRetry: Story = {
     args: {failure: true},
+    globals: votingEnded,
     play: async ({canvasElement}) => {
         const {next} = await ready(canvasElement)
         await confirm(next)
@@ -327,7 +427,7 @@ export const ServiceFailureAllowsRetry: Story = {
     },
 }
 export const ConnectedTrusteesCanStart: Story = {
-    args: {initialSession: "CONNECTED"},
+    globals: {workflow: EStoryWorkflow.TALLY},
     play: async ({canvasElement}) => {
         const {canvas, next} = await ready(canvasElement, "Start Tally")
         await expect(await canvas.findByRole("row", {name: /Alice/})).toBeVisible()
@@ -348,7 +448,7 @@ export const ConnectedTrusteesCanStart: Story = {
     },
 }
 export const TrusteeUsesRestrictedRole: Story = {
-    args: {trustee: true},
+    globals: {...votingEnded, permissions: EStoryPermissions.TRUSTEE},
     play: async ({canvasElement}) => {
         await ready(canvasElement)
         expect(boundary.calls[0].headers).toEqual({"x-hasura-role": "trustee-ceremony"})
