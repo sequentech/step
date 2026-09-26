@@ -3522,11 +3522,13 @@ name = "electoral-log"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum 0.8.6",
  "borsh",
  "clap",
  "hex",
  "immudb-rs",
  "log",
+ "prost",
  "serde",
  "serde_json",
  "serial_test",
@@ -12043,6 +12045,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "toml 0.8.23",
+ "tonic",
  "tracing",
  "tracing-subscriber",
  "unicode-normalization",
