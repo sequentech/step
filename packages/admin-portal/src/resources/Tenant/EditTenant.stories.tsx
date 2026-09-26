@@ -29,7 +29,6 @@ const meta = {
     args: {reads: "records", failure: false},
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},
     parameters: {
-        widgets: ["TenantForm"],
         router: {initialEntries: [`/${TENANT_RESOURCE}/${TENANT_ID}`]},
         expectedFailure: {
             reason: "React-admin row selection labels a MUI 7 span instead of its checkbox.",
@@ -80,6 +79,7 @@ async function saveSlug(canvasElement: HTMLElement, slug: string) {
 
 export const Populated: Story = {
     parameters: {
+        widgets: ["TenantForm"],
         expectedFailure: {
             reason: "React-admin row selection labels a MUI 7 span instead of its checkbox; the JSON inputs' item counts are light grey below the contrast minimum.",
             a11y: ["aria-prohibited-attr", "color-contrast", "label"],
@@ -101,6 +101,7 @@ export const Populated: Story = {
 }
 
 export const SaveTheTenant: Story = {
+    parameters: {widgets: ["TenantForm"]},
     play: async ({canvasElement}) => {
         await saveSlug(canvasElement, "renamed-council")
         // Saving returns to the list and can be undone until its notification closes.
@@ -130,6 +131,7 @@ export const SaveTheTenant: Story = {
 }
 
 export const UndoTheChange: Story = {
+    parameters: {widgets: ["TenantForm"]},
     play: async ({canvasElement}) => {
         await saveSlug(canvasElement, "renamed-council")
         const body = within(document.body)
@@ -144,6 +146,7 @@ export const UndoTheChange: Story = {
 
 export const SaveFailure: Story = {
     args: {failure: true},
+    parameters: {widgets: ["TenantForm"]},
     play: async ({canvasElement}) => {
         await saveSlug(canvasElement, "renamed-council")
         await within(document.body).findByText("Element updated")
@@ -156,7 +159,7 @@ export const SaveFailure: Story = {
 
 export const Loading: Story = {
     args: {reads: "loading"},
-    parameters: {widgets: [], expectedFailure: null},
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         await waitFor(() => expect(data.calls.map(({method}) => method)).toContain("getOne"))
         expect(within(canvasElement).queryByRole("textbox", {name: "Slug"})).toBeNull()
