@@ -137,6 +137,33 @@ the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
 
+### Real-backend scenarios
+
+When a story cannot answer the question, `step-dev scenario` brings a synthetic election
+event of its own to a named state on the checkout's running stack (`mode up backend` or
+`full`). Run it in the devcontainer:
+
+```sh
+scripts/dev/step-dev scenario list
+scripts/dev/step-dev scenario up kiosk-voter         # kiosk voting open
+scripts/dev/step-dev scenario up completed-ceremony  # keys ceremony, ballots, online voting open
+scripts/dev/step-dev scenario up published-results   # votes cast, tallied, results published
+scripts/dev/step-dev scenario urls kiosk-voter
+scripts/dev/step-dev scenario status
+scripts/dev/step-dev scenario reset kiosk-voter
+```
+
+`up` imports the backend journeys' fixture and census through step-cli, waits on the
+task, ceremony and publication status, and prints the portal links and the synthetic
+voter credentials. The event is recorded in `.cache/scenarios/<Compose project>/` and
+carries owner annotations; the next `up` checks both and continues from the furthest
+stage that still holds. `reset` deletes only that event. Ceremonies start `trustee1`
+and `trustee2`, which no mode starts; their first start builds the braid image. On a
+new stack the first `up` enrolls the tenant administrator's email code, as the journeys
+do; the admin portal then asks for it, and the Keycloak container log shows it.
+`VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
+portals, and `--step-cli` another step-cli build.
+
 ## Incremental WASM
 
 After editing `sequent-core` or a crate it depends on, run from the devenv shell:
