@@ -192,6 +192,7 @@ def push_metrics(
         and job.conclusion in RESULT_CONCLUSIONS
         and job.completed is not None
         and job.completed >= push
+        and (job.started is None or job.completed >= job.started)
         and not is_excluded(job.workflow, excluded)
     ]
     actionable = [
@@ -204,7 +205,9 @@ def push_metrics(
     finished = [
         job.completed
         for job in jobs
-        if job.completed is not None and job.completed >= push
+        if job.completed is not None
+        and job.completed >= push
+        and (job.started is None or job.completed >= job.started)
     ]
     started = [
         started
