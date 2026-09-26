@@ -56,7 +56,7 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
                     client.writeQuery({
                         query: GET_ELECTION_EVENT,
                         variables: {tenantId, electionEventId: eventId},
-                        data: list,
+                        data: {sequent_backend_election_event: list.sequent_backend_election_event},
                     })
                     for (const election of list.sequent_backend_election) {
                         client.writeQuery({
@@ -68,7 +68,7 @@ export function useVoterContext(selectedElectionId?: string, skip = false) {
                     client.writeQuery({
                         query: GET_ELECTIONS,
                         variables: {electionIds: list.sequent_backend_election.map((e) => e.id)},
-                        data: list,
+                        data: {sequent_backend_election: list.sequent_backend_election},
                     })
                     setLoaded({
                         source: response,
