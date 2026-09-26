@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Fast feedback loops | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Fast feedback loops | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3355/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Fast feedback loops","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3355/docs/developers/development-environment/fast-feedback"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3355/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3355/assets/js/runtime~main.70d89fd7.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3355/assets/js/runtime~main.98f103d6.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3355/assets/js/main.8db03542.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -96,6 +96,32 @@ the binary&#x27;s hash. <code>WORKBENCH_TEST_CHROME_PATH</code> selects a local 
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="incremental-wasm">Incremental WASM<a href="#incremental-wasm" class="hash-link" aria-label="Direct link to Incremental WASM" title="Direct link to Incremental WASM" translate="no">​</a></h2>
+<p>After editing <code>sequent-core</code> or a crate it depends on, run from the devenv shell:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev wasm            </span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># rebuild and publish when inputs changed</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev wasm </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--status</span><span class="token plain">   </span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># does the published build match the sources?</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev wasm </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--clean</span><span class="token plain">    </span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic"># drop the development package and its cache</span><br></span></code></pre></div></div>
+<p>The command fingerprints the path crates Cargo resolves for the wasm32 build
+(their library sources, manifests and files named by <code>include_str!</code>,
+<code>include_bytes!</code> or <code>#[path]</code>), the resolved dependency versions, sources and
+features, the workspace profiles, Cargo configuration, <code>rust-toolchain.toml</code>,
+the build recipe, the rustc, Cargo and wasm-bindgen versions, C compiler settings
+and the command itself. Tests, benches, examples, other workspace members,
+unrelated <code>Cargo.lock</code> entries, hidden files and editor backups are not inputs.
+Without changes it only prints <code>up to date</code>. Otherwise it compiles incrementally
+in <code>packages/rust-local-target/sequent-core-wasm/</code> and publishes one development
+package there; node_modules, Yarn caches and dist trees are untouched.</p>
+<p>Portal dev servers (<code>start:*</code>) and Storybook load that package instead of the
+installed tgz while it exists, and reload the open page when a new build is
+published; restart them after the first publish or after <code>--clean</code>. Production
+builds always use the installed tgz. A failed build exits non-zero, keeps the
+previous build and logs <code>development WASM build failed</code> in the browser console
+until a build succeeds or the sources match the published build again.</p>
+<p>The committed <code>packages/*/rust/sequent-core-0.1.0.tgz</code> files are the release
+package. It records its source fingerprint; regenerate it with wasm-opt from the
+sequent-core flake, then reinstall and commit the four tgz files and <code>yarn.lock</code>:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">nix develop ./packages/sequent-core </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--command</span><span class="token plain"> scripts/dev/step-dev wasm --release-package</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--cwd</span><span class="token plain"> packages </span><span class="token function" style="color:rgb(130, 170, 255)">install</span><span class="token plain"> --frozen-lockfile</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">scripts/dev/step-dev wasm --check-package</span><br></span></code></pre></div></div>
+<p><code>--check-package</code> fails, naming the changed inputs, when the committed package was
+not built from the checked-out sources; CI runs it in <code>build_wasm.yml</code>.
+For recovery, <code>.devcontainer/scripts/rebuild-sequent-core-full.sh</code> also removes
+the installed copies so that the next install extracts them again.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="focused-tests">Focused tests<a href="#focused-tests" class="hash-link" aria-label="Direct link to Focused tests" title="Direct link to Focused tests" translate="no">​</a></h2>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="benchmarks">Benchmarks<a href="#benchmarks" class="hash-link" aria-label="Direct link to Benchmarks" title="Direct link to Benchmarks" translate="no">​</a></h2>
 <p><code>scripts/dev/step-dev bench</code> times these loops for any checkout given with
