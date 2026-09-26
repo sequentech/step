@@ -41,7 +41,9 @@ if (typeof globalThis.TextEncoder === "undefined") {
 // without it every responsive component throws on first render. Reports "no
 // match", which is the correct answer for jsdom's 1024px-wide window at the
 // breakpoints this app uses.
-if (typeof window.matchMedia !== "function") {
+// Both window stubs are guarded on `window` existing: the voting portal shares
+// this setup file and has suites that opt into `@jest-environment node`.
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
     Object.defineProperty(window, "matchMedia", {
         writable: true,
         value: (query: string) => ({
@@ -58,7 +60,7 @@ if (typeof window.matchMedia !== "function") {
 }
 
 // Not in jsdom, and MUI's transitions and `Popper` use it.
-if (typeof window.ResizeObserver !== "function") {
+if (typeof window !== "undefined" && typeof window.ResizeObserver !== "function") {
     window.ResizeObserver = class {
         observe(): void {}
         unobserve(): void {}
