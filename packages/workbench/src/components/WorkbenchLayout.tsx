@@ -27,13 +27,14 @@ import {
     WorkbenchEventKind,
 } from "../state"
 import {BLOCKED_REQUEST_EVENT} from "../networkGuard"
-import {PipelinePanel, WASM_RUNNER} from "./PipelinePanel"
+import {PipelinePanel} from "./PipelinePanel"
+import {WASM_RUNNER} from "../pipelineRunner"
 import {PolicyPanel, type PolicyPanelContest} from "./PolicyPanel"
 import {ScenarioPicker} from "./ScenarioPicker"
 import {ScreenNav} from "./ScreenNav"
 import {StateInspector} from "./StateInspector"
 
-export enum SidePanel {
+enum SidePanel {
     POLICIES = "policies",
     PIPELINE = "pipeline",
     INSPECTOR = "inspector",
