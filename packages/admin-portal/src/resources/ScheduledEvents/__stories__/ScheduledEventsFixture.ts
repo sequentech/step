@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 // Synthetic scheduled events of the election event and the elections they target.
+import type {DataProvider} from "react-admin"
 import {VotingStatusChannel} from "@sequentech/ui-core"
 import type {Sequent_Backend_Election, Sequent_Backend_Scheduled_Event} from "@/gql/graphql"
 import {EVENT_ID, TENANT_ID} from "@/__stories__/AdminStoryProvider"
@@ -62,3 +63,33 @@ export const scheduledEventRecords = (): StoryRecord<Sequent_Backend_Scheduled_E
         election_id: STORY_IDS.secondElection,
     }),
 ]
+
+/**
+ * The list asks for events whose payload `_contains` any of the event's
+ * elections as one array; the portal's query builder turns that into one
+ * `_contains` per election, or none, before it reaches Hasura.
+ */
+export function scheduledEventsProvider(provider: DataProvider): DataProvider {
+    return {
+        ...provider,
+        getList: (resource, params) => {
+            const {event_payload: payload, ...filter} = params.filter ?? {}
+            const electionIds: unknown = payload?.value?._contains?.election_id
+            if (resource !== SCHEDULED_EVENT_RESOURCE || !Array.isArray(electionIds)) {
+                return provider.getList(resource, params)
+            }
+            return provider.getList(resource, {
+                ...params,
+                filter: {
+                    ...filter,
+                    _or: {
+                        format: "hasura-raw-query",
+                        value: [...electionIds, null].map((electionId) => ({
+                            event_payload: {_contains: {election_id: electionId}},
+                        })),
+                    },
+                },
+            })
+        },
+    }
+}
