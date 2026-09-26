@@ -245,6 +245,11 @@ yarn --cwd packages/admin-portal stories:inventory --check              # fails 
 yarn --cwd packages/admin-portal test:story admin-area-listarea--delete-area-after-confirmation
 ```
 
+The admin-portal stories job in CI runs `stories:inventory --check`, so a new
+widget needs its section in the same change. The inventory reads `parameters.widgets` from
+each story, not from the section's `meta`, and a story may only name components that its
+section's module defines.
+
 With a source file, component name or feature, the inventory prints each widget's
 section, story IDs, direct links and focused test command. Story IDs follow the title
 and the export name: `http://localhost:6008/?path=/story/admin-area-listarea--populated`

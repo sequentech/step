@@ -39,6 +39,10 @@ jobs:
         if: matrix.package == 'admin-portal' || matrix.package == 'ui-essentials'
         working-directory: packages/${{ matrix.package }}
         run: yarn typecheck:stories
+      - name: Check every admin widget has its Storybook section
+        if: matrix.package == 'admin-portal'
+        working-directory: packages/admin-portal
+        run: yarn stories:inventory --check
       - name: Typecheck voting stories and tests
         if: matrix.package == 'voting-portal'
         working-directory: packages/voting-portal
