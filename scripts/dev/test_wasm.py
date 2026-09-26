@@ -36,7 +36,7 @@ with (fixtures / "calls.log").open("a") as log:
     log.write(json.dumps({"tool": tool, "args": args, "env": {
         name: os.environ.get(name)
         for name in ("RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_TARGET_DIR",
-                     "CARGO_PROFILE_RELEASE_LTO")
+                     "CARGO_PROFILE_RELEASE_LTO", "CARGO_PROFILE_RELEASE_INCREMENTAL")
     }}) + "\n")
 if tool == "rustc":
     print("rustc 1.96.0 (fake)\nrelease: " + os.environ.get("FAKE_RUSTC", "1.96.0"))
@@ -511,6 +511,7 @@ class DevelopmentBuildTests(WasmTestCase):
         env = self.checkout.calls("cargo", "build")[0]["env"]
         self.assertIsNone(env["RUSTFLAGS"])
         self.assertIsNone(env["CARGO_PROFILE_RELEASE_LTO"])
+        self.assertEqual(env["CARGO_PROFILE_RELEASE_INCREMENTAL"], "true")
         cargo_home = self.checkout.fixtures / "cargo-home"
         self.assertEqual(
             env["CARGO_ENCODED_RUSTFLAGS"].split("\x1f"),
@@ -627,6 +628,15 @@ class ReleasePackageTests(WasmTestCase):
             inputs["source_fingerprint"], self.checkout.source_fingerprint()
         )
         self.assertEqual(inputs["output"]["wasm_opt"], ["-O"])
+
+    def test_the_package_compiles_with_the_plain_release_profile(self):
+        self.release(CARGO_PROFILE_RELEASE_INCREMENTAL="true")
+        env = self.checkout.calls("cargo", "build")[0]["env"]
+        self.assertIsNone(env["CARGO_PROFILE_RELEASE_INCREMENTAL"])
+        self.assertEqual(
+            env["CARGO_TARGET_DIR"],
+            str(self.checkout.layout.cargo_target(wasm.Output.RELEASE)),
+        )
 
     def test_releasing_unchanged_sources_reproduces_the_archive(self):
         self.release()

@@ -126,6 +126,15 @@ class Output(enum.Enum):
 
 # wasm-pack's release profile runs wasm-opt -O; development skips it for speed.
 WASM_OPT = {Output.DEVELOPMENT: (), Output.RELEASE: ("-O",)}
+# Development keeps release semantics but compiles incrementally in many codegen
+# units, which cuts a leaf edit's compile about threefold. The package does not.
+PROFILE_OVERRIDES = {
+    Output.DEVELOPMENT: {
+        "CARGO_PROFILE_RELEASE_INCREMENTAL": "true",
+        "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": "256",
+    },
+    Output.RELEASE: {},
+}
 
 
 class State(enum.Enum):
@@ -599,6 +608,9 @@ def environment_records(tools: Mapping[str, str], output: Output) -> list[Record
         if path.is_file():
             records.append(("file", str(path), digest_file(path)))
     records.append(("output", output.value, " ".join(WASM_OPT[output])))
+    records += [
+        ("profile", name, value) for name, value in PROFILE_OVERRIDES[output].items()
+    ]
     records.append(("script", "scripts/dev/wasm.py", digest_file(SCRIPT)))
     return records
 
@@ -656,6 +668,7 @@ def cargo_env(layout: Layout, output: Output) -> dict[str, str]:
     ]
     env["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(flags)
     env["CARGO_TARGET_DIR"] = str(layout.cargo_target(output))
+    env.update(PROFILE_OVERRIDES[output])
     return env
 
 
