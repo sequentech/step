@@ -99,14 +99,26 @@ describe("development", () => {
         ])
     })
 
-    it("transpiles without type checking", () => {
+    it("transpiles without type checking and adds the React Refresh transform", () => {
         const config = withPortalDevelopment(PORTAL, portalConfig("development"))
         const [styles, scripts] = config.module.rules
         expect(styles).toEqual(portalConfig("development").module.rules[0])
         expect(scripts.use).toEqual([
-            "babel-loader",
+            {
+                loader: "babel-loader",
+                options: {
+                    plugins: [[require.resolve("react-refresh/babel"), {skipEnvCheck: true}]],
+                },
+            },
             {loader: "ts-loader", options: {configFile: "tsconfig.json", transpileOnly: true}},
         ])
+    })
+
+    it("keeps the portal entry out of React Refresh", () => {
+        const config = portalConfig("development")
+        const refresh = pluginNamed(withPortalDevelopment(PORTAL, config), "ReactRefreshPlugin")
+        expect(refresh.options.overlay).toBe(false)
+        expect(refresh.options.exclude).toEqual([/node_modules/, config.entry])
     })
 
     it("keeps the built packages with STEP_SHARED_UI=dist", () => {
@@ -115,6 +127,7 @@ describe("development", () => {
         expect(config.resolve.alias).toEqual({"@root": path.join(PORTAL, "src")})
         expect(config.module.rules).toHaveLength(2)
         expect(pluginNamed(config, "PortalInstancesPlugin")).toBeUndefined()
+        expect(pluginNamed(config, "ReactRefreshPlugin")).toBeDefined()
     })
 
     it("rejects an unknown STEP_SHARED_UI", () => {

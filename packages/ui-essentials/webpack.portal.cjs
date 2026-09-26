@@ -9,6 +9,7 @@
 
 const fs = require("fs")
 const path = require("path")
+const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin")
 
 const PACKAGES = path.resolve(__dirname, "..")
 const SHARED_UI = ["ui-core", "ui-essentials"].map((name) => ({
@@ -113,15 +114,32 @@ function withSharedUiSource(portal, config) {
 const loaderName = (entry) => (typeof entry === "string" ? entry : entry.loader)
 
 // Type errors are reported by the typecheck scripts and production builds, off the
-// edit-to-browser path.
+// edit-to-browser path. The webpack mode, not NODE_ENV, selects React Refresh.
 function developmentLoader(entry) {
     const {loader, options = {}} = typeof entry === "string" ? {loader: entry} : entry
-    return loader === "ts-loader" ? {loader, options: {...options, transpileOnly: true}} : entry
+    switch (loader) {
+        case "ts-loader":
+            return {loader, options: {...options, transpileOnly: true}}
+        case "babel-loader":
+            return {
+                loader,
+                options: {
+                    ...options,
+                    plugins: [
+                        ...(options.plugins ?? []),
+                        [require.resolve("react-refresh/babel"), {skipEnvCheck: true}],
+                    ],
+                },
+            }
+        default:
+            return entry
+    }
 }
 
 /**
  * Completes a portal config. In development mode the shared UI packages resolve
- * to source, compiled by the portal rule that uses ts-loader.
+ * to source, compiled by the portal rule that uses ts-loader, and React Refresh
+ * keeps component state across edits of component-only modules.
  */
 function withPortalDevelopment(portal, config) {
     if (config.mode !== "development") {
@@ -137,6 +155,15 @@ function withPortalDevelopment(portal, config) {
                     : rule
             ),
         },
+        plugins: [
+            ...config.plugins,
+            // The entry creates the React root: an update reaching it reloads the
+            // page instead of mounting a second root.
+            new ReactRefreshWebpackPlugin({
+                overlay: false,
+                exclude: [/node_modules/, config.entry],
+            }),
+        ],
     }
     return sharedUiEntry() === SharedUiEntry.SOURCE
         ? withSharedUiSource(portal, development)
