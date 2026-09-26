@@ -10,6 +10,7 @@ on:
     types: [opened, synchronize, reopened, labeled]
     paths:
       - .github/workflows/frontend-stack-e2e.yml
+      - rust-toolchain.toml
       - .devcontainer/**
       - packages/**
       - hasura/**

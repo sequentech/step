@@ -75,6 +75,27 @@ runs its own Nix daemon on the shared store. A garbage collection sees only the
 roots and builds of its own container, so run `nix-collect-garbage` while no
 other devcontainer is up; `.devcontainer/scripts/free-space.sh` skips it then.
 
+### Prebuilt toolchains
+
+On the host, `scripts/dev/step-dev prebuild pull` fetches the environment image
+matching this checkout; `prebuild status` shows whether it is available. Rebuild
+the devcontainer after pulling. Initialization uses only a local image whose
+content label and architecture match, otherwise it uses the existing devenv
+image and evaluates the shell locally. An unavailable registry never blocks
+that fallback. Each prebuild gets its own shared Nix volume so an older volume
+cannot hide the image's populated store.
+
+The **Prebuild development tools** workflow builds native amd64 and arm64 images
+from `devenv.nix`, `devenv.lock`, `devenv.yaml` and the locked devcontainer
+features. The build context contains no application source or local `.env`.
+PRs build without publishing; pushes to `main`/`ovcs` and manual runs on those
+branches publish `ghcr.io/sequentech/step-devenv:env-<input hash>`. GHCR package
+write permission is needed for trusted publishing and the package must be public
+for anonymous pulls. Change a toolchain/feature input to get a new tag, or
+manually run the workflow to refresh an existing recipe, then pull again.
+`prebuild fingerprint` prints the key; `prebuild context --destination <empty-dir>`
+creates the same small build context for local inspection.
+
 ## Shared UI hot reload
 
 Portal dev servers compile `@sequentech/ui-core` and `@sequentech/ui-essentials`
@@ -130,9 +151,11 @@ Its local storage keys start with `sequent.workbench.v1.`; Reset removes them an
 portal's session storage. Requests to other origins and non-GET requests are refused.
 Workbench controls have stories under `Workbench/`.
 
-`WORKBENCH_SEQUENT_CORE=<wasm-pack web output>` loads another sequent-core build
-without reinstalling; the page reloads when its files change and the inspector shows
-the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
+The workbench dev server automatically loads the artifact published by
+`step-dev wasm`, falling back to the installed package when none exists. Production
+builds use the installed package. `WORKBENCH_SEQUENT_CORE=<wasm-pack web output>`
+explicitly selects another build for either mode. No reinstall is needed; the page
+reloads when the artifact changes and the inspector shows the binary's hash. `WORKBENCH_TEST_CHROME_PATH` selects a local Chromium for
 `test:smoke`. Stories render one production route with its action; the workbench mounts
 the production event routes. The only preview UI inside the portal frame is the error
 shown when the portal loader rejects a snapshot.
@@ -163,6 +186,11 @@ new stack the first `up` enrolls the tenant administrator's email code, as the j
 do; the admin portal then asks for it, and the Keycloak container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
+
+`up`, `urls`, `status` and `reset` accept `--format json`; progress goes to stderr.
+An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
+tenant and keeps the state file if deletion fails, so it can be retried. A second
+command for the same scenario fails while the first holds its lock.
 
 ## Incremental WASM
 
@@ -317,3 +345,70 @@ $B ci --label before --pr "$PR"
 ```
 
 ## Incremental CI
+
+The `Tests` workflow selects checks with the same dependency model as local
+commands. Pull requests compare their head with the actual base's merge base;
+checkout fetches the full history. Missing history, unknown paths or changes to
+the selection runner select all checks. Pushes to `main`, `ovcs` and `release/**`
+run full validation. A newer PR commit cancels its older feedback run.
+
+```sh
+scripts/dev/step-dev affected --base origin/ovcs --json
+python3 -m scripts.dev.ci plan --base origin/ovcs --output /tmp/ci-plan.json
+```
+
+Read the plan job's summary for affected packages, selected and skipped checks,
+and reasons. The plan artifact includes the same model JSON used locally. Jest,
+Rust and tooling jobs run only selected package suites; selected stories still
+run interactions, accessibility, types and the catalog build. Production journeys
+reuse shared-library and portal builds from the same immutable run; every
+selected test reruns. The four admin journey shards use one production build.
+
+`Required feedback checks` rejects failed, cancelled, missing or unexpectedly
+skipped managed jobs. It covers `Tests` and its reusable frontend UI workflow;
+existing coverage, backend integration and other workflows keep their separate
+gates. Repository maintainers can add the stable feedback check to branch rules.
+
+Frontend dependency caches require an exact OS, architecture, Node, Yarn,
+workspace-manifest, lockfile and packaged-WASM match. Restored dependencies pass
+Yarn's integrity and file checks before installation is skipped; a missing or
+invalid cache runs a normal frozen install. Cache availability never substitutes
+for a current build or test. GitHub scopes PR-written caches to that PR; base
+pushes populate caches that later PRs can restore. The setup step reports hits
+and misses. To force a dependency cache miss, increment `frontend-v1` in the setup
+action, or delete the relevant Actions cache.
+
+Shared UI outputs also use an exact content identity: transitive workspace
+sources, workspace manifests, lockfile, packaged WASM, build configuration and
+recipe, OS/architecture/libc, Node/Yarn and build environment. A checksum manifest
+must match the current identity and every output before compilation is skipped.
+Missing, stale or damaged outputs rebuild. A portal leaf edit therefore reuses
+unchanged shared libraries. Each portal production build still runs once per run.
+Artifacts use the immutable run identity and output manifests; a partial job
+retry can consume a successful earlier producer from that run. Tests rerun in
+both cases. Before the first base cache has been populated, a new PR has a cold
+cache; rerunning the PR demonstrates its own warm cache path.
+
+### Rust compiler caches
+
+Rust test and CLI jobs restore Cargo downloads separately from a bounded local
+sccache store. The compiler key includes OS/architecture, rustc identity,
+workspace manifests and Cargo configuration, the actual workspace lockfile,
+profiles, features, targets and compiler flags. Source edits reuse compatible
+units; a lockfile change can restore the prior compatible snapshot. Cargo still
+builds and runs tests every time, and sccache validates each compilation's inputs.
+A snapshot hit never skips a test.
+
+The job summary reports the key and restore status; the sccache post-step reports
+compiler hits, misses and unsupported calls. Each compiler snapshot is limited
+to 512 MiB and only successful pushes to `main`, `ovcs` and `release/**` save it.
+PRs and manual runs only restore. Snapshots are immutable per compatibility key;
+set the repository variable `STEP_RUST_CACHE_EPOCH` to a new value to force a new
+snapshot. GitHub may evict older entries within its repository cache quota. A
+missing download or compiler snapshot builds normally; an unavailable sccache
+installer falls back to rustc. To reproduce an identity locally:
+
+```sh
+scripts/dev/step-dev rust_cache --name sequent-core --lockfile packages/Cargo.lock \
+  --target-dir packages/rust-local-target --profile dev --features default_features,keycloak
+```

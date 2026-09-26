@@ -4,6 +4,7 @@
 import type {Preview} from "@storybook/react-vite"
 import {ScenarioChannel} from "@sequentech/ui-test-kit/fixtures/scenarios"
 import preview from "../../ui-essentials/.storybook/preview"
+import {storyGlobalTypes} from "../../ui-essentials/.storybook/globals"
 import {initializePreviewLanguages} from "../src/preview/context"
 import {SCENARIO_CHANNEL, withVoterPreview} from "./withVoterPreview"
 
@@ -15,6 +16,8 @@ export default {
     decorators: [withVoterPreview, ...[preview.decorators ?? []].flat()],
     globalTypes: {
         ...preview.globalTypes,
+        tenant: storyGlobalTypes.tenant,
+        workflow: storyGlobalTypes.workflow,
         voterChannel: {
             description: "Channel of the scenario voter",
             toolbar: {

@@ -36,7 +36,9 @@ check is not a passing test. `validate` includes slower checks; inspect its
 | One unit or browser test | `step-dev test <test-file>`; the runner and scope are printed before execution |
 | Rust-backed frontend logic | `step-dev wasm`, then reload/rerun the affected real WASM flow |
 | Rust service | Inspect the checkout's existing watcher logs before starting another compiler; use `step-dev test <crate> <test-name>` |
+| Keycloak React login or OTP | `step-dev keycloak dev` for synthetic previews, `keycloak storybook` for isolated stories; follow the Keycloak guide for real authentication and automatic reload |
 | Keycloak template, message or CSS | `ui-keycloak` mode, the live theme mount and the relevant authentication page |
+| Toolchain setup or cache reuse | `step-dev prebuild status`; use `pull` before recreating a task-owned devcontainer, and inspect the fallback selection |
 | Backend state | `step-dev scenario list`, then `scenario up <name>` only when a fixture-backed screen cannot answer the question |
 
 Use `ui-only` for synthetic screens. Find stable story and workbench links in
@@ -44,6 +46,11 @@ the guide's **Screens, workbench and scenarios** section. Do not build shared
 UI packages for an ordinary source edit; production journeys still need their
 production outputs. `step-dev wasm --status` reports source freshness; a failed
 WASM rebuild must not be reported as a successful preview of the new source.
+
+The [Keycloak guide](../../../docs/docusaurus/docs/07-developers/06-keycloak/developers_keycloak.md)
+includes `keycloak prepare`, isolated theme mounting and the real-authentication
+`test:real`/`test:hot` checks. Complex unported login widgets keep their FreeMarker
+implementation and template auto-reload.
 
 For new regression tests follow [implement-unit-tests](../implement-unit-tests/SKILL.md)
 and the package testing guide. Browser work requires checking the rendered
@@ -61,3 +68,7 @@ user asked to retain the workspace. Use `step-dev bench` for performance claims,
 with cache state, load, raw samples and sample counts; do not infer latency from
 one successful test run. CI uses the same selection model; compare its summary
 with the local `affected --base <ref> --json` output when scope differs.
+`python3 -m scripts.dev.ci plan --base <ref> --output /tmp/ci-plan.json`
+shows the exact hosted matrices. Cache hits reuse verified compiler outputs;
+selected tests still execute. Read the guide's Incremental CI section before
+changing cache keys or selected checks.

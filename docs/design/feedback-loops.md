@@ -164,29 +164,39 @@ Decisions so far:
   rename, fingerprinted sources, an incremental development profile (cargo 15 s →
   5 s on a leaf edit, +0.4% wasm size); the committed package was stale and is now
   regenerated reproducibly with a freshness check in CI.
-- **Keycloak** (adopted: live theme folders; Keycloakify development continues). The pilot
-  passed a real password + email OTP login with the existing authenticator (8/8) and
-  its pages were lighter with no axe violations, but its real-Keycloak loop took
-  8.4 s (n=10), realm localization overrides and per-event login policies did not
-  reach the pages, the OTP courier enum was lost and dotted template ids needed
-  workarounds; porting would cover 29 templates, 251 message keys in up to eight
-  locales and a Node build stage. These results defer production adoption; they
-  do not end the React development path. Keep an opt-in Keycloakify workspace
-  with automatic reload and continue closing the localization, policy and custom
-  OTP context gaps. Document commands and browser validation for both developers
-  and agents through the shared `step-dev` entry point and `AGENTS.md`.
+- **Keycloak** (adopted for development): live theme folders plus the retained
+  opt-in `keycloak-ui` React workspace. Login and message OTP use React refresh;
+  unported or complex login widgets inherit the original templates with automatic
+  reload. The explicit server context carries login policies, OTP courier and
+  localized messages, including realm overrides. Eleven real authentication/policy
+  checks, 12 browser stories, 23 original theme tests, and a theme build pass.
+  Warm visible edits on real Keycloak: login 0.077 s median, 0.076–0.077 (n=10);
+  OTP 0.076 s, 0.075–0.087 (n=10). Typed input and the authentication session survive
+  without navigation; the OTP exchange completes after the edits. Server message
+  edits also reload automatically (n=1). The earlier packaged pilot took 8.4 s
+  (n=10). Production adoption remains deferred; SMS delivery, one-time links,
+  CAPTCHA and external identity providers need their configured integration
+  environments. Commands and fixture limits are in the Keycloak developer guide.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
-  typed policy overrides and the real sequent-core pipeline.
+  typed policy overrides and the real sequent-core pipeline. The dev server now
+  picks up `step-dev wasm`'s versioned artifact automatically; the inspector tracks
+  the active binary through publication/reload. Unit tests (33), smoke flows (3),
+  an actual versioned artifact switch with the five-step ballot pipeline (n=1),
+  and the production build pass. Production WASM exactly matches the installed
+  package. Voting Storybook exposes tenant/workflow controls and all eight
+  locales; all 80 story tests pass (n=1 run).
 
-Current validation: the voting Jest suite passes locally (30 suites, 259 tests,
+Current validation: the voting Jest suite passes locally (30 suites, 264 tests,
 one run), as do verifier stories (14 tests, including one retained expected
 accessibility failure) and results stories (19 tests), one browser run each.
 The hosted regressions were a missing story CSS hook, virtual mocks for a now-real
 shared module and obsolete expected-failure markers after upstream accessibility
 fixes. Frontend lint and formatting pass across all seven packages. Paired voting
 coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
-metrics increasing. Hosted reruns remain in progress.
+metrics increasing. Current `ovcs` 38b0c3d834 is merged through all three phases;
+the updated voting suite, types, lint and formatting pass. Hosted reruns remain
+in progress.
 
 - **Public admin build settings**: webpack defines only the four settings read
   by the application; private build environment values no longer enter the
@@ -198,6 +208,37 @@ metrics increasing. Hosted reruns remain in progress.
   `fast-feedback` skill, the developer guide and `step-dev` commands. Explicit
   CLI help exits successfully, and shared UI edits no longer instruct agents to
   rebuild production libraries.
+
+- **Incremental CI**: the Tests workflow uses the local dependency model, runs
+  selected suites and calls the reusable frontend workflow. Selected tests rerun;
+  a strict aggregate check rejects missing, cancelled or unexpectedly skipped
+  jobs. Production journey shards share one current portal build. Shared UI
+  reuse verifies its complete input identity and output checksums: rebuilding
+  locally took 19.3 s median, 19.1–20.7 (n=3), versus 0.26 s, 0.26–0.42 (n=10)
+  for verified reuse. This native aarch64 result excludes hosted transfers.
+- **Rust compiler caching**: CI restores bounded sccache units separately from
+  downloaded dependencies. On wrap-map-err, fresh output directories with an
+  edited source compiled and passed all 18 tests in 3.42 s median, 3.42–3.52
+  (n=10) without compiler reuse, versus 2.02 s, 1.97–2.07 (n=10) with it.
+  Deliberately corrupt cached units triggered a successful ordinary rebuild
+  (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
+  speedups; hosted measurements remain pending.
+- **Optional environment prebuilds**: native arm64/amd64 builds use a source-free
+  toolchain context. PRs build without publishing; trusted branch workflows
+  publish matching images. Local selection checks identity and architecture,
+  falling back to the standard image when missing or incompatible. Unit tests,
+  source-free warm-up, Dockerfile checks and fallback Compose validation pass;
+  complete image builds and startup measurements remain pending hosted validation.
+- **Repeatable backend scenarios**: all three named states create and reuse their
+  own events; targeted reset rejects foreign ownership, tenant mismatches and
+  concurrent execution. Four browser checks pass against current portal sources:
+  kiosk and online ballot casting, verifier upload and the exact published
+  totals. The task backend reuses binaries from `728c258313`; the driver and
+  portal validation use `149131a62a`. Warm reuse takes 0.786 s median,
+  0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
+  0.595–0.715 for published results (n=10 each, one excluded warmup). These are
+  current-state timings under concurrent load, not before/after speedups.
+  All 84 scenario tests and the integrated 415 developer-tool tests pass.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and

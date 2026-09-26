@@ -3,12 +3,16 @@
 name: Orare runtime contracts
 on:
   pull_request:
-    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-test-browser/**']
+    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py', '.github/actions/setup-test-browser/**']
   push:
-    branches: [main]
-    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-test-browser/**']
+    branches: [main, ovcs]
+    paths: ['packages/**', '.github/workflows/orare-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py', '.github/actions/setup-test-browser/**']
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   contracts:
     runs-on: ubuntu-24.04
@@ -29,6 +33,7 @@ jobs:
           cargo-build-name: orare-${{ matrix.runtime }}
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
+          features: default,${{ matrix.runtime }}
       - uses: ./.github/actions/setup-test-browser
       - name: Build the compiled OpenWhisk consumer
         if: matrix.runtime == 'openwhisk'

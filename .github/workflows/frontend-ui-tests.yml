@@ -4,51 +4,37 @@
 name: Frontend UI tests
 
 on:
-  pull_request:
-    paths: ["packages/**", ".github/workflows/frontend-ui-tests.yml"]
-  push:
-    branches: [main]
-    paths: ["packages/**", ".github/workflows/frontend-ui-tests.yml"]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      selection:
+        description: Matrices from scripts.dev.ci using the shared affected model
+        required: true
+        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: frontend-ui-tests-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   stories:
+    if: fromJSON(inputs.selection).ui_jobs.stories
     name: ${{ matrix.package }} stories
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
-        package:
-          [
-            ui-essentials,
-            voting-portal,
-            admin-portal,
-            results-portal,
-            ballot-verifier,
-          ]
+        package: ${{ fromJSON(inputs.selection).stories }}
     env:
       CI: true
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "22.22.0"
-      - name: Install locked workspace dependencies
-        run: |
-          npm install --global yarn@1.22.22
-          yarn --cwd packages install --frozen-lockfile --non-interactive
+      - uses: ./.github/actions/setup-frontend
       - name: Typecheck component stories
         if: matrix.package == 'admin-portal' || matrix.package == 'ui-essentials'
         working-directory: packages/${{ matrix.package }}
@@ -57,6 +43,13 @@ jobs:
         if: matrix.package == 'voting-portal'
         working-directory: packages/voting-portal
         run: yarn test:types
+      - name: Check Keycloak UI types and code style
+        if: matrix.package == 'keycloak-ui'
+        working-directory: packages/keycloak-ui
+        run: |
+          yarn typecheck
+          yarn lint
+          yarn prettify
       - name: Run interactions and accessibility checks in Chromium
         working-directory: packages/${{ matrix.package }}
         run: yarn test:stories --coverage --reporter=default --reporter=junit --outputFile=test-results/stories.xml
@@ -69,31 +62,20 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: stories-${{ matrix.package }}
+          overwrite: true
+          name: stories-${{ matrix.package }}-${{ github.run_id }}
           path: packages/${{ matrix.package }}/test-results
           if-no-files-found: warn
 
   portal-journeys:
-    name: ${{ matrix.package }} production browser journeys${{ matrix.shards && format(' ({0}/{1})', matrix.shard, matrix.shards) || '' }}
+    name: ${{ matrix.package }} production browser journeys (${{ matrix.shard }}/${{ matrix.shards }})
+    needs: [shared-ui, build-portals, fixtures]
+    if: fromJSON(inputs.selection).ui_jobs.portal-journeys
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
-        package: [voting-portal, results-portal, ballot-verifier]
-        # The admin suite grows with every area; each shard builds the portal
-        # and runs its share of the journeys with two workers.
-        include:
-          - package: admin-portal
-            shard: 1
-            shards: 4
-          - package: admin-portal
-            shard: 2
-            shards: 4
-          - package: admin-portal
-            shard: 3
-            shards: 4
-          - package: admin-portal
-            shard: 4
-            shards: 4
+        include: ${{ fromJSON(inputs.selection).journeys }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     container: mcr.microsoft.com/playwright:v1.62.1-noble
@@ -103,52 +85,224 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: ./.github/actions/setup-frontend
+      - uses: ./.github/actions/restore-frontend-build
         with:
-          node-version: "22.22.0"
-      - name: Install locked workspace dependencies
-        run: |
-          npm install --global yarn@1.22.22
-          yarn --cwd packages install --frozen-lockfile --non-interactive
-      - name: Validate the browser fixture contracts
-        run: |
-          yarn --cwd packages/ui-test-kit typecheck
-          yarn --cwd packages/ui-test-kit test
-          if [ "${{ matrix.package }}" = "voting-portal" ]; then
-            yarn --cwd packages/voting-portal tsc -p tsconfig.journeys.json
-          else
-            yarn --cwd packages/${{ matrix.package }} test:types
-          fi
-      - name: Build the production portal
-        run: |
-          yarn --cwd packages build:ui-core
-          yarn --cwd packages build:ui-essentials
-          yarn --cwd packages build:${{ matrix.package }}
-          if [ "${{ matrix.package }}" = "ballot-verifier" ]; then
-            yarn --cwd packages build:voting-portal
-          fi
+          package: shared-ui
+      - uses: ./.github/actions/restore-frontend-build
+        with:
+          package: ${{ matrix.package }}
+      - uses: ./.github/actions/restore-frontend-build
+        if: matrix.package == 'ballot-verifier'
+        with:
+          package: voting-portal
       - name: Run mocked service journeys in Chromium
         env:
           STEP_UI_JOURNEY_COVERAGE: "1"
-        run: yarn --cwd packages/${{ matrix.package }} test:journeys ${{ matrix.shards && format('--shard={0}/{1}', matrix.shard, matrix.shards) || '' }}
+        run: yarn --cwd packages/${{ matrix.package }} test:journeys --shard=${{ matrix.shard }}/${{ matrix.shards }}
       - name: Summarize journeys and V8 coverage
         if: ${{ !cancelled() }}
         run: node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts journeys packages/${{ matrix.package }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: ${{ matrix.package }}-production-journeys${{ matrix.shards && format('-{0}-of-{1}', matrix.shard, matrix.shards) || '' }}
+          overwrite: true
+          name: ${{ matrix.package }}-production-journeys-${{ matrix.shard }}-of-${{ matrix.shards }}-${{ github.run_id }}
           path: |
             packages/${{ matrix.package }}/test-results
             packages/ui-test-kit/test-results
           if-no-files-found: error
 
+  fixtures:
+    name: Browser fixture contracts
+    if: fromJSON(inputs.selection).ui_jobs.fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-frontend
+      - run: |
+          yarn --cwd packages/ui-test-kit typecheck
+          yarn --cwd packages/ui-test-kit test
+
+  shared-ui:
+    name: Build shared UI once
+    if: fromJSON(inputs.selection).ui_jobs.shared-ui
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-frontend
+      - name: Fingerprint shared UI inputs and toolchain
+        id: identity
+        run: python3 -m scripts.dev.frontend_cache key
+      - name: Restore compatible shared UI outputs
+        id: shared-cache
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        continue-on-error: true
+        with:
+          path: |
+            packages/ui-core/dist
+            packages/ui-essentials/dist
+            .cache/feedback-builds/shared-ui.json
+          key: shared-ui-v1-${{ steps.identity.outputs.key }}
+      - name: Verify cached output identity and checksums
+        id: verified
+        env:
+          INPUT_KEY: ${{ steps.identity.outputs.key }}
+        run: |
+          if python3 -m scripts.dev.frontend_cache verify --key "$INPUT_KEY"; then
+            echo 'reuse=true' >> "$GITHUB_OUTPUT"
+            echo 'Shared UI: verified compatible build outputs reused; tests still rerun.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'reuse=false' >> "$GITHUB_OUTPUT"
+            echo 'Shared UI: missing or invalid build outputs; rebuilding both libraries.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Build current shared outputs on a miss
+        if: steps.verified.outputs.reuse != 'true'
+        env:
+          INPUT_KEY: ${{ steps.identity.outputs.key }}
+        run: |
+          yarn --cwd packages build:ui-core
+          yarn --cwd packages build:ui-essentials
+          python3 -m scripts.dev.frontend_cache stamp --key "$INPUT_KEY"
+      - name: Save compatible shared UI outputs
+        if: steps.shared-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        continue-on-error: true
+        with:
+          path: |
+            packages/ui-core/dist
+            packages/ui-essentials/dist
+            .cache/feedback-builds/shared-ui.json
+          key: ${{ steps.shared-cache.outputs.cache-primary-key }}
+      - name: Package verified shared outputs for this run
+        id: artifact
+        run: |
+          tar -cf frontend-build.tar packages/ui-core/dist packages/ui-essentials/dist .cache/feedback-builds/shared-ui.json
+          python3 -m scripts.dev.frontend_cache artifact
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          overwrite: true
+          path: frontend-build.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  build-portals:
+    name: Build ${{ matrix.package }} once
+    needs: shared-ui
+    if: fromJSON(inputs.selection).ui_jobs.build-portals
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        package: ${{ fromJSON(inputs.selection).builds }}
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-frontend
+      - uses: ./.github/actions/restore-frontend-build
+        with:
+          package: shared-ui
+      - name: Validate portal fixture types and build production output
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          if [ "$PACKAGE" = voting-portal ]; then
+            yarn --cwd packages/voting-portal tsc -p tsconfig.journeys.json
+          else
+            yarn --cwd "packages/$PACKAGE" test:types
+          fi
+          yarn --cwd packages "build:$PACKAGE"
+          python3 -m scripts.dev.frontend_cache stamp --package "$PACKAGE"
+          tar -cf frontend-build.tar "packages/$PACKAGE/dist" ".cache/feedback-builds/$PACKAGE.json"
+          echo "Built $PACKAGE once; all journey shards reuse this run artifact." >> "$GITHUB_STEP_SUMMARY"
+      - name: Identify the production artifact
+        id: artifact
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: python3 -m scripts.dev.frontend_cache artifact --package "$PACKAGE"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          overwrite: true
+          path: frontend-build.tar
+          retention-days: 1
+          if-no-files-found: error
+
+  workbench:
+    name: Workbench types and browser smoke
+    if: fromJSON(inputs.selection).ui_jobs.workbench
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container: mcr.microsoft.com/playwright:v1.62.1-noble
+    env:
+      CI: true
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-frontend
+      - run: |
+          yarn --cwd packages/workbench typecheck
+          yarn --cwd packages/workbench test:smoke
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          overwrite: true
+          name: workbench-smoke-${{ github.run_id }}
+          path: packages/workbench/test-results
+          if-no-files-found: warn
+
+  required-ui:
+    name: Selected frontend checks
+    needs: [stories, fixtures, shared-ui, build-portals, portal-journeys, workbench]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Require all selected UI checks
+        env:
+          CI_SELECTION: ${{ inputs.selection }}
+          CI_RESULTS: ${{ toJSON(needs) }}
+        run: python3 -m scripts.dev.ci verify --scope ui_jobs
+
   admin-safety-net:
     name: admin-portal safety-net coverage
     # Reporting only: the layers' own jobs and the Jest coverage workflow gate.
     needs: [stories, portal-journeys]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && contains(fromJSON(inputs.selection).stories, 'admin-portal') && contains(fromJSON(inputs.selection).builds, 'admin-portal') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
@@ -158,14 +312,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: "22.22.0"
-      - name: Install locked workspace dependencies
-        run: |
-          npm install --global yarn@1.22.22
-          yarn --cwd packages install --frozen-lockfile --non-interactive
+      - uses: ./.github/actions/setup-frontend
       - name: Record Jest line coverage
         continue-on-error: true
         working-directory: packages/admin-portal
@@ -174,27 +323,28 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          name: stories-admin-portal
+          name: stories-admin-portal-${{ github.run_id }}
           path: ${{ env.LAYERS }}/stories
       - name: Download journey line coverage from every shard
         continue-on-error: true
         uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
-          pattern: admin-portal-production-journeys*
+          pattern: admin-portal-production-journeys-*-${{ github.run_id }}
           path: ${{ env.LAYERS }}/journeys
       - name: Summarize the per-file union of Jest, story and journey lines
         run: >-
           node --experimental-strip-types packages/ui-test-kit/coverage/summary.mts
           safety-net packages/admin-portal
           --layer "jest=$LAYERS/jest" --layer "stories=$LAYERS/stories"
-          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-1-of-4"
-          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-2-of-4"
-          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-3-of-4"
-          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-4-of-4"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-1-of-4-${{ github.run_id }}"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-2-of-4-${{ github.run_id }}"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-3-of-4-${{ github.run_id }}"
+          --layer "journeys=$LAYERS/journeys/admin-portal-production-journeys-4-of-4-${{ github.run_id }}"
           --output "$LAYERS/union"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: admin-portal-safety-net
+          overwrite: true
+          name: admin-portal-safety-net-${{ github.run_id }}
           path: ${{ env.LAYERS }}/union
           if-no-files-found: warn

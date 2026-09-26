@@ -11,6 +11,7 @@
     "./coverage/fixture": "./coverage/fixture.ts",
     "./fixtures": "./fixtures/index.ts",
     "./fixtures/scenarios": "./fixtures/scenarios.ts",
+    "./fixtures/keycloak": "./fixtures/keycloak.ts",
     "./mocks/graphql": "./mocks/graphql.ts",
     "./mocks/http": "./mocks/http.ts",
     "./mocks/oidc": "./mocks/oidc.ts",

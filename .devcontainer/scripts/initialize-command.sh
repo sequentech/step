@@ -60,6 +60,12 @@ DEVCONTAINER_NAME_PREFIX=${name_prefix}
 DEVCONTAINER_HOST_PARENT='${host_parent_mount}'
 EOF
 
+if python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' &> /dev/null; then
+    python3 -m scripts.dev.prebuild resolve --env-file .devcontainer/.env
+    # The selected prebuild has its own Nix volume; an older store would mask it.
+    source .devcontainer/.env
+fi
+
 if command -v docker &> /dev/null; then
     for volume in "${DEVCONTAINER_NIX_VOLUME}" "${DEVCONTAINER_CACHE_VOLUME}" \
         "${DEVCONTAINER_CARGO_VOLUME}"; do
