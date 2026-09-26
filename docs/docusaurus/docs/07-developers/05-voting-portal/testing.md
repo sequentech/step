@@ -32,6 +32,10 @@ to catch inherited-object lookups and accidental mutation during rendering.
 Configured category/subtype controls also verify that rendering and toggling
 preserve names and an absent subtype sort order in the original configuration.
 Candidate inputs and vote interpretation are stubbed in those unit tests.
+Unit mocks for `@sequentech/ui-essentials` use Jest's `virtual: true` option because
+its `dist` entry does not exist after a clean workspace install. The startup gate
+suite mocks only its loader boundary and executes the real loading, failure and
+ready-state gates without requiring a UI Essentials build.
 
 The two Chromium tests load the real components, Redux store and pinned local
 WASM engine. They check repeated category expansion, keyboard activation,
