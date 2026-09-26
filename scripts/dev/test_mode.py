@@ -10,17 +10,26 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from scripts.dev.mode.checkout import Checkout, parse_dotenv
+from scripts.dev.mode.cli import ModeError, _selected_servers
 from scripts.dev.mode.docker import (
+    Compose,
     ContainerState,
     ContainerSummary,
     PortBinding,
+    container_state,
     parse_ports,
     parse_ps,
 )
-from scripts.dev.mode.manifest import ManifestError, load_manifest, parse_manifest
+from scripts.dev.mode.manifest import (
+    ManifestError,
+    ReadyWhen,
+    load_manifest,
+    parse_manifest,
+)
 from scripts.dev.mode.plan import (
     ConflictKind,
     PlanError,
@@ -28,10 +37,11 @@ from scripts.dev.mode.plan import (
     closure,
     dependencies,
     find_conflicts,
+    healthcheck_drifted,
     published_ports,
     readiness,
 )
-from scripts.dev.mode.servers import listening_sockets
+from scripts.dev.mode.servers import Devcontainer, listening_sockets
 
 ROOT = Path(__file__).resolve().parents[2]
 DEVCONTAINER = ROOT / ".devcontainer"
@@ -185,6 +195,23 @@ class ManifestTest(unittest.TestCase):
             "repeats an entry",
         )
 
+    def test_ready_when(self):
+        document = valid_document()
+        document["services"].append({"name": "init", "readyWhen": "exited"})
+        manifest = parse_manifest(document)
+        self.assertIs(manifest.settings("init").ready_when, ReadyWhen.EXITED)
+        self.assertIs(manifest.settings("keycloak").ready_when, ReadyWhen.RUNNING)
+        self.assert_rejected(
+            lambda d: d["services"].append({"name": "x", "readyWhen": "healthy"}),
+            "readyWhen must be one of running, exited",
+        )
+        self.assert_rejected(
+            lambda d: d["services"].append(
+                {"name": "x", "readyWhen": "exited", "probe": ["true"]}
+            ),
+            "a job that exits cannot be probed",
+        )
+
     def test_repository_manifest_loads(self):
         manifest = load_manifest(ROOT)
         self.assertEqual(
@@ -328,6 +355,149 @@ class DockerOutputTest(unittest.TestCase):
         self.assertFalse(wildcard.overlaps(PortBinding("", 8090, "udp")))
 
 
+class ComposeTest(unittest.TestCase):
+    def checkout(self, directory):
+        root = Path(directory) / "step"
+        (root / ".devcontainer").mkdir(parents=True)
+        (root / ".devcontainer" / ".env").write_text("")
+        env = {
+            "COMPOSE_PROJECT_NAME": "step-wt_devcontainer",
+            "LOCAL_WORKSPACE_FOLDER": str(root),
+            "KC_HOSTNAME": "localhost",
+        }
+        return Checkout(root, env)
+
+    def test_argv_names_the_project_and_the_host_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            checkout = self.checkout(directory)
+            compose = Compose(checkout, ("docker-compose.yml", "overlay.yml"))
+            folder = str(checkout.root / ".devcontainer")
+            self.assertEqual(
+                compose.argv("up", "--detach"),
+                [
+                    "compose",
+                    "--project-name",
+                    "step-wt_devcontainer",
+                    "--project-directory",
+                    folder,
+                    "--file",
+                    f"{folder}/docker-compose.yml",
+                    "--file",
+                    f"{folder}/overlay.yml",
+                    "up",
+                    "--detach",
+                ],
+            )
+
+    def test_environment_leaves_interpolation_to_the_env_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compose = Compose(self.checkout(directory), ("docker-compose.yml",))
+            outer = {
+                "KC_HOSTNAME": "stale",
+                "COMPOSE_PROJECT_NAME": "step_devcontainer",
+                "COMPOSE_FILE": "other.yml",
+                "DOCKER_HOST": "unix:///tmp/docker.sock",
+            }
+            with unittest.mock.patch.dict(os.environ, outer, clear=True):
+                self.assertEqual(
+                    compose.environment(), {"DOCKER_HOST": "unix:///tmp/docker.sock"}
+                )
+
+
+class ContainerStateTest(unittest.TestCase):
+    def test_reads_health_restart_policy_and_labels(self):
+        document = {
+            "Id": "abc",
+            "Name": "/keycloak",
+            "State": {
+                "Status": "running",
+                "ExitCode": 0,
+                "Health": {"Status": "healthy"},
+            },
+            "HostConfig": {"RestartPolicy": {"Name": "always"}},
+            "Config": {
+                "Healthcheck": {"Test": ["CMD-SHELL", "true"]},
+                "Labels": {
+                    "com.docker.compose.service": "keycloak",
+                    "devcontainer.local_folder": "/home/me/step",
+                },
+            },
+        }
+        self.assertEqual(
+            container_state(document),
+            ContainerState(
+                "abc",
+                "keycloak",
+                "keycloak",
+                "running",
+                "healthy",
+                0,
+                "always",
+                "/home/me/step",
+                ("CMD-SHELL", "true"),
+            ),
+        )
+
+    def test_missing_sections_mean_no_health_and_no_restart(self):
+        parsed = container_state(
+            {"Id": "abc", "Name": "/job", "State": {"Status": "exited"}}
+        )
+        self.assertEqual(
+            (parsed.health, parsed.restart_policy, parsed.service), (None, "no", "")
+        )
+
+
+class ServerSelectionTest(unittest.TestCase):
+    def setUp(self):
+        self.manifest = load_manifest(ROOT)
+        self.mode = self.manifest.mode("ui-only")
+
+    def names(self, spec):
+        return [
+            server.name for server in _selected_servers(self.manifest, self.mode, spec)
+        ]
+
+    def test_specs(self):
+        self.assertEqual(self.names("default"), ["storybook-ui-essentials"])
+        self.assertEqual(self.names("none"), [])
+        self.assertEqual(
+            self.names("admin-portal, storybook-voting-portal"),
+            ["admin-portal", "storybook-voting-portal"],
+        )
+
+    def test_rejects_servers_of_other_modes(self):
+        backend = self.manifest.mode("backend")
+        with self.assertRaisesRegex(
+            ModeError, "not in mode backend; its servers are none"
+        ):
+            _selected_servers(self.manifest, backend, "admin-portal")
+
+
+class RecordedServerTest(unittest.TestCase):
+    """Process ids step-dev recorded only count in the container that ran them."""
+
+    def devcontainer(self, directory, container_id):
+        root = Path(directory)
+        (root / ".cache" / "dev-mode").mkdir(parents=True)
+        (root / ".cache" / "dev-mode" / "storybook.pid").write_text(
+            f"4242 {container_id}\n"
+        )
+        checkout = Checkout(root, {})
+        return Devcontainer(checkout, state("devcontainer"))
+
+    def test_pid_of_the_current_container(self):
+        server = parse_manifest(valid_document()).servers["storybook"]
+        with tempfile.TemporaryDirectory() as directory:
+            devcontainer = self.devcontainer(directory, state("devcontainer").id)
+            self.assertEqual(devcontainer._recorded_pid(server), 4242)
+
+    def test_pid_of_a_replaced_container_is_ignored(self):
+        server = parse_manifest(valid_document()).servers["storybook"]
+        with tempfile.TemporaryDirectory() as directory:
+            devcontainer = self.devcontainer(directory, "f" * 64)
+            self.assertIsNone(devcontainer._recorded_pid(server))
+
+
 SERVICES = {
     "devcontainer": {},
     "postgres-volume-init": {},
@@ -467,11 +637,34 @@ class ConflictTest(unittest.TestCase):
         )
 
 
-class ReadinessTest(unittest.TestCase):
-    def check(self, container, probe_ok, expected, detail):
-        self.assertEqual(readiness(container, probe_ok), (expected, detail))
+class HealthcheckDriftTest(unittest.TestCase):
+    RABBITMQ = ["CMD", "rabbitmq-diagnostics", "-q", "check_port_listener", "5672"]
 
-    def test_states(self):
+    def container(self, test):
+        return ContainerState(
+            "i", "rabbitmq", "rabbitmq", "running", None, 0, "no", None, test
+        )
+
+    def test_container_created_before_the_check(self):
+        service = {"healthcheck": {"test": self.RABBITMQ}}
+        self.assertTrue(healthcheck_drifted(service, self.container(None)))
+        self.assertTrue(healthcheck_drifted(service, self.container(("CMD", "true"))))
+        self.assertFalse(
+            healthcheck_drifted(service, self.container(tuple(self.RABBITMQ)))
+        )
+
+    def test_image_checks_and_disabled_checks_are_kept(self):
+        # Without a Compose health check the container runs its image's one.
+        self.assertFalse(healthcheck_drifted({}, self.container(("CMD", "true"))))
+        disabled = {"healthcheck": {"test": ["NONE"], "disable": True}}
+        self.assertFalse(healthcheck_drifted(disabled, self.container(None)))
+
+
+class ReadinessTest(unittest.TestCase):
+    def check(self, container, probe_ok, expected, detail, when=ReadyWhen.RUNNING):
+        self.assertEqual(readiness(container, probe_ok, when), (expected, detail))
+
+    def test_servers(self):
         self.check(None, None, Readiness.MISSING, "not created")
         self.check(state(), None, Readiness.READY, "running")
         self.check(state(health="healthy"), None, Readiness.READY, "healthy")
@@ -480,21 +673,44 @@ class ReadinessTest(unittest.TestCase):
         self.check(state(health="unhealthy"), None, Readiness.STARTING, "unhealthy")
         self.check(state(), False, Readiness.STARTING, "probe failing")
         self.check(state(health="healthy"), True, Readiness.READY, "healthy")
-        self.check(state(status="exited"), None, Readiness.COMPLETED, "completed")
-        self.check(state(status="restarting"), None, Readiness.COMPLETED, "completed")
+        self.check(state(status="created"), None, Readiness.STARTING, "created")
         self.check(
             state(status="restarting", exit_code=101),
             None,
             Readiness.STARTING,
             "restarting after exit code 101",
         )
+        # A server that stops, even cleanly, is not up.
+        self.check(state(status="exited"), None, Readiness.FAILED, "exited with code 0")
         self.check(
             state(status="exited", exit_code=1),
             None,
             Readiness.FAILED,
             "exited with code 1",
         )
-        self.check(state(status="created"), None, Readiness.STARTING, "created")
+
+    def test_jobs(self):
+        job = ReadyWhen.EXITED
+        self.check(state(), None, Readiness.STARTING, "running", job)
+        self.check(state(status="exited"), None, Readiness.COMPLETED, "completed", job)
+        # A job with a restart policy is done once it has exited successfully.
+        self.check(
+            state(status="restarting"), None, Readiness.COMPLETED, "completed", job
+        )
+        self.check(
+            state(status="restarting", exit_code=2),
+            None,
+            Readiness.STARTING,
+            "restarting after exit code 2",
+            job,
+        )
+        self.check(
+            state(status="exited", exit_code=1),
+            None,
+            Readiness.FAILED,
+            "exited with code 1",
+            job,
+        )
         self.assertTrue(Readiness.COMPLETED.done)
         self.assertFalse(Readiness.STARTING.done)
 
@@ -623,6 +839,21 @@ class DevcontainerConfigTest(unittest.TestCase):
             with self.subTest(mode=mode.name):
                 if "runServices" not in self.config(mode):
                     self.assertEqual(sorted(mode.services), base)
+
+    @unittest.skipUnless(compose_available(), "needs docker compose")
+    def test_services_awaited_to_complete_are_jobs(self):
+        for mode in self.manifest.modes:
+            services = compose_services(mode.compose_files)
+            for name in closure(services, mode.services):
+                for dependency, condition in (
+                    services[name].get("depends_on", {}).items()
+                ):
+                    if condition.get("condition") == "service_completed_successfully":
+                        with self.subTest(mode=mode.name, job=dependency):
+                            self.assertIs(
+                                self.manifest.settings(dependency).ready_when,
+                                ReadyWhen.EXITED,
+                            )
 
     @unittest.skipUnless(compose_available(), "needs docker compose")
     def test_mode_services_start_nothing_else(self):

@@ -166,10 +166,12 @@ def host_triple() -> str:
 
 def build_environment(target_dir: Path, link_log: Path) -> dict[str, str]:
     """The developer shell's environment with the target dir and timed linker."""
-    linker = shutil.which("cc")
-    if linker is None:
-        raise RuntimeError("no cc linker on PATH")
     triple = host_triple().upper().replace("-", "_")
+    linker_key = f"CARGO_TARGET_{triple}_LINKER"
+    configured = os.environ.get(linker_key) or "cc"
+    linker = shutil.which(configured)
+    if linker is None:
+        raise RuntimeError(f"no executable linker: {configured}")
     environment = dict(os.environ)
     environment.update(
         CARGO_TARGET_DIR=str(target_dir),
@@ -177,7 +179,7 @@ def build_environment(target_dir: Path, link_log: Path) -> dict[str, str]:
         STEP_BENCH_REAL_LINKER=linker,
         STEP_BENCH_LINK_LOG=str(link_log),
     )
-    environment[f"CARGO_TARGET_{triple}_LINKER"] = str(LINKER)
+    environment[linker_key] = str(LINKER)
     return environment
 
 
@@ -220,6 +222,7 @@ def run_rust(options: RustOptions) -> list[Path]:
                 "conditions": [
                     f"edit: {options.edit_name}",
                     f"RUSTFLAGS={os.environ.get('RUSTFLAGS', '')}",
+                    f"CARGO_BUILD_JOBS={os.environ.get('CARGO_BUILD_JOBS', 'default')}",
                     "one fresh save before every build",
                 ],
             },

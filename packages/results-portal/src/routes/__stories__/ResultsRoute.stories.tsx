@@ -72,13 +72,6 @@ function ResultsShell() {
     )
 }
 
-const publicationDefects = {
-    expectedFailure: {
-        reason: "Selected tabs are MUI blue on the page background at 4.33 contrast, and the shared participation summary renders an empty column header.",
-        a11y: ["color-contrast", "empty-table-header"],
-    },
-}
-
 interface Scenario {
     data: EStoryDataState
 }
@@ -160,7 +153,6 @@ export const Empty: Story = {
 }
 
 export const Populated: Story = {
-    parameters: publicationDefects,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -184,7 +176,6 @@ export const LoadError: Story = {
 }
 
 export const CustomBranding: Story = {
-    parameters: publicationDefects,
     globals: {tenant: EStoryTenant.CUSTOM},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

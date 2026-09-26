@@ -141,6 +141,8 @@ class ContainerState:
     exit_code: int
     restart_policy: str
     local_folder: str | None
+    # The health check test the container was created with, if any.
+    healthcheck: tuple[str, ...] | None = None
 
 
 def container_state(document: dict[str, Any]) -> ContainerState:
@@ -148,6 +150,7 @@ def container_state(document: dict[str, Any]) -> ContainerState:
     labels = (document.get("Config") or {}).get("Labels") or {}
     health = state.get("Health") or {}
     policy = ((document.get("HostConfig") or {}).get("RestartPolicy") or {}).get("Name")
+    test = ((document.get("Config") or {}).get("Healthcheck") or {}).get("Test")
     return ContainerState(
         id=document.get("Id", ""),
         name=document.get("Name", "").lstrip("/"),
@@ -157,6 +160,7 @@ def container_state(document: dict[str, Any]) -> ContainerState:
         exit_code=int(state.get("ExitCode") or 0),
         restart_policy=policy or "no",
         local_folder=labels.get(LOCAL_FOLDER_LABEL),
+        healthcheck=tuple(test) if test else None,
     )
 
 

@@ -70,7 +70,7 @@ export function screenStory(
             },
         },
         loaders: [() => initCore()],
-        render: () => <main>{element}</main>,
+        render: () => <main className="preview-screen-story">{element}</main>,
         play,
     }
 }

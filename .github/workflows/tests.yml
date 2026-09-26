@@ -7,29 +7,52 @@ name: Tests
 on:
   pull_request:
   push:
-    branches: [ 'main', 'release/[0-9]+.[0-9]+' ]
+    branches: [main, ovcs, 'release/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: feedback-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  plan:
+    name: "CI tooling: affected selection"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      selection: ${{ steps.plan.outputs.selection }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Plan against the actual PR merge base
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+          VALIDATION: ${{ github.event_name == 'pull_request' && 'affected' || 'full' }}
+        run: python3 -m scripts.dev.ci plan --base "$BASE" --validation "$VALIDATION"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: affected-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-plan*.json
+          retention-days: 7
+
   run-tests:
     name: Run Rust tests
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.run-tests
     strategy:
-      matrix:
-        include:
-          #- service: braid # these take too long!
-          - service: electoral-log
-          - service: harvest
-          - service: strand
-          - service: immu-board
-          - service: immudb-rs
-          - service: sequent-core
-            extra: --features keycloak,default_features
-          - service: step-cli
-          - service: velvet
-          - service: wrap-map-err
-
       fail-fast: false
+      max-parallel: 4
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.selection).rust }}
     # Harvest's route tests create their own database on this server.
     services:
       postgres:
@@ -47,20 +70,19 @@ jobs:
           --health-retries 5
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Rust tests
         uses: ./.github/actions/setup-rust-tests
         with:
           cargo-build-name: ${{ matrix.service }}
-          cargo-build-path: packages/${{ matrix.service }}/target
-          cargo-lock-path: packages/${{ matrix.service }}/Cargo.lock
-
-      - name: Install Chrome
-        run: |
-            sudo apt-get install -y wget
-            wget -O chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-            sudo apt-get install -y ./chrome.deb
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+          profile: dev
+          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak' || 'default' }}
 
       - name: Run tests
         env:
@@ -82,11 +104,13 @@ jobs:
           DEFAULT_SQL_LIMIT: "20"
           DEFAULT_SQL_BATCH_SIZE: "1000"
           CARGO_BUILD_JOBS: ${{ matrix.build_jobs || 4 }}
-        run: cd packages/${{ matrix.service }} && cargo test ${{ matrix.extra }}
+        run: cd packages/${{ matrix.service }} && cargo test --locked ${{ matrix.extra }}
 
   # Windmill has PostgreSQL-backed tests, so it uses a dedicated job with an
   # unconditional service container instead of matrix-dependent service YAML.
   run-windmill-tests:
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.run-windmill-tests
     name: Run Windmill tests
     runs-on: ubuntu-24.04
     timeout-minutes: 35
@@ -125,14 +149,19 @@ jobs:
           --health-retries 5
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Set up Rust tests
         uses: ./.github/actions/setup-rust-tests
         with:
           cargo-build-name: windmill
-          cargo-build-path: packages/windmill/target
-          cargo-lock-path: packages/windmill/Cargo.lock
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+          profile: dev
+          features: default,rabbitmq-tests
 
       - name: Run Windmill tests
         run: cargo test
@@ -177,47 +206,117 @@ jobs:
         if: always() && steps.castvote-fixture.outputs.created == 'true'
         run: docker rm --force --volumes step-castvote-fixture
 
-  # ===========================================================================
-  # JOB: run-frontend-tests
-  # ===========================================================================
-  # Runs the Jest frontend tests and the Node.js theme tests.
-  # ===========================================================================
   run-frontend-tests:
-    name: Run frontend tests
+    name: ${{ matrix.package }} focused tests
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.run-frontend-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
-      matrix:
-        include:
-          - package: ui-core
-            test_args: --runInBand
-          - package: ui-essentials
-            test_args: --runInBand
-          - package: admin-portal
-            test_args: --runInBand
-          - package: voting-portal
-            test_args: --runInBand
-          - package: keycloak-extensions/sequent-theme
-            test_args: ''
       fail-fast: false
+      max-parallel: 4
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.selection).node }}
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: '20'
-          cache: yarn
-          cache-dependency-path: packages/yarn.lock
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-frontend
+      - name: Run the selected package tests
+        working-directory: packages/${{ matrix.package }}
+        env:
+          CHECK_COMMAND: ${{ matrix.command }}
+        run: bash -euo pipefail -c "$CHECK_COMMAND"
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile --non-interactive --prefer-offline
-        working-directory: packages
+  tooling:
+    name: "Tooling: ${{ matrix.check }}"
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.tooling
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.selection).python }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: matrix.check == 'python:scripts-coverage'
+        with:
+          node-version: '22.22.0'
+      - name: Run the selected tooling suite
+        env:
+          CHECK_COMMAND: ${{ matrix.command }}
+        run: bash -euo pipefail -c "$CHECK_COMMAND"
 
-      - name: Run ${{ matrix.package }} tests
-        run: yarn --cwd ./${{ matrix.package }} test ${{ matrix.test_args }}
-        working-directory: packages
+  docs:
+    name: ${{ matrix.check }}
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.selection).docs }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.22.0'
+      - run: npm install --global yarn@1.22.22
+      - name: Build the selected documentation
+        working-directory: ${{ matrix.cwd }}
+        env:
+          CHECK_COMMAND: ${{ matrix.command }}
+        run: bash -euo pipefail -c "$CHECK_COMMAND"
+
+  wasm-freshness:
+    name: Committed WASM source freshness
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.wasm-freshness
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Install the pinned Rust toolchain
+        run: rustup show active-toolchain
+      - run: python3 -m scripts.dev.wasm --check-package
+
+  frontend-ui:
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.frontend-ui
+    uses: ./.github/workflows/frontend-ui-tests.yml
+    with:
+      selection: ${{ needs.plan.outputs.selection }}
+
+  required-feedback:
+    name: Required feedback checks
+    needs: [plan, run-tests, run-windmill-tests, run-frontend-tests, tooling, docs, wasm-freshness, frontend-ui]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Require success or an explicit selection skip
+        env:
+          CI_SELECTION: ${{ needs.plan.outputs.selection }}
+          CI_RESULTS: ${{ toJSON(needs) }}
+        run: python3 -m scripts.dev.ci verify
 
   # ===========================================================================
   # JOB: notify-on-failure
@@ -228,7 +327,7 @@ jobs:
   notify-on-failure:
     name: Notify on failure
     needs: [run-tests, run-windmill-tests, run-frontend-tests]
-    if: failure()
+    if: failure() && github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - name: Slack notification

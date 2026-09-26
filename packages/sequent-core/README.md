@@ -26,10 +26,13 @@ cargo build
 
 ## Generate javascript package
 
+From the repository root, see the fast feedback loops developer guide:
+
 ```bash
-export RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals'
-rustup run nightly-2022-04-07 wasm-pack build --out-name index --release --target web --features=wasmtest -- -Z build-std=panic_abort,std
-rustup run nightly-2022-04-07 wasm-pack pack .
+scripts/dev/step-dev wasm                  # development package for dev servers
+nix develop ./packages/sequent-core --command \
+  scripts/dev/step-dev wasm --release-package  # committed tgz files
+scripts/dev/step-dev wasm --check-package  # committed tgz matches the sources
 ```
 
 ## Run rust tests
