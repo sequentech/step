@@ -15,7 +15,8 @@
         "voting-portal",
         "ballot-verifier",
         "admin-portal",
-        "results-portal"
+        "results-portal",
+        "workbench"
       ],
       "defaultServers": ["storybook-ui-essentials"],
       "readyTimeoutSeconds": 300
@@ -106,13 +107,20 @@
         "storybook-voting-portal",
         "storybook-admin-portal",
         "storybook-results-portal",
-        "storybook-ballot-verifier"
+        "storybook-ballot-verifier",
+        "workbench"
       ],
       "defaultServers": ["voting-portal", "admin-portal"],
       "readyTimeoutSeconds": 3600
     }
   ],
   "servers": [
+    {
+      "name": "workbench",
+      "port": 5173,
+      "command": ["yarn", "--cwd", "packages/workbench", "dev"],
+      "readyPath": "/"
+    },
     {
       "name": "storybook-ui-essentials",
       "port": 6006,

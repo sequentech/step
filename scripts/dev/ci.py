@@ -182,6 +182,35 @@ def write_plan(root: Path, base: str, validation: Validation, output: Path) -> N
     print(encoded)
 
 
+def json_environment(name: str) -> dict[str, object]:
+    message = f"{name} must contain a JSON object"
+    try:
+        document = json.loads(os.environ.get(name, ""))
+    except json.JSONDecodeError as error:
+        raise ValueError(message) from error
+    if not isinstance(document, dict):
+        raise ValueError(message)
+    return document
+
+
+def verification_failures(scope: str) -> list[str]:
+    results = json_environment("CI_RESULTS")
+    if any(not isinstance(result, dict) for result in results.values()):
+        raise ValueError("CI_RESULTS must map job names to result objects")
+    if scope == "jobs" and results.get("plan", {}).get("result") != "success":
+        return ["plan did not succeed"]
+    selected = json_environment("CI_SELECTION").get(scope)
+    if (
+        not isinstance(selected, dict)
+        or not selected
+        or any(not isinstance(value, bool) for value in selected.values())
+    ):
+        raise ValueError(
+            f"CI_SELECTION.{scope} must be a non-empty object of boolean job selections"
+        )
+    return check_results(selected, results)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -197,11 +226,10 @@ def main() -> int:
     if args.command == "plan":
         write_plan(ROOT, args.base, Validation(args.validation), args.output)
         return 0
-    plan_document = json.loads(os.environ["CI_SELECTION"])
-    results = json.loads(os.environ["CI_RESULTS"])
-    failures = check_results(plan_document[args.scope], results)
-    if args.scope == "jobs" and results.get("plan", {}).get("result") != "success":
-        failures.append("plan did not succeed")
+    try:
+        failures = verification_failures(args.scope)
+    except ValueError as error:
+        failures = [str(error)]
     for failure in failures:
         print(f"::error::{failure}")
     if not failures:
