@@ -5,12 +5,16 @@
 
 # Writes .devcontainer/.env: .env.development plus the values derived from where
 # this checkout lives, so that two checkouts never share containers. Creates the
-# dependency cache volumes.
+# dependency cache volumes and, given a devcontainer mode, checks that the mode
+# can start here before any container is touched.
+#
+#   .devcontainer/scripts/initialize-command.sh [ui-only|ui-keycloak|backend|full]
 
 set -e -o pipefail
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 ROOT=$(cd "${SCRIPT_DIR}/../.." && pwd)
+MODE="${1:-}"
 cd "${ROOT}"
 
 # shellcheck source=/dev/null
@@ -63,6 +67,14 @@ if command -v docker &> /dev/null; then
     done
 else
     echo "docker not found: the dependency cache volumes were not created" >&2
+fi
+
+if [ -n "${MODE}" ]; then
+    if python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' &> /dev/null; then
+        python3 -m scripts.dev.mode preflight "${MODE}"
+    else
+        echo "python3 3.9 or later not found: skipped the ${MODE} mode preflight" >&2
+    fi
 fi
 
 echo "${ROOT}/.devcontainer/.env initialized for Compose project ${project_name}"
