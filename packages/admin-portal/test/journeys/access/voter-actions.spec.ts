@@ -247,6 +247,37 @@ test.describe("voter operator with every row action", () => {
             page.getByRole("textbox", {name: "Password to open the encrypted PDF"})
         ).toHaveCount(0)
     })
+
+    test("tells the operator when a voter deletion is refused", async ({page, portal}) => {
+        mockVoters(portal)
+        portal.graphql.on("DeleteUser", () => ({
+            errors: [
+                {message: "Synthetic voter deletion refused", extensions: {code: "Unauthorized"}},
+            ],
+        }))
+        // Today the refusal escapes as an unhandled rejection; tolerate exactly that one so the
+        // missing notification below is what fails.
+        await page.addInitScript(() =>
+            window.addEventListener("unhandledrejection", (event) => {
+                if (String(event.reason?.message) === "Synthetic voter deletion refused")
+                    event.preventDefault()
+            })
+        )
+        await openVoters(page, portal)
+        await rowAction(page, "Delete")
+        await page.getByRole("dialog").getByRole("button", {name: "Delete", exact: true}).click()
+        await expect.poll(() => portal.graphql.callsTo("DeleteUser").length).toBe(1)
+        expect(portal.graphql.callsTo("DeleteUser")[0].variables).toEqual({
+            tenantId: TENANT_ID,
+            electionEventId: IDS.event,
+            userId: ALICE_ID,
+        })
+        expectRole(portal, "DeleteUser", "admin-user")
+        test.fail(true, "ListUsers awaits DeleteUser without catching Apollo's rejection")
+        await expect(page.getByText("Error deleting voter", {exact: true})).toBeVisible({
+            timeout: 2000,
+        })
+    })
 })
 
 test.describe("letter permission without the document password permission", () => {
