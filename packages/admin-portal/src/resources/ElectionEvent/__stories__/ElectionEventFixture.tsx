@@ -44,10 +44,16 @@ export function recordsOrPending(records: Record<string, RaRecord[]> = {}) {
                     : pending(),
         ])
     )
-    for (const method of ["create", "update", "updateMany", "delete", "deleteMany"] as const) {
-        handlers[method] = (resource: string, params: never) =>
-            Reflect.apply(answered.provider[method], answered.provider, [resource, params])
-    }
+    Object.assign(
+        handlers,
+        Object.fromEntries(
+            (["create", "update", "updateMany", "delete", "deleteMany"] as const).map((method) => [
+                method,
+                (resource: string, params: unknown) =>
+                    Reflect.apply(answered.provider[method], answered.provider, [resource, params]),
+            ])
+        )
+    )
     return {...dataBoundary(handlers), writes: answered.writes}
 }
 

@@ -15,7 +15,10 @@ import {eventRecord, storyId, tenantRecord} from "@/__stories__/fixtures"
 import {storyFetch} from "@/__stories__/storyNetwork"
 import {CreateElectionEventProvider} from "@/providers/CreateElectionEventContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
-import type {EStoryPermissions, EStoryTenant} from "../../../../../ui-essentials/.storybook/globals"
+import type {
+    EStoryPermissions,
+    EStoryTenant,
+} from "../../../../../../ui-essentials/.storybook/globals"
 
 export const UPLOAD_URL = "https://files.admin-story.invalid/upload/council-event.json"
 export const DOCUMENT_ID = storyId(6, 1)
