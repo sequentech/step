@@ -89,6 +89,10 @@ jobs:
         run: >-
           docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
           python3 scripts/test_ballot_publication_lifecycle.py
+      - name: Voting-window migration preflight
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_voting_window_preflight.py
       - name: Voting-load capture diagnostics
         run: |
           docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness \
