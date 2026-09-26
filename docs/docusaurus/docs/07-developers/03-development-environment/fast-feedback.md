@@ -294,14 +294,22 @@ samples by default.
 ```sh
 B="scripts/dev/step-dev bench"
 $B ui-update --label before --checkout . --edit shared-header \
-  --target voting --target admin --target verifier --target results \
-  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
+  --target voting --target admin --target verifier --target results
 $B ui-update --label before --checkout . --edit voting-screen --target voting
 $B ui-update --label before --checkout . --edit shared-header --target storybook
 $B test --label before --checkout . --suite cargo-harvest
 $B rust --label before --checkout . --edit windmill-service --build windmill --build harvest
 $B wasm --label before --checkout . --edit sequent-core-wasm
 $B summarize ~/.cache/step-bench/results --phases
+```
+
+Portal dev servers compile shared UI source directly. For a legacy baseline
+that loads shared `dist` output, select that mode and include its rebuild:
+
+```sh
+STEP_SHARED_UI=dist $B ui-update --label legacy-dist --checkout . --edit shared-header \
+  --target voting --target admin --target verifier --target results \
+  --rebuild-cmd 'yarn --cwd packages build:ui-essentials'
 ```
 
 Edits insert a unique marker line and restore the file afterwards. `ui-update`
