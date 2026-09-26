@@ -34,6 +34,7 @@ static NO_AREA: Value = Value::Null;
 pub type CountryEmbassies = HashMap<String, (String, String)>;
 
 struct ElectionLabels {
+    authorization_key: String,
     alias: String,
     clustered_precinct: String,
 }
@@ -77,6 +78,12 @@ impl ElectionIndex {
                 elections.insert(
                     id.to_string(),
                     ElectionLabels {
+                        authorization_key: election
+                            .get("external_id")
+                            .and_then(Value::as_str)
+                            .filter(|key| !key.is_empty())
+                            .unwrap_or(id)
+                            .to_string(),
                         alias: election_alias(election),
                         clustered_precinct: clustered_precinct.to_string(),
                     },
@@ -148,7 +155,12 @@ impl ElectionIndex {
                 None => (UNKNOWN, UNKNOWN),
             };
             aliases.push(alias);
-            ids.push(election_id);
+            ids.push(
+                self.elections
+                    .get(election_id)
+                    .map(|labels| labels.authorization_key.as_str())
+                    .unwrap_or(election_id),
+            );
             clustered_precincts.push(clustered_precinct);
         }
         AreaElections {
