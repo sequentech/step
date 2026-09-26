@@ -89,10 +89,10 @@ export const ForAnElectionEvent: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await userEvent.type(await canvas.findByRole("textbox", {name: "Name"}), "minutes.pdf")
-        // Tenant options show a `username` tenants do not have, so pick it by value.
         await userEvent.click(await canvas.findByRole("combobox", {name: "Tenant"}))
-        const tenants = await within(document.body).findByRole("listbox")
-        await userEvent.click(tenants.querySelector<HTMLElement>(`[data-value="${TENANT_ID}"]`)!)
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "example-council"})
+        )
         await waitFor(() => expect(within(document.body).queryByRole("listbox")).toBeNull())
         // Event names live in the presentation since migration 1772358027729.
         await userEvent.click(await canvas.findByRole("combobox", {name: "Election event"}))

@@ -38,8 +38,7 @@ export default meta
 type Story = StoryObj<AreaContestServices>
 
 /**
- * Chooses the option with this value: the tenant options show a `username`
- * tenants do not have, so they have no visible name.
+ * Chooses the option with this value.
  */
 async function choose(canvasElement: HTMLElement, label: string, value: string) {
     await userEvent.click(await within(canvasElement).findByRole("combobox", {name: label}))
