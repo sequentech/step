@@ -27,11 +27,12 @@ Istanbul coverage reports are uploaded from `test-results/`.
 Place typed `*.stories.tsx` beside components, or under their `__stories__`
 directory. Use `storybook/test` assertions and spies, query accessible names, and
 assert rendered outcomes and callback values. The shared preview supplies the
-theme, deterministic English translations and an in-memory router. Configure
+theme, the toolbar locale's translations (English by default) and an in-memory router. Configure
 `parameters.router` for route parameters and initial history. Screen stories can
 provide the real route `action` and its `parentPath` so relative redirects resolve
 as they do in the application. The router also accepts a `loader` and
-`errorElement` for actual route error boundaries. Browser contexts
+`errorElement` for actual route error boundaries, and a `layout` component that
+renders the story route through its `<Outlet />`, such as the application shell. Browser contexts
 use an English locale and UTC. Mock external services; initialize real WASM in a
 story loader when the component needs it. Voting ballot stories also reset the
 Redux voter session before loading each fixture; see `Question/__stories__` and
@@ -106,6 +107,61 @@ The ballot verifier's `test:journeys` runs against its production build and the 
 Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.
 
 Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
+
+## Screen stories and toolbar globals
+
+Screen stories render a complete screen with its real providers behind explicit
+service boundaries, without login or backend. Admin screens answer Apollo operations
+and React-admin calls with `graphqlBoundary` and `dataBoundary`; results and
+verifier screens answer `fetch` from the `ui-test-kit` S3 mock and GraphQL
+handlers through `routeFetch` (`@sequentech/ui-test-kit/adapters/fetch`), which
+records any other request as a violation. Each screen exports the `EStoryDataState`
+stories it distinguishes (`.storybook/screens.ts` in UI Essentials), so every state
+has a stable link:
+
+| Screen | Populated story | Other stories |
+| --- | --- | --- |
+| Admin keys ceremony | `http://localhost:6008/?path=/story/screens-admin-keys-ceremony--populated` | `--loading`, `--empty`, `--load-error`, `--trustee-invitation`, `--custom-branding` |
+| Admin tally ceremony | `http://localhost:6008/?path=/story/screens-admin-tally-ceremony--populated` | `--loading`, `--empty`, `--tally-completed`, `--service-failure-allows-retry` |
+| Results publication | `http://localhost:6009/?path=/story/screens-results-publication--populated` | `--loading`, `--empty`, `--load-error`, `--custom-branding` |
+| Ballot verification | `http://localhost:6010/?path=/story/screens-verifier-ballot-verification--populated` | `--loading`, `--empty`, `--load-error`, `--custom-branding` |
+
+The typed toolbar globals live in `.storybook/globals.tsx`; each Storybook lists
+only those its screens map. `locale` offers the eight ui-core languages; `tenant`
+(admin, results, verifier) is the Sequent logo, no logo or a synthetic logo and
+CSS, applied through the screen's presentation, manifest or tenant CSS;
+`permissions` (admin) signs in a group of the default tenant realm template
+(`admin`, `admin-light`, `admin-lockdown`, `trustee`) or one without roles;
+`workflow` (admin) is the election event step, from a running keys ceremony to
+published results, which screens map to ceremony, election and tally status
+(default: voting closed). Populated stories follow the toolbar and other stories
+pin what they need with `globals`; links accept
+`&globals=workflow:tally;permissions:trustee;locale:es;tenant:custom`. Fixtures
+read `readStoryGlobals(context.globals)` or `useStoryGlobals()`, and unknown values
+fall back to the defaults. Replay interactions after a toolbar change with Remount.
+
+`yarn --cwd packages/ui-essentials storybook` also shows the portal Storybooks
+that run on ports 6007–6010 (composed IDs are prefixed, e.g.
+`http://localhost:6006/?path=/story/admin-portal_screens-admin-tally-ceremony--populated`).
+Set `STORYBOOK_VOTING_PORTAL_URL`, `STORYBOOK_ADMIN_PORTAL_URL`,
+`STORYBOOK_RESULTS_PORTAL_URL` or `STORYBOOK_BALLOT_VERIFIER_URL` for other
+addresses, or to an empty value to leave a portal out; `yarn storybook -p <port>`
+moves a Storybook. A portal started later appears when the browser window regains
+focus; static builds do not compose. Toolbar globals apply to the Storybook that
+serves the story, so vary a portal's screens on its own port.
+
+Run the test of one story, of every story of a title ID or story file, or of a
+copied Storybook URL:
+
+```sh
+yarn --cwd packages/admin-portal test:story screens-admin-tally-ceremony--populated
+yarn --cwd packages/admin-portal test:story src/resources/Tally/TallyCeremony.stories.tsx --watch
+```
+
+It prints the selected files, story IDs and Vitest command. Coverage stays off
+unless `--coverage` is passed; other `--option=value` arguments go to Vitest. Story
+tests launch devenv's Chromium when `CHROMIUM_EXECUTABLE_PATH` is set, as in the
+devcontainer; elsewhere install Playwright's Chromium as shown above.
 
 ## Admin coverage before a refactor
 
