@@ -63,6 +63,7 @@ class PrebuildTests(unittest.TestCase):
                 "devenv.yaml",
                 ".devcontainer/Dockerfile",
                 ".devcontainer/warm-env.sh",
+                ".devcontainer/wait-nix.sh",
                 ".devcontainer/devcontainer.json",
                 ".devcontainer/devcontainer-lock.json",
             },

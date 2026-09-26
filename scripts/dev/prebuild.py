@@ -24,6 +24,7 @@ INPUTS = (
     ".devcontainer/devcontainer-lock.json",
     ".devcontainer/prebuild/Dockerfile",
     ".devcontainer/prebuild/warm-env.sh",
+    ".devcontainer/prebuild/wait-nix.sh",
     "scripts/dev/prebuild.py",
 )
 
@@ -65,7 +66,7 @@ def prepare_context(root: Path, destination: Path, key: str) -> None:
     config_dir.mkdir(parents=True, exist_ok=True)
     for name in ("devenv.nix", "devenv.lock", "devenv.yaml"):
         shutil.copyfile(root / name, destination / name)
-    for name in ("Dockerfile", "warm-env.sh"):
+    for name in ("Dockerfile", "warm-env.sh", "wait-nix.sh"):
         shutil.copyfile(root / ".devcontainer/prebuild" / name, config_dir / name)
     shutil.copyfile(
         root / ".devcontainer/devcontainer-lock.json",
