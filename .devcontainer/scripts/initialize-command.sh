@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 
 # Writes .devcontainer/.env: .env.development plus the values derived from where
-# this checkout lives, so that two checkouts never share containers.
+# this checkout lives, so that two checkouts never share containers. Creates the
+# dependency cache volumes.
 
 set -e -o pipefail
 
@@ -54,5 +55,14 @@ DEVCONTAINER_WORKSPACE_FOLDER='/workspaces/${folder_name}'
 DEVCONTAINER_NAME_PREFIX=${name_prefix}
 DEVCONTAINER_HOST_PARENT='${host_parent_mount}'
 EOF
+
+if command -v docker &> /dev/null; then
+    for volume in "${DEVCONTAINER_NIX_VOLUME}" "${DEVCONTAINER_CACHE_VOLUME}" \
+        "${DEVCONTAINER_CARGO_VOLUME}"; do
+        docker volume create "${volume}" > /dev/null
+    done
+else
+    echo "docker not found: the dependency cache volumes were not created" >&2
+fi
 
 echo "${ROOT}/.devcontainer/.env initialized for Compose project ${project_name}"

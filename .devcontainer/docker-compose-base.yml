@@ -24,6 +24,15 @@ services:
       bind:
         create_host_path: true
         selinux: z
+    # Dependency caches shared by the devcontainers of every checkout, so that
+    # recreating the container or switching modes keeps them.
+    - devcontainer-nix:/nix
+    - devcontainer-cache:/home/vscode/.cache
+    - devcontainer-cargo:/home/vscode/.cargo
+    # Each container sharing the Nix store runs its own nix-daemon; a shared
+    # socket directory would hand every client to the last daemon started.
+    tmpfs:
+    - /nix/var/nix/daemon-socket:mode=0755
     # support ptrace-based debuggers like C++, Go, and Rust
     cap_add:
      - SYS_PTRACE
@@ -1095,3 +1104,14 @@ volumes:
   b4v6_data:
   b4v6_db_data:
   b4v6_db_logs:
+  # Created by initialize-command.sh and never removed by Compose, not even by
+  # `down --volumes`.
+  devcontainer-nix:
+    name: ${DEVCONTAINER_NIX_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
+    external: true
+  devcontainer-cache:
+    name: ${DEVCONTAINER_CACHE_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
+    external: true
+  devcontainer-cargo:
+    name: ${DEVCONTAINER_CARGO_VOLUME:?run .devcontainer/scripts/initialize-command.sh}
+    external: true

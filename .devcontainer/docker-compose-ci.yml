@@ -34,6 +34,7 @@ services:
     entrypoint: ["sleep", "infinity"]
     init: true
     cap_add: !reset []
+    tmpfs: !reset []
     volumes: !override
       - ..:/workspaces/step:ro
 
