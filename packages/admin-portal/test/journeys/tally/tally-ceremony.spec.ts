@@ -402,3 +402,70 @@ test("cancels a started tally and recounts a completed one from the tally list",
         Array(2).fill({election_event_id: EVENT_ID, tally_session_id: completed.id})
     )
 })
+
+test.describe("as a trustee", () => {
+    test.use({
+        roles: [
+            "admin-user",
+            "election-event-read",
+            "election-read",
+            "trustee-ceremony",
+            "tally-read",
+            "election-event-tally-tab",
+        ],
+    })
+
+    test("restores a key fragment for a started tally after a rejected upload", async ({
+        page,
+        portal,
+    }) => {
+        const world = tallyWorld(portal)
+        // The OIDC user is the trustee the ceremony waits for.
+        world.execution.status.trustees = [
+            {name: "synthetic-admin", status: "WAITING"},
+            {name: TRUSTEES[1], status: "KEY_RESTORED"},
+        ]
+        portal.graphql.once("RestorePrivateKey", () => ({
+            data: {restore_private_key: {is_valid: false}},
+        }))
+        portal.graphql.on("RestorePrivateKey", () => ({
+            data: {restore_private_key: {is_valid: true}},
+        }))
+
+        const row = await openTallyList(page, portal)
+        expect(
+            portal.graphql
+                .callsTo("sequent_backend_tally_session")
+                .map(({headers}) => headers["x-hasura-role"])
+        ).toContain("trustee-ceremony")
+        await rowAction(row, "Add Tally Key").click()
+        await expect(page.getByText("Please upload you key fragment", {exact: true})).toBeVisible()
+        const next = page.getByRole("button", {name: "Next", exact: true})
+        await expect(next).toBeDisabled()
+        const upload = (content: string) =>
+            page.locator('input[type="file"]').setInputFiles({
+                name: "fragment.txt",
+                mimeType: "text/plain",
+                buffer: Buffer.from(content),
+            })
+        await upload("stale-fragment")
+        await expect(
+            page.getByText("Invalid Encrypted Private Key Backup, please try again", {exact: true})
+        ).toBeVisible()
+        await expect(next).toBeDisabled()
+        await upload("valid-fragment")
+        await expect(page.getByText("Backup verified successfully.", {exact: true})).toBeVisible()
+        expect(portal.graphql.callsTo("RestorePrivateKey").map(({variables}) => variables)).toEqual(
+            ["stale-fragment", "valid-fragment"].map((privateKeyBase64) => ({
+                electionEventId: EVENT_ID,
+                tallySessionId: TALLY_ID,
+                privateKeyBase64,
+            }))
+        )
+        await next.click()
+        await expect(page.getByText("Key fragment import status", {exact: false})).toBeVisible()
+        await expect(page.getByRole("gridcell", {name: TRUSTEES[1], exact: true})).toBeVisible()
+        await page.getByRole("button", {name: "Back", exact: true}).click()
+        await expect(row).toBeVisible()
+    })
+})
