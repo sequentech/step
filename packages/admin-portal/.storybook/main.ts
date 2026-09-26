@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {StorybookConfig} from "@storybook/react-vite"
 import {readFileSync} from "node:fs"
+import {createRequire} from "node:module"
+import {dirname} from "node:path"
 import {fileURLToPath} from "node:url"
 import config from "../../ui-essentials/.storybook/main.ts"
 import postcssPresetEnv from "postcss-preset-env"
@@ -27,15 +29,27 @@ const adminGraphqlSchema = (): Plugin => ({
             : undefined,
 })
 
+// As webpack.config.cjs does: braid's threaded WASM loads its unbundled modules
+// from /braid-wasm and needs a cross-origin isolated page for shared memory.
+const braidWasm = dirname(createRequire(import.meta.url).resolve("braid-wasm/package.json"))
+const CROSS_ORIGIN_ISOLATION = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+}
+
 const adminConfig = {
     ...config,
-    staticDirs: ["../public"],
+    staticDirs: ["../public", {from: braidWasm, to: "/braid-wasm"}],
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {
             plugins: [adminGraphqlSchema()],
             // As in webpack.config.cjs: public assets such as /tinymce are served from the root.
             define: {"process.env.MAX_DIFF_LINES": "500", "process.env.PUBLIC_URL": '""'},
-            server: {fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]}},
+            server: {
+                fs: {allow: [searchForWorkspaceRoot(process.cwd()), realmTemplates]},
+                headers: CROSS_ORIGIN_ISOLATION,
+            },
             css: {postcss: {plugins: [postcssPresetEnv()]}},
             optimizeDeps: {
                 include: [
