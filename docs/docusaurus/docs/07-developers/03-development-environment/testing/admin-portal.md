@@ -51,10 +51,12 @@ yarn --cwd packages/admin-portal test:types
 ```
 
 These journeys assert rendered outcomes and complete GraphQL variables or upload
-bodies. Keep known-defect markers immediately before the failing assertion, after
-verifying the setup and request. A captured promise rejection must match the
-specific documented defect; unrelated requests and page exceptions still fail
-the fixture. Password-policy boundaries belong in the Node Jest validator tests.
+bodies. Invalid password and results policies must show an error without leaking
+a rejected promise or saving the event. Custom URL prefixes must survive
+unrelated form edits.
+Export failures before a task ID is returned must update the visible task status.
+Unexpected requests and page exceptions fail the fixture. Password-policy
+boundaries belong in the Node Jest validator tests.
 
 ## Access workflows
 
@@ -71,6 +73,8 @@ yarn workspace admin-portal test:journeys 'test/journeys/access/[^/]+\.spec\.ts$
 
 Assert the full variables for each write, the permission role, and the visible
 result. Upload checks include the exact presigned URL and bytes. After a write,
-wait for its refreshed list data before opening another row action. Defect tests
-must establish their setup before marking only the affected assertion as an
-expected failure; unrelated service requests and browser errors still fail them.
+wait for its refreshed list data before opening another row action. Tenant-user
+and voter permissions are tested independently, including voters who already
+cast a ballot. Selection-checkbox stories keep accessibility checks enabled;
+labels must name the input, not its decorative wrapper. Route smokes reject all
+console errors, page errors and unexpected service requests.
