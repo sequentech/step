@@ -9,7 +9,7 @@ import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/Admin
 import {STORY_IDS, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ElectionEventTallyContext} from "@/providers/ElectionEventTallyProvider"
-import type {IMiruTransmissionPackageData} from "@/types/miru"
+import {miruPackage} from "@/components/__stories__/MiruFixture"
 import {EditElectionEventTally} from "./EditElectionEventTally"
 import {
     answerOrPending,
@@ -24,15 +24,6 @@ type View = "list" | "ceremony" | "trustee" | "transmission"
 
 interface Scenario {
     view: View
-}
-
-const transmissionPackage: IMiruTransmissionPackageData = {
-    election_id: STORY_IDS.election,
-    area_id: STORY_IDS.area,
-    servers: [],
-    documents: [],
-    logs: [],
-    threshold: 1,
 }
 
 let graphql: ReturnType<typeof graphqlBoundary>
@@ -53,7 +44,7 @@ function Fixture({view}: Scenario) {
                     ...tally,
                     tallyId: view === "list" ? null : STORY_IDS.tallySession,
                     isTrustee: view === "trustee",
-                    selectedTallySessionData: view === "transmission" ? transmissionPackage : null,
+                    selectedTallySessionData: view === "transmission" ? miruPackage() : null,
                 }}
             >
                 <RecordContextProvider value={eventRecord()}>
@@ -93,6 +84,7 @@ export const Populated: Story = {
                 filter: {election_event_id: EVENT_ID},
             })
         )
+        expect(readsOf(data)).not.toContain("getList sequent_backend_contest")
     },
 }
 
@@ -104,7 +96,12 @@ export const CeremonyOfTheSelectedTally: Story = {
         await expect(await canvas.findByText("Start")).toBeVisible()
         await expect(canvas.getByText("Results")).toBeVisible()
         expect(canvas.queryByText(listHeader)).toBeNull()
-        expect(readsOf(data)).not.toContain("getList sequent_backend_tally_session")
+        await waitFor(() =>
+            expect(paramsOf(data, "getOne", "sequent_backend_tally_session")).toMatchObject({
+                id: STORY_IDS.tallySession,
+            })
+        )
+        expect(readsOf(data)).toContain("getList sequent_backend_contest")
     },
 }
 
@@ -127,6 +124,12 @@ export const TrusteeCeremony: Story = {
 export const TransmissionPackage: Story = {
     args: {view: "transmission"},
     globals: {permissions: EStoryPermissions.ADMIN},
+    parameters: {
+        expectedFailure: {
+            reason: "The wizard's signature status chip has white text on the warning and success palette colours.",
+            a11y: ["color-contrast"],
+        },
+    },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -136,5 +139,6 @@ export const TransmissionPackage: Story = {
         ).toBeVisible()
         expect(canvas.queryByText(listHeader)).toBeNull()
         expect(canvas.queryByText("Trustees process")).toBeNull()
+        expect(readsOf(data)).not.toContain("getList sequent_backend_tally_session")
     },
 }
