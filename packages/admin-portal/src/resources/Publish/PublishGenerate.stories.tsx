@@ -95,9 +95,6 @@ const meta = {
         onDismissPublishError: {table: {disable: true}},
         fetchAllPublishChanges: {table: {disable: true}},
     },
-    parameters: {
-        widgets: ["PublishActions", "PublishExport", "DiffView"],
-    },
     beforeEach: () => {
         sessionStorage.removeItem("pendingPublishAction")
         graphql = graphqlBoundary({})
@@ -242,7 +239,6 @@ export const PublishFailure: Story = {
 
 export const ViewAPublication: Story = {
     args: {readOnly: true},
-    parameters: {widgets: ["PublishExport", "DiffView"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("View Publication")).toBeVisible()
@@ -259,7 +255,6 @@ export const ViewAPublication: Story = {
 
 export const WithoutWritePermission: Story = {
     args: {roles: [IPermissions.PUBLISH_READ]},
-    parameters: {widgets: ["PublishActions", "DiffView"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await diffShown(canvasElement, "Changes to Publish")

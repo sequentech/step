@@ -67,9 +67,6 @@ const meta = {
         doAction: fn(),
     },
     argTypes: {doAction: {table: {disable: true}}},
-    parameters: {
-        widgets: ["EditTallySheet"],
-    },
     beforeEach: async ({args}) => {
         // The form checks its counts with sequent-core.
         await initCore()
@@ -151,9 +148,6 @@ export const EditAVersion: Story = {
 }
 
 export const ConfirmAndSaveANewVersion: Story = {
-    parameters: {
-        widgets: ["EditTallySheet", "ShowTallySheet"],
-    },
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await confirmEdit(canvasElement)
@@ -189,9 +183,6 @@ export const ConfirmAndSaveANewVersion: Story = {
 
 export const SaveFailure: Story = {
     args: {createFails: true},
-    parameters: {
-        widgets: ["EditTallySheet", "ShowTallySheet"],
-    },
     play: async ({canvasElement, args}) => {
         await confirmEdit(canvasElement)
         await within(canvasElement).findByText("Alice")
@@ -207,9 +198,6 @@ export const SaveFailure: Story = {
 
 export const ViewAVersion: Story = {
     args: {action: WizardSteps.View, tallySheetId: SHEET_IDS.firstPaper},
-    parameters: {
-        widgets: ["ShowTallySheet"],
-    },
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await canvas.findByText("Alice")

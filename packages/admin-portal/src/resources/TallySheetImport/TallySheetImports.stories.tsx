@@ -324,6 +324,7 @@ const drawerDefects = {
 }
 
 export const Populated: Story = {
+    parameters: {widgets: ["TallySheetImportsDatagrid", "ImportActions", "Status"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Tally sheet imports")).toBeVisible()

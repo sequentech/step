@@ -163,7 +163,6 @@ export const AddABallotBox: Story = {
 }
 
 export const ApproveAVersion: Story = {
-    parameters: {widgets: ["ListTallySheetVersions"]},
     play: async ({canvasElement}) => {
         await reviewLatestPaperVersion(canvasElement, "Approve")
         await waitFor(() =>
@@ -185,7 +184,6 @@ export const ApproveAVersion: Story = {
 
 export const DisapprovalFails: Story = {
     args: {reviewFails: true},
-    parameters: {widgets: ["ListTallySheetVersions"]},
     play: async ({canvasElement}) => {
         await reviewLatestPaperVersion(canvasElement, "Disapprove")
         await waitFor(() =>
@@ -198,7 +196,6 @@ export const DisapprovalFails: Story = {
 }
 
 export const CancelAReview: Story = {
-    parameters: {widgets: ["ListTallySheetVersions"]},
     play: async ({canvasElement}) => {
         await userEvent.click(action(await ballotBox(canvasElement, "PAPER"), "Versions"))
         const latest = await within(canvasElement).findByRole("row", {name: /^3 /})

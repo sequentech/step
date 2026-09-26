@@ -104,7 +104,6 @@ const meta = {
         onPreview: {table: {disable: true}},
     },
     parameters: {
-        widgets: ["PublishActions"],
         expectedFailure: {
             reason: "The view and preview row actions are icon buttons with no accessible name.",
             a11y: ["button-name"],
@@ -239,7 +238,7 @@ export const WithoutRowActions: Story = {
 
 export const GenerateTheFirstPublication: Story = {
     args: {publications: false},
-    parameters: {expectedFailure: null, widgets: []},
+    parameters: {expectedFailure: null},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("No Publication Yet.")).toBeVisible()
@@ -251,7 +250,7 @@ export const GenerateTheFirstPublication: Story = {
 
 export const GenerationAsksForReauthentication: Story = {
     args: {publications: false, gold: false},
-    parameters: {expectedFailure: null, widgets: []},
+    parameters: {expectedFailure: null},
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
         await userEvent.click(await canvas.findByRole("button", {name: "Generate Publication"}))
@@ -265,7 +264,7 @@ export const GenerationAsksForReauthentication: Story = {
 
 export const WithoutReadPermission: Story = {
     args: {roles: []},
-    parameters: {expectedFailure: null, widgets: []},
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByText("No Publication Yet.")).toBeVisible()

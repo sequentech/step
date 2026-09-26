@@ -25,7 +25,6 @@ const meta = {
     component: EditReportsTab,
     args: {roles: [IPermissions.REPORT_READ]},
     parameters: {
-        widgets: ["ListReports"],
         expectedFailure: {
             reason:
                 "The report list's row selection checkboxes carry an aria-label on a span " +
@@ -65,7 +64,7 @@ export const WithReportAccess: Story = {
 
 export const WithoutReportAccess: Story = {
     args: {roles: []},
-    parameters: {widgets: [], expectedFailure: null},
+    parameters: {expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         expect(canvas.queryByText("Reports")).toBeNull()

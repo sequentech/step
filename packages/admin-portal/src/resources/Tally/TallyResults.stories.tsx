@@ -171,7 +171,6 @@ export const WithoutExportPermission: Story = {
 
 export const WaitingForResults: Story = {
     args: {loaded: false},
-    parameters: {widgets: ["LoadingResults"]},
     play: async ({canvasElement}) => {
         expect(canvasElement.querySelector(".seq-admin-tally-results__loading")).not.toBeNull()
         expect(within(canvasElement).queryByRole("tab")).toBeNull()

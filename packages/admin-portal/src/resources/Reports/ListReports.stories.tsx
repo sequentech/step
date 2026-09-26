@@ -245,7 +245,7 @@ export const ActionsFollowTheReportType: Story = {
 
 export const EditAReport: Story = {
     parameters: {
-        widgets: ["ActionsPopUp", "EditReportForm"],
+        widgets: ["ActionsPopUp"],
         ...drawerDefects(scheduleDefects.a11y, ` ${scheduleDefects.reason}`),
     },
     play: async ({canvasElement}) => {
@@ -261,7 +261,7 @@ export const EditAReport: Story = {
 }
 
 export const CreateAReport: Story = {
-    parameters: {widgets: ["ActionsPopUp", "EditReportForm"], ...drawerDefects()},
+    parameters: {widgets: ["ActionsPopUp"], ...drawerDefects()},
     play: async ({canvasElement}) => {
         await reportRow(canvasElement, "Activity Logs")
         await userEvent.click(within(canvasElement).getByRole("button", {name: "Add"}))
@@ -327,7 +327,7 @@ export const GenerateAReport: Story = {
 
 export const PreviewAnEncryptedReport: Story = {
     parameters: {
-        widgets: ["ActionsPopUp", "ReportPasswordDialog"],
+        widgets: ["ActionsPopUp"],
         // The modal password dialog hides the list and the task widget's buttons.
         expectedFailure: {
             reason:
@@ -365,7 +365,7 @@ export const GenerationFailure: Story = {
 export const Empty: Story = {
     args: {reports: false},
     parameters: {
-        widgets: ["EditReportForm"],
+        widgets: [],
         ...drawerDefects(),
     },
     play: async ({canvasElement}) => {

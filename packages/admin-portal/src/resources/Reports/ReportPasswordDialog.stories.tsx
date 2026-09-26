@@ -39,7 +39,6 @@ const meta = {
         onClose: {table: {disable: true}},
     },
     parameters: {
-        widgets: ["PasswordDialog", "DecryptHelp"],
         expectedFailure: {
             reason: "The read-only password and decryption command fields have no label.",
             a11y: ["label"],
@@ -73,8 +72,6 @@ async function dialog(name: string) {
     await waitFor(() => expect(element).toBeVisible())
     return within(element)
 }
-
-const helpOnly = {widgets: ["DecryptHelp"]}
 
 export const RevealThePassword: Story = {
     play: async () => {
@@ -112,7 +109,6 @@ export const SecretAttributesWithPermission: Story = {
 
 export const SecretAttributesWithoutPermission: Story = {
     args: {access: {...ENCRYPTED, voter_secret_attributes: true}},
-    parameters: helpOnly,
     play: async () => {
         const help = await dialog("How to decrypt the file")
         await expect(help.getByText("The PDF password could not be retrieved")).toBeVisible()
@@ -123,7 +119,6 @@ export const SecretAttributesWithoutPermission: Story = {
 
 export const WithoutPasswordPermission: Story = {
     args: {roles: [IPermissions.DOCUMENT_DOWNLOAD]},
-    parameters: helpOnly,
     play: async () => {
         const help = await dialog("How to decrypt the file")
         await expect(help.getByText("The PDF password could not be retrieved")).toBeVisible()
@@ -133,7 +128,6 @@ export const WithoutPasswordPermission: Story = {
 
 export const ReportWithoutSavedPassword: Story = {
     args: {access: undefined},
-    parameters: helpOnly,
     play: async ({args}) => {
         const help = await dialog("How to decrypt the file")
         await expect(help.getByDisplayValue(reportDecryptionCommand)).toBeVisible()
@@ -146,7 +140,6 @@ export const ReportWithoutSavedPassword: Story = {
 
 export const LookupFailure: Story = {
     args: {lookup: "error"},
-    parameters: helpOnly,
     play: async () => {
         const help = await dialog("How to decrypt the file")
         await waitFor(() =>
@@ -159,7 +152,6 @@ export const LookupFailure: Story = {
 export const LookingUpThePassword: Story = {
     args: {lookup: "loading"},
     parameters: {
-        ...helpOnly,
         expectedFailure: {
             reason:
                 "The lookup spinner has no accessible name and the decryption command field " +

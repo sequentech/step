@@ -130,6 +130,7 @@ function action(row: HTMLElement, title: string) {
 const hasAction = (row: HTMLElement, title: string) => within(row).queryByLabelText(title) !== null
 
 export const Populated: Story = {
+    parameters: {widgets: ["ImportedVersionSourceContextProvider", "ImportedVersionSource"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Versions for ballot box")).toBeVisible()

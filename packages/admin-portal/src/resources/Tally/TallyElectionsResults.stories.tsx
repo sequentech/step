@@ -111,6 +111,7 @@ const chartTitle = (canvasElement: HTMLElement) =>
     canvasElement.querySelector(".seq-admin-tally-results__general-information-chart")
 
 export const Populated: Story = {
+    parameters: {widgets: ["GeneralInformationCharts"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         // 90 of the council's 120 voters and 40 of the deputies' 80 voted.
