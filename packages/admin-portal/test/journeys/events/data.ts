@@ -58,12 +58,12 @@ export function listOf(resource: string, rows: Row[] | (() => Row[])): GraphQLHa
 
 export const UNCONFIGURED_PASSWORD_POLICY = {
     configured: false,
-    minimum_length: null,
-    maximum_length: null,
-    include_uppercase: null,
-    include_lowercase: null,
-    include_digits: null,
-    include_special_characters: null,
+    minimum_length: 12,
+    maximum_length: 72,
+    include_uppercase: true,
+    include_lowercase: true,
+    include_digits: true,
+    include_special_characters: true,
 }
 
 /** Registers the queries every election event page makes, answered from `event`. */
