@@ -547,6 +547,29 @@ impl ElectoralLog {
         })
     }
 
+    /// Construct a system-authored audit message using an already loaded key.
+    /// The empty sender name preserves the system identity used by `new` and
+    /// `new_from_sk`; voter attribution belongs in the message's actor fields.
+    pub fn for_system_with_signing_key(elog_database: &str, system_sk: &StrandSignatureSk) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), "", system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
+    /// Reuses an election's already loaded system signing key. This is the
+    /// same signing identity as `for_voter`, without another database lookup.
+    pub fn for_voter_with_signing_key(
+        elog_database: &str,
+        user_id: &str,
+        system_sk: &StrandSignatureSk,
+    ) -> Self {
+        Self {
+            sd: SigningData::new(system_sk.clone(), user_id, system_sk.clone()),
+            elog_database: elog_database.to_string(),
+        }
+    }
+
     /// Returns an electoral log whose posts will have the given voter
     /// as the signing sender, as well as the system signer.
     ///

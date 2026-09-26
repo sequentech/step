@@ -852,3 +852,42 @@ pub async fn get_election_permission_label(
 
     Ok(perms.into_iter().flatten().collect())
 }
+
+pub struct CastVoteConfiguration {
+    pub presentation: Option<Value>,
+    pub status: Option<Value>,
+    pub voting_channels: Option<Value>,
+    pub dates: sequent_core::ballot::VotingPeriodDates,
+}
+
+/// Read current policy and its transactionally maintained schedule projection.
+/// Schedule scans and JSON date extraction happen when administrators write
+/// configuration, never for each ballot. Missing schedules mean absent dates.
+#[instrument(skip_all, err)]
+pub async fn get_cast_vote_configuration(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    election_id: &str,
+) -> Result<CastVoteConfiguration> {
+    let row = transaction
+        .query_one(
+            include_str!("sql/cast_vote_configuration.sql"),
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(event_id)?,
+                &parse_uuid_v4(election_id)?,
+            ],
+        )
+        .await?;
+
+    Ok(CastVoteConfiguration {
+        presentation: row.try_get("presentation")?,
+        status: row.try_get("status")?,
+        voting_channels: row.try_get("voting_channels")?,
+        dates: sequent_core::ballot::VotingPeriodDates {
+            start_date: row.try_get("start_date")?,
+            end_date: row.try_get("end_date")?,
+        },
+    })
+}

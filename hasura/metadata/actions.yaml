@@ -1,4 +1,17 @@
 actions:
+    - name: get_ballot_files_urls
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/get-ballot-files-urls
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: user
     - name: ApplicationChangeStatus
       definition:
           kind: synchronous
@@ -306,6 +319,23 @@ actions:
       permissions:
           - role: election-event-delete
           - role: admin-user
+    - name: delete_tenant
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/delete-tenant
+          forward_client_headers: true
+          headers:
+              - name: X-Hasura-Admin-Secret
+                value_from_env: ACTIONS_ADMIN_SECRET
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: admin-user
+      comment: delete_tenant
     - name: delete_permission
       definition:
           kind: synchronous

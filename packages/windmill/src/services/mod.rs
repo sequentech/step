@@ -14,6 +14,7 @@ pub mod consolidation;
 pub mod custom_url;
 pub mod database;
 pub mod delete_election_event;
+pub mod delete_tenant;
 pub mod document_password;
 pub mod documents;
 pub mod election;

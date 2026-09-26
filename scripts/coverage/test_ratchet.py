@@ -111,6 +111,23 @@ class CoverageRatchetTests(unittest.TestCase):
         with self.assertRaisesRegex(CoverageError, "consumer_packages"):
             compare_rust(report, {**report, "consumer_packages": ["windmill"]})
 
+        # The head may list files that its base predates; the base run records
+        # the entries it skipped. Any other difference still fails.
+        head = {
+            **report,
+            "excluded_files": {"src/new_tests.rs": "Test module only."},
+            "scope_exceptions": {"src/ports.rs": "Trait declarations only."},
+        }
+        predating = {
+            **report,
+            "policy_files_absent_from_base": ["src/new_tests.rs", "src/ports.rs"],
+        }
+        self.assertTrue(compare_rust(predating, head)["passes"])
+        for skipped in (["src/new_tests.rs"], ["src/ports.rs"], []):
+            partial = {**report, "policy_files_absent_from_base": skipped}
+            with self.subTest(skipped=skipped), self.assertRaises(CoverageError):
+                compare_rust(partial, head)
+
         # Dropping a compiled source file cannot manufacture an improvement.
         head = copy.deepcopy(report)
         head["unaccounted_files"].append("src/authorization.rs")
