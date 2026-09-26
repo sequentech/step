@@ -46,6 +46,13 @@ The suite covers:
   903 records. The helper CLI also runs against the owned database.
 - Stream failures after valid rows: a failed or malformed response is an error,
   never a successful partial audit page.
+- Transaction retries accept only ImmuDB's typed `Unknown` / `tx read conflict`
+  rejection, with at most five retries. Native tests check error classification
+  and the attempt limit; an owned-database test forces a competing commit and
+  verifies that the original batch persists exactly once. Windmill retries only
+  the current board with a fresh session and transaction. Ambiguous commit
+  outcomes are never replayed. Exhausted retries and other failures still need
+  operational recovery; the queue does not provide a durable redelivery guarantee.
 
 The existing protocol signs the statement. Search metadata and the separate
 artifact are not authenticated by `Message::verify`; these tests make no broader

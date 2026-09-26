@@ -15,13 +15,13 @@ use crate::types::error::{Error, Result};
 use anyhow::{anyhow, Context};
 use celery::error::TaskError;
 use deadpool_postgres::Client as DbClient;
-use electoral_log::client::board_client::ElectoralLogMessage;
+use electoral_log::client::board_client::{retry_electoral_log_transaction, ElectoralLogMessage};
 use immudb_rs::TxMode;
 use sequent_core::serialization::deserialize_with_path::deserialize_str;
 use sequent_core::services::keycloak::get_event_realm;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{event, info, instrument};
+use tracing::{event, info, instrument, warn};
 
 use lapin::{
     options::{BasicAckOptions, BasicGetOptions, QueueDeclareOptions},
@@ -235,23 +235,34 @@ pub async fn process_electoral_log_events_batch(events: Vec<LogEventInput>) -> R
         .with_context(|| "Error committing Hasura transaction")?;
 
     for (board, messages) in messages_by_board.into_iter() {
-        let mut board_client = get_board_client().await?;
-        board_client.open_session(&board).await?;
-        let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
-        board_client
-            .insert_electoral_log_messages_batch(&immudb_tx, &messages)
-            .await
-            .with_context(|| {
-                format!(
-                    "Error inserting batch electoral log messages for board {}",
-                    board
-                )
-            })?;
-        board_client
-            .commit(&immudb_tx)
-            .await
-            .with_context(|| format!("Error committing immudb transaction for board {}", board))?;
-        board_client.close_session().await?;
+        retry_electoral_log_transaction(|| async {
+            let mut board_client = get_board_client().await?;
+            board_client.open_session(&board).await?;
+            let result = async {
+                let immudb_tx = board_client.new_tx(TxMode::ReadWrite).await?;
+                board_client
+                    .insert_electoral_log_messages_batch(&immudb_tx, &messages)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Error inserting batch electoral log messages for board {}",
+                            board
+                        )
+                    })?;
+                board_client.commit(&immudb_tx).await.with_context(|| {
+                    format!("Error committing immudb transaction for board {}", board)
+                })?;
+                Ok(())
+            }
+            .await;
+            // Cleanup must neither hide a rejected transaction nor turn a
+            // confirmed commit into a replay or prevent later boards' delivery.
+            if let Err(error) = board_client.close_session().await {
+                warn!(%board, ?error, "Error closing electoral log batch session");
+            }
+            result
+        })
+        .await?;
     }
 
     Ok(())
