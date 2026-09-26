@@ -8,6 +8,26 @@ SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
+## Password-policy cache
+
+Harvest and Windmill share the sequent-core password-policy reader. Each process
+caches successful reads per realm. Set `KEYCLOAK_PASSWORD_POLICY_CACHE_TTL_SECS`
+in those services to control the lifetime in seconds; unset or invalid values
+use 30 seconds, and `0` disables reuse. Restart the processes after changing it.
+
+Saving a policy invalidates that realm in the process handling the update.
+Other replicas observe the change after their entries expire. Cold reads and
+password writes still require Keycloak.
+
+To verify with debug logging, open an event's Password Policy settings, then
+change a test voter's password within the TTL. The first policy read logs
+`Fetching realm password policy from Keycloak`; subsequent reads on the same
+process log `Using cached realm password policy`. Saving a changed policy logs
+`Invalidated realm password policy cache`; the next read fetches it again.
+After the TTL expires, another read also fetches it again. Voter information
+letter validation and generation use this reader too. Listing voters reads
+user-profile configuration separately and does not exercise this cache.
+
 ## Default Keycloak realm templates
 
 Windmill loads the default tenant and election-event Keycloak realm templates
