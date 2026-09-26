@@ -187,6 +187,60 @@ CREATE TRIGGER clear_election_voting_windows
 AFTER TRUNCATE ON sequent_backend.scheduled_event
 FOR EACH STATEMENT EXECUTE FUNCTION sequent_backend.clear_election_voting_windows();
 
+-- Report every invalid source row before backfilling. Keep the source intact:
+-- operators must explicitly archive duplicates or correct their configuration.
+-- The source-table lock keeps this preflight and the backfill on one snapshot.
+DO $$
+DECLARE
+    schedule record;
+    problems text[];
+    failures jsonb := '[]'::jsonb;
+BEGIN
+    FOR schedule IN
+        SELECT source.*,
+            sequent_backend.voting_window_election_id(source) AS target_election_id,
+            count(*) OVER (PARTITION BY tenant_id, election_event_id, task_id) AS active_count
+        FROM sequent_backend.scheduled_event source
+        WHERE archived_at IS NULL
+          AND sequent_backend.voting_window_election_id(source) IS NOT NULL
+        ORDER BY tenant_id, election_event_id, task_id, id
+    LOOP
+        problems := ARRAY[]::text[];
+        IF schedule.active_count > 1 THEN
+            problems := array_append(problems, 'duplicate_active_task');
+        END IF;
+        IF schedule.cron_config IS NOT NULL AND (
+            jsonb_typeof(schedule.cron_config) <> 'object'
+            OR jsonb_typeof(schedule.cron_config -> 'cron') NOT IN ('string', 'null')
+            OR jsonb_typeof(schedule.cron_config -> 'scheduled_date') NOT IN ('string', 'null')
+        ) THEN
+            problems := array_append(problems, 'malformed_cron_config');
+        END IF;
+        IF jsonb_typeof(schedule.cron_config -> 'scheduled_date') = 'string' THEN
+            BEGIN
+                PERFORM (schedule.cron_config ->> 'scheduled_date')::timestamptz;
+            EXCEPTION WHEN data_exception THEN
+                problems := array_append(problems, 'invalid_scheduled_date');
+            END;
+        END IF;
+        IF cardinality(problems) > 0 THEN
+            failures := failures || jsonb_build_array(jsonb_build_object(
+                'tenant_id', schedule.tenant_id,
+                'election_event_id', schedule.election_event_id,
+                'election_id', schedule.target_election_id,
+                'schedule_id', schedule.id,
+                'problems', problems
+            ));
+        END IF;
+    END LOOP;
+    IF jsonb_array_length(failures) > 0 THEN
+        RAISE EXCEPTION 'invalid_voting_window_backfill'
+            USING DETAIL = failures::text,
+                  HINT = 'Archive or correct the reported schedules before retrying the migration.';
+    END IF;
+END;
+$$;
+
 -- Backfill under the source-table lock: no schedule write can fall between
 -- this snapshot and trigger installation. Any invalid policy aborts migration.
 DO $$
