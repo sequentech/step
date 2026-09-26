@@ -4,6 +4,8 @@
 import React from "react"
 import {RaRecord, useListContext} from "react-admin"
 import {Link} from "react-router-dom"
+import {useTranslation} from "react-i18next"
+import {translateFromPresentation} from "@sequentech/ui-core"
 import {StyledChip} from "./StyledChip"
 import {stringifyFields} from "../services/RowClickService"
 
@@ -15,8 +17,14 @@ export interface ChipListProps {
 
 const DEFAULT_MAX = 10
 
+interface ChipRecord extends RaRecord {
+    name?: string | null
+    presentation?: {i18n?: Record<string, Record<string, string | null>>} | null
+}
+
 export const ChipList: React.FC<ChipListProps> = ({source, filterFields, max}) => {
-    const {data} = useListContext<RaRecord>()
+    const {data} = useListContext<ChipRecord>()
+    const {i18n} = useTranslation()
     if (!data) {
         return null
     }
@@ -37,7 +45,11 @@ export const ChipList: React.FC<ChipListProps> = ({source, filterFields, max}) =
                     key={element.id}
                     onClick={handleClick}
                 >
-                    <StyledChip label={element.name} />
+                    <StyledChip
+                        label={translateFromPresentation(element, "name", i18n.language, {
+                            defaultLanguageCode: "en",
+                        })}
+                    />
                 </Link>
             ))}
         </>
