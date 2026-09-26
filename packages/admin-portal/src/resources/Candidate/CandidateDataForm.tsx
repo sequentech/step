@@ -112,7 +112,7 @@ export const CandidateDataForm: React.FC<{
     })
 
     const {data: election} = useGetOne<Sequent_Backend_Election>("sequent_backend_election", {
-        id: contest?.election_id ?? record.tenant_id,
+        id: contest?.election_id,
         meta: {tenant_id: record.tenant_id},
     })
 

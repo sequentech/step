@@ -12,11 +12,14 @@ import {
     SimpleForm,
     TextField,
     TextInput,
+    FunctionField,
 } from "react-admin"
 import {ListBallotStyle} from "./ListBallotStyle"
 import {JsonInput} from "react-admin-json-view"
+import {usePresentationName} from "../../hooks/usePresentationName"
 
 const BallotStyleForm: React.FC = () => {
+    const presentationName = usePresentationName()
     return (
         <Box sx={{flexGrow: 2, flexShrink: 0}}>
             <SimpleForm>
@@ -32,7 +35,7 @@ const BallotStyleForm: React.FC = () => {
                     reference="sequent_backend_election"
                     source="election_id"
                 >
-                    <TextField source="name" />
+                    <FunctionField render={presentationName} />
                 </ReferenceField>
                 <Typography variant="h5">Election Event</Typography>
                 <ReferenceField
@@ -40,7 +43,7 @@ const BallotStyleForm: React.FC = () => {
                     reference="sequent_backend_election_event"
                     source="election_event_id"
                 >
-                    <TextField source="name" />
+                    <FunctionField render={presentationName} />
                 </ReferenceField>
                 <FormDataConsumer>
                     {({formData}) => (

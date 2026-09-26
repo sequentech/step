@@ -2811,6 +2811,8 @@ const catalanTranslation: TranslationType = {
                 verified_by: "Verificat Per",
             },
             approvalRequest: "Sol·licitud d'Aprovació",
+            taskInformation: "Informació de la tasca",
+            ok: "D'acord",
             title: "Votants",
             subtitle: "Cercar votants coincidents",
             approve: {

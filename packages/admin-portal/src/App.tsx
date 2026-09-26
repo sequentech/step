@@ -48,10 +48,7 @@ import {SettingsElectionsTypesCreate} from "./resources/Settings/SettingsElectio
 import {adminI18nProvider} from "./services/AdminTranslation"
 import {useTranslation} from "react-i18next"
 import {ApolloContext} from "./providers/ApolloContextProvider"
-import cssInputLookAndFeel from "@/atoms/css-input-look-and-feel"
-import {Box} from "@mui/material"
-import {styled} from "@mui/material/styles"
-import {useAtomValue} from "jotai"
+import {StyledAppAtom} from "@/components/StyledAppAtom"
 import ListScheduledEvents from "./resources/ScheduledEvents/ListScheduledEvent"
 import Notifications from "./resources/Notifications/Notifications"
 import {TemplateEdit} from "./resources/Template/TemplateEdit"
@@ -65,21 +62,6 @@ import {UpsertArea} from "./resources/Area/UpsertArea"
 import {TrusteeDashboard} from "./screens/TrusteeDashboard"
 
 interface AppProps {}
-
-const StyledApp = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "customCss",
-})<{customCss: string}>`
-    ${({customCss}) => customCss}
-`
-
-export const StyledAppAtom: React.FC<{children: React.ReactNode}> = ({children}) => {
-    const css = useAtomValue(cssInputLookAndFeel)
-    return (
-        <StyledApp className="styled-app-atom" customCss={css}>
-            {children}
-        </StyledApp>
-    )
-}
 
 // This function builds and wraps your Hasura data provider.
 export const buildWrappedHasuraProvider = async (apolloClient: any): Promise<DataProvider> => {

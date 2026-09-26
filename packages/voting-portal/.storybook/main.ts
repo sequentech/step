@@ -7,6 +7,8 @@ import config from "../../ui-essentials/.storybook/main.ts"
 
 export default {
     ...config,
+    // The workbench controls are stories of this catalog, beside the screens they drive.
+    stories: [...config.stories, "../../workbench/src/**/*.stories.tsx"],
     staticDirs: ["../public"],
     viteFinal: async (viteConfig, options) =>
         mergeConfig(await config.viteFinal!(viteConfig, options), {

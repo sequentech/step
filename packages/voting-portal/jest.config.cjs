@@ -10,10 +10,13 @@ module.exports = {
     testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
     setupFiles: ["<rootDir>/src/setupJestGlobals.ts"],
     setupFilesAfterEnv: ["<rootDir>/src/setupTests.ts"],
-    // @sequentech/ui-core resolves to its built dist/ bundle, which a clean
-    // `yarn install` doesn't produce; see src/__mocks__/uiCoreTestEntry.ts.
+    // The shared UI package entries point at dist/ bundles, which a clean
+    // `yarn install` doesn't produce. UI Essentials maps to its sources and
+    // ui-core to the subset in src/__mocks__/uiCoreTestEntry.ts.
     moduleNameMapper: {
         "^@sequentech/ui-core$": "<rootDir>/src/__mocks__/uiCoreTestEntry.ts",
+        "^@sequentech/ui-essentials$": "<rootDir>/../ui-essentials/src/index.tsx",
+        "\\.(css|png|svg)$": "<rootDir>/src/__mocks__/staticAsset.ts",
     },
     // Unimported runtime files remain in the denominator. Only Jest support
     // and tests are excluded; production fixtures and entry points stay.

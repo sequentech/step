@@ -20,6 +20,8 @@ export interface RouterParameters {
     initialEntries?: string[]
     /** Optional parent route for screens whose action redirects relative to a sibling. */
     parentPath?: string
+    /** Application shell of the parent route; it renders the story through its `<Outlet />`. */
+    layout?: React.ComponentType
     /** Real route action used by screens submitting through the data router. */
     action?: ActionFunction
     /** Real route loader and boundary for failure-state stories. */
@@ -54,7 +56,7 @@ const CurrentLocation: React.FC = () => {
 
 const MemoryRouterHost: React.FC<
     RouterParameters & {path: string; initialEntries: string[]; story: React.ReactNode}
-> = ({path, initialEntries, parentPath, action, loader, errorElement, story}) => {
+> = ({path, initialEntries, parentPath, layout: Layout, action, loader, errorElement, story}) => {
     const [router] = useState(() =>
         createMemoryRouter(
             [
@@ -62,7 +64,7 @@ const MemoryRouterHost: React.FC<
                     path: parentPath,
                     element: (
                         <>
-                            <Outlet />
+                            {Layout ? <Layout /> : <Outlet />}
                             <CurrentLocation />
                         </>
                     ),
@@ -92,6 +94,7 @@ export const withMemoryRouter: Decorator = (Story, {parameters}) => {
         path = "*",
         initialEntries = ["/"],
         parentPath,
+        layout,
         action,
         loader,
         errorElement,
@@ -103,6 +106,7 @@ export const withMemoryRouter: Decorator = (Story, {parameters}) => {
             path={path}
             initialEntries={initialEntries}
             parentPath={parentPath}
+            layout={layout}
             action={action}
             loader={loader}
             errorElement={errorElement}

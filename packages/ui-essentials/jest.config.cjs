@@ -4,7 +4,11 @@
 
 /** @type {import("jest").Config} */
 module.exports = {
-    testMatch: ["<rootDir>/src/**/*.test.ts", "<rootDir>/src/**/*.test.tsx"],
+    testMatch: [
+        "<rootDir>/src/**/*.test.ts",
+        "<rootDir>/src/**/*.test.tsx",
+        "<rootDir>/tests/*.test.cjs",
+    ],
     // Measure executable source, including components no test imports.
     collectCoverageFrom: [
         "src/**/*.{ts,tsx}",

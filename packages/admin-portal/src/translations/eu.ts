@@ -2789,6 +2789,8 @@ const basqueTranslation: TranslationType = {
                 verified_by: "Egiaztatua:",
             },
             approvalRequest: "Onespen Eskaria",
+            taskInformation: "Ataza Informazioa",
+            ok: "Ados",
             title: "Bozkatzaileak",
             subtitle: "Aurkitu bat datozen bozkatzaileak",
             approve: {

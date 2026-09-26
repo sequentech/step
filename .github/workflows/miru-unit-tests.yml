@@ -3,12 +3,16 @@
 name: Miru component contracts
 on:
   pull_request:
-    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**']
+    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
   push:
-    branches: [main]
-    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**']
+    branches: [main, ovcs]
+    paths: ['packages/**', '.github/workflows/miru-unit-tests.yml', '.github/actions/setup-rust-tests/**', '.github/actions/setup-rust-cache/**', 'scripts/dev/rust_cache.py']
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   contracts:
     runs-on: ubuntu-24.04
@@ -19,10 +23,12 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-rust-tests
         with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
           cargo-build-name: miru-component
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
           targets: wasm32-wasip2
+          profile: dev,release
       - name: Install the pinned WASI C toolchain
         run: |
           curl --fail --location --retry 3 -o "$RUNNER_TEMP/wasi-sdk.tar.gz" https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-27/wasi-sdk-27.0-x86_64-linux.tar.gz

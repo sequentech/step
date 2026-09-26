@@ -25,19 +25,26 @@ export const TemplateCreate: React.FC<TTemplateCreate> = ({close}) => {
     const onSubmit: SubmitHandler<FieldValues> = async (data) => {
         data.communication_method = ITemplateMethod.EMAIL
 
-        const {data: created, errors} = await createTemplate({
-            variables: {
-                object: {
-                    alias: data.template.alias,
-                    tenant_id: tenantId,
-                    type: data.type,
-                    communication_method: data.communication_method,
-                    template: {
-                        ...data.template,
+        let result
+        try {
+            result = await createTemplate({
+                variables: {
+                    object: {
+                        alias: data.template.alias,
+                        tenant_id: tenantId,
+                        type: data.type,
+                        communication_method: data.communication_method,
+                        template: {
+                            ...data.template,
+                        },
                     },
                 },
-            },
-        })
+            })
+        } catch (error) {
+            notify(t("template.create.error"), {type: "error"})
+            return
+        }
+        const {data: created, errors} = result
 
         if (created) {
             notify(t("template.create.success"), {type: "success"})

@@ -62,7 +62,15 @@ interface Props {
 
 const StyledIconContainer = styled("p")`
     ${divContainer}
-    cursor: pointer
+`
+
+const StyledActionsButton = styled("button")`
+    ${divContainer}
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
 `
 
 const StyledAddCircleIcon = styled(AddCircleIcon)`
@@ -331,10 +339,17 @@ export default function MenuAction({
 
     return (
         <>
-            <StyledIconContainer onClick={handleOpenItemActions}>
+            <StyledIconContainer>
                 {((!isArchivedTab && (canShowCreate || canShowDelete || canArchiveElectionEvent)) ||
                     (isArchivedTab && (canArchiveElectionEvent || canShowDelete))) && (
-                    <MoreHorizIcon id={"MoreHorizIcon"} />
+                    <StyledActionsButton
+                        type="button"
+                        aria-label={`${t("common.label.actions")}: ${resourceName}`}
+                        aria-haspopup="menu"
+                        onClick={handleOpenItemActions}
+                    >
+                        <MoreHorizIcon id={"MoreHorizIcon"} />
+                    </StyledActionsButton>
                 )}
             </StyledIconContainer>
             <Popover
