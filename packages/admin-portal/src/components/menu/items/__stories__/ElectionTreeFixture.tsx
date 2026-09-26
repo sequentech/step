@@ -306,6 +306,7 @@ export function TreeStory({
     roles,
     sidebarOpen = true,
     tenant,
+    createProvider = true,
     children,
 }: PropsWithChildren<{
     services: TreeServices
@@ -314,6 +315,8 @@ export function TreeStory({
     sidebarOpen?: boolean
     /** The selected tenant's record, once the application has loaded it. */
     tenant?: Sequent_Backend_Tenant
+    /** False when the story renders the layout, which brings its own create provider. */
+    createProvider?: boolean
 }>) {
     // The archived tab selection is an atom; each story starts on the active tab.
     const [atoms] = useState(() => createStore())
@@ -331,10 +334,14 @@ export function TreeStory({
             <AtomProvider store={atoms}>
                 <ElectionEventTallyContextProvider>
                     <WidgetsContextProvider>
-                        <CreateElectionEventProvider>
-                            {children}
-                            <OpenedDrawer />
-                        </CreateElectionEventProvider>
+                        {createProvider ? (
+                            <CreateElectionEventProvider>
+                                {children}
+                                <OpenedDrawer />
+                            </CreateElectionEventProvider>
+                        ) : (
+                            children
+                        )}
                     </WidgetsContextProvider>
                 </ElectionEventTallyContextProvider>
             </AtomProvider>
