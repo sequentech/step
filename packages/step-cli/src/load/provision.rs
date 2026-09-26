@@ -244,6 +244,9 @@ pub(super) fn setup_with(
             .as_str()
             .context("Export has no election ID")?
             .into(),
+        election_external_id: serde_json::from_value(
+            imported["elections"][0]["external_id"].clone(),
+        )?,
         area_name: imported["areas"][0]["name"]
             .as_str()
             .context("Export has no area name")?
