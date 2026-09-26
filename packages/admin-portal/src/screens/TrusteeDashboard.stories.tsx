@@ -119,8 +119,11 @@ export const ConnectWithInvalidKeys: Story = {
             BOARD_NAME
         )
         await userEvent.click(button(canvasElement, "Connect"))
-        // The session rejects with a string, so the console loses the reason.
-        await expect(await consoleLine(canvasElement, "Connect failed: undefined")).toBeVisible()
+        const failure = await consoleLine(canvasElement, "Connect failed: ")
+        await expect(failure).toBeVisible()
+        // The session rejects with a plain string; the console keeps it as the reason.
+        expect(failure.textContent).toMatch(/Connect failed: \S/)
+        expect(failure.textContent).not.toContain("undefined")
         await expect(button(canvasElement, "Execute Step")).toBeDisabled()
         expect(board.calls).toEqual([])
     },
