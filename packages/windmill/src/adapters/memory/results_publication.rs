@@ -573,6 +573,23 @@ impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
     ) -> Result<()> {
         let mut state = self.state();
         state.check(PublicationCall::MarkPublished)?;
+        let target_index = state
+            .publications
+            .iter()
+            .position(|stored| {
+                stored.tenant_id == publication.tenant_id
+                    && stored.election_event_id == publication.election_event_id
+                    && stored.id == publication.id
+            })
+            .ok_or_else(|| anyhow!("Publication not found"))?;
+        if !matches!(
+            state.publications[target_index].publication_status,
+            ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed
+        ) {
+            return Err(anyhow!(
+                "Publication is not in a state that can be activated"
+            ));
+        }
         for stored in &mut state.publications {
             if stored.tenant_id == publication.tenant_id
                 && stored.election_event_id == publication.election_event_id
@@ -584,21 +601,7 @@ impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
                 stored.publication_status = ResultsPublicationStatus::Superseded;
             }
         }
-        let stored = state
-            .find_mut(
-                &publication.tenant_id,
-                &publication.election_event_id,
-                &publication.id,
-            )
-            .ok_or_else(|| anyhow!("Publication not found"))?;
-        if !matches!(
-            stored.publication_status,
-            ResultsPublicationStatus::Publishing | ResultsPublicationStatus::Failed
-        ) {
-            return Err(anyhow!(
-                "Publication is not in a state that can be activated"
-            ));
-        }
+        let stored = &mut state.publications[target_index];
         stored.publication_status = ResultsPublicationStatus::Published;
         stored.documents = documents;
         stored.manifest = Some(manifest);
@@ -637,5 +640,92 @@ impl crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle
             })?;
         stored.error_message = None;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod activation_tests {
+    use super::*;
+    use crate::domain::results_publication::fixtures::publication;
+    use crate::ports::results_publication_lifecycle::ResultsPublicationLifecycle;
+
+    fn activation_store(
+        status: ResultsPublicationStatus,
+    ) -> (InMemoryResultsPublications, TallyResultsPublication) {
+        let target = TallyResultsPublication {
+            publication_status: status,
+            version: 2,
+            ..publication()
+        };
+        let active = TallyResultsPublication {
+            id: "previous-publication".into(),
+            ..publication()
+        };
+        (
+            InMemoryResultsPublications::with([active, target.clone()]),
+            target,
+        )
+    }
+
+    async fn assert_activation_succeeds() {
+        for status in [
+            ResultsPublicationStatus::Publishing,
+            ResultsPublicationStatus::Failed,
+        ] {
+            let (store, target) = activation_store(status);
+            store
+                .mark_published(&target, json!({"document": "new"}), json!({"version": 2}))
+                .await
+                .unwrap();
+            let stored = store.stored();
+            assert_eq!(
+                stored[0].publication_status,
+                ResultsPublicationStatus::Superseded
+            );
+            assert_eq!(
+                stored[1].publication_status,
+                ResultsPublicationStatus::Published
+            );
+            assert_eq!(stored[1].documents, json!({"document": "new"}));
+            assert_eq!(stored[1].manifest, Some(json!({"version": 2})));
+        }
+    }
+
+    #[tokio::test]
+    async fn rejected_activation_status_preserves_every_stored_publication() {
+        assert_activation_succeeds().await;
+        for status in [
+            ResultsPublicationStatus::Published,
+            ResultsPublicationStatus::Revoked,
+            ResultsPublicationStatus::Superseded,
+        ] {
+            let (store, mut target) = activation_store(status);
+            let before = serde_json::to_value(store.stored()).unwrap();
+            // A stale caller snapshot must not bypass the stored status.
+            target.publication_status = ResultsPublicationStatus::Publishing;
+            let error = store
+                .mark_published(&target, json!({"document": "new"}), json!({"version": 2}))
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                "Publication is not in a state that can be activated"
+            );
+            assert_eq!(serde_json::to_value(store.stored()).unwrap(), before);
+        }
+    }
+
+    #[tokio::test]
+    async fn missing_activation_target_preserves_every_stored_publication() {
+        assert_activation_succeeds().await;
+        let (store, mut target) = activation_store(ResultsPublicationStatus::Publishing);
+        let before = serde_json::to_value(store.stored()).unwrap();
+        target.id = "missing-publication".into();
+        let error = store
+            .mark_published(&target, json!({"document": "new"}), json!({"version": 2}))
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), "Publication not found");
+        assert_eq!(serde_json::to_value(store.stored()).unwrap(), before);
     }
 }
