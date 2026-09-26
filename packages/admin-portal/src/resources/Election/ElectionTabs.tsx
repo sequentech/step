@@ -4,13 +4,19 @@
 
 import React, {Suspense, useContext, useEffect, useMemo, useState} from "react"
 import {useTranslation} from "react-i18next"
-import {useRecordContext, useSidebarState, Identifier, RecordContextProvider} from "react-admin"
+import {
+    useGetOne,
+    useRecordContext,
+    useSidebarState,
+    Identifier,
+    RecordContextProvider,
+} from "react-admin"
 import {v4 as uuidv4} from "uuid"
 
 import {AuthContext} from "@/providers/AuthContextProvider"
 import ElectionHeader from "@/components/ElectionHeader"
 import DashboardElection from "@/components/dashboard/election/Dashboard"
-import {Sequent_Backend_Election} from "@/gql/graphql"
+import {Sequent_Backend_Election, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {Publish} from "../Publish/Publish"
 import {EditElectionData} from "./ElectionData"
 import {EPublishType} from "../Publish/EPublishType"
@@ -148,8 +154,14 @@ export const ElectionTabs: React.FC = () => {
     const [open] = useSidebarState()
     const aliasRenderer = useAliasRenderer()
 
+    // The lockdown is a property of the election event, not of the election.
+    const {data: electionEvent} = useGetOne<Sequent_Backend_Election_Event>(
+        "sequent_backend_election_event",
+        {id: electionRecord?.election_event_id},
+        {enabled: Boolean(electionRecord?.election_event_id)}
+    )
     const isElectionEventLocked =
-        electionRecord?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
+        electionEvent?.presentation?.locked_down === EElectionEventLockedDown.LOCKED_DOWN
 
     // Permission checks
     const showDashboard = authContext.isAuthorized(
