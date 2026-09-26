@@ -14,7 +14,7 @@ bots, dependency audit, static-analysis upload, documentation preview):
                      included
   first_actionable   the earliest such job that builds or tests product code,
                      i.e. one whose workflow and name do not mark it as a lint,
-                     format or CI-tooling self-check
+                     format, selection, result summary or CI-tooling self-check
   all_done           the last job of the push, once every run has completed
 """
 
@@ -37,7 +37,12 @@ from .results import CacheState, SampleRole
 SCENARIO = "ci"
 PUSH_EVENTS = frozenset({"pull_request", "pull_request_target", "push", "merge_group"})
 RESULT_CONCLUSIONS = frozenset({"success", "failure"})
-STATIC_CHECK = re.compile(r"lint|prettif|format|\bfmt\b|clippy|tooling", re.I)
+STATIC_CHECK = re.compile(
+    r"lint|prettif|format|\bfmt\b|clippy|tooling|"
+    r"(?:Required feedback|Selected frontend) checks\b|"
+    r"Select affected feedback checks\b|\bdocs-(?:build|graphql)\b",
+    re.I,
+)
 DEFAULT_EXCLUDED_WORKFLOWS = (
     r"reuse",
     r"\bcla\b",

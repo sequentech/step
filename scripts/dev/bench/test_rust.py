@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 from . import timed_linker
-from .rust import critical_path, parse_timings, timings_summary
+from .rust import build_environment, critical_path, parse_timings, timings_summary
 from .wasm import BUILD_SCRIPT, patched_script, script_phases
 
 SCRIPT = "TARGET_DIR=/workspaces/step/packages/sequent-core"
@@ -82,6 +82,45 @@ class TimingsTest(unittest.TestCase):
 
 
 class LinkerTest(unittest.TestCase):
+    def test_times_the_configured_linker_instead_of_replacing_it_with_cc(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            linker = root / "selected-linker"
+            linker.write_text("#!/bin/sh\nexit 37\n")
+            linker.chmod(0o755)
+            log = root / "links.jsonl"
+            with (
+                mock.patch.dict(
+                    os.environ,
+                    {"CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER": str(linker)},
+                ),
+                mock.patch(
+                    "scripts.dev.bench.rust.host_triple",
+                    return_value="aarch64-unknown-linux-gnu",
+                ),
+            ):
+                environment = build_environment(root / "target", log)
+            with (
+                mock.patch.dict(os.environ, environment),
+                mock.patch("sys.argv", ["timed_linker", "-o", "bin/example"]),
+            ):
+                self.assertEqual(timed_linker.main(), 37)
+            self.assertEqual(json.loads(log.read_text())["status"], 37)
+
+    def test_missing_configured_linker_is_not_silently_replaced(self):
+        with (
+            mock.patch.dict(
+                os.environ,
+                {"CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER": "/missing/linker"},
+            ),
+            mock.patch(
+                "scripts.dev.bench.rust.host_triple",
+                return_value="aarch64-unknown-linux-gnu",
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "no executable linker"):
+                build_environment(Path("target"), Path("links.jsonl"))
+
     def test_finds_the_output_in_arguments_and_response_files(self):
         self.assertEqual(
             timed_linker.output_of(["a.o", "-o", "out/harvest"]), "out/harvest"
