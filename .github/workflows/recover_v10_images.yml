@@ -2,14 +2,14 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-name: Recover v10.0.0 images
-run-name: Recover v10.0.0 images
+name: Recover v10.0.1-rc.0 images
+run-name: Recover v10.0.1-rc.0 images
 
 on:
   workflow_dispatch:
     inputs:
       push:
-        description: 'Push the recovered v10.0.0 images to ECR'
+        description: 'Push the recovered v10.0.1-rc.0 images to ECR'
         required: true
         type: boolean
         default: true
@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: recover-v10.0.0-images
+  group: recover-v10.0.1-rc.0-images
   cancel-in-progress: false
 
 jobs:
@@ -89,14 +89,14 @@ jobs:
     - name: Check out existing release
       uses: actions/checkout@v4
       with:
-        ref: refs/tags/v10.0.0
+        ref: refs/tags/v10.0.1-rc.0
         persist-credentials: false
 
     - name: Verify release commit
       shell: bash
       run: |
         set -euo pipefail
-        test "$(git rev-parse HEAD)" = "1389aba548e35915b766e920c6d1d741a0813e2b"
+        test "$(git rev-parse HEAD)" = "2c95cfb5745b0ba7aa9d35f901022572ae351f17"
         echo "SHORT_SHA=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
 
     - name: Resolve beyond submodule commit
@@ -144,7 +144,7 @@ jobs:
         push: ${{ inputs.push }}
         tags: |
           ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:${{ env.SHORT_SHA }}
-          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:v10.0.0
+          ${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:v10.0.1-rc.0
         cache-from: type=registry,ref=${{ vars.AWS_ECR_REGISTRY_GLOBALDOT }}/${{ matrix.service }}:buildcache
         build-contexts: ${{ matrix.build_contexts }}
         build-args: |
