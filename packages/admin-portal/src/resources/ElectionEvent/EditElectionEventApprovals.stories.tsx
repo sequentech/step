@@ -153,12 +153,14 @@ export const Populated: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await pendingRow(canvasElement)).toBeVisible()
-        // Without a stored status filter, every application of the event is listed.
-        await expect(canvas.getByRole("row", {name: /applicant-0002/})).toBeVisible()
-        expect(lastListFilter()).toMatchObject({
-            filter: {election_event_id: EVENT_ID},
-            sort: {field: "created_at", order: "DESC"},
-        })
+        // Without a stored status filter, the list keeps its pending default.
+        await waitFor(() =>
+            expect(lastListFilter()).toMatchObject({
+                filter: {"election_event_id": EVENT_ID, "status@_ilike": "pending"},
+                sort: {field: "created_at", order: "DESC"},
+            })
+        )
+        expect(canvas.queryByRole("row", {name: /applicant-0002/})).toBeNull()
         expect(graphql.calls[0]).toMatchObject({
             name: "getUserProfileAttributes",
             variables: {electionEventId: EVENT_ID},
