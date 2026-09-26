@@ -257,10 +257,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: ./.github/actions/setup-frontend
         if: matrix.check == 'python:scripts-coverage'
-        with:
-          node-version: '22.22.0'
       - name: Install the Python coverage tool
         if: matrix.check == 'python:scripts-coverage'
         run: python3 -m pip install coverage==7.16.0
