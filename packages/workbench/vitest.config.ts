@@ -4,7 +4,8 @@
 import {defineConfig, mergeConfig} from "vitest/config"
 import viteConfig from "./vite.config"
 
-export default mergeConfig(
-    viteConfig,
-    defineConfig({test: {include: ["src/**/*.test.{ts,tsx}"], environment: "node"}})
+export default defineConfig((environment) =>
+    mergeConfig(viteConfig(environment), {
+        test: {include: ["src/**/*.test.{ts,tsx}"], environment: "node"},
+    })
 )
