@@ -720,7 +720,9 @@ class RepositoryTest(unittest.TestCase):
                 (
                     "packages",
                     "cargo test --locked -p sequent-core --features "
-                    "default_features,keycloak,sqlite --test sqlite_feature_boundaries",
+                    "keycloak,default_features,election_config_xlsx,"
+                    "election_config_templates,election_config_archive,sqlite "
+                    "--test sqlite_feature_boundaries",
                 )
             ],
         )
