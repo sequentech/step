@@ -12,6 +12,7 @@
         "storybook-admin-portal",
         "storybook-results-portal",
         "storybook-ballot-verifier",
+        "storybook-keycloak-ui",
         "voting-portal",
         "ballot-verifier",
         "admin-portal",
@@ -37,7 +38,8 @@
         "storybook-voting-portal",
         "storybook-admin-portal",
         "storybook-results-portal",
-        "storybook-ballot-verifier"
+        "storybook-ballot-verifier",
+        "storybook-keycloak-ui"
       ],
       "defaultServers": [],
       "readyTimeoutSeconds": 900
@@ -108,6 +110,7 @@
         "storybook-admin-portal",
         "storybook-results-portal",
         "storybook-ballot-verifier",
+        "storybook-keycloak-ui",
         "workbench"
       ],
       "defaultServers": ["voting-portal", "admin-portal"],
@@ -115,6 +118,12 @@
     }
   ],
   "servers": [
+    {
+      "name": "storybook-keycloak-ui",
+      "port": 6011,
+      "command": ["yarn", "--cwd", "packages/keycloak-ui", "storybook"],
+      "readyPath": "/index.json"
+    },
     {
       "name": "workbench",
       "port": 5173,

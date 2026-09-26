@@ -100,6 +100,11 @@ scripts/dev/step-dev keycloak storybook
 # http://127.0.0.1:6011
 ```
 
+The catalog is also selectable with
+`scripts/dev/step-dev mode up ui-only --servers storybook-keycloak-ui`.
+UI-only forwards port 6011; UI+Keycloak and full mode also forward the development
+proxy on port 5174.
+
 The preview selector includes login, a read-only username hint, server-side
 validation, email/SMS OTP and one-time-link presentation. Synthetic submissions
 are intercepted. They do not authenticate a user. Storybook interaction tests use

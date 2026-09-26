@@ -141,7 +141,7 @@ Before = `ovcs` 679c3ea181. Cold stacks ran in fresh, task-owned Docker daemons.
 | Loop | Before | After |
 | --- | --- | --- |
 | Full stack from zero to ready | 1532 s (n=1) | 1481 s (n=1) |
-| Full stack, warm restart | 59 s median, 48–67 (n=10) | — |
+| Warm restart, with Windmill optional | 59 s median, 48–67 (n=10); Windmill ready in 5/10 | — |
 | UI-only devcontainer from zero | — (full stack only) | 420 s median, 320–623 (n=3) |
 | UI + Keycloak from zero | — | 670 s (n=1) |
 | Devcontainer recreate (rebuild, mode switch) | whole Nix store downloaded again | 32 s median with the shared store volume (n=10); 365 s with an empty one (n=2) |
@@ -194,9 +194,13 @@ The hosted regressions were a missing story CSS hook, virtual mocks for a now-re
 shared module and obsolete expected-failure markers after upstream accessibility
 fixes. Frontend lint and formatting pass across all seven packages. Paired voting
 coverage against `ovcs` 833385f62396 passes (one base/head pair), with all four
-metrics increasing. Current `ovcs` 38b0c3d834 is merged through all three phases;
-the updated voting suite, types, lint and formatting pass. Hosted reruns remain
-in progress.
+metrics increasing. Current `ovcs` b8f2a5c69d is merged through all three phases;
+the updated voting suite, types, lint and formatting pass. Admin stories pass
+(110 tests, one run), as do the six upstream load-replay regressions. Hosted
+reruns remain queued. All four current Copilot findings are settled; the WASM
+benchmark wrapper preserves its checkout path, and CI verification reports
+planning failures before decoding a selection. CodeRabbit requests were
+rate-limited.
 
 - **Public admin build settings**: webpack defines only the four settings read
   by the application; private build environment values no longer enter the
@@ -228,7 +232,11 @@ in progress.
   publish matching images. Local selection checks identity and architecture,
   falling back to the standard image when missing or incompatible. Unit tests,
   source-free warm-up, Dockerfile checks and fallback Compose validation pass;
-  complete image builds and startup measurements remain pending hosted validation.
+  the hosted native arm64 image build passes (13 minutes, n=1). The workflow now
+  also starts the local image without networking, checks all baked tool versions
+  and the WASM standard library, and records fresh/warm Nix-volume startup
+  samples. The amd64 build and actual startup measurements remain pending.
+  Image build success does not establish workspace or service readiness.
 - **Repeatable backend scenarios**: all three named states create and reuse their
   own events; targeted reset rejects foreign ownership, tenant mismatches and
   concurrent execution. Four browser checks pass against current portal sources:
@@ -238,7 +246,22 @@ in progress.
   0.633–0.953 for kiosk, 0.625 s, 0.589–0.793 for completed ceremony, and 0.631 s,
   0.595–0.715 for published results (n=10 each, one excluded warmup). These are
   current-state timings under concurrent load, not before/after speedups.
-  All 84 scenario tests and the integrated 415 developer-tool tests pass.
+  All 84 scenario tests and the integrated 435 developer-tool tests pass.
+- **Browser runner preflight**: focused journey/workbench commands launch the
+  suite's configured Chromium before executing tests and give an actionable
+  error when the pinned runtime cannot start. An actual pinned-browser launch
+  passes; the local missing-library case fails early instead of hanging.
+- **Validation limits**: the backend-mode cold attempt timed out with Harvest
+  and the Compose health probe still pending (one failed sample, zero successful
+  samples). Its CLI and Windmill probes passed at 1750 s and 1736 s; no cause
+  was established before the isolated harness cleaned up. This attempt is
+  excluded from successful readiness summaries. Existing service-backed
+  scenario checks establish functional behavior separately.
+- **Walkthrough and retained preview**: the 94-second narrated recording in the
+  tracking issue shows the workbench, actual five-step WASM pipeline, verifier
+  and Keycloak stories, plus command selection. Its source is `9423f8878a`.
+  Storybooks and the workbench remain in a separate UI-only project within a
+  task-owned isolated Docker daemon.
 
 Keep the stack synchronized with new `ovcs` commits using normal merges into
 phase 1 and then each descendant. All feedback commands must be discoverable and

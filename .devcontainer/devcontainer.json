@@ -12,6 +12,9 @@
     "minio:9000",
     "keycloak:8090",
     "keycloak-nginx:8443",
+    // Keycloak React development proxy and catalog
+    5174,
+    6011,
     "hasura:8080",
     "vault:8200",
     "vault:8201",
