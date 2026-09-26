@@ -96,16 +96,15 @@ export const RenameFromThePresentation: Story = {
         await userEvent.click(canvasElement)
         await waitFor(() => expect(notification).not.toBeInTheDocument())
         await waitFor(() => expect(dataWrites()).toHaveLength(1))
-        // The name and alias follow the English presentation, although the contest
-        // table has neither column.
+        // Since migration 1772358027729 the name and alias live only in the presentation.
+        expect(dataWrites()[0].params.data).not.toHaveProperty("name")
+        expect(dataWrites()[0].params.data).not.toHaveProperty("alias")
         expect(dataWrites()[0]).toEqual({
             method: "update",
             resource: "sequent_backend_contest",
             params: expect.objectContaining({
                 id: STORY_IDS.contest,
                 data: expect.objectContaining({
-                    name: "Council seats",
-                    alias: "Members",
                     description: "Select up to two members",
                     presentation: expect.objectContaining({
                         i18n: expect.objectContaining({

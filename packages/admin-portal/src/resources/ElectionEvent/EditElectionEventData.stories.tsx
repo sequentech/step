@@ -99,17 +99,22 @@ export const SaveTheEvent: Story = {
         await waitFor(() => expect(writes(RESOURCE)).toHaveLength(1))
         const [write] = writes(RESOURCE)
         expect(write.method).toBe("update")
-        // The event's name, alias and description follow its English presentation.
+        // The description follows the English presentation; since migration
+        // 1772358027729 the name and alias live only in the presentation.
         expect(write.params.data).toMatchObject({
             id: EVENT_ID,
-            name: "Council event",
-            alias: "Council",
             description: "Council members for 2026",
             presentation: {
                 language_conf: {enabled_language_codes: ["en", "es"], default_language_code: "en"},
             },
         })
-        for (const key of ["enabled_languages", "electionsOrder", "resultsWebsitePolicy"])
+        for (const key of [
+            "enabled_languages",
+            "electionsOrder",
+            "resultsWebsitePolicy",
+            "name",
+            "alias",
+        ])
             expect(write.params.data).not.toHaveProperty(key)
         expect(writes("sequent_backend_election")).toEqual([])
         // The saved event is read again.

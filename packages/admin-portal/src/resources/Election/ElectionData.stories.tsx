@@ -117,13 +117,12 @@ export const RenameFromThePresentation: Story = {
         await userEvent.type(name, "Council vote")
         await saveAndConfirm(canvasElement)
         await waitFor(() => expect(electionUpdates()).toHaveLength(1))
-        // The name and alias follow the English presentation, although the election
-        // table has neither column.
+        // Since migration 1772358027729 the name and alias live only in the presentation.
+        expect(electionUpdates()[0].params.data).not.toHaveProperty("name")
+        expect(electionUpdates()[0].params.data).not.toHaveProperty("alias")
         expect(electionUpdates()[0].params).toMatchObject({
             id: STORY_IDS.election,
             data: {
-                name: "Council vote",
-                alias: "Council",
                 description: "Choose the council members",
                 presentation: {i18n: {en: {name: "Council vote"}}},
             },
