@@ -19,6 +19,7 @@ import {
     TextInput,
     Toolbar,
     useGetOne,
+    useNotify,
     useRedirect,
 } from "react-admin"
 import {JsonInput} from "react-admin-json-view"
@@ -48,6 +49,7 @@ export const CreateElection: React.FC = () => {
     const [tenantId] = useTenantStore()
     const [searchParams] = useSearchParams()
     const redirect = useRedirect()
+    const notify = useNotify()
 
     const [settings, setSettings] = useState<any>()
     const electionEventId = searchParams.get("electionEventId")
@@ -139,7 +141,7 @@ export const CreateElection: React.FC = () => {
                 redirect(`/sequent_backend_election/${id}`)
             }
         } catch (e) {
-            console.log(e)
+            notify(e instanceof Error ? e.message : "ra.notification.http_error", {type: "error"})
         }
     }
 
