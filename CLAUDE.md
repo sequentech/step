@@ -6,6 +6,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Read [AGENTS.md](AGENTS.md) for shared repository rules and use
+[fast-feedback](.agents/skills/fast-feedback/SKILL.md) for the edit, preview and
+focused-test loop. The same commands support developers and other agents.
+
 ## Project Overview
 
 Sequent Voting Platform — an end-to-end verifiable, secure online voting system. The `packages/` directory is **both a Cargo workspace and a Yarn workspace**, sharing Rust code with the frontend via WebAssembly compilation.
@@ -16,11 +20,11 @@ Sequent Voting Platform — an end-to-end verifiable, secure online voting syste
 
 > **Note:** `cargo` is not on PATH by default. Use `devenv shell` (from the repo root) to enter the nix environment, and use the package-specific `rust-local-target/` dir to avoid permission errors (the shared `packages/target/` is owned by root because Docker service containers build into it as root).
 
-> **Do not run `cargo build` manually to check that code compiles.** The `windmill` and `harvest` containers (and `sequent-core`, which both depend on) already auto-rebuild on file changes inside the dev container. After editing code in one of these, check that container's logs instead (`docker logs windmill --tail 100` / `docker logs harvest --tail 100`) to confirm it compiled — don't kick off a separate `cargo build`, which just duplicates that work. `cargo test`, `cargo fmt`, and `cargo clippy` are unaffected by this and still run manually as usual.
+> Run `scripts/dev/step-dev mode status` before starting a compiler. Backend modes already watch Windmill and Harvest; inspect the logs of this checkout's service containers after edits. UI-only mode has no backend watchers. Use `step-dev test <crate> <test-name>` for a focused test and avoid duplicating an active build.
 
 ```bash
-# Run any cargo command inside devenv:
-cd /workspaces/step && devenv shell bash -- -c 'cd packages && CARGO_TARGET_DIR=/workspaces/step/packages/<pkg>/rust-local-target cargo <command> -p <package>'
+# From the checkout root, run cargo in its own target directory:
+devenv shell bash -- -c 'cd packages && CARGO_TARGET_DIR="$PWD/rust-local-target" cargo <command> -p <package>'
 
 # Examples:
 cargo build                          # Build all Rust packages
@@ -32,7 +36,7 @@ cargo build --release                # Production build
 ```bash
 yarn                                 # Install all JS dependencies
 yarn build:ui-core                   # Build ui-core library
-yarn build:ui-essentials             # Build ui-essentials library (must rebuild after changes)
+yarn build:ui-essentials             # Shared library output for production builds/journeys
 yarn build:voting-portal             # Build voting portal
 yarn build:admin-portal              # Build admin portal
 yarn start:voting-portal             # Dev server on port 3000
@@ -117,8 +121,8 @@ reuse lint                           # Every file must have SPDX headers
 - Extensive Cargo feature flags for conditional compilation — always check `[features]` in Cargo.toml
 - Celery + RabbitMQ for async task execution
 - GraphQL codegen: queries live in `src/queries/`, types generated with `yarn generate:*`
-- After editing ui-essentials components: `yarn prettify:fix:ui-essentials && yarn build:ui-essentials`
-- **sequent-core WASM rebuild**: when changing `sequent-core`, the WASM package often needs rebuilding for frontend changes to take effect
+- Shared UI edits hot-reload from source in portal dev servers and Storybook; build shared libraries only for production builds and journeys.
+- **sequent-core WASM rebuild**: `scripts/dev/step-dev wasm` publishes the development artifact without reinstalling dependencies; `--status` checks freshness.
 
 ## Important Conventions
 
