@@ -85,7 +85,9 @@ jest.mock("@sequentech/ui-essentials", () => ({
         "../../../ui-essentials/src/components/BallotHash/BallotHash"
     ).BallotHashCopyButton,
     theme: jest.requireActual("../../../ui-essentials/src/services/theme").default,
-    Dialog: () => null,
+    // Only which dialog is open, so a test can see one open without its content.
+    Dialog: ({open, className}: {open: boolean; className?: string}) =>
+        open ? <div className={className} data-testid="open-dialog" /> : null,
     WarnBox: jest.requireActual("../../../ui-essentials/src/components/WarnBox/WarnBox").default,
     EWarnBoxAnnouncement: jest.requireActual(
         "../../../ui-essentials/src/components/WarnBox/WarnBox"
@@ -722,3 +724,27 @@ it.each([
         expect(invalid.router.state.location.pathname).toBe(`${ELECTION_PATH}/vote`)
     }
 )
+
+describe("the demo ballot ID", () => {
+    it("opens its explanation from the keyboard", async () => {
+        // A demo has no tracker to link to, so the identifier explains that when
+        // activated. As an anchor without `href` it was out of the tab order and
+        // only a mouse could open the dialog.
+        setUpState({storedConfirmation: true})
+        mockState.confirmationScreenData["election-1"] = {
+            ballotId: BALLOT_ID,
+            isDemo: true,
+            auditButtonCfg: EVotingPortalAuditButtonCfg.SHOW,
+        }
+        const user = userEvent.setup()
+        const {container} = renderRoute(<ConfirmationScreen />, "confirmation")
+
+        const wide = container.querySelector<HTMLElement>(".ballot-id-value-desktop")!
+        expect(wide.tagName).toBe("BUTTON")
+        expect(wide).not.toHaveAttribute("href")
+        wide.focus()
+        await user.keyboard("{Enter}")
+
+        expect(await screen.findByTestId("open-dialog")).toHaveClass("demo-ballot-url-dialog")
+    })
+})

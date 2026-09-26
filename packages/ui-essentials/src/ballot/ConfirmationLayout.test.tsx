@@ -18,6 +18,7 @@
 
 import {ThemeProvider} from "@mui/material/styles"
 import {render as mount, screen} from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import React from "react"
 
 import theme from "../services/theme"
@@ -53,6 +54,22 @@ describe("the confirmation screen's arrangement", () => {
         const {container} = render(<ConfirmationLayout {...props} />)
 
         expect(container.querySelector("a[href]")).toBeNull()
+    })
+
+    it("makes the identifier a button when it only answers a click", async () => {
+        // The portal's demo mode: no tracker, but a click explains why. An anchor
+        // with no `href` is out of the tab order, so a keyboard user could never
+        // reach that explanation.
+        const onBallotIdClick = jest.fn()
+        const {container} = render(
+            <ConfirmationLayout {...props} onBallotIdClick={onBallotIdClick} />
+        )
+
+        const [wide] = screen.getAllByRole("button", {name: "abc123"})
+        expect(container.querySelector("a[href]")).toBeNull()
+        wide.focus()
+        await userEvent.keyboard("{Enter}")
+        expect(onBallotIdClick).toHaveBeenCalledTimes(1)
     })
 
     it("links to the tracker when there is one, in a new tab", () => {

@@ -120,7 +120,10 @@ export interface IConfirmationLayoutProps {
      */
     ballotId: string
     ballotIdOnPhone?: string
-    /** Where the identifier links to, or nothing to render it as plain text. */
+    /**
+     * Where the identifier links to. Without it the identifier is a button when
+     * `onBallotIdClick` is given, and plain text otherwise.
+     */
     ballotIdHref?: string
     onBallotIdClick?: React.MouseEventHandler
     onBallotIdHelp?: () => void
@@ -166,6 +169,9 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
     children,
 }) => {
     const {t} = useTranslation()
+    // With no tracker but a click handler (the portal's demo mode) the identifier
+    // is an action, not a link: an anchor without `href` is out of the tab order.
+    const ballotIdElement = ballotIdHref === undefined && onBallotIdClick ? "button" : "a"
 
     return (
         <PageLimit maxWidth="lg" className="confirmation-screen screen">
@@ -259,7 +265,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                 />
                             </DecorativeIconBox>
                             <BallotIdLink
-                                component="a"
+                                component={ballotIdElement}
                                 data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-desktop"
                                 href={ballotIdHref}
@@ -270,7 +276,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                 {ballotId}
                             </BallotIdLink>
                             <BallotIdLink
-                                component="a"
+                                component={ballotIdElement}
                                 data-testid="ballot-id"
                                 className="ballot-id-value ballot-id-value-mobile"
                                 href={ballotIdHref}
