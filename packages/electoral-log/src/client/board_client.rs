@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::time::Duration;
 use strum_macros::Display;
 use tokio_stream::{Stream, StreamExt};
 use tracing::{info, instrument};
@@ -26,6 +27,41 @@ const ID_VARCHAR_LENGTH: usize = 40;
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
+const READ_CONFLICT_RETRIES: usize = 5;
+const READ_CONFLICT_BACKOFF: Duration = Duration::from_millis(100);
+
+/// Run one board transaction, retrying only a definite ImmuDB read conflict.
+/// Each invocation must start a fresh transaction over the same messages.
+/// Transport failures can leave commit status unknown and must not be replayed.
+pub async fn retry_electoral_log_transaction<F, Fut, T>(mut transaction: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let mut retries = 0;
+    let mut backoff = READ_CONFLICT_BACKOFF;
+    loop {
+        match transaction().await {
+            Err(error)
+                if retries < READ_CONFLICT_RETRIES
+                    && error.downcast_ref::<tonic::Status>().is_some_and(|status| {
+                        status.code() == tonic::Code::Unknown
+                            && status.message() == "tx read conflict"
+                    }) =>
+            {
+                retries += 1;
+                tracing::warn!(
+                    retries,
+                    ?backoff,
+                    "Retrying rejected electoral log transaction"
+                );
+                tokio::time::sleep(backoff).await;
+                backoff *= 2;
+            }
+            result => return result,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct BoardClient {
