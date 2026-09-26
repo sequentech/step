@@ -42,6 +42,76 @@ jobs:
           path: ci-plan*.json
           retention-days: 7
 
+  # sequent-core is compiled against a different feature set by nearly every
+  # consumer, and a module gated one way with its re-export gated another only
+  # fails for the sets nobody happens to build locally: `cargo build --workspace`
+  # unifies features across the graph and hides it entirely.
+  #
+  # `--lib` rather than `--all-targets`: the question is whether the library
+  # compiles for a consumer that asked for this much and no more. The test
+  # modules need `default_features` and are covered by run-tests.
+  #
+  # Selected with sequent-core (the `feature-gates:sequent-core` check).
+  feature-gates:
+    name: sequent-core at ${{ matrix.gate }}
+    needs: plan
+    if: fromJSON(needs.plan.outputs.selection).jobs.feature-gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - gate: no features
+            cache: none
+            features: ""
+          - gate: default_features
+            cache: default
+            features: --features default_features
+          - gate: keycloak,default_features
+            cache: keycloak
+            features: --features keycloak,default_features
+          - gate: election_config_templates
+            cache: templates
+            features: --features election_config_templates
+          - gate: election_config_archive
+            cache: archive
+            features: --features election_config_archive
+          - gate: election_config_xlsx
+            cache: xlsx
+            features: --features election_config_xlsx
+          # The pair no other row covers, and the one the wizard's wasm actually
+          # builds: a spreadsheet reader *and* a zip writer together.
+          - gate: election_config_archive,election_config_xlsx
+            cache: archive-xlsx
+            features: --features election_config_archive,election_config_xlsx
+    steps:
+      - name: Check out code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Rust tests
+        uses: ./.github/actions/setup-rust-tests
+        with:
+          cache-epoch: ${{ vars.STEP_RUST_CACHE_EPOCH || 'v1' }}
+          # Per gate, or the gates would evict each other's artifacts.
+          cargo-build-name: sequent-core-gate-${{ matrix.cache }}
+          cargo-build-path: packages/target
+          cargo-lock-path: packages/Cargo.lock
+          profile: dev
+          features: ${{ matrix.cache }}
+
+      - name: cargo check ${{ matrix.gate }}
+        env:
+          PROTOC: "/usr/bin/protoc"
+          FEATURES: ${{ matrix.features }}
+        # FEATURES is intentionally unquoted: it is empty or `--features <list>`.
+        run: cargo check --locked -p sequent-core --lib $FEATURES
+        working-directory: packages
+
   run-tests:
     name: Run Rust tests
     runs-on: ubuntu-24.04
@@ -83,7 +153,7 @@ jobs:
           cargo-build-path: packages/target
           cargo-lock-path: packages/Cargo.lock
           profile: dev
-          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak' || 'default' }}
+          features: ${{ matrix.service == 'sequent-core' && 'default_features,keycloak,election_config_xlsx,election_config_templates,election_config_archive' || 'default' }}
 
       - name: Check CLI automation and voter CSV contracts
         if: matrix.service == 'step-cli'
@@ -319,7 +389,7 @@ jobs:
 
   required-feedback:
     name: Required feedback checks
-    needs: [plan, run-tests, run-windmill-tests, run-frontend-tests, tooling, docs, wasm-freshness, frontend-ui]
+    needs: [plan, feature-gates, run-tests, run-windmill-tests, run-frontend-tests, tooling, docs, wasm-freshness, frontend-ui]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -342,7 +412,7 @@ jobs:
   # ===========================================================================
   notify-on-failure:
     name: Notify on failure
-    needs: [run-tests, run-windmill-tests, run-frontend-tests]
+    needs: [feature-gates, run-tests, run-windmill-tests, run-frontend-tests]
     if: failure() && github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:

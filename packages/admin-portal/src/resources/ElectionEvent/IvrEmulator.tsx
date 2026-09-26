@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useEffect, useMemo, useRef, useState} from "react"
+import React, {useMemo, useState} from "react"
 import {BooleanInput, useGetList, useRecordContext} from "react-admin"
 import {FormProvider, useForm} from "react-hook-form"
-import {Alert, AlertTitle, Box, Button, Stack, TextField} from "@mui/material"
+import {Alert, AlertTitle, Box, Button, Stack} from "@mui/material"
 import {useTranslation} from "react-i18next"
 import {
     Sequent_Backend_Ballot_Style,
@@ -14,24 +14,12 @@ import {
 import {ElectionHeaderStyles} from "@/components/styles/ElectionHeaderStyles"
 import {IvrApiStatus, useIvrEmulator} from "@/providers/IvrEmulatorContextProvider"
 import {v4} from "uuid"
-import Paper from "@mui/material/Paper"
-import {
-    IvrEmulatorApi,
-    Action,
-    IvrEmulatorDriver,
-    PromptInfo,
-    EmulatorConfig,
-} from "@/services/IvrEmulator"
-import DialpadIcon from "@mui/icons-material/Dialpad"
-import TimerIcon from "@mui/icons-material/Timer"
-import {theme} from "@sequentech/ui-essentials"
+import {EmulatorConfig} from "@/services/IvrEmulator"
+import {IvrCall, IvrCallStatus} from "@sequentech/ui-essentials"
 import SelectArea from "@/components/area/SelectArea"
 import {useFormContext, useWatch} from "react-hook-form"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {FormStyles} from "@/components/styles/FormStyles"
-
-type ExpectedInput = Extract<Action, {type: "ExpectInput"}>
-type Status = "Ready" | "Running" | "ExpectingInput" | "Disconnected"
 
 const CALLER_NUMBER = "+1234567890"
 
@@ -192,272 +180,11 @@ const ConfigForm: React.FC<{
     )
 }
 
-const PromptLine: React.FC<{id: number; prompt: PromptInfo}> = ({id, prompt}) => {
-    const promptBody = useMemo(() => {
-        // Strip off the root ssml tag.
-        return prompt.prompt_text.replace(/^<speak>/, "").replace(/<\/speak>$/, "")
-    }, [prompt])
-    const lang = useMemo(() => {
-        return prompt.language.slice(0, 2).toUpperCase()
-    }, [prompt])
-    const langTitle = useMemo(() => {
-        return `${prompt.language}, ${prompt.voice_id}`
-    }, [prompt])
-
-    return (
-        <Box
-            key={id}
-            sx={{display: "grid", gridTemplateColumns: "3ch minmax(0, 1fr)", columnGap: 1}}
-        >
-            <Box
-                title={langTitle}
-                sx={{whiteSpace: "nowrap", borderRight: 1, borderColor: "divider", pr: 1}}
-            >
-                {lang}
-            </Box>
-            <Box sx={{minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>
-                {promptBody}
-            </Box>
-        </Box>
-    )
-}
-
-const EmulatorInterface: React.FC<{
-    api: IvrEmulatorApi
-    config: EmulatorConfig
-    onStatusChange?: (status: Status) => void
-}> = ({api, config, onStatusChange}) => {
-    const {t} = useTranslation()
-    const [prompts, setPrompts] = useState<[number, PromptInfo][]>([])
-    const emulator = useRef<IvrEmulatorDriver | undefined>(undefined)
-    const toDispose = useRef(new WeakSet<IvrEmulatorDriver>())
-    const inFlight = useRef(new WeakSet<IvrEmulatorDriver>())
-    const [expectedInput, setExpectedInput] = useState<ExpectedInput | undefined>()
-    const [status, setStatus] = useState<Status>("Disconnected")
-    const [error, setError] = useState<string>("")
-    const [input, setInput] = useState<string>("")
-    const nextLogId = useRef(0)
-
-    const addPrompt = (prompt: PromptInfo) => {
-        let id = nextLogId.current++
-        setPrompts((current) => [...current, [id, prompt]])
-    }
-
-    const canSendInput = useMemo<boolean>(
-        () => status === "ExpectingInput" && Boolean(input.trim()),
-        [input, status]
-    )
-
-    const changeStatus = (value: Status): void => {
-        setStatus(value)
-        onStatusChange?.(value)
-    }
-
-    const startSession = (config: EmulatorConfig): void => {
-        if (emulator.current) {
-            console.warn("Refusing to start another emulator session while there's one running")
-            return
-        }
-
-        try {
-            console.log("Creating a new session with config", config)
-            emulator.current = new api.IvrEmulatorDriver(config)
-            runEmulator(emulator.current)
-        } catch (e) {
-            console.error("Failed to create the emulator", e)
-        }
-    }
-
-    const sendTimeout = () => {
-        const current = emulator.current
-        if (!current) {
-            console.warn("Attempted to sendTimeout without an active emulator")
-            return
-        }
-        if (inFlight.current.has(current)) {
-            return
-        }
-
-        current.send_timeout()
-        runEmulator(current)
-    }
-
-    const sendInput = () => {
-        const current = emulator.current
-        if (!current) {
-            console.warn("Attempted to sendInput without an active emulator")
-            return
-        }
-        if (inFlight.current.has(current)) {
-            return
-        }
-
-        current.send_input(input)
-        runEmulator(current)
-        setInput("")
-    }
-
-    const releaseDisposed = (disposed: IvrEmulatorDriver): void => {
-        if (!toDispose.current.has(disposed) || inFlight.current.has(disposed)) {
-            return
-        }
-        console.log("Releasing disposed emulator")
-        toDispose.current.delete(disposed)
-        disposed.free()
-    }
-
-    // disposeEmulator must not be called again after the emulator has been released.
-    const disposeEmulator = (disposed: IvrEmulatorDriver): void => {
-        console.debug("Disposing emulator")
-        if (emulator.current === disposed) {
-            emulator.current = undefined
-            console.debug("Cleared current emulator")
-        }
-        toDispose.current.add(disposed)
-        releaseDisposed(disposed)
-    }
-
-    const executeEmulatorLoop = async (emulator: IvrEmulatorDriver) => {
-        while (true) {
-            changeStatus("Running")
-            const action = await emulator.execute(true)
-
-            // If disposal was requested while we were executing the wasm,
-            //  such as the component being unmounted, stop working
-            //  and allow releasing the emulator with its normal flow (the finally block).
-            if (toDispose.current.has(emulator)) {
-                return
-            }
-            switch (action.type) {
-                case "Prompt":
-                    addPrompt(action.prompt)
-                    break
-                case "Noop":
-                    break
-                case "ExpectInput":
-                    addPrompt(action.prompt)
-                    setExpectedInput(action)
-                    changeStatus("ExpectingInput")
-                    return
-                case "Disconnect":
-                    addPrompt(action.prompt)
-                    changeStatus("Disconnected")
-                    disposeEmulator(emulator)
-                    return
-            }
-        }
-    }
-
-    const runEmulator = (emulator: IvrEmulatorDriver) => {
-        if (inFlight.current.has(emulator)) {
-            return
-        }
-
-        inFlight.current.add(emulator)
-        executeEmulatorLoop(emulator)
-            .catch((e) => {
-                console.error("Failed to execute the emulator", e)
-                if (!toDispose.current.has(emulator)) {
-                    setError(`${e}`)
-                    disposeEmulator(emulator)
-                }
-            })
-            .finally(() => {
-                inFlight.current.delete(emulator)
-                releaseDisposed(emulator)
-            })
-    }
-
-    useEffect(() => {
-        setStatus("Ready")
-        startSession(config)
-
-        return () => {
-            if (emulator.current) {
-                disposeEmulator(emulator.current)
-            }
-        }
-    }, [])
-
-    return (
-        <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
-            {error ? <Alert severity="error">{error}</Alert> : null}
-
-            <Paper variant="outlined" sx={{p: theme.spacing(1), fontFamily: "monospace"}}>
-                {prompts.map(([id, prompt]) => (
-                    <PromptLine id={id} prompt={prompt} />
-                ))}
-            </Paper>
-
-            {status !== "Disconnected" ? (
-                <Box sx={{display: "flex", gap: 1}}>
-                    <form
-                        style={{width: "100%"}}
-                        onSubmit={(e) => {
-                            e.preventDefault()
-                            canSendInput && sendInput()
-                        }}
-                    >
-                        <TextField
-                            value={input}
-                            onChange={(e) => setInput(e.target.value.replace(/[^0-9*#]/g, ""))}
-                            slotProps={{
-                                htmlInput: {
-                                    pattern: "[0-9*#]*",
-                                    maxLength: expectedInput?.max_digits,
-                                },
-                            }}
-                            disabled={!expectedInput}
-                            autoFocus
-                            sx={{fontFamily: "monospace"}}
-                            placeholder={t("electionEventScreen.ivr.emulator.inputPlaceholder", {
-                                maxDigits: expectedInput?.max_digits ?? "",
-                                validInputs: expectedInput?.valid_inputs ?? "",
-                                timeout: expectedInput?.timeout ?? 0,
-                            })}
-                        />
-                    </form>
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "row",
-                            gap: theme.spacing(1),
-                            padding: `${theme.spacing(2)} 0px ${theme.spacing(2)} 0px`,
-                        }}
-                    >
-                        <Button
-                            title={t("electionEventScreen.ivr.emulator.sendTimeout")}
-                            onClick={sendTimeout}
-                            disabled={status !== "ExpectingInput"}
-                        >
-                            <TimerIcon />
-                        </Button>
-                        <Button
-                            title={t("electionEventScreen.ivr.emulator.sendDtmf")}
-                            variant="outlined"
-                            onClick={sendInput}
-                            disabled={!canSendInput}
-                        >
-                            <DialpadIcon />
-                        </Button>
-                    </div>
-                </Box>
-            ) : null}
-
-            {status === "Disconnected" ? (
-                <ElectionHeaderStyles.SubTitle sx={{fontStyle: "italic"}}>
-                    {t("electionEventScreen.ivr.emulator.disconnected")}
-                </ElectionHeaderStyles.SubTitle>
-            ) : null}
-        </Box>
-    )
-}
-
 export const IvrEmulator: React.FC = () => {
     const {t} = useTranslation()
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const {status: apiStatus, api} = useIvrEmulator()
-    const [emulatorStatus, setEmulatorStatus] = useState<Status | undefined>(undefined)
+    const [emulatorStatus, setEmulatorStatus] = useState<IvrCallStatus | undefined>(undefined)
     const [config, setConfig] = useState<EmulatorConfig | undefined>(undefined)
 
     const statusAlert = useMemo(() => {
@@ -525,12 +252,23 @@ export const IvrEmulator: React.FC = () => {
                         ) : null}
                         {api && config && emulatorStatus && record ? (
                             <div>
-                                <EmulatorInterface
-                                    api={api}
-                                    config={config}
+                                <IvrCall
+                                    start={() => new api.IvrEmulatorDriver(config)}
                                     onStatusChange={(status) =>
                                         emulatorStatus && setEmulatorStatus(status)
                                     }
+                                    placeholder={(expected) =>
+                                        t("electionEventScreen.ivr.emulator.inputPlaceholder", {
+                                            maxDigits: expected.max_digits,
+                                            validInputs: expected.valid_inputs,
+                                            timeout: expected.timeout,
+                                        })
+                                    }
+                                    timeoutLabel={t("electionEventScreen.ivr.emulator.sendTimeout")}
+                                    sendLabel={t("electionEventScreen.ivr.emulator.sendDtmf")}
+                                    disconnectedLabel={t(
+                                        "electionEventScreen.ivr.emulator.disconnected"
+                                    )}
                                 />
 
                                 <Button

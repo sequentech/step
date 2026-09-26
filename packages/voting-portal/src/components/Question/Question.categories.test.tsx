@@ -10,7 +10,11 @@ import type {ICandidate, IContest} from "@sequentech/ui-core"
 import theme from "../../../../ui-essentials/src/services/theme"
 import {ELECTION_WITH_INVALID} from "../../fixtures/election"
 import type {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
-import {Question} from "./Question"
+import {Question} from "../../../../ui-essentials/src/ballot/Question"
+import {BallotEngineProvider} from "../../../../ui-essentials/src/ballot/engine"
+import {BallotSelectionProvider} from "../../../../ui-essentials/src/ballot/selection"
+import type {BallotEngine} from "../../../../ui-essentials/src/ballot/engine"
+import type {BallotSelectionPort} from "../../../../ui-essentials/src/ballot/selection"
 
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({t: (key: string) => key, i18n: {language: "en"}}),
@@ -34,33 +38,35 @@ jest.mock("@sequentech/ui-core", () => ({
     ),
     sortCandidatesInContest: (candidates: ICandidate[]) => candidates,
 }))
-jest.mock("@sequentech/ui-essentials", () => ({
-    theme: jest.requireActual<typeof import("../../../../ui-essentials/src/services/theme")>(
-        "../../../../ui-essentials/src/services/theme"
-    ).default,
-    CandidatesList: jest.requireActual<
-        typeof import("../../../../ui-essentials/src/components/CandidatesList/CandidatesList")
-    >("../../../../ui-essentials/src/components/CandidatesList/CandidatesList").default,
-    VisuallyHidden: jest.requireActual<
-        typeof import("../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden")
-    >("../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden").default,
-}))
 // Keep Question, AnswersList and CandidatesList real. Vote interpretation and
 // individual candidate inputs are outside this category-expansion contract.
-jest.mock("../../services/BallotService", () => ({
-    provideBallotService: () => ({isPreferential: () => false}),
-}))
-jest.mock("../../store/hooks", () => ({
-    useAppSelector: () => undefined,
-    useAppDispatch: () => jest.fn(),
-}))
-jest.mock("../Answer/Answer", () => ({
+jest.mock("../../../../ui-essentials/src/ballot/Answer", () => ({
     Answer: ({answer}: {answer: ICandidate}) => <li>{answer.name}</li>,
 }))
-jest.mock("../InvalidErrorsList/InvalidErrorsList", () => ({
+jest.mock("../../../../ui-essentials/src/ballot/InvalidErrorsList", () => ({
     InvalidErrorsList: () => null,
     contestErrorsId: (id: string) => `errors-${id}`,
+    writeInErrorId: (id: string) => `writein-error-${id}`,
 }))
+
+const ENGINE: BallotEngine = {
+    sortCandidatesInContest: (candidates) => candidates,
+    isPreferential: () => false,
+    checkIsBlank: () => false,
+    getWriteInAvailableCharacters: () => 0,
+}
+
+// Nothing is marked: the contract under test is category expansion.
+const PORT: BallotSelectionPort = {
+    contest: () => undefined,
+    choice: () => undefined,
+    setChoice: () => undefined,
+    setBlank: () => undefined,
+    setInvalid: () => undefined,
+    reset: () => undefined,
+    isVoted: () => false,
+    imageBaseUrl: "",
+}
 
 const CATEGORY_NAMES = ["__proto__", "constructor", "toString", "Regular category"]
 
@@ -89,13 +95,17 @@ function renderCategories(
     }
     render(
         <ThemeProvider theme={theme}>
-            <Question
-                ballotStyle={ballotStyle}
-                question={question}
-                isReview={false}
-                setDecodedContests={jest.fn()}
-                errorSelectionState={[]}
-            />
+            <BallotEngineProvider engine={ENGINE}>
+                <BallotSelectionProvider port={PORT}>
+                    <Question
+                        ballotStyle={ballotStyle}
+                        question={question}
+                        isReview={false}
+                        setDecodedContests={jest.fn()}
+                        errorSelectionState={[]}
+                    />
+                </BallotSelectionProvider>
+            </BallotEngineProvider>
         </ThemeProvider>
     )
 }

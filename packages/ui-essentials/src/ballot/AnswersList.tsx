@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import {CandidatesList} from "@sequentech/ui-essentials"
+import CandidatesList from "../components/CandidatesList/CandidatesList"
 import {
     IDecodedVoteContest,
     isUndefined,
@@ -14,18 +14,12 @@ import {
     isCategoryListSelected,
     isAcclaimedContest,
 } from "@sequentech/ui-core"
-import {Answer} from "../Answer/Answer"
-import {useAppDispatch, useAppSelector} from "../../store/hooks"
-import {
-    resetBallotSelection,
-    selectBallotSelectionQuestion,
-    selectBallotSelectionVoteChoice,
-    setBallotSelectionVoteChoice,
-} from "../../store/ballotSelections/ballotSelectionsSlice"
-import {ICategory} from "../../services/CategoryService"
-import {IBallotStyle} from "../../store/ballotStyles/ballotStylesSlice"
+import {Answer} from "./Answer"
+import {useBallotEngine} from "./engine"
+import {useBallotSelection} from "./selection"
+import {ICategory} from "@sequentech/ui-core"
+import {IBallotStyle} from "./types"
 import {useTranslation} from "react-i18next"
-import {sortBy} from "lodash"
 import {sortCandidatesInContest, ECandidatesIconCheckboxPolicy} from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
 import Typography from "@mui/material/Typography"
@@ -95,13 +89,10 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     onExpandedChange,
 }) => {
     const categoryAnswerId = category.header?.id || ""
-    const selectionState = useAppSelector(
-        selectBallotSelectionVoteChoice(ballotStyle.election_id, contestId, categoryAnswerId)
-    )
-    const questionState = useAppSelector(
-        selectBallotSelectionQuestion(ballotStyle.election_id, contestId)
-    )
-    const dispatch = useAppDispatch()
+    const engine = useBallotEngine()
+    const selection = useBallotSelection()
+    const selectionState = selection.choice(ballotStyle, contestId, categoryAnswerId)
+    const questionState = selection.contest(ballotStyle, contestId)
     const {i18n, t} = useTranslation()
     let [candidatesOrder, setCandidatesOrder] = useState<Array<string> | null>(null)
     const candidatesOrderType = contest.presentation?.candidates_order
@@ -133,30 +124,31 @@ export const AnswersList: React.FC<AnswersListProps> = ({
     const isChecked = () => !isUndefined(selectionState) && selectionState.selected > -1
     const isListSelectedOnReview =
         isReview && (isAcclaimed || isCategoryListSelected(category, questionState?.choices ?? []))
-    const setChecked = (value: boolean) => {
+    const setChecked = (value: boolean): void => {
         if (isRadioSelection) {
-            dispatch(
-                resetBallotSelection({
-                    ballotStyle,
-                    force: true,
-                    contestId: contest.id,
-                })
-            )
+            selection.reset({
+                ballotStyle,
+                force: true,
+                contestId: contest.id,
+            })
         }
 
-        return (
-            isActive &&
-            dispatch(
-                setBallotSelectionVoteChoice({
-                    ballotStyle,
-                    contestId,
-                    voteChoice: {
-                        id: categoryAnswerId,
-                        selected: value ? 0 : -1,
-                    },
-                })
-            )
-        )
+        // `isActive &&` was wrapped around a `dispatch(…)` whose return value was
+        // then returned from here and discarded by the caller. Kept as a guard and
+        // dropped as an expression: `setChoice` returns nothing, so returning the
+        // conjunction would hand back `false` or `undefined` to a prop typed
+        // `(value: boolean) => void`.
+        if (!isActive) {
+            return
+        }
+        selection.setChoice({
+            ballotStyle,
+            contestId,
+            voteChoice: {
+                id: categoryAnswerId,
+                selected: value ? 0 : -1,
+            },
+        })
     }
 
     if (isReview && !isAcclaimed && !showCategoryOnReview(category, questionState)) {
@@ -165,7 +157,9 @@ export const AnswersList: React.FC<AnswersListProps> = ({
 
     if (null === candidatesOrder) {
         setCandidatesOrder(
-            sortCandidatesInContest(category.candidates, candidatesOrderType, true).map((c) => c.id)
+            engine
+                .sortCandidatesInContest(category.candidates, candidatesOrderType, true)
+                .map((c) => c.id)
         )
     }
 
@@ -182,7 +176,13 @@ export const AnswersList: React.FC<AnswersListProps> = ({
         ([name, value]) => ({...value, name, sort_order: value.sort_order ?? 0})
     )
 
-    let sortedSubtypes = sortBy(subtypesPresentation, ["sort_order"])
+    // `sortBy` from lodash, previously. A shared package taking a utility
+    // dependency for one comparison is a dependency every consumer installs, and
+    // `sort` mutates, so the list is copied first — which `sortBy` did for free
+    // and is the only reason this is two lines rather than one.
+    let sortedSubtypes = [...subtypesPresentation].sort(
+        (left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0)
+    )
 
     const shouldDisableList = isAcclaimed || (disableSelect && !isChecked())
 

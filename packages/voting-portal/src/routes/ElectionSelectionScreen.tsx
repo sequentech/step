@@ -6,7 +6,7 @@ import {getPublishedSupportMaterialsPolicy} from "../services/PublishedBallots"
 import {Box, Button, CircularProgress, Typography, Alert} from "@mui/material"
 import React, {useContext, useEffect, useMemo, useState} from "react"
 import {Trans, useTranslation} from "react-i18next"
-import {Dialog, IconButton, PageLimit, SelectElection, theme} from "@sequentech/ui-essentials"
+import {Dialog, ElectionListLayout, IconButton, SelectElection} from "@sequentech/ui-essentials"
 import {
     isString,
     stringToHtml,
@@ -80,70 +80,15 @@ import {GET_SUPPORT_MATERIALS_ACKNOWLEDGMENT} from "../queries/GetSupportMateria
 import {setSupportMaterial} from "../store/supportMaterials/supportMaterialsSlice"
 import {useElectionClassName} from "../hooks/useElectionClassName"
 
-const StyledTitle = styled(Typography)`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 27px;
-    margin-top: 20px;
-    margin-bottom: 16px;
-`
-
-const ElectionContainer = styled(Box)`
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-    margin-bottom: 30px;
-`
+// `StyledTitle`, `TitleSection`, `PageActions` and `ElectionContainer` were here.
+// They are `ElectionListLayout` in `ui-essentials` now, with the class names they
+// carry, so the Election Architect's Ballot Preview draws this screen's tree rather
+// than a second one that a client's stylesheet would not fit.
 
 const MaterialsGateLink = styled(RouterLink)`
     color: inherit;
     font-weight: 500;
     text-decoration: underline;
-`
-
-const TitleSection = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 32px;
-    min-height: 100px;
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 16px;
-        min-height: unset;
-        padding: 24px 0;
-    }
-`
-
-const PageActions = styled(Box)`
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    gap: 16px;
-
-    .election-event-results-button {
-        min-width: 150px;
-        padding: 10px 24px;
-        justify-content: center;
-        font-weight: 500;
-        line-height: 24px;
-        white-space: nowrap;
-    }
-
-    @media (max-width: ${({theme}) => theme.breakpoints.values.sm}px) {
-        width: 100%;
-
-        > .MuiButton-root {
-            flex: 1;
-        }
-    }
 `
 
 interface ElectionWrapperProps {
@@ -755,54 +700,41 @@ const ElectionSelectionScreen: React.FC = () => {
         )
 
     return (
-        <PageLimit maxWidth="lg" className="election-selection-screen screen">
-            <Box className="stepper-box" marginTop="48px">
-                <Stepper selected={0} />
-            </Box>
-
-            <TitleSection className="title-section">
-                <Box sx={{flex: 1, minWidth: 0}} className="election-selection-heading">
-                    <StyledTitle className="screen-title" variant="h1">
-                        <Box className="screen-title-text">
-                            {t("electionSelectionScreen.title")}
-                        </Box>
-                        <IconButton
-                            buttonClassName="screen-help-button"
-                            icon={faCircleQuestion}
-                            sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                            fontSize="16px"
-                            onClick={() => setOpenChooserHelp(true)}
-                            ariaLabel={t("a11y.helpAbout", {
-                                topic: t("electionSelectionScreen.chooserHelpDialog.title"),
-                            })}
-                        />
-                        <Dialog
-                            className="screen-help-dialog election-selection-help-dialog"
-                            handleClose={() => setOpenChooserHelp(false)}
-                            open={openChooserHelp}
-                            title={t("electionSelectionScreen.chooserHelpDialog.title")}
-                            ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
-                            variant="info"
-                        >
-                            {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
-                        </Dialog>
-                    </StyledTitle>
-                    {warningMsg ? (
-                        <Alert className="election-selection-warning" severity="warning">
-                            {stringToHtml(warningMsg)}
-                        </Alert>
-                    ) : (
-                        <Typography
-                            className="screen-description"
-                            variant="body1"
-                            component="div"
-                            sx={{color: theme.palette.customGrey.contrastText}}
-                        >
-                            {stringToHtml(t("electionSelectionScreen.description"))}
-                        </Typography>
-                    )}
-                </Box>
-                <PageActions className="election-event-actions">
+        <ElectionListLayout
+            steps={<Stepper selected={0} />}
+            titleAdornment={
+                <>
+                    <IconButton
+                        buttonClassName="screen-help-button"
+                        icon={faCircleQuestion}
+                        sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
+                        fontSize="16px"
+                        onClick={() => setOpenChooserHelp(true)}
+                        ariaLabel={t("a11y.helpAbout", {
+                            topic: t("electionSelectionScreen.chooserHelpDialog.title"),
+                        })}
+                    />
+                    <Dialog
+                        className="screen-help-dialog election-selection-help-dialog"
+                        handleClose={() => setOpenChooserHelp(false)}
+                        open={openChooserHelp}
+                        title={t("electionSelectionScreen.chooserHelpDialog.title")}
+                        ok={t("electionSelectionScreen.chooserHelpDialog.ok")}
+                        variant="info"
+                    >
+                        {stringToHtml(t("electionSelectionScreen.chooserHelpDialog.content"))}
+                    </Dialog>
+                </>
+            }
+            alert={
+                warningMsg ? (
+                    <Alert className="election-selection-warning" severity="warning">
+                        {stringToHtml(warningMsg)}
+                    </Alert>
+                ) : undefined
+            }
+            actions={
+                <>
                     {eventResultsUrl ? (
                         <Button
                             className="results-button election-event-results-button"
@@ -823,52 +755,51 @@ const ElectionSelectionScreen: React.FC = () => {
                             {materialsTitle}
                         </Button>
                     ) : null}
-                </PageActions>
-            </TitleSection>
-            {showMaterialsGateBanner ? (
-                <Alert
-                    severity="warning"
-                    className="materials-gate-banner"
-                    sx={{marginBottom: "16px"}}
-                >
-                    <Trans
-                        i18nKey="electionSelectionScreen.materialsGate.instructions"
-                        values={{materialsTitle}}
-                        components={{
-                            MaterialsLink: (
-                                <MaterialsGateLink
-                                    className="materials-gate-link"
-                                    to={materialsPath}
-                                />
-                            ),
-                        }}
-                    />
-                </Alert>
-            ) : null}
-            <ElectionContainer
-                className="elections-list"
-                role={hasNoElections ? undefined : "list"}
-            >
-                {!hasNoElections ? (
-                    electionIds.map((electionId) => (
-                        <ElectionWrapper
-                            summary={voterContext.summaries?.[electionId]}
-                            electionId={electionId}
-                            key={electionId}
-                            bypassChooser={bypassChooser}
-                            canVoteTest={canVoteTest || electionId === testElectionId}
-                            materialsGate={materialsGate}
+                </>
+            }
+            banner={
+                showMaterialsGateBanner ? (
+                    <Alert
+                        severity="warning"
+                        className="materials-gate-banner"
+                        sx={{marginBottom: "16px"}}
+                    >
+                        <Trans
+                            i18nKey="electionSelectionScreen.materialsGate.instructions"
+                            values={{materialsTitle}}
+                            components={{
+                                MaterialsLink: (
+                                    <MaterialsGateLink
+                                        className="materials-gate-link"
+                                        to={materialsPath}
+                                    />
+                                ),
+                            }}
                         />
-                    ))
-                ) : (
-                    <Box className="elections-empty" sx={{margin: "auto"}}>
-                        <Typography className="election-selection-empty" component="div">
-                            {stringToHtml(t("electionSelectionScreen.noResults"))}
-                        </Typography>
-                    </Box>
-                )}
-            </ElectionContainer>
-        </PageLimit>
+                    </Alert>
+                ) : undefined
+            }
+            listRole={hasNoElections ? undefined : "list"}
+        >
+            {!hasNoElections ? (
+                electionIds.map((electionId) => (
+                    <ElectionWrapper
+                        summary={voterContext.summaries?.[electionId]}
+                        electionId={electionId}
+                        key={electionId}
+                        bypassChooser={bypassChooser}
+                        canVoteTest={canVoteTest || electionId === testElectionId}
+                        materialsGate={materialsGate}
+                    />
+                ))
+            ) : (
+                <Box className="elections-empty" sx={{margin: "auto"}}>
+                    <Typography className="election-selection-empty" component="div">
+                        {stringToHtml(t("electionSelectionScreen.noResults"))}
+                    </Typography>
+                </Box>
+            )}
+        </ElectionListLayout>
     )
 }
 

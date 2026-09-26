@@ -16,14 +16,12 @@ import {IBallotStyle, selectBallotStyleByElectionId} from "../store/ballotStyles
 import {useAppDispatch, useAppSelector} from "../store/hooks"
 import {Box, CircularProgress} from "@mui/material"
 import {
-    PageLimit,
-    Icon,
-    IconButton,
-    theme,
-    BallotHash,
     Dialog,
-    WarnBox,
     EWarnBoxAnnouncement,
+    Icon,
+    ReviewActions,
+    ReviewLayout,
+    WarnBox,
 } from "@sequentech/ui-essentials"
 import {
     stringToHtml,
@@ -42,17 +40,10 @@ import {
     areAllContestsAcclaimed,
 } from "@sequentech/ui-core"
 import {styled} from "@mui/material/styles"
-import Typography from "@mui/material/Typography"
-import {
-    faCircleQuestion,
-    faAngleLeft,
-    faAngleRight,
-    faFire,
-} from "@fortawesome/free-solid-svg-icons"
+import {faAngleLeft, faFire} from "@fortawesome/free-solid-svg-icons"
 import {useTranslation} from "react-i18next"
 import Button from "@mui/material/Button"
 import {selectAuditableBallot} from "../store/auditableBallots/auditableBallotsSlice"
-import {Question} from "../components/Question/Question"
 import {useMutation, useQuery} from "@apollo/client/react"
 import {INSERT_CAST_VOTE} from "../queries/InsertCastVote"
 import {GetElectionEventQuery, InsertCastVoteMutation, GetElectionsQuery} from "../gql/graphql"
@@ -88,22 +79,6 @@ import {setConfirmationScreenData} from "../store/castVotes/confirmationScreenDa
 import {selectElectionById} from "../store/elections/electionsSlice"
 import {completeAcclaimedElection, isDeclineToVoteByElectionId} from "../store/extra/extraSlice"
 
-const StyledTitle = styled(Typography)<{component?: React.ElementType}>`
-    margin-top: 25.5px;
-    display: flex;
-    flex-direction: row;
-    gap: 16px;
-`
-
-const ActionsContainer = styled(Box)`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    gap: 2px;
-`
-
 const StyledButton = styled(Button)`
     display: flex;
     padding: 5px;
@@ -116,11 +91,6 @@ const StyledButton = styled(Button)`
     }
 ` as typeof Button
 
-const StyledIcon = styled(Icon)`
-    min-width: 14px;
-    padding: 5px;
-`
-
 const BallotIdHelpDialog = styled(Dialog)`
     @media (min-width: 601px) {
         .MuiDialogActions-root.has-middle > .cancel-button,
@@ -130,11 +100,6 @@ const BallotIdHelpDialog = styled(Dialog)`
             width: auto;
         }
     }
-`
-
-const StyledCircularProgress = styled(CircularProgress)`
-    width: 14px !important;
-    height: 14px !important;
 `
 
 interface AuditButtonProps {
@@ -184,45 +149,15 @@ const AuditBallotHelpDialog: React.FC<AuditBallotHelpDialogProps> = ({
     )
 }
 
-interface LoadingOrCastButtonProps {
-    onClick: () => void
-    className?: string
-    isCastingBallot: boolean
-    hasInconsistentHash: boolean
-    isFullyAcclaimed: boolean
-}
-
-const LoadingOrCastButton: React.FC<LoadingOrCastButtonProps> = ({
-    onClick,
-    isCastingBallot,
-    hasInconsistentHash,
-    className,
-    isFullyAcclaimed,
-}) => {
-    const {t} = useTranslation()
-
-    return (
-        <StyledButton
-            className={className}
-            sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-            disabled={isCastingBallot || hasInconsistentHash}
-            onClick={onClick}
-        >
-            <Box className="cast-ballot-label">
-                {t(
-                    isFullyAcclaimed
-                        ? "reviewScreen.acclamation.finishButton"
-                        : "reviewScreen.castBallotButton"
-                )}
-            </Box>
-            {isCastingBallot ? (
-                <StyledCircularProgress className="cast-ballot-progress" color="inherit" />
-            ) : (
-                <StyledIcon className="cast-ballot-icon" icon={faAngleRight} size="sm" />
-            )}
-        </StyledButton>
-    )
-}
+/*
+ * `LoadingOrCastButton` was here, and the whole row with it.
+ *
+ * Both are `ReviewActions` in `ui-essentials` now — the spinner, the chevron, the flame on
+ * *Audit ballot* and its warning colour — so the Election Architect's preview shows this
+ * row instead of three plain buttons of its own. `AuditButton` above stays: the
+ * ballot-identifier help dialog puts one inside itself when the audit policy says
+ * `SHOW_IN_HELP`, which is not part of the row.
+ */
 
 const useAddFakeCastVote = (tenantId: string | undefined, eventId: string | undefined) => {
     const dispatch = useAppDispatch()
@@ -509,38 +444,36 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
         ? `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/start${location.search}`
         : `/tenant/${tenantId}/event/${eventId}/election/${ballotStyle.election_id}/vote${location.search}`
     return (
-        <Box className="review-actions" sx={{marginBottom: "10px", marginTop: "10px"}}>
+        <>
             {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW ? (
                 <AuditBallotHelpDialog
                     auditBallotHelp={auditBallotHelp}
                     handleClose={handleClose}
                 />
             ) : null}
-            <ActionsContainer className="actions-container">
-                <StyledButton
-                    className="edit-ballot-button"
-                    component={RouterLink}
-                    to={backNavigateTo}
-                    sx={{margin: "auto 0", width: {xs: "100%", sm: "200px"}}}
-                >
-                    <Icon className="edit-ballot-icon" icon={faAngleLeft} size="sm" />
-                    <Box className="edit-ballot-label">{t("reviewScreen.backButton")}</Box>
-                </StyledButton>
-                {auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW && !isFullyAcclaimed ? (
-                    <AuditButton onClick={() => setAuditBallotHelp(true)} />
-                ) : null}
-                <LoadingOrCastButton
-                    className="cast-ballot-button"
-                    isCastingBallot={isCasting}
-                    hasInconsistentHash={hasInconsistentHash}
-                    isFullyAcclaimed={isFullyAcclaimed}
-                    onClick={() =>
-                        castVoteConfirmModal && !isFullyAcclaimed
-                            ? setConfirmCastVoteModal(true)
-                            : castBallotAction()
-                    }
-                />
-            </ActionsContainer>
+            {/* The row itself is `ReviewActions` in `ui-essentials`, so the Election
+                Architect's preview draws these three buttons rather than three of its
+                own. What stays here is everything that acts: the mutation, the audit
+                policy and the dialogs. Edit ballot navigates from its click handler
+                rather than through a link around the button, so it is a single
+                keyboard stop. */}
+            <ReviewActions
+                withAudit={auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW && !isFullyAcclaimed}
+                casting={isCasting}
+                isFullyAcclaimed={isFullyAcclaimed}
+                onBack={() => navigate(backNavigateTo)}
+                onAudit={() => setAuditBallotHelp(true)}
+                // A detected hash mismatch refuses the cast; leaving the handler
+                // out is what disables the button.
+                onCast={
+                    hasInconsistentHash
+                        ? undefined
+                        : () =>
+                              castVoteConfirmModal && !isFullyAcclaimed
+                                  ? setConfirmCastVoteModal(true)
+                                  : castBallotAction()
+                }
+            />
             <Dialog
                 className="confirm-cast-ballot-dialog"
                 handleClose={handleCloseCastVoteDialog}
@@ -570,7 +503,7 @@ const ActionButtons: React.FC<ActionButtonProps> = ({
                     )
                 )}
             </Dialog>
-        </Box>
+        </>
     )
 }
 
@@ -859,19 +792,54 @@ export const ReviewScreen: React.FC = () => {
     const contests = sortContestList(ballotStyle.ballot_eml.contests, contestsOrderType)
 
     return (
-        <PageLimit maxWidth="lg" className="review-screen screen">
-            {auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed ? null : (
-                <BallotHash
-                    hash={ballotId || ""}
-                    copyLabels={{
-                        copy: t("reviewScreen.copyBallotId"),
-                        copied: t("reviewScreen.ballotIdCopied"),
-                        error: t("reviewScreen.ballotIdCopyError"),
-                    }}
-                    helpButtonLabel={t("reviewScreen.ballotIdHelpDialog.title")}
-                    onHelpClick={() => setOpenBallotIdHelp(true)}
-                />
-            )}
+        // The arrangement is `ReviewLayout`, in `ui-essentials`, so that the
+        // Election Architect's ballot preview shows this screen rather than a
+        // copy of it that drifts. What stays here is everything that needs the
+        // store, the mutation or this screen's own state: the dialogs, the
+        // breadcrumb that knows whether an election list counts as a step, and
+        // the actions that cast.
+        <ReviewLayout
+            ballotId={
+                auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW || isFullyAcclaimed
+                    ? undefined
+                    : ballotId || ""
+            }
+            onBallotIdHelp={() => setOpenBallotIdHelp(true)}
+            steps={<Stepper selected={2} />}
+            onTitleHelp={() => setReviewScreenHelp(true)}
+            error={displayedErrorMsg ? stringToHtml(displayedErrorMsg) : undefined}
+            // The layout says `reviewScreen.*` for itself now. What it cannot know is
+            // whether this event offers *Audit ballot*, which is what chooses between the
+            // two descriptions — one of them mentions a button the other event lacks.
+            withAudit={
+                auditButtonCfg !== EVotingPortalAuditButtonCfg.NOT_SHOW &&
+                auditButtonCfg !== EVotingPortalAuditButtonCfg.SHOW_IN_HELP
+            }
+            isFullyAcclaimed={isFullyAcclaimed}
+            ballotStyle={ballotStyle}
+            contests={contests}
+            errorSelectionState={errorSelectionState}
+            isDeclineToVote={isDeclineToVote}
+            isBlankBallot={isBlankBallot}
+            actions={
+                isCasting ? undefined : (
+                    <ActionButtons
+                        ballotStyle={ballotStyle}
+                        auditableBallot={auditableBallot}
+                        auditButtonCfg={auditButtonCfg}
+                        castVoteConfirmModal={castVoteConfirmModal}
+                        ballotId={ballotId ?? ""}
+                        setErrorMsg={setErrorMsg}
+                        hasInconsistentHash={hasInconsistentHash}
+                        isGoldenPolicy={isGoldenPolicy ?? false}
+                        isMultiContest={isMultiContest}
+                        isDeclineToVote={isDeclineToVote}
+                        isBlankBallot={isBlankBallot}
+                        isFullyAcclaimed={isFullyAcclaimed}
+                    />
+                )
+            }
+        >
             <BallotIdHelpDialog
                 className="review-ballot-id-help-dialog"
                 handleClose={handleCloseDialogIdHelp}
@@ -902,109 +870,35 @@ export const ReviewScreen: React.FC = () => {
                     handleClose={handleCloseDialogAuditHelp}
                 />
             ) : null}
-            <Box className="stepper-box" marginTop="48px">
-                <Stepper selected={2} />
-            </Box>
-            <StyledTitle
-                className="screen-title"
-                variant="h4"
-                component="h1"
-                fontSize="24px"
-                fontWeight="bold"
-                sx={{margin: 0}}
-            >
-                <Box className="screen-title-text">
-                    {t(isFullyAcclaimed ? "reviewScreen.acclamation.title" : "reviewScreen.title")}
-                </Box>
-                <IconButton
-                    buttonClassName="screen-help-button"
-                    icon={faCircleQuestion}
-                    sx={{fontSize: "unset", lineHeight: "unset", paddingBottom: "2px"}}
-                    fontSize="16px"
-                    onClick={() => setReviewScreenHelp(true)}
-                    ariaLabel={t("a11y.helpAbout", {
-                        topic: t("reviewScreen.reviewScreenHelpDialog.title"),
-                    })}
-                />
-                <Dialog
-                    className="screen-help-dialog review-help-dialog"
-                    handleClose={() => setReviewScreenHelp(false)}
-                    open={openReviewScreenHelp}
-                    title={t(
-                        isFullyAcclaimed
-                            ? "reviewScreen.acclamation.helpDialog.title"
-                            : "reviewScreen.reviewScreenHelpDialog.title"
-                    )}
-                    ok={t(
-                        isFullyAcclaimed
-                            ? "reviewScreen.acclamation.helpDialog.ok"
-                            : "reviewScreen.reviewScreenHelpDialog.ok"
-                    )}
-                    variant="info"
-                >
-                    {stringToHtml(
-                        t(
-                            isFullyAcclaimed
-                                ? "reviewScreen.acclamation.helpDialog.content"
-                                : "reviewScreen.reviewScreenHelpDialog.content"
-                        )
-                    )}
-                </Dialog>
-            </StyledTitle>
-            {displayedErrorMsg && (
-                <WarnBox
-                    className="cast-ballot-error"
-                    variant="error"
-                    announcement={EWarnBoxAnnouncement.ASSERTIVE}
-                >
-                    {stringToHtml(displayedErrorMsg ?? "")}
-                </WarnBox>
-            )}
-            <Typography
-                className="screen-description"
-                variant="body2"
-                component="div"
-                sx={{color: theme.palette.customGrey.main}}
+            {/* The title's own help dialog. It sat inside the heading before,
+                which made no difference to a reader — MUI renders a dialog into
+                a portal wherever it is declared — and made the heading harder to
+                lift out. */}
+            <Dialog
+                className="screen-help-dialog review-help-dialog"
+                handleClose={() => setReviewScreenHelp(false)}
+                open={openReviewScreenHelp}
+                title={t(
+                    isFullyAcclaimed
+                        ? "reviewScreen.acclamation.helpDialog.title"
+                        : "reviewScreen.reviewScreenHelpDialog.title"
+                )}
+                ok={t(
+                    isFullyAcclaimed
+                        ? "reviewScreen.acclamation.helpDialog.ok"
+                        : "reviewScreen.reviewScreenHelpDialog.ok"
+                )}
+                variant="info"
             >
                 {stringToHtml(
-                    isFullyAcclaimed
-                        ? t("reviewScreen.acclamation.description")
-                        : auditButtonCfg === EVotingPortalAuditButtonCfg.NOT_SHOW ||
-                            auditButtonCfg === EVotingPortalAuditButtonCfg.SHOW_IN_HELP
-                          ? t("reviewScreen.descriptionNoAudit")
-                          : t("reviewScreen.description")
+                    t(
+                        isFullyAcclaimed
+                            ? "reviewScreen.acclamation.helpDialog.content"
+                            : "reviewScreen.reviewScreenHelpDialog.content"
+                    )
                 )}
-            </Typography>
-            {contests.map((question, index) => (
-                <Box key={question.id} className={`contest-container contest-${index}`}>
-                    <Question
-                        ballotStyle={ballotStyle}
-                        question={question}
-                        isReview={true}
-                        setDecodedContests={() => undefined}
-                        errorSelectionState={errorSelectionState}
-                        isDeclineToVote={isDeclineToVote}
-                        isBlankBallot={isBlankBallot}
-                    />
-                </Box>
-            ))}
-            {!isCasting && (
-                <ActionButtons
-                    ballotStyle={ballotStyle}
-                    auditableBallot={auditableBallot}
-                    auditButtonCfg={auditButtonCfg}
-                    castVoteConfirmModal={castVoteConfirmModal}
-                    ballotId={ballotId ?? ""}
-                    setErrorMsg={setErrorMsg}
-                    hasInconsistentHash={hasInconsistentHash}
-                    isGoldenPolicy={isGoldenPolicy ?? false}
-                    isMultiContest={isMultiContest}
-                    isDeclineToVote={isDeclineToVote}
-                    isBlankBallot={isBlankBallot}
-                    isFullyAcclaimed={isFullyAcclaimed}
-                />
-            )}
-        </PageLimit>
+            </Dialog>
+        </ReviewLayout>
     )
 }
 

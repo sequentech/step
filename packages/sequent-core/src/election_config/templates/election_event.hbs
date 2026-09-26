@@ -1,0 +1,108 @@
+{{!--
+SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+SPDX-License-Identifier: AGPL-3.0-only
+
+Base election event.  Platform defaults only — every client-specific value
+(name, branding, policies) comes from the workbook and is deep-merged over this.
+
+Only ids and timestamps are interpolated here, and both are safe by
+construction.  Client text never passes through Handlebars, so no amount of
+quoting in a spreadsheet cell can produce invalid JSON.
+--}}
+{
+    "id": "{{id}}",
+    "created_at": "{{created_at}}",
+    "updated_at": "{{created_at}}",
+    "labels": null,
+    "annotations": null,
+    "tenant_id": "{{tenant_id}}",
+    "description": "",
+    "presentation": {
+        "css": "",
+        "otp": "disabled",
+        "i18n": {
+            "en": {}
+        },
+        "logo_url": "",
+        "materials": {
+            "activated": false
+        },
+        "enrollment": "disabled",
+        "custom_urls": {},
+        "locked_down": "not-locked-down",
+        "language_conf": {
+            "default_language_code": "en",
+            "enabled_language_codes": ["en"],
+            "language_detection_policy": "browser-detect"
+        },
+        "elections_order": "custom",
+        "results_website": "{\"status\":\"disabled\",\"access\":\"public\",\"visibility_scope\":\"full_event\"}",
+        "ceremonies_policy": "manual-ceremonies",
+        "show_user_profile": false,
+        "skip_election_list": false,
+        "show_cast_vote_logs": "hide-logs-tab",
+        "voter_signing_policy": "with-signature",
+        "weighted_voting_policy": "disabled-weighted-voting",
+        "delegated_voting_policy": "disabled",
+        "automatic_recount_policy": "disabled",
+        "voter_certificate_policy": "disabled",
+        "contest_encryption_policy": "single-contest",
+        "voting_portal_datetime_format": "us-12h",
+        "voting_portal_countdown_policy": {
+            "policy": "NO_COUNTDOWN"
+        },
+        "decoded_ballot_inclusion_policy": "not-included"
+    },
+    "bulletin_board_reference": null,
+    "is_archived": false,
+    "voting_channels": {
+        "kiosk": false,
+        "online": true,
+        "early_voting": false
+    },
+    {{!--
+      A never-opened event.  The importer replaces this with
+      ElectionEventStatus::default() anyway; being explicit keeps the emitted
+      file honest about what it describes.
+    --}}
+    "status": {
+        "is_published": false,
+        "voting_status": "NOT_STARTED",
+        "early_voting_status": "NOT_STARTED",
+        "kiosk_voting_status": "NOT_STARTED",
+        "voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        },
+        "early_voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        },
+        "kiosk_voting_period_dates": {
+            "last_paused_at": null,
+            "first_paused_at": null,
+            "last_started_at": null,
+            "last_stopped_at": null,
+            "first_started_at": null,
+            "first_stopped_at": null
+        }
+    },
+    "user_boards": null,
+    "encryption_protocol": "RSA256",
+    "is_audit": null,
+    "audit_election_event_id": null,
+    "public_key": null,
+    "statistics": {
+        "num_sms_sent": 0,
+        "num_emails_sent": 0
+    },
+    "external_id": null
+}

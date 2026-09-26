@@ -58,6 +58,8 @@ jest.mock("@sequentech/ui-core", () => ({
     hashMultiBallot: () => "0123456789abcdef".repeat(4),
 }))
 jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService re-exports the shared presentation helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
     PageLimit: jest.requireActual("../../../ui-essentials/src/components/PageLimit/PageLimit")
         .default,
     Icon: jest.requireActual("../../../ui-essentials/src/components/Icon/Icon").default,
@@ -69,9 +71,14 @@ jest.mock("@sequentech/ui-essentials", () => ({
     VisuallyHidden: jest.requireActual(
         "../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden"
     ).default,
-    ...jest.requireActual(
-        "../../../ui-essentials/src/components/ConfirmationActions/ConfirmationActions"
-    ),
+    ...jest.requireActual("../../../ui-essentials/src/components/ActionsRow/ActionsRow"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/BallotScreenLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/BallotActions"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ReviewActions"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationLayout"),
+    ...jest.requireActual("../../../ui-essentials/src/ballot/ConfirmationActions"),
+    Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
     BallotHash: jest.requireActual("../../../ui-essentials/src/components/BallotHash/BallotHash")
         .default,
     BallotHashCopyButton: jest.requireActual(
@@ -124,7 +131,8 @@ jest.mock("../hooks/root-back-link", () => ({
 jest.mock("../hooks/public-document-url", () => ({
     useGetPublicDocumentUrl: () => ({getDocumentUrl: jest.fn()}),
 }))
-jest.mock("../components/Question/Question", () => ({
+// The layouts render the shared Question by relative import.
+jest.mock("../../../ui-essentials/src/ballot/Question", () => ({
     Question: ({question}: {question: IContest}) => <h2>{question.name}</h2>,
 }))
 jest.mock("../components/Stepper", () => ({__esModule: true, default: () => null}))

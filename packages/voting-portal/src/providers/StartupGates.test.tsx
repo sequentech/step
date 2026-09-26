@@ -10,7 +10,11 @@ jest.mock("@sequentech/ui-core", () => ({
     useWasm: () => ({status: mockWasmStatus}),
     WasmStatus: {LOADING: "loading", READY: "ready", ERROR: "error"},
 }))
-jest.mock("@sequentech/ui-essentials", () => ({Loader: () => <div role="status">Loading</div>}))
+jest.mock("@sequentech/ui-essentials", () => ({
+    // ElectionConfigService re-exports the shared presentation helpers.
+    ...jest.requireActual("../../../ui-essentials/src/ballot/presentation"),
+    Loader: () => <div role="status">Loading</div>,
+}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 
 const originalFetch = global.fetch

@@ -9,6 +9,7 @@ import {useTranslation} from "react-i18next"
 import {Loader, theme} from "@sequentech/ui-essentials"
 import {AuthContext} from "../providers/AuthContextProvider"
 import {SettingsContext} from "../providers/SettingsContextProvider"
+import {BallotSelectionAdapter} from "../components/BallotSelectionAdapter"
 import {WasmWrapper} from "../providers/WasmWrapper"
 import {useEncryptBallotForReview} from "../hooks/useEncryptBallotForReview"
 import {BallotStyleConfigurationError} from "../services/BallotStyles"
@@ -92,9 +93,11 @@ export const VoterPreview: React.FC<VoterPreviewProps> = ({session, onLogout, ch
                 <AuthContext.Provider value={auth}>
                     <ApolloProvider client={client}>
                         <Provider store={store}>
-                            <WasmWrapper>
-                                <SessionGate session={session}>{children}</SessionGate>
-                            </WasmWrapper>
+                            <BallotSelectionAdapter>
+                                <WasmWrapper>
+                                    <SessionGate session={session}>{children}</SessionGate>
+                                </WasmWrapper>
+                            </BallotSelectionAdapter>
                         </Provider>
                     </ApolloProvider>
                 </AuthContext.Provider>
