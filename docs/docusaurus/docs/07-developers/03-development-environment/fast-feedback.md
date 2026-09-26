@@ -166,6 +166,11 @@ do; the admin portal then asks for it, and the Keycloak container log shows it.
 `VOTING_PORTAL_URL`, `BALLOT_VERIFIER_URL` and `RESULTS_PORTAL_URL` select the printed
 portals, and `--step-cli` another step-cli build.
 
+`up`, `urls`, `status` and `reset` accept `--format json`; progress goes to stderr.
+An empty reset still returns a JSON outcome. Reset refuses a mismatched owner or
+tenant and keeps the state file if deletion fails, so it can be retried. A second
+command for the same scenario fails while the first holds its lock.
+
 ## Incremental WASM
 
 After editing `sequent-core` or a crate it depends on, run from the devenv shell:

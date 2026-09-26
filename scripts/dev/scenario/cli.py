@@ -216,14 +216,14 @@ def command_reset(
     context: Context, scenario: Scenario, timeout: float | None, step_cli: str | None
 ) -> int:
     if context.store.load(scenario.name) is None:
-        context.say(f"{scenario.name}: {runner.ResetOutcome.NOTHING.value}")
-        return EXIT_OK
-    backend = _backend(context, timeout)
-    try:
-        _prepare(context, backend, None, step_cli)
-        outcome = runner.reset(scenario, backend, context.store, context.say)
-    finally:
-        backend.close()
+        outcome = runner.ResetOutcome.NOTHING
+    else:
+        backend = _backend(context, timeout)
+        try:
+            _prepare(context, backend, None, step_cli)
+            outcome = runner.reset(scenario, backend, context.store, context.say)
+        finally:
+            backend.close()
     if context.output is OutputFormat.JSON:
         print(json.dumps({"scenario": scenario.name, "outcome": outcome.value}))
     else:
