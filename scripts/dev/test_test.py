@@ -500,6 +500,16 @@ class RunTest(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn("unavailable", output)
 
+    def test_interrupting_a_run_exits_with_130(self):
+        plan = focused.Plan("probe", steps=[self.step("true")])
+        with (
+            mock.patch.object(focused, "missing", return_value=None),
+            mock.patch.object(focused, "execute", side_effect=KeyboardInterrupt),
+            redirect_stderr(io.StringIO()),
+        ):
+            status, _ = self.quietly(focused.run, self.model, plan, False, False)
+        self.assertEqual(status, 130)
+
     def test_dry_run_prints_the_scope_only(self):
         plan = focused.Plan("probe", steps=[self.step("exit 9")])
         status, output = self.quietly(focused.run, self.model, plan, True, False)

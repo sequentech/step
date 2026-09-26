@@ -34,7 +34,7 @@ from .workspaces import (
 WORKFLOWS_DIR = ".github/workflows"
 ACTIONS_DIR = ".github/actions"
 ALL_UNITS = "*"
-# Reasons shown per check in text output; the JSON has all of them.
+# Changed files a reason names; the JSON lists every file of a unit.
 SHOWN_FILES = 1
 
 
@@ -372,8 +372,8 @@ def skip_reason(
     through = [unit for unit in covered if unit in units]
     if through and check.trigger is Trigger.CHANGED:
         return (
-            f"{', '.join(through)} affected only through dependencies; the check "
-            "reads the units' own files"
+            f"{', '.join(through)} affected only through dependencies or test "
+            "inputs; the check reads the units' own files"
         )
     if through:
         return (

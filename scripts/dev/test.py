@@ -30,6 +30,7 @@ from collections import deque
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePosixPath
+from typing import NoReturn
 
 from .affected.changes import GitError, Scope
 from .affected.cli import add_change_options, caller_cwd, changes_for
@@ -793,25 +794,21 @@ def outermost(paths: Sequence[str]) -> list[str]:
     ]
 
 
-def poll(model: Model, steps: Sequence[Step]) -> int:
+def poll(model: Model, steps: Sequence[Step]) -> NoReturn:
     """Rerun the steps whenever a watched file changes, until interrupted."""
     paths = outermost([path for step in steps for path in step.watch_paths])
     print(f"\nwatching {', '.join(paths)} (Ctrl-C stops)", flush=True)
     last = None
-    try:
-        while True:
-            current = fingerprint(model.root, paths)
-            if current != last:
-                outcomes = [execute(model, step) for step in steps]
-                good = all(outcome is Outcome.PASSED for outcome in outcomes)
-                print(
-                    f"\n{'passed' if good else 'FAILED'}; waiting for changes",
-                    flush=True,
-                )
-                last = fingerprint(model.root, paths)
-            time.sleep(POLL_SECONDS)
-    except KeyboardInterrupt:
-        return 130
+    while True:
+        current = fingerprint(model.root, paths)
+        if current != last:
+            outcomes = [execute(model, step) for step in steps]
+            good = all(outcome is Outcome.PASSED for outcome in outcomes)
+            print(
+                f"\n{'passed' if good else 'FAILED'}; waiting for changes", flush=True
+            )
+            last = fingerprint(model.root, paths)
+        time.sleep(POLL_SECONDS)
 
 
 def watch(model: Model, plan: Plan) -> int:
@@ -820,8 +817,7 @@ def watch(model: Model, plan: Plan) -> int:
         if step.check.runner is Runner.CARGO and shutil.which("cargo-watch"):
             step = cargo_watch(step)
         if step.watches:
-            execute(model, step)
-            return 0
+            return 0 if execute(model, step) is Outcome.PASSED else 1
     return poll(model, plan.steps)
 
 
@@ -855,14 +851,18 @@ def run(
     print_plan(model, plan, prog)
     if dry_run or not plan.steps:
         return 0
-    if watching:
-        return watch(model, plan)
     results = []
-    for step in plan.steps:
-        started = time.monotonic()
-        reason = missing(model, step)
-        outcome = Outcome.UNAVAILABLE if reason else execute(model, step)
-        results.append((step, outcome, time.monotonic() - started, reason))
+    try:
+        if watching:
+            return watch(model, plan)
+        for step in plan.steps:
+            started = time.monotonic()
+            reason = missing(model, step)
+            outcome = Outcome.UNAVAILABLE if reason else execute(model, step)
+            results.append((step, outcome, time.monotonic() - started, reason))
+    except KeyboardInterrupt:
+        print("\ninterrupted", file=sys.stderr)
+        return 130
     print("\nSummary:")
     width = max(len(step.check.id) for step, _, _, _ in results)
     for step, outcome, seconds, reason in results:
