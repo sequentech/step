@@ -139,8 +139,11 @@ async function confirmEdit(canvasElement: HTMLElement) {
 export const EditAVersion: Story = {
     play: async ({canvasElement}) => {
         const canvas = await editLoaded(canvasElement)
-        await expect(canvas.getByRole("combobox", {name: "Search Area"})).toHaveValue(
-            "North district"
+        // The areas load once the contest's areas are known.
+        await waitFor(() =>
+            expect(canvas.getByRole("combobox", {name: "Search Area"})).toHaveValue(
+                "North district"
+            )
         )
         expect(graphql.calls).toEqual([])
         expect(data.writes).toEqual([])
