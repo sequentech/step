@@ -652,10 +652,64 @@ def python_tests(root: Path, path: str, check: CheckSpec) -> list[str]:
 # Running ---------------------------------------------------------------------------
 
 
+def playwright_problem(model: Model, step: Step) -> str | None:
+    """Launch the browser the suite uses, including its OS dependencies."""
+    if not shutil.which("node"):
+        return "needs Node: run inside the devenv shell (devenv shell)"
+    env = environment(model, step)
+    # Portal journeys and contracts use Playwright's pinned browser. Only the
+    # workbench config accepts this override; CHROMIUM_EXECUTABLE_PATH is for
+    # Storybook and the browser benchmark, not production journeys.
+    executable = (
+        env.get("WORKBENCH_TEST_CHROME_PATH", "")
+        if step.check.id == "smoke:workbench"
+        else ""
+    )
+    script = """\
+const {chromium} = require('@playwright/test');
+(async () => {
+    const browser = await chromium.launch({
+        executablePath: process.argv[1] || undefined, timeout: 5000
+    });
+    await browser.close();
+})().catch(error => { console.error(error.message); process.exitCode = 1; });
+"""
+    try:
+        result = subprocess.run(
+            ["node", "-e", script, executable],
+            cwd=model.root / step.cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        return "Playwright Chromium preflight timed out after 15 s"
+    except OSError as error:
+        return f"Playwright Chromium preflight failed: {error}"
+    if result.returncode:
+        detail = (
+            "required browser OS libraries are missing"
+            if "Host system is missing dependencies" in result.stderr
+            else next(iter(result.stderr.strip().splitlines()), "browser launch failed")
+        )
+        return (
+            f"Playwright Chromium cannot launch: {detail}. "
+            "Run `yarn playwright install --with-deps chromium` in the package "
+            "on a supported OS, or use the pinned Playwright image; "
+            "see the UI browser tests guide"
+        )
+    return None
+
+
 def missing(model: Model, step: Step) -> str | None:
     """Why a step cannot run here, or None."""
     for requirement in step.check.requires:
         if requirement is Requirement.CHROMIUM:
+            if step.check.runner is Runner.PLAYWRIGHT:
+                if problem := playwright_problem(model, step):
+                    return problem
+                continue
             configured = any(
                 os.environ.get(name) and Path(os.environ[name]).exists()
                 for name in CHROMIUM_ENV
