@@ -5,9 +5,9 @@ import React from "react"
 import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {ResourceContextProvider, ShowBase} from "react-admin"
-import {i18n, initCore} from "@sequentech/ui-core"
+import {EElectionEventLockedDown, i18n, initCore} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
-import {STORY_IDS, electionRecord} from "@/__stories__/fixtures"
+import {STORY_IDS, electionRecord, eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {IPermissions} from "@/types/keycloak"
 import {ElectionTabs} from "./ElectionTabs"
@@ -23,6 +23,8 @@ const RESOURCE = "sequent_backend_election"
 interface Scenario {
     /** Whether the election has not loaded yet. */
     loading: boolean
+    /** Whether the election's event is locked down. */
+    eventLockedDown?: boolean
     /** Replaces the signed-in group's roles. */
     roles?: string[]
     /** The election's permission label. */
@@ -73,10 +75,23 @@ const meta = {
         widgets: ["DashboardTab"],
     },
     beforeEach: async ({args}) => {
+        const event = eventRecord(undefined, {
+            presentation: {
+                ...eventPresentation,
+                locked_down: args.eventLockedDown
+                    ? EElectionEventLockedDown.LOCKED_DOWN
+                    : EElectionEventLockedDown.NOT_LOCKED_DOWN,
+            },
+        })
         data = recordsOrPending(
             args.loading
                 ? {}
-                : {[RESOURCE]: [electionRecord(undefined, {permission_label: args.label ?? null})]}
+                : {
+                      [RESOURCE]: [
+                          electionRecord(undefined, {permission_label: args.label ?? null}),
+                      ],
+                      sequent_backend_election_event: [event],
+                  }
         )
         graphql = graphqlBoundary(answerOrPending(), {schema: true})
         // The dashboard builds the voting portal addresses with sequent-core.
@@ -206,6 +221,27 @@ export const InsideThePermissionLabel: Story = {
     play: async ({canvasElement}) => {
         await expect(await within(canvasElement).findByText("Council")).toBeVisible()
         expect(await tabNames(canvasElement)).toContain(tabLabel.dashboard())
+        await dashboardLoads(canvasElement)
+    },
+}
+
+export const LockedDownEvent: Story = {
+    args: {eventLockedDown: true},
+    parameters: dashboardDefects,
+    play: async ({canvasElement}) => {
+        // The event's lockdown hides the approvals once the event has loaded.
+        await waitFor(() =>
+            expect(readsOf(data)).toContain("getOne sequent_backend_election_event")
+        )
+        await waitFor(async () =>
+            expect(await tabNames(canvasElement)).toEqual([
+                tabLabel.dashboard(),
+                tabLabel.data(),
+                tabLabel.voters(),
+                tabLabel.publish(),
+                tabLabel.tallySheets(),
+            ])
+        )
         await dashboardLoads(canvasElement)
     },
 }
