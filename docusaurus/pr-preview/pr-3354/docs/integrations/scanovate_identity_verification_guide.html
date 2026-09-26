@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate Identity Verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate Identity Verification | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3354/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate Identity Verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3354/docs/integrations/scanovate_identity_verification_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3354/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.01889b66.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3354/assets/js/runtime~main.79f5bee5.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3354/assets/js/main.087fca4a.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -133,7 +133,7 @@ mostly useful in <code>auto-complete</code> mode:</p>
 <table><thead><tr><th>Outcome</th><th>Result</th></tr></thead><tbody><tr><td><code>success</code></td><td>Everything passes (face match score <code>0.86</code>).</td></tr><tr><td><code>low_biometric_score</code></td><td>The flow succeeds with a face match score of <code>0.21</code>, so a <code>minValue</code> rule should reject it.</td></tr><tr><td><code>liveness_failed</code></td><td><code>data.errorCode = -1</code> with a failed liveness attempt.</td></tr><tr><td><code>document_authentication_failed</code></td><td><code>data.errorCode = 1026</code>.</td></tr><tr><td><code>max_trials</code></td><td><code>data.errorCode = 1030</code>.</td></tr></tbody></table>
 <p><code>MOCK_SERVER_PUBLIC_URL</code> must be reachable from the voter&#x27;s browser
 (<code>http://127.0.0.1:8500</code> in the dev container), while <code>base-url</code> must be
-reachable from Keycloak (<code>http://mock_server:8500</code>).</p>
+reachable from Keycloak (<code>http://mock-server:8500</code>).</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="starting-the-development-environment">Starting the development environment<a href="#starting-the-development-environment" class="hash-link" aria-label="Direct link to Starting the development environment" title="Direct link to Starting the development environment" translate="no">​</a></h3>
 <p>The mock server belongs to the <code>full</code> docker compose profile, while the dev
 container starts the <code>base</code> profile by default.</p>
@@ -166,7 +166,7 @@ the Keycloak log. Read them with <code>docker logs keycloak 2&gt;&amp;1 | grep &
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="sample-election-event">Sample election event<a href="#sample-election-event" class="hash-link" aria-label="Direct link to Sample election event" title="Direct link to Sample election event" translate="no">​</a></h3>
 <p><code>packages/step-cli/data/scanovate-enrollment/</code> has an election event that
 enrolls voters with Scanovate against the mock server:</p>
-<table><thead><tr><th>File</th><th>Contents</th></tr></thead><tbody><tr><td><code>election-event.json</code></td><td>The <em>Scanovate Enrollment Demo</em> election event: one area (<code>Japan - Tokyo PE</code>), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, <code>scanovate-registration</code> pointing to <code>http://mock_server:8500</code> in <code>interactive</code> mode, and the five accepted document types.</td></tr><tr><td><code>voters.csv</code></td><td>The voter registry: <code>JUAN DELA CRUZ</code>, born <code>1990-01-01</code>, registered at the Tokyo PE. It&#x27;s the voter the mock server returns when no voters were uploaded to it.</td></tr></tbody></table>
+<table><thead><tr><th>File</th><th>Contents</th></tr></thead><tbody><tr><td><code>election-event.json</code></td><td>The <em>Scanovate Enrollment Demo</em> election event: one area (<code>Japan - Tokyo PE</code>), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, <code>scanovate-registration</code> pointing to <code>http://mock-server:8500</code> in <code>interactive</code> mode, and the five accepted document types.</td></tr><tr><td><code>voters.csv</code></td><td>The voter registry: <code>JUAN DELA CRUZ</code>, born <code>1990-01-01</code>, registered at the Tokyo PE. It&#x27;s the voter the mock server returns when no voters were uploaded to it.</td></tr></tbody></table>
 <p>To use it:</p>
 <ol>
 <li class="">In the admin portal (<a href="http://127.0.0.1:3002" target="_blank" rel="noopener noreferrer" class="">http://127.0.0.1:3002</a>), import <code>election-event.json</code>
@@ -223,7 +223,7 @@ completed a verification. It must not complete the step.</li>
 fetches the results right after creating the session without redirecting the
 voter, so voters go through enrollment without any B-Trust UI. The step-cli
 test election templates (<code>packages/step-cli/data/*.json</code>) use this mode against
-<code>http://mock_server:8500</code>. Never use <code>auto-complete</code> against the real B-Trust.</p>
+<code>http://mock-server:8500</code>. Never use <code>auto-complete</code> against the real B-Trust.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="testing-against-the-scanovate-test-environment">Testing against the Scanovate test environment<a href="#testing-against-the-scanovate-test-environment" class="hash-link" aria-label="Direct link to Testing against the Scanovate test environment" title="Direct link to Testing against the Scanovate test environment" translate="no">​</a></h3>
 <p>This is the real voter journey: the voter scans their ID and records a selfie
 video in B-Trust, from a browser. The same steps apply to production, with
@@ -259,7 +259,7 @@ updates every Scanovate step of a realm. It needs <code>curl</code> and <code>jq
 says otherwise, and <code>save-option</code> from <code>SCANOVATE_SAVE_OPTION</code>. <code>KEYCLOAK_URL</code>,
 <code>KEYCLOAK_ADMIN</code> and <code>KEYCLOAK_ADMIN_PASSWORD</code> default to the dev container
 Keycloak (<code>http://127.0.0.1:8090</code>, <code>admin</code>/<code>admin</code>). Run it again with the mock
-server values (<code>http://mock_server:8500</code>, <code>mock-client</code>, <code>mock-secret</code>, flow
+server values (<code>http://mock-server:8500</code>, <code>mock-client</code>, <code>mock-secret</code>, flow
 <code>1</code>) to go back to the mock. The same settings can be edited in the Keycloak
 admin console: <strong>Authentication</strong>, the registration flow, then the settings of
 the Scanovate step.</p>
