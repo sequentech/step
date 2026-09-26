@@ -471,6 +471,12 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   n=1 seed plus n=1 replay at the same SHA, not a natural-push, source-edit or
   timing-speedup result. The missing archives and earlier zero-hit runs remain
   preserved; their disappearance cause is not established.
+- **CLI artifact delivery**: final hosted log inspection found that the build
+  produced `step-cli` while the upload step searched for `seq`, leaving otherwise
+  successful runs without a binary artifact. The workflow now uploads the
+  declared Cargo binary and treats a missing file as an error. The existing
+  artifact name and compiler-cache directory are preserved; the issue records
+  the corrected hosted upload and artifact readback.
 - **Rust service linker** (adopted on aarch64 Linux): identical application sources at
   `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
   All 60 measured saves succeeded, with ten per edit and linker plus excluded

@@ -75,5 +75,6 @@ jobs:
       - name: Upload CLI binary artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-              name: step-cli-binary-${{ github.run_id }}
-              path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/seq
+          name: step-cli-binary-${{ github.run_id }}
+          path: packages/step-cli/rust-local-target/x86_64-unknown-linux-musl/release/step-cli
+          if-no-files-found: error
