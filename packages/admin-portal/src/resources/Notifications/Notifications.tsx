@@ -107,9 +107,9 @@ const Notifications: FC<notificationsProps> = ({electionEventId}) => {
                         }
                     /> */}
                     <FunctionField
-                        label={"Schedule"}
-                        source="schedule"
-                        render={(record: any) => new Date(record.schedule).toLocaleString()}
+                        label={"Created at"}
+                        source="created_at"
+                        render={(record: any) => new Date(record.created_at).toLocaleString()}
                     />
                     <WrapperField label="Actions">
                         <ActionsColumn actions={actions} />
