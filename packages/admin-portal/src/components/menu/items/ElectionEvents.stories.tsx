@@ -179,7 +179,7 @@ export const CreateAnEvent: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await item(canvasElement, "Council")
-        await userEvent.click(canvas.getByRole("button", {name: "Add"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Add: Election Events"}))
         const menu = await within(document.body).findByRole("menu")
         await userEvent.click(
             within(menu).getByRole("menuitem", {name: "Create an Election Event"})
@@ -194,7 +194,7 @@ export const ImportAnEvent: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await item(canvasElement, "Council")
-        await userEvent.click(canvas.getByRole("button", {name: "Add"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Add: Election Events"}))
         const menu = await within(document.body).findByRole("menu")
         await userEvent.click(within(menu).getByRole("menuitem", {name: "Import Election Event"}))
         await waitFor(() =>
@@ -208,7 +208,7 @@ export const WithoutCreatePermission: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await item(canvasElement, "Council")).toBeVisible()
-        expect(canvas.queryByRole("button", {name: "Add"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Add: Election Events"})).toBeNull()
         expect(canvas.queryByRole("button", {name: "Create an Election Event"})).toBeNull()
     },
 }
@@ -230,6 +230,6 @@ export const CollapsedSidebar: Story = {
         )
         expect(canvas.queryByRole("textbox", {name: "Search"})).toBeNull()
         expect(canvas.queryByRole("link", {name: "Council"})).toBeNull()
-        expect(canvas.queryByRole("button", {name: "Add"})).toBeNull()
+        expect(canvas.queryByRole("button", {name: "Add: Election Events"})).toBeNull()
     },
 }
