@@ -141,3 +141,25 @@ caches:
 Baseline and Phase 1 first, then Phase 2, then Phase 3, in at most three stacked
 draft pull requests. Improvements that stand on their own are kept even when an
 experiment is rejected.
+
+## Continuing this work
+
+Another machine can resume from the tracking issue, this record and the pushed
+branches. The implementation brief used for this programme:
+
+```text
+Implement https://github.com/sequentech/meta/issues/13610 on any machine with access to the GitHub issue and sequentech/step repository. The issue (status) and docs/design/feedback-loops.md on the programme branch (requirements, decisions, measurements) are the self-contained sources; no files from the originating machine are required.
+
+Read the complete issue and design record. Locate an existing sequentech/step clone or clone it into an appropriate writable workspace. Fetch origin/ovcs, then read CLAUDE.md, AGENTS.md and applicable package guides from that branch; use .agents/skills/implement-unit-tests/SKILL.md for test/coverage changes. Optimize edit-to-visible-result and focused-test latency, not coverage expansion. Execute the ten workstreams and phase order in the issue, including baseline measurements and evidence-based adopt/reject decisions for experiments. Incremental builds AND affected test execution are mandatory locally and in GitHub Actions: implement dependency-aware selection, compatible compiler/output reuse, sound invalidation, conservative fallback and measured CI feedback improvements. Reuse the workbench approach from meta#12244/step#2719 through the Storybook-compatible browser-only vertical slice specified here; inspect its current code, but do not merge it or depend on it landing.
+
+Inspect repository/worktree status before making changes. Create your own clean worktree and issue-numbered feature branch from the latest origin/ovcs, for example feat/meta-13610-feedback/ovcs, using an unoccupied local directory. Do not modify, reset or push ovcs directly, or disturb another task's worktree. Reuse the repository's existing UI fixture/test infrastructure. Prior research files from the originating machine are optional and are not prerequisites; the work plan is in this issue. Do not wait for unrelated meta#13571 work.
+
+Measure first; ship items 1–4, then 5–7, then 8–10. Implement useful improvements autonomously. A documented negative pilot is complete; an unrun pilot is not. Keep PR count small, normally no more than three coherent phases. First draft PR base ovcs; dependent drafts base their immediate predecessor. Never merge PRs, rebase, force-push or push wip/* branches. Normal merges only for updates, one branch per push, serialized. Preserve unrelated services, files, caches and worktrees.
+
+Use repository-pinned toolchains and the documented devcontainer setup. Discover the destination machine's container runtime, available resources, ports and permissions rather than assuming sudo, a particular username, host tool installation or directory layout. Put temporary/build data in a writable location with sufficient disk space; avoid filling a RAM-backed temporary filesystem. Run Cargo from packages/ when required by repository configuration, inspect existing auto-build watchers to avoid duplicate builds, coordinate resource-heavy builds, and use a separate CARGO_TARGET_DIR per worktree. Host-specific wrappers are optional, not prerequisites. Never stop or clean up unowned containers or volumes. Record environment details with measurements; compare before/after on the same machine under comparable conditions.
+
+Commit as Eduardo Robles <edulix@gmail.com>. End every commit message, after a blank line, with: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Begin PR bodies with Parent issue: https://github.com/sequentech/meta/issues/13610
+End with: 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Request Copilot and CodeRabbit review on each draft, investigate and reply to findings in their threads, resolve only settled findings, and get applicable CI green. Do not rerun verified suites without new changes, failures or another concrete reason. Keep PR bodies and the issue current using AGENTS.md formatting. Document reusable commands in the canonical Docusaurus developer guides; publish measurements, pilot decisions and remaining work in the issue or linked repository artifacts so another machine can continue without local-only files. Finish with pushed branches, draft PR links, before/after evidence, pilot decisions and an accurate handoff for any externally blocked work. Do not ask routine questions or merge/deploy production changes.
+```
