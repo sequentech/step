@@ -374,7 +374,21 @@ public class Utils {
   /* Masks the auth code from the content body with stars */
   protected String maskCode(String content, String code) {
     String masked = "*".repeat(code.length());
-    return content.replace(code, masked).replace(code.replace("&", "&amp;"), masked);
+    String result = content.replace(code, masked).replace(code.replace("&", "&amp;"), masked);
+    String query = URI.create(code).getRawQuery();
+    if (query != null) {
+      // Template sanitizers can normalize the surrounding URL without changing its token.
+      for (String parameter : query.split("&")) {
+        String prefix = Constants.KEY + "=";
+        if (parameter.startsWith(prefix)) {
+          String token = parameter.substring(prefix.length());
+          if (!token.isEmpty()) {
+            result = result.replace(token, "*".repeat(token.length()));
+          }
+        }
+      }
+    }
+    return result;
   }
 
   void communicationsLog(Object context, String body) {

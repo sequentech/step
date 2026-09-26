@@ -13,8 +13,27 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.UserModel;
+import org.keycloak.theme.KeycloakSanitizerMethod;
 
 class UtilsSecretLoggingTest {
+  @Test
+  void sanitizedOtlMarkupCannotRetainTheActionToken() throws Exception {
+    for (String clientId : List.of("portal", "voter..portal")) {
+      String link =
+          Utils.actionTokenBuilder(
+                  URI.create("https://auth.example/"), "synthetic-otl-token", clientId)
+              .build("test")
+              .toString();
+      String html =
+          (String)
+              new KeycloakSanitizerMethod()
+                  .exec(List.of("<a href=\"" + link + "\" target=\"_blank\">Continue</a>"));
+      String masked = Utils.maskCode(html, link);
+      assertFalse(masked.contains("synthetic-otl-token"));
+      assertTrue(masked.contains("Continue"));
+    }
+  }
+
   @Test
   void masksEveryLiteralOtpAndOtlRepresentationInCommunications() {
     String code = "482619";

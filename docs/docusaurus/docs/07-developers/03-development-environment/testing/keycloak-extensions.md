@@ -24,6 +24,9 @@ events, including rejected inputs and delivery failures. Delivered messages keep
 their authentication secrets; logs and events omit them. Simulated delivery also
 omits message bodies. The suites check generated-code authentication, expiry,
 resends and SMS verification feedback independently of browser test mode.
+CAPTCHA fixtures replace the verification HTTP client and check success flags,
+score thresholds, malformed responses and transport failures without sending
+credentials to an external service.
 
 These unit suites do not replace a running Keycloak login flow, provider-loading
 compatibility checks, or real mail/SMS/broker delivery. Security-question and
