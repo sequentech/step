@@ -56,8 +56,10 @@ export const Populated: Story = {
         await waitFor(async () =>
             expect(await descriptionInput(canvasElement)).toHaveValue("Choose the council members")
         )
-        // The election table has no name column, so the Name input starts empty.
-        expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("")
+        // Names live in the presentation since migration 1772358027729.
+        const form = within(canvas.getByRole("textbox", {name: "Name"}).closest("form")!)
+        expect(form.getByRole("textbox", {name: "Name"})).toHaveValue("Council election")
+        await expect(await form.findByText("Council event")).toBeVisible()
         expect(canvas.getAllByRole("row", {name: /Choose/})).toHaveLength(2)
         expect(reads("getOne", "sequent_backend_election")[0].args[1]).toMatchObject({
             id: STORY_IDS.election,
@@ -121,6 +123,28 @@ export const OpenTheVoting: Story = {
         // The screen reloads the election after scheduling the change.
         await waitFor(() => expect(reads("getOne", "sequent_backend_election")).toHaveLength(2))
         expect(dataWrites()).toEqual([])
+    },
+}
+
+export const RenameTheElection: Story = {
+    parameters: {widgets: ["ElectionForm"], expectedFailure: null},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const name = await canvas.findByRole("textbox", {name: "Name"})
+        await waitFor(() => expect(name).toHaveValue("Council election"))
+        await userEvent.clear(name)
+        await userEvent.type(name, "Council vote")
+        await userEvent.click(canvas.getByRole("button", {name: "Save"}))
+        const notification = await within(document.body).findByText("Element updated")
+        await userEvent.click(canvasElement)
+        await waitFor(() => expect(notification).not.toBeInTheDocument())
+        await waitFor(() => expect(dataWrites()).toHaveLength(1))
+        // The name is written to the presentation of the default language.
+        expect(dataWrites()[0].params.data).not.toHaveProperty("name")
+        expect(dataWrites()[0].params).toMatchObject({
+            id: STORY_IDS.election,
+            data: {presentation: {i18n: {en: {name: "Council vote", alias: "Council"}}}},
+        })
     },
 }
 
