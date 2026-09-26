@@ -37,13 +37,18 @@ public class JdkHttpTransport implements HttpTransport {
             .build());
   }
 
-  private static HttpRequest.Builder request(String url, Map<String, String> headers) {
-    HttpRequest.Builder builder =
-        HttpRequest.newBuilder(URI.create(url))
-            .timeout(REQUEST_TIMEOUT)
-            .header("Accept", "application/json");
-    headers.forEach(builder::header);
-    return builder;
+  private static HttpRequest.Builder request(String url, Map<String, String> headers)
+      throws IOException {
+    try {
+      HttpRequest.Builder builder =
+          HttpRequest.newBuilder(URI.create(url))
+              .timeout(REQUEST_TIMEOUT)
+              .header("Accept", "application/json");
+      headers.forEach(builder::header);
+      return builder;
+    } catch (IllegalArgumentException e) {
+      throw new IOException("Invalid B-Trust URL " + url, e);
+    }
   }
 
   private static HttpResult send(HttpRequest request) throws IOException {
