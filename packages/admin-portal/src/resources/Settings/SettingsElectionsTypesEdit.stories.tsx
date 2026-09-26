@@ -28,7 +28,7 @@ let graphql: ReturnType<typeof graphqlBoundary>
 let data: ReturnType<typeof resourceBoundary>
 
 const meta = {
-    title: "Admin/Settings/SettingsElectionsTypesEdit",
+    title: "Admin/Settings/SettingselectionsTypesEdit",
     component: SettingselectionsTypesEdit,
     args: {reads: "records", failure: false, close: fn()},
     argTypes: {reads: {control: "inline-radio", options: ["records", "loading", "error"]}},

@@ -157,6 +157,7 @@ async function chooseOptions(canvasElement: HTMLElement, options: string[]) {
 }
 
 export const Populated: Story = {
+    parameters: {widgets: ["StyledDivider"]},
     play: async ({canvasElement}) => {
         await expect(
             within(canvasElement).getByText(i18n.t("settings.backupRestore.title"))
