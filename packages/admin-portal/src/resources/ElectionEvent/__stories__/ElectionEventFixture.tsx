@@ -8,7 +8,7 @@
 import type {FetchResult, Operation} from "@apollo/client"
 import type {DataProvider, RaRecord} from "react-admin"
 import {dataBoundary} from "@/__stories__/dataBoundary"
-import {resourceBoundary} from "@/__stories__/resourceBoundary"
+import {resourceBoundary, type ResourceBoundaryOptions} from "@/__stories__/resourceBoundary"
 import {pending} from "../../../../../ui-essentials/.storybook/screens"
 
 type Handler = (operation: Operation) => FetchResult | Promise<FetchResult>
@@ -27,11 +27,14 @@ const READS = ["getList", "getOne", "getMany", "getManyReference"] as const
 
 /**
  * A data provider that answers the listed resources from their records, with
- * the filters and writes of `resourceBoundary`; reads of any other resource
- * never settle. `calls` records every call.
+ * the filters, read states and writes of `resourceBoundary`; reads of any
+ * other resource never settle. `calls` records every call.
  */
-export function recordsOrPending(records: Record<string, RaRecord[]> = {}) {
-    const answered = resourceBoundary(records)
+export function recordsOrPending(
+    records: Record<string, RaRecord[]> = {},
+    options: ResourceBoundaryOptions = {}
+) {
+    const answered = resourceBoundary(records, options)
     const handlers: Partial<DataProvider> = Object.fromEntries(
         READS.map((method) => [
             method,
@@ -54,7 +57,7 @@ export function recordsOrPending(records: Record<string, RaRecord[]> = {}) {
             ])
         )
     )
-    return {...dataBoundary(handlers), writes: answered.writes}
+    return {...dataBoundary(handlers), records: answered.records, writes: answered.writes}
 }
 
 /** "method resource" of each data provider call, e.g. "getList sequent_backend_area". */
