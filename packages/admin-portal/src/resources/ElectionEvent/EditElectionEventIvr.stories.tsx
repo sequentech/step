@@ -76,6 +76,7 @@ const openTab = async (canvasElement: HTMLElement, name: string) => {
 }
 
 export const Configuration: Story = {
+    parameters: {widgets: ["ConfigTab"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(

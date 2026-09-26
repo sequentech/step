@@ -141,14 +141,9 @@ interface TabContent {
     operations?: string[]
 }
 
-const tabStory = (
-    label: () => string,
-    widget: string,
-    {text, reads = [], operations = []}: TabContent,
-    parameters: Story["parameters"] = {}
-): Story => ({
-    parameters: {...parameters, widgets: [widget]},
-    play: async ({canvasElement}) => {
+const tabPlay =
+    (label: () => string, {text, reads = [], operations = []}: TabContent): Story["play"] =>
+    async ({canvasElement}) => {
         await openTab(canvasElement, label())
         if (text) {
             await expect(await within(canvasElement).findByText(text)).toBeVisible()
@@ -159,8 +154,7 @@ const tabStory = (
                 expect.arrayContaining(operations)
             )
         })
-    },
-})
+    }
 
 export const Populated: Story = {
     parameters: dashboardDefects,
@@ -235,28 +229,47 @@ export const WithoutPermissions: Story = {
 }
 
 export const Dashboard: Story = {
-    parameters: dashboardDefects,
+    parameters: {...dashboardDefects, widgets: ["DashboardTab"]},
     play: async ({canvasElement}) => {
         await openTab(canvasElement, tabLabel.dashboard())
         await dashboardLoads(canvasElement)
     },
 }
-export const Data = tabStory(tabLabel.data, "DataTab", {
-    reads: ["getList sequent_backend_contest"],
-})
-export const Voters = tabStory(tabLabel.voters, "VotersTab", {
-    text: "Ext. voters sync",
-    reads: ["getList user"],
-    operations: ["GetUserProfileConfiguration"],
-})
-export const Publish = tabStory(tabLabel.publish, "PublishTab", {
-    text: "Publish History",
-    reads: ["getList sequent_backend_ballot_publication"],
-})
-export const Approvals = tabStory(tabLabel.approvals, "ApprovalsTab", {
-    operations: ["getUserProfileAttributes"],
-})
-export const TallySheets = tabStory(tabLabel.tallySheets, "TallySheetsTab", {
-    text: "Digitalized ballot boxes by channel",
-    reads: ["getList sequent_backend_tally_sheet"],
-})
+export const Data: Story = {
+    parameters: {widgets: ["DataTab"]},
+    play: tabPlay(tabLabel.data, {
+        reads: ["getList sequent_backend_contest"],
+    }),
+}
+
+export const Voters: Story = {
+    parameters: {widgets: ["VotersTab"]},
+    play: tabPlay(tabLabel.voters, {
+        text: "Ext. voters sync",
+        reads: ["getList user"],
+        operations: ["GetUserProfileConfiguration"],
+    }),
+}
+
+export const Publish: Story = {
+    parameters: {widgets: ["PublishTab"]},
+    play: tabPlay(tabLabel.publish, {
+        text: "Publish History",
+        reads: ["getList sequent_backend_ballot_publication"],
+    }),
+}
+
+export const Approvals: Story = {
+    parameters: {widgets: ["ApprovalsTab"]},
+    play: tabPlay(tabLabel.approvals, {
+        operations: ["getUserProfileAttributes"],
+    }),
+}
+
+export const TallySheets: Story = {
+    parameters: {widgets: ["TallySheetsTab"]},
+    play: tabPlay(tabLabel.tallySheets, {
+        text: "Digitalized ballot boxes by channel",
+        reads: ["getList sequent_backend_tally_sheet"],
+    }),
+}

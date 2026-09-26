@@ -104,6 +104,7 @@ const transcript = (canvasElement: HTMLElement) =>
     within(canvasElement).findByText("Welcome to the council vote")
 
 export const ConfigurationForm: Story = {
+    parameters: {widgets: ["ConfigForm", "ConfigFormBody"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Hints")).toBeVisible()

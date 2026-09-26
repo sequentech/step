@@ -128,6 +128,7 @@ const drawer = async () => within(await within(document.body).findByRole("presen
 const operations = () => graphql.calls.map(({name}) => name)
 
 export const Populated: Story = {
+    parameters: {widgets: ["RowActions"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         const row = await entryRow(canvasElement, "+34600000003")

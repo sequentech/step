@@ -156,14 +156,9 @@ interface TabContent {
     operations?: string[]
 }
 
-const tabStory = (
-    name: string,
-    widget: string,
-    {text, reads = [], operations = []}: TabContent,
-    parameters: Story["parameters"] = {}
-): Story => ({
-    parameters: {...parameters, widgets: [widget]},
-    play: async ({canvasElement}) => {
+const tabPlay =
+    (name: string, {text, reads = [], operations = []}: TabContent): Story["play"] =>
+    async ({canvasElement}) => {
         await openTab(canvasElement, name)
         if (text) {
             await expect(await within(canvasElement).findByText(text)).toBeVisible()
@@ -174,11 +169,10 @@ const tabStory = (
                 expect.arrayContaining(operations)
             )
         })
-    },
-})
+    }
 
 export const Populated: Story = {
-    parameters: spinnerDefects("The election event dashboard"),
+    parameters: {...spinnerDefects("The election event dashboard"), widgets: ["DashboardTab"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Council")).toBeVisible()
@@ -253,70 +247,115 @@ export const TallySheetImportLink: Story = {
     },
 }
 
-export const Data = tabStory("Data", "DataTab", {reads: ["getList sequent_backend_election"]})
-export const Ivr = tabStory(
-    "IVR",
-    "IvrTab",
-    {text: /^Configure the IVR flow and its properties below/},
-    jsonEditorDefects
-)
-export const Localization = tabStory(
-    "Localization",
-    "LocalizationTab",
-    {},
-    {
+export const Data: Story = {
+    parameters: {widgets: ["DataTab"]},
+    play: tabPlay("Data", {reads: ["getList sequent_backend_election"]}),
+}
+
+export const Ivr: Story = {
+    parameters: {...jsonEditorDefects, widgets: ["IvrTab"]},
+    play: tabPlay("IVR", {text: /^Configure the IVR flow and its properties below/}),
+}
+
+export const Localization: Story = {
+    parameters: {
         expectedFailure: {
             reason: "The translation rows' edit and delete icon buttons have no accessible name.",
             a11y: ["button-name"],
         },
-    }
-)
-export const Voters = tabStory("Voters", "VotersTab", {
-    text: "Ext. voters sync",
-    reads: ["getList user"],
-    operations: ["GetUserProfileConfiguration"],
-})
-export const Areas = tabStory("Areas", "AreasTab", {
-    text: "Upsert Areas",
-    reads: ["getList sequent_backend_area"],
-})
-export const Keys = tabStory("Keys", "KeysTab", {
-    reads: ["getList sequent_backend_keys_ceremony"],
-    operations: ["TrusteeNames"],
-})
-export const Certificates = tabStory("Certificates", "CAsTab", {
-    text: /^Certificate Authorities \(CAs\) trusted for this election event/,
-    reads: ["getList sequent_backend_certificate_authority"],
-})
-export const Tally = tabStory("Tally", "TallyTab", {
-    text: "Election Event Tally",
-    reads: ["getList sequent_backend_tally_session_execution"],
-})
-export const TallySheetImports = tabStory("Tally sheet imports", "TallySheetImportsTab", {
-    text: "Import tally sheets",
-    reads: ["getList sequent_backend_tally_sheet_import"],
-})
-export const Publish = tabStory("Publish", "PublishTab", {
-    text: "Publish History",
-    reads: ["getList sequent_backend_ballot_publication"],
-})
-export const Tasks = tabStory("Tasks", "TasksTab", {
-    text: "Tasks Execution",
-    reads: ["getList sequent_backend_tasks_execution"],
-})
-export const Logs = tabStory("Logs", "LogsTab", {
-    text: "General logs of the main and IAM databases",
-    reads: ["getList electoral_log"],
-})
-export const ScheduledEvents = tabStory("Scheduled Events", "EventsTab", {
-    reads: ["getList sequent_backend_scheduled_event"],
-})
-export const Reports = tabStory(
-    "Reports",
-    "ReportsTab",
-    {reads: ["getList sequent_backend_template"]},
-    spinnerDefects("ListReports")
-)
-export const Approvals = tabStory("Approvals", "ApprovalsTab", {
-    operations: ["getUserProfileAttributes"],
-})
+        widgets: ["LocalizationTab"],
+    },
+    play: tabPlay("Localization", {}),
+}
+
+export const Voters: Story = {
+    parameters: {widgets: ["VotersTab"]},
+    play: tabPlay("Voters", {
+        text: "Ext. voters sync",
+        reads: ["getList user"],
+        operations: ["GetUserProfileConfiguration"],
+    }),
+}
+
+export const Areas: Story = {
+    parameters: {widgets: ["AreasTab"]},
+    play: tabPlay("Areas", {
+        text: "Upsert Areas",
+        reads: ["getList sequent_backend_area"],
+    }),
+}
+
+export const Keys: Story = {
+    parameters: {widgets: ["KeysTab"]},
+    play: tabPlay("Keys", {
+        reads: ["getList sequent_backend_keys_ceremony"],
+        operations: ["TrusteeNames"],
+    }),
+}
+
+export const Certificates: Story = {
+    parameters: {widgets: ["CAsTab"]},
+    play: tabPlay("Certificates", {
+        text: /^Certificate Authorities \(CAs\) trusted for this election event/,
+        reads: ["getList sequent_backend_certificate_authority"],
+    }),
+}
+
+export const Tally: Story = {
+    parameters: {widgets: ["TallyTab"]},
+    play: tabPlay("Tally", {
+        text: "Election Event Tally",
+        reads: ["getList sequent_backend_tally_session_execution"],
+    }),
+}
+
+export const TallySheetImports: Story = {
+    parameters: {widgets: ["TallySheetImportsTab"]},
+    play: tabPlay("Tally sheet imports", {
+        text: "Import tally sheets",
+        reads: ["getList sequent_backend_tally_sheet_import"],
+    }),
+}
+
+export const Publish: Story = {
+    parameters: {widgets: ["PublishTab"]},
+    play: tabPlay("Publish", {
+        text: "Publish History",
+        reads: ["getList sequent_backend_ballot_publication"],
+    }),
+}
+
+export const Tasks: Story = {
+    parameters: {widgets: ["TasksTab"]},
+    play: tabPlay("Tasks", {
+        text: "Tasks Execution",
+        reads: ["getList sequent_backend_tasks_execution"],
+    }),
+}
+
+export const Logs: Story = {
+    parameters: {widgets: ["LogsTab"]},
+    play: tabPlay("Logs", {
+        text: "General logs of the main and IAM databases",
+        reads: ["getList electoral_log"],
+    }),
+}
+
+export const ScheduledEvents: Story = {
+    parameters: {widgets: ["EventsTab"]},
+    play: tabPlay("Scheduled Events", {
+        reads: ["getList sequent_backend_scheduled_event"],
+    }),
+}
+
+export const Reports: Story = {
+    parameters: {...spinnerDefects("ListReports"), widgets: ["ReportsTab"]},
+    play: tabPlay("Reports", {reads: ["getList sequent_backend_template"]}),
+}
+
+export const Approvals: Story = {
+    parameters: {widgets: ["ApprovalsTab"]},
+    play: tabPlay("Approvals", {
+        operations: ["getUserProfileAttributes"],
+    }),
+}
