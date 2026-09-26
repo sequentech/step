@@ -145,13 +145,18 @@ pub async fn read_export_data(
         vec![]
     };
 
-    // The rows for the documents that already travel. Their *files* have always
-    // been exported — `export_S3_files/` is the event's private bucket — so without
-    // these an export was one-way: import it back and the tab is empty because
-    // nothing points at the uploads. That asymmetry is how the format came to look
-    // as though it did not support materials at all.
-    let export_support_materials =
-        export_support_materials(&transaction, &tenant_id, &election_event_id).await?;
+    // The rows for the documents that travel. Without these an export was
+    // one-way: import it back and the tab is empty because nothing points at the
+    // uploads. A row goes exactly when its file does; see
+    // `export_support_materials`.
+    let export_support_materials = export_support_materials(
+        &transaction,
+        &tenant_id,
+        &election_event_id,
+        export_config.s3_files,
+        export_config.contains_voter_secrets,
+    )
+    .await?;
 
     let version =
         std::env::var(ENV_VAR_APP_VERSION).unwrap_or_else(|_| DEV_APP_VERSION.to_string());
@@ -183,18 +188,52 @@ pub async fn read_export_data(
 
 /// The support material rows of the event, for the archive's JSON.
 ///
-/// Hidden materials are included: the archive carries every document file of
-/// the event, and import finds each file's new identifier through these rows,
-/// so a file without its row fails the import.
+/// A row travels exactly when its document's file does, because import pairs
+/// the two through the replacement map:
+///
+/// * A file without its row fails the import in `process_s3_file`, since the
+///   file's document id is then missing from the map. So hidden materials'
+///   rows are included: their files are exported like any other.
+/// * A row without its file imports as a material pointing at a document that
+///   was never created, and nothing reports it. So a row whose document the
+///   archive leaves out is left out with it: every row with a document when the
+///   archive carries no `export_S3_files/` (`s3_files` off), and a row whose
+///   document is a voter-secret one in an export without voter secrets.
+///
+/// Both sides use `get_exportable_document_ids`, the set `process_export_zip`
+/// hands to `get_files_from_s3`.
 #[instrument(err, skip(transaction))]
 pub async fn export_support_materials(
     transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
+    s3_files: bool,
+    include_voter_secrets: bool,
 ) -> Result<Vec<SupportMaterial>> {
-    crate::postgres::document::get_support_materials(transaction, tenant_id, election_event_id)
+    let exportable = if s3_files {
+        get_exportable_document_ids(
+            transaction,
+            tenant_id,
+            election_event_id,
+            include_voter_secrets,
+        )
         .await
-        .context("Error retrieving support materials for export")
+        .context("Error retrieving the exportable documents for support materials")?
+    } else {
+        Default::default()
+    };
+    let materials =
+        crate::postgres::document::get_support_materials(transaction, tenant_id, election_event_id)
+            .await
+            .context("Error retrieving support materials for export")?;
+    // A material with no document has no file to lose, so it always travels.
+    Ok(materials
+        .into_iter()
+        .filter(|material| match material.document_id.as_deref() {
+            None => true,
+            Some(id) => exportable.contains(&id.to_ascii_lowercase()),
+        })
+        .collect())
 }
 
 #[instrument(err, skip(password))]
