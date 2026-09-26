@@ -39,11 +39,11 @@ Dev servers need `yarn --cwd packages install --frozen-lockfile` first. A server
 already listening on its port is reused rather than started again; the ones
 `step-dev` starts log to `.cache/dev-mode/`. `switch` first stops the services
 and `step-dev` servers the target mode does not use; `stop` stops all of them
-except the devcontainer. Nothing removes containers, volumes or caches, and `up`
-reuses existing containers as they are: rebuild the devcontainer to apply
-Compose changes. `up`, `switch` and the devcontainer's initialize command fail
-before touching a container when another Compose project publishes a port or
-holds a container name the mode needs.
+except the devcontainer. Nothing removes volumes or caches. `up` recreates a
+service whose Compose configuration changed, but never the devcontainer: rebuild
+that to apply its changes. `up`, `switch` and the devcontainer's initialize
+command fail before touching a container when another Compose project publishes
+a port or holds a container name the mode needs.
 
 Reopening the folder with another configuration attaches to the running
 devcontainer without starting that mode's services: run `step-dev mode switch`,

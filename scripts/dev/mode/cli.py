@@ -304,9 +304,12 @@ def command_up(
     to_start = [service for service in plan.services if service != DEVCONTAINER_SERVICE]
     context.say(f"mode {mode.name}: {', '.join(plan.services)}")
     if to_start:
-        # --no-recreate: containers of this checkout, the devcontainer included,
-        # are reused as they are rather than replaced.
-        code = plan.compose.run("up", "--detach", "--no-recreate", *to_start)
+        # Only the Dev Containers CLI creates the devcontainer, so --no-deps
+        # keeps Compose away from it; the mode's other services are all listed
+        # and recreated when their configuration changed. Without host paths a
+        # recreated service would lose its bind mounts, so existing ones stay.
+        policy = [] if context.checkout.binds_resolve_on_host else ["--no-recreate"]
+        code = plan.compose.run("up", "--detach", "--no-deps", *policy, *to_start)
         if code != EXIT_OK:
             raise ModeError(f"docker compose up failed with exit code {code}")
     wait = timeout if timeout is not None else mode.ready_timeout
