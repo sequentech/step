@@ -73,7 +73,7 @@ export function electionRow(overrides: Row = {}): Row {
         status: {},
         voting_channels: {online: true},
         num_allowed_revotes: 1,
-        permission_label: [],
+        permission_label: null,
         ...overrides,
     }
 }
