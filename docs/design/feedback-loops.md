@@ -136,7 +136,8 @@ Implementation references:
 
 Measured on one aarch64 host (16 cores, 62 GiB) while other work ran, so each row
 records its sample count; load averages are in the raw `step-dev bench` results.
-Before = `ovcs` 679c3ea181. Cold stacks ran in fresh, task-owned Docker daemons.
+Unless specified, before = `ovcs` 679c3ea181. Cold stacks ran in fresh, task-owned
+Docker daemons.
 
 | Loop | Before | After |
 | --- | --- | --- |
@@ -227,6 +228,39 @@ rate-limited.
   Deliberately corrupt cached units triggered a successful ordinary rebuild
   (n=1, 18 tests). These small-crate results do not establish hosted full-workspace
   speedups; hosted measurements remain pending.
+- **Rust service linker candidate**: identical application sources at
+  `e443270f5c` were measured before and after selecting bundled LLD on aarch64.
+  All 60 measured saves succeeded, with ten per edit and linker plus excluded
+  warmups. Harvest's actual ready probe improves from 36.755 s median,
+  36.24–38.66, to 9.895 s, 9.66–12.18. Its separate settled observation has a
+  15-second floor. Windmill edits settle in 54.760 s, 53.48–55.93, versus
+  128.290 s, 124.35–131.86; shared-core edits settle in 54.310 s, 53.19–55.33,
+  versus 134.570 s, 130.80–154.65. Median host loads before/after are
+  5.560/8.275, 8.215/4.955 and 7.845/7.140 on 16 CPUs. The candidate also
+  requires Beat readiness after recreation; the baseline observed binary start
+  because its probe did not respond. That recovery is not a linker effect.
+  Repeated crate names represent different profiles/features: B4 uses release,
+  and Harvest's Windmill graph enables `bstr/unicode`. A shared union build would
+  not replace each service's own compatible build, so that experiment is rejected.
+  Direct alternating linker measurements, debugger/native checks and the final
+  adoption decision remain pending; no profiles, FIPS settings or features change.
+- **Ballot verifier Vite** (adopted as opt-in): the final alternating comparison
+  at `fa670fb53b` exceeds the predeclared 20% median improvement threshold.
+  Warm first render improves from 8.599 s, 8.400–9.047, to 3.265 s,
+  3.211–3.309 (n=10 each); fresh compiler/optimizer caches improve from
+  9.028 s, 8.557–12.808, to 3.583 s, 3.523–4.777 (n=3 each). These fresh
+  caches retain installed dependencies and the host filesystem cache. Visible
+  leaf edits improve from 0.784 s to 0.075 s, and shared Header edits from
+  2.256 s to 1.323 s (n=10 each). Production builds improve from 19.745 s to
+  7.025 s (n=3 each); output and gzip bytes decrease 5.66% and 4.19%, with
+  identical WASM bytes. Median warm server memory is 1148 versus 572 MiB
+  (n=10, browser excluded). Loads range from 2.00 to 4.90 on 16 CPUs.
+  Every measured browser operation and restore has zero page errors or mocked
+  service violations. The complete journey matrix passes: 13 Webpack production,
+  13 Vite production and 14 Vite development tests, including leaf state retention
+  and shared/core edit restoration. Bootstrap changes reload to avoid recreating
+  the React root. Webpack remains the default release/CI path; another portal
+  requires its own compatibility and performance decision.
 - **Optional environment prebuilds**: native arm64/amd64 builds use a source-free
   toolchain context. PRs build without publishing; trusted branch workflows
   publish matching images. Local selection checks identity and architecture,
@@ -235,7 +269,11 @@ rate-limited.
   the hosted native arm64 image build passes (13 minutes, n=1). The workflow now
   also starts the local image without networking, checks all baked tool versions
   and the WASM standard library, and records fresh/warm Nix-volume startup
-  samples. The amd64 build and actual startup measurements remain pending.
+  samples. The first hosted startup attempt timed out during the first fresh
+  volume/container creation (180 seconds, zero successful samples); cleanup
+  then found the volume still in use. Both errors and raw artifacts are retained,
+  and timeout/cleanup handling is being corrected before rerunning. The amd64
+  build and successful startup measurements remain pending.
   Image build success does not establish workspace or service readiness.
 - **Repeatable backend scenarios**: all three named states create and reuse their
   own events; targeted reset rejects foreign ownership, tenant mismatches and

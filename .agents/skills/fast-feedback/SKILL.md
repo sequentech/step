@@ -32,6 +32,7 @@ check is not a passing test. `validate` includes slower checks; inspect its
 | Edit | First useful feedback |
 | --- | --- |
 | Portal or shared UI | Fixture-backed screen story or `packages/workbench`; consuming dev servers compile shared source directly |
+| Ballot verifier | `yarn --cwd packages/ballot-verifier start:vite` selects the measured opt-in Vite path; use its documented journey matrix when changing bundling or refresh behavior |
 | One story | `step-dev test <package> --story <story-id>`; `--watch` keeps the browser runner active |
 | One unit or browser test | `step-dev test <test-file>`; the runner and scope are printed before execution |
 | Rust-backed frontend logic | `step-dev wasm`, then reload/rerun the affected real WASM flow |
