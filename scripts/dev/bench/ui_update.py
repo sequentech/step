@@ -183,9 +183,14 @@ class BrowserProbe:
         if self.process.poll() is None:
             try:
                 self.send(cmd="close")
+                assert self.process.stdin is not None
+                # EOF releases Node's input stream after the close command. Leaving
+                # the pipe open keeps the probe alive until the shutdown timeout.
+                self.process.stdin.close()
                 self.process.wait(timeout=30)
             except (OSError, subprocess.TimeoutExpired):
                 self.process.kill()
+                self.process.wait()
         self._log.close()
 
 

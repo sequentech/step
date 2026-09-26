@@ -134,11 +134,19 @@ Apollo and `sequent-core` always resolve to the portal's own copy. Dev servers d
 not type-check: run `test:types` in the voting portal, results portal or ballot
 verifier (it resolves the shared sources), or build the admin portal.
 
-Production builds and journeys still use the packages' `dist` entry points: run
+Default webpack production builds and journeys use the packages' `dist` entry points: run
 `yarn --cwd packages build:ui-core` and `build:ui-essentials` before
 `build:<portal>`. `STEP_SHARED_UI=dist` makes a dev server use those builds too,
 for example to reproduce a production-only difference. The shared settings are in
 `packages/ui-essentials/webpack.portal.cjs`.
+
+The ballot verifier also has an opt-in Vite server:
+`yarn --cwd packages/ballot-verifier start:vite`. Its `build:vite` compiles shared
+source into `dist-vite`, and `preview:vite` serves that output. Webpack remains
+the default server, release build and CI build. See the
+[UI browser test guide](testing/ui-browser-tests.md) for Vite production and
+development journeys. Other portals require their own asset, bootstrap and
+journey validation before adopting this configuration.
 
 ## Screens, workbench and scenarios
 

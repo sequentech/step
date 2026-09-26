@@ -152,7 +152,10 @@ for (const configStatus of [200, 404]) {
         }
         const {ballot, hash} = await signedBallot()
         await verify(page, portal.origin, ballot, hash)
-        await expect.poll(() => portal.s3.requestsFor(key).length).toBe(1)
+        // React StrictMode runs the mount effect twice in the development server.
+        await expect
+            .poll(() => portal.s3.requestsFor(key).length)
+            .toBe(process.env.BALLOT_VERIFIER_JOURNEY_URL ? 2 : 1)
         expect(portal.s3.requestsFor(key)[0]).toMatchObject({
             method: "GET",
             url: portal.s3.url("public", key),
