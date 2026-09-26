@@ -80,6 +80,24 @@ class StepTest(unittest.TestCase):
 
 
 class PushTest(unittest.TestCase):
+    def test_selection_and_result_gates_do_not_claim_a_product_test_result(self):
+        jobs = [
+            job("Tests", "Select affected feedback checks", "2026-09-26T10:00:02Z"),
+            job("Tests", "docs-build", "2026-09-26T10:00:10Z"),
+            job("Tests", "Selected frontend checks", "2026-09-26T10:00:12Z"),
+            job("Tests", "Required feedback checks", "2026-09-26T10:00:15Z"),
+            job(
+                "Tests",
+                "voting-portal focused tests",
+                "2026-09-26T10:00:03Z",
+                conclusion="skipped",
+            ),
+        ]
+        metrics = push_metrics(runs("completed"), jobs, DEFAULT_EXCLUDED_WORKFLOWS)
+        self.assertEqual(metrics["phases"]["first_check"], 2.0)
+        self.assertNotIn("first_actionable", metrics["phases"])
+        self.assertIsNone(metrics["first_actionable_job"])
+
     def test_separates_first_check_from_first_build_or_test_result(self):
         jobs = [
             job("REUSE licensing check", "reuse", "2026-09-26T10:00:10Z"),
