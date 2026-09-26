@@ -133,12 +133,44 @@ jobs:
         run: cargo test
         working-directory: packages/windmill
 
+      - name: Install the pinned audit database fixture
+        run: |
+          curl --fail --location --silent --show-error --output "$RUNNER_TEMP/immudb" https://github.com/codenotary/immudb/releases/download/v1.9.6/immudb-v1.9.6-linux-amd64
+          echo "26a26b68c02a86b3464e669710bd77fb06ccdbbaca03f481c4706c3526c2c5f8  $RUNNER_TEMP/immudb" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/immudb"
+
+      - name: Audit delivery survives broker redelivery and uncertain commits
+        run: cargo test --locked -p windmill --features rabbitmq-tests --test electoral_log_delivery
+        working-directory: packages
+        env:
+          ELECTORAL_LOG_TEST_IMMUDB_BINARY: ${{ runner.temp }}/immudb
+
       - name: Run PostgreSQL-backed voter-channel regression
         run: >-
           cargo test
           services::cast_votes::tests::voters_by_channel_defaults_legacy_votes_and_uses_latest_valid_revote
           -- --ignored --exact
         working-directory: packages/windmill
+
+      - name: Start the voting-flow database fixture
+        id: castvote-fixture
+        run: |
+          url=$(scripts/voting_flow/castvote_fixture.sh)
+          echo "CAST_VOTE_TEST_DATABASE_URL=$url" >> "$GITHUB_ENV"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Run the ignored insert_cast_vote PostgreSQL tests
+        shell: bash
+        run: |
+          cargo test --locked -p windmill --lib services::insert_cast_vote::tests -- --ignored \
+            | tee "$RUNNER_TEMP/insert-cast-vote-tests.log"
+          # An empty filter also succeeds; require that the tests actually ran.
+          grep --quiet --extended-regexp 'test result: ok\. [1-9][0-9]* passed' "$RUNNER_TEMP/insert-cast-vote-tests.log"
+        working-directory: packages
+
+      - name: Remove the voting-flow database fixture
+        if: always() && steps.castvote-fixture.outputs.created == 'true'
+        run: docker rm --force --volumes step-castvote-fixture
 
   # ===========================================================================
   # JOB: run-frontend-tests

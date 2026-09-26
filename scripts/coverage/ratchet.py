@@ -118,6 +118,13 @@ def compare_rust(base: dict[str, Any], head: dict[str, Any]) -> dict[str, Any]:
     return verdict
 
 
+def fraction(counts: dict[str, int]) -> str:
+    """Show exact counters; the percentage is rounded only for reading."""
+    covered, count = counts["covered"], counts["count"]
+    percent = f"{100 * covered / count:.4f}%" if count else "n/a"
+    return f"{covered}/{count} ({percent})"
+
+
 def markdown(result: dict[str, Any]) -> str:
     """Explain the actual merge decision and retain both commit identities."""
     status = result["status"].upper()
@@ -138,11 +145,7 @@ def markdown(result: dict[str, Any]) -> str:
             ]
         )
         for name, change in result["metrics"].items():
-            values = []
-            for side in ("base", "head"):
-                covered, count = change[side]["covered"], change[side]["count"]
-                percent = f"{100 * covered / count:.4f}%" if count else "n/a"
-                values.append(f"{covered}/{count} ({percent})")
+            values = [fraction(change[side]) for side in ("base", "head")]
             decision = "decreased" if change["decreased"] else "maintained / increased"
             lines.append(f"| {name} | {' | '.join(values)} | {decision} |")
     lines.extend(f"- {failure}" for failure in result.get("failures", []))

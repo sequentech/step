@@ -1,0 +1,110 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+name: Backend database contracts
+
+on:
+  pull_request:
+    paths:
+      - 'hasura/**'
+      - 'scripts/voting_flow/**'
+      - 'scripts/test_*.py'
+      - 'scripts/postgres/**'
+      - 'packages/windmill/src/postgres/**'
+      - 'packages/voting-load/**'
+      - '.devcontainer/postgresql/init.sh'
+      - '.github/workflows/backend-database-contracts.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hasura/**'
+      - 'scripts/voting_flow/**'
+      - 'scripts/test_*.py'
+      - 'scripts/postgres/**'
+      - 'packages/windmill/src/postgres/**'
+      - 'packages/voting-load/**'
+      - '.devcontainer/postgresql/init.sh'
+      - '.github/workflows/backend-database-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-database-contracts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  migrations:
+    name: Migrations apply, roll back and reapply
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check every backend-db migration on a fresh PostgreSQL 18 database
+        run: >-
+          docker run --rm --user postgres --volume "$PWD:/step:ro" --workdir /step
+          postgres:18-bookworm scripts/postgres/check_migrations.sh
+
+  hasura-metadata:
+    name: Hasura metadata is consistent
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Metadata checker cleanup contracts
+        run: python3 scripts/postgres/test_hasura_metadata_cleanup.py
+      - name: Start Hasura on a fresh database and check its metadata
+        run: scripts/postgres/check_hasura_metadata.sh
+
+  database-suites:
+    name: Voting-flow and ballot database suites
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check voting fixture ownership and cleanup contracts
+        run: python3 -m unittest scripts.voting_flow.test_castvote_fixture -v
+      - name: Build the PostgreSQL 18 harness image
+        run: docker build --tag voting-flow-harness scripts/voting_flow
+      - name: Voting-flow regressions
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_cast_vote_scalability.py
+      - name: Scheduled voting channels
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_scheduled_voting_channels.py
+      - name: Ballot publication lifecycle
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_ballot_publication_lifecycle.py
+      - name: Voting-window migration preflight
+        run: >-
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness
+          python3 scripts/test_voting_window_preflight.py
+      - name: Voting-load capture diagnostics
+        run: |
+          docker run --rm --volume "$PWD:/step:ro" --workdir /step voting-flow-harness \
+            python3 -m unittest discover -s packages/voting-load 2>&1 \
+            | tee "$RUNNER_TEMP/voting-load-tests.log"
+          # unittest exits successfully when discovery finds no tests.
+          grep --quiet --extended-regexp 'Ran [1-9][0-9]* tests?' "$RUNNER_TEMP/voting-load-tests.log"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+      - name: Metadata access permissions
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd hasura install --frozen-lockfile --non-interactive
+          node --test hasura/tests/*.test.cjs

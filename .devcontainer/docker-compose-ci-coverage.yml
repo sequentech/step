@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Coverage overlay for docker-compose-ci.yml, added by scripts/e2e/run.sh when
+# STEP_E2E_COVERAGE=1. Each instrumented binary writes LLVM profiles (%m merges
+# restarts and step-cli invocations) into the run's output directory.
+#
+# Windmill's consumer and Rocket (harvest) exit normally on SIGTERM, which
+# writes the profile. Beat, B4 and the trustees install no signal handler: as
+# PID 1 they would ignore SIGTERM until Compose kills them. They use continuous
+# mode (%c), which keeps counters in the mapped profile, and an init process so
+# SIGTERM ends them at once.
+
+x-e2e-profiles: &e2e-profiles
+  type: bind
+  source: ${STEP_E2E_OUTPUT_DIR:?set STEP_E2E_OUTPUT_DIR to a writable directory}/coverage/profiles
+  target: /profiles
+
+services:
+  immudb-init:
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/immudb-init-%m.profraw
+
+  harvest:
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/harvest-%m.profraw
+
+  windmill:
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/windmill-%m.profraw
+
+  beat:
+    init: true
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/beat-%c%m.profraw
+
+  b4:
+    init: true
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/b4-%c%m.profraw
+
+  trustee1:
+    init: true
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/trustee1-%c%m.profraw
+
+  trustee2:
+    init: true
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/trustee2-%c%m.profraw
+
+  # Every step-cli invocation merges into one profile.
+  driver:
+    volumes:
+      - *e2e-profiles
+    environment:
+      LLVM_PROFILE_FILE: /profiles/step-cli-%m.profraw

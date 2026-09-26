@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::fmt::Display;
+use std::time::Duration;
 use strum_macros::Display;
 use tokio_stream::{Stream, StreamExt};
 use tracing::{info, instrument};
@@ -26,6 +27,41 @@ const ID_VARCHAR_LENGTH: usize = 40;
 const STATEMENT_KIND_VARCHAR_LENGTH: usize = 40;
 /// 64 chars + EOL + some padding
 const BALLOT_ID_VARCHAR_LENGTH: usize = 70;
+const READ_CONFLICT_RETRIES: usize = 5;
+const READ_CONFLICT_BACKOFF: Duration = Duration::from_millis(100);
+
+/// Run one board transaction, retrying only a definite ImmuDB read conflict.
+/// Each invocation must start a fresh transaction over the same messages.
+/// Transport failures can leave commit status unknown and must not be replayed.
+pub async fn retry_electoral_log_transaction<F, Fut, T>(mut transaction: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let mut retries = 0;
+    let mut backoff = READ_CONFLICT_BACKOFF;
+    loop {
+        match transaction().await {
+            Err(error)
+                if retries < READ_CONFLICT_RETRIES
+                    && error.downcast_ref::<tonic::Status>().is_some_and(|status| {
+                        status.code() == tonic::Code::Unknown
+                            && status.message() == "tx read conflict"
+                    }) =>
+            {
+                retries += 1;
+                tracing::warn!(
+                    retries,
+                    ?backoff,
+                    "Retrying rejected electoral log transaction"
+                );
+                tokio::time::sleep(backoff).await;
+                backoff *= 2;
+            }
+            result => return result,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct BoardClient {
@@ -660,6 +696,83 @@ impl BoardClient {
         self.client.commit(transaction_id).await
     }
 
+    /// Add receipts to existing boards without changing their audit table.
+    /// Call before opening the delivery transaction.
+    pub async fn ensure_electoral_log_delivery_receipts(&mut self) -> Result<()> {
+        self.client.sql_exec(
+            "CREATE TABLE IF NOT EXISTS electoral_log_delivery_receipts (delivery_id VARCHAR[64], payload_hash VARCHAR[64], PRIMARY KEY delivery_id)",
+            vec![],
+        ).await?;
+        Ok(())
+    }
+
+    /// Atomically record a stable delivery ID with all of its audit rows.
+    /// A repeated input is a no-op, even if signing generated different bytes.
+    /// Reusing an ID for different input is an error, never a silent omission.
+    pub async fn insert_electoral_log_delivery(
+        &mut self,
+        transaction_id: &String,
+        delivery_id: &str,
+        payload_hash: &str,
+        messages: &[ElectoralLogMessage],
+    ) -> Result<bool> {
+        anyhow::ensure!(
+            [delivery_id, payload_hash].iter().all(
+                |value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+            ),
+            "electoral log delivery identity must be a SHA-256 digest"
+        );
+        anyhow::ensure!(
+            !messages.is_empty(),
+            "electoral log delivery has no messages"
+        );
+        let id_param = NamedParam {
+            name: "delivery_id".into(),
+            value: Some(SqlValue {
+                value: Some(Value::S(delivery_id.into())),
+            }),
+        };
+        let mut response = self.client.tx_sql_query(
+            "SELECT payload_hash FROM electoral_log_delivery_receipts WHERE delivery_id = @delivery_id",
+            transaction_id,
+            vec![id_param.clone()],
+        ).await?.into_inner();
+        let mut existing = None;
+        while let Some(result) = response.next().await {
+            for row in result?.rows {
+                anyhow::ensure!(
+                    existing.is_none(),
+                    "duplicate electoral log delivery receipts"
+                );
+                existing = Some(
+                    row.values
+                        .into_iter()
+                        .next()
+                        .and_then(|value| value.value)
+                        .ok_or_else(|| anyhow!("invalid electoral log delivery receipt"))?,
+                );
+            }
+        }
+        if let Some(existing) = existing {
+            anyhow::ensure!(
+                existing == Value::S(payload_hash.into()),
+                "electoral log delivery ID reused with different input"
+            );
+            return Ok(false);
+        }
+        self.insert_electoral_log_messages_batch(transaction_id, messages)
+            .await?;
+        self.client.tx_sql_exec(
+            "INSERT INTO electoral_log_delivery_receipts (delivery_id, payload_hash) VALUES (@delivery_id, @payload_hash)",
+            transaction_id,
+            vec![id_param, NamedParam {
+                name: "payload_hash".into(),
+                value: Some(SqlValue { value: Some(Value::S(payload_hash.into())) }),
+            }],
+        ).await?;
+        Ok(true)
+    }
+
     // Insert messages in batch using an existing session/transaction
     pub async fn insert_electoral_log_messages_batch(
         &mut self,
@@ -987,7 +1100,8 @@ impl BoardClient {
         ];
 
         self.upsert_database(board_dbname, &sql, elog_indexes.as_slice())
-            .await
+            .await?;
+        self.ensure_electoral_log_delivery_receipts().await
     }
 
     /// Deletes the immudb database.

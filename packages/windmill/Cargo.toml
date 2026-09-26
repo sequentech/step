@@ -16,6 +16,7 @@ name = "generate-logs"
 path = "external-bin/generate_logs.rs"
 
 [features]
+rabbitmq-tests = []
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:openssl", "dep:ecies"]
@@ -137,6 +138,7 @@ google-calendar3 = { version = "6.0.0", features = ["yup-oauth2"] }
 rustls = { version = "0.23.32", features = ["ring"] }
 
 [dev-dependencies]
+tonic = "0.13"
 dhat = "0.3"
 
 [package.metadata.component]
@@ -146,3 +148,7 @@ dhat = "0.3"
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[[test]]
+name = "electoral_log_delivery"
+required-features = ["rabbitmq-tests"]

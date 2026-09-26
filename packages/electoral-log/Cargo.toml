@@ -38,6 +38,8 @@ name = "database_contracts"
 required-features = ["immudb-tests"]
 
 [dev-dependencies]
+axum = { version = "0.8", features = ["http2"] }
+prost = "0.13"
 tokio = { version = "1.38", features = ["process"] }
 tempfile = "3"
 serial_test = "3.2"

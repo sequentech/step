@@ -83,16 +83,30 @@ async fn prepare_files(
             serde_json::from_str(data["ballot_eml"].as_str().context("Missing ballot EML")?)?;
         let (prefix, presentation, suffix) =
             split_event_presentation(data["ballot_eml"].as_str().context("Missing ballot EML")?)?;
-        if let Some(existing) = shared_presentation.as_ref() {
-            if existing != &presentation {
-                bail!("Inconsistent event presentation within publication");
+        let use_shared_presentation = match shared_presentation.as_ref() {
+            Some(existing) if existing != &presentation => {
+                if existing.is_empty()
+                    || presentation.is_empty()
+                    || serde_json::from_str::<Value>(existing)?
+                        != serde_json::from_str::<Value>(&presentation)?
+                {
+                    bail!("Inconsistent event presentation within publication");
+                }
+                // Equivalent JSON can have different signed bytes. Preserve the
+                // original full EML instead of reconstructing it with another style's fragment.
+                false
             }
-        } else {
-            shared_presentation = Some(presentation);
+            Some(_) => true,
+            None => {
+                shared_presentation = Some(presentation);
+                true
+            }
+        };
+        if use_shared_presentation {
+            data["ballot_eml"] = Value::Null;
+            data["ballot_eml_prefix"] = Value::String(prefix);
+            data["ballot_eml_suffix"] = Value::String(suffix);
         }
-        data["ballot_eml"] = Value::Null;
-        data["ballot_eml_prefix"] = Value::String(prefix);
-        data["ballot_eml_suffix"] = Value::String(suffix);
         // List information is small; contests/candidates are fetched only on selection.
         let summary = json!({"id":id, "area_presentation":eml.get("area_presentation"), "election_dates":eml.get("election_dates")});
         objects
@@ -604,6 +618,76 @@ mod tests {
             objects.json(&format!("{ROOT}/election-{ELECTION}.json")),
             Some(election_object(ELECTION))
         );
+    }
+
+    #[tokio::test]
+    async fn equivalent_presentation_json_preserves_each_styles_exact_signed_eml() {
+        let first = r#"{"i18n":{"en":{"name":"Event"},"es":{"name":"Evento"}}}"#;
+        for equivalent in [
+            r#"{"i18n":{"es":{"name":"Evento"},"en":{"name":"Event"}}}"#,
+            r#"{ "i18n" : { "en" : { "name" : "Event" }, "es" : { "name" : "Evento" } } }"#,
+        ] {
+            let first_eml = eml(first);
+            let second_eml = eml(equivalent);
+            let mut first_row = style_row(STYLE, ELECTION, &first_eml);
+            first_row["ballot_signature"] = json!("first-signature");
+            let mut second_row = style_row(OTHER_STYLE, OTHER_ELECTION, &second_eml);
+            second_row["ballot_signature"] = json!("second-signature");
+            let rows = publication(two_elections(vec![first_row, second_row]));
+            let objects = MemoryPublicationObjects::default();
+            prepare(&rows, &objects, &SequentialIds::default())
+                .await
+                .unwrap();
+
+            let event = objects.json(&event_key(ROOT)).unwrap();
+            assert_eq!(event["ballot_eml_presentation"], first);
+            let first_style = objects.json(&style_key(ROOT, STYLE)).unwrap();
+            assert!(first_style["ballot_eml"].is_null());
+            let rebuilt = [
+                &first_style["ballot_eml_prefix"],
+                &event["ballot_eml_presentation"],
+                &first_style["ballot_eml_suffix"],
+            ]
+            .map(|part| part.as_str().unwrap())
+            .concat();
+            assert_eq!(rebuilt, first_eml);
+            assert_eq!(first_style["ballot_signature"], "first-signature");
+
+            let second_style = objects.json(&style_key(ROOT, OTHER_STYLE)).unwrap();
+            assert_eq!(second_style["ballot_eml"], second_eml);
+            assert!(second_style.get("ballot_eml_prefix").is_none());
+            assert!(second_style.get("ballot_eml_suffix").is_none());
+            assert_eq!(second_style["ballot_signature"], "second-signature");
+            assert_eq!(
+                rows.stored_annotations(TENANT, EVENT, PUBLICATION),
+                files_annotation(ROOT)
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn missing_and_present_event_presentations_remain_inconsistent() {
+        for missing in [r#"{"contests":[]}"#.to_string(), eml("null")] {
+            for (first, second) in [
+                (missing.clone(), eml(PRESENTATION)),
+                (eml(PRESENTATION), missing.clone()),
+            ] {
+                let rows = publication(two_elections(vec![
+                    style_row(STYLE, ELECTION, &first),
+                    style_row(OTHER_STYLE, OTHER_ELECTION, &second),
+                ]));
+                let objects = MemoryPublicationObjects::default();
+                let error = prepare(&rows, &objects, &SequentialIds::default())
+                    .await
+                    .unwrap_err();
+                assert_eq!(
+                    error.to_string(),
+                    "Inconsistent event presentation within publication"
+                );
+                assert!(objects.json(&event_key(ROOT)).is_none());
+                assert_eq!(rows.stored_annotations(TENANT, EVENT, PUBLICATION), None);
+            }
+        }
     }
 
     #[tokio::test]
