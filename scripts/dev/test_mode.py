@@ -24,7 +24,12 @@ from scripts.dev.mode.docker import (
     parse_ports,
     parse_ps,
 )
-from scripts.dev.mode.manifest import ManifestError, load_manifest, parse_manifest
+from scripts.dev.mode.manifest import (
+    ManifestError,
+    ReadyWhen,
+    load_manifest,
+    parse_manifest,
+)
 from scripts.dev.mode.plan import (
     ConflictKind,
     PlanError,
@@ -187,6 +192,23 @@ class ManifestTest(unittest.TestCase):
         self.assert_rejected(
             lambda d: d["modes"][0].update(services=["devcontainer", "devcontainer"]),
             "repeats an entry",
+        )
+
+    def test_ready_when(self):
+        document = valid_document()
+        document["services"].append({"name": "init", "readyWhen": "exited"})
+        manifest = parse_manifest(document)
+        self.assertIs(manifest.settings("init").ready_when, ReadyWhen.EXITED)
+        self.assertIs(manifest.settings("keycloak").ready_when, ReadyWhen.RUNNING)
+        self.assert_rejected(
+            lambda d: d["services"].append({"name": "x", "readyWhen": "healthy"}),
+            "readyWhen must be one of running, exited",
+        )
+        self.assert_rejected(
+            lambda d: d["services"].append(
+                {"name": "x", "readyWhen": "exited", "probe": ["true"]}
+            ),
+            "a job that exits cannot be probed",
         )
 
     def test_repository_manifest_loads(self):
@@ -613,10 +635,10 @@ class ConflictTest(unittest.TestCase):
 
 
 class ReadinessTest(unittest.TestCase):
-    def check(self, container, probe_ok, expected, detail):
-        self.assertEqual(readiness(container, probe_ok), (expected, detail))
+    def check(self, container, probe_ok, expected, detail, when=ReadyWhen.RUNNING):
+        self.assertEqual(readiness(container, probe_ok, when), (expected, detail))
 
-    def test_states(self):
+    def test_servers(self):
         self.check(None, None, Readiness.MISSING, "not created")
         self.check(state(), None, Readiness.READY, "running")
         self.check(state(health="healthy"), None, Readiness.READY, "healthy")
@@ -625,21 +647,44 @@ class ReadinessTest(unittest.TestCase):
         self.check(state(health="unhealthy"), None, Readiness.STARTING, "unhealthy")
         self.check(state(), False, Readiness.STARTING, "probe failing")
         self.check(state(health="healthy"), True, Readiness.READY, "healthy")
-        self.check(state(status="exited"), None, Readiness.COMPLETED, "completed")
-        self.check(state(status="restarting"), None, Readiness.COMPLETED, "completed")
+        self.check(state(status="created"), None, Readiness.STARTING, "created")
         self.check(
             state(status="restarting", exit_code=101),
             None,
             Readiness.STARTING,
             "restarting after exit code 101",
         )
+        # A server that stops, even cleanly, is not up.
+        self.check(state(status="exited"), None, Readiness.FAILED, "exited with code 0")
         self.check(
             state(status="exited", exit_code=1),
             None,
             Readiness.FAILED,
             "exited with code 1",
         )
-        self.check(state(status="created"), None, Readiness.STARTING, "created")
+
+    def test_jobs(self):
+        job = ReadyWhen.EXITED
+        self.check(state(), None, Readiness.STARTING, "running", job)
+        self.check(state(status="exited"), None, Readiness.COMPLETED, "completed", job)
+        # A job with a restart policy is done once it has exited successfully.
+        self.check(
+            state(status="restarting"), None, Readiness.COMPLETED, "completed", job
+        )
+        self.check(
+            state(status="restarting", exit_code=2),
+            None,
+            Readiness.STARTING,
+            "restarting after exit code 2",
+            job,
+        )
+        self.check(
+            state(status="exited", exit_code=1),
+            None,
+            Readiness.FAILED,
+            "exited with code 1",
+            job,
+        )
         self.assertTrue(Readiness.COMPLETED.done)
         self.assertFalse(Readiness.STARTING.done)
 
@@ -768,6 +813,21 @@ class DevcontainerConfigTest(unittest.TestCase):
             with self.subTest(mode=mode.name):
                 if "runServices" not in self.config(mode):
                     self.assertEqual(sorted(mode.services), base)
+
+    @unittest.skipUnless(compose_available(), "needs docker compose")
+    def test_services_awaited_to_complete_are_jobs(self):
+        for mode in self.manifest.modes:
+            services = compose_services(mode.compose_files)
+            for name in closure(services, mode.services):
+                for dependency, condition in (
+                    services[name].get("depends_on", {}).items()
+                ):
+                    if condition.get("condition") == "service_completed_successfully":
+                        with self.subTest(mode=mode.name, job=dependency):
+                            self.assertIs(
+                                self.manifest.settings(dependency).ready_when,
+                                ReadyWhen.EXITED,
+                            )
 
     @unittest.skipUnless(compose_available(), "needs docker compose")
     def test_mode_services_start_nothing_else(self):

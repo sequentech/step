@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any
 
 from .docker import ContainerState, ContainerSummary, PortBinding
+from .manifest import ReadyWhen
 
 
 class PlanError(ValueError):
@@ -172,7 +173,9 @@ class Readiness(Enum):
 
 
 def readiness(
-    state: ContainerState | None, probe_ok: bool | None
+    state: ContainerState | None,
+    probe_ok: bool | None,
+    ready_when: ReadyWhen = ReadyWhen.RUNNING,
 ) -> tuple[Readiness, str]:
     """A container's readiness from its state, health check and probe.
 
@@ -180,17 +183,19 @@ def readiness(
     """
     if state is None:
         return Readiness.MISSING, "not created"
-    if state.status == "running":
+    stopped = state.status in ("exited", "dead")
+    if ready_when is ReadyWhen.EXITED:
+        # Jobs with a restart policy run again after completing.
+        if (stopped or state.status == "restarting") and state.exit_code == 0:
+            return Readiness.COMPLETED, "completed"
+    elif state.status == "running":
         if state.health is not None and state.health != "healthy":
             return Readiness.STARTING, state.health
         if probe_ok is False:
             return Readiness.STARTING, "probe failing"
         return Readiness.READY, state.health or "running"
-    if state.status in ("exited", "restarting") and state.exit_code == 0:
-        # A one-shot job such as a volume or bucket initializer.
-        return Readiness.COMPLETED, "completed"
     if state.status == "restarting":
         return Readiness.STARTING, f"restarting after exit code {state.exit_code}"
-    if state.status in ("exited", "dead"):
+    if stopped:
         return Readiness.FAILED, f"exited with code {state.exit_code}"
     return Readiness.STARTING, state.status

@@ -154,7 +154,8 @@ def _wait_services(
         for service in list(pending):
             state = states.get(service)
             probe_ok = _probe_ok(context, service, state) if state else None
-            status, detail = readiness(state, probe_ok)
+            ready_when = context.manifest.settings(service).ready_when
+            status, detail = readiness(state, probe_ok, ready_when)
             details[service] = detail
             if status.done:
                 seconds = time.monotonic() - started
@@ -439,7 +440,9 @@ def command_status(context: Context) -> int:
     candidates = serving or covering
     current = candidates[0].name if active & in_modes and candidates else None
     up = {
-        service for service, state in states.items() if readiness(state, None)[0].done
+        service
+        for service, state in states.items()
+        if readiness(state, None, context.manifest.settings(service).ready_when)[0].done
     }
     containers = list_containers()
     conflicts: dict[str, list[str]] = {}

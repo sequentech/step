@@ -170,6 +170,18 @@
   ],
   "services": [
     {
+      "name": "postgres-volume-init",
+      "readyWhen": "exited"
+    },
+    {
+      "name": "configure-minio",
+      "readyWhen": "exited"
+    },
+    {
+      "name": "immudb-init",
+      "readyWhen": "exited"
+    },
+    {
       "name": "keycloak",
       "url": "http://127.0.0.1:8090",
       "probe": [
