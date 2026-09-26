@@ -87,14 +87,15 @@ export const SavedParent: Story = {
 export const SearchAndSelect: Story = {
     play: async ({canvasElement, args}) => {
         const canvas = within(canvasElement)
-        await userEvent.type(areaInput(canvasElement), "South district")
+        // Any part of the name finds the area, whatever its case.
+        await userEvent.type(areaInput(canvasElement), "south")
         await waitFor(() =>
             expect(searches().map(({args}) => args[1])).toContainEqual(
                 expect.objectContaining({
                     filter: {
-                        tenant_id: TENANT_ID,
-                        election_event_id: EVENT_ID,
-                        name: "South district",
+                        "tenant_id": TENANT_ID,
+                        "election_event_id": EVENT_ID,
+                        "name@_ilike": "south",
                     },
                     pagination: {page: 1, perPage: 100},
                 })
