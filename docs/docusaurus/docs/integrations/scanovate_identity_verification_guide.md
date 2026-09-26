@@ -262,7 +262,7 @@ mostly useful in `auto-complete` mode:
 
 `MOCK_SERVER_PUBLIC_URL` must be reachable from the voter's browser
 (`http://127.0.0.1:8500` in the dev container), while `base-url` must be
-reachable from Keycloak (`http://mock_server:8500`).
+reachable from Keycloak (`http://mock-server:8500`).
 
 ### Starting the development environment
 
@@ -305,7 +305,7 @@ enrolls voters with Scanovate against the mock server:
 
 | File | Contents |
 | --- | --- |
-| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, `scanovate-registration` pointing to `http://mock_server:8500` in `interactive` mode, and the five accepted document types. |
+| `election-event.json` | The *Scanovate Enrollment Demo* election event: one area (`Japan - Tokyo PE`), one election and one contest. Its Keycloak realm is the COMELEC realm template with enrollment enabled, `scanovate-registration` pointing to `http://mock-server:8500` in `interactive` mode, and the five accepted document types. |
 | `voters.csv` | The voter registry: `JUAN DELA CRUZ`, born `1990-01-01`, registered at the Tokyo PE. It's the voter the mock server returns when no voters were uploaded to it. |
 
 To use it:
@@ -364,7 +364,7 @@ For load tests, set `execution-mode` to `auto-complete`. The authenticator then
 fetches the results right after creating the session without redirecting the
 voter, so voters go through enrollment without any B-Trust UI. The step-cli
 test election templates (`packages/step-cli/data/*.json`) use this mode against
-`http://mock_server:8500`. Never use `auto-complete` against the real B-Trust.
+`http://mock-server:8500`. Never use `auto-complete` against the real B-Trust.
 
 ### Testing against the Scanovate test environment
 
@@ -411,7 +411,7 @@ It sets `execution-mode` to `interactive`, unless `SCANOVATE_EXECUTION_MODE`
 says otherwise, and `save-option` from `SCANOVATE_SAVE_OPTION`. `KEYCLOAK_URL`,
 `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` default to the dev container
 Keycloak (`http://127.0.0.1:8090`, `admin`/`admin`). Run it again with the mock
-server values (`http://mock_server:8500`, `mock-client`, `mock-secret`, flow
+server values (`http://mock-server:8500`, `mock-client`, `mock-secret`, flow
 `1`) to go back to the mock. The same settings can be edited in the Keycloak
 admin console: **Authentication**, the registration flow, then the settings of
 the Scanovate step.

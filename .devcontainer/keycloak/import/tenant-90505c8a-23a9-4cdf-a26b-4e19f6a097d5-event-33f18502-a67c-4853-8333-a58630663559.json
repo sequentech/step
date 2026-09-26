@@ -4014,7 +4014,7 @@
       "id": "3b3c7e73-efd1-4f2c-8233-e5f62c3dbbf5",
       "alias": "scanovate-registration",
       "config": {
-        "base-url": "http://mock_server:8500",
+        "base-url": "http://mock-server:8500",
         "client-id": "mock-client",
         "client-secret": "mock-secret",
         "flow-id": "1",

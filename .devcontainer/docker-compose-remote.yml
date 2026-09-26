@@ -360,6 +360,12 @@ services:
       ROCKET_PORT: ${MOCK_SERVER_PORT}
       MOCK_SERVER_PORT: ${MOCK_SERVER_PORT}
       MOCK_SERVER_PUBLIC_URL: ${MOCK_SERVER_PUBLIC_URL}
+    networks:
+      default:
+        # Java HTTP clients reject host names with underscores, e.g. Keycloak calling
+        # the mocked B-Trust API
+        aliases:
+          - mock-server
 
   janitor:
     profiles: ["full"]
