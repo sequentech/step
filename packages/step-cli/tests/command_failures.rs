@@ -36,7 +36,7 @@ fn failed_http_commands_exit_nonzero() {
         for _ in 0..2 {
             let (mut stream, _) = server.accept().unwrap();
             let mut request = [0; 8192];
-            stream.read(&mut request).unwrap();
+            assert!(stream.read(&mut request).unwrap() > 0);
             stream.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
         }
     });
