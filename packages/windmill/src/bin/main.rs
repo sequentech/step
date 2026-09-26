@@ -137,6 +137,8 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
             if !duplicates.is_empty() {
                 return Err(anyhow!("Found duplicate queues: {:?}", duplicates));
             }
+            let queues = celery_cfg::durable_electoral_log_consumer_queues(queues, &slug);
+            let vec_str: Vec<&str> = queues.iter().map(AsRef::as_ref).collect();
             celery_cfg::set_queues(queues.clone());
             celery_cfg::set_is_app_active(true);
             celery_app.consume_from(&vec_str[..]).await?;
