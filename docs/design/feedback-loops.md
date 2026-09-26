@@ -164,16 +164,32 @@ Decisions so far:
   rename, fingerprinted sources, an incremental development profile (cargo 15 s →
   5 s on a leaf edit, +0.4% wasm size); the committed package was stale and is now
   regenerated reproducibly with a freshness check in CI.
-- **Keycloak** (adopted: live theme folders; rejected: Keycloakify). The pilot
+- **Keycloak** (adopted: live theme folders; Keycloakify development continues). The pilot
   passed a real password + email OTP login with the existing authenticator (8/8) and
   its pages were lighter with no axe violations, but its real-Keycloak loop took
   8.4 s (n=10), realm localization overrides and per-event login policies did not
   reach the pages, the OTP courier enum was lost and dotted template ids needed
   workarounds; porting would cover 29 templates, 251 message keys in up to eight
-  locales and a Node build stage.
+  locales and a Node build stage. These results defer production adoption; they
+  do not end the React development path. Keep an opt-in Keycloakify workspace
+  with automatic reload and continue closing the localization, policy and custom
+  OTP context gaps. Document commands and browser validation for both developers
+  and agents through the shared `step-dev` entry point and `AGENTS.md`.
 - **Workbench** (adopted): shared scenarios and snapshots in `ui-test-kit`, one
   preview provider for Storybook and the workbench, production routes and loaders,
   typed policy overrides and the real sequent-core pipeline.
+
+Current validation: the voting Jest suite passes locally (30 suites, 259 tests,
+one run), as do verifier stories (14 tests, including one retained expected
+accessibility failure) and results stories (19 tests), one browser run each.
+The hosted regressions were a missing story CSS hook, virtual mocks for a now-real
+shared module and obsolete expected-failure markers after upstream accessibility
+fixes. Frontend lint and formatting pass across all seven packages. Hosted
+reruns and paired voting coverage remain to be checked before claiming CI green.
+
+Keep the stack synchronized with new `ovcs` commits using normal merges into
+phase 1 and then each descendant. All feedback commands must be discoverable and
+usable from agent instructions as well as the developer guides.
 
 ## Continuing this work
 
