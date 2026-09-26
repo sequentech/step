@@ -295,6 +295,17 @@ def write_atomic(path: Path, data: bytes) -> None:
         raise
 
 
+def write_changed(path: Path, data: bytes) -> bool:
+    """Atomically replace ``path`` unless it already holds ``data``.
+
+    Watchers rebuild on any rewrite, so unchanged files are left alone.
+    """
+    if path.is_file() and path.read_bytes() == data:
+        return False
+    write_atomic(path, data)
+    return True
+
+
 def capture(command: Sequence[str], cwd: Path) -> str:
     try:
         result = subprocess.run(
@@ -788,10 +799,7 @@ def write_status(layout: Layout, status: Mapping[str, object]) -> None:
         script = STATUS_FAILED.format(message=json.dumps(message))
     else:
         script = STATUS_OK
-    path = layout.dist / "status.js"
-    # An unchanged status module keeps successful rebuilds to one reload.
-    if not path.is_file() or path.read_text() != script:
-        write_atomic(path, script.encode())
+    write_changed(layout.dist / "status.js", script.encode())
 
 
 def publish(
@@ -823,9 +831,6 @@ def publish(
         except BaseException:
             shutil.rmtree(staging, ignore_errors=True)
             raise
-    entry = layout.dist / "index.js"
-    text = ENTRY.format(build=build)
-    moved = not entry.is_file() or entry.read_text() != text
     package = {
         "name": CRATE,
         "version": metadata["version"],
@@ -834,10 +839,9 @@ def publish(
         "main": "index.js",
         "types": "index.d.ts",
     }
-    write_atomic(layout.dist / "package.json", json.dumps(package, indent=2).encode())
-    write_atomic(layout.dist / "index.d.ts", TYPES.format(build=build).encode())
-    if moved:
-        write_atomic(entry, text.encode())
+    write_changed(layout.dist / "package.json", json.dumps(package, indent=2).encode())
+    write_changed(layout.dist / "index.d.ts", TYPES.format(build=build).encode())
+    moved = write_changed(layout.dist / "index.js", ENTRY.format(build=build).encode())
     return build, moved
 
 
