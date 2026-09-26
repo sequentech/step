@@ -7,11 +7,13 @@ Runs every fast and slow check the current changes select, as
 integration checks that start services. Unknown impact selects every check.
 """
 
+import signal
 import sys
 
 from .test import main
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(
         main(prog="step-dev validate", defaults=["--affected", "--depth", "broad"])
     )

@@ -21,6 +21,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -824,8 +825,8 @@ def watch(model: Model, plan: Plan) -> int:
     return poll(model, plan.steps)
 
 
-def print_plan(model: Model, plan: Plan) -> None:
-    print(f"step-dev test: {plan.heading}")
+def print_plan(model: Model, plan: Plan, prog: str) -> None:
+    print(f"{prog}: {plan.heading}")
     if plan.unit is not None:
         where = plan.unit.path or plan.unit.summary
         print(f"  unit      {plan.unit.id} ({plan.unit.kind.value}: {where})")
@@ -848,8 +849,10 @@ def print_plan(model: Model, plan: Plan) -> None:
         print(f"  not run   {line}")
 
 
-def run(model: Model, plan: Plan, dry_run: bool, watching: bool) -> int:
-    print_plan(model, plan)
+def run(
+    model: Model, plan: Plan, dry_run: bool, watching: bool, prog: str = "step-dev test"
+) -> int:
+    print_plan(model, plan, prog)
     if dry_run or not plan.steps:
         return 0
     if watching:
@@ -965,8 +968,10 @@ def main(
     except (ConfigError, GitError, SelectionError, OSError, ValueError) as error:
         print(f"{prog}: {error}", file=sys.stderr)
         return 2
-    return run(model, plan, options.dry_run, options.watch)
+    return run(model, plan, options.dry_run, options.watch, prog)
 
 
 if __name__ == "__main__":
+    # Output piped into head or less may be cut short; that is not an error.
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     sys.exit(main())
