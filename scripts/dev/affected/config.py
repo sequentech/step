@@ -212,6 +212,7 @@ CHECK_KEYS = {
     "for_each",
     "units",
     "also",
+    "also_workflows",
     "commands",
     "prepares",
     "kind",
@@ -386,6 +387,7 @@ def expand_check(
         return _fill(value, unit, path, where)
 
     extra = table.get("also", {}).get(unit, []) if unit else []
+    workflows = table.get("also_workflows", {}).get(unit, []) if unit else []
     command = table.get("commands", {}).get(unit, table["command"])
     prepare = table.get("prepares", {}).get(unit, table.get("prepare"))
     units = ((unit,) if unit else ()) + _strings(table, "units", where) + tuple(extra)
@@ -413,7 +415,7 @@ def expand_check(
         tests=tuple(Glob(fill(item)) for item in _strings(table, "tests", where)),
         paths=tuple(Glob(fill(item)) for item in _strings(table, "paths", where)),
         requires=tuple(requires),
-        workflows=_strings(table, "workflows", where),
+        workflows=_strings(table, "workflows", where) + tuple(workflows),
         actions=_strings(table, "actions", where),
     )
 
@@ -425,7 +427,7 @@ def expand_checks(
     checks: list[CheckSpec] = []
     for table in tables:
         members = _strings(table, "for_each", table["id"])
-        for key in ("also", "commands", "prepares"):
+        for key in ("also", "also_workflows", "commands", "prepares"):
             overrides = table.get(key, {})
             if not isinstance(overrides, dict):
                 raise ConfigError(f"{table['id']}: {key!r} must be a table")

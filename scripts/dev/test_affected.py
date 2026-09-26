@@ -884,6 +884,20 @@ class ConfigTest(unittest.TestCase):
             ],
         )
 
+    def test_members_add_their_own_workflows(self):
+        config = parse_config(
+            self.base(
+                id="t:{unit}",
+                for_each=["a", "b"],
+                workflows=["all.yml"],
+                also_workflows={"b": ["b.yml"]},
+            )
+        )
+        checks = expand_checks(config.checks, {"a": "packages/a", "b": "packages/b"})
+        self.assertEqual(
+            [check.workflows for check in checks], [("all.yml",), ("all.yml", "b.yml")]
+        )
+
     def test_placeholders_outside_families_are_rejected(self):
         with self.assertRaisesRegex(ConfigError, "need for_each"):
             expand_checks(parse_config(self.base(command="run {unit}")).checks, {})

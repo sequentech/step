@@ -298,8 +298,9 @@ units = ["keycloak-extensions"]
 # `paths` changes, or when a workflow or action it mirrors changes. The first
 # unit owns the check: `step-dev test <unit>` runs it and the unit's test inputs
 # select it. Families (`for_each`) make one check per unit: {unit} is its id and
-# {path} its directory; `also.<unit>` adds units to one instance. `focus` is the
-# command `step-dev test` narrows to files, stories, specs or test names.
+# {path} its directory; `also.<unit>` and `also_workflows.<unit>` add units and
+# workflows to one instance. `focus` is the command `step-dev test` narrows to
+# files, stories, specs or test names.
 
 [[checks]]
 id = "jest:{unit}"
@@ -310,7 +311,13 @@ cost = "fast"
 cwd = "{path}"
 command = "yarn test --runInBand"
 focus = ["yarn", "jest", "--runInBand"]
-workflows = ["tests.yml", "lint_prettify.yml"]
+workflows = ["frontend-coverage.yml"]
+[checks.also_workflows]
+ui-core = ["tests.yml"]
+ui-essentials = ["tests.yml", "lint_prettify.yml"]
+voting-portal = ["tests.yml"]
+admin-portal = ["tests.yml"]
+results-portal = ["lint_prettify.yml"]
 
 [[checks]]
 id = "vitest:workbench"
@@ -546,8 +553,12 @@ cost = "fast"
 cwd = "packages"
 command = "cargo test --locked -p {unit} --tests"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
-workflows = ["tests.yml", "additional-unit-tests.yml"]
 actions = ["setup-rust-tests"]
+[checks.also_workflows]
+immu-board = ["tests.yml", "additional-unit-tests.yml"]
+immudb-rs = ["tests.yml"]
+e2e = ["additional-unit-tests.yml"]
+mock_server = ["additional-unit-tests.yml"]
 
 [[checks]]
 id = "cargo-test:sequent-core"
