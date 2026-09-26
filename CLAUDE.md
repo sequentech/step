@@ -32,7 +32,7 @@ cargo build --release                # Production build
 ```bash
 yarn                                 # Install all JS dependencies
 yarn build:ui-core                   # Build ui-core library
-yarn build:ui-essentials             # Build ui-essentials library (must rebuild after changes)
+yarn build:ui-essentials             # Build ui-essentials library (production builds; dev servers use its source)
 yarn build:voting-portal             # Build voting portal
 yarn build:admin-portal              # Build admin portal
 yarn start:voting-portal             # Dev server on port 3000
@@ -117,7 +117,7 @@ reuse lint                           # Every file must have SPDX headers
 - Extensive Cargo feature flags for conditional compilation — always check `[features]` in Cargo.toml
 - Celery + RabbitMQ for async task execution
 - GraphQL codegen: queries live in `src/queries/`, types generated with `yarn generate:*`
-- After editing ui-essentials components: `yarn prettify:fix:ui-essentials && yarn build:ui-essentials`
+- After editing ui-essentials components: `yarn prettify:fix:ui-essentials`. Portal dev servers hot-reload ui-core and ui-essentials from source; rebuild them (`yarn build:ui-core`, `yarn build:ui-essentials`) before production builds or journeys
 - **sequent-core WASM rebuild**: when changing `sequent-core`, the WASM package often needs rebuilding for frontend changes to take effect
 
 ## Important Conventions
