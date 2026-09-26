@@ -34,21 +34,17 @@ jest.mock("@sequentech/ui-core", () => ({
     ),
     sortCandidatesInContest: (candidates: ICandidate[]) => candidates,
 }))
-jest.mock(
-    "@sequentech/ui-essentials",
-    () => ({
-        theme: jest.requireActual<typeof import("../../../../ui-essentials/src/services/theme")>(
-            "../../../../ui-essentials/src/services/theme"
-        ).default,
-        CandidatesList: jest.requireActual<
-            typeof import("../../../../ui-essentials/src/components/CandidatesList/CandidatesList")
-        >("../../../../ui-essentials/src/components/CandidatesList/CandidatesList").default,
-        VisuallyHidden: jest.requireActual<
-            typeof import("../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden")
-        >("../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden").default,
-    }),
-    {virtual: true}
-)
+jest.mock("@sequentech/ui-essentials", () => ({
+    theme: jest.requireActual<typeof import("../../../../ui-essentials/src/services/theme")>(
+        "../../../../ui-essentials/src/services/theme"
+    ).default,
+    CandidatesList: jest.requireActual<
+        typeof import("../../../../ui-essentials/src/components/CandidatesList/CandidatesList")
+    >("../../../../ui-essentials/src/components/CandidatesList/CandidatesList").default,
+    VisuallyHidden: jest.requireActual<
+        typeof import("../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden")
+    >("../../../../ui-essentials/src/components/VisuallyHidden/VisuallyHidden").default,
+}))
 // Keep Question, AnswersList and CandidatesList real. Vote interpretation and
 // individual candidate inputs are outside this category-expansion contract.
 jest.mock("../../services/BallotService", () => ({
