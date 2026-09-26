@@ -5,8 +5,6 @@
 package sequent.keycloak.authenticator;
 
 import jakarta.ws.rs.core.Response;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.extern.jbosslog.JBossLog;
@@ -69,7 +67,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
       return;
     }
 
-    if (code == null || ttl == null) {
+    if (enteredCode == null || code == null || ttl == null) {
       context.failure();
       return;
     }
@@ -147,9 +145,7 @@ public class ResetMessageOTPRequiredAction implements RequiredActionProvider {
           new String[0],
           context);
     } catch (Exception error) {
-      StringWriter sw = new StringWriter();
-      error.printStackTrace(new PrintWriter(sw));
-      log.infov("There was an error: {0}", sw.toString());
+      log.error("Error sending OTP for credential setup");
       context.failure();
     }
 

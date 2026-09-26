@@ -185,18 +185,21 @@ auto-reload, but are not React implementations.
 
 The integration suite creates a uniquely named disposable realm from the checked-in
 tenant import, adds synthetic clients and a user with a generated password, and
-deletes the realm afterward. It compares the React and FreeMarker themes through
-password and email OTP, redeemed authorization codes, invalid codes, Spanish,
-realm localization overrides, profile metadata, login policies and the structured
-credential fallback. It needs an administrator of the disposable development
-server and a log file following its dummy email sender; never use production
-credentials or logs. Pass credentials through the environment without committing
+deletes the realm afterward. After import, it configures a per-run random six-digit
+OTP on that realm's MessageOTP browser-flow configurations using `test-mode` and
+`test-mode-code`. The checked-in realm template remains unchanged. It compares the
+React and FreeMarker themes through password and test-mode email OTP, redeemed
+authorization codes, incomplete-code rejection, Spanish, realm localization
+overrides, profile metadata, login policies and the structured credential fallback.
+The evidence identifies OTP verification as test mode. Provider unit tests cover
+verification of the generated and stored OTP; this suite does not retrieve codes
+from email or logs. It needs an administrator of the disposable development
+server. Pass development credentials through the environment without committing
 them:
 
 ```sh
 # Set KEYCLOAK_ADMIN and KEYCLOAK_ADMIN_PASSWORD in this shell.
 export KEYCLOAK_UI_URL=http://127.0.0.1:5174
-export KEYCLOAK_UI_LOG=/absolute/path/to/development-keycloak.log
 export KEYCLOAK_UI_EVIDENCE_FILE=/absolute/path/to/keycloak-ui-evidence.json
 cd packages/keycloak-ui
 yarn test:real
@@ -208,8 +211,8 @@ yarn test:hot
 
 The hot-update check records browser, runtime and dependency versions, machine
 load and per-edit durations in the evidence file. It requires a visible marker,
-no document navigation, preserved typed inputs and a completed OTP session after
-the edits. Run it in a dedicated checkout so simultaneous edits cannot conflict
-with source restoration. SMS delivery, one-time-link redemption, CAPTCHA and
-external identity providers need their own configured integration environments;
+no document navigation, preserved typed inputs and a completed test-mode OTP
+session after the edits. Run it in a dedicated checkout so simultaneous edits
+cannot conflict with source restoration. SMS delivery, one-time-link redemption,
+CAPTCHA and external identity providers need their own configured integration environments;
 synthetic stories cover their presentation only where supplied.

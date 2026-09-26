@@ -86,7 +86,6 @@ public class SmartLinkAuthenticator extends UsernamePasswordForm {
             isUpdatePassword(context, false),
             SmartLink.registerEvent(event));
 
-    log.infof("user is %s %s", user.getEmail(), user.isEnabled());
     // check for no/invalid email address
     if (user == null || trimToNull(user.getEmail()) == null || !isValidEmail(user.getEmail())) {
       context.getEvent().event(EventType.LOGIN_ERROR).error(Errors.INVALID_EMAIL);
@@ -112,7 +111,7 @@ public class SmartLinkAuthenticator extends UsernamePasswordForm {
             getMarkEmailVerified(context, true));
     String link = LoginBridge.linkFromActionToken(context.getSession(), context.getRealm(), token);
     boolean sent = SmartLink.sendSmartLinkNotification(context.getSession(), user, link);
-    log.infof("sent notification to %s? %b. Link? %s", user.getEmail(), sent, link);
+    log.infof("sent notification to %s? %b", user.getEmail(), sent);
 
     context
         .getAuthenticationSession()
