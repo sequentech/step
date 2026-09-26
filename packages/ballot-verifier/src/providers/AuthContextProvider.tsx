@@ -64,7 +64,7 @@ const defaultAuthContextValues: AuthContextValues = {
     email: "",
     firstName: "",
     logout: () => {},
-    login: (tenantId: string, eventId: string) => {},
+    login: (tenantId: string, eventId: string, defaultLocale?: string) => {},
     hasRole: () => false,
     getAccessToken: () => undefined,
     openProfileLink: () => new Promise(() => undefined),
@@ -289,7 +289,7 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         keycloak.logout()
     }
 
-    const login = (tenantId: string, eventId: string) => {
+    const login = (tenantId: string, eventId: string, defaultLocale?: string) => {
         setTenantId(tenantId)
         setEventId(eventId)
         setDefaultLocale(defaultLocale || undefined)

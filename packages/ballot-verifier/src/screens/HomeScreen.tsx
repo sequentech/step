@@ -27,7 +27,7 @@ import TextField from "@mui/material/TextField"
 import {faCircleQuestion, faAngleRight} from "@fortawesome/free-solid-svg-icons"
 import JsonImg from "../public/json.png"
 import Image from "mui-image"
-import {TenantEventContext} from ".."
+import {TenantEventContext} from "../providers/TenantEventContext"
 import {GET_BALLOT_STYLES} from "../queries/GetBallotStyles"
 import {useAppDispatch} from "../store/hooks"
 import {
@@ -191,8 +191,9 @@ export const HomeScreen: React.FC<IProps> = ({
             ? ballotService.hashMultiBallot(auditableBallot as IAuditableMultiBallot)
             : ballotService.hashBallot512(auditableBallot as IAuditableSingleBallot)
 
+        // sequent-core also rejects a signature without its public key, and the reverse.
         if (
-            auditableBallot?.voter_ballot_signature !== undefined &&
+            auditableBallot?.voter_ballot_signature !== undefined ||
             auditableBallot?.voter_signing_pk !== undefined
         ) {
             try {
