@@ -736,7 +736,9 @@ class CommandTest(StoreTestCase):
         self.assertIn("synthetic fixture credentials, not real people", output)
         self.assertIn("results   http://localhost:3004/event", output)
         self.assertIn("e2e-published-results-a1 Alice", output)
-        self.assertIn("docker logs prefix-keycloak", output)
+        self.assertIn("use the delivered email code", output)
+        self.assertIn("configure a test code in the isolated development realm", output)
+        self.assertNotIn("docker logs", output)
 
     def test_status_without_state_needs_no_backend(self):
         with mock.patch.object(cli, "_backend") as backend:
