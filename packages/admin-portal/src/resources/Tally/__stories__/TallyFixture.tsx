@@ -419,6 +419,7 @@ export interface TallyContextValues {
     /** Observes the tally screen's selection of another tally, e.g. going back. */
     onSetTallyId?: (tallyId: string | null) => void
     onSetMiruAreaId?: (areaId: string) => void
+    onSetSelectedTallySessionData?: (data: IMiruTransmissionPackageData | null) => void
 }
 
 /**
@@ -431,6 +432,7 @@ export function TallyStoryContext({
     data = null,
     onSetTallyId,
     onSetMiruAreaId,
+    onSetSelectedTallySessionData,
     children,
 }: PropsWithChildren<TallyContextValues>) {
     const context = useContext(ElectionEventTallyContext)
@@ -456,7 +458,10 @@ export function TallyStoryContext({
                     },
                     electionEventId: EVENT_ID,
                     selectedTallySessionData: selectedPackage,
-                    setSelectedTallySessionData: setSelectedPackage,
+                    setSelectedTallySessionData: (value) => {
+                        onSetSelectedTallySessionData?.(value)
+                        setSelectedPackage(value)
+                    },
                     miruAreaId,
                     setMiruAreaId: (id) => {
                         onSetMiruAreaId?.(id)
