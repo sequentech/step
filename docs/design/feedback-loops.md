@@ -404,10 +404,12 @@ received Lite reviews after runner timeouts. CodeRabbit reviewed phases 2 and 3;
   ECIES tests finished first in 46 s (2 s dispatch, 7 s queue, 37 s execution;
   18 s contract step). The same six ECIES tests at `acebe8e3d2` take 667 s,
   including 630 s queued and 35 s executing (17 s contract step).
+  At `d62c84055b`, those six ECIES tests finish first in 103 s: 2 s dispatch,
+  71 s queue and 30 s execution (14 s contract step).
   Historical median is 565.5 s, range 42–3242, across 34
   actionable pushes out of 35 observed. The proxy is the earliest eligible
   workflow creation time, including the CLA pull-request-target event. This
-  pair of uncontrolled n=1 observations does not establish a speedup. A historical ECIES
+  set of uncontrolled n=1 observations does not establish a speedup. A historical ECIES
   exemplar also executes in 35 s but waits 535 s for its runner.
   Fresh hosted runs exposed missing Python coverage, Node fixture dependencies,
   Compose defaults and container Git trust; the selected setup now supplies these
