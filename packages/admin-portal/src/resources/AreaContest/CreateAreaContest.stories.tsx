@@ -56,6 +56,9 @@ export const Populated: Story = {
         await expect(canvas.getByText("Area Contest creation")).toBeVisible()
         await waitFor(() => expect(reads("getList", "sequent_backend_tenant")).toHaveLength(1))
         await expect(canvas.getByRole("button", {name: "Save"})).toBeVisible()
+        await userEvent.click(canvas.getByRole("combobox", {name: "Tenant"}))
+        const tenant = await within(document.body).findByRole("option", {name: "example-council"})
+        await waitFor(() => expect(tenant).toBeVisible())
         expect(dataWrites()).toEqual([])
     },
 }
