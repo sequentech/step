@@ -81,8 +81,9 @@ by the `up` command above), and run the module's tests with
 
 ## React login and OTP development
 
-`packages/keycloak-ui` is an opt-in Keycloakify workspace using the UI Essentials
-React theme. Its Vite server provides synthetic previews, Storybook and hot
+`packages/keycloak-ui` is an opt-in Keycloakify workspace with a scoped Sequent
+authentication theme, local font assets and Material UI controls. Its Vite server
+provides synthetic previews, Storybook and hot
 updates on real Keycloak login and message OTP pages. Production images and
 existing realm themes continue to use the Sequent FreeMarker themes.
 
@@ -116,6 +117,19 @@ yarn test:stories
 yarn test:story 'Login.stories.tsx' --watch
 yarn typecheck && yarn lint && yarn prettify
 ```
+
+Login retains native form submission and credential autocomplete. The password
+visibility control works by keyboard. Message OTP accepts a complete pasted or
+autofilled code, labels each digit and supports arrows and Backspace; completing
+the code focuses Submit without submitting automatically. Locale changes follow
+the server-provided URL, and realm policies determine the available login options.
+
+For authentication UI changes, review focus visibility and order, error
+announcements, text/control contrast, a 320 CSS-pixel viewport and enlarged text.
+Story and real-authentication tests cover these behaviors alongside automated
+accessibility checks. Also test native browser zoom, password-manager assistance
+and screen readers on supported platforms; automated checks alone do not establish
+WCAG conformance for these pages or the inherited FreeMarker flows.
 
 ### Hot updates on a real authentication session
 

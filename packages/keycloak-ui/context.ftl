@@ -14,12 +14,16 @@ window.kcContext.courier = "${courier?string?js_string}";
 <#list [
     "loginAccountTitle", "doLogIn", "username", "usernameOrEmail", "email", "password",
     "rememberMe", "doForgotPassword", "noAccount", "doRegister", "doSubmit", "languages",
-    "invalidCredentialsMessage", "messageOtp.auth.address", "messageOtp.auth.instructionBoth",
+    "otpDigit", "otpCodeLabel",
+    "invalidCredentialsMessage", "messageOtp.auth.title", "messageOtp.otl.title",
+    "messageOtp.auth.address", "messageOtp.auth.instructionBoth",
     "messageOtp.auth.instructionSms", "messageOtp.auth.instructionEmail", "messageOtp.auth.ttlTime",
     "messageOtp.auth.resend.button", "messageOtp.auth.resend.timer", "messageOtp.otl.address",
     "messageOtp.otl.instructionBoth", "messageOtp.otl.instructionSms", "messageOtp.otl.instructionEmail",
     "messageOtp.otl.ttlTime", "messageOtp.otl.resend.button", "messageOtp.otl.resend.timer"
 ] as key>
+<#if msg(key) != key>
 window.kcContext["x-keycloakify"].messages["${key}"] = decodeHtmlEntities("${msg(key)?js_string}");
+</#if>
 </#list>
 </script>

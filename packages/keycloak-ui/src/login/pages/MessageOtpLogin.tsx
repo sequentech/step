@@ -7,8 +7,9 @@ import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import TextField from "@mui/material/TextField"
 import Typography from "@mui/material/Typography"
-import type {I18n} from "../i18n"
+import {messageLanguage, type I18n} from "../i18n"
 import {MessageCourier, type KcContext} from "../KcContext"
+import {ArrowIcon} from "../icons"
 
 type OtpContext = Extract<KcContext, {pageId: "message-otp.login.ftl"}>
 
@@ -50,29 +51,59 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
     const length = Number(codeLength ?? DEFAULT_CODE_LENGTH)
     const [digits, setDigits] = useState<string[]>(() => Array(length).fill(""))
     const inputs = useRef<(HTMLInputElement | null)[]>([])
+    const submit = useRef<HTMLButtonElement | null>(null)
+    const codeError = kcContext.message?.type === "error"
     const remaining = useResendCountdown(
         Number(resendTimer ?? DEFAULT_RESEND_SECONDS),
         codeJustSent === true
     )
 
+    const focusInput = (index: number) => {
+        if (index >= length) {
+            submit.current?.focus()
+        } else {
+            inputs.current[index]?.focus()
+            inputs.current[index]?.select()
+        }
+    }
+    const enterCode = (value: string) => {
+        const pasted = value.replace(/\D/g, "").slice(0, length)
+        if (pasted === "") return
+        setDigits(Array.from({length}, (_, index) => pasted[index] ?? ""))
+        focusInput(pasted.length)
+    }
     const setDigit = (index: number, value: string) => {
+        // SMS autofill and password managers may populate the first field with
+        // the whole code in one input event. Never discard all but its last digit.
+        if (value.length > 1) {
+            enterCode(value)
+            return
+        }
         const next = [...digits]
-        next[index] = value.slice(-1)
+        next[index] = value.replace(/\D/g, "")
         setDigits(next)
-        if (value !== "" && index < length - 1) {
-            inputs.current[index + 1]?.focus()
+        if (next[index] !== "") {
+            focusInput(index + 1)
         }
     }
     const onKeyDown = (index: number, event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === "Backspace" && digits[index] === "" && index > 0) {
-            inputs.current[index - 1]?.focus()
+        if (event.key === "Backspace") {
+            event.preventDefault()
+            setDigits((current) =>
+                current.map((digit, position) => (position === index ? "" : digit))
+            )
+            focusInput(Math.max(0, index - 1))
+        } else if (event.key === "ArrowLeft" && index > 0) {
+            event.preventDefault()
+            focusInput(index - 1)
+        } else if (event.key === "ArrowRight") {
+            event.preventDefault()
+            focusInput(index + 1)
         }
     }
     const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
-        const pasted = event.clipboardData.getData("text").trim().slice(0, length)
         event.preventDefault()
-        setDigits(Array.from({length}, (_, index) => pasted[index] ?? ""))
-        inputs.current[Math.min(pasted.length, length - 1)]?.focus()
+        enterCode(event.clipboardData.getData("text"))
     }
     const instruction = INSTRUCTIONS[courier]
 
@@ -82,72 +113,118 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
             i18n={i18n}
             doUseDefaultCss={doUseDefaultCss}
             classes={classes}
-            displayInfo
-            headerNode={msg(`messageOtp.${flow}.address`, address)}
+            displayInfo={ttl !== undefined}
+            headerNode={msg(`messageOtp.${flow}.title`)}
             infoNode={
-                <>
-                    <Typography className="kc-message-otl-instructions">
-                        {msg(`messageOtp.${flow}.instruction${instruction}`)}
-                    </Typography>
-                    {ttl !== undefined && (
-                        <Typography variant="body2">
-                            {msg(
-                                `messageOtp.${flow}.ttlTime`,
-                                String(Math.round(Number(ttl) / 60))
-                            )}
-                        </Typography>
-                    )}
-                </>
+                <Typography
+                    id="otp-validity"
+                    variant="body2"
+                    lang={messageLanguage(kcContext, i18n, `messageOtp.${flow}.ttlTime`)}
+                >
+                    {msg(`messageOtp.${flow}.ttlTime`, String(Math.round(Number(ttl) / 60)))}
+                </Typography>
             }
         >
+            <Typography
+                className="auth-address"
+                lang={messageLanguage(kcContext, i18n, `messageOtp.${flow}.address`)}
+            >
+                {msg(`messageOtp.${flow}.address`, address)}
+            </Typography>
+            <Typography
+                id="otp-instructions"
+                className="kc-message-otl-instructions auth-instructions"
+                lang={messageLanguage(
+                    kcContext,
+                    i18n,
+                    `messageOtp.${flow}.instruction${instruction}`
+                )}
+            >
+                {msg(`messageOtp.${flow}.instruction${instruction}`)}
+            </Typography>
             <Box
                 component="form"
                 id="kc-message-code-login-form"
                 action={url.loginAction}
                 method="post"
-                sx={{display: "flex", flexDirection: "column", gap: 2}}
+                className="auth-form"
             >
                 {!isOtl && (
                     <>
                         <Box
-                            id="otp-inputs"
-                            sx={{display: "flex", justifyContent: "center", gap: 1}}
+                            component="fieldset"
+                            className="auth-code-group"
+                            lang={messageLanguage(kcContext, i18n, "otpCodeLabel")}
+                            aria-describedby={[
+                                "otp-instructions",
+                                ttl !== undefined && "otp-validity",
+                                codeError && "kc-feedback",
+                            ]
+                                .filter(Boolean)
+                                .join(" ")}
                         >
-                            {digits.map((digit, index) => (
-                                <TextField
-                                    key={index}
-                                    id={`otp-${index + 1}`}
-                                    value={digit}
-                                    autoFocus={index === 0}
-                                    autoComplete={index === 0 ? "one-time-code" : "off"}
-                                    inputRef={(element) => {
-                                        inputs.current[index] = element
-                                    }}
-                                    onChange={(event) => setDigit(index, event.target.value)}
-                                    onKeyDown={(event) =>
-                                        onKeyDown(index, event as KeyboardEvent<HTMLInputElement>)
-                                    }
-                                    onPaste={(event) =>
-                                        onPaste(event as ClipboardEvent<HTMLInputElement>)
-                                    }
-                                    slotProps={{
-                                        htmlInput: {
-                                            inputMode: "numeric",
-                                            pattern: "\\d",
-                                            maxLength: 1,
-                                            "aria-label": msgStr(
-                                                "otpDigit",
-                                                String(index + 1),
-                                                String(length)
-                                            ),
-                                            style: {textAlign: "center", width: 24},
-                                        },
-                                    }}
-                                />
-                            ))}
+                            <Typography component="legend" className="auth-field-label">
+                                {msgStr("otpCodeLabel")}
+                            </Typography>
+                            <Box
+                                id="otp-inputs"
+                                className="auth-code-inputs"
+                                sx={{
+                                    gridTemplateColumns: `repeat(${Math.min(length, 6)}, minmax(0, 1fr))`,
+                                }}
+                            >
+                                {digits.map((digit, index) => (
+                                    <TextField
+                                        key={index}
+                                        id={`otp-${index + 1}`}
+                                        value={digit}
+                                        autoFocus={index === 0}
+                                        autoComplete={index === 0 ? "one-time-code" : "off"}
+                                        error={codeError}
+                                        inputRef={(element) => {
+                                            inputs.current[index] = element
+                                        }}
+                                        onChange={(event) => setDigit(index, event.target.value)}
+                                        onFocus={(event) => event.target.select()}
+                                        onKeyDown={(event) =>
+                                            onKeyDown(
+                                                index,
+                                                event as KeyboardEvent<HTMLInputElement>
+                                            )
+                                        }
+                                        onPaste={(event) =>
+                                            onPaste(event as ClipboardEvent<HTMLInputElement>)
+                                        }
+                                        slotProps={{
+                                            htmlInput: {
+                                                inputMode: "numeric",
+                                                pattern: "\\d",
+                                                maxLength: length,
+                                                "aria-describedby": codeError
+                                                    ? "kc-feedback"
+                                                    : undefined,
+                                                "aria-label": msgStr(
+                                                    "otpDigit",
+                                                    String(index + 1),
+                                                    String(length)
+                                                ),
+                                                lang: messageLanguage(kcContext, i18n, "otpDigit"),
+                                            },
+                                        }}
+                                    />
+                                ))}
+                            </Box>
                         </Box>
                         <input type="hidden" id="code" name="code" value={digits.join("")} />
-                        <Button id="kc-form-submit" type="submit" variant="contained" fullWidth>
+                        <Button
+                            id="kc-form-submit"
+                            type="submit"
+                            variant="contained"
+                            fullWidth
+                            ref={submit}
+                            className="auth-submit"
+                            endIcon={<ArrowIcon />}
+                        >
                             {msgStr("doSubmit")}
                         </Button>
                     </>
@@ -160,6 +237,12 @@ export default function MessageOtpLogin(props: PageProps<OtpContext, I18n>) {
                     formNoValidate
                     variant="outlined"
                     disabled={remaining > 0}
+                    className="auth-resend"
+                    lang={messageLanguage(
+                        kcContext,
+                        i18n,
+                        `messageOtp.${flow}.resend.${remaining > 0 ? "timer" : "button"}`
+                    )}
                 >
                     {remaining > 0
                         ? msgStr(`messageOtp.${flow}.resend.timer`, String(remaining))

@@ -5,11 +5,13 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
 import subprocess
 import sys
+import tempfile
 import zipfile
 from enum import Enum
 from pathlib import Path
@@ -60,9 +62,18 @@ def run(
 def write(path: Path, content: str | bytes) -> None:
     """Replace files within stable mounted directories."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_bytes(content.encode() if isinstance(content, str) else content)
-    temporary.replace(path)
+    with tempfile.NamedTemporaryFile(
+        dir=path.parent, prefix=path.name + ".", delete=False
+    ) as handle:
+        temporary = Path(handle.name)
+        try:
+            handle.write(content.encode() if isinstance(content, str) else content)
+            handle.flush()
+            # Keycloak runs under a different UID from the development shell.
+            temporary.chmod(0o644)
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def page_template(source: str, bridge: str, runtime: Runtime, *, login: bool) -> str:
@@ -100,6 +111,17 @@ def theme_source(root: Path, theme: str, name: str) -> Path:
 
 
 def prepare(root: Path, runtime: Runtime, skip_build: bool) -> None:
+    # Vite can receive a batch of theme changes, and a manual prepare can run
+    # alongside it. Serialize the whole operation and read sources only after
+    # acquiring the checkout's lock, so an older copy cannot win the race.
+    lock = root / THEMES.parent / "prepare.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with lock.open("a") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        _prepare(root, runtime, skip_build)
+
+
+def _prepare(root: Path, runtime: Runtime, skip_build: bool) -> None:
     package = root / PACKAGE
     if not skip_build:
         run(["yarn", "build-keycloak-theme"], cwd=package)
