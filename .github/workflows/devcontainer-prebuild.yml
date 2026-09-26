@@ -10,6 +10,8 @@ on:
       - '.devcontainer/prebuild/**'
       - 'scripts/dev/prebuild.py'
       - 'scripts/dev/test_prebuild.py'
+      - 'scripts/dev/prebuild_smoke.py'
+      - 'scripts/dev/test_prebuild_smoke.py'
       - '.github/workflows/devcontainer-prebuild.yml'
   push:
     branches: [main, ovcs]
@@ -19,6 +21,7 @@ on:
       - '.devcontainer/devcontainer-lock.json'
       - '.devcontainer/prebuild/**'
       - 'scripts/dev/prebuild.py'
+      - 'scripts/dev/prebuild_smoke.py'
       - '.github/workflows/devcontainer-prebuild.yml'
   workflow_dispatch:
 permissions:
@@ -47,6 +50,7 @@ jobs:
         with:
           node-version: '22.22.0'
       - name: Build toolchains and locked devcontainer features
+        timeout-minutes: 75
         env:
           PREBUILD_ARCH: ${{ matrix.arch }}
         run: |
@@ -55,8 +59,31 @@ jobs:
             --workspace-folder "$RUNNER_TEMP/step-env-context" \
             --config "$RUNNER_TEMP/step-env-context/.devcontainer/devcontainer.json" \
             --image-name "step-devenv-validation:$PREBUILD_ARCH"
-      - name: Report build-only validation
-        run: echo 'The environment image built without registry credentials. PRs never publish images.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Measure offline toolchain readiness
+        timeout-minutes: 12
+        env:
+          PREBUILD_ARCH: ${{ matrix.arch }}
+        run: |
+          python3 -m scripts.dev.prebuild_smoke \
+            --image "step-devenv-validation:$PREBUILD_ARCH" \
+            --output-dir "$RUNNER_TEMP/prebuild-smoke"
+      - name: Report toolchain validation
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/prebuild-smoke/summary.md"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test -f "$RUNNER_TEMP/prebuild-smoke/failure.log"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/failure.log" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo 'PRs never publish images. This smoke covers toolchains, not application/service readiness.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: prebuild-smoke-${{ matrix.arch }}
+          path: ${{ runner.temp }}/prebuild-smoke/
+          if-no-files-found: ignore
+          retention-days: 14
   publish:
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ovcs')
     permissions:
@@ -85,6 +112,7 @@ jobs:
           python3 -m scripts.dev.prebuild context --destination "$RUNNER_TEMP/step-env-context" \
             --github-output "$GITHUB_OUTPUT"
       - name: Build toolchains and locked devcontainer features
+        timeout-minutes: 75
         env:
           PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}-${{ matrix.arch }}
         run: |
@@ -92,6 +120,29 @@ jobs:
             --workspace-folder "$RUNNER_TEMP/step-env-context" \
             --config "$RUNNER_TEMP/step-env-context/.devcontainer/devcontainer.json" \
             --image-name "$PREBUILD_IMAGE"
+      - name: Measure offline toolchain readiness
+        timeout-minutes: 12
+        env:
+          PREBUILD_IMAGE: ${{ steps.environment.outputs.image }}-${{ matrix.arch }}
+        run: |
+          python3 -m scripts.dev.prebuild_smoke \
+            --image "$PREBUILD_IMAGE" --output-dir "$RUNNER_TEMP/prebuild-smoke"
+      - name: Report toolchain validation
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/prebuild-smoke/summary.md"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if test -f "$RUNNER_TEMP/prebuild-smoke/failure.log"; then
+            cat "$RUNNER_TEMP/prebuild-smoke/failure.log" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: prebuild-smoke-${{ matrix.arch }}
+          path: ${{ runner.temp }}/prebuild-smoke/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Publish trusted architecture image
         env:
           GHCR_TOKEN: ${{ github.token }}
