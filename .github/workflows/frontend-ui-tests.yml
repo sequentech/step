@@ -43,6 +43,13 @@ jobs:
         if: matrix.package == 'voting-portal'
         working-directory: packages/voting-portal
         run: yarn test:types
+      - name: Check Keycloak UI types and code style
+        if: matrix.package == 'keycloak-ui'
+        working-directory: packages/keycloak-ui
+        run: |
+          yarn typecheck
+          yarn lint
+          yarn prettify
       - name: Run interactions and accessibility checks in Chromium
         working-directory: packages/${{ matrix.package }}
         run: yarn test:stories --coverage --reporter=default --reporter=junit --outputFile=test-results/stories.xml

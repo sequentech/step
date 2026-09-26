@@ -32,6 +32,7 @@ STORIES = (
     "admin-portal",
     "results-portal",
     "ballot-verifier",
+    "keycloak-ui",
 )
 PORTALS = ("voting-portal", "results-portal", "ballot-verifier", "admin-portal")
 PYTHON = (
@@ -77,7 +78,12 @@ def matrices(selection: Selection) -> dict[str, object]:
         for check in selected.values()
         if check.id.startswith("jest:")
         or check.id
-        in ("vitest:workbench", "node-test:keycloak-theme-tests", "types:ui-e2e")
+        in (
+            "vitest:workbench",
+            "node-test:keycloak-theme-tests",
+            "types:ui-e2e",
+            "types:keycloak-ui",
+        )
     ]
     python = [
         {"check": check.id, "command": check.command}

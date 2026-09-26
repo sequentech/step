@@ -536,7 +536,8 @@ cwd = "packages"
 command = "cargo test --locked -p {unit}"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
 workflows = ["tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 # Renders PDFs in place with a local Chromium.
 [[checks]]
@@ -550,7 +551,8 @@ command = "cargo test --locked -p velvet"
 focus = ["cargo", "test", "--locked", "-p", "velvet"]
 requires = ["chromium"]
 workflows = ["tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "cargo-test:{unit}"
@@ -561,7 +563,8 @@ cost = "fast"
 cwd = "packages"
 command = "cargo test --locked -p {unit} --tests"
 focus = ["cargo", "test", "--locked", "-p", "{unit}"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 [checks.also_workflows]
 immu-board = ["tests.yml", "additional-unit-tests.yml"]
 immudb-rs = ["tests.yml"]
@@ -578,7 +581,8 @@ cwd = "packages"
 command = "cargo test --locked -p sequent-core --features default_features,keycloak"
 focus = ["cargo", "test", "--locked", "-p", "sequent-core", "--features", "default_features,keycloak"]
 workflows = ["tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "cargo-test:b4"
@@ -601,7 +605,8 @@ cwd = "packages"
 command = "cargo test --locked -p windmill"
 focus = ["cargo", "test", "--locked", "-p", "windmill"]
 workflows = ["tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 # Request boundaries and error contracts need no database; the complete suite
 # does (cargo-test-db:harvest).
@@ -615,7 +620,8 @@ cwd = "packages"
 command = "cargo test --locked -p harvest --bin harvest -- request_boundaries error_contracts boundary_tests services::access"
 focus = ["cargo", "test", "--locked", "-p", "harvest"]
 workflows = ["tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 [checks.env]
 KEYCLOAK_DB__HOST = "127.0.0.1"
 HASURA_DB__HOST = "127.0.0.1"
@@ -672,7 +678,8 @@ cwd = "packages"
 command = "cargo test --locked -p orare --features openwhisk --test runtime_contracts"
 focus = ["cargo", "test", "--locked", "-p", "orare", "--features", "openwhisk"]
 workflows = ["orare-unit-tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "cargo-test:doc_renderer"
@@ -684,7 +691,8 @@ cwd = "packages"
 command = "cargo test --locked -p doc_renderer"
 focus = ["cargo", "test", "--locked", "-p", "doc_renderer"]
 workflows = ["orare-unit-tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "cargo-test:miru"
@@ -696,7 +704,8 @@ cwd = "packages"
 command = "cargo build --locked --release -p miru --target wasm32-wasip2 && cargo test --locked -p miru --test component_contracts"
 focus = ["cargo", "test", "--locked", "-p", "miru"]
 workflows = ["miru-unit-tests.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "cargo-test:wbraid"
@@ -707,7 +716,8 @@ cost = "slow"
 cwd = "packages/wbraid"
 command = "cargo test --locked --release --features sqlite,postgres"
 workflows = ["wbraid.yml"]
-actions = ["setup-rust-tests"]
+actions = ["setup-rust-tests", "setup-rust-cache"]
+paths = ["scripts/dev/rust_cache.py"]
 
 [[checks]]
 id = "wasm-test:sequent-core"

@@ -44,9 +44,42 @@ class PlanTests(unittest.TestCase):
     def test_shared_ui_selects_every_portal_and_workbench(self):
         plan = self.plan("packages/ui-core/src/index.ts")
         self.assertEqual(len(plan["builds"]), 4)
-        self.assertEqual(len(plan["stories"]), 5)
+        self.assertEqual(len(plan["stories"]), 6)
         self.assertEqual(len(plan["journeys"]), 7)
         self.assertTrue(plan["ui_jobs"]["workbench"])
+        self.assertFalse(plan["jobs"]["run-tests"])
+
+    def test_compiler_cache_changes_select_all_its_rust_callers(self):
+        for path in (
+            ".github/actions/setup-rust-cache/action.yml",
+            "scripts/dev/rust_cache.py",
+        ):
+            with self.subTest(path=path):
+                plan = self.plan(path)
+                self.assertEqual(
+                    {row["service"] for row in plan["rust"]},
+                    {
+                        "electoral-log",
+                        "harvest",
+                        "strand",
+                        "immu-board",
+                        "immudb-rs",
+                        "sequent-core",
+                        "step-cli",
+                        "velvet",
+                        "wrap-map-err",
+                    },
+                )
+                self.assertTrue(plan["jobs"]["run-windmill-tests"])
+                self.assertFalse(plan["jobs"]["frontend-ui"])
+
+    def test_keycloak_page_selects_its_browser_and_type_checks(self):
+        plan = self.plan("packages/keycloak-ui/src/login/pages/Login.tsx")
+        self.assertEqual(plan["stories"], ["keycloak-ui"])
+        self.assertIn(
+            {"package": "keycloak-ui", "command": "yarn typecheck"}, plan["node"]
+        )
+        self.assertFalse(plan["builds"])
         self.assertFalse(plan["jobs"]["run-tests"])
 
     def test_verifier_builds_voting_once_for_cross_portal_journey(self):
