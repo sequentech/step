@@ -7,15 +7,16 @@ import type {TemplateProps} from "keycloakify/login/TemplateProps"
 import Alert, {type AlertColor} from "@mui/material/Alert"
 import Box from "@mui/material/Box"
 import CssBaseline from "@mui/material/CssBaseline"
-import MenuItem from "@mui/material/MenuItem"
 import Paper from "@mui/material/Paper"
-import Select from "@mui/material/Select"
 import Typography from "@mui/material/Typography"
 import {ThemeProvider} from "@mui/material/styles"
-import theme from "@sequentech/ui-essentials/theme"
-import logo from "../../../ui-essentials/public/Sequent_logo.svg"
-import type {I18n} from "./i18n"
+import logo from "./assets/sequent-white.svg"
+import {GlobeIcon, MessageIcon, ShieldIcon} from "./icons"
+import {authTheme} from "./theme"
+import {getAuthCopy} from "./authCopy"
+import {messageLanguage, type I18n} from "./i18n"
 import type {KcContext} from "./KcContext"
+import "./auth.css"
 
 const MESSAGE_SEVERITY: Record<string, AlertColor> = {
     success: "success",
@@ -37,10 +38,27 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
     } = props
     const {msgStr, currentLanguage, enabledLanguages} = i18n
     const {realm, message, isAppInitiatedAction} = kcContext
+    const voting = kcContext.themeName === "sequent-ui-voting"
+    // Keycloakify derives direction from the language when older contexts do
+    // not include locale.rtl; preserve that resolved value.
+    const direction =
+        (kcContext.locale?.rtl ?? document.documentElement.dir === "rtl") ? "rtl" : "ltr"
+    const copy = getAuthCopy(currentLanguage.languageTag)
 
     useEffect(() => {
         document.title = documentTitle ?? msgStr("loginTitle", realm.displayName || realm.name)
     }, [documentTitle, msgStr, realm.displayName, realm.name])
+
+    useEffect(() => {
+        const previousLang = document.documentElement.lang
+        const previousDir = document.documentElement.dir
+        document.documentElement.lang = currentLanguage.languageTag
+        document.documentElement.dir = direction
+        return () => {
+            document.documentElement.lang = previousLang
+            document.documentElement.dir = previousDir
+        }
+    }, [currentLanguage.languageTag, direction])
 
     const showMessage =
         displayMessage &&
@@ -48,49 +66,70 @@ export default function Template(props: TemplateProps<KcContext, I18n>) {
         (message.type !== "warning" || !isAppInitiatedAction)
 
     return (
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={authTheme}>
             <CssBaseline />
-            <Box sx={{minHeight: "100vh", display: "flex", flexDirection: "column"}}>
-                <Box
-                    component="header"
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        px: 4,
-                        py: 2,
-                        bgcolor: "background.default",
-                    }}
-                >
-                    <img src={logo} alt="Sequent" height={40} />
-                    {enabledLanguages.length > 1 && (
-                        <LanguageSelect
-                            label={msgStr("languages")}
-                            current={currentLanguage.languageTag}
-                            languages={enabledLanguages}
-                        />
-                    )}
-                </Box>
-                <Box component="main" sx={{flex: 1, display: "flex", justifyContent: "center"}}>
-                    <Paper variant="outlined" sx={{mt: 8, mb: "auto", p: 5, width: 500}}>
-                        <Typography id="kc-page-title" variant="h4" component="h1" gutterBottom>
-                            {headerNode}
-                        </Typography>
-                        {showMessage && (
-                            <Alert severity={MESSAGE_SEVERITY[message.type]} sx={{mb: 2}}>
-                                <span
-                                    dangerouslySetInnerHTML={{
-                                        __html: kcSanitize(message.summary),
-                                    }}
-                                />
-                            </Alert>
+            <Box className="sequent-auth" lang={currentLanguage.languageTag} dir={direction}>
+                <Box className="auth-layout">
+                    <Box component="header" className="auth-brand">
+                        <img src={logo} alt="Sequent" width={170} height={32} />
+                        <span className="auth-brand-context" lang={copy.languageTag}>
+                            {voting ? copy.votingPortal : copy.adminPortal}
+                        </span>
+                    </Box>
+                    <Box component="main" aria-labelledby="kc-page-title">
+                        <Paper className="auth-card" elevation={0}>
+                            <Box className="auth-symbol" aria-hidden="true">
+                                {kcContext.pageId === "message-otp.login.ftl" ? (
+                                    <MessageIcon />
+                                ) : (
+                                    <ShieldIcon />
+                                )}
+                            </Box>
+                            <Typography className="auth-eyebrow" lang={copy.languageTag}>
+                                {voting ? copy.votingEyebrow : copy.adminEyebrow}
+                            </Typography>
+                            <Typography
+                                id="kc-page-title"
+                                className="auth-title"
+                                component="h1"
+                                lang={messageLanguage(
+                                    kcContext,
+                                    i18n,
+                                    kcContext.pageId === "message-otp.login.ftl"
+                                        ? `messageOtp.${kcContext.isOtl ? "otl" : "auth"}.title`
+                                        : "loginAccountTitle"
+                                )}
+                            >
+                                {headerNode}
+                            </Typography>
+                            {showMessage && (
+                                <Alert
+                                    id="kc-feedback"
+                                    className="auth-feedback"
+                                    severity={MESSAGE_SEVERITY[message.type]}
+                                    role={message.type === "error" ? "alert" : "status"}
+                                >
+                                    <span
+                                        dangerouslySetInnerHTML={{
+                                            __html: kcSanitize(message.summary),
+                                        }}
+                                    />
+                                </Alert>
+                            )}
+                            {children}
+                            {displayInfo && <Box className="auth-info">{infoNode}</Box>}
+                        </Paper>
+                    </Box>
+                    <Box component="footer" className="auth-footer">
+                        <span lang={copy.languageTag}>{copy.poweredBy}</span>
+                        {enabledLanguages.length > 1 && (
+                            <LanguageSelect
+                                label={msgStr("languages")}
+                                current={currentLanguage.languageTag}
+                                languages={enabledLanguages}
+                            />
                         )}
-                        {children}
-                        {displayInfo && <Box sx={{mt: 3}}>{infoNode}</Box>}
-                    </Paper>
-                </Box>
-                <Box component="footer" sx={{py: 1.5, textAlign: "center"}}>
-                    <Typography variant="body2">Powered by Sequent Tech Inc</Typography>
+                    </Box>
                 </Box>
             </Box>
         </ThemeProvider>
@@ -104,22 +143,26 @@ function LanguageSelect(props: {
 }): ReactNode {
     const {label, current, languages} = props
     return (
-        <Select
-            size="small"
-            value={current}
-            inputProps={{"aria-label": label}}
-            onChange={(event) => {
-                const target = languages.find(({languageTag}) => languageTag === event.target.value)
-                if (target !== undefined) {
-                    window.location.href = target.href
-                }
-            }}
-        >
-            {languages.map(({languageTag, label: name}) => (
-                <MenuItem key={languageTag} value={languageTag} lang={languageTag}>
-                    {name}
-                </MenuItem>
-            ))}
-        </Select>
+        <Box className="auth-language">
+            <GlobeIcon />
+            <select
+                value={current}
+                aria-label={label}
+                onChange={(event) => {
+                    const target = languages.find(
+                        ({languageTag}) => languageTag === event.target.value
+                    )
+                    if (target !== undefined) {
+                        window.location.href = target.href
+                    }
+                }}
+            >
+                {languages.map(({languageTag, label: name}) => (
+                    <option key={languageTag} value={languageTag} lang={languageTag}>
+                        {name}
+                    </option>
+                ))}
+            </select>
+        </Box>
     )
 }
