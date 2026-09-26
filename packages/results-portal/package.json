@@ -44,6 +44,7 @@
     "storybook": "storybook dev -p 6009 --no-open",
     "build-storybook": "storybook build",
     "test:stories": "vitest run --project=storybook",
+    "test:story": "node ../test-support/storybook/test-story.mjs",
     "generate": "NODE_OPTIONS=--openssl-legacy-provider ADMIN_SECRET=\"${ADMIN_SECRET:-admin}\" graphql-codegen --config codegen.ts",
     "test:journeys": "playwright test --config playwright.journeys.config.ts",
     "test:types": "tsc -p tsconfig.tests.json"

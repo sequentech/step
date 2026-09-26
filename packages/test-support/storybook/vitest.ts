@@ -63,6 +63,11 @@ export const createStorybookTests = (configDir: URL) =>
                             headless: true,
                             screenshotDirectory: "test-results/screenshots",
                             provider: playwright({
+                                // devenv provides Chromium in the devcontainer; elsewhere
+                                // Playwright launches its own installed build.
+                                launchOptions: {
+                                    executablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
+                                },
                                 contextOptions: {locale: "en-US", timezoneId: "UTC"},
                             }),
                             instances: [{browser: "chromium"}],
