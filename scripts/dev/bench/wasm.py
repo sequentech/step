@@ -255,11 +255,25 @@ def run_wasm(options: WasmOptions) -> Path:
         if changed:
             run.result.notes.append(f"restored {sorted(changed)}")
             if options.install:
-                run_command(
-                    options.install,
-                    cwd=options.checkout / "packages",
-                    log=log_dir / "restore-install.log",
-                )
+                restore_log = log_dir / "restore-install.log"
+                try:
+                    installed = run_command(
+                        options.install,
+                        cwd=options.checkout / "packages",
+                        log=restore_log,
+                        timeout=options.timeout,
+                    )
+                finally:
+                    # Installing the original archives can normalize yarn.lock
+                    # again, even on failure. Keep pre-existing changes intact.
+                    restore_tracked(
+                        options.checkout, tracked_changes(options.checkout) - before
+                    )
+                if not installed.ok:
+                    raise RuntimeError(
+                        f"restore install exited {installed.returncode}; "
+                        f"see {restore_log}"
+                    )
     return run.finish()
 
 
