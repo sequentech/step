@@ -43,6 +43,9 @@ export default {
         "src/components/CustomLayout.tsx#CustomCssReader":
             "Renders nothing: copies the tenant's custom CSS and languages into shared state; " +
             "the tenant global applies the same CSS in every story.",
+        "src/components/ResetFilters.tsx#ResetFilters":
+            "Renders nothing: clears the surrounding list's filters on mount; the stories of " +
+            "the lists that include it, such as ListArea and ElectoralLogList, cover it.",
         "src/components/election-event/create/CreateScreen.tsx#PullChecker": POLLER,
         "src/resources/ElectionEvent/CreateElectionEvent.tsx#PullChecker": POLLER,
         "src/resources/Approvals/ListApprovals.tsx#CustomFilters":
