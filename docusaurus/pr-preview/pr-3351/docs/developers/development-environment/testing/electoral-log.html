@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Electoral Log tests | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-3351/docs/developers/development-environment/testing/electoral-log"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Electoral Log tests | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-3351/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3351/docs/developers/development-environment/testing/electoral-log"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3351/docs/developers/development-environment/testing/electoral-log" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-3351/docs/developers/development-environment/testing/electoral-log" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Electoral Log tests","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-3351/docs/developers/development-environment/testing/electoral-log"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-3351/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-3351/assets/js/runtime~main.fa62a9e1.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-3351/assets/js/runtime~main.c4843252.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-3351/assets/js/main.2c911470.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -78,6 +78,11 @@ have published a batch before crashing without ACKing its originals; those two
 envelopes have different IDs and cannot be deduplicated retrospectively. The
 dispatcher has no fixed preparation deadline, matching the former batch processor,
 so a large valid batch is not repeatedly cancelled before its first commit.
+Prepared deliveries are committed in groups of at most sixteen per board, keeping
+both audit rows of a communications delivery with its receipt and leaving room
+for ImmuDB&#x27;s SQL indexes. A later chunk failure leaves earlier receipts available
+for safe redelivery. The owned-database regression exercises a full thousand-event
+batch, complete replay and a connection failure after the first committed chunk.
 A permanently invalid input
 stays queued and can block progress until investigated; it is never silently ACKed.</p>
 <p>The broker regressions use owned RabbitMQ 3.12.11 containers on ephemeral loopback
