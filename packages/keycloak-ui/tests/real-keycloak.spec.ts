@@ -462,14 +462,30 @@ test("react: wrong credentials announce the error and describe both fields", asy
 
 test("react: the language selector follows the realm's locale link", async ({page}) => {
     await page.goto(authorizeUrl(Theme.React, randomUUID(), "en"))
-    const language = page.getByRole("combobox", {name: "Languages"})
+    const header = page.getByRole("banner")
+    const properties = (await kcContext(page)).properties as Record<string, string>
+    for (const [key, label] of [
+        ["systemVersion", "Version:"],
+        ["systemHash", "Hash:"],
+    ]) {
+        expect(properties[key], key).toBeTruthy()
+        const field = header.getByRole("term").filter({hasText: label}).locator("..")
+        await expect(field.getByRole("definition")).toHaveText(properties[key])
+    }
+    const language = header.getByRole("combobox", {name: "Languages"})
     await expect(language).toHaveValue("en")
     await language.selectOption("es")
     await expect(page.getByRole("button", {name: "INICIAR SESIÓN"})).toBeVisible()
     await expect(page.locator("html")).toHaveAttribute("lang", /^es(?:-|$)/)
     await expect(page.locator("html")).toHaveAttribute("dir", "ltr")
     await expect(page.locator("#username")).toBeFocused()
-    evidence.localeSelector = {ok: true, selectedLanguage: "es", direction: "ltr"}
+    await expect(header.getByText("Versión:", {exact: true})).toBeVisible()
+    evidence.localeSelector = {
+        ok: true,
+        selectedLanguage: "es",
+        direction: "ltr",
+        headerBuildMatchesServer: true,
+    }
 })
 
 test("react: realm options retain remember-me and native recovery and registration links", async ({
@@ -583,6 +599,15 @@ test("react: login and OTP reflow while keyboard focus remains reachable", async
                 `${step}, ${width}px, text ${fontSize}`
             ).toBeLessThanOrEqual(dimensions.width + 1)
             await first.focus()
+            await page.keyboard.press("Shift+Tab")
+            const language = page.getByRole("banner").getByRole("combobox")
+            await expect(language).toBeFocused()
+            await expect(language).toBeInViewport()
+            expect(
+                await language.evaluate((element) => getComputedStyle(element).outlineStyle)
+            ).not.toBe("none")
+            await page.keyboard.press("Tab")
+            await expect(first).toBeFocused()
             if (width === 320 && fontSize === "200%") {
                 await page.keyboard.press("Tab")
                 await page.keyboard.press("Shift+Tab")

@@ -171,6 +171,9 @@ The context bridge carries the two login presentation policies, the OTP courier
 wire value and an explicit set of server-resolved messages, including realm
 localization overrides. It does not expose the realm attribute map. Standard
 username/password login and the custom message OTP page render in React.
+Their header keeps the native language selector and the inherited theme's
+`systemVersion`/`systemHash` values (`APP_VERSION`/`APP_HASH`), with server-resolved
+labels. The build information wraps on narrow screens.
 Registration, profile updates and other pages inherit the original FreeMarker
 implementation, including User Profile annotations and telephone widgets. Login
 also falls back to the original template for multi-attribute matching, structured

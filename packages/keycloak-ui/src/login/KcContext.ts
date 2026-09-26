@@ -23,7 +23,10 @@ export enum LoginHintUsernamePolicy {
 
 export type KcContextExtension = {
     themeName: ThemeName
-    properties: Record<KcEnvName, string>
+    properties: Record<KcEnvName, string> & {
+        systemVersion?: string
+        systemHash?: string
+    }
     sequent: {
         loginValidationPolicy: LoginValidationPolicy
         loginHintUsernamePolicy: LoginHintUsernamePolicy
