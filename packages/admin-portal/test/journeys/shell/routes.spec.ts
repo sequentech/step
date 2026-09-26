@@ -273,7 +273,9 @@ export const SMOKE: Record<string, Smoke> = {
         },
         defect: {
             reason: "ShowDocument's JsonField reads labels from a missing record prop and crashes",
-            consoleErrors: [/^TypeError: Cannot read properties of undefined \(reading 'labels'\)\n/],
+            consoleErrors: [
+                /^TypeError: Cannot read properties of undefined \(reading 'labels'\)\n/,
+            ],
         },
     },
     "/sequent_backend_notification": {
