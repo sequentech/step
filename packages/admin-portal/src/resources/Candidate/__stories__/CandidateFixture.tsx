@@ -8,7 +8,7 @@ import type {FetchResult, Operation} from "@apollo/client"
 import type {DataProvider, RaRecord} from "react-admin"
 import {graphqlBoundary, TENANT_ID} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary, type ReadState} from "@/__stories__/resourceBoundary"
-import {ResourceScreen} from "@/__stories__/resourceScreen"
+import {ResourceScreen, withMissingRecords} from "@/__stories__/resourceScreen"
 import {
     FIXED_TIME,
     STORY_IDS,
@@ -54,16 +54,9 @@ export const imageDocument: StoryRecord<Sequent_Backend_Document> = {
     labels: {},
 }
 
-/** The shared candidates with the name column Hasura also returns. */
-export const candidates = (): StoryRecord<Sequent_Backend_Candidate>[] =>
-    candidateRecords().map((candidate, index) => ({
-        ...candidate,
-        name: ["Alice Example", "Bob Example"][index],
-    }))
-
 /** Alice, whose picture is stored when `withImage` is set. */
 export function aliceRecord(withImage = false): StoryRecord<Sequent_Backend_Candidate> {
-    const [alice] = candidates()
+    const [alice] = candidateRecords()
     return withImage
         ? {
               ...alice,
@@ -100,7 +93,7 @@ export async function setUpCandidates(
 ) {
     lastCreated.mockClear()
     Object.values(tallyFlags).forEach((flag) => flag.mockClear())
-    const [, bob] = candidates()
+    const [, bob] = candidateRecords()
     data = resourceBoundary(
         {
             [RESOURCE]: empty ? [] : [aliceRecord(withImage), bob],
@@ -114,15 +107,7 @@ export async function setUpCandidates(
     )
     // Until its contest has loaded, CandidateDataForm reads the election whose
     // ID is the tenant's, which Hasura does not find.
-    provider = new Proxy(data.provider, {
-        get(target, key, receiver) {
-            if (key !== "getOne") return Reflect.get(target, key, receiver)
-            return (resource: string, params: {id: unknown}) =>
-                resource === "sequent_backend_election" && params.id === TENANT_ID
-                    ? Promise.reject(new Error("Not found"))
-                    : target.getOne(resource, params as never)
-        },
-    })
+    provider = withMissingRecords(data.provider, [["sequent_backend_election", TENANT_ID]])
     graphql = graphqlBoundary(
         {
             election_events_tree: () => ({data: {sequent_backend_election_event: []}}),

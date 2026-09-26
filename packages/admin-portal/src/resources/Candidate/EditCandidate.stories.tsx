@@ -42,8 +42,8 @@ const meta = {
 export default meta
 type Story = StoryObj<CandidateServices>
 
-const nameInput = (canvasElement: HTMLElement) =>
-    within(canvasElement).findByRole("textbox", {name: "Name"})
+const descriptionInput = (canvasElement: HTMLElement) =>
+    within(canvasElement).findByRole("textbox", {name: "Description"})
 
 export const Populated: Story = {
     parameters: {widgets: ["CandidateForm"], ...formDefects},
@@ -51,8 +51,12 @@ export const Populated: Story = {
         const canvas = within(canvasElement)
         await expect(await canvas.findByText("Candidate configuration")).toBeVisible()
         await waitFor(async () =>
-            expect(await nameInput(canvasElement)).toHaveValue("Alice Example")
+            expect(await descriptionInput(canvasElement)).toHaveValue(
+                "Alice Example stands for the council"
+            )
         )
+        // The candidate table has no name column, so the Name input starts empty.
+        expect(canvas.getByRole("textbox", {name: "Name"})).toHaveValue("")
         await expect(await canvas.findByRole("combobox", {name: "Contest"})).toBeVisible()
         expect(reads("getOne", "sequent_backend_candidate")[0].args[1]).toMatchObject({
             id: STORY_IDS.candidate,
@@ -81,15 +85,15 @@ export const LoadError: Story = {
     },
 }
 
-export const RenameTheCandidate: Story = {
+export const DescribeTheCandidate: Story = {
     // Saving returns to the empty list route, where axe finds no defect of the form.
     parameters: {widgets: ["CandidateForm"], expectedFailure: null},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        const name = await nameInput(canvasElement)
-        await waitFor(() => expect(name).toHaveValue("Alice Example"))
-        await userEvent.clear(name)
-        await userEvent.type(name, "Alice Sample")
+        const description = await descriptionInput(canvasElement)
+        await waitFor(() => expect(description).toHaveValue("Alice Example stands for the council"))
+        await userEvent.clear(description)
+        await userEvent.type(description, "Alice stands again")
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         // The update is undoable: it reaches the service once its notification closes.
         const notification = await within(document.body).findByText("Element updated")
@@ -107,7 +111,7 @@ export const RenameTheCandidate: Story = {
             resource: "sequent_backend_candidate",
             params: expect.objectContaining({
                 id: STORY_IDS.candidate,
-                data: expect.objectContaining({name: "Alice Sample"}),
+                data: expect.objectContaining({description: "Alice stands again"}),
             }),
         })
     },

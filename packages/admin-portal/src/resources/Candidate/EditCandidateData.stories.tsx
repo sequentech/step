@@ -80,7 +80,8 @@ export const RenameFromThePresentation: Story = {
         await userEvent.click(canvasElement)
         await waitFor(() => expect(notification).not.toBeInTheDocument())
         await waitFor(() => expect(dataWrites()).toHaveLength(1))
-        // The name, alias and description columns follow the English presentation.
+        // The name, alias and description follow the English presentation; the
+        // candidate table only has a description column.
         expect(dataWrites()[0].params).toMatchObject({
             id: STORY_IDS.candidate,
             data: {

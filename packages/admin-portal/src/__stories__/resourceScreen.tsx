@@ -2,7 +2,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {type ComponentProps} from "react"
-import {ResourceContextProvider, ResourceDefinitionContextProvider} from "react-admin"
+import {
+    ResourceContextProvider,
+    ResourceDefinitionContextProvider,
+    type DataProvider,
+    type GetOneParams,
+} from "react-admin"
 import {AdminStoryProvider} from "./AdminStoryProvider"
 
 type ResourceScreenProps = ComponentProps<typeof AdminStoryProvider> & {
@@ -36,4 +41,23 @@ export function ResourceScreen({resource, label, children, ...provider}: Resourc
             </ResourceDefinitionContextProvider>
         </AdminStoryProvider>
     )
+}
+
+/**
+ * The data provider with reads of records that do not exist, e.g. a widget's
+ * lookup by the wrong ID, failing as Hasura's do instead of being unexpected.
+ */
+export function withMissingRecords(
+    provider: DataProvider,
+    missing: ReadonlyArray<readonly [resource: string, id: string]>
+): DataProvider {
+    return new Proxy(provider, {
+        get(target, key, receiver) {
+            if (key !== "getOne") return Reflect.get(target, key, receiver)
+            return (resource: string, params: GetOneParams) =>
+                missing.some(([name, id]) => name === resource && id === params.id)
+                    ? Promise.reject(new Error("Not found"))
+                    : target.getOne(resource, params)
+        },
+    })
 }

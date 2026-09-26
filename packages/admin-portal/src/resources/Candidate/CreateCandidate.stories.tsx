@@ -59,6 +59,7 @@ export const CreateInTheContest: Story = {
     play: async ({canvasElement}) => {
         await fillIn(canvasElement)
         await waitFor(() => expect(dataWrites()).toHaveLength(1))
+        // The form still sends a name, which the candidate table no longer has.
         expect(dataWrites()[0]).toEqual({
             method: "create",
             resource: "sequent_backend_candidate",
