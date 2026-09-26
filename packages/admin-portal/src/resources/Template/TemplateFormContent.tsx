@@ -115,6 +115,8 @@ export const TemplateFormContent: React.FC<TTemplateFormContent> = ({
                 setTemplateExtraConfig(extraConfig)
             } catch (error) {
                 console.error("Error fetching template data:", error)
+                setTemplateHbsData(undefined)
+                setValue("template.document", globalSettings.DEFAULT_DOCUMENT["en"] || "")
             }
         }
 
