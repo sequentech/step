@@ -175,3 +175,34 @@ Open election event's LOGS tab in the Admin Portal to confirm the new entries.
 
 See the [Windmill boundary test guide](test-coverage.md) for isolated fixtures,
 contract tests, coverage commands and measured gaps.
+
+## Voting-window migrations and publication locks
+
+Run these database regressions from the repository root, with PostgreSQL
+utilities and Python `psycopg` available in the development environment:
+
+```bash
+python3 scripts/test_voting_window_preflight.py
+python3 scripts/test_ballot_publication_lifecycle.py
+python3 scripts/test_cast_vote_scalability.py
+```
+
+Each command owns a disposable PostgreSQL cluster on a private Unix socket.
+The preflight test starts with a successful migration, then checks duplicate
+active endpoints, malformed cron configuration and invalid dates across several
+election scopes. It verifies the source rows remain unchanged after rejection
+and that correcting the reported rows allows the migration to complete.
+
+The initial voting-window migration reports `invalid_voting_window_backfill`
+when eligible legacy schedules cannot be projected. Its JSON `DETAIL` lists
+each affected tenant, event, election and schedule ID with the reasons. Archive
+duplicate active schedules or correct their configuration, then retry the
+migration. Archived schedules and unrelated tasks are excluded; the migration
+does not choose a deadline from duplicate rows or repair source data. The later
+channel migration includes schedules that explicitly enable ONLINE, while
+missing, null or empty channel lists retain the legacy ONLINE/KIOSK default.
+
+The publication test holds the production event lock across separate database
+connections. Foreign-key inserts for that event must proceed while another
+publisher for the same event must wait. Commit and rollback both release the
+lock; different events and tenant isolation are checked independently.
