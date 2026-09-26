@@ -13,6 +13,15 @@ canonical import arithmetic and errors, material changes in reviewed tally
 sheets, CSV display fidelity, and SQL escaping through PostgreSQL's real parser.
 No test sends mail, SMS or election data to an external service.
 
+Tally execution CSV exports retain `documents` and `run_reason` as historical
+metadata. Import deliberately clears both: generated SQLite/XLSX document IDs
+belong to the source event and need scoped artifact restoration before reuse,
+while a retained `RECOUNT` would request another tally on the next board tick.
+`postgres_results_adapters.rs` verifies this export/import contract, and
+`postgres_ceremony_adapters.rs` verifies that bulk insertion clears both fields.
+The export header still names every serialized column so readers can inspect
+the complete source record.
+
 Use PostgreSQL 16 on loopback port 3322 with the synthetic `test` user/password
 and database, matching `.github/workflows/tests.yml`. Each query test uses its
 own transaction; the unsafe-string-mode test uses a separate connection option.
