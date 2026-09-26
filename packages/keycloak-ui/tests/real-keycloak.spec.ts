@@ -12,7 +12,7 @@
 //   KEYCLOAK_ADMIN, KEYCLOAK_ADMIN_PASSWORD  the development admin
 import {randomBytes, randomUUID} from "node:crypto"
 import {readFileSync, statSync, writeFileSync} from "node:fs"
-import {join} from "node:path"
+import {dirname, join} from "node:path"
 import {loadavg} from "node:os"
 import {expect, test, type Page} from "@playwright/test"
 import {scanPage} from "@sequentech/ui-test-kit/adapters/axe"
@@ -45,6 +45,40 @@ const CLIENT_IDS: Record<Theme, string> = {
 
 type Json = Record<string, unknown>
 const evidence: Record<string, unknown> = {keycloak: KEYCLOAK, realm: REALM}
+
+async function captureEvidence(page: Page, name: string): Promise<void> {
+    if (EVIDENCE_FILE !== "") {
+        await page.screenshot({path: join(dirname(EVIDENCE_FILE), `${name}.png`), fullPage: true})
+        await page.locator(":focus").scrollIntoViewIfNeeded()
+        await page.screenshot({path: join(dirname(EVIDENCE_FILE), `${name}-viewport.png`)})
+        evidence[name] = await page.evaluate(() => ({
+            width: innerWidth,
+            height: innerHeight,
+            scrollY,
+            devicePixelRatio,
+            controls: Array.from(
+                document.querySelectorAll(
+                    "#username, #otp-inputs input, #kc-form-submit, #resend-otp-btn"
+                )
+            ).map((element) => {
+                const style = getComputedStyle(element)
+                const bounds = element.getBoundingClientRect()
+                return {
+                    id: element.id,
+                    display: style.display,
+                    visibility: style.visibility,
+                    opacity: style.opacity,
+                    color: style.color,
+                    backgroundColor: style.backgroundColor,
+                    width: bounds.width,
+                    height: bounds.height,
+                    top: bounds.top,
+                    left: bounds.left,
+                }
+            }),
+        }))
+    }
+}
 
 async function adminToken(): Promise<string> {
     const response = await fetch(`${KEYCLOAK}/realms/master/protocol/openid-connect/token`, {
@@ -276,17 +310,25 @@ for (const theme of [Theme.React, Theme.Ftl]) {
     }) => {
         await page.route(`${CALLBACK}**`, (route) => route.fulfill({status: 200, body: "callback"}))
         const {state, offset} = await passwordStep(page, theme)
-        await expect(page.locator("#kc-page-title")).toContainText(
-            "OTP (One Time Password) was sent to"
-        )
+        await expect(page.getByText("We sent a code to", {exact: false})).toBeVisible()
+        await expect(page.getByRole("group", {name: "Verification code"})).toBeVisible()
+        for (let digit = 1; digit <= 6; digit += 1) {
+            await expect(page.getByLabel(`Digit ${digit} of 6`, {exact: true})).toBeVisible()
+        }
         const otpAxe = await scanPage(page)
         const instruction = (await page.locator(".kc-message-otl-instructions").innerText()).trim()
         expect(instruction).toBe("Enter the code we sent to your email.")
         if (theme === Theme.React) expect(otpAxe).toEqual([])
+        expect(otpAxe.filter(({id}) => id === "label")).toEqual([])
         const context = theme === Theme.React ? await kcContext(page) : undefined
         const html = await page.content()
         const code = await sentCode(offset)
-        await enterCode(page, code)
+        // Exercise the single-event input used by one-time-code autofill in
+        // both themes. Six separate fills cannot detect truncation of that path.
+        await page.locator("#otp-1").fill(code)
+        await expect(page.locator("#code")).toHaveValue(code)
+        await expect(page.locator("#kc-form-submit")).toBeFocused()
+        await page.keyboard.press("Enter")
         await page.waitForURL((url) => url.href.startsWith(CALLBACK))
         const callback = new URL(page.url())
         expect(callback.searchParams.get("state")).toBe(state)
@@ -319,6 +361,7 @@ for (const theme of [Theme.React, Theme.Ftl]) {
             otpAxeViolations: otpAxe,
             otpInstruction: instruction,
             otpHtmlBytes: html.length,
+            codeEntry: "whole-code input event",
         }
         if (context !== undefined) {
             expect(context.courier).toBe("EMAIL")
@@ -354,23 +397,34 @@ for (const theme of [Theme.React, Theme.Ftl]) {
         await enterCode(page, code === "000000" ? "111111" : "000000")
         await expect(page.getByText("Invalid code entered, please enter it again.")).toBeVisible()
         await expect(page.locator("#otp-1")).toBeVisible()
+        if (theme === Theme.React) {
+            await expect(page.getByRole("alert")).toContainText(
+                "Invalid code entered, please enter it again."
+            )
+            await expect(page.locator("#otp-1")).toBeFocused()
+            for (let digit = 1; digit <= 6; digit += 1) {
+                await expect(page.locator(`#otp-${digit}`)).toHaveAttribute("aria-invalid", "true")
+                await expect(page.locator(`#otp-${digit}`)).toHaveAccessibleDescription(
+                    /Invalid code entered, please enter it again\./
+                )
+            }
+        }
         evidence[`${theme}.wrongCode`] = {ok: true}
     })
 
     test(`${theme}: Spanish through ui_locales`, async ({page}) => {
         await page.goto(authorizeUrl(theme, randomUUID(), "es"))
-        await expect(page.locator("#kc-page-title")).toContainText(
-            "Iniciar sesión en el Portal de Administración"
-        )
+        await expect(page.locator("#kc-page-title")).toContainText("Iniciar sesión para continuar")
         const loginAxe = await scanPage(page)
         if (theme === Theme.React) expect(loginAxe).toEqual([])
+        await expect(page.locator("html")).toHaveAttribute("lang", /^es(?:-|$)/)
+        if (theme === Theme.React) await expect(page.locator("html")).toHaveAttribute("dir", "ltr")
         const loginContext = theme === Theme.React ? await kcContext(page) : undefined
         await page.locator("#username").fill(USERNAME)
         await page.locator("#password").fill(PASSWORD)
         await page.locator("#kc-login").click()
-        await expect(page.locator("#kc-page-title")).toContainText(
-            "Su OTP (Código de Autenticación) fue enviado a"
-        )
+        await expect(page.getByText("Enviamos un código a", {exact: false})).toBeVisible()
+        await expect(page.getByLabel("Dígito 1 de 6", {exact: true})).toBeVisible()
         evidence[`${theme}.spanish`] = {
             ok: true,
             loginAxeViolations: loginAxe,
@@ -383,6 +437,212 @@ for (const theme of [Theme.React, Theme.Ftl]) {
         }
     })
 }
+
+test("react: wrong credentials announce the error and describe both fields", async ({page}) => {
+    await page.goto(authorizeUrl(Theme.React, randomUUID()))
+    await page.locator("#username").fill(USERNAME)
+    await page.locator("#password").fill(`${PASSWORD}-incorrect`)
+    await page.locator("#kc-login").click()
+    const alert = page.getByRole("alert")
+    await expect(alert).toContainText("Invalid username or password.")
+    await expect(page.locator("#username")).toBeFocused()
+    for (const field of ["username", "password"]) {
+        await expect(page.locator(`#${field}`)).toHaveAttribute("aria-invalid", "true")
+        await expect(page.locator(`#${field}`)).toHaveAccessibleDescription(
+            "Invalid username or password."
+        )
+    }
+    await expect(page.locator("#username")).toHaveAttribute("autocomplete", "username")
+    await expect(page.locator("#password")).toHaveAttribute("autocomplete", "current-password")
+    await page.keyboard.press("Tab")
+    await page.keyboard.press("Shift+Tab")
+    await captureEvidence(page, "real-login-error-focus")
+    evidence.credentialError = {ok: true, bothFieldsDescribed: true, usernameFocused: true}
+})
+
+test("react: the language selector follows the realm's locale link", async ({page}) => {
+    await page.goto(authorizeUrl(Theme.React, randomUUID(), "en"))
+    const language = page.getByRole("combobox", {name: "Languages"})
+    await expect(language).toHaveValue("en")
+    await language.selectOption("es")
+    await expect(page.getByRole("button", {name: "INICIAR SESIÓN"})).toBeVisible()
+    await expect(page.locator("html")).toHaveAttribute("lang", /^es(?:-|$)/)
+    await expect(page.locator("html")).toHaveAttribute("dir", "ltr")
+    await expect(page.locator("#username")).toBeFocused()
+    evidence.localeSelector = {ok: true, selectedLanguage: "es", direction: "ltr"}
+})
+
+test("react: realm options retain remember-me and native recovery and registration links", async ({
+    page,
+}) => {
+    const token = await adminToken()
+    const realm = (await (await admin(token, "GET", "")).json()) as Json
+    await admin(token, "PUT", "", {
+        ...realm,
+        rememberMe: true,
+        resetPasswordAllowed: true,
+        registrationAllowed: true,
+    })
+    try {
+        await page.goto(authorizeUrl(Theme.React, randomUUID()))
+        const remember = page.getByRole("checkbox", {name: "Remember me"})
+        await remember.check()
+        expect(
+            await page
+                .locator("#kc-form-login")
+                .evaluate((form) => new FormData(form as HTMLFormElement).get("rememberMe"))
+        ).toBe("on")
+        await remember.uncheck()
+        expect(
+            await page
+                .locator("#kc-form-login")
+                .evaluate((form) => new FormData(form as HTMLFormElement).has("rememberMe"))
+        ).toBe(false)
+        const context = await kcContext(page)
+        const urls = context.url as Record<string, string>
+        await expect(page.getByRole("link", {name: "Forgot Password?"})).toHaveAttribute(
+            "href",
+            urls.loginResetCredentialsUrl
+        )
+        await expect(page.getByRole("link", {name: "Register", exact: true})).toHaveAttribute(
+            "href",
+            urls.registrationUrl
+        )
+        await page.getByRole("link", {name: "Forgot Password?"}).click()
+        await expect(page.locator("#kc-reset-password-form")).toBeVisible()
+        await expect(page.locator("#username")).toBeVisible()
+        await page.goto(authorizeUrl(Theme.React, randomUUID()))
+        await page.getByRole("link", {name: "Register", exact: true}).click()
+        await expect(page.locator("#kc-register-form")).toBeVisible()
+        evidence.realmLoginOptions = {
+            ok: true,
+            rememberMe: true,
+            recovery: true,
+            registration: true,
+        }
+    } finally {
+        await admin(token, "PUT", "", realm)
+    }
+})
+
+test("configured identity providers retain the FreeMarker login boundary", async ({page}) => {
+    const token = await adminToken()
+    const alias = "synthetic-organisation"
+    await admin(token, "POST", "/identity-provider/instances", {
+        alias,
+        displayName: "Synthetic organisation",
+        providerId: "oidc",
+        enabled: true,
+        config: {
+            clientId: "synthetic-client",
+            authorizationUrl: "https://identity.example.test/authorize",
+            tokenUrl: "https://identity.example.test/token",
+            defaultScope: "openid",
+        },
+    })
+    try {
+        for (const theme of [Theme.Ftl, Theme.React]) {
+            await page.goto(authorizeUrl(theme, randomUUID()))
+            const provider = page.getByRole("link", {name: "Synthetic organisation"})
+            await expect(provider).toBeVisible()
+            const href = new URL((await provider.getAttribute("href"))!, page.url())
+            expect(href.pathname).toBe(`/realms/${REALM}/broker/${alias}/login`)
+            await expect(page.locator("#kc-social-providers")).toBeVisible()
+            await expect(page.locator("#username")).toBeVisible()
+        }
+        evidence.identityProviderFallback = {ok: true, serverBrokerLinksPreserved: true}
+    } finally {
+        await admin(token, "DELETE", `/identity-provider/instances/${alias}`)
+    }
+})
+
+test("react: login and OTP reflow while keyboard focus remains reachable", async ({page}) => {
+    const observations: Json[] = []
+    for (const step of ["login", "otp"]) {
+        if (step === "login") await page.goto(authorizeUrl(Theme.React, randomUUID()))
+        else await passwordStep(page, Theme.React)
+        const first = page.locator(step === "login" ? "#username" : "#otp-1")
+        await expect(first).toBeVisible()
+        await page.evaluate(() => document.fonts.ready)
+        for (const {width, fontSize} of [
+            {width: 1280, fontSize: "100%"},
+            {width: 320, fontSize: "100%"},
+            {width: 1280, fontSize: "200%"},
+            {width: 320, fontSize: "200%"},
+        ]) {
+            await page.setViewportSize({width, height: 720})
+            await page.evaluate((size) => {
+                document.documentElement.style.fontSize = size
+            }, fontSize)
+            const dimensions = await page.evaluate(() => ({
+                width: document.documentElement.clientWidth,
+                scrollWidth: document.documentElement.scrollWidth,
+            }))
+            expect(
+                dimensions.scrollWidth,
+                `${step}, ${width}px, text ${fontSize}`
+            ).toBeLessThanOrEqual(dimensions.width + 1)
+            await first.focus()
+            if (width === 320 && fontSize === "200%") {
+                await page.keyboard.press("Tab")
+                await page.keyboard.press("Shift+Tab")
+                await captureEvidence(page, `real-${step}-320-text-200-focus`)
+            }
+            const visibleFocus: string[] = []
+            for (let index = 0; index < (step === "login" ? 4 : 7); index += 1) {
+                const focused = page.locator(":focus")
+                await expect(focused).toBeVisible()
+                await expect(focused).toBeInViewport()
+                const result = await focused.evaluate((element) => {
+                    const bounds = element.getBoundingClientRect()
+                    const focusSurfaces = [element, element.closest(".MuiOutlinedInput-root")]
+                    const focusIndicator = focusSurfaces.some((surface) => {
+                        if (surface === null) return false
+                        const style = getComputedStyle(surface)
+                        return (
+                            Number.parseFloat(style.outlineWidth) > 0 &&
+                            style.outlineStyle !== "none"
+                        )
+                    })
+                    const x = Math.min(Math.max(bounds.left + bounds.width / 2, 0), innerWidth - 1)
+                    const y = Math.min(Math.max(bounds.top + bounds.height / 2, 0), innerHeight - 1)
+                    const covering = document.elementFromPoint(x, y)
+                    return {
+                        name: element.id || element.getAttribute("aria-label") || element.tagName,
+                        width: bounds.width,
+                        height: bounds.height,
+                        focusIndicator,
+                        unobscured:
+                            covering === element ||
+                            (covering !== null && element.contains(covering)),
+                    }
+                })
+                expect(result.unobscured, `${step}: ${result.name}`).toBe(true)
+                expect(
+                    result.focusIndicator,
+                    `${step}: ${result.name} has a visible focus outline`
+                ).toBe(true)
+                expect(result.width, `${step}: ${result.name} target width`).toBeGreaterThanOrEqual(
+                    24
+                )
+                expect(
+                    result.height,
+                    `${step}: ${result.name} target height`
+                ).toBeGreaterThanOrEqual(24)
+                visibleFocus.push(result.name)
+                await page.keyboard.press("Tab")
+            }
+            observations.push({step, fontSize, ...dimensions, visibleFocus})
+        }
+        await page.evaluate(() => {
+            document.documentElement.style.fontSize = ""
+        })
+        await page.setViewportSize({width: 1280, height: 720})
+    }
+    // 320 CSS px represents the reflow width of a 1280px viewport at 400% zoom;
+    // this test does not claim native browser-zoom or assistive-technology coverage.
+    evidence.reflowAndFocus = {ok: true, observations}
+})
 
 test("realm localization overrides reach each theme", async ({page}) => {
     const token = await adminToken()
@@ -587,7 +847,7 @@ test("automatic reload preserves a real login and OTP session", async ({page, br
     }
     for (const [step, file, anchor] of [
         ["login", "Login.tsx", 'headerNode={msg("loginAccountTitle")}'],
-        ["otp", "MessageOtpLogin.tsx", "headerNode={msg(`messageOtp.${flow}.address`, address)}"],
+        ["otp", "MessageOtpLogin.tsx", "headerNode={msg(`messageOtp.${flow}.title`)}"],
     ]) {
         const source = join(process.cwd(), "src/login/pages", file)
         const original = readFileSync(source, "utf8")
@@ -669,5 +929,5 @@ test("automatic reload preserves a real login and OTP session", async ({page, br
     } finally {
         writeFileSync(messages, originalMessages)
     }
-    await expect(page.locator("#kc-page-title")).toHaveText("Login to the Admin Portal")
+    await expect(page.locator("#kc-page-title")).toHaveText("Sign in to continue")
 })
