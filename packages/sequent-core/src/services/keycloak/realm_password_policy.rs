@@ -44,6 +44,7 @@ impl PasswordPolicyCache {
         }
     }
 
+    #[instrument(skip(self))]
     fn get(&self, realm: &str) -> Option<ParsedRealmPasswordPolicy> {
         self.entries.get(realm).and_then(|(cached_at, policy)| {
             (cached_at.elapsed() < self.ttl).then(|| {
@@ -53,6 +54,7 @@ impl PasswordPolicyCache {
         })
     }
 
+    #[instrument(skip(self))]
     fn insert(
         &mut self,
         realm: &str,
@@ -68,6 +70,7 @@ impl PasswordPolicyCache {
         }
     }
 
+    #[instrument(skip(self))]
     fn invalidate(&mut self, realm: &str) {
         self.entries.remove(realm);
         self.generation += 1;
@@ -638,6 +641,7 @@ impl ParsedRealmPasswordPolicy {
     }
 }
 
+#[instrument(err)]
 pub async fn get_realm_password_policy(
     tenant_id: &str,
     election_event_id: &str,
@@ -659,6 +663,7 @@ pub async fn get_realm_password_policy(
         })
 }
 
+#[instrument(err)]
 pub async fn update_realm_password_policy(
     tenant_id: &str,
     election_event_id: &str,
