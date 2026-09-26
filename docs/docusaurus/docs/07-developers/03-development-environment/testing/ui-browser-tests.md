@@ -64,6 +64,26 @@ yarn --cwd packages/ui-test-kit test
 yarn --cwd packages/voting-portal test:journeys
 ```
 
+Portal journeys and `ui-test-kit` contracts use the Chromium version pinned by
+Playwright, including its OS libraries. They do not use
+`CHROMIUM_EXECUTABLE_PATH`; that override is for Storybook. On a supported OS,
+`yarn --cwd packages/voting-portal playwright install --with-deps chromium`
+installs both. In a Nix/devenv environment, run the built journeys in the same
+pinned image as CI instead, from the repository root:
+
+```sh
+docker run --rm --init --ipc=host --user "$(id -u):$(id -g)" \
+  -v "$PWD:/workspace" -w /workspace/packages/voting-portal \
+  mcr.microsoft.com/playwright:v1.62.1-noble \
+  node ../node_modules/@playwright/test/cli.js test --config playwright.journeys.config.ts
+```
+
+Replace the package for another portal after building its production output.
+For `ui-test-kit`, use its `playwright.config.ts`. `step-dev test` checks the
+suite's actual browser with a bounded launch/close before preparing or running
+tests; it does not install browsers or OS dependencies. Workbench smoke tests
+also support their own `WORKBENCH_TEST_CHROME_PATH` override.
+
 Add journeys under `packages/voting-portal/test/journeys/`, importing its `test`
 fixture for a fresh browser context, clock and service mocks. The shared
 `packages/ui-test-kit` validates GraphQL against the portal schema, checks OIDC
