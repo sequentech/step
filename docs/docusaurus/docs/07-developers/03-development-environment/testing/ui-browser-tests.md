@@ -124,6 +124,32 @@ and assert that a route change uses the new event's token.
 
 The ballot verifier's `test:journeys` runs against its production build and the voting portal's production build. Run `yarn build:ui-core`, `yarn build:ui-essentials`, `yarn build:ballot-verifier`, and `yarn build:voting-portal` from `packages`, then `yarn --cwd ballot-verifier test:types` and `yarn --cwd ballot-verifier test:journeys`. Its Node fixture encrypts and signs real single- and multiple-contest ballots; the cross-portal case imports the exact voting-portal audit download. Invalid inputs first pass a valid control, then change only the signature, JSON, or supplied ballot ID. Confirmation stories and the production scan require semantic candidate lists, including blank selections and grouped contest choices. Authentication-disabled journeys complete verification without private service requests.
 
+The verifier's opt-in Vite build runs the same journeys. After preparing the
+shared packages and voting portal above, use:
+
+```sh
+yarn --cwd packages/ballot-verifier build:vite
+BALLOT_VERIFIER_JOURNEY_DIST=dist-vite yarn --cwd packages/ballot-verifier test:journeys
+```
+
+To check development behavior, start `yarn --cwd packages/ballot-verifier start:vite`
+in another terminal, then run:
+
+```sh
+BALLOT_VERIFIER_JOURNEY_URL=http://127.0.0.1:3001 yarn --cwd packages/ballot-verifier test:journeys
+```
+
+This adds a regression journey that edits and restores a leaf component, shared
+Header and core translation, checking React state and the browser error ledger.
+Run it against an idle checkout so it owns those temporary edits. With the pinned
+Playwright image, pass the selected variable with Docker `-e`; development tests
+also need the server's network namespace (`--network container:<devcontainer>`,
+or `--network host` for a server on the Linux host) and a writable checkout mount.
+Production journeys remain strict; only the explicitly selected development
+origin's Vite HMR websocket is allowed. Webpack remains the default/release/CI
+path; this configuration has not been validated for other portals' assets or
+bootstrap lifecycles.
+
 Admin production journeys use `yarn --cwd packages/admin-portal test:journeys` after building the shared UI packages and admin portal. `test:types` checks their fixtures; `typecheck:stories` checks admin stories. The fixture answers the known React-admin telemetry request locally and rejects every other unexpected service request. Tally and policy stories use strict data-provider and Apollo boundaries; form submission assertions check serialized policy values.
 
 Admin journeys verify event creation/import, voter changes with confirmation and restricted permissions, session refresh/logout/tenant selection, and publication generation through voting closure. Story form assertions check each saved policy value. Shared story fixtures allow only the exact Vite/Vitest runner sockets; caught application WebSocket attempts and asset writes still fail teardown.
