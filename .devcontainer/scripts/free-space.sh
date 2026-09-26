@@ -9,7 +9,10 @@ disk-usage() {
     df -h
 }
 
-export COMPOSE_FILE=/workspaces/step/.devcontainer/docker-compose.yml
+STEP_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=/dev/null
+source "${STEP_ROOT}/.devcontainer/.env"
+export COMPOSE_FILE="${STEP_ROOT}/.devcontainer/docker-compose.yml"
 
 df -h
 
@@ -27,6 +30,6 @@ disk-usage "Nix garbage collected"
 
 echo "Cleaning ImmuDB database..."
 docker compose rm -fs immudb &> /dev/null
-docker volume rm -f step_devcontainer_immudb_data &> /dev/null
+docker volume rm -f "${COMPOSE_PROJECT_NAME}_immudb_data" &> /dev/null
 docker compose up -d --no-recreate immudb &> /dev/null
 disk-usage "ImmuDB cleaned up"

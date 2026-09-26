@@ -10,7 +10,7 @@ include:
 services:
   keycloak:
     profiles: ["full", "base"]
-    container_name: keycloak
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}keycloak
     build:
       context: ../packages
       dockerfile: Dockerfile.keycloak
@@ -95,7 +95,7 @@ services:
 
   keycloak-nginx:
     profiles: ["full", "base"]
-    container_name: keycloak-nginx
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}keycloak-nginx
     build:
       context: .
       dockerfile: keycloak-nginx/Dockerfile

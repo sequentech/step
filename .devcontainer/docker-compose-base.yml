@@ -6,7 +6,7 @@ services:
   devcontainer:
     profiles: ["full", "base"]
     image: ghcr.io/cachix/devenv/devcontainer:v1.10
-    container_name: devcontainer
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}devcontainer
     volumes:
     - type: bind
       source: ../..
@@ -30,7 +30,7 @@ services:
   simplesamlphp:
     profiles: ["full"]
     image: sequentech.local/simplesamlphp
-    container_name: simplesamlphp
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}simplesamlphp
     build:
       context: ./simplesamlphp
       dockerfile: Dockerfile
@@ -63,7 +63,7 @@ services:
   postgres-volume-init:
     profiles: ["full", "base"]
     image: alpine
-    container_name: postgres-volume-init
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres-volume-init
     volumes:
       - db_logs:/logs
       - keycloak_db_logs:/keycloak_logs
@@ -79,7 +79,7 @@ services:
     # Required by VACUUM ANALYZE to work properly
     shm_size: 256m
     image: sequentech.local/postgresql
-    container_name: postgres
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres
     build:
       context: ./postgresql
       dockerfile: Dockerfile
@@ -101,7 +101,7 @@ services:
 
   minio:
     profiles: ["full", "base"]
-    container_name: minio
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}minio
     image: quay.io/minio/minio
     #recommend way for docker-outside-of-docker is using devcontainer.json forwardPorts
     #More info: https://github.com/microsoft/vscode-dev-containers/blob/main/containers/docker-from-docker-compose/.devcontainer/docker-compose.yml#L28
@@ -133,7 +133,7 @@ services:
   # used to add headers to minio
   minio-proxy:
     profiles: ["full", "base"]
-    container_name: minio-proxy
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}minio-proxy
     image: nginx:latest
     ports:
       - "9002:9002"
@@ -145,7 +145,7 @@ services:
 
   configure-minio:
     profiles: ["full", "base"]
-    container_name: configure-minio
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}configure-minio
     build:
       context: ./minio
       dockerfile: Dockerfile
@@ -174,7 +174,7 @@ services:
   # localstack/localstack:latest exits at startup without an auth token.
   localstack:
     profiles: [ "wbraid" ]
-    container_name: localstack
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}localstack
     image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
     ports:
       - "4566:4566"
@@ -192,7 +192,7 @@ services:
   # what localstack.ps1 does inline on Windows.
   configure-localstack:
     profiles: [ "wbraid" ]
-    container_name: configure-localstack
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}configure-localstack
     image: amazon/aws-cli
     volumes:
       - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
@@ -253,7 +253,7 @@ services:
     restart: unless-stopped
     ports:
       - "3005:3005"
-    working_dir: /workspaces/step/packages/wbraid
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/wbraid
     entrypoint: [
       "cargo",
       "watch",
@@ -330,14 +330,14 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: sequentech.local/loadtest
-    container_name: loadtest
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}loadtest
     restart: always
     build:
       context: ../
       dockerfile: ./packages/loadtesting/Dockerfile
     volumes_from:
       - devcontainer
-    working_dir: /workspaces/step/
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/
     entrypoint: [
       "tail",
       "-f",
@@ -347,7 +347,7 @@ services:
   graphql-engine:
     profiles: ["full", "base"]
     image: hasura/graphql-engine:v2.33.1.cli-migrations-v3
-    container_name: hasura
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}hasura
     ports:
       - "8080:8080"
     restart: always
@@ -356,8 +356,8 @@ services:
     environment:
       # applies migrations on start
       HASURA_GRAPHQL_MIGRATIONS_SERVER_TIMEOUT: 60
-      HASURA_GRAPHQL_MIGRATIONS_DIR: /workspaces/step/hasura/migrations
-      HASURA_GRAPHQL_METADATA_DIR: /workspaces/step/hasura/metadata
+      HASURA_GRAPHQL_MIGRATIONS_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/hasura/migrations
+      HASURA_GRAPHQL_METADATA_DIR: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/hasura/metadata
       ## postgres database to store Hasura metadata
       HASURA_GRAPHQL_METADATA_DATABASE_URL: ${HASURA_GRAPHQL_METADATA_DATABASE_URL}
       ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
@@ -393,7 +393,7 @@ services:
 
   data-connector-agent:
     profiles: ["full", "base"]
-    container_name: data-connector-agent
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}data-connector-agent
     image: hasura/graphql-data-connector:v2.31.0
     restart: always
     ports:
@@ -415,7 +415,7 @@ services:
     # Required by VACUUM ANALYZE to work properly
     shm_size: 256m
     image: sequentech.local/postgresql
-    container_name: postgres-keycloak
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres-keycloak
     restart: unless-stopped
     volumes:
       - keycloak_db_data:/var/lib/postgresql
@@ -479,7 +479,7 @@ services:
 
   immudb:
     profiles: ["full", "base"]
-    container_name: immudb
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}immudb
     image: sequentech.local/immudb
     build:
       context: ../packages/
@@ -503,12 +503,12 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: mock_server
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}mock_server
     volumes_from:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /workspaces/step/packages/e2e/src/mock_server
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/e2e/src/mock_server
     entrypoint: [
       "cargo",
       "watch",
@@ -529,7 +529,7 @@ services:
 
   janitor:
     profiles: ["full"]
-    container_name: janitor
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}janitor
     build:
       context: ../packages/windmill/external-bin/janitor/scripts
       dockerfile: Dockerfile.janitor
@@ -545,7 +545,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: harvest
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}harvest
     build:
       context: ../packages/
       dockerfile: ./Dockerfile.cargo-packages
@@ -553,7 +553,7 @@ services:
       - devcontainer
     depends_on:
       - devcontainer
-    working_dir: /workspaces/step/packages/harvest
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/harvest
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
       "cargo",
@@ -661,7 +661,7 @@ services:
   trustee1:
     profiles: ["full"]
     stdin_open: true
-    container_name: trustee1
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee1
     image: sequentech.local/braid
     volumes:
       - trustee1_data:/opt/braid
@@ -685,7 +685,7 @@ services:
     profiles: ["full"]
     stdin_open: true
     image: sequentech.local/braid
-    container_name: trustee2
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}trustee2
     volumes:
       - trustee2_data:/opt/braid
     # depending on the `trustee1` container to ensure that the
@@ -728,7 +728,7 @@ services:
   rabbitmq:
     profiles: ["full", "base"]
     image: rabbitmq:3.12.11-management
-    container_name: rabbitmq
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
@@ -740,7 +740,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: immudb-init
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}immudb-init
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
@@ -774,13 +774,13 @@ services:
 
   registry:
     profiles: ["full", "lambdas"]
-    container_name: registry
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}registry
     image: registry:2
     network_mode: host
 
   openwhisk:
     profiles: ["full", "lambdas"]
-    container_name: openwhisk
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}openwhisk
     image: openwhisk/standalone:nightly
     volumes:
     - type: bind
@@ -790,7 +790,7 @@ services:
 
   doc_renderer_lambda_build:
     profiles: ["full", "lambdas"]
-    container_name: doc_renderer_lambda_build
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}doc_renderer_lambda_build
     image: ${REGISTRY}/doc_renderer:latest
     build:
       context: ./../packages
@@ -821,7 +821,7 @@ services:
 
   doc_renderer:
     profiles: ["full", "lambdas"]
-    container_name: doc_renderer
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}doc_renderer
     image: openwhisk/standalone:nightly
     network_mode: host
     entrypoint: /bin/deploy-doc_renderer.sh
@@ -840,12 +840,12 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: windmill
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}windmill
     # make sure to depend on the `harvest` container to ensure
     # that the `sequentech.local/cargo-packages` image is locally build, so
     # that we can reuse it:
     restart: always
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
       "cargo",
@@ -961,7 +961,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: beat
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}beat
     volumes_from:
       - devcontainer
     # make sure to depend on the `harvest` container to ensure
@@ -974,7 +974,7 @@ services:
         condition: service_started
       harvest:
         condition: service_started
-    working_dir: /workspaces/step/packages/windmill
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/windmill
     entrypoint: ["/usr/local/bin/entrypoint.sh"]
     command: [
       "cargo",
@@ -1001,7 +1001,7 @@ services:
   postgres-b4:
     profiles: ["full", "base"]
     image: sequentech.local/postgresql-b4
-    container_name: postgres-b4
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}postgres-b4
     build:
       context: ./postgresql-b4
       dockerfile: Dockerfile
@@ -1026,7 +1026,7 @@ services:
     profiles: ["full", "base"]
     stdin_open: true
     image: sequentech.local/cargo-packages
-    container_name: b4
+    container_name: ${DEVCONTAINER_NAME_PREFIX:-}b4
     restart: always
     ports:
       - "50051:50051"
@@ -1038,7 +1038,7 @@ services:
     depends_on:
       #- devcontainer
       - postgres-b4
-    working_dir: /workspaces/step/packages/b4
+    working_dir: ${DEVCONTAINER_WORKSPACE_FOLDER:-/workspaces/step}/packages/b4
     entrypoint: [
       "cargo",
       "watch",
