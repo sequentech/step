@@ -5,6 +5,7 @@ import type {StorybookConfig} from "@storybook/react-vite"
 import {fileURLToPath} from "node:url"
 import {resolve} from "node:path"
 import {mergeConfig} from "vite"
+import {sequentCoreViteAlias} from "../../ui-core/sequent-core-dev.cjs"
 
 const sourceEntry = (workspace: string) =>
     fileURLToPath(new URL(`../../${workspace}/src/index.tsx`, import.meta.url))
@@ -84,6 +85,7 @@ const config: StorybookConfig = {
                         find: /^@sequentech\/ui-essentials$/,
                         replacement: sourceEntry("ui-essentials"),
                     },
+                    ...sequentCoreViteAlias(),
                 ],
             },
             // sequent-core fetches its .wasm relative to its own module URL.

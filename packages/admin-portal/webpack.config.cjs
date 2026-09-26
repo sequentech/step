@@ -15,6 +15,7 @@ const {ProgressPlugin} = require("webpack")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
 const {withPortalDevelopment} = require("../ui-essentials/webpack.portal.cjs")
+const {sequentCoreWebpackAlias} = require("../ui-core/sequent-core-dev.cjs")
 
 class InterpolateHtmlPlugin {
     // Replaces %VARIABLE% with the corresponding variable from the replacements object
@@ -84,6 +85,7 @@ module.exports = function (env, argv) {
             alias: {
                 "@root": path.resolve(__dirname, "src"),
                 "@": path.resolve(__dirname, "src"),
+                ...sequentCoreWebpackAlias(argv.mode),
             },
             extensions: [".js", ".jsx", ".ts", ".tsx"],
         },
