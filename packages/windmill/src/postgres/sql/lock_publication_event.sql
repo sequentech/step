@@ -3,4 +3,4 @@
 
 SELECT id FROM sequent_backend.election_event
 WHERE tenant_id = $1 AND id = $2
-FOR UPDATE;
+FOR NO KEY UPDATE;
