@@ -8,6 +8,7 @@
 import type {FetchResult, Operation} from "@apollo/client"
 import type {DataProvider, RaRecord} from "react-admin"
 import {dataBoundary} from "@/__stories__/dataBoundary"
+import {eventPresentation, eventRecord} from "@/__stories__/fixtures"
 import {resourceBoundary, type ResourceBoundaryOptions} from "@/__stories__/resourceBoundary"
 import {pending} from "../../../../../ui-essentials/.storybook/screens"
 
@@ -70,3 +71,12 @@ export const paramsOf = (
     method: string,
     resource: string
 ) => boundary.calls.find((call) => call.method === method && call.args[0] === resource)?.args[1]
+
+/** Translation overrides of the election event, by language and scoped key. */
+export const OVERRIDES = {
+    en: {"votingPortal:welcome": "Welcome, voters", "global:footer": "Council footer"},
+    es: {"votingPortal:welcome": "Bienvenidos"},
+}
+
+export const localizedEvent = (overrides: Record<string, Record<string, string>> = OVERRIDES) =>
+    eventRecord(undefined, {presentation: {...eventPresentation, i18n: overrides}})
