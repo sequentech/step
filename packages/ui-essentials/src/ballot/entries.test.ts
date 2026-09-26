@@ -17,7 +17,11 @@ const valueExports = (path: string): Set<string> => {
     const names = new Set<string>()
     for (const match of source.matchAll(/export\s+\{([^}]*)\}\s+from/g)) {
         for (const entry of match[1].split(",")) {
-            const name = entry.trim().split(/\s+as\s+/).pop()?.trim()
+            const name = entry
+                .trim()
+                .split(/\s+as\s+/)
+                .pop()
+                ?.trim()
             if (name) {
                 names.add(name)
             }

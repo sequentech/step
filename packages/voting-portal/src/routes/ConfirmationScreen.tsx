@@ -3,11 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState, useEffect, useContext, useCallback, useRef, useMemo} from "react"
 import {useTranslation} from "react-i18next"
-import {
-    ConfirmationLayout,
-    Dialog,
-    ConfirmationActions,
-} from "@sequentech/ui-essentials"
+import {ConfirmationLayout, Dialog, ConfirmationActions} from "@sequentech/ui-essentials"
 import {
     stringToHtml,
     IElectionEventPresentation,

@@ -293,8 +293,7 @@ export const ConfirmationLayout: React.FC<IConfirmationLayoutProps> = ({
                                     sx={{
                                         fontSize: "unset",
                                         lineHeight: "unset",
-                                        marginLeft:
-                                            ballotIdCopyLabels === undefined ? "16px" : 0,
+                                        marginLeft: ballotIdCopyLabels === undefined ? "16px" : 0,
                                     }}
                                     fontSize="18px"
                                     onClick={onBallotIdHelp}

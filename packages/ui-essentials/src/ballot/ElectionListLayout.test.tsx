@@ -145,9 +145,7 @@ describe("the ovcs fixes carried into the shared ballot list", () => {
 
         const banner = screen.getByTestId("the-banner")
         const list = document.querySelector(".elections-list")
-        expect(banner.compareDocumentPosition(list as Node)).toBe(
-            Node.DOCUMENT_POSITION_FOLLOWING
-        )
+        expect(banner.compareDocumentPosition(list as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     })
 
     it("is a list only when the host says so", () => {

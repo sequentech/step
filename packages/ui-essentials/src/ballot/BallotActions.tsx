@@ -78,8 +78,7 @@ export const BallotActions = ({
     const clear = t("votingScreen.clearButton")
     const next = t("votingScreen.reviewButton")
 
-    const backLink =
-        backComponent === undefined ? {} : {component: backComponent, to: backTo}
+    const backLink = backComponent === undefined ? {} : {component: backComponent, to: backTo}
 
     return (
         <>

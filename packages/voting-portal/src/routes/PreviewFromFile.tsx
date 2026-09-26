@@ -187,11 +187,7 @@ export const PreviewFromFile: React.FC = () => {
                 </Typography>
 
                 <Box className="preview-file-picker">
-                    <Button
-                        className="preview-file-button"
-                        variant="contained"
-                        component="label"
-                    >
+                    <Button className="preview-file-button" variant="contained" component="label">
                         {t("previewFromFile.choose", "Choose a preview file")}
                         <input
                             className="preview-file-input"

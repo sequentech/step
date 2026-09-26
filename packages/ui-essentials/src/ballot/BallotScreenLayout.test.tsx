@@ -106,9 +106,7 @@ describe("the ovcs fixes carried into the shared ballot screen", () => {
     it("titles the screen as its one level-one heading", () => {
         asThePortalCallsIt()
 
-        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent(
-            "Board of Directors 2027"
-        )
+        expect(screen.getByRole("heading", {level: 1})).toHaveTextContent("Board of Directors 2027")
         expect(document.querySelector(".screen-title")).not.toBeNull()
         expect(document.querySelector(".screen-description")).not.toBeNull()
     })

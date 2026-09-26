@@ -161,10 +161,7 @@ module.exports = function (env, argv) {
                     // already built and must not be transpiled again. The ballot
                     // pass transpiles ui-core's source in the rule above instead.
                     exclude: ballotOnly
-                        ? [
-                              /node_modules|[\\/]dist[\\/]/,
-                              path.resolve(__dirname, "../ui-core/src"),
-                          ]
+                        ? [/node_modules|[\\/]dist[\\/]/, path.resolve(__dirname, "../ui-core/src")]
                         : /node_modules|[\\/]dist[\\/]/,
                     use: ["babel-loader", "ts-loader"],
                 },
